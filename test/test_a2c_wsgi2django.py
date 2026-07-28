@@ -245,9 +245,13 @@ def _migrate_django_db() -> None:
 @pytest.fixture
 def clean_django_db() -> None:
     """Wipe migratable ACME rows; keep Status and housekeeping.dbversion."""
+    from django.core.management import call_command
+
     migrator.wipe_acme_data(dry_run=False)
     from acme2certifier.django_app.models import Housekeeping, Status
 
+    if Status.objects.count() != 8:
+        call_command("loaddata", "status", verbosity=0)
     assert Status.objects.count() == 8
     assert Housekeeping.objects.filter(name="dbversion").exists()
 
@@ -271,7 +275,7 @@ def sample_dump(wsgi_db: Path) -> Dict[str, Any]:
     return migrator.build_dump(wsgi_db, include_nonces=False)
 
 
-def test_export_builds_schema_v1_dump(wsgi_db: Path, tmp_path: Path) -> None:
+def test_001_export_builds_schema_v1_dump(wsgi_db: Path, tmp_path: Path) -> None:
     """Export produces meta + tables with expected counts and preserved PKs."""
     out = tmp_path / "dump.json"
     dump = migrator.build_dump(wsgi_db, include_nonces=False)
@@ -315,7 +319,7 @@ def test_export_builds_schema_v1_dump(wsgi_db: Path, tmp_path: Path) -> None:
     assert tables["housekeeping"][0]["value"] == __dbversion__
 
 
-def test_export_fk_integrity(wsgi_db: Path) -> None:
+def test_002_export_fk_integrity(wsgi_db: Path) -> None:
     """Dump FK ids resolve within exported parent tables."""
     dump = migrator.build_dump(wsgi_db)
     tables = dump["tables"]
@@ -339,7 +343,7 @@ def test_export_fk_integrity(wsgi_db: Path) -> None:
         assert row["order_id"] in order_ids
 
 
-def test_export_include_nonces(wsgi_db: Path) -> None:
+def test_003_export_include_nonces(wsgi_db: Path) -> None:
     """--include-nonces populates tables.nonce and meta.include_nonces."""
     dump = migrator.build_dump(wsgi_db, include_nonces=True)
     assert dump["meta"]["include_nonces"] is True
@@ -347,7 +351,7 @@ def test_export_include_nonces(wsgi_db: Path) -> None:
     assert dump["tables"]["nonce"][0]["nonce"] == "nonce-abc"
 
 
-def test_export_cli_writes_file(wsgi_db: Path, tmp_path: Path, capsys: Any) -> None:
+def test_004_export_cli_writes_file(wsgi_db: Path, tmp_path: Path, capsys: Any) -> None:
     """CLI export subcommand writes dump and prints summary."""
     out = tmp_path / "out" / "dump.json"
     rc = migrator.main(
@@ -362,7 +366,7 @@ def test_export_cli_writes_file(wsgi_db: Path, tmp_path: Path, capsys: Any) -> N
     assert "wrote dump:" in captured.out
 
 
-def test_export_fails_wrong_dbversion(tmp_path: Path) -> None:
+def test_005_export_fails_wrong_dbversion(tmp_path: Path) -> None:
     """Refuse export when housekeeping.dbversion mismatches __dbversion__."""
     db_path = tmp_path / "bad_version.db"
     conn = sqlite3.connect(str(db_path))
@@ -385,7 +389,7 @@ def test_export_fails_wrong_dbversion(tmp_path: Path) -> None:
     assert rc == 1
 
 
-def test_export_fails_contact_overflow(wsgi_db: Path) -> None:
+def test_006_export_fails_contact_overflow(wsgi_db: Path) -> None:
     """Refuse export when Account.contact exceeds Django CharField(255)."""
     conn = sqlite3.connect(str(wsgi_db))
     try:
@@ -401,7 +405,7 @@ def test_export_fails_contact_overflow(wsgi_db: Path) -> None:
         migrator.build_dump(wsgi_db)
 
 
-def test_export_skips_dangling_fk_with_warning(
+def test_007_export_skips_dangling_fk_with_warning(
     wsgi_db: Path, capsys: Any
 ) -> None:
     """Orphan FK rows are skipped with a warning; export still succeeds."""
@@ -425,7 +429,7 @@ def test_export_skips_dangling_fk_with_warning(
     assert len(dump["tables"]["account"]) == 1
 
 
-def test_export_skips_certificate_with_order_id_zero(
+def test_008_export_skips_certificate_with_order_id_zero(
     wsgi_db: Path, capsys: Any
 ) -> None:
     """certificate.order_id=0 (no matching order) is skipped, not fatal."""
@@ -449,7 +453,7 @@ def test_export_skips_certificate_with_order_id_zero(
     assert 40 in cert_ids
 
 
-def test_export_fails_status_name_mismatch(wsgi_db: Path) -> None:
+def test_009_export_fails_status_name_mismatch(wsgi_db: Path) -> None:
     """Refuse export when status PK/name map drifts from fixture."""
     conn = sqlite3.connect(str(wsgi_db))
     try:
@@ -462,7 +466,7 @@ def test_export_fails_status_name_mismatch(wsgi_db: Path) -> None:
         migrator.build_dump(wsgi_db)
 
 
-def test_summary_counts(wsgi_db: Path) -> None:
+def test_010_summary_counts(wsgi_db: Path) -> None:
     """summary_counts maps dump keys to operator-facing labels."""
     dump = migrator.build_dump(wsgi_db)
     counts = migrator.summary_counts(dump["tables"])
@@ -475,7 +479,7 @@ def test_summary_counts(wsgi_db: Path) -> None:
     assert counts["nonces"] == 0
 
 
-def test_resolve_length_limits_prefers_django_when_available() -> None:
+def test_011_resolve_length_limits_prefers_django_when_available() -> None:
     """Live model max_length wins over FALLBACK_LENGTH_LIMITS."""
     live = {"housekeeping": {"value": 300}, "account": {"contact": 255}}
     with pytest.MonkeyPatch.context() as mp:
@@ -483,7 +487,7 @@ def test_resolve_length_limits_prefers_django_when_available() -> None:
         assert migrator.resolve_length_limits() == live
 
 
-def test_resolve_length_limits_fallback_without_django() -> None:
+def test_012_resolve_length_limits_fallback_without_django() -> None:
     """Without Django models, frozen fallback limits are used."""
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(migrator, "length_limits_from_django", lambda: None)
@@ -492,7 +496,7 @@ def test_resolve_length_limits_fallback_without_django() -> None:
         assert limits["housekeeping"]["value"] == 30
 
 
-def test_export_respects_resolved_housekeeping_limit(wsgi_db: Path) -> None:
+def test_013_export_respects_resolved_housekeeping_limit(wsgi_db: Path) -> None:
     """Long housekeeping.value exports when model limit allows it."""
     long_value = "x" * 299
     conn = sqlite3.connect(str(wsgi_db))
@@ -520,14 +524,14 @@ def test_export_respects_resolved_housekeeping_limit(wsgi_db: Path) -> None:
     assert names["profiles"] == long_value
 
 
-def test_wipe_requires_yes(capsys: Any) -> None:
+def test_014_wipe_requires_yes(capsys: Any) -> None:
     """CLI wipe without --yes refuses and exits 1."""
     rc = migrator.main(["wipe"])
     assert rc == 1
     assert "refusing to wipe without --yes" in capsys.readouterr().err
 
 
-def test_wipe_keeps_status_and_dbversion(clean_django_db: None) -> None:
+def test_015_wipe_keeps_status_and_dbversion(clean_django_db: None) -> None:
     """Wipe deletes ACME rows but leaves Status fixture and dbversion."""
     from acme2certifier.django_app.models import Account, Housekeeping, Status
 
@@ -555,7 +559,7 @@ def test_wipe_keeps_status_and_dbversion(clean_django_db: None) -> None:
     assert not Housekeeping.objects.filter(name="profiles").exists()
 
 
-def test_import_preserves_pks_and_fks(
+def test_016_import_preserves_pks_and_fks(
     clean_django_db: None, sample_dump: Dict[str, Any]
 ) -> None:
     """Import writes ORM rows with dump PKs and FK ids."""
@@ -611,7 +615,7 @@ def test_import_preserves_pks_and_fks(
     assert Housekeeping.objects.get(name="dbversion").value == __dbversion__
 
 
-def test_import_refuses_nonempty_without_wipe(
+def test_017_import_refuses_nonempty_without_wipe(
     clean_django_db: None, sample_dump: Dict[str, Any]
 ) -> None:
     """Non-empty target without --wipe fails."""
@@ -620,7 +624,7 @@ def test_import_refuses_nonempty_without_wipe(
         migrator.import_dump(sample_dump, wipe=False, dry_run=False)
 
 
-def test_import_wipe_flag_replaces_data(
+def test_018_import_wipe_flag_replaces_data(
     clean_django_db: None, sample_dump: Dict[str, Any]
 ) -> None:
     """--wipe clears prior ACME rows then imports."""
@@ -634,7 +638,7 @@ def test_import_wipe_flag_replaces_data(
     assert Account.objects.get(pk=1).name == "acctAAAA"
 
 
-def test_import_dry_run_writes_nothing(
+def test_019_import_dry_run_writes_nothing(
     clean_django_db: None, sample_dump: Dict[str, Any]
 ) -> None:
     """--dry-run validates and reports counts without ORM writes."""
@@ -646,7 +650,21 @@ def test_import_dry_run_writes_nothing(
     assert Account.objects.count() == 0
 
 
-def test_import_cli(
+def test_020_import_dry_run_does_not_seed_status_fixture(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Dry-run must not mutate DB; missing Status rows should fail."""
+    from acme2certifier.django_app.models import Status
+
+    Status.objects.all().delete()
+    assert Status.objects.count() == 0
+
+    with pytest.raises(migrator.MigrationError, match="dry-run"):
+        migrator.import_dump(sample_dump, wipe=True, dry_run=True)
+    assert Status.objects.count() == 0
+
+
+def test_021_import_cli(
     clean_django_db: None,
     sample_dump: Dict[str, Any],
     tmp_path: Path,
@@ -665,7 +683,7 @@ def test_import_cli(
     assert Account.objects.filter(pk=1).exists()
 
 
-def test_import_cli_dry_run(
+def test_022_import_cli_dry_run(
     clean_django_db: None,
     sample_dump: Dict[str, Any],
     tmp_path: Path,
@@ -684,7 +702,7 @@ def test_import_cli_dry_run(
     assert Account.objects.count() == 0
 
 
-def test_import_fails_bad_schema_version(
+def test_023_import_fails_bad_schema_version(
     clean_django_db: None, sample_dump: Dict[str, Any]
 ) -> None:
     """Refuse import when dump schema_version is not 1."""
@@ -693,7 +711,7 @@ def test_import_fails_bad_schema_version(
         migrator.import_dump(sample_dump)
 
 
-def test_import_fails_contact_overflow(
+def test_024_import_fails_contact_overflow(
     clean_django_db: None, sample_dump: Dict[str, Any]
 ) -> None:
     """Refuse import when Account.contact exceeds model max_length."""
@@ -702,7 +720,7 @@ def test_import_fails_contact_overflow(
         migrator.import_dump(sample_dump)
 
 
-def test_import_challenge_null_token_warns(
+def test_025_import_challenge_null_token_warns(
     clean_django_db: None, sample_dump: Dict[str, Any], capsys: Any
 ) -> None:
     """NULL challenge.token becomes empty string with a warning."""
@@ -715,7 +733,7 @@ def test_import_challenge_null_token_warns(
     assert Challenge.objects.get(pk=30).token == ""
 
 
-def test_wipe_cli(clean_django_db: None, sample_dump: Dict[str, Any], capsys: Any) -> None:
+def test_026_wipe_cli(clean_django_db: None, sample_dump: Dict[str, Any], capsys: Any) -> None:
     """CLI wipe --yes clears imported rows and prints summary."""
     migrator.import_dump(sample_dump)
     rc = migrator.main(["wipe", "--yes"])

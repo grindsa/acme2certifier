@@ -496,21 +496,55 @@ def _django_models() -> Any:
     return dj_models
 
 
-def assert_django_status_fixture() -> None:
-    """Refuse import when Django Status PKs 1–8 drift from the fixture map."""
-    models = _django_models()
+def _status_mismatches(models: Any) -> List[str]:
+    """Return status fixture mismatches as human-readable strings."""
     by_id = {int(row.pk): str(row.name) for row in models.Status.objects.all()}
+    mismatches: List[str] = []
     for pk, name in EXPECTED_STATUS.items():
         if pk not in by_id:
-            raise MigrationError(
-                f"Django Status PK {pk} missing (expected name={name!r}); "
-                "run a2c-django-update / loaddata status"
-            )
+            mismatches.append(f"PK {pk} missing (expected name={name!r})")
+            continue
         if by_id[pk] != name:
-            raise MigrationError(
-                f"Django Status PK {pk} name mismatch: got {by_id[pk]!r}, "
-                f"expected {name!r}"
+            mismatches.append(
+                f"PK {pk} name mismatch: got {by_id[pk]!r}, expected {name!r}"
             )
+    return mismatches
+
+
+def assert_django_status_fixture(*, auto_seed: bool = True) -> None:
+    """Ensure Django Status PKs 1-8 match fixture, optionally auto-seeding."""
+    models = _django_models()
+    mismatches = _status_mismatches(models)
+    if not mismatches and not auto_seed:
+        return
+    if not mismatches:
+        return
+
+    if auto_seed:
+        from django.core.management import call_command
+
+        print(
+            "warning: edge-case detected: Django Status fixture is missing/invalid; importing fixture via loaddata status",
+            file=sys.stderr,
+        )
+        call_command("loaddata", "status", verbosity=0)
+        mismatches = _status_mismatches(models)
+        if not mismatches:
+            return
+
+    if not auto_seed:
+        raise MigrationError(
+            "Django Status fixture invalid during dry-run (no DB writes allowed): "
+            + "; ".join(mismatches)
+            + ". Seed Status first (a2c-django-update / loaddata status), "
+            + "or run import without --dry-run to allow auto-seeding"
+        )
+
+    raise MigrationError(
+        "Django Status fixture invalid: "
+        + "; ".join(mismatches)
+        + ". Run a2c-django-update / loaddata status"
+    )
 
 
 def _validate_dump_for_import(dump: Mapping[str, Any]) -> None:
@@ -896,7 +930,7 @@ def import_dump(
 
     setup_django_orm()
     _validate_dump_for_import(dump)
-    assert_django_status_fixture()
+    assert_django_status_fixture(auto_seed=not dry_run)
 
     tables = dump["tables"]
     include_nonces = bool(dump.get("meta", {}).get("include_nonces"))

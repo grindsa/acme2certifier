@@ -100,7 +100,7 @@ ENV/
 
 # mystuff
 # /acme2certifier/
-db.sqlite3
+db.sqlite3*
 /manage.py
 # Legacy ignores: Django app no longer lives under acme2certifier/acme_srv/
 acme2certifier/acme_srv/migrations/
