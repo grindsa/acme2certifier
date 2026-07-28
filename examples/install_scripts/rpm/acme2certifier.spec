@@ -161,6 +161,7 @@ install_wrapper a2c-cliuser-mgmt acme2certifier.tools.a2c_cliuser_mgmt
 install_wrapper a2c-invalidator acme2certifier.tools.a2c_invalidator
 install_wrapper a2c-report-generator acme2certifier.tools.a2c_report_generator
 install_wrapper a2c-mswcce-connection-test acme2certifier.tools.a2c_mswcce_connection_test
+install_wrapper a2c-wsgi2django acme2certifier.tools.a2c_wsgi2django
 
 %clean
 %{__chmod} -R 777 $RPM_BUILD_ROOT
@@ -189,6 +190,7 @@ install_wrapper a2c-mswcce-connection-test acme2certifier.tools.a2c_mswcce_conne
 %attr(0755,root,root) %{_bindir}/a2c-invalidator
 %attr(0755,root,root) %{_bindir}/a2c-report-generator
 %attr(0755,root,root) %{_bindir}/a2c-mswcce-connection-test
+%attr(0755,root,root) %{_bindir}/a2c-wsgi2django
 
 %changelog
 
