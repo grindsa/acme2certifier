@@ -43,17 +43,18 @@ Preferred config keys (**keep**):
 
 ### `acme2certifier/acme_srv/helpers/plugin_loader.py`
 
-Today:
+Today (post path-aware work):
 
-- Loads via `*_module`, else `*_file` (with deprecation warning), else for CA only falls back to `acme_srv.ca_handler`
+- Loads via `*_module` (dotted name **or** filesystem path), else `*_file` (deprecated), else for CA only falls back to `acme_srv.ca_handler`
+- Path detection: absolute path, ends with `.py`, or contains a path separator → `_load_from_file`
 - If both `*_module` and `*_file` are set, module wins
 
 After Phase 10:
 
-- **Only** `*_module` paths
+- **Only** `*_module` keys (values remain path **or** dotted name)
 - If CA/EAB/Hooks section exists but required `*_module` key is missing → clear error / return `None` (match existing logging style; fail loudly, no silent default CA handler)
-- Remove `_load_from_file` if unused
-- Remove “both set / ignoring file” branches
+- **Keep** `_load_from_file` / `_is_filesystem_path` / `_load_plugin_ref` — required for out-of-tree handlers
+- Remove `*_file` branches and “both set / ignoring file” warnings
 - Remove imports of `warn_*` from compat
 
 ### `acme2certifier/compat.py`
@@ -64,10 +65,12 @@ After Phase 10:
 
 ### Custom handlers (breaking change — document clearly)
 
-Out-of-tree handlers must use:
+Out-of-tree handlers must use `*_module`. The value may be a **filesystem path** (preferred for customer drop-in files) or a dotted import path (built-ins / installed packages):
 
 ```ini
-handler_module: mypkg.my_ca_handler
+handler_module: /var/www/acme2certifier/volume/ca_handler.py
+# or
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
 ```
 
 Not:
@@ -76,7 +79,9 @@ Not:
 handler_file: /path/to/handler.py
 ```
 
-Custom code must be importable (installed package, or on `PYTHONPATH`). Skeleton templates stay under `examples/*/skeleton_*.py`.
+Path-in-`*_module` uses the same file loader as today's `*_file` keys — no packaging, no `PYTHONPATH`, no `__init__.py`. Skeleton templates stay under `examples/*/skeleton_*.py` / `acme2certifier/share/skeletons/`.
+
+**Phase 10 must keep `_load_from_file`** (and path detection on `*_module`). Only the deprecated `*_file` **config keys** and the default `acme_srv.ca_handler` fallback go away.
 
 ## Tests to update
 
@@ -100,8 +105,8 @@ Update anything that still relies on `handler_file` or default `acme_srv/ca_hand
 
 - `.github/workflows/cahandler-legacy.yml` — intentionally uses `handler_file`; **retire, rewrite for `handler_module`, or rename** (do not leave broken 1.0 assumptions)
 - `.github/workflows/feature-enrollment-timeout.yml` — sed swaps `handler_module` → `handler_file`; switch to module-only
-- `examples/Docker/*/docker-entrypoint.sh` — still checks `handler_file` / copies skeleton to `volume/ca_handler.py`; align with `handler_module` (or document volume + `PYTHONPATH` / installable module)
-- Sample cfgs: `examples/acme_srv.cfg`, `acme_srv/acme_srv.cfg` — ensure examples use `handler_module` only
+- `examples/Docker/*/docker-entrypoint.sh` — stop relying on `handler_file` / default symlink to `acme_srv/ca_handler.py`; prefer `handler_module: /var/www/acme2certifier/volume/ca_handler.py` (path form)
+- Sample cfgs: `examples/acme_srv.cfg`, `acme_srv/acme_srv.cfg` — ensure examples use `handler_module` only (dotted or path)
 
 ## Docs to update
 
@@ -113,17 +118,18 @@ Update anything that still relies on `handler_file` or default `acme_srv/ca_hand
 
 ## Acceptance criteria
 
-1. No runtime support for `handler_file` / `eab_handler_file` / `hooks_file`
-2. No import of `acme_srv.ca_handler` as default
-3. No deprecation helpers for those paths (or empty/removed `compat.py`)
-4. Tests + docs consistent; pytest green
-5. CI workflows that encoded the old path are fixed or intentionally retired
-6. Do not reintroduce import shims under `acme_srv/`, `examples/`, or `tools/`
+1. No runtime support for `handler_file` / `eab_handler_file` / `hooks_file` **keys**
+2. Path values in `*_module` still load via `_load_from_file` (customer drop-in files keep working)
+3. No import of `acme_srv.ca_handler` as default
+4. No deprecation helpers for those paths (or empty/removed `compat.py`)
+5. Tests + docs consistent; pytest green
+6. CI workflows that encoded the old path are fixed or intentionally retired
+7. Do not reintroduce import shims under `acme_srv/`, `examples/`, or `tools/`
 
 ## Suggested work order
 
 1. Read `plugin_loader.py` + `compat.py` + `docs/upgrading.md`
-2. Change loader to module-only; remove fallback
+2. Change loader to `*_module` only (keep path-aware file load); remove default CA fallback
 3. Fix unit tests
 4. Fix CI / Docker entrypoints
 5. Update docs
@@ -149,7 +155,7 @@ Should Phase 10 also remove **legacy cfg path discovery** for `acme_srv/acme_srv
 ```text
 Execute Phase 10 of the acme2certifier package-layout migration: remove *_file
 handler config keys and the default acme_srv.ca_handler fallback from
-plugin_loader.py, clean up compat.py/tests/CI/docs, keep *_module only.
-Follow docs/architecture/phase10-handler-fallback-removal.md; do not commit
-unless I ask.
+plugin_loader.py, but keep path-aware *_module loading (_load_from_file).
+Clean up compat.py/tests/CI/docs. Follow
+docs/architecture/phase10-handler-fallback-removal.md; do not commit unless I ask.
 ```
