@@ -16,6 +16,7 @@ _ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
 _ACME_SRV_CFG_LOADED: Set[str] = set()
 # Last successful load (path, source); used after logger_setup.
 _LAST_LOADED_CFG: Optional[Tuple[str, str]] = None
+ACME_SRV_CFG_FILENAME = "acme_srv.cfg"
 
 
 def _log_cfg_loaded_once(
@@ -403,7 +404,7 @@ def _default_acme_srv_cfg_file(
     helpers_dir = os.path.dirname(os.path.abspath(__file__))
     pkg_dir = os.path.dirname(helpers_dir)  # .../acme_srv (new or install tree)
     install_or_repo_root = os.path.dirname(os.path.dirname(pkg_dir))
-    repo_cfg = os.path.join(install_or_repo_root, "acme_srv.cfg")
+    repo_cfg = os.path.join(install_or_repo_root, ACME_SRV_CFG_FILENAME)
 
     preferred_deploy_cfgs = (
         "/var/www/acme2certifier/acme_srv.cfg",
@@ -420,8 +421,10 @@ def _default_acme_srv_cfg_file(
             "/opt/acme2certifier/acme_srv.cfg",
         ),
     )
-    packaged_cfg = os.path.join(pkg_dir, "acme_srv.cfg")
-    legacy_cfg = os.path.join(install_or_repo_root, "acme_srv", "acme_srv.cfg")
+    packaged_cfg = os.path.join(pkg_dir, ACME_SRV_CFG_FILENAME)
+    legacy_cfg = os.path.join(
+        install_or_repo_root, "acme_srv", ACME_SRV_CFG_FILENAME
+    )
     log.debug(
         "Helper._default_acme_srv_cfg_file(): candidates preferred=%s "
         "nested=%s packaged=%s legacy=%s",

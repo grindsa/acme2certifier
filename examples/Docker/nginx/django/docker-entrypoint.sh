@@ -86,14 +86,11 @@ EOF
     fi
 
     # create a symlink for migrations
-    if [[ ! -L "$DJANGO_MIGRATIONS" ]]
+    if [[ ! -L "$DJANGO_MIGRATIONS" ]] && [[ -d /var/www/acme2certifier/volume/migrations ]]
     then
-        if [[ -d /var/www/acme2certifier/volume/migrations ]]
-        then
-            echo "replace migration directory with volume symlink" >> /proc/1/fd/1
-            rm -rf "$DJANGO_MIGRATIONS"
-            ln -s /var/www/acme2certifier/volume/migrations "$DJANGO_MIGRATIONS"
-        fi
+        echo "replace migration directory with volume symlink" >> /proc/1/fd/1
+        rm -rf "$DJANGO_MIGRATIONS"
+        ln -s /var/www/acme2certifier/volume/migrations "$DJANGO_MIGRATIONS"
     fi
 
     # create a symlink for settings.py

@@ -36,9 +36,16 @@
 
 set -euo pipefail
 
+readonly MODE_DJANGO="django"
+readonly MODE_WSGI="wsgi"
+readonly WEBSRV_APACHE2="apache2"
+readonly WEBSRV_NGINX="nginx"
+readonly DJANGO_SETTINGS="acme2certifier.django_project.settings"
+readonly APACHE2_ERROR_LOG="/var/log/apache2/error.log"
+
 MODE="wsgi"
 MODE_EXPLICIT=0
-WEBSRV="apache2"
+WEBSRV="${WEBSRV_APACHE2}"
 ACTION="install"
 DEB_PATH=""
 DEB_GLOBS=()
@@ -121,8 +128,8 @@ resolve_defaults() {
 
 normalize_websrv() {
   case "${WEBSRV}" in
-    apache2|apache) WEBSRV="apache2" ;;
-    nginx) WEBSRV="nginx" ;;
+    apache2|apache) WEBSRV="${WEBSRV_APACHE2}" ;;
+    nginx) WEBSRV="${WEBSRV_NGINX}" ;;
     *)
       echo "ERROR: --webserver must be 'apache2' or 'nginx' (got: ${WEBSRV})" >&2
       exit 1
@@ -178,7 +185,7 @@ link_django_settings_from_volume() {
 normalize_dbhandler_mode() {
   local value="${1:-}"
   case "${value}" in
-    django|*django_handler*) echo "django" ;;
+    django|*django_handler*) echo "${MODE_DJANGO}" ;;
     wsgi|*wsgi_handler*) echo "wsgi" ;;
     *) echo "${value}" ;;
   esac
@@ -241,7 +248,7 @@ maybe_install_mssql() {
 
 restart_services() {
   echo "==> Restarting services (${WEBSRV})"
-  if [[ "${WEBSRV}" == "apache2" ]]; then
+  if [[ "${WEBSRV}" == "${WEBSRV_APACHE2}" ]]; then
     ${SUDO} systemctl restart apache2
   else
     ${SUDO} systemctl restart nginx
@@ -292,7 +299,7 @@ while [[ $# -gt 0 ]]; do
     install|restart)
       ACTION="$1"
       shift
-      if [[ $# -gt 0 && ( "$1" == "apache2" || "$1" == "apache" || "$1" == "nginx" ) ]]; then
+      if [[ $# -gt 0 && ( "$1" == "${WEBSRV_APACHE2}" || "$1" == "apache" || "$1" == "${WEBSRV_NGINX}" ) ]]; then
         WEBSRV="$1"
         shift
       fi
@@ -351,7 +358,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "${MODE}" != "wsgi" && "${MODE}" != "django" ]]; then
+if [[ "${MODE}" != "${MODE_WSGI}" && "${MODE}" != "${MODE_DJANGO}" ]]; then
   echo "ERROR: --mode must be 'wsgi' or 'django' (got: ${MODE})" >&2
   exit 1
 fi
@@ -380,13 +387,13 @@ echo "==> Using package: ${DEB_FILE}"
 
 echo "==> Installing system packages (${WEBSRV})"
 ${SUDO} apt-get update
-if [[ "${WEBSRV}" == "apache2" ]]; then
+if [[ "${WEBSRV}" == "${WEBSRV_APACHE2}" ]]; then
   ${SUDO} apt-get install -y apache2 apache2-data libapache2-mod-wsgi-py3 curl openssl
 else
   ${SUDO} apt-get install -y nginx uwsgi uwsgi-plugin-python3 curl openssl
 fi
 
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   maybe_install_mssql
 fi
 
@@ -463,7 +470,7 @@ if [[ -e "${APP_ROOT}/acme2certifier" && ! -L "${APP_ROOT}/acme2certifier" ]]; t
 fi
 ${SUDO} ln -sfn "${A2C_PKG}" "${APP_ROOT}/acme2certifier"
 
-if [[ "${WEBSRV}" == "apache2" ]]; then
+if [[ "${WEBSRV}" == "${WEBSRV_APACHE2}" ]]; then
   echo "==> Configuring Apache2 (${MODE})"
   ${SUDO} a2enmod wsgi
   ${SUDO} a2enmod ssl || true
@@ -545,7 +552,7 @@ else
     -e 's|^uid = .*|uid = www-data|' \
     -e 's|^chown-socket = .*|chown-socket = www-data|' \
     "${APP_ROOT}/acme2certifier.ini"
-  if [[ "${MODE}" == "django" ]]; then
+  if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     ${SUDO} sed -i 's/acme2certifier_wsgi:application/acme2certifier.django_project.wsgi:application/g' \
       "${APP_ROOT}/acme2certifier.ini"
     ${SUDO} sed -i 's/module = acme2certifier_wsgi/module = acme2certifier.django_project.wsgi/g' \
@@ -593,12 +600,12 @@ EOF
   ${SUDO} systemctl restart acme2certifier
 fi
 
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   link_django_settings_from_volume "${VOLUME_DIR}"
   echo "==> Django migrate + fixtures"
   export ACME_SRV_CONFIGFILE="${CFG}"
   export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
-  export DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}"
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$(a2c-django-secret-keygen)"
   fi
@@ -606,25 +613,23 @@ if [[ "${MODE}" == "django" ]]; then
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-django-update
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-manage loaddata status
 fi
 
 echo "==> Ownership and start ${WEBSRV}"
 ${SUDO} chown -R www-data:www-data "${APP_ROOT}"
-if [[ "${WEBSRV}" == "nginx" ]]; then
-  if ! ${SUDO} nginx -t; then
-    echo "ERROR: nginx -t failed" >&2
-    ${SUDO} ls -la /etc/nginx/sites-enabled/ || true
-    ${SUDO} journalctl -u nginx -n 40 --no-pager || true
-    exit 1
-  fi
+if [[ "${WEBSRV}" == "nginx" ]] && ! ${SUDO} nginx -t; then
+  echo "ERROR: nginx -t failed" >&2
+  ${SUDO} ls -la /etc/nginx/sites-enabled/ || true
+  ${SUDO} journalctl -u nginx -n 40 --no-pager || true
+  exit 1
 fi
 ${SUDO} systemctl enable "${WEBSRV}"
 ${SUDO} systemctl restart "${WEBSRV}" \
@@ -635,8 +640,8 @@ echo "Done. mode=${MODE} webserver=${WEBSRV}"
 echo "  Config:  ${CFG}"
 echo "  Test:    curl -sS http://127.0.0.1/directory | head"
 echo "  Next:    edit ${CFG} (CA handler), see docs/acme_srv.md"
-if [[ "${WEBSRV}" == "apache2" ]]; then
-  echo "  Logs:    /var/log/apache2/error.log"
+if [[ "${WEBSRV}" == "${WEBSRV_APACHE2}" ]]; then
+  echo "  Logs:    ${APACHE2_ERROR_LOG}"
 else
   echo "  Logs:    /var/log/nginx/error.log  and  journalctl -u acme2certifier"
 fi

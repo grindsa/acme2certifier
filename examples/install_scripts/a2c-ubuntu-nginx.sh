@@ -20,6 +20,10 @@
 
 set -euo pipefail
 
+readonly MODE_DJANGO="django"
+readonly MODE_WSGI="wsgi"
+readonly DJANGO_SETTINGS="acme2certifier.django_project.settings"
+
 MODE="wsgi"
 VERSION=""
 USE_PRE=0
@@ -67,7 +71,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "${MODE}" != "wsgi" && "${MODE}" != "django" ]]; then
+if [[ "${MODE}" != "${MODE_WSGI}" && "${MODE}" != "${MODE_DJANGO}" ]]; then
   echo "ERROR: --mode must be 'wsgi' or 'django' (got: ${MODE})" >&2
   exit 1
 fi
@@ -109,16 +113,16 @@ if [[ "${FROM_SOURCE}" -eq 1 ]]; then
     exit 1
   fi
   # Non-editable so the app lives in the venv (same as PyPI installs).
-  if [[ "${MODE}" == "django" ]]; then
-    echo "==> pip install '.[django]' (from source)"
-    ${SUDO} "${VENV}/bin/pip" install ".[django]"
+  if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
+    echo "==> pip install '.[${MODE_DJANGO}]' (from source)"
+    ${SUDO} "${VENV}/bin/pip" install ".[${MODE_DJANGO}]"
   else
     echo "==> pip install . (from source)"
     ${SUDO} "${VENV}/bin/pip" install .
   fi
 else
-  if [[ "${MODE}" == "django" ]]; then
-    SPEC="acme2certifier[django]"
+  if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
+    SPEC="acme2certifier[${MODE_DJANGO}]"
   else
     SPEC="acme2certifier"
   fi
@@ -229,7 +233,7 @@ if [[ -d "test/ca" ]]; then
   fi
 fi
 
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   echo "==> Django migrate + fixtures"
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     ACME2CERTIFIER_SECRET_KEY="$("${VENV}/bin/a2c-django-secret-keygen")"
@@ -242,13 +246,13 @@ if [[ "${MODE}" == "django" ]]; then
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" migrate
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" loaddata status
 fi
 

@@ -20,6 +20,10 @@
 
 set -euo pipefail
 
+readonly MODE_DJANGO="django"
+readonly MODE_WSGI="wsgi"
+readonly DJANGO_SETTINGS="acme2certifier.django_project.settings"
+
 MODE="wsgi"
 VERSION=""
 USE_PRE=0
@@ -66,7 +70,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "${MODE}" != "wsgi" && "${MODE}" != "django" ]]; then
+if [[ "${MODE}" != "${MODE_WSGI}" && "${MODE}" != "${MODE_DJANGO}" ]]; then
   echo "ERROR: --mode must be 'wsgi' or 'django' (got: ${MODE})" >&2
   exit 1
 fi
@@ -115,16 +119,16 @@ if [[ "${FROM_SOURCE}" -eq 1 ]]; then
   fi
   # Non-editable: mod_wsgi must load the package from the venv, not a
   # checkout path (editable installs break under Apache python-home).
-  if [[ "${MODE}" == "django" ]]; then
-    echo "==> pip install '.[django]' (from source)"
-    ${SUDO} "${VENV}/bin/pip" install ".[django]"
+  if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
+    echo "==> pip install '.[${MODE_DJANGO}]' (from source)"
+    ${SUDO} "${VENV}/bin/pip" install ".[${MODE_DJANGO}]"
   else
     echo "==> pip install . (from source)"
     ${SUDO} "${VENV}/bin/pip" install .
   fi
 else
-  if [[ "${MODE}" == "django" ]]; then
-    SPEC="acme2certifier[django]"
+  if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
+    SPEC="acme2certifier[${MODE_DJANGO}]"
   else
     SPEC="acme2certifier"
   fi
@@ -213,11 +217,11 @@ if [[ -d "test/ca" ]]; then
   fi
 fi
 
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   echo "==> Django migrate + fixtures"
   export ACME_SRV_CONFIGFILE="${CFG}"
   export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
-  export DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}"
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$("${VENV}/bin/a2c-django-secret-keygen")"
   fi
@@ -225,13 +229,13 @@ if [[ "${MODE}" == "django" ]]; then
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" migrate
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" loaddata status
 fi
 

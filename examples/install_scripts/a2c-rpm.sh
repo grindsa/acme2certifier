@@ -40,6 +40,10 @@
 
 set -euo pipefail
 
+readonly MODE_DJANGO="django"
+readonly MODE_WSGI="wsgi"
+readonly DJANGO_SETTINGS="acme2certifier.django_project.settings"
+
 MODE="wsgi"
 MODE_EXPLICIT=0
 ACTION="install"
@@ -189,7 +193,7 @@ link_django_settings_from_volume() {
 normalize_dbhandler_mode() {
   local value="${1:-}"
   case "${value}" in
-    django|*django_handler*) echo "django" ;;
+    django|*django_handler*) echo "${MODE_DJANGO}" ;;
     wsgi|*wsgi_handler*) echo "wsgi" ;;
     *) echo "${value}" ;;
   esac
@@ -351,7 +355,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "${MODE}" != "wsgi" && "${MODE}" != "django" ]]; then
+if [[ "${MODE}" != "${MODE_WSGI}" && "${MODE}" != "${MODE_DJANGO}" ]]; then
   echo "ERROR: --mode must be 'wsgi' or 'django' (got: ${MODE})" >&2
   exit 1
 fi
@@ -403,7 +407,7 @@ ${SUDO} ${PKG} install -y \
   tar \
   procps-ng
 
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   echo "==> Installing Django-related system packages"
   DJANGO_RPM=""
   for cand in python3-django4.2 python3-django; do
@@ -421,7 +425,7 @@ if [[ "${MODE}" == "django" ]]; then
   for cand in python3-pyyaml python3-mysqlclient python3-PyMySQL python3-psycopg2 python3-sqlparse; do
     ${SUDO} ${PKG} install -y "${cand}" 2>/dev/null || true
   done
-  if ! ${SUDO} python3 -c "import django; print('django', django.get_version())"; then
+  if ! ${SUDO} python3 -c "import django; print('${MODE_DJANGO}', django.get_version())"; then
     echo "ERROR: Django RPM installed but 'import django' failed" >&2
     exit 1
   fi
@@ -521,7 +525,7 @@ fi
 if [[ ! -f "${UWSGI_INI}" ]]; then
   ${SUDO} cp "${SHARE}/nginx/acme2certifier.ini" "${UWSGI_INI}"
 fi
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   ${SUDO} sed -i \
     -e 's/module = acme2certifier_wsgi.*/module = acme2certifier.django_project.wsgi:application/' \
     -e 's/acme2certifier_wsgi:application/acme2certifier.django_project.wsgi:application/' \
@@ -553,7 +557,7 @@ if [[ -f /usr/lib/systemd/system/acme2certifier.service ]]; then
   fi
 fi
 
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   link_django_settings_from_volume "${VOLUME_DIR}"
   echo "==> Django migrate + fixtures"
   SETTINGS_PY="${APP_ROOT}/acme2certifier/django_project/settings.py"
@@ -565,7 +569,7 @@ if [[ "${MODE}" == "django" ]]; then
   fi
   export ACME_SRV_CONFIGFILE="${CFG}"
   export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
-  export DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}"
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$(a2c-django-secret-keygen)"
   fi
@@ -578,14 +582,14 @@ if [[ "${MODE}" == "django" ]]; then
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-django-update
   ${SUDO} env \
     PYTHONPATH="${APP_ROOT}" \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-manage loaddata status
 fi
 
