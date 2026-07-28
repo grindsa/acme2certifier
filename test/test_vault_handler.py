@@ -227,7 +227,8 @@ class TestCAhandler(unittest.TestCase):
         return_value={"profile": "data"},
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.config_headerinfo_load", return_value=True
+        "acme2certifier.cahandlers.vault_ca_handler.config_headerinfo_load",
+        return_value=True,
     )
     @patch(
         "acme2certifier.cahandlers.vault_ca_handler.config_enroll_config_log_load",
@@ -289,7 +290,8 @@ class TestCAhandler(unittest.TestCase):
         return_value={"profile": "data"},
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.config_headerinfo_load", return_value=True
+        "acme2certifier.cahandlers.vault_ca_handler.config_headerinfo_load",
+        return_value=True,
     )
     @patch(
         "acme2certifier.cahandlers.vault_ca_handler.config_enroll_config_log_load",
@@ -326,27 +328,38 @@ class TestCAhandler(unittest.TestCase):
         )
 
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.enrollment_config_log", return_value=None
+        "acme2certifier.cahandlers.vault_ca_handler.enrollment_config_log",
+        return_value=None,
     )
     @patch(
         "acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_check",
         return_value=None,
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check", return_value=None
-    )
-    @patch("acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup", return_value="test-cn")
-    @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file", return_value="pem-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check",
+        return_value=None,
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode", return_value="recode-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup",
+        return_value="test-cn",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file",
+        return_value="pem-csr",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode",
+        return_value="recode-csr",
     )
     @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._api_post")
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.b64_encode", return_value="encoded-cert"
+        "acme2certifier.cahandlers.vault_ca_handler.b64_encode",
+        return_value="encoded-cert",
     )
-    @patch("acme2certifier.cahandlers.vault_ca_handler.cert_pem2der", return_value="der-cert")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.cert_pem2der",
+        return_value="der-cert",
+    )
     def test_020_enroll_success(
         self,
         mock_cert_pem2der,
@@ -380,27 +393,38 @@ class TestCAhandler(unittest.TestCase):
         self.assertFalse(mock_log.called)
 
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.enrollment_config_log", return_value=None
+        "acme2certifier.cahandlers.vault_ca_handler.enrollment_config_log",
+        return_value=None,
     )
     @patch(
         "acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_check",
         return_value=None,
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check", return_value=None
-    )
-    @patch("acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup", return_value="test-cn")
-    @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file", return_value="pem-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check",
+        return_value=None,
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode", return_value="recode-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup",
+        return_value="test-cn",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file",
+        return_value="pem-csr",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode",
+        return_value="recode-csr",
     )
     @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._api_post")
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.b64_encode", return_value="encoded-cert"
+        "acme2certifier.cahandlers.vault_ca_handler.b64_encode",
+        return_value="encoded-cert",
     )
-    @patch("acme2certifier.cahandlers.vault_ca_handler.cert_pem2der", return_value="der-cert")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.cert_pem2der",
+        return_value="der-cert",
+    )
     def test_021_enroll_success(
         self,
         mock_cert_pem2der,
@@ -438,20 +462,30 @@ class TestCAhandler(unittest.TestCase):
         return_value=None,
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check", return_value=None
-    )
-    @patch("acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup", return_value="test-cn")
-    @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file", return_value="pem-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check",
+        return_value=None,
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode", return_value="recode-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup",
+        return_value="test-cn",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file",
+        return_value="pem-csr",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode",
+        return_value="recode-csr",
     )
     @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._api_post")
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.b64_encode", return_value="encoded-cert"
+        "acme2certifier.cahandlers.vault_ca_handler.b64_encode",
+        return_value="encoded-cert",
     )
-    @patch("acme2certifier.cahandlers.vault_ca_handler.cert_pem2der", return_value="der-cert")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.cert_pem2der",
+        return_value="der-cert",
+    )
     def test_022_enroll_success(
         self,
         mock_cert_pem2der,
@@ -520,14 +554,20 @@ class TestCAhandler(unittest.TestCase):
         return_value=None,
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check", return_value=None
-    )
-    @patch("acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup", return_value="test-cn")
-    @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file", return_value="pem-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check",
+        return_value=None,
     )
     @patch(
-        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode", return_value="recode-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup",
+        return_value="test-cn",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file",
+        return_value="pem-csr",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode",
+        return_value="recode-csr",
     )
     @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._api_post")
     def test_025_enroll_api_error(
@@ -640,7 +680,9 @@ class TestCAhandler(unittest.TestCase):
         self.assertFalse(message)
         self.assertEqual('{"foo": ["fail"]}', detail)
 
-    @patch("acme2certifier.cahandlers.vault_ca_handler.cert_serial_get", return_value=None)
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.cert_serial_get", return_value=None
+    )
     def test_031_revoke_no_serial(self, mock_cert_serial_get):
         self.cahandler._api_post = MagicMock()
         code, message, detail = self.cahandler.revoke("dummy_cert")

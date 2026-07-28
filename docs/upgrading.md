@@ -115,15 +115,15 @@ WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
 
 Then migrate / load fixtures as shown per channel below.
 
----
+______________________________________________________________________
 
 ## Docker (WSGI)
 
 1. Backup the volume (`data/` or your compose mount → `/var/www/acme2certifier/volume`).
-2. Pull the matching image tag (`*-wsgi`, apache2 or nginx). Keep the same webserver variant.
-3. On the volume, edit `acme_srv.cfg` → set `handler_module` / `eab_handler_module` / `hooks_module` as above. Set `[DBhandler] handler: wsgi` (or omit; image default is wsgi).
-4. If you use `volume/ca_handler.py` as custom code: fix imports (`acme2certifier.acme_srv.helper`) and set `handler_module: /var/www/acme2certifier/volume/ca_handler.py` (path form; no packaging). Until 0.48 you may keep `handler_file` or the entrypoint symlink, but migrate before Phase 10.
-5. Pull the new image and replace the running container (volume mount stays; no `docker compose down` needed — avoid `down -v`, which can delete data):
+1. Pull the matching image tag (`*-wsgi`, apache2 or nginx). Keep the same webserver variant.
+1. On the volume, edit `acme_srv.cfg` → set `handler_module` / `eab_handler_module` / `hooks_module` as above. Set `[DBhandler] handler: wsgi` (or omit; image default is wsgi).
+1. If you use `volume/ca_handler.py` as custom code: fix imports (`acme2certifier.acme_srv.helper`) and set `handler_module: /var/www/acme2certifier/volume/ca_handler.py` (path form; no packaging). Until 0.48 you may keep `handler_file` or the entrypoint symlink, but migrate before Phase 10.
+1. Pull the new image and replace the running container (volume mount stays; no `docker compose down` needed — avoid `down -v`, which can delete data):
 
 ```bash
 docker compose pull
@@ -138,7 +138,7 @@ curl -sS http://127.0.0.1:<host-port>/directory
 Same as WSGI, but:
 
 1. Use a `*-django` image tag (do not switch WSGI↔Django via cfg alone). Keep the volume, including `migrations/` (entrypoint symlinks the package migrations dir to the volume).
-2. Edit `volume/settings.py`:
+1. Edit `volume/settings.py`:
 
 ```python
 INSTALLED_APPS = [
@@ -150,7 +150,7 @@ WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
 ```
 
 3. Set `[DBhandler] handler: django` in `volume/acme_srv.cfg`.
-4. After start, ensure migrations ran (entrypoint usually does this). If needed:
+1. After start, ensure migrations ran (entrypoint usually does this). If needed:
 
 ```bash
 docker compose exec <service> a2c-manage migrate
@@ -172,9 +172,9 @@ Image tags encode the web stack (`*-wsgi` vs `*-django`, plus apache2/nginx).
 **Wrong tag pulled (e.g. `*-django` on a WSGI volume):**
 
 1. Do **not** run `docker compose down -v` (destroys the volume).
-2. Revert `docker-compose.yml` (or `.env`) to the previous image tag.
-3. If you already edited `volume/acme_srv.cfg` or `volume/settings.py`, restore from backup — or set `[DBhandler] handler:` back to match the image you roll back to.
-4. Recreate the container:
+1. Revert `docker-compose.yml` (or `.env`) to the previous image tag.
+1. If you already edited `volume/acme_srv.cfg` or `volume/settings.py`, restore from backup — or set `[DBhandler] handler:` back to match the image you roll back to.
+1. Recreate the container:
 
 ```bash
 docker compose pull
@@ -186,14 +186,14 @@ curl -sS http://127.0.0.1:<host-port>/directory
 
 **Intentional WSGI → Django (or reverse):** treat as a migration, not a tag swap. Follow [Migrate WSGI to Django](migrate_wsgi_to_django.md) for the full export/import/check flow, then apply Docker-specific stack alignment from [Docker (Django)](#docker-django) and [Docker (WSGI)](#docker-wsgi).
 
----
+______________________________________________________________________
 
 ## DEB (WSGI)
 
 Paths: `/var/www/acme2certifier`, config `/var/www/acme2certifier/acme_srv.cfg`.
 
 1. Backup cfg, DB (`acme_srv.db`), and any custom handlers.
-2. Install the new package:
+1. Install the new package:
 
 ```bash
 sudo apt-get install -y ./acme2certifier_<version>-1_all.deb
@@ -201,7 +201,7 @@ sudo apt-get install -y ./acme2certifier_<version>-1_all.deb
 ```
 
 3. Edit `/var/www/acme2certifier/acme_srv.cfg` → `*_module` keys; `[DBhandler] handler: wsgi`.
-4. Refresh webserver config from share if needed (Apache example):
+1. Refresh webserver config from share if needed (Apache example):
 
 ```bash
 sudo cp /var/www/acme2certifier/share/apache2/apache_wsgi.conf \
@@ -220,7 +220,7 @@ curl -sS http://127.0.0.1/directory
 ## DEB (Django)
 
 1. Backup cfg, DB (includes `django_migrations` history), and `settings.py` (if customized). Migration *files* ship in the package — no separate migrations directory to preserve (unlike Docker).
-2. Install with Django mode:
+1. Install with Django mode:
 
 ```bash
 sudo ./examples/install_scripts/a2c-deb.sh \
@@ -232,8 +232,8 @@ sudo ./examples/install_scripts/a2c-deb.sh \
 Or manual: install `.deb`, deploy `share/apache2/apache_django.conf` (or nginx + uWSGI with `module = acme2certifier.django_project.wsgi:application`).
 
 3. Update Django settings (`INSTALLED_APPS` / `ROOT_URLCONF` / `WSGI_APPLICATION` as above). Packaged default settings already use the new paths; customize only if you keep an old settings file.
-4. Set `[DBhandler] handler: django` in `acme_srv.cfg`; set `*_module` for CA/EAB/hooks.
-5. Apply schema:
+1. Set `[DBhandler] handler: django` in `acme_srv.cfg`; set `*_module` for CA/EAB/hooks.
+1. Apply schema:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
@@ -243,14 +243,14 @@ sudo -E a2c-manage loaddata status
 
 6. Restart apache2 or `acme2certifier` (uWSGI) + nginx; verify `/directory`.
 
----
+______________________________________________________________________
 
 ## RPM (WSGI)
 
 Paths: `/opt/acme2certifier`, config `/opt/acme2certifier/acme_srv.cfg` (`%config(noreplace)`).
 
 1. Backup cfg, DB, custom handlers.
-2. Install:
+1. Install:
 
 ```bash
 sudo yum -y localinstall ./acme2certifier-<version>-1.0.noarch.rpm
@@ -258,7 +258,7 @@ sudo yum -y localinstall ./acme2certifier-<version>-1.0.noarch.rpm
 ```
 
 3. Edit `/opt/acme2certifier/acme_srv.cfg` → `*_module`; `[DBhandler] handler: wsgi`.
-4. Refresh nginx/uWSGI from share if needed:
+1. Refresh nginx/uWSGI from share if needed:
 
 ```bash
 sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/
@@ -270,7 +270,7 @@ sudo systemctl restart nginx acme2certifier
 ## RPM (Django)
 
 1. Backup as above (DB includes `django_migrations` history; migration files ship in the RPM).
-2. Install with Django mode:
+1. Install with Django mode:
 
 ```bash
 sudo ./examples/install_scripts/a2c-rpm.sh \
@@ -279,9 +279,9 @@ sudo ./examples/install_scripts/a2c-rpm.sh \
 ```
 
 3. Ensure uWSGI uses `module = acme2certifier.django_project.wsgi:application`.
-4. Update settings if you ship a custom `settings.py` (see Django section).
-5. Set `[DBhandler] handler: django` and `*_module` in `/opt/acme2certifier/acme_srv.cfg`.
-6. Migrate:
+1. Update settings if you ship a custom `settings.py` (see Django section).
+1. Set `[DBhandler] handler: django` and `*_module` in `/opt/acme2certifier/acme_srv.cfg`.
+1. Migrate:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
@@ -292,14 +292,14 @@ sudo -E a2c-manage loaddata status
 
 7. `sudo systemctl restart nginx acme2certifier`; verify `/directory`.
 
----
+______________________________________________________________________
 
 ## pip / venv (WSGI or Django)
 
 Typical root: `/var/www/acme2certifier` + venv.
 
 1. Backup cfg, DB, venv (optional), custom handlers.
-2. Upgrade:
+1. Upgrade:
 
 ```bash
 sudo /var/www/acme2certifier/venv/bin/pip install -U 'acme2certifier'
@@ -316,7 +316,7 @@ sudo ln -sfn "$A2C" /var/www/acme2certifier/acme2certifier
 ```
 
 4. Edit `acme_srv.cfg` → `*_module`; set `[DBhandler] handler: wsgi` or `django`.
-5. **Django:** update settings; then:
+1. **Django:** update settings; then:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
@@ -326,7 +326,7 @@ sudo -E /var/www/acme2certifier/venv/bin/a2c-manage loaddata status
 
 6. Restart apache2 or nginx + uWSGI; verify `/directory`.
 
----
+______________________________________________________________________
 
 ## Module mapping
 
@@ -347,12 +347,12 @@ Full CA list and import renames: see git history of this file or `acme2certifier
 ## Checklist
 
 1. Backup cfg + DB (+ volume / settings).
-2. Install new package / image / wheel.
-3. Switch `acme_srv.cfg` to `*_module`.
-4. Fix custom handler / hook / EAB imports.
-5. Django: update `INSTALLED_APPS` / URLconf / WSGI; run `a2c-manage migrate`.
-6. Restart services; hit `/directory`.
-7. Clear deprecation warnings before **1.0** (`*_file` and default `acme_srv.ca_handler` fall away).
+1. Install new package / image / wheel.
+1. Switch `acme_srv.cfg` to `*_module`.
+1. Fix custom handler / hook / EAB imports.
+1. Django: update `INSTALLED_APPS` / URLconf / WSGI; run `a2c-manage migrate`.
+1. Restart services; hit `/directory`.
+1. Clear deprecation warnings before **1.0** (`*_file` and default `acme_srv.ca_handler` fall away).
 
 ## Related
 

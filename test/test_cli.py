@@ -794,6 +794,39 @@ class TestACMEHandler(unittest.TestCase):
         """logger setup"""
         self.assertTrue(self.logger_setup(True))
 
+    def test_164_validate_batchfile_path_empty(self):
+        """_validate_batchfile_path rejects empty path"""
+        with self.assertRaises(ValueError) as cm:
+            self.a2ccli._validate_batchfile_path("")
+        self.assertIn("Batchfile path is empty", str(cm.exception))
+
+    def test_165_validate_batchfile_path_outside_base(self):
+        """_validate_batchfile_path rejects paths outside cwd"""
+        with self.assertRaises(ValueError) as cm:
+            self.a2ccli._validate_batchfile_path("/tmp/outside_batchfile.txt")
+        self.assertIn("Path must be within", str(cm.exception))
+
+    def test_166_validate_batchfile_path_missing_file(self):
+        """_validate_batchfile_path rejects missing file inside cwd"""
+        with self.assertRaises(ValueError) as cm:
+            self.a2ccli._validate_batchfile_path("no_such_batchfile_a2c_cli.txt")
+        self.assertIn("File does not exist", str(cm.exception))
+
+    def test_167_module_main_entrypoint(self):
+        """``__main__`` guard calls main()"""
+        import runpy
+
+        sys.modules.pop("acme2certifier.tools.a2c_cli", None)
+        with patch("sys.argv", ["a2c-cli"]):
+            with patch("builtins.input", side_effect=["/Q"]):
+                with self.assertRaises(SystemExit) as cm:
+                    runpy.run_module(
+                        "acme2certifier.tools.a2c_cli",
+                        run_name="__main__",
+                        alter_sys=True,
+                    )
+                self.assertEqual(cm.exception.code, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

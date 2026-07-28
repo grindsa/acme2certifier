@@ -349,7 +349,8 @@ class TestCAhandler(unittest.TestCase):
     def test_023_parse_csr_valid_testcase(self):
         with (
             patch(
-                "acme2certifier.cahandlers.freeipa_ca_handler.csr_cn_get", return_value="cn"
+                "acme2certifier.cahandlers.freeipa_ca_handler.csr_cn_get",
+                return_value="cn",
             ),
             patch(
                 "acme2certifier.cahandlers.freeipa_ca_handler.csr_san_get",
@@ -363,7 +364,8 @@ class TestCAhandler(unittest.TestCase):
     def test_024_parse_csr_no_cn_testcase(self):
         with (
             patch(
-                "acme2certifier.cahandlers.freeipa_ca_handler.csr_cn_get", return_value=None
+                "acme2certifier.cahandlers.freeipa_ca_handler.csr_cn_get",
+                return_value=None,
             ),
             patch(
                 "acme2certifier.cahandlers.freeipa_ca_handler.csr_san_get",
@@ -695,7 +697,8 @@ class TestCAhandler(unittest.TestCase):
     def test_056_revoke_no_serial(self):
         # Simulate cert_serial_get returns None, _revoke should not be called
         with patch(
-            "acme2certifier.cahandlers.freeipa_ca_handler.cert_serial_get", return_value=None
+            "acme2certifier.cahandlers.freeipa_ca_handler.cert_serial_get",
+            return_value=None,
         ):
             self.handler._revoke = MagicMock()
             code, message, detail = self.handler.revoke("dummycert")
@@ -709,7 +712,8 @@ class TestCAhandler(unittest.TestCase):
     def test_057_revoke_no_cert(self):
         # Simulate cert_serial_get returns None, _revoke should not be called
         with patch(
-            "acme2certifier.cahandlers.freeipa_ca_handler.cert_serial_get", return_value=None
+            "acme2certifier.cahandlers.freeipa_ca_handler.cert_serial_get",
+            return_value=None,
         ):
             self.handler._revoke = MagicMock()
             code, message, detail = self.handler.revoke(None)

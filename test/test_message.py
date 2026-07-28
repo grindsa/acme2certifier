@@ -82,7 +82,9 @@ class TestACMEHandler(unittest.TestCase):
             self.message.check(message),
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -102,7 +104,9 @@ class TestACMEHandler(unittest.TestCase):
             self.message.check(message),
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -130,7 +134,9 @@ class TestACMEHandler(unittest.TestCase):
             self.message.check(message),
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -150,7 +156,9 @@ class TestACMEHandler(unittest.TestCase):
             self.message.check(message),
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -177,7 +185,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -210,7 +220,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_eabchk.called)
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -949,9 +961,9 @@ class TestAccountRepository(unittest.TestCase):
 
     def setUp(self):
         self.mock_dbstore = MagicMock()
-        self.repo = importlib.import_module("acme2certifier.acme_srv.message").AccountRepository(
-            self.mock_dbstore
-        )
+        self.repo = importlib.import_module(
+            "acme2certifier.acme_srv.message"
+        ).AccountRepository(self.mock_dbstore)
 
     def test_account_lookup_calls_dbstore(self):
         self.mock_dbstore.account_lookup.return_value = "result"

@@ -8,6 +8,7 @@ import sys
 from unittest.mock import patch, MagicMock, Mock, call
 from io import StringIO
 
+
 class TestDjangoUpdate(unittest.TestCase):
     """test class for a2c_django_update.py"""
 
@@ -65,7 +66,9 @@ class TestDjangoUpdate(unittest.TestCase):
                 "acme2certifier.django_app.models": MagicMock(
                     Status=mock_status, Housekeeping=mock_housekeeping
                 ),
-                "acme2certifier.acme_srv.version": MagicMock(__dbversion__=mock_dbversion),
+                "acme2certifier.acme_srv.version": MagicMock(
+                    __dbversion__=mock_dbversion
+                ),
             },
         ):
             with patch("acme2certifier.tools.a2c_django_update.django", mock_django):
@@ -427,7 +430,9 @@ class TestDjangoUpdate(unittest.TestCase):
                 "acme2certifier.django_app.models": MagicMock(
                     Status=mock_status, Housekeeping=mock_housekeeping
                 ),
-                "acme2certifier.acme_srv.version": MagicMock(__dbversion__=mock_dbversion),
+                "acme2certifier.acme_srv.version": MagicMock(
+                    __dbversion__=mock_dbversion
+                ),
             },
         ):
             result = django_update.setup_django()
@@ -438,6 +443,42 @@ class TestDjangoUpdate(unittest.TestCase):
         self.assertEqual(django_update.Status, mock_status)
         self.assertEqual(django_update.Housekeeping, mock_housekeeping)
         self.assertEqual(django_update.__dbversion__, mock_dbversion)
+
+    @patch("acme2certifier.tools.a2c_django_update.update_db_version")
+    @patch("acme2certifier.tools.a2c_django_update.update_status_fields")
+    @patch("acme2certifier.tools.a2c_django_update.run_migrations")
+    @patch("acme2certifier.tools.a2c_django_update.setup_django")
+    @patch("builtins.print")
+    def test_021_main_status_fields_failure(
+        self, mock_print, mock_setup, mock_migrations, mock_status, mock_dbversion
+    ):
+        """test main sets exit_code when update_status_fields fails"""
+        from acme2certifier.tools import a2c_django_update as django_update
+
+        mock_setup.return_value = True
+        mock_migrations.return_value = True
+        mock_status.return_value = False
+        mock_dbversion.return_value = True
+
+        result = django_update.main()
+
+        self.assertEqual(result, 1)
+        print_calls = [call[0][0] for call in mock_print.call_args_list]
+        self.assertIn("Django database update completed with errors.", print_calls)
+
+    def test_022_module_main_entrypoint(self):
+        """``__main__`` guard exits with main()'s return code"""
+        import runpy
+
+        sys.modules.pop(self.MODULE, None)
+        with patch("sys.exit") as mock_exit:
+            runpy.run_module(
+                "acme2certifier.tools.a2c_django_update",
+                run_name="__main__",
+                alter_sys=True,
+            )
+        mock_exit.assert_called()
+        self.assertIn(mock_exit.call_args[0][0], (0, 1))
 
 
 if __name__ == "__main__":

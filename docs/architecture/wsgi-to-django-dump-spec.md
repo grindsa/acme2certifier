@@ -146,9 +146,9 @@ Required PK ↔ name map:
 ## Operator procedure (agreed)
 
 1. Quiesce + backup (`acme_srv.db`, cfg, CA/volume).
-2. `a2c-wsgi2django export --db … --out dump.json`.
-3. Switch flavor to Django **same a2c version**; migrate / `a2c-django-update`.
-4. Optional `wipe`; then `import`; then `check`.
-5. Restart; renew with migrated account keys.
+1. `a2c-wsgi2django export --db … --out dump.json`.
+1. Switch flavor to Django **same a2c version**; migrate / `a2c-django-update`.
+1. Optional `wipe`; then `import`; then `check`.
+1. Restart; renew with migrated account keys.
 
 Rollback: restore WSGI image/cfg/db from backup; do not delete the dump.

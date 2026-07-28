@@ -524,6 +524,19 @@ class TestEABHandler(unittest.TestCase):
             any("Database error while retrieving eab_kid" in msg for msg in lcm.output)
         )
 
+    def test_046_eab_kid_get_revocation(self):
+        """test EABhandler.eab_kid_get() with revocation=True uses cert_raw"""
+        models_mock = MagicMock()
+        models_mock.DBstore().certificate_lookup.return_value = {
+            "order__account__eab_kid": "kid_rev"
+        }
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
+        patch.dict("sys.modules", modules).start()
+        result = self.eabhandler.eab_kid_get("cert_raw_data", revocation=True)
+        self.assertEqual(result, "kid_rev")
+        call_args = models_mock.DBstore().certificate_lookup.call_args
+        self.assertEqual(call_args[0][0], "cert_raw")
+
 
 if __name__ == "__main__":
 

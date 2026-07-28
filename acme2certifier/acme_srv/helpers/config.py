@@ -19,9 +19,7 @@ _LAST_LOADED_CFG: Optional[Tuple[str, str]] = None
 ACME_SRV_CFG_FILENAME = "acme_srv.cfg"
 
 
-def _log_cfg_loaded_once(
-    logger: logging.Logger, cfg_path: str, source: str
-) -> None:
+def _log_cfg_loaded_once(logger: logging.Logger, cfg_path: str, source: str) -> None:
     """Log successful acme_srv.cfg load once per absolute path (then DEBUG)."""
     abs_path = os.path.abspath(cfg_path)
     message = "Loaded acme_srv.cfg %s (%s)"
@@ -422,9 +420,7 @@ def _default_acme_srv_cfg_file(
         ),
     )
     packaged_cfg = os.path.join(pkg_dir, ACME_SRV_CFG_FILENAME)
-    legacy_cfg = os.path.join(
-        install_or_repo_root, "acme_srv", ACME_SRV_CFG_FILENAME
-    )
+    legacy_cfg = os.path.join(install_or_repo_root, "acme_srv", ACME_SRV_CFG_FILENAME)
     log.debug(
         "Helper._default_acme_srv_cfg_file(): candidates preferred=%s "
         "nested=%s packaged=%s legacy=%s",

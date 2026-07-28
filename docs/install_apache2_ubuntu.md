@@ -181,7 +181,7 @@ sudo sh -c 'cat /var/www/acme2certifier/volume/acme2certifier-cert.pem \
 If `handler: django`:
 
 1. Configure `acme2certifier.django_project.settings` (or env `ACME2CERTIFIER_SECRET_KEY` / `ACME2CERTIFIER_ALLOWED_HOSTS`). MySQL template: `examples/django/settings.py`.
-2. Apply schema and fixtures:
+1. Apply schema and fixtures:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg

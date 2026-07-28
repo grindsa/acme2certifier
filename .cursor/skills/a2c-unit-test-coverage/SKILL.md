@@ -1,12 +1,6 @@
----
-name: a2c-unit-test-coverage
-description: >-
-  Raises unit-test line coverage for acme2certifier modules to 100% using
-  existing test/ conventions (test_NNN_ numbering, unittest.TestCase,
-  assertLogs on test_a2c). Use when closing coverage gaps, adding missing
-  unit tests, or when the user asks for 100% coverage of a module.
-disable-model-invocation: true
----
+______________________________________________________________________
+
+## name: a2c-unit-test-coverage description: >- Raises unit-test line coverage for acme2certifier modules to 100% using existing test/ conventions (test_NNN\_ numbering, unittest.TestCase, assertLogs on test_a2c). Use when closing coverage gaps, adding missing unit tests, or when the user asks for 100% coverage of a module. disable-model-invocation: true
 
 # a2c unit-test coverage
 
@@ -31,13 +25,13 @@ Bring **line coverage** of targeted modules under `acme2certifier/` to **100%**,
 ## Conventions (mandatory)
 
 1. Scan neighboring files in `test/` before writing anything.
-2. Method names: `test_NNN_<descriptive_snake_case>` with zero-padded numbers (`test_001_…`).
-3. Continue numbering from the **highest existing** number in that file. **Never renumber** old tests.
-4. Match the style of the suite you edit. Most suites use `unittest.TestCase` + `unittest.mock`. Do **not** convert unittest suites to pytest.
-5. Logger name in tests: `"test_a2c"`. Assert INFO and higher with `self.assertLogs("test_a2c", level="INFO")` (or `WARNING`/`ERROR` when that is the expected severity). Prefer asserting message strings via `self.assertIn(..., lcm.output)`.
-6. Do not assert DEBUG unless needed solely to cover an otherwise unreachable branch.
-7. Run/measure with pytest + pytest-cov; writing style follows the file under edit.
-8. Prefer behavior and edge cases over pure line-hitting. Prefer mocks over production refactors. Ask before changing production code.
+1. Method names: `test_NNN_<descriptive_snake_case>` with zero-padded numbers (`test_001_…`).
+1. Continue numbering from the **highest existing** number in that file. **Never renumber** old tests.
+1. Match the style of the suite you edit. Most suites use `unittest.TestCase` + `unittest.mock`. Do **not** convert unittest suites to pytest.
+1. Logger name in tests: `"test_a2c"`. Assert INFO and higher with `self.assertLogs("test_a2c", level="INFO")` (or `WARNING`/`ERROR` when that is the expected severity). Prefer asserting message strings via `self.assertIn(..., lcm.output)`.
+1. Do not assert DEBUG unless needed solely to cover an otherwise unreachable branch.
+1. Run/measure with pytest + pytest-cov; writing style follows the file under edit.
+1. Prefer behavior and edge cases over pure line-hitting. Prefer mocks over production refactors. Ask before changing production code.
 
 See [examples.md](examples.md) for naming, `assertLogs`, and setup patterns.
 
@@ -72,7 +66,7 @@ pytest test/test_<name>.py \
 If the user named a specific module, start there. Otherwise:
 
 1. Suites that exist but are under 100%
-2. Modules with no suite
+1. Modules with no suite
 
 Process **one module at a time**.
 

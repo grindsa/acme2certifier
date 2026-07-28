@@ -1191,7 +1191,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._certid_get_from_serial")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._certid_get_from_serial"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.header_info_get")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.b64_url_recode")
     def test_085__cert_id_lookup(self, mock_enc, mock_info, mock_serial):
@@ -1202,7 +1204,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("poll_identifier", self.cahandler._cert_id_lookup("cert_raw"))
         self.assertFalse(mock_serial.called)
 
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._certid_get_from_serial")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._certid_get_from_serial"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.header_info_get")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.b64_url_recode")
     def test_086__cert_id_lookup(self, mock_enc, mock_info, mock_serial):
@@ -1213,7 +1217,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("mock_serial", self.cahandler._cert_id_lookup("cert_raw"))
         self.assertTrue(mock_serial.called)
 
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._certid_get_from_serial")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._certid_get_from_serial"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.header_info_get")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.b64_url_recode")
     def test_087__cert_id_lookup(self, mock_enc, mock_info, mock_serial):
@@ -1296,7 +1302,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.nclm_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._cert_enroll")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._template_id_lookup")
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.b64_url_recode")
     def test_093_enroll(
         self, mock_recode, mock_policy, mock_template, mock_enroll, mock_ecl
@@ -1320,7 +1328,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.nclm_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._cert_enroll")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._template_id_lookup")
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.b64_url_recode")
     def test_094_enroll(
         self, mock_recode, mock_policy, mock_template, mock_enroll, mock_ecl
@@ -1344,7 +1354,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._cert_enroll")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._template_id_lookup")
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.b64_url_recode")
     def test_095_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll):
         """test enroll"""
@@ -1370,7 +1382,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._cert_enroll")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._template_id_lookup")
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.b64_url_recode")
     def test_096_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll):
         """test enroll"""
@@ -1391,7 +1405,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._cert_enroll")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._template_id_lookup")
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.b64_url_recode")
     def test_097_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll):
         """test enroll"""
@@ -1411,7 +1427,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.nclm_ca_handler.eab_profile_header_info_check")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._cert_enroll")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._template_id_lookup")
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._ca_policylink_id_lookup"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.b64_url_recode")
     def test_098_enroll(
         self, mock_recode, mock_policy, mock_template, mock_enroll, mock_eab
@@ -1430,7 +1448,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_template.called)
         self.assertFalse(mock_enroll.called)
 
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._revocation_status_poll")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._revocation_status_poll"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._cert_id_lookup")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.error_dic_get")
@@ -1447,7 +1467,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_poll.called)
 
     @patch("acme2certifier.cahandlers.nclm_ca_handler.eab_profile_revocation_check")
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._revocation_status_poll")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._revocation_status_poll"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._cert_id_lookup")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.error_dic_get")
@@ -1468,7 +1490,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_eab.called)
 
     @patch("acme2certifier.cahandlers.nclm_ca_handler.eab_profile_revocation_check")
-    @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._revocation_status_poll")
+    @patch(
+        "acme2certifier.cahandlers.nclm_ca_handler.CAhandler._revocation_status_poll"
+    )
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.CAhandler._cert_id_lookup")
     @patch("acme2certifier.cahandlers.nclm_ca_handler.error_dic_get")

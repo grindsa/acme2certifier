@@ -3306,6 +3306,45 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+    def test_160_nonce_delete_bulk_empty(self):
+        """test DBstore.nonce_delete_bulk() with empty list"""
+        self.assertEqual(0, self.dbstore.nonce_delete_bulk([]))
+
+    def test_161_nonce_delete_bulk(self):
+        """test DBstore.nonce_delete_bulk() deletes listed nonces"""
+        self.dbstore.nonce_add("n1")
+        self.dbstore.nonce_add("n2")
+        self.dbstore.nonce_add("n3")
+        deleted = self.dbstore.nonce_delete_bulk(["n1", "n3"])
+        self.assertEqual(2, deleted)
+        self.assertFalse(self.dbstore.nonce_check("n1"))
+        self.assertTrue(self.dbstore.nonce_check("n2"))
+        self.assertFalse(self.dbstore.nonce_check("n3"))
+
+    def test_162_nonce_delete_bulk_chunked(self):
+        """test DBstore.nonce_delete_bulk() with more than chunk_size entries"""
+        nonces = [f"n{i:04d}" for i in range(950)]
+        for nonce in nonces:
+            self.dbstore.nonce_add(nonce)
+        deleted = self.dbstore.nonce_delete_bulk(nonces)
+        self.assertEqual(950, deleted)
+        self.assertFalse(self.dbstore.nonce_check(nonces[0]))
+        self.assertFalse(self.dbstore.nonce_check(nonces[-1]))
+
+    def test_163_nonce_search_by_timestamp(self):
+        """test DBstore.nonce_search_by_timestamp() returns older nonces"""
+        self.dbstore.nonce_add("old_nonce")
+        # far-future cutoff so the just-created nonce is included
+        result = self.dbstore.nonce_search_by_timestamp(4102444800)
+        self.assertIn("old_nonce", result)
+
+    def test_164_nonce_search_by_timestamp_empty(self):
+        """test DBstore.nonce_search_by_timestamp() with no matching rows"""
+        self.dbstore.nonce_add("fresh_nonce")
+        # timestamp 0 should not match CURRENT_TIMESTAMP rows
+        result = self.dbstore.nonce_search_by_timestamp(0)
+        self.assertEqual([], result)
+
 
 if __name__ == "__main__":
 

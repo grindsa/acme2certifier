@@ -9,6 +9,7 @@ def test_001_generate_nonce_value(self):
     """test Nonce._generate_nonce_value() and check if we get something back"""
     self.assertIsNotNone(self.nonce._generate_nonce_value())
 
+
 def test_002_generate_and_add(self):
     """test Nonce._generate_and_add() and check if we get something back"""
     self.assertIsNotNone(self.nonce.generate_and_add())

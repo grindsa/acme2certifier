@@ -35,8 +35,8 @@ Images ship with a baked default:
 Precedence matches the application:
 
 1. `[DBhandler] handler_module` or `handler` in `acme_srv.cfg` (wins)
-2. `ACME_SRV_DB_HANDLER` (image default, or override with `docker run -e`)
-3. default `wsgi`
+1. `ACME_SRV_DB_HANDLER` (image default, or override with `docker run -e`)
+1. default `wsgi`
 
 You can switch the **DB backend** via cfg without rebuilding the image. That does **not** retarget the web stack: Apache/nginx config and the WSGI/Django app entry stay image-specific. Use a `django` image for a full Django deployment (settings, migrations, Django app entry).
 

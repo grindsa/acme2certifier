@@ -269,7 +269,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_021_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -302,7 +304,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_022_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -335,7 +339,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_023_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -366,7 +372,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_024_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -399,7 +407,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_025_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -437,7 +447,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_026_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -470,7 +482,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_027_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -508,7 +522,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_028_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -541,7 +557,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_029_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -574,7 +592,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_030_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -607,7 +627,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_031_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -640,7 +662,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_032_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -673,7 +697,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
     def test_033_config_load(
         self, mock_load, mock_session, mock_root, mock_eab, mock_header
@@ -775,7 +801,9 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_root_load(parser)
         self.assertIn("290IENlcnRpZmljYXRpb24g", self.cahandler.entrust_root_cert)
 
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_passphrase_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_passphrase_load"
+    )
     def test_040_config_session_load(self, mock_sl):
         """_config_session_load()"""
         parser = configparser.ConfigParser()
@@ -786,7 +814,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.requests.Session")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.Pkcs12Adapter")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_passphrase_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_passphrase_load"
+    )
     def test_041_config_session_load(self, mock_sl, mock_pkcs12, mock_session):
         """_config_session_load()"""
         parser = configparser.ConfigParser()
@@ -800,7 +830,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.requests.Session")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.Pkcs12Adapter")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_passphrase_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_passphrase_load"
+    )
     def test_042_config_session_load(self, mock_sl, mock_pkcs12, mock_session):
         """_config_session_load()"""
         parser = configparser.ConfigParser()
@@ -1094,7 +1126,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler._config_check())
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.allowed_domainlist_check")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler.credential_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.eab_profile_header_info_check")
@@ -1115,7 +1149,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_domain.called)
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.allowed_domainlist_check")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler.credential_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.eab_profile_header_info_check")
@@ -1136,7 +1172,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_domain.called)
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.allowed_domainlist_check")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler.credential_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.eab_profile_header_info_check")
@@ -1157,7 +1195,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_domain.called)
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.allowed_domainlist_check")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler.credential_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.eab_profile_header_info_check")
@@ -1178,7 +1218,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_credential.called)
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.allowed_domainlist_check")
-    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._org_domain_cfg_check"
+    )
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler.credential_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.eab_profile_header_info_check")
@@ -1598,6 +1640,19 @@ class TestACMEHandler(unittest.TestCase):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
+
+    @patch("acme2certifier.cahandlers.entrust_ca_handler.eab_profile_revocation_check")
+    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._trackingid_get")
+    def test_095_revoke_eab_profiling(self, mock_track, mock_req, mock_eab):
+        """test revoke() with eab_profiling enabled"""
+        mock_track.return_value = "tracking_id"
+        mock_req.return_value = (200, "response")
+        self.cahandler.eab_profiling = True
+        self.assertEqual(
+            (200, "Certificate revoked", None), self.cahandler.revoke("csr")
+        )
+        self.assertTrue(mock_eab.called)
 
 
 if __name__ == "__main__":

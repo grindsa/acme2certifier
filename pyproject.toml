@@ -105,4 +105,5 @@ include-package-data = true
 testpaths = ["test"]
 addopts = [
     "--cov=acme2certifier",
+    "--cov-report=term:skip-covered",
 ]

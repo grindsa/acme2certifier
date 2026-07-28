@@ -9,7 +9,11 @@ import sys
 # Add the parent directory to sys.path so we can import acme_srv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from acme2certifier.acme_srv.renewalinfo import Renewalinfo, RenewalinfoConfig, RenewalinfoRepository
+from acme2certifier.acme_srv.renewalinfo import (
+    Renewalinfo,
+    RenewalinfoConfig,
+    RenewalinfoRepository,
+)
 
 
 class TestRenewalinfoConfig(unittest.TestCase):
@@ -71,20 +75,24 @@ class TestRenewalinfo(unittest.TestCase):
             renewal_force=True, renewalthreshold_pctg=90.0, retry_after_timeout=1234
         )
         patcher_db = patch(
-            "acme2certifier.acme_srv.renewalinfo.DBstore", return_value=self.mock_dbstore
+            "acme2certifier.acme_srv.renewalinfo.DBstore",
+            return_value=self.mock_dbstore,
         )
         patcher_msg = patch(
-            "acme2certifier.acme_srv.renewalinfo.Message", return_value=self.mock_message
+            "acme2certifier.acme_srv.renewalinfo.Message",
+            return_value=self.mock_message,
         )
         patcher_err = patch(
-            "acme2certifier.acme_srv.renewalinfo.error_dic_get", return_value={"malformed": "malf"}
+            "acme2certifier.acme_srv.renewalinfo.error_dic_get",
+            return_value={"malformed": "malf"},
         )
         patcher_repo = patch(
             "acme2certifier.acme_srv.renewalinfo.RenewalinfoRepository",
             return_value=self.mock_repository,
         )
         patcher_certid_hex = patch(
-            "acme2certifier.acme_srv.renewalinfo.certid_hex_get", return_value=(None, "hex")
+            "acme2certifier.acme_srv.renewalinfo.certid_hex_get",
+            return_value=(None, "hex"),
         )
         self.addCleanup(patcher_db.stop)
         self.addCleanup(patcher_msg.stop)
@@ -110,7 +118,9 @@ class TestRenewalinfo(unittest.TestCase):
             "issue_uts": 90000,
         }
         self.mock_repository.get_certificates_by_serial.return_value = []
-        with patch("acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"
+        ):
             self.renewalinfo._update_certificate_table_with_serial_and_aki = MagicMock()
             self.renewalinfo._get_renewalinfo_data = MagicMock(
                 return_value={"suggestedWindow": {"start": "a", "end": "b"}}
@@ -123,7 +133,9 @@ class TestRenewalinfo(unittest.TestCase):
     def test_002_get_returns_404(self):
         self.mock_repository.get_housekeeping_param.return_value = True
         self.renewalinfo._get_renewalinfo_data = MagicMock(return_value={})
-        with patch("acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"
+        ):
             result = self.renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 404)
             self.assertEqual(result["data"], "malf")
@@ -133,7 +145,9 @@ class TestRenewalinfo(unittest.TestCase):
         self.renewalinfo._get_renewalinfo_data = MagicMock(
             side_effect=Exception("fail")
         )
-        with patch("acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"
+        ):
             result = self.renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 400)
             self.assertEqual(result["data"], "malf")
@@ -152,7 +166,10 @@ class TestRenewalinfo(unittest.TestCase):
             "issue_uts": 90000,
         }
         self.mock_repository.add_certificate.return_value = True
-        with patch("acme2certifier.acme_srv.renewalinfo.certid_hex_get", return_value=(None, "hex")):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.certid_hex_get",
+            return_value=(None, "hex"),
+        ):
             result = self.renewalinfo.update("content")
             self.assertEqual(result["code"], 200)
 
@@ -166,7 +183,10 @@ class TestRenewalinfo(unittest.TestCase):
             None,
         )
         self.mock_repository.get_certificate_by_certid.return_value = None
-        with patch("acme2certifier.acme_srv.renewalinfo.certid_hex_get", return_value=(None, "hex")):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.certid_hex_get",
+            return_value=(None, "hex"),
+        ):
             result = self.renewalinfo.update("content")
             self.assertEqual(result["code"], 400)
 
@@ -179,7 +199,10 @@ class TestRenewalinfo(unittest.TestCase):
             {"foo": "bar"},
             None,
         )
-        with patch("acme2certifier.acme_srv.renewalinfo.certid_hex_get", return_value=(None, "hex")):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.certid_hex_get",
+            return_value=(None, "hex"),
+        ):
             result = self.renewalinfo.update("content")
             self.assertEqual(result["code"], 400)
 
@@ -194,7 +217,10 @@ class TestRenewalinfo(unittest.TestCase):
         self.assertEqual(result, {"foo": "bar"})
 
     def test_008_lookup_certificate_by_renewalinfo_nodot(self):
-        with patch("acme2certifier.acme_srv.renewalinfo.certid_hex_get", return_value=(None, "hex")):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.certid_hex_get",
+            return_value=(None, "hex"),
+        ):
             self.renewalinfo._lookup_certificate_by_certid = MagicMock(
                 return_value={"foo": "bar"}
             )
@@ -232,7 +258,9 @@ class TestRenewalinfo(unittest.TestCase):
         result3 = renewalinfo._generate_renewalinfo_window({"expire_uts": 0})
         self.assertEqual(result3, {})
         # cert_dic with 'expire_uts' present, but 'issue_uts' missing: uts_now() should be called
-        with patch("acme2certifier.acme_srv.renewalinfo.uts_now", return_value=12345) as mock_uts_now:
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.uts_now", return_value=12345
+        ) as mock_uts_now:
             cert_dic = {"expire_uts": 100000}
             renewalinfo.config.renewal_force = False
             renewalinfo.config.renewalthreshold_pctg = 85.0
@@ -240,8 +268,12 @@ class TestRenewalinfo(unittest.TestCase):
             mock_uts_now.assert_called_once()
 
     def test_013_extract_serial_and_aki_from_string_valid(self):
-        with patch("acme2certifier.acme_srv.renewalinfo.b64_decode", return_value=b"abc"):
-            with patch("acme2certifier.acme_srv.renewalinfo.b64_url_recode", return_value="abc"):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.b64_decode", return_value=b"abc"
+        ):
+            with patch(
+                "acme2certifier.acme_srv.renewalinfo.b64_url_recode", return_value="abc"
+            ):
                 result = self.renewalinfo._extract_serial_and_aki_from_string("foo.bar")
                 self.assertEqual(result, ("616263", "616263"))
 
@@ -269,7 +301,10 @@ class TestRenewalinfo(unittest.TestCase):
                     return {"handler_file": "/dev/null"}
                 raise KeyError(key)
 
-        with patch("acme2certifier.acme_srv.renewalinfo.load_config", return_value=DummyConfig()):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.load_config",
+            return_value=DummyConfig(),
+        ):
             self.renewalinfo.logger = MagicMock()
             self.renewalinfo.config = RenewalinfoConfig()
             self.renewalinfo._load_configuration()
@@ -293,7 +328,10 @@ class TestRenewalinfo(unittest.TestCase):
                     return {"handler_file": "/dev/null"}
                 raise KeyError(key)
 
-        with patch("acme2certifier.acme_srv.renewalinfo.load_config", return_value=DummyConfig()):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.load_config",
+            return_value=DummyConfig(),
+        ):
             self.renewalinfo.logger = MagicMock()
             self.renewalinfo.config = RenewalinfoConfig()
             self.renewalinfo._load_configuration()
@@ -317,7 +355,10 @@ class TestRenewalinfo(unittest.TestCase):
                     return {"handler_file": "/dev/null"}
                 raise KeyError(key)
 
-        with patch("acme2certifier.acme_srv.renewalinfo.load_config", return_value=DummyConfig()):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.load_config",
+            return_value=DummyConfig(),
+        ):
             self.renewalinfo.logger = MagicMock()
             self.renewalinfo.config = RenewalinfoConfig()
             self.renewalinfo._load_configuration()
@@ -342,7 +383,10 @@ class TestRenewalinfo(unittest.TestCase):
                     return {"handler_file": "/dev/null"}
                 raise KeyError(key)
 
-        with patch("acme2certifier.acme_srv.renewalinfo.load_config", return_value=DummyConfig()):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.load_config",
+            return_value=DummyConfig(),
+        ):
             self.renewalinfo.logger = MagicMock()
             self.renewalinfo.config = RenewalinfoConfig()
             self.renewalinfo._load_configuration()
@@ -371,7 +415,10 @@ class TestRenewalinfo(unittest.TestCase):
                     return {"handler_file": "/dev/null"}
                 raise KeyError(key)
 
-        with patch("acme2certifier.acme_srv.renewalinfo.load_config", return_value=DummyConfig()):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.load_config",
+            return_value=DummyConfig(),
+        ):
             self.renewalinfo.logger = MagicMock()
             self.renewalinfo.config = RenewalinfoConfig()
             self.renewalinfo._load_configuration()
@@ -407,8 +454,13 @@ class TestRenewalinfo(unittest.TestCase):
         ]
         renewalinfo.dbstore.certificates_search.return_value = certs
         with (
-            patch("acme2certifier.acme_srv.renewalinfo.cert_serial_get", return_value="serial1"),
-            patch("acme2certifier.acme_srv.renewalinfo.cert_aki_get", return_value="aki1"),
+            patch(
+                "acme2certifier.acme_srv.renewalinfo.cert_serial_get",
+                return_value="serial1",
+            ),
+            patch(
+                "acme2certifier.acme_srv.renewalinfo.cert_aki_get", return_value="aki1"
+            ),
         ):
             renewalinfo._update_certificate_table_with_serial_and_aki()
         # Only one add_certificate should be called
@@ -457,7 +509,9 @@ class TestRenewalinfo(unittest.TestCase):
         renewalinfo.config.retry_after_timeout = 123
         renewalinfo.repository.get_housekeeping_param.return_value = True
         renewalinfo._get_renewalinfo_data = MagicMock(return_value={"foo": "bar"})
-        with patch("acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"
+        ):
             result = renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 200)
             self.assertIn("data", result)
@@ -470,7 +524,9 @@ class TestRenewalinfo(unittest.TestCase):
         renewalinfo.err_msg_dic = {"malformed": "malf"}
         renewalinfo.repository.get_housekeeping_param.return_value = True
         renewalinfo._get_renewalinfo_data = MagicMock(return_value={})
-        with patch("acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"
+        ):
             result = renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 404)
             self.assertEqual(result["data"], "malf")
@@ -482,7 +538,9 @@ class TestRenewalinfo(unittest.TestCase):
         renewalinfo.err_msg_dic = {"malformed": "malf"}
         renewalinfo.repository.get_housekeeping_param.return_value = True
         renewalinfo._get_renewalinfo_data = MagicMock(side_effect=Exception("fail"))
-        with patch("acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"
+        ):
             result = renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 400)
             self.assertEqual(result["data"], "malf")
@@ -612,7 +670,10 @@ class TestRenewalinfo(unittest.TestCase):
         mock_cahandler_class = MagicMock()
         mock_module = MagicMock()
         mock_module.CAhandler = mock_cahandler_class
-        with patch("acme2certifier.acme_srv.renewalinfo.ca_handler_load", return_value=mock_module):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.ca_handler_load",
+            return_value=mock_module,
+        ):
             self.renewalinfo.cahandler = None
             self.renewalinfo._load_ca_handler(
                 {"CAhandler": {"handler_file": "/dev/null"}}
@@ -621,7 +682,9 @@ class TestRenewalinfo(unittest.TestCase):
 
     def test_010__load_ca_handler_failure(self):
         # Patch ca_handler_load to return None
-        with patch("acme2certifier.acme_srv.renewalinfo.ca_handler_load", return_value=None):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.ca_handler_load", return_value=None
+        ):
             self.renewalinfo.cahandler = None
             self.renewalinfo._load_ca_handler(
                 {"CAhandler": {"handler_file": "/dev/null"}}
@@ -643,7 +706,9 @@ class TestRenewalinfo(unittest.TestCase):
         )
         mock_cahandler_class.return_value.__exit__.return_value = None
         self.renewalinfo.cahandler = mock_cahandler_class
-        with patch("acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"):
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"
+        ):
             result = self.renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 201)
             self.assertIn("data", result)

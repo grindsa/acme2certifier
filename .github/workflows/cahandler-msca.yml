@@ -2627,4 +2627,3 @@ jobs:
           AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
           ACTION: "stop"
           IGNORE_CURRENT_STATUS: "false"
-

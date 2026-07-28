@@ -6,7 +6,8 @@
 import unittest
 import sys
 import os
-from unittest.mock import patch, Mock, MagicMock
+import subprocess
+from unittest.mock import patch, Mock, MagicMock, mock_open
 import base64
 import configparser
 
@@ -542,7 +543,9 @@ class TestACMEHandler(unittest.TestCase):
             ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
         )
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_040_enroll(self, mock_certserver, mock_credchk):
         """enroll credential check failed"""
@@ -557,11 +560,15 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.enroll("csr"),
         )
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._template_name_get")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._template_name_get"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_041_enroll(
         self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p, mock_tmpl
@@ -584,11 +591,15 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_tmpl.called)
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._template_name_get")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._template_name_get"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_042_enroll(
         self,
@@ -617,11 +628,15 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_tmpl.called)
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._template_name_get")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._template_name_get"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_043_enroll(
         self,
@@ -650,11 +665,15 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_tmpl.called)
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.eab_profile_header_info_check"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_044_enroll(
         self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p, mock_eab
@@ -680,11 +699,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_eab.called)
         self.assertEqual("template", self.cahandler.template)
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.eab_profile_header_info_check"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_045_enroll(
         self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p, mock_eab
@@ -755,11 +778,15 @@ class TestACMEHandler(unittest.TestCase):
             ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
         )
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.eab_profile_header_info_check"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_046_enroll(
         self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p, mock_eab
@@ -788,7 +815,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_047_enroll(
         self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p
@@ -828,7 +857,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_048_enroll(
         self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p
@@ -856,7 +887,9 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.enrollment_config_log")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_049_enroll(self, mock_certserver, mock_credchk, mock_ecl):
         """enroll credential check failed"""
@@ -873,7 +906,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_ecl.called)
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.enrollment_config_log")
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials"
+    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_050_enroll(self, mock_certserver, mock_credchk, mock_ecl):
         """enroll credential check failed"""
@@ -988,6 +1023,427 @@ class TestACMEHandler(unittest.TestCase):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
+
+    def test_062_config_kerberos_parameter_item_load_env_error(self):
+        """_config_kerberos_parameter_item_load logs missing env variables"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"krb5_principal_variable": "DOES_NOT_EXIST"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            value = self.cahandler._config_kerberos_parameter_item_load(
+                parser,
+                None,
+                "krb5_principal",
+                "krb5_principal_variable",
+                "Could not load krb5_principal_variable from environment: %s",
+            )
+        self.assertIsNone(value)
+        self.assertTrue(
+            any(
+                "Could not load krb5_principal_variable from environment" in msg
+                for msg in lcm.output
+            )
+        )
+
+    def test_063_config_kerberos_parameters_load_missing_section(self):
+        """_config_kerberos_parameters_load returns early without CAhandler section"""
+        self.cahandler._config_kerberos_parameters_load({})
+        self.assertFalse(self.cahandler.krb5_principal)
+
+    @patch.dict(
+        "os.environ", {"KRB5CCNAME": "old_cc", "KRB5_CONFIG": "old_cfg"}, clear=False
+    )
+    def test_064_kerberos_runtime_environment_sets_and_restores(self):
+        """_kerberos_runtime_environment sets and restores previous values"""
+        self.cahandler.krb5_cache = "new_cc"
+        self.cahandler.krb5_config = "new_cfg"
+        with self.cahandler._kerberos_runtime_environment():
+            self.assertEqual("new_cc", os.environ.get("KRB5CCNAME"))
+            self.assertEqual("new_cfg", os.environ.get("KRB5_CONFIG"))
+        self.assertEqual("old_cc", os.environ.get("KRB5CCNAME"))
+        self.assertEqual("old_cfg", os.environ.get("KRB5_CONFIG"))
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_065_kerberos_runtime_environment_pops_unset_keys(self):
+        """_kerberos_runtime_environment pops keys that were previously unset"""
+        self.cahandler.krb5_cache = "new_cc"
+        self.cahandler.krb5_config = "new_cfg"
+        with self.cahandler._kerberos_runtime_environment():
+            self.assertEqual("new_cc", os.environ.get("KRB5CCNAME"))
+        self.assertNotIn("KRB5CCNAME", os.environ)
+        self.assertNotIn("KRB5_CONFIG", os.environ)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.os.unlink")
+    def test_066_kerberos_cleanup_temporary_ccache(self, mock_unlink):
+        """cleanup removes temporary ccache and resets state"""
+        self.cahandler.krb5_cache = "/tmp/runtime_ccache"
+        self.cahandler._krb5_cache_is_temporary = True
+        self.cahandler._kerberos_cleanup_temporary_ccache()
+        mock_unlink.assert_called_once_with("/tmp/runtime_ccache")
+        self.assertFalse(self.cahandler._krb5_cache_is_temporary)
+        self.assertIsNone(self.cahandler.krb5_cache)
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.unlink",
+        side_effect=FileNotFoundError(),
+    )
+    def test_067_kerberos_cleanup_temporary_ccache_missing(self, mock_unlink):
+        """cleanup handles already-removed temporary ccache"""
+        self.cahandler.krb5_cache = "/tmp/runtime_ccache"
+        self.cahandler._krb5_cache_is_temporary = True
+        self.cahandler._kerberos_cleanup_temporary_ccache()
+        mock_unlink.assert_called_once_with("/tmp/runtime_ccache")
+        self.assertIsNone(self.cahandler.krb5_cache)
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.unlink",
+        side_effect=PermissionError("denied"),
+    )
+    def test_068_kerberos_cleanup_temporary_ccache_error(self, mock_unlink):
+        """cleanup logs warning when unlink fails"""
+        self.cahandler.krb5_cache = "/tmp/runtime_ccache"
+        self.cahandler._krb5_cache_is_temporary = True
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._kerberos_cleanup_temporary_ccache()
+        self.assertIn(
+            "WARNING:test_a2c:Failed to remove temporary kerberos ccache file '/tmp/runtime_ccache': denied",
+            lcm.output,
+        )
+
+    def test_069_kerberos_acquire_with_gssapi_raw_success(self):
+        """_kerberos_acquire_with_gssapi_raw succeeds when raw API is available"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        gssapi = MagicMock()
+        gssapi.raw.acquire_cred_from = MagicMock()
+        self.assertTrue(
+            self.cahandler._kerberos_acquire_with_gssapi_raw(
+                gssapi, MagicMock(), "/tmp/cc"
+            )
+        )
+        gssapi.raw.acquire_cred_from.assert_called_once()
+
+    def test_070_kerberos_acquire_with_gssapi_raw_unavailable(self):
+        """_kerberos_acquire_with_gssapi_raw returns False when raw API missing"""
+        gssapi = MagicMock()
+        gssapi.raw = None
+        self.assertFalse(
+            self.cahandler._kerberos_acquire_with_gssapi_raw(
+                gssapi, MagicMock(), "/tmp/cc"
+            )
+        )
+
+    def test_071_kerberos_acquire_with_gssapi_raw_error(self):
+        """_kerberos_acquire_with_gssapi_raw returns False on exception"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        gssapi = MagicMock()
+        gssapi.raw.acquire_cred_from.side_effect = Exception("raw fail")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(
+                self.cahandler._kerberos_acquire_with_gssapi_raw(
+                    gssapi, MagicMock(), "/tmp/cc"
+                )
+            )
+        self.assertTrue(
+            any("gssapi.raw.acquire_cred_from" in msg for msg in lcm.output)
+        )
+
+    def test_072_kerberos_acquire_with_gssapi_highlevel_success(self):
+        """_kerberos_acquire_with_gssapi_highlevel succeeds when API available"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        gssapi = MagicMock()
+        gssapi.Credentials.acquire = MagicMock()
+        self.assertTrue(
+            self.cahandler._kerberos_acquire_with_gssapi_highlevel(
+                gssapi, MagicMock(), "/tmp/cc"
+            )
+        )
+
+    def test_073_kerberos_acquire_with_gssapi_highlevel_unavailable(self):
+        """_kerberos_acquire_with_gssapi_highlevel returns False when API missing"""
+        gssapi = MagicMock()
+        gssapi.Credentials = None
+        self.assertFalse(
+            self.cahandler._kerberos_acquire_with_gssapi_highlevel(
+                gssapi, MagicMock(), "/tmp/cc"
+            )
+        )
+
+    def test_074_kerberos_acquire_with_gssapi_highlevel_error(self):
+        """_kerberos_acquire_with_gssapi_highlevel returns False on exception"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        gssapi = MagicMock()
+        gssapi.Credentials.acquire.side_effect = Exception("high fail")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(
+                self.cahandler._kerberos_acquire_with_gssapi_highlevel(
+                    gssapi, MagicMock(), "/tmp/cc"
+                )
+            )
+        self.assertTrue(any("gssapi.Credentials.acquire" in msg for msg in lcm.output))
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="kinit", timeout=1),
+    )
+    def test_075_kerberos_acquire_with_kinit_timeout(self, _mock_run):
+        """_kerberos_acquire_with_kinit handles timeout"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.cahandler._kerberos_acquire_with_kinit("/tmp/cc"))
+        self.assertTrue(any("kinit timed out" in msg for msg in lcm.output))
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run",
+        side_effect=FileNotFoundError("missing"),
+    )
+    def test_076_kerberos_acquire_with_kinit_not_found(self, _mock_run):
+        """_kerberos_acquire_with_kinit handles missing binary"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.cahandler._kerberos_acquire_with_kinit("/tmp/cc"))
+        self.assertTrue(any("command not found" in msg for msg in lcm.output))
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run")
+    def test_077_kerberos_acquire_with_kinit_stderr(self, mock_run):
+        """_kerberos_acquire_with_kinit logs stderr from CalledProcessError"""
+        err = subprocess.CalledProcessError(1, "kinit", stderr=b"kinit failed")
+        mock_run.side_effect = err
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.cahandler._kerberos_acquire_with_kinit("/tmp/cc"))
+        self.assertIn(
+            "ERROR:test_a2c:Failed to acquire kerberos credentials via kinit: kinit failed",
+            lcm.output,
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run",
+        side_effect=Exception("boom"),
+    )
+    def test_078_kerberos_acquire_with_kinit_generic_error(self, _mock_run):
+        """_kerberos_acquire_with_kinit logs generic exceptions"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.cahandler._kerberos_acquire_with_kinit("/tmp/cc"))
+        self.assertIn(
+            "ERROR:test_a2c:Failed to acquire kerberos credentials via kinit: boom",
+            lcm.output,
+        )
+
+    def test_079_kerberos_prepare_gssapi_backend_noop(self):
+        """_kerberos_prepare_gssapi_backend returns None when not configured"""
+        self.cahandler.auth_method = "basic"
+        self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_backend())
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=False,
+    )
+    def test_080_kerberos_prepare_gssapi_backend_missing_keytab(self, _mock_isfile):
+        """_kerberos_prepare_gssapi_backend errors when keytab file missing"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/missing.keytab"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                "Kerberos keytab file does not exist.",
+                self.cahandler._kerberos_prepare_gssapi_backend(),
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Kerberos keytab file does not exist: /tmp/missing.keytab",
+            lcm.output,
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module",
+        side_effect=ImportError("no gssapi"),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=True,
+    )
+    def test_081_kerberos_prepare_gssapi_backend_import_error(
+        self, _mock_isfile, _mock_import
+    ):
+        """_kerberos_prepare_gssapi_backend errors when gssapi import fails"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.assertEqual(
+            "gssapi module is required for gssapi keytab authentication.",
+            self.cahandler._kerberos_prepare_gssapi_backend(),
+        )
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.exists",
+        return_value=False,
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=True,
+    )
+    @patch("builtins.open", new_callable=mock_open)
+    def test_082_kerberos_prepare_gssapi_backend_success(
+        self,
+        _mock_open,
+        _mock_isfile,
+        _mock_exists,
+        mock_import,
+    ):
+        """_kerberos_prepare_gssapi_backend succeeds via raw acquire"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = None
+        mock_gssapi = MagicMock()
+        mock_import.return_value = mock_gssapi
+        self.cahandler._kerberos_acquire_with_gssapi_raw = Mock(return_value=True)
+        self.cahandler._kerberos_acquire_with_gssapi_highlevel = Mock(
+            return_value=False
+        )
+        self.cahandler._kerberos_acquire_with_kinit = Mock(return_value=False)
+        self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_backend())
+        self.assertTrue(self.cahandler._krb5_cache_is_temporary)
+        self.assertTrue(self.cahandler.krb5_cache)
+        self.assertTrue(self.cahandler._kerberos_acquire_with_gssapi_raw.called)
+        self.assertFalse(self.cahandler._kerberos_acquire_with_gssapi_highlevel.called)
+        self.assertFalse(self.cahandler._kerberos_acquire_with_kinit.called)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.exists",
+        return_value=True,
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=True,
+    )
+    def test_083_kerberos_prepare_gssapi_backend_all_fail(
+        self,
+        _mock_isfile,
+        _mock_exists,
+        mock_import,
+    ):
+        """_kerberos_prepare_gssapi_backend returns error when all acquire methods fail"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "FILE:/tmp/cc"
+        mock_import.return_value = MagicMock()
+        self.cahandler._kerberos_acquire_with_gssapi_raw = Mock(return_value=False)
+        self.cahandler._kerberos_acquire_with_gssapi_highlevel = Mock(
+            return_value=False
+        )
+        self.cahandler._kerberos_acquire_with_kinit = Mock(return_value=False)
+        self.assertEqual(
+            "Failed to acquire kerberos credentials via gssapi/keytab.",
+            self.cahandler._kerberos_prepare_gssapi_backend(),
+        )
+        self.assertEqual("/tmp/cc", self.cahandler.krb5_cache)
+        self.assertTrue(self.cahandler._kerberos_acquire_with_gssapi_raw.called)
+        self.assertTrue(self.cahandler._kerberos_acquire_with_gssapi_highlevel.called)
+        self.assertTrue(self.cahandler._kerberos_acquire_with_kinit.called)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.exists",
+        return_value=True,
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=True,
+    )
+    def test_083b_kerberos_prepare_gssapi_backend_highlevel_success(
+        self, _mock_isfile, _mock_exists, mock_import
+    ):
+        """_kerberos_prepare_gssapi_backend succeeds via highlevel acquire"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        mock_import.return_value = MagicMock()
+        self.cahandler._kerberos_acquire_with_gssapi_raw = Mock(return_value=False)
+        self.cahandler._kerberos_acquire_with_gssapi_highlevel = Mock(return_value=True)
+        self.cahandler._kerberos_acquire_with_kinit = Mock(return_value=False)
+        self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_backend())
+        self.assertTrue(self.cahandler._kerberos_acquire_with_gssapi_highlevel.called)
+        self.assertFalse(self.cahandler._kerberos_acquire_with_kinit.called)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.exists",
+        return_value=True,
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=True,
+    )
+    def test_083c_kerberos_prepare_gssapi_backend_kinit_success(
+        self, _mock_isfile, _mock_exists, mock_import
+    ):
+        """_kerberos_prepare_gssapi_backend succeeds via kinit fallback"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        mock_import.return_value = MagicMock()
+        self.cahandler._kerberos_acquire_with_gssapi_raw = Mock(return_value=False)
+        self.cahandler._kerberos_acquire_with_gssapi_highlevel = Mock(
+            return_value=False
+        )
+        self.cahandler._kerberos_acquire_with_kinit = Mock(return_value=True)
+        self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_backend())
+        self.assertTrue(self.cahandler._kerberos_acquire_with_kinit.called)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=True,
+    )
+    def test_084_kerberos_prepare_gssapi_backend_principal_error(
+        self, _mock_isfile, mock_import
+    ):
+        """_kerberos_prepare_gssapi_backend errors when principal cannot be built"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        mock_gssapi = MagicMock()
+        mock_gssapi.Name.side_effect = Exception("bad principal")
+        mock_import.return_value = mock_gssapi
+        self.assertEqual(
+            "Failed to build kerberos principal for kerberos keytab authentication.",
+            self.cahandler._kerberos_prepare_gssapi_backend(),
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
+        return_value="kerberos failed",
+    )
+    def test_085_enroll_kerberos_prepare_error(self, mock_prepare, mock_cleanup):
+        """enroll returns early when kerberos backend setup fails"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                ("kerberos failed", None, None, None),
+                self.cahandler.enroll("csr"),
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Kerberos backend setup failed: kerberos failed",
+            lcm.output,
+        )
+        self.assertTrue(mock_prepare.called)
+        self.assertTrue(mock_cleanup.called)
 
 
 if __name__ == "__main__":

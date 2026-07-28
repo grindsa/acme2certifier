@@ -372,7 +372,7 @@ def _read_dbversion(conn: sqlite3.Connection) -> Optional[str]:
     if not _table_exists(conn, "housekeeping"):
         return None
     cur = conn.execute(
-        'SELECT value FROM housekeeping WHERE name = ? LIMIT 1',
+        "SELECT value FROM housekeeping WHERE name = ? LIMIT 1",
         ("dbversion",),
     )
     row = cur.fetchone()
@@ -638,9 +638,7 @@ def setup_django_orm() -> None:
         from django.apps import apps
         from django.conf import settings
     except ImportError as exc:
-        raise MigrationError(
-            f"Django is required for wipe/import: {exc}"
-        ) from exc
+        raise MigrationError(f"Django is required for wipe/import: {exc}") from exc
 
     if apps.ready:
         return
@@ -906,9 +904,7 @@ def _save_with_timestamps(
     """Create a row with explicit pk, then set auto_now(_add) timestamps via update."""
     obj = model(**fields)
     obj.save()
-    updates = {
-        key: value for key, value in timestamps.items() if value is not None
-    }
+    updates = {key: value for key, value in timestamps.items() if value is not None}
     if updates:
         model.objects.filter(pk=obj.pk).update(**updates)
 
@@ -1334,13 +1330,9 @@ def _diff_rows(
     missing = sorted(left_ids - right_ids)
     extra = sorted(right_ids - left_ids)
     if missing:
-        mismatches.append(
-            f"{table}: ids missing in {right_label}: {missing[:5]}"
-        )
+        mismatches.append(f"{table}: ids missing in {right_label}: {missing[:5]}")
     if extra:
-        mismatches.append(
-            f"{table}: ids unexpected in {right_label}: {extra[:5]}"
-        )
+        mismatches.append(f"{table}: ids unexpected in {right_label}: {extra[:5]}")
 
     for row_id in sorted(left_ids & right_ids):
         left_row = left[row_id]
@@ -1368,8 +1360,12 @@ def _source_only_certificate_diagnostics(
     if not extra_ids:
         return diagnostics
 
-    source_by_id = {int(row["id"]): row for row in source_rows if row.get("id") is not None}
-    source_order_ids = {int(row["id"]) for row in source_order_rows if row.get("id") is not None}
+    source_by_id = {
+        int(row["id"]): row for row in source_rows if row.get("id") is not None
+    }
+    source_order_ids = {
+        int(row["id"]) for row in source_order_rows if row.get("id") is not None
+    }
 
     for cert_id in extra_ids[:10]:
         row = source_by_id.get(cert_id, {})
@@ -1381,7 +1377,7 @@ def _source_only_certificate_diagnostics(
             continue
         try:
             parsed_order_id = int(order_id)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             diagnostics.append(
                 f"dump-vs-source-db detail: certificate.id={cert_id} excluded from dump: invalid order_id={order_id!r}"
             )
@@ -1397,7 +1393,9 @@ def _source_only_certificate_diagnostics(
     return diagnostics
 
 
-def _tables_for_check(dump: Mapping[str, Any], *, include_nonces: bool) -> Tuple[str, ...]:
+def _tables_for_check(
+    dump: Mapping[str, Any], *, include_nonces: bool
+) -> Tuple[str, ...]:
     """Check table set derived from dump settings."""
     base = (
         "status",
@@ -1501,9 +1499,7 @@ def cmd_check(args: argparse.Namespace) -> int:
                 print(f"check mismatch: {line}", file=sys.stderr)
             return CHECK_EXIT_MISMATCH
         if source_db is not None:
-            print(
-                "check passed: dump matches Django and source-db"
-            )
+            print("check passed: dump matches Django and source-db")
         else:
             print("check passed: dump matches Django")
         return CHECK_EXIT_OK

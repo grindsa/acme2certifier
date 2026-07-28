@@ -8,7 +8,7 @@ import json
 import sqlite3
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 import pytest
 
@@ -48,7 +48,6 @@ _bootstrap_django()
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 from acme2certifier.tools import a2c_wsgi2django as migrator
 
-
 STATUS_ROWS: List[Tuple[int, str]] = [
     (1, "invalid"),
     (2, "pending"),
@@ -72,7 +71,10 @@ def test_parse_iso_datetime_python36_compatible() -> None:
         2024, 1, 15, 10, 20, 30, 123456
     )
     assert migrator._parse_iso_datetime("2024-01-15T10:20:30Z").utcoffset() is not None
-    assert migrator._parse_iso_datetime("2024-01-15T10:20:30+00:00").utcoffset() is not None
+    assert (
+        migrator._parse_iso_datetime("2024-01-15T10:20:30+00:00").utcoffset()
+        is not None
+    )
 
 
 def test_main_requires_subcommand_python36_compatible() -> None:
@@ -106,7 +108,7 @@ def _create_wsgi_schema(conn: sqlite3.Connection) -> None:
         '"alg" varchar(10) NOT NULL, '
         '"jwk" TEXT UNIQUE NOT NULL, '
         '"contact" TEXT NOT NULL, '
-        '"eab_kid" varchar(255) DEFAULT \'\', '
+        "\"eab_kid\" varchar(255) DEFAULT '', "
         '"status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 5, '
         '"created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)'
     )
@@ -213,7 +215,7 @@ def _seed_fixture_data(conn: sqlite3.Connection) -> None:
     cur.execute(
         "INSERT INTO orders (id, name, notbefore, notafter, identifiers, account_id, "
         "profile, status_id, expires, created_at) "
-        "VALUES (10, 'ordBBBBB', 0, 0, '[{\"type\":\"dns\",\"value\":\"ex.com\"}]', "
+        'VALUES (10, \'ordBBBBB\', 0, 0, \'[{"type":"dns","value":"ex.com"}]\', '
         "1, 'default', 5, 1700000000, '2024-01-02 00:00:00')"
     )
     cur.execute(
@@ -374,9 +376,7 @@ def test_003_export_include_nonces(wsgi_db: Path) -> None:
 def test_004_export_cli_writes_file(wsgi_db: Path, tmp_path: Path, capsys: Any) -> None:
     """CLI export subcommand writes dump and prints summary."""
     out = tmp_path / "out" / "dump.json"
-    rc = migrator.main(
-        ["export", "--db", str(wsgi_db), "--out", str(out)]
-    )
+    rc = migrator.main(["export", "--db", str(wsgi_db), "--out", str(out)])
     assert rc == 0
     assert out.is_file()
     captured = capsys.readouterr()
@@ -425,9 +425,7 @@ def test_006_export_fails_contact_overflow(wsgi_db: Path) -> None:
         migrator.build_dump(wsgi_db)
 
 
-def test_007_export_skips_dangling_fk_with_warning(
-    wsgi_db: Path, capsys: Any
-) -> None:
+def test_007_export_skips_dangling_fk_with_warning(wsgi_db: Path, capsys: Any) -> None:
     """Orphan FK rows are skipped with a warning; export still succeeds."""
     conn = sqlite3.connect(str(wsgi_db))
     try:
@@ -784,9 +782,7 @@ def test_024e_verbose_export_logs_progress(
 ) -> None:
     """CLI -v prints export progress to stderr."""
     out = tmp_path / "dump.json"
-    rc = migrator.main(
-        ["-v", "export", "--db", str(wsgi_db), "--out", str(out)]
-    )
+    rc = migrator.main(["-v", "export", "--db", str(wsgi_db), "--out", str(out)])
     assert rc == 0
     err = capsys.readouterr().err
     assert "export: reading WSGI database" in err
@@ -807,7 +803,9 @@ def test_025_import_challenge_null_token_warns(
     assert Challenge.objects.get(pk=30).token == ""
 
 
-def test_026_wipe_cli(clean_django_db: None, sample_dump: Dict[str, Any], capsys: Any) -> None:
+def test_026_wipe_cli(
+    clean_django_db: None, sample_dump: Dict[str, Any], capsys: Any
+) -> None:
     """CLI wipe --yes clears imported rows and prints summary."""
     migrator.import_dump(sample_dump)
     rc = migrator.main(["wipe", "--yes"])
@@ -868,14 +866,9 @@ def test_029_check_cli_passes_with_source_db(
     migrator.write_dump(sample_dump, dump_path)
     migrator.import_dump(sample_dump)
 
-    rc = migrator.main(
-        ["check", "--dump", str(dump_path), "--source-db", str(wsgi_db)]
-    )
+    rc = migrator.main(["check", "--dump", str(dump_path), "--source-db", str(wsgi_db)])
     assert rc == migrator.CHECK_EXIT_OK
-    assert (
-        "check passed: dump matches Django and source-db"
-        in capsys.readouterr().out
-    )
+    assert "check passed: dump matches Django and source-db" in capsys.readouterr().out
 
 
 def test_030_check_cli_reports_source_db_mismatch(
@@ -900,9 +893,7 @@ def test_030_check_cli_reports_source_db_mismatch(
     finally:
         conn.close()
 
-    rc = migrator.main(
-        ["check", "--dump", str(dump_path), "--source-db", str(wsgi_db)]
-    )
+    rc = migrator.main(["check", "--dump", str(dump_path), "--source-db", str(wsgi_db)])
     assert rc == migrator.CHECK_EXIT_MISMATCH
     err = capsys.readouterr().err
     assert "check mismatch: dump-vs-source-db" in err
@@ -1043,9 +1034,7 @@ def test_038_check_source_db_certificate_extra_id_has_diagnostic(
     finally:
         conn.close()
 
-    rc = migrator.main(
-        ["check", "--dump", str(dump_path), "--source-db", str(wsgi_db)]
-    )
+    rc = migrator.main(["check", "--dump", str(dump_path), "--source-db", str(wsgi_db)])
     assert rc == migrator.CHECK_EXIT_MISMATCH
     err = capsys.readouterr().err
     assert "dump-vs-source-db: certificate: ids unexpected in source-db: [77]" in err
@@ -1105,3 +1094,641 @@ def test_042_imported_counts_init_and_dry_run_skips_nonce() -> None:
     assert dry["nonce"] == 0
     dry_with = migrator._dry_run_import_counts(tables, include_nonces=True)
     assert dry_with["nonce"] == 2
+
+
+def test_043_as_bool_coercion_matrix() -> None:
+    """_as_bool accepts None/bool/int/string truthy and falsy forms."""
+    assert migrator._as_bool(None) is False
+    assert migrator._as_bool(True) is True
+    assert migrator._as_bool(False) is False
+    assert migrator._as_bool(0) is False
+    assert migrator._as_bool(1) is True
+    assert migrator._as_bool("") is False
+    assert migrator._as_bool("0") is False
+    assert migrator._as_bool("false") is False
+    assert migrator._as_bool("NO") is False
+    assert migrator._as_bool("n") is False
+    assert migrator._as_bool("1") is True
+    assert migrator._as_bool("TRUE") is True
+    assert migrator._as_bool("yes") is True
+    assert migrator._as_bool("y") is True
+    assert migrator._as_bool("other") is True
+
+
+def test_044_parse_datetime_instance_and_aware_passthrough() -> None:
+    """datetime instances are accepted; already-aware values stay aware."""
+    from datetime import datetime, timezone
+
+    naive = datetime(2024, 6, 1, 12, 0, 0)
+    aware_in = datetime(2024, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+    out_naive = migrator._parse_datetime(naive)
+    assert out_naive is not None
+    assert out_naive.tzinfo is not None
+    out_aware = migrator._parse_datetime(aware_in)
+    assert out_aware is aware_in or out_aware.utcoffset() == aware_in.utcoffset()
+
+
+def test_045_parse_iso_datetime_offset_and_valueerror() -> None:
+    """ISO parser accepts +HH:MM offsets and raises on garbage."""
+    dt = migrator._parse_iso_datetime("2024-01-15T10:20:30+01:00")
+    assert dt.utcoffset() is not None
+    assert dt.utcoffset().total_seconds() == 3600
+    with pytest.raises(ValueError, match="unparseable timestamp"):
+        migrator._parse_iso_datetime("not-a-date")
+
+
+def test_046_load_dump_error_matrix(tmp_path: Path) -> None:
+    """load_dump rejects missing/invalid/non-object/incomplete JSON."""
+    missing = tmp_path / "missing.json"
+    with pytest.raises(migrator.MigrationError, match="dump not found"):
+        migrator.load_dump(missing)
+
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not-json", encoding="utf-8")
+    with pytest.raises(migrator.MigrationError, match="invalid dump JSON"):
+        migrator.load_dump(bad)
+
+    arr = tmp_path / "arr.json"
+    arr.write_text("[1, 2]", encoding="utf-8")
+    with pytest.raises(migrator.MigrationError, match="JSON object"):
+        migrator.load_dump(arr)
+
+    incomplete = tmp_path / "incomplete.json"
+    incomplete.write_text('{"meta": {}}', encoding="utf-8")
+    with pytest.raises(migrator.MigrationError, match="meta and tables"):
+        migrator.load_dump(incomplete)
+
+
+def test_047_build_dump_missing_db_and_missing_dbversion(tmp_path: Path) -> None:
+    """Export fails for missing DB file and missing housekeeping.dbversion."""
+    with pytest.raises(migrator.ExportError, match="WSGI database not found"):
+        migrator.build_dump(tmp_path / "nope.db")
+
+    db_path = tmp_path / "nodbv.db"
+    conn = sqlite3.connect(str(db_path))
+    try:
+        _create_wsgi_schema(conn)
+        conn.execute("DELETE FROM housekeeping WHERE name = 'dbversion'")
+        conn.commit()
+    finally:
+        conn.close()
+    with pytest.raises(migrator.ExportError, match="no housekeeping.dbversion"):
+        migrator.build_dump(db_path)
+
+
+def test_048_validate_required_account_and_certificate() -> None:
+    """_validate_required enforces jwk/contact/csr/order_id."""
+    with pytest.raises(migrator.ExportError, match="missing required jwk"):
+        migrator._validate_required(
+            {"account": [{"id": 1, "jwk": "", "contact": "x"}], "certificate": []}
+        )
+    with pytest.raises(migrator.ExportError, match="missing required contact"):
+        migrator._validate_required(
+            {"account": [{"id": 1, "jwk": "{}", "contact": None}], "certificate": []}
+        )
+    with pytest.raises(migrator.ExportError, match="missing required csr"):
+        migrator._validate_required(
+            {
+                "account": [],
+                "certificate": [{"id": 2, "csr": None, "order_id": 1}],
+            }
+        )
+    with pytest.raises(migrator.ExportError, match="missing required order_id"):
+        migrator._validate_required(
+            {
+                "account": [],
+                "certificate": [{"id": 2, "csr": "csr", "order_id": None}],
+            }
+        )
+
+
+def test_049_validate_status_empty_and_missing_pk() -> None:
+    """Empty status is accepted; missing expected PK fails."""
+    migrator._validate_status([])
+    with pytest.raises(migrator.ExportError, match="status PK 1 missing"):
+        migrator._validate_status([{"id": 2, "name": "pending"}])
+
+
+def test_050_fetch_table_missing_and_read_dbversion_edges(tmp_path: Path) -> None:
+    """Missing tables return []; housekeeping absent/empty yields None."""
+    db_path = tmp_path / "emptyish.db"
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.row_factory = sqlite3.Row
+        assert migrator._fetch_table(conn, "nonce") == []
+        assert migrator._read_dbversion(conn) is None
+        conn.execute(
+            'CREATE TABLE "housekeeping" ('
+            '"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, '
+            '"name" varchar(30) NOT NULL UNIQUE, '
+            '"value" text)'
+        )
+        assert migrator._read_dbversion(conn) is None
+        conn.execute(
+            "INSERT INTO housekeeping (name, value) VALUES ('dbversion', NULL)"
+        )
+        conn.commit()
+        assert migrator._read_dbversion(conn) is None
+    finally:
+        conn.close()
+
+
+def test_051_print_summary_includes_nonces(capsys: Any) -> None:
+    """Summary prints nonces=N when nonce count is non-zero."""
+    tables = {key: [] for key, _label in migrator.SUMMARY_KEYS}
+    tables["nonce"] = [{"id": 1}, {"id": 2}]
+    migrator.print_summary(tables, prefix="export summary")
+    out = capsys.readouterr().out
+    assert "nonces=2" in out
+
+
+def test_052_wipe_dry_run_does_not_delete(clean_django_db: None) -> None:
+    """wipe_acme_data(dry_run=True) reports counts but leaves rows."""
+    from acme2certifier.django_app.models import Account
+
+    Account.objects.create(
+        id=98,
+        name="drywipe",
+        alg="ES256",
+        jwk="{}",
+        contact="mailto:d@example.com",
+        status_id=5,
+    )
+    deleted = migrator.wipe_acme_data(dry_run=True)
+    assert deleted["account"] == 1
+    assert Account.objects.filter(pk=98).exists()
+
+
+def test_053_import_nonces_end_to_end(clean_django_db: None, wsgi_db: Path) -> None:
+    """include_nonces dump imports Nonce rows and check includes nonce table."""
+    from acme2certifier.django_app.models import Nonce
+
+    dump = migrator.build_dump(wsgi_db, include_nonces=True)
+    assert len(dump["tables"]["nonce"]) == 1
+    imported = migrator.import_dump(dump, wipe=False, dry_run=False)
+    assert imported["nonce"] == 1
+    assert Nonce.objects.get(pk=70).nonce == "nonce-abc"
+
+    dump_path = wsgi_db.parent / "with-nonces.json"
+    migrator.write_dump(dump, dump_path)
+    rc = migrator.main(["check", "--dump", str(dump_path)])
+    assert rc == migrator.CHECK_EXIT_OK
+    assert "nonce" in migrator._tables_for_check(dump, include_nonces=True)
+
+
+def test_054_import_dump_dbversion_mismatch(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Refuse import when dump meta.dbversion != tool __dbversion__."""
+    sample_dump["meta"]["dbversion"] = "0.0.0-not-real"
+    with pytest.raises(migrator.MigrationError, match="dump dbversion"):
+        migrator.import_dump(sample_dump)
+
+
+def test_055_housekeeping_dbversion_refuse_wrong_value(
+    clean_django_db: None,
+) -> None:
+    """Refuse importing a housekeeping dbversion that differs from the tool."""
+    models = migrator._django_models()
+    with pytest.raises(migrator.MigrationError, match="refuse import"):
+        migrator._import_housekeeping_row(
+            {"id": 999, "name": "dbversion", "value": "9.9.9", "modified_at": None},
+            models,
+        )
+
+
+def test_055b_housekeeping_dbversion_repair_and_insert(
+    clean_django_db: None,
+) -> None:
+    """Repair drifted Django dbversion; insert when row is absent."""
+    from acme2certifier.django_app.models import Housekeeping
+
+    models = migrator._django_models()
+    existing = Housekeeping.objects.get(name="dbversion")
+    original_pk = int(existing.pk)
+    Housekeeping.objects.filter(pk=existing.pk).update(value="drifted")
+    migrator._import_housekeeping_row(
+        {
+            "id": original_pk,
+            "name": "dbversion",
+            "value": __dbversion__,
+            "modified_at": "2024-02-01 00:00:00",
+        },
+        models,
+    )
+    assert Housekeeping.objects.get(name="dbversion").value == __dbversion__
+
+    Housekeeping.objects.filter(name="dbversion").delete()
+    migrator._import_housekeeping_row(
+        {
+            "id": original_pk,
+            "name": "dbversion",
+            "value": __dbversion__,
+            "modified_at": None,
+        },
+        models,
+    )
+    restored = Housekeeping.objects.get(name="dbversion")
+    assert restored.value == __dbversion__
+    assert int(restored.pk) == original_pk
+
+
+def test_056_import_failed_wraps_orm_errors(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Generic ORM/handler exceptions become MigrationError('import failed: ...')."""
+
+    def _boom(_row: Any, _models: Any) -> None:
+        raise RuntimeError("simulated orm failure")
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setitem(migrator._IMPORT_HANDLERS, "account", _boom)
+        with pytest.raises(migrator.MigrationError, match="import failed:"):
+            migrator.import_dump(sample_dump, wipe=False, dry_run=False)
+
+
+def test_057_cmd_export_sqlite_error(tmp_path: Path, capsys: Any) -> None:
+    """cmd_export maps unexpected sqlite3.Error to exit 1."""
+    db_path = tmp_path / "acme_srv.db"
+    db_path.write_text("not-a-sqlite-db", encoding="utf-8")
+    args = type(
+        "Args",
+        (),
+        {
+            "db": str(db_path),
+            "out": str(tmp_path / "out.json"),
+            "include_nonces": False,
+        },
+    )()
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            migrator,
+            "build_dump",
+            lambda *_a, **_k: (_ for _ in ()).throw(sqlite3.Error("boom")),
+        )
+        rc = migrator.cmd_export(args)
+    assert rc == 1
+    assert "sqlite error" in capsys.readouterr().err
+
+
+def test_058_cmd_wipe_migration_error(capsys: Any) -> None:
+    """cmd_wipe prints wipe failed on MigrationError."""
+    args = type("Args", (), {"yes": True})()
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            migrator,
+            "setup_django_orm",
+            lambda: (_ for _ in ()).throw(migrator.MigrationError("no django")),
+        )
+        rc = migrator.cmd_wipe(args)
+    assert rc == 1
+    assert "wipe failed: no django" in capsys.readouterr().err
+
+
+def test_059_ensure_django_models_importerror() -> None:
+    """_ensure_django_models returns False when Django import fails."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "django" or name.startswith("django."):
+            raise ImportError("simulated")
+        return real_import(name, *args, **kwargs)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(builtins, "__import__", _fake_import)
+        assert migrator._ensure_django_models() is False
+        assert migrator.length_limits_from_django() is None
+
+
+def test_060_setup_django_orm_importerror() -> None:
+    """setup_django_orm raises MigrationError when Django is unavailable."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "django" or name.startswith("django."):
+            raise ImportError("simulated")
+        return real_import(name, *args, **kwargs)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(builtins, "__import__", _fake_import)
+        with pytest.raises(migrator.MigrationError, match="Django is required"):
+            migrator.setup_django_orm()
+
+
+def test_061_status_mismatches_name_drift(clean_django_db: None) -> None:
+    """_status_mismatches reports PK name mismatches."""
+    from acme2certifier.django_app.models import Status
+
+    models = migrator._django_models()
+    Status.objects.filter(pk=1).update(name="bogus")
+    mismatches = migrator._status_mismatches(models)
+    assert any("name mismatch" in m for m in mismatches)
+    Status.objects.filter(pk=1).update(name="invalid")
+
+
+def test_062_assert_status_fixture_auto_seed(clean_django_db: None) -> None:
+    """auto_seed repairs missing Status rows via loaddata path."""
+    from acme2certifier.django_app.models import Status
+
+    Status.objects.all().delete()
+    assert Status.objects.count() == 0
+
+    def _seed_status(cmd: str, *args: Any, **kwargs: Any) -> None:
+        if cmd != "loaddata":
+            return
+        for pk, name in STATUS_ROWS:
+            Status.objects.update_or_create(pk=pk, defaults={"name": name})
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("django.core.management.call_command", _seed_status)
+        migrator.assert_django_status_fixture(auto_seed=True)
+    assert Status.objects.count() == 8
+
+
+def test_063_assert_status_fixture_still_invalid_after_seed(
+    clean_django_db: None,
+) -> None:
+    """If auto-seed leaves mismatches, raise MigrationError."""
+    from acme2certifier.django_app.models import Housekeeping, Status
+
+    Status.objects.all().delete()
+
+    def _noop_loaddata(*_a: Any, **_k: Any) -> None:
+        return None
+
+    try:
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr("django.core.management.call_command", _noop_loaddata)
+            with pytest.raises(migrator.MigrationError, match="Status fixture invalid"):
+                migrator.assert_django_status_fixture(auto_seed=True)
+    finally:
+        for pk, name in STATUS_ROWS:
+            Status.objects.update_or_create(pk=pk, defaults={"name": name})
+        Housekeeping.objects.update_or_create(
+            name="dbversion", defaults={"value": __dbversion__}
+        )
+
+
+def test_064_normalize_check_value_edges() -> None:
+    """NONE_EQ_ZERO / INT_CHECK / EMPTY_EQ_NONE edge coercions."""
+    assert migrator._normalize_check_value("certificate", "issue_uts", "none") == 0
+    assert migrator._normalize_check_value("challenge", "validated", None) == 0
+    assert migrator._normalize_check_value("account", "status_id", "") is None
+    assert migrator._normalize_check_value("account", "status_id", "5") == 5
+    assert migrator._normalize_check_value("account", "eab_kid", None) == ""
+
+
+def test_065_canonicalize_rows_requires_id() -> None:
+    """Check comparison requires each row to have an id."""
+    with pytest.raises(migrator.MigrationError, match="missing required id"):
+        migrator._canonicalize_rows("status", [{"name": "invalid"}])
+
+
+def test_066_diff_rows_missing_ids_in_right() -> None:
+    """_diff_rows reports ids missing on the right side."""
+    left = [{"id": 1, "name": "invalid"}, {"id": 2, "name": "pending"}]
+    right = [{"id": 1, "name": "invalid"}]
+    msgs = migrator._diff_rows(
+        "status", left, right, left_label="dump", right_label="django"
+    )
+    assert any("ids missing in django" in m for m in msgs)
+    assert any("count mismatch" in m for m in msgs)
+
+
+def test_067_certificate_diagnostics_null_invalid_and_present() -> None:
+    """Source-only certificate diagnostics cover NULL/invalid/present cases."""
+
+    def _cert(cid: int, order_id: Any) -> Dict[str, Any]:
+        return {
+            "id": cid,
+            "name": f"c{cid}",
+            "order_id": order_id,
+            "csr": "csr",
+            "cert": None,
+            "cert_raw": None,
+            "error": None,
+            "poll_identifier": None,
+            "header_info": None,
+            "renewal_info": None,
+            "aki": None,
+            "serial": None,
+            "issue_uts": 0,
+            "expire_uts": 0,
+            "replaced": 0,
+        }
+
+    dump_rows = [_cert(1, 10)]
+    source_rows = [
+        _cert(1, 10),
+        _cert(2, None),
+        _cert(3, "bad"),
+        _cert(4, 10),
+    ]
+    order_rows = [{"id": 10}]
+
+    # Canonicalize rejects non-int order_id; stub ids so diagnostic branches run.
+    def _ids_only(
+        _table: str, rows: Sequence[Mapping[str, Any]]
+    ) -> Dict[int, Dict[str, Any]]:
+        return {int(row["id"]): {} for row in rows if row.get("id") is not None}
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(migrator, "_canonicalize_rows", _ids_only)
+        diags = migrator._source_only_certificate_diagnostics(
+            dump_rows, source_rows, order_rows
+        )
+    assert any("NULL order_id" in d for d in diags)
+    assert any("invalid order_id" in d for d in diags)
+    assert any("present in source-db but not in dump" in d for d in diags)
+
+
+def test_068_extract_verbose_strips_flags() -> None:
+    """_extract_verbose removes -v/--verbose anywhere in argv."""
+    filtered, verbose = migrator._extract_verbose(
+        ["-v", "import", "--dump", "x.json", "--verbose"]
+    )
+    assert verbose is True
+    assert filtered == ["import", "--dump", "x.json"]
+
+
+def test_069_verbose_import_and_check_cli(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+    capsys: Any,
+) -> None:
+    """Trailing --verbose enables progress logs for import and check."""
+    dump_path = tmp_path / "dump.json"
+    migrator.write_dump(sample_dump, dump_path)
+    rc = migrator.main(["import", "--dump", str(dump_path), "--verbose"])
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert "import:" in err
+
+    rc = migrator.main(["check", "--dump", str(dump_path), "-v"])
+    assert rc == migrator.CHECK_EXIT_OK
+
+
+def test_070_import_wipe_dry_run_on_nonempty(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Non-empty target with wipe+dry_run reports counts without writing."""
+    from acme2certifier.django_app.models import Account
+
+    migrator.import_dump(sample_dump, wipe=False, dry_run=False)
+    before = Account.objects.count()
+    counts = migrator.import_dump(sample_dump, wipe=True, dry_run=True)
+    assert counts["account"] == 1
+    assert Account.objects.count() == before
+
+
+def test_071_ensure_django_models_setup_exception(capsys: Any) -> None:
+    """_ensure_django_models warns and returns False when setup raises."""
+    from django.apps import apps
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(apps, "ready", False)
+
+        def _boom_setup() -> None:
+            raise RuntimeError("setup exploded")
+
+        mp.setattr("django.setup", _boom_setup)
+        assert migrator._ensure_django_models() is False
+    assert "Django model introspection unavailable" in capsys.readouterr().err
+
+
+def test_072_setup_django_orm_setup_failure() -> None:
+    """setup_django_orm wraps unexpected setup exceptions as MigrationError."""
+    from django.apps import apps
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(apps, "ready", False)
+
+        def _boom_setup() -> None:
+            raise RuntimeError("broken settings")
+
+        mp.setattr("django.setup", _boom_setup)
+        with pytest.raises(migrator.MigrationError, match="Django setup failed"):
+            migrator.setup_django_orm()
+
+
+def test_073_import_non_dbversion_housekeeping(
+    clean_django_db: None,
+) -> None:
+    """Non-dbversion housekeeping rows are inserted via the generic path."""
+    from acme2certifier.django_app.models import Housekeeping
+
+    models = migrator._django_models()
+    migrator._import_housekeeping_row(
+        {
+            "id": 777,
+            "name": "profiles",
+            "value": "[]",
+            "modified_at": "2024-03-01 00:00:00",
+        },
+        models,
+    )
+    assert Housekeeping.objects.get(pk=777).name == "profiles"
+    assert Housekeeping.objects.get(pk=777).value == "[]"
+
+
+def test_074_import_dump_reraises_migration_error(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """MigrationError raised inside the import transaction is not wrapped."""
+
+    def _boom(_row: Any, _models: Any) -> None:
+        raise migrator.MigrationError("explicit import abort")
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setitem(migrator._IMPORT_HANDLERS, "account", _boom)
+        with pytest.raises(migrator.MigrationError, match="explicit import abort"):
+            migrator.import_dump(sample_dump, wipe=False, dry_run=False)
+
+
+def test_075_cmd_import_migration_error(tmp_path: Path, capsys: Any) -> None:
+    """cmd_import prints import failed on MigrationError."""
+    dump_path = tmp_path / "missing.json"
+    args = type(
+        "Args",
+        (),
+        {"dump": str(dump_path), "wipe": False, "dry_run": False},
+    )()
+    rc = migrator.cmd_import(args)
+    assert rc == 1
+    assert "import failed:" in capsys.readouterr().err
+
+
+def test_076_module_main_entrypoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``__main__`` guard forwards main()'s exit code via sys.exit."""
+    import runpy
+    import sys
+
+    monkeypatch.setattr(sys, "argv", ["a2c-wsgi2django", "wipe"])
+    sys.modules.pop("acme2certifier.tools.a2c_wsgi2django", None)
+    with pytest.raises(SystemExit) as exc:
+        runpy.run_module(
+            "acme2certifier.tools.a2c_wsgi2django",
+            run_name="__main__",
+            alter_sys=True,
+        )
+    assert exc.value.code == 1
+
+
+def test_077_ensure_django_models_configure_and_setup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_ensure_django_models configures settings then setup when not ready."""
+    from unittest.mock import MagicMock, PropertyMock, patch
+
+    mock_django = MagicMock()
+    mock_apps = MagicMock()
+    mock_apps.ready = False
+    mock_settings = MagicMock()
+    type(mock_settings).configured = PropertyMock(return_value=False)
+
+    mock_django_conf = MagicMock(settings=mock_settings)
+    mock_django_apps = MagicMock(apps=mock_apps)
+
+    with patch.dict(
+        "sys.modules",
+        {
+            "django": mock_django,
+            "django.apps": mock_django_apps,
+            "django.conf": mock_django_conf,
+        },
+    ):
+        assert migrator._ensure_django_models() is True
+    mock_settings.configure.assert_called_once()
+    mock_django.setup.assert_called_once()
+
+
+def test_078_setup_django_orm_missing_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """setup_django_orm raises MigrationError when settings env is empty."""
+    from unittest.mock import MagicMock, PropertyMock, patch
+
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "")
+    mock_django = MagicMock()
+    mock_apps = MagicMock()
+    mock_apps.ready = False
+    mock_settings = MagicMock()
+    type(mock_settings).configured = PropertyMock(return_value=False)
+
+    with patch.dict(
+        "sys.modules",
+        {
+            "django": mock_django,
+            "django.apps": MagicMock(apps=mock_apps),
+            "django.conf": MagicMock(settings=mock_settings),
+        },
+    ):
+        with pytest.raises(
+            migrator.MigrationError, match="Django settings are not configured"
+        ):
+            migrator.setup_django_orm()

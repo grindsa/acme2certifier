@@ -34,8 +34,8 @@ sudo ./examples/install_scripts/a2c-deb.sh restart nginx \
 | Switch | Values | Default |
 | --- | --- | --- |
 | `-d` / `--deb` | path to `.deb` | auto: `./` / `../` / data-dir |
-| `-m` / `--mode` | `wsgi` \| `django` | `wsgi` |
-| `-w` / `--webserver` | `apache2` \| `nginx` | `apache2` |
+| `-m` / `--mode` | `wsgi` | `django` | `wsgi` |
+| `-w` / `--webserver` | `apache2` | `nginx` | `apache2` |
 | `--restart` / `restart` | — | sync volume/cfg and restart services (no reinstall) |
 | `--volume-dir DIR` | path | `/tmp/acme2certifier/volume` when present |
 | `--no-ssl` | — | SSL vhosts enabled |
@@ -53,7 +53,7 @@ curl -sS http://127.0.0.1/directory
 
 For **pip/venv** installs (no `.deb`), use [`a2c-ubuntu-apache2.sh`](../examples/install_scripts/a2c-ubuntu-apache2.sh) or [`a2c-ubuntu-nginx.sh`](../examples/install_scripts/a2c-ubuntu-nginx.sh) instead.
 
----
+______________________________________________________________________
 
 ## Manual installation with Apache2
 

@@ -14,12 +14,12 @@ sys.path.insert(1, "..")
 class TestCertificateRepository(unittest.TestCase):
     def setUp(self):
         models_mock = MagicMock()
-        models_mock.DBstore.return_value = (
-            MagicMock()
-        )
+        models_mock.DBstore.return_value = MagicMock()
         modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
-        from acme2certifier.acme_srv.certificate_repository import DatabaseCertificateRepository
+        from acme2certifier.acme_srv.certificate_repository import (
+            DatabaseCertificateRepository,
+        )
 
         self.logger = MagicMock()
         self.db = MagicMock()

@@ -43,7 +43,7 @@ from acme2certifier.django_app.models import (
     Status,
 )  # nopep8
 
-if DJANGO_VERSION < 4:
+if DJANGO_VERSION < 4:  # pragma: no cover
     import acme2certifier.acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
 
 

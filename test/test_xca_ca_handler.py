@@ -2566,7 +2566,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._pemcertchain_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._store_cert")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._subject_name_hash_get")
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extension_list_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extension_list_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.x509.load_pem_x509_csr")
     @patch("acme2certifier.cahandlers.xca_ca_handler.convert_string_to_byte")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._template_load")
@@ -2618,7 +2620,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._pemcertchain_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._store_cert")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._subject_name_hash_get")
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extension_list_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extension_list_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.x509.load_pem_x509_csr")
     @patch("acme2certifier.cahandlers.xca_ca_handler.convert_string_to_byte")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._template_load")
@@ -2672,7 +2676,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._pemcertchain_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._store_cert")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._subject_name_hash_get")
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extension_list_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extension_list_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.x509.load_pem_x509_csr")
     @patch("acme2certifier.cahandlers.xca_ca_handler.convert_string_to_byte")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._template_load")
@@ -2717,7 +2723,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cvt.called)
         self.assertTrue(mock_builder.called)
 
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._cdp_list_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._keyusage_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.BasicConstraints")
@@ -2769,7 +2777,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_bc.called)
         self.assertFalse(mock_cdp.called)
 
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._cdp_list_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._keyusage_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.BasicConstraints")
@@ -2822,7 +2832,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_bc.called)
         self.assertFalse(mock_cdp.called)
 
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._cdp_list_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._keyusage_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.BasicConstraints")
@@ -2876,7 +2888,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_bc.called)
         self.assertTrue(mock_cdp.called)
 
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._cdp_list_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._keyusage_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.BasicConstraints")
@@ -2930,7 +2944,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_bc.called)
         self.assertFalse(mock_cdp.called)
 
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._cdp_list_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._keyusage_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.BasicConstraints")
@@ -2984,7 +3000,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_bc.called)
         self.assertFalse(mock_cdp.called)
 
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._cdp_list_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._keyusage_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.BasicConstraints")
@@ -3038,7 +3056,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_bc.called)
         self.assertFalse(mock_cdp.called)
 
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._cdp_list_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._keyusage_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.BasicConstraints")
@@ -3092,7 +3112,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_bc.called)
         self.assertFalse(mock_cdp.called)
 
-    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.CAhandler._extended_keyusage_generate"
+    )
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._cdp_list_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._keyusage_generate")
     @patch("acme2certifier.cahandlers.xca_ca_handler.BasicConstraints")

@@ -85,7 +85,9 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler.key_file = "file"
         self.assertFalse(self.eabhandler.mac_key_get(None))
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load")
+    @patch(
+        "acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load"
+    )
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
     def test_009_mac_key_get(self, mock_json):
         """test mac_key_get json reader return bogus values"""
@@ -93,7 +95,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = {"foo", "bar"}
         self.assertFalse(self.eabhandler.mac_key_get("kid"))
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load")
+    @patch(
+        "acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load"
+    )
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
     def test_010_mac_key_get(self, mock_json):
         """test mac_key_get json match"""
@@ -101,7 +105,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = {"kid": {"hmac": "mac", "foo": "bar"}}
         self.assertEqual("mac", self.eabhandler.mac_key_get("kid"))
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load")
+    @patch(
+        "acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load"
+    )
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
     def test_011_mac_key_get(self, mock_json):
         """test mac_key_get json no match"""
@@ -109,7 +115,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = {"kid1": "mac"}
         self.assertFalse(self.eabhandler.mac_key_get("kid"))
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load")
+    @patch(
+        "acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load"
+    )
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
     def test_012_mac_key_get(self, mock_json):
         """test mac_key_get json load exception"""
@@ -312,7 +320,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load")
+    @patch(
+        "acme2certifier.eabhandlers.kid_profile_handler.EABhandler.keyfile_content_load"
+    )
     @patch("builtins.open", mock_open(read_data='{"foo": "bar"}'), create=True)
     def test_038_key_file_load(self, mock_load):
         """CAhandler._key_file_load()"""
@@ -324,7 +334,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler._wllist_check")
     @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler._cn_add")
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler._chk_san_lists_get")
+    @patch(
+        "acme2certifier.eabhandlers.kid_profile_handler.EABhandler._chk_san_lists_get"
+    )
     def test_039_allowed_domains_check(self, mock_san, mock_cn, mock_wlc):
         """test EABhanlder._allowed_domains_check()"""
         mock_san.return_value = (["foo"], [])
@@ -336,7 +348,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler._wllist_check")
     @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler._cn_add")
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler._chk_san_lists_get")
+    @patch(
+        "acme2certifier.eabhandlers.kid_profile_handler.EABhandler._chk_san_lists_get"
+    )
     def test_040_allowed_domains_check(self, mock_san, mock_cn, mock_wlc):
         """test EABhanlder._allowed_domains_check()"""
         mock_san.return_value = (["foo"], [False])
@@ -349,7 +363,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler._wllist_check")
     @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler._cn_add")
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler._chk_san_lists_get")
+    @patch(
+        "acme2certifier.eabhandlers.kid_profile_handler.EABhandler._chk_san_lists_get"
+    )
     def test_041_allowed_domains_check(self, mock_san, mock_cn, mock_wlc):
         """test EABhanlder._allowed_domains_check()"""
         mock_san.return_value = (["foo"], [])
@@ -438,6 +454,19 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Database error while retrieving eab_kid: ex_db_lookup",
             lcm.output,
         )
+
+    def test_047_eab_kid_get_revocation(self):
+        """test EABhandler.eab_kid_get() with revocation=True uses cert_raw"""
+        models_mock = MagicMock()
+        models_mock.DBstore().certificate_lookup.return_value = {
+            "order__account__eab_kid": "kid_rev"
+        }
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
+        patch.dict("sys.modules", modules).start()
+        result = self.eabhandler.eab_kid_get("cert_raw_data", revocation=True)
+        self.assertEqual(result, "kid_rev")
+        call_args = models_mock.DBstore().certificate_lookup.call_args
+        self.assertEqual(call_args[0][0], "cert_raw")
 
 
 if __name__ == "__main__":

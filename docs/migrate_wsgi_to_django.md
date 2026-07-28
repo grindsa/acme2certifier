@@ -28,10 +28,10 @@ Not migrated:
 ## At a Glance Flow
 
 1. Stop ACME writers and confirm a restorable backup exists.
-2. Export WSGI SQLite data to a dump file.
-3. Switch runtime to Django flavor on the same a2c version (`handler: django`, Django web entry, migrations/status fixture).
-4. Import dump into Django backend.
-5. Run consistency check, then restart services and verify renewal.
+1. Export WSGI SQLite data to a dump file.
+1. Switch runtime to Django flavor on the same a2c version (`handler: django`, Django web entry, migrations/status fixture).
+1. Import dump into Django backend.
+1. Run consistency check, then restart services and verify renewal.
 
 Run exact commands only from the channel-specific sections below.
 
@@ -40,11 +40,11 @@ Run exact commands only from the channel-specific sections below.
 Typical root: `/var/www/acme2certifier`.
 
 1. Stop apache2/nginx + uWSGI/mod_wsgi for ACME service.
-2. Back up:
+1. Back up:
    - `/var/www/acme2certifier/acme_srv.cfg`
    - `/var/www/acme2certifier/acme_srv.db`
    - custom handlers/settings under deploy root
-3. Export:
+1. Export:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
@@ -92,7 +92,7 @@ curl -sS http://127.0.0.1/directory
 Typical root: `/var/www/acme2certifier`.
 
 1. Stop services and back up cfg/db/runtime files.
-2. Export:
+1. Export:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
@@ -113,7 +113,7 @@ sudo ./examples/install_scripts/a2c-deb.sh \
 4. Ensure `/var/www/acme2certifier/acme_srv.cfg` has:
    - `[DBhandler] handler: django`
    - `*_module` keys for CA/EAB/hooks
-5. Apply schema and status fixture:
+1. Apply schema and status fixture:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
@@ -135,7 +135,7 @@ sudo -E a2c-wsgi2django check --dump /var/www/acme2certifier/dump.json
 Typical root: `/opt/acme2certifier`.
 
 1. Stop services and back up cfg/db/runtime files.
-2. Export:
+1. Export:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
@@ -156,7 +156,7 @@ sudo ./examples/install_scripts/a2c-rpm.sh \
 4. Ensure `/opt/acme2certifier/acme_srv.cfg` has:
    - `[DBhandler] handler: django`
    - `*_module` keys for CA/EAB/hooks
-5. Apply schema and status fixture:
+1. Apply schema and status fixture:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
@@ -179,7 +179,7 @@ sudo -E a2c-wsgi2django check --dump /opt/acme2certifier/dump.json
 Use matching web stack tags; do not switch only `handler:` in cfg.
 
 1. Stop/quiet writers and back up the full mounted volume.
-2. Export from current `*-wsgi` runtime:
+1. Export from current `*-wsgi` runtime:
 
 ```bash
 docker compose exec <service> a2c-wsgi2django export \
@@ -188,10 +188,10 @@ docker compose exec <service> a2c-wsgi2django export \
 ```
 
 3. Update image tag from `*-wsgi` to matching `*-django` variant.
-4. In volume config:
+1. In volume config:
    - set `volume/acme_srv.cfg` to `[DBhandler] handler: django`
    - ensure `volume/settings.py` references `acme2certifier.django_app.apps.AcmeSrvConfig`
-5. Recreate container and run Django schema setup if needed:
+1. Recreate container and run Django schema setup if needed:
 
 ```bash
 docker compose pull
@@ -222,21 +222,21 @@ For Docker stack background and image/tag behavior, see [Containerized installat
 After successful migration and at least one confirmed renewal cycle:
 
 1. Keep `acme_srv.cfg` (required runtime config). Do not delete it.
-2. Archive migration artifacts (`dump.json`, migration logs) into your ops backup location.
-3. Move old WSGI SQLite DB out of active path (for example `acme_srv.db.pre-django`) or keep it in backup storage only.
-4. Remove obsolete WSGI-only web entry files/config snippets from active sites config (keep a copy in backup/history).
-5. Update operational runbooks and alerts to treat Django (`handler: django`) as the production baseline (health checks, restore steps, and log triage).
+1. Archive migration artifacts (`dump.json`, migration logs) into your ops backup location.
+1. Move old WSGI SQLite DB out of active path (for example `acme_srv.db.pre-django`) or keep it in backup storage only.
+1. Remove obsolete WSGI-only web entry files/config snippets from active sites config (keep a copy in backup/history).
+1. Update operational runbooks and alerts to treat Django (`handler: django`) as the production baseline (health checks, restore steps, and log triage).
 
 ## Rollback
 
 If migration fails:
 
 1. Stop current services/containers.
-2. Restore backed-up `acme_srv.cfg`, database, and runtime material.
-3. Restore previous WSGI deployment flavor:
+1. Restore backed-up `acme_srv.cfg`, database, and runtime material.
+1. Restore previous WSGI deployment flavor:
    - pip/deb/rpm: WSGI web entry + `[DBhandler] handler: wsgi`
    - docker: previous `*-wsgi` image tag plus original volume content
-4. Start services and verify `/directory`.
+1. Start services and verify `/directory`.
 
 ## Troubleshooting
 

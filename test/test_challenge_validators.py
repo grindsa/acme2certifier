@@ -20,17 +20,27 @@ from acme2certifier.acme_srv.challenge_validators.base import (
     ValidationTimeoutError,
     InvalidChallengeTypeError,
 )
-from acme2certifier.acme_srv.challenge_validators.registry import ChallengeValidatorRegistry
-from acme2certifier.acme_srv.challenge_validators.http_validator import HttpChallengeValidator
-from acme2certifier.acme_srv.challenge_validators.dns_validator import DnsChallengeValidator
+from acme2certifier.acme_srv.challenge_validators.registry import (
+    ChallengeValidatorRegistry,
+)
+from acme2certifier.acme_srv.challenge_validators.http_validator import (
+    HttpChallengeValidator,
+)
+from acme2certifier.acme_srv.challenge_validators.dns_validator import (
+    DnsChallengeValidator,
+)
 from acme2certifier.acme_srv.challenge_validators.dns_persist_validator import (
     DnsPersistChallengeValidator,
 )
-from acme2certifier.acme_srv.challenge_validators.tls_alpn_validator import TlsAlpnChallengeValidator
+from acme2certifier.acme_srv.challenge_validators.tls_alpn_validator import (
+    TlsAlpnChallengeValidator,
+)
 from acme2certifier.acme_srv.challenge_validators.email_reply_validator import (
     EmailReplyChallengeValidator,
 )
-from acme2certifier.acme_srv.challenge_validators.tkauth_validator import TkauthChallengeValidator
+from acme2certifier.acme_srv.challenge_validators.tkauth_validator import (
+    TkauthChallengeValidator,
+)
 from acme2certifier.acme_srv.challenge_validators.source_address_validator import (
     SourceAddressValidator,
 )
@@ -1464,7 +1474,8 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
             def selective_import_error(name, *args, **kwargs):
                 if name == "acme2certifier.acme_srv.email_handler" or (
-                    len(args) > 0 and "acme2certifier.acme_srv.email_handler" in str(args)
+                    len(args) > 0
+                    and "acme2certifier.acme_srv.email_handler" in str(args)
                 ):
                     raise ImportError("Module not found")
                 return mock_import.return_value
@@ -1618,9 +1629,15 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         self.assertEqual(result.details["expected"], "expected_keyauth")
         self.assertEqual(result.details["received"], "wrong_keyauth")
 
-    @patch("acme2certifier.acme_srv.challenge_validators.email_reply_validator.convert_byte_to_string")
-    @patch("acme2certifier.acme_srv.challenge_validators.email_reply_validator.b64_url_encode")
-    @patch("acme2certifier.acme_srv.challenge_validators.email_reply_validator.sha256_hash")
+    @patch(
+        "acme2certifier.acme_srv.challenge_validators.email_reply_validator.convert_byte_to_string"
+    )
+    @patch(
+        "acme2certifier.acme_srv.challenge_validators.email_reply_validator.b64_url_encode"
+    )
+    @patch(
+        "acme2certifier.acme_srv.challenge_validators.email_reply_validator.sha256_hash"
+    )
     def test_007_generate_email_keyauth(
         self, mock_sha256, mock_b64_encode, mock_convert
     ):
@@ -2709,6 +2726,26 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
                 "accounturi": "https://ca.example/acme/acct/abc",
                 "persistuntil": "1800000000",
             },
+        )
+
+    def test_028_normalize_fqdn_for_dns_query_none(self):
+        """None FQDN normalizes to empty string"""
+        self.assertEqual(self.validator._normalize_fqdn_for_dns_query(None), "")
+
+    def test_029_normalize_fqdn_for_dns_query_valid_and_invalid(self):
+        """Normalize valid names; reject blank, spaces, and illegal chars"""
+        self.assertEqual(
+            self.validator._normalize_fqdn_for_dns_query("Example.COM."),
+            "example.com",
+        )
+        self.assertEqual(self.validator._normalize_fqdn_for_dns_query("  "), "")
+        self.assertEqual(
+            self.validator._normalize_fqdn_for_dns_query("bad name.com"), ""
+        )
+        self.assertEqual(self.validator._normalize_fqdn_for_dns_query(".leading"), "")
+        self.assertEqual(self.validator._normalize_fqdn_for_dns_query("a..b"), "")
+        self.assertEqual(
+            self.validator._normalize_fqdn_for_dns_query("foo_bar.com"), ""
         )
 
 

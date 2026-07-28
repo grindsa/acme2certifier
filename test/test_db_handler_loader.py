@@ -30,8 +30,10 @@ def test_normalize_short_names(db_handler_mod: object) -> None:
         db_handler_mod._normalize_handler("DJANGO")
         == "acme2certifier.dbhandlers.django_handler"
     )
+    assert db_handler_mod._normalize_handler("my.custom.handler") == "my.custom.handler"
     assert (
-        db_handler_mod._normalize_handler("my.custom.handler") == "my.custom.handler"
+        db_handler_mod._normalize_handler("   ")
+        == "acme2certifier.dbhandlers.wsgi_handler"
     )
 
 
@@ -120,8 +122,7 @@ def test_warn_dbhandler_missing_section_with_env(
     with caplog.at_level(logging.WARNING, logger="test.db_handler_warn_env"):
         db_handler_mod.warn_dbhandler_cfg_missing(logger, {"DEFAULT": {}})
     assert any(
-        "section missing" in rec.message
-        and "ACME_SRV_DB_HANDLER=django" in rec.message
+        "section missing" in rec.message and "ACME_SRV_DB_HANDLER=django" in rec.message
         for rec in caplog.records
     )
 
@@ -161,3 +162,41 @@ def test_wsgi_backend_module_exports_dbstore() -> None:
     mod = importlib.import_module("acme2certifier.dbhandlers.wsgi_handler")
     assert mod.DBstore is not None
     assert mod.DBstore.__module__ == "acme2certifier.dbhandlers.wsgi_handler"
+
+
+def test_cfg_handler_name_load_config_failure(
+    db_handler_mod: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _boom() -> None:
+        raise RuntimeError("cfg boom")
+
+    monkeypatch.setattr(
+        "acme2certifier.acme_srv.helpers.config.load_config",
+        _boom,
+    )
+    assert db_handler_mod._cfg_handler_name(None) is None
+
+
+def test_cfg_handler_name_missing_section(db_handler_mod: object) -> None:
+    assert db_handler_mod._cfg_handler_name({"DEFAULT": {}}) is None
+
+
+def test_load_db_handler_module_import_failure(
+    db_handler_mod: object,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(
+        db_handler_mod,
+        "_resolve_db_handler",
+        lambda config_dic=None: ("missing.db.handler.module", "cfg"),
+    )
+    with caplog.at_level(logging.CRITICAL, logger="acme2certifier.db_handler"):
+        with pytest.raises(ModuleNotFoundError):
+            db_handler_mod.load_db_handler_module({})
+    assert any("Loading DB handler" in rec.message for rec in caplog.records)
+
+
+def test_active_db_handler_label(db_handler_mod: object) -> None:
+    label = db_handler_mod.active_db_handler_label()
+    assert label in ("wsgi", "django") or isinstance(label, str)

@@ -374,8 +374,13 @@ Create comprehensive tests for your validator in `/test/`:
 
 import unittest
 from unittest.mock import Mock, patch
-from acme2certifier.acme_srv.challenge_validators.mychallengie_validator import MyChallengeValidator
-from acme2certifier.acme_srv.challenge_validators import ChallengeContext, ValidationResult
+from acme2certifier.acme_srv.challenge_validators.mychallengie_validator import (
+    MyChallengeValidator,
+)
+from acme2certifier.acme_srv.challenge_validators import (
+    ChallengeContext,
+    ValidationResult,
+)
 
 
 class TestMyChallengeValidator(unittest.TestCase):
@@ -448,7 +453,9 @@ Test your new challenge type with the complete system:
 # Example integration test
 def test_new_challenge_integration(self):
     """Test integration of new challenge type"""
-    from acme2certifier.acme_srv.challenge_registry_setup import create_challenge_validator_registry
+    from acme2certifier.acme_srv.challenge_registry_setup import (
+        create_challenge_validator_registry,
+    )
 
     # Configure with your challenge enabled
     config = Mock()

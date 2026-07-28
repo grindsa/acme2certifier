@@ -974,7 +974,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.binary_read")
     @patch("subprocess.call")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.binary_write")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._signing_command_build")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._signing_command_build"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.generate_random_string")
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
@@ -1013,7 +1015,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.binary_read")
     @patch("subprocess.call")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.binary_write")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._signing_command_build")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._signing_command_build"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.generate_random_string")
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
@@ -1051,7 +1055,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.binary_read")
     @patch("subprocess.call")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.binary_write")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._signing_command_build")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._signing_command_build"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.generate_random_string")
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
@@ -1087,7 +1093,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.binary_read")
     @patch("subprocess.call")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.binary_write")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._signing_command_build")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._signing_command_build"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.generate_random_string")
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
@@ -1125,12 +1133,18 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._certraw_get")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._get_certificate")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send"
+    )
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_encode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_create")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._cert_decode")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
     def test_059_enroll(
@@ -1167,12 +1181,18 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._certraw_get")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._get_certificate")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send"
+    )
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_encode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_create")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._cert_decode")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
     def test_060_enroll(
@@ -1210,12 +1230,18 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._certraw_get")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._get_certificate")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send"
+    )
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_encode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_create")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._cert_decode")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
     def test_061_enroll(
@@ -1255,12 +1281,18 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._certraw_get")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._get_certificate")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send"
+    )
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_encode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_create")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._cert_decode")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
     def test_062_enroll(
@@ -1300,12 +1332,18 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._certraw_get")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._get_certificate")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_send"
+    )
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._soaprequest_build"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_encode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_create")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._cert_decode")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external")
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_sign_external"
+    )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
     def test_063_enroll(
@@ -1341,6 +1379,108 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ssend.called)
         self.assertTrue(mock_cert_get.called)
         self.assertTrue(mock_cert_raw.called)
+
+    def test_064_validate_binary_path_invalid_input(self):
+        """_validate_binary_path rejects empty, null-byte, and traversal paths"""
+        from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
+            _validate_binary_path,
+            INVALID_FILE_PATH_ERROR,
+        )
+
+        with self.assertRaises(ValueError) as err:
+            _validate_binary_path(None)
+        self.assertEqual(INVALID_FILE_PATH_ERROR, str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            _validate_binary_path("bad\x00name")
+        self.assertEqual(INVALID_FILE_PATH_ERROR, str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            _validate_binary_path("../etc/passwd")
+        self.assertEqual("Path traversal detected", str(err.exception))
+
+    @patch("os.path.isdir", return_value=False)
+    def test_065_validate_binary_path_write_missing_dir(self, _mock_isdir):
+        """_validate_binary_path rejects write targets with missing directories"""
+        from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
+            _validate_binary_path,
+        )
+
+        with self.assertRaises(ValueError) as err:
+            _validate_binary_path("/tmp/missing-dir/file.bin", for_write=True)
+        self.assertEqual("Target directory does not exist", str(err.exception))
+
+    def test_066_sanitize_config_file_path_invalid_input(self):
+        """_sanitize_config_file_path rejects empty, null-byte, and traversal paths"""
+        from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
+            _sanitize_config_file_path,
+            INVALID_FILE_PATH_ERROR,
+        )
+
+        with self.assertRaises(ValueError) as err:
+            _sanitize_config_file_path("")
+        self.assertEqual(INVALID_FILE_PATH_ERROR, str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            _sanitize_config_file_path("bad\x00name")
+        self.assertEqual(INVALID_FILE_PATH_ERROR, str(err.exception))
+
+        with self.assertRaises(ValueError) as err:
+            _sanitize_config_file_path("..")
+        self.assertEqual("Path traversal detected", str(err.exception))
+
+    def test_067_sanitize_signing_path_logs_error(self):
+        """_sanitize_signing_path returns None and logs on invalid path"""
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(
+                self.cahandler._sanitize_signing_path(
+                    None, "Invalid signing certificate path: %s"
+                )
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Invalid signing certificate path: Invalid file path",
+            lcm.output,
+        )
+
+    def test_068_validated_signing_file_path_sanitize_failure(self):
+        """_validated_signing_file_path returns None when sanitize fails"""
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(
+                self.cahandler._validated_signing_file_path(
+                    "../secret",
+                    "Invalid signing certificate path: %s",
+                    "Signing certificate file not found: %s",
+                )
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Invalid signing certificate path: Path traversal detected",
+            lcm.output,
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler._validate_binary_path",
+        side_effect=ValueError("Path traversal detected"),
+    )
+    @patch(
+        "acme2certifier.cahandlers.pkcs7_soap_ca_handler._sanitize_config_file_path",
+        return_value="/abs/path",
+    )
+    def test_069_validated_signing_file_path_validate_failure(
+        self, _mock_sanitize, _mock_validate
+    ):
+        """_validated_signing_file_path logs non-missing validation errors"""
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(
+                self.cahandler._validated_signing_file_path(
+                    "path",
+                    "Invalid signing certificate path: %s",
+                    "Signing certificate file not found: %s",
+                )
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Invalid signing certificate path: Path traversal detected",
+            lcm.output,
+        )
 
 
 if __name__ == "__main__":

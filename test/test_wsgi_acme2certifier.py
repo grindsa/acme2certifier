@@ -435,7 +435,9 @@ class TestACMEHandler(unittest.TestCase):
 
         for exc_type, should_call_excepthook in test_cases:
             with self.subTest(exc_type=exc_type):
-                with patch("acme2certifier.share.acme2certifier_wsgi.LOGGER") as mock_logger:
+                with patch(
+                    "acme2certifier.share.acme2certifier_wsgi.LOGGER"
+                ) as mock_logger:
                     with patch("sys.__excepthook__") as mock_excepthook:
                         exc_value = exc_type("Test exception")
                         exc_traceback = Mock()
@@ -933,7 +935,10 @@ class TestACMEHandler(unittest.TestCase):
             self.not_found(environ, Mock()),
         )
 
-    @patch("acme2certifier.share.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
     def test_056_application(self):
         """Test redirect to /directory when root URL is accessed."""
         self.environ = {
@@ -949,7 +954,10 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(response, [])
 
-    @patch("acme2certifier.share.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
     @patch(
         "acme2certifier.acme_srv.directory.DirectoryRepository.get_db_version",
         return_value=("1.0", "script_name"),
@@ -968,7 +976,10 @@ class TestACMEHandler(unittest.TestCase):
         self.start_response.assert_called()
         self.assertIsInstance(response, list)
 
-    @patch("acme2certifier.share.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
     def test_058_application(self):
         """Test accessing the /acme/acct endpoint."""
         self.environ = {
@@ -982,7 +993,10 @@ class TestACMEHandler(unittest.TestCase):
             self.start_response.assert_called()
             self.assertIsInstance(response, list)
 
-    @patch("acme2certifier.share.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
     def test_059_application(self):
         """Test accessing the /acme/newaccount endpoint."""
         self.environ = {
@@ -991,12 +1005,17 @@ class TestACMEHandler(unittest.TestCase):
             "REMOTE_ADDR": "127.0.0.1",
             "PATH_INFO": "/acme/newaccount",
         }
-        with patch("acme2certifier.share.acme2certifier_wsgi.newaccount", self.newaccount):
+        with patch(
+            "acme2certifier.share.acme2certifier_wsgi.newaccount", self.newaccount
+        ):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called()
             self.assertIsInstance(response, list)
 
-    @patch("acme2certifier.share.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
     def test_060_application(self):
         """Test accessing an unknown endpoint."""
         self.environ = {
@@ -1005,7 +1024,9 @@ class TestACMEHandler(unittest.TestCase):
             "REMOTE_ADDR": "127.0.0.1",
             "PATH_INFO": "/unknown/path",
         }
-        with patch("acme2certifier.share.acme2certifier_wsgi.not_found", self.not_found):
+        with patch(
+            "acme2certifier.share.acme2certifier_wsgi.not_found", self.not_found
+        ):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called_with(
                 "404 NOT FOUND", [("Content-Type", "text/plain")]
@@ -1363,6 +1384,18 @@ class TestACMEHandler(unittest.TestCase):
         handler.client_address = dummy.client_address
         result = handler.address_string()
         self.assertEqual(result, "1.2.3.4")
+
+    def test_074_get_path_with_prefix_exact_prefix_match(self):
+        """PATH_INFO equal to url_prefix (no trailing slash) returns empty path"""
+        from acme2certifier.share.acme2certifier_wsgi import get_path_with_prefix
+
+        environ = {"PATH_INFO": "/api/v1"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        environ = {"PATH_INFO": "/my-prefix"}
+        config = {"Directory": {"url_prefix": "/my-prefix/"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
 
 
 if __name__ == "__main__":

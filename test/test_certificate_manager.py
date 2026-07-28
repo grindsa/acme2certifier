@@ -239,7 +239,9 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual((fields, report), ([], []))
 
     # --- check_account_authorization ---
-    @patch("acme2certifier.acme_srv.certificate_manager.b64_url_recode", return_value="ENC")
+    @patch(
+        "acme2certifier.acme_srv.certificate_manager.b64_url_recode", return_value="ENC"
+    )
     def test_017_check_account_authorization_authorized(self, mock_b64):
         self.repository.get_account_check_result.return_value = True
         res = self.mgr.check_account_authorization("acc", "cert")
@@ -247,14 +249,18 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(res["account"], "acc")
         self.repository.get_account_check_result.assert_called_once_with("acc", "ENC")
 
-    @patch("acme2certifier.acme_srv.certificate_manager.b64_url_recode", return_value="ENC")
+    @patch(
+        "acme2certifier.acme_srv.certificate_manager.b64_url_recode", return_value="ENC"
+    )
     def test_018_check_account_authorization_unauthorized(self, mock_b64):
         self.repository.get_account_check_result.return_value = False
         res = self.mgr.check_account_authorization("acc", "cert")
         self.assertEqual(res["status"], "unauthorized")
         self.assertIn("error", res)
 
-    @patch("acme2certifier.acme_srv.certificate_manager.b64_url_recode", return_value="ENC")
+    @patch(
+        "acme2certifier.acme_srv.certificate_manager.b64_url_recode", return_value="ENC"
+    )
     def test_019_check_account_authorization_error(self, mock_b64):
         self.repository.get_account_check_result.side_effect = RuntimeError("db")
         res = self.mgr.check_account_authorization("acc", "cert")
@@ -457,10 +463,16 @@ class TestCertificateManager(unittest.TestCase):
         # So, test with a timestamp that makes the window positive
         # Let's use timestamp = 1210000, so window is 1210000 - 1209600 = 400
         # created_at_uts = 100, so 0 < 100 < 400 is True
-        with patch("acme2certifier.acme_srv.certificate_manager.date_to_uts_utc", return_value=100):
+        with patch(
+            "acme2certifier.acme_srv.certificate_manager.date_to_uts_utc",
+            return_value=100,
+        ):
             self.assertTrue(self.mgr._assume_expirydate(cert, 1210000, False))
         # created_at_uts = 500, so 0 < 500 < 400 is False
-        with patch("acme2certifier.acme_srv.certificate_manager.date_to_uts_utc", return_value=500):
+        with patch(
+            "acme2certifier.acme_srv.certificate_manager.date_to_uts_utc",
+            return_value=500,
+        ):
             self.assertFalse(self.mgr._assume_expirydate(cert, 1210000, False))
         # No CSR, no cert
         cert2 = {"csr": None}
@@ -471,7 +483,8 @@ class TestCertificateManager(unittest.TestCase):
         # expire_uts == 0, cert_raw present, expire_uts < timestamp
         cert = {"expire_uts": 0, "cert_raw": "raw"}
         with patch(
-            "acme2certifier.acme_srv.certificate_manager.cert_dates_get", return_value=(10, 50)
+            "acme2certifier.acme_srv.certificate_manager.cert_dates_get",
+            return_value=(10, 50),
         ):
             self.assertTrue(self.mgr._get_expiredate(cert, 100, False))
             self.assertEqual(cert["issue_uts"], 10)

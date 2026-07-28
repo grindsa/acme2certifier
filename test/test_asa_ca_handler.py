@@ -717,7 +717,11 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse = Mock()
         mockresponse.status_code = 200
         mockresponse.json = lambda: {"issuers": ["ca"]}
-        mock_req.side_effect = [Exception("timeout"), Exception("timeout"), mockresponse]
+        mock_req.side_effect = [
+            Exception("timeout"),
+            Exception("timeout"),
+            mockresponse,
+        ]
         self.assertEqual((200, {"issuers": ["ca"]}), self.cahandler._api_get("url"))
         self.assertEqual(3, mock_req.call_count)
         self.assertEqual(2, mock_sleep.call_count)
@@ -783,7 +787,9 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 """
         self.assertEqual(result, self.cahandler._pem_cert_chain_generate(cert_list))
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate")
+    @patch(
+        "acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate"
+    )
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
     def test_041___issuer_chain_get(self, mock_req, mock_pem):
         """test _issuer_chain_get()"""
@@ -793,7 +799,9 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual("issuer_chain", self.cahandler._issuer_chain_get())
         self.assertTrue(mock_pem.called)
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate")
+    @patch(
+        "acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate"
+    )
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
     def test_042___issuer_chain_get(self, mock_req, mock_pem):
         """test _issuer_chain_get()"""
@@ -1339,6 +1347,100 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.time.sleep")
+    @patch("requests.post")
+    def test_069_api_post_retries(self, mock_req, mock_sleep):
+        """_api_post() retries transport failures then succeeds"""
+        self.cahandler.request_retries = 3
+        mockresponse = Mock()
+        mockresponse.status_code = 200
+        mockresponse.text = '{"ok": true}'
+        mockresponse.json = lambda: {"ok": True}
+        mock_req.side_effect = [
+            Exception("timeout"),
+            Exception("timeout"),
+            mockresponse,
+        ]
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                (200, {"ok": True}), self.cahandler._api_post("url", {"a": "b"})
+            )
+        self.assertEqual(3, mock_req.call_count)
+        self.assertEqual(2, mock_sleep.call_count)
+        self.assertIn(
+            "INFO:test_a2c:Retrying API post() attempt 2/3 after 1s",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
+    def test_070_config_load_request_retries_invalid(self, mock_config_load):
+        """_config_load logs error when request_retries is not an integer"""
+        mock_config_load.return_value = {"CAhandler": {"request_retries": "aa"}}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertTrue(
+            any(
+                "request_retries parameter is not an integer" in msg
+                for msg in lcm.output
+            )
+        )
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
+    def test_071_profiles_list_cache(self, mock_get):
+        """_profiles_list() caches successful responses"""
+        self.cahandler.ca_name = "ca_name"
+        mock_get.return_value = (200, {"profiles": ["p1"]})
+        self.assertEqual({"profiles": ["p1"]}, self.cahandler._profiles_list())
+        self.assertEqual({"profiles": ["p1"]}, self.cahandler._profiles_list())
+        self.assertEqual(1, mock_get.call_count)
+
+    @patch(
+        "acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate"
+    )
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
+    def test_072_issuer_chain_get_cache(self, mock_req, mock_pem):
+        """_issuer_chain_get() caches successful responses"""
+        mock_req.return_value = ("code", {"certs": ["bar"]})
+        mock_pem.return_value = "issuer_chain"
+        self.cahandler.ca_name = "ca_name"
+        self.assertEqual("issuer_chain", self.cahandler._issuer_chain_get())
+        self.assertEqual("issuer_chain", self.cahandler._issuer_chain_get())
+        self.assertEqual(1, mock_req.call_count)
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
+    def test_073_issuer_chain_get_non_dict(self, mock_req):
+        """_issuer_chain_get() logs ASA API error for non-dict responses"""
+        mock_req.return_value = ("code", "transport-error")
+        self.cahandler.ca_name = "ca_name"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(self.cahandler._issuer_chain_get())
+        self.assertIn(
+            "ERROR:test_a2c:ASA API error fetching issuer chain: transport-error",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    def test_074_cert_status_get_non_dict(self, mock_req):
+        """_cert_status_get() wraps non-dict responses"""
+        self.cahandler.ca_name = "ca_name"
+        mock_req.return_value = (500, "boom")
+        self.assertEqual(
+            {"code": 500, "error": "boom"},
+            self.cahandler._cert_status_get("cert"),
+        )
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
+    def test_075_revoke_non_dict_content(self, mock_ski, mock_post):
+        """revoke() uses string content as detail when response is non-dict"""
+        self.cahandler.ca_name = "ca_name"
+        mock_ski.return_value = "ski"
+        mock_post.return_value = (500, "plain-error")
+        self.assertEqual(
+            (500, "urn:ietf:params:acme:error:serverInternal", "plain-error"),
+            self.cahandler.revoke("cert"),
+        )
 
 
 if __name__ == "__main__":

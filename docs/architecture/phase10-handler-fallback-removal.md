@@ -19,9 +19,9 @@ Complete Phase 10 of the package-layout migration by **removing deprecated handl
 Import shims (`acme_srv.*`, `examples.*`, `tools/*.py`) are **already removed**. Phase 10 is only:
 
 1. Remove config keys: `handler_file`, `eab_handler_file`, `hooks_file`
-2. Remove default fallback: `importlib.import_module("acme_srv.ca_handler")` when no CA handler is configured
-3. Remove related deprecation helpers in `acme2certifier/compat.py` (or delete the module if unused)
-4. Update tests, CI, Docker entrypoints, and docs
+1. Remove default fallback: `importlib.import_module("acme_srv.ca_handler")` when no CA handler is configured
+1. Remove related deprecation helpers in `acme2certifier/compat.py` (or delete the module if unused)
+1. Update tests, CI, Docker entrypoints, and docs
 
 ## Current architecture (do not undo)
 
@@ -119,22 +119,22 @@ Update anything that still relies on `handler_file` or default `acme_srv/ca_hand
 ## Acceptance criteria
 
 1. No runtime support for `handler_file` / `eab_handler_file` / `hooks_file` **keys**
-2. Path values in `*_module` still load via `_load_from_file` (customer drop-in files keep working)
-3. No import of `acme_srv.ca_handler` as default
-4. No deprecation helpers for those paths (or empty/removed `compat.py`)
-5. Tests + docs consistent; pytest green
-6. CI workflows that encoded the old path are fixed or intentionally retired
-7. Do not reintroduce import shims under `acme_srv/`, `examples/`, or `tools/`
+1. Path values in `*_module` still load via `_load_from_file` (customer drop-in files keep working)
+1. No import of `acme_srv.ca_handler` as default
+1. No deprecation helpers for those paths (or empty/removed `compat.py`)
+1. Tests + docs consistent; pytest green
+1. CI workflows that encoded the old path are fixed or intentionally retired
+1. Do not reintroduce import shims under `acme_srv/`, `examples/`, or `tools/`
 
 ## Suggested work order
 
 1. Read `plugin_loader.py` + `compat.py` + `docs/upgrading.md`
-2. Change loader to `*_module` only (keep path-aware file load); remove default CA fallback
-3. Fix unit tests
-4. Fix CI / Docker entrypoints
-5. Update docs
-6. Full `pytest`
-7. Summarize breaking changes for release notes / `docs/upgrading.md`
+1. Change loader to `*_module` only (keep path-aware file load); remove default CA fallback
+1. Fix unit tests
+1. Fix CI / Docker entrypoints
+1. Update docs
+1. Full `pytest`
+1. Summarize breaking changes for release notes / `docs/upgrading.md`
 
 ## Constraints
 

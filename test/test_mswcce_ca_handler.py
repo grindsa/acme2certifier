@@ -2249,6 +2249,154 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.enroll("csr"),
         )
 
+    @patch.dict("os.environ", {}, clear=True)
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.os.path.isfile")
+    def test_104_kerberos_runtime_environment_pops_unset_keys(self, mock_isfile):
+        """runtime env restores by popping keys that were previously unset"""
+        self.cahandler.krb5_cache = "/tmp/runtime_ccache"
+        self.cahandler.krb5_config = "/tmp/runtime_krb5.conf"
+        mock_isfile.return_value = True
+
+        with self.cahandler._kerberos_runtime_environment():
+            self.assertEqual("/tmp/runtime_ccache", os.environ.get("KRB5CCNAME"))
+            self.assertEqual("/tmp/runtime_krb5.conf", os.environ.get("KRB5_CONFIG"))
+
+        self.assertNotIn("KRB5CCNAME", os.environ)
+        self.assertNotIn("KRB5_CONFIG", os.environ)
+
+    def test_105_kerberos_cleanup_temporary_ccache_noop(self):
+        """cleanup returns early when ccache is not temporary"""
+        self.cahandler.krb5_cache = "/tmp/runtime_ccache"
+        self.cahandler._krb5_cache_is_temporary = False
+        self.cahandler._kerberos_cleanup_temporary_ccache()
+        self.assertEqual("/tmp/runtime_ccache", self.cahandler.krb5_cache)
+
+    @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.os.unlink",
+        side_effect=FileNotFoundError(),
+    )
+    def test_106_kerberos_cleanup_temporary_ccache_missing(self, mock_unlink):
+        """cleanup handles already-removed temporary ccache"""
+        self.cahandler.krb5_cache = "/tmp/runtime_ccache"
+        self.cahandler._krb5_cache_is_temporary = True
+        self.cahandler._kerberos_cleanup_temporary_ccache()
+        mock_unlink.assert_called_once_with("/tmp/runtime_ccache")
+        self.assertFalse(self.cahandler._krb5_cache_is_temporary)
+        self.assertIsNone(self.cahandler.krb5_cache)
+
+    @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.os.unlink",
+        side_effect=PermissionError("denied"),
+    )
+    def test_107_kerberos_cleanup_temporary_ccache_error(self, mock_unlink):
+        """cleanup logs warning when unlink fails"""
+        self.cahandler.krb5_cache = "/tmp/runtime_ccache"
+        self.cahandler._krb5_cache_is_temporary = True
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._kerberos_cleanup_temporary_ccache()
+        mock_unlink.assert_called_once_with("/tmp/runtime_ccache")
+        self.assertIn(
+            "WARNING:test_a2c:Failed to remove temporary kerberos ccache file '/tmp/runtime_ccache': denied",
+            lcm.output,
+        )
+        self.assertFalse(self.cahandler._krb5_cache_is_temporary)
+        self.assertIsNone(self.cahandler.krb5_cache)
+
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.CAhandler.request_create")
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.convert_string_to_byte")
+    @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_runtime_environment"
+    )
+    def test_108_certificate_request_send_with_kerberos_scope(
+        self, mock_runtime, mock_s2b, mock_rcr
+    ):
+        """_certificate_request_send uses kerberos runtime scope when requested"""
+        mock_runtime.return_value.__enter__ = Mock(return_value=None)
+        mock_runtime.return_value.__exit__ = Mock(return_value=False)
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {"disposition": 3}
+        mock_rcr.return_value = mock_request
+        mock_s2b.return_value = b"csr"
+        self.assertEqual(
+            {"disposition": 3},
+            self.cahandler._certificate_request_send("csr", True),
+        )
+        mock_runtime.assert_called_once_with()
+        mock_request.get_cert.assert_called_once_with(b"csr")
+
+    def test_109_certificate_response_process_issued_without_bytes(self):
+        """issued disposition without certificate bytes returns fetch error"""
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            error, cert_raw = self.cahandler._certificate_response_process(
+                {
+                    "request_id": 7,
+                    "disposition": 3,
+                    "disposition_message": "issued",
+                    "certificate": None,
+                }
+            )
+        self.assertEqual("Could not get certificate from CA server", error)
+        self.assertIsNone(cert_raw)
+        self.assertIn(
+            "ERROR:test_a2c:Enrollment response has issued disposition but no certificate bytes. request_id=7",
+            lcm.output,
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
+    )
+    @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_prepare_python_backend"
+    )
+    @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_keytab_is_configured"
+    )
+    @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._certificate_request_send"
+    )
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._file_load")
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.build_pem_file")
+    def test_110_enroll_cleans_temporary_ccache_on_kerberos_scope(
+        self,
+        mock_pem,
+        mock_file,
+        mock_b2s,
+        mock_send,
+        mock_keytab,
+        mock_prepare,
+        mock_cleanup,
+    ):
+        """enroll cleans temporary ccache when python kerberos scope is active"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
+        mock_keytab.return_value = True
+        mock_prepare.return_value = None
+        mock_pem.return_value = "csr_pem"
+        mock_file.return_value = "ca_pem"
+        mock_b2s.return_value = (
+            "-----BEGIN CERTIFICATE-----\ncert\n-----END CERTIFICATE-----\n"
+        )
+        mock_send.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": "issued",
+            "certificate": b"cert",
+        }
+        error, cert_bundle, cert_raw, poll_id = self.cahandler.enroll("csr")
+        self.assertIsNone(error)
+        self.assertTrue(mock_cleanup.called)
+        self.assertEqual(
+            "-----BEGIN CERTIFICATE-----\ncert\n-----END CERTIFICATE-----\nca_pem",
+            cert_bundle,
+        )
+        self.assertEqual("cert", cert_raw)
+        self.assertIsNone(poll_id)
+
 
 if __name__ == "__main__":
 

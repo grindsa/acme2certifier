@@ -38,7 +38,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["foo"] = {"foo": "bar"}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             with self.assertLogs("test_a2c", level="DEBUG") as lcm:
                 self.cahandler._config_load()
@@ -55,7 +56,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"api_host": "https://example.com"}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.api_host = None
             self.cahandler._config_load()
@@ -65,7 +67,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"client_cert": "/tmp/cert.pem"}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.client_cert = None
             self.cahandler._config_load()
@@ -75,7 +78,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"client_key": "/tmp/key.pem"}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.client_key = None
             self.cahandler._config_load()
@@ -85,7 +89,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"profile": "testprofile"}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.profile = None
             self.cahandler._config_load()
@@ -95,7 +100,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_bundle": "some_bundle.pem"}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.ca_bundle = None
             self.cahandler._config_load()
@@ -105,7 +111,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_bundle": "true"}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.ca_bundle = None
             self.cahandler._config_load()
@@ -115,7 +122,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"certrequest_approve": "yes"}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.certrequest_approve = False
             self.cahandler._config_load()
@@ -129,7 +137,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.eab_profiling = False
             self.cahandler.eab_handler = None
@@ -137,12 +146,15 @@ class TestCAhandler(unittest.TestCase):
             self.assertTrue(self.cahandler.eab_profiling)
             self.assertEqual(self.cahandler.eab_handler, "handler")
 
-    @patch("acme2certifier.cahandlers.dogtag_ca_handler.CAhandler._config_passphrase_load")
+    @patch(
+        "acme2certifier.cahandlers.dogtag_ca_handler.CAhandler._config_passphrase_load"
+    )
     def test_011_config_load_cert_passphrase(self, mock_passphrase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler._config_load()
             mock_passphrase.assert_called()
@@ -155,7 +167,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.profiles = {}
             self.cahandler._config_load()
@@ -169,7 +182,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.header_info_field = False
             self.cahandler._config_load()
@@ -183,7 +197,8 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config",
+            return_value=parser,
         ):
             self.cahandler.enrollment_config_log = False
             self.cahandler.enrollment_config_log_skip_list = []
@@ -1480,7 +1495,8 @@ class TestCAhandler(unittest.TestCase):
         # Patch uts_now and uts_to_date_utc to control output
         with (
             patch(
-                "acme2certifier.cahandlers.dogtag_ca_handler.uts_now", return_value=1000000
+                "acme2certifier.cahandlers.dogtag_ca_handler.uts_now",
+                return_value=1000000,
             ),
             patch(
                 "acme2certifier.cahandlers.dogtag_ca_handler.uts_to_date_utc",
@@ -1505,6 +1521,43 @@ class TestCAhandler(unittest.TestCase):
             args = call[0]
             for arg in args:
                 self.assertNotIn("shouldnotappear", str(arg))
+
+    def test_083_handle_enroll_complete_success(self):
+        """Test _handle_enroll_complete fetches cert when API returns certId"""
+        with (
+            patch.object(
+                self.cahandler, "_api_get", return_value=(200, {"certId": "cid"})
+            ) as mock_get,
+            patch.object(
+                self.cahandler,
+                "_fetch_cert_and_bundle",
+                return_value=(None, "bundle", "raw"),
+            ) as mock_fetch,
+        ):
+            self.cahandler.REST_CERTREQUESTS = "/ca/rest/certrequests"
+            error, bundle, raw = self.cahandler._handle_enroll_complete("reqid")
+            self.assertIsNone(error)
+            self.assertEqual(bundle, "bundle")
+            self.assertEqual(raw, "raw")
+            mock_get.assert_called_once_with("/ca/rest/certrequests/reqid")
+            mock_fetch.assert_called_once_with("cid")
+
+    def test_084_handle_enroll_complete_failure(self):
+        """Test _handle_enroll_complete errors when cert data cannot be retrieved"""
+        with patch.object(
+            self.cahandler, "_api_get", return_value=(500, {"error": "fail"})
+        ):
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                error, bundle, raw = self.cahandler._handle_enroll_complete("reqid")
+            self.assertEqual(
+                error, "Failed to retrieve certificate data for completed request."
+            )
+            self.assertIsNone(bundle)
+            self.assertIsNone(raw)
+            self.assertIn(
+                "ERROR:test_a2c:Failed to retrieve certificate data for completed request. Status code: 500, Response: {'error': 'fail'}",
+                lcm.output,
+            )
 
 
 if __name__ == "__main__":
