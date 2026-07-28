@@ -117,6 +117,7 @@ jobs:
         run: |
           sudo sed -i 's/^handler_file:/handler_module:/' examples/Docker/data/acme_srv.cfg
           grep -E '^handler_module:' examples/Docker/data/acme_srv.cfg
+          cat examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -211,6 +212,7 @@ jobs:
         run: |
           sudo sed -i 's/^handler_file:/handler_module:/' data/volume/acme_srv.cfg
           grep -E '^handler_module:' data/volume/acme_srv.cfg
+          cat data/volume/acme_srv.cfg
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
       - name: "Test enrollment (handler_module path)"
@@ -311,6 +313,7 @@ jobs:
         run: |
           sudo sed -i 's/^handler_file:/handler_module:/' data/volume/acme_srv.cfg
           grep -E '^handler_module:' data/volume/acme_srv.cfg
+          cat data/volume/acme_srv.cfg
           docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
