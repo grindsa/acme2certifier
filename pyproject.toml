@@ -47,18 +47,23 @@ gssapi = [
     "gssapi",
     "requests_gssapi",
 ]
+ntlm = [
+    "requests_ntlm",
+]
 django = [
     "Django",
 ]
 full = [
     "gssapi",
     "requests_gssapi",
+    "requests_ntlm",
     "Django",
 ]
 test = [
     "pytest",
     "pytest-cov",
     "Django",
+    "requests_ntlm",
 ]
 
 [project.scripts]
