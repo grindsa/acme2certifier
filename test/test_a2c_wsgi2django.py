@@ -743,3 +743,239 @@ def test_026_wipe_cli(clean_django_db: None, sample_dump: Dict[str, Any], capsys
 
     assert Account.objects.count() == 0
     assert Status.objects.count() == 8
+
+
+def test_027_check_cli_passes_for_matching_dump_and_django(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+    capsys: Any,
+) -> None:
+    """check returns 0 when dump matches imported Django rows."""
+    dump_path = tmp_path / "dump.json"
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    rc = migrator.main(["check", "--dump", str(dump_path)])
+    assert rc == migrator.CHECK_EXIT_OK
+    assert "check passed: dump matches Django" in capsys.readouterr().out
+
+
+def test_028_check_cli_reports_django_mismatch(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+    capsys: Any,
+) -> None:
+    """check returns mismatch exit code when Django drifted from dump."""
+    from acme2certifier.django_app.models import Account
+
+    dump_path = tmp_path / "dump.json"
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+    Account.objects.filter(pk=1).update(contact="mailto:drift@example.com")
+
+    rc = migrator.main(["check", "--dump", str(dump_path)])
+    assert rc == migrator.CHECK_EXIT_MISMATCH
+    err = capsys.readouterr().err
+    assert "check mismatch: dump-vs-django" in err
+    assert "account.id=1 field contact" in err
+
+
+def test_029_check_cli_passes_with_source_db(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    wsgi_db: Path,
+    tmp_path: Path,
+    capsys: Any,
+) -> None:
+    """check --source-db validates dump against Django and source SQLite."""
+    dump_path = tmp_path / "dump.json"
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    rc = migrator.main(
+        ["check", "--dump", str(dump_path), "--source-db", str(wsgi_db)]
+    )
+    assert rc == migrator.CHECK_EXIT_OK
+    assert (
+        "check passed: dump matches Django and source-db"
+        in capsys.readouterr().out
+    )
+
+
+def test_030_check_cli_reports_source_db_mismatch(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    wsgi_db: Path,
+    tmp_path: Path,
+    capsys: Any,
+) -> None:
+    """check returns mismatch exit code when source DB differs from dump."""
+    dump_path = tmp_path / "dump.json"
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    conn = sqlite3.connect(str(wsgi_db))
+    try:
+        conn.execute(
+            "UPDATE account SET contact = ? WHERE id = 1",
+            ("mailto:source-drift@example.com",),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    rc = migrator.main(
+        ["check", "--dump", str(dump_path), "--source-db", str(wsgi_db)]
+    )
+    assert rc == migrator.CHECK_EXIT_MISMATCH
+    err = capsys.readouterr().err
+    assert "check mismatch: dump-vs-source-db" in err
+    assert "account.id=1 field contact" in err
+
+
+def test_031_check_cli_uses_error_exit_for_runtime_failures(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+    capsys: Any,
+) -> None:
+    """check returns execution-error exit code for invalid source path."""
+    dump_path = tmp_path / "dump.json"
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    missing_source = tmp_path / "missing.db"
+    rc = migrator.main(
+        ["check", "--dump", str(dump_path), "--source-db", str(missing_source)]
+    )
+    assert rc == migrator.CHECK_EXIT_ERROR
+    assert "check failed:" in capsys.readouterr().err
+
+
+def test_032_check_treats_nullable_blank_challenge_fields_as_equal(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    """NULL dump values match Django blank strings for challenge text fields."""
+    dump_path = tmp_path / "dump.json"
+    sample_dump["tables"]["challenge"][0]["keyauthorization"] = None
+    sample_dump["tables"]["challenge"][0]["source"] = None
+    sample_dump["tables"]["challenge"][0]["validation_error"] = None
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    rc = migrator.main(["check", "--dump", str(dump_path)])
+    assert rc == migrator.CHECK_EXIT_OK
+
+
+def test_033_check_treats_nullable_blank_authorization_token_as_equal(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    """NULL dump token matches Django blank string for authorization.token."""
+    dump_path = tmp_path / "dump.json"
+    sample_dump["tables"]["authorization"][0]["token"] = None
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    rc = migrator.main(["check", "--dump", str(dump_path)])
+    assert rc == migrator.CHECK_EXIT_OK
+
+
+def test_034_check_treats_nullable_authorization_expires_as_zero(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    """NULL dump expires matches Django default 0 for authorization.expires."""
+    dump_path = tmp_path / "dump.json"
+    sample_dump["tables"]["authorization"][0]["expires"] = None
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    rc = migrator.main(["check", "--dump", str(dump_path)])
+    assert rc == migrator.CHECK_EXIT_OK
+
+
+def test_035_check_treats_nullable_order_notbefore_as_zero(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    """NULL dump notbefore matches Django default 0 for orders.notbefore."""
+    dump_path = tmp_path / "dump.json"
+    sample_dump["tables"]["orders"][0]["notbefore"] = None
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    rc = migrator.main(["check", "--dump", str(dump_path)])
+    assert rc == migrator.CHECK_EXIT_OK
+
+
+def test_036_check_treats_nullable_account_eab_kid_as_blank(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    """NULL dump eab_kid matches Django blank string."""
+    dump_path = tmp_path / "dump.json"
+    sample_dump["tables"]["account"][0]["eab_kid"] = None
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    rc = migrator.main(["check", "--dump", str(dump_path)])
+    assert rc == migrator.CHECK_EXIT_OK
+
+
+def test_037_check_treats_blank_order_notbefore_as_zero(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    """Blank-string dump notbefore matches Django default 0."""
+    dump_path = tmp_path / "dump.json"
+    sample_dump["tables"]["orders"][0]["notbefore"] = ""
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    rc = migrator.main(["check", "--dump", str(dump_path)])
+    assert rc == migrator.CHECK_EXIT_OK
+
+
+def test_038_check_source_db_certificate_extra_id_has_diagnostic(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    wsgi_db: Path,
+    tmp_path: Path,
+    capsys: Any,
+) -> None:
+    """Source-only certificate ids include exclusion reason details."""
+    dump_path = tmp_path / "dump.json"
+    migrator.write_dump(sample_dump, dump_path)
+    migrator.import_dump(sample_dump)
+
+    conn = sqlite3.connect(str(wsgi_db))
+    try:
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.execute(
+            "INSERT INTO certificate (id, name, order_id, csr) "
+            "VALUES (77, 'orphan-cert-diag', 0, '')"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    rc = migrator.main(
+        ["check", "--dump", str(dump_path), "--source-db", str(wsgi_db)]
+    )
+    assert rc == migrator.CHECK_EXIT_MISMATCH
+    err = capsys.readouterr().err
+    assert "dump-vs-source-db: certificate: ids unexpected in source-db: [77]" in err
+    assert (
+        "dump-vs-source-db detail: certificate.id=77 excluded from dump: dangling order_id=0"
+        in err
+    )

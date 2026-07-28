@@ -120,6 +120,134 @@ IMPORT_TABLE_ORDER: Tuple[str, ...] = (
     "nonce",
 )
 
+CHECK_EXIT_OK = 0
+CHECK_EXIT_MISMATCH = 1
+CHECK_EXIT_ERROR = 2
+
+CHECK_FIELDS: Dict[str, Tuple[str, ...]] = {
+    "status": ("id", "name"),
+    "account": ("id", "name", "status_id", "alg", "jwk", "contact", "eab_kid"),
+    "orders": (
+        "id",
+        "name",
+        "account_id",
+        "status_id",
+        "notbefore",
+        "notafter",
+        "identifiers",
+        "profile",
+        "expires",
+    ),
+    "authorization": (
+        "id",
+        "name",
+        "order_id",
+        "status_id",
+        "type",
+        "value",
+        "token",
+        "expires",
+    ),
+    "challenge": (
+        "id",
+        "name",
+        "authorization_id",
+        "status_id",
+        "type",
+        "token",
+        "keyauthorization",
+        "source",
+        "validated",
+        "validation_error",
+        "expires",
+    ),
+    "certificate": (
+        "id",
+        "name",
+        "order_id",
+        "csr",
+        "cert",
+        "cert_raw",
+        "error",
+        "poll_identifier",
+        "header_info",
+        "renewal_info",
+        "aki",
+        "serial",
+        "issue_uts",
+        "expire_uts",
+        "replaced",
+    ),
+    "cliaccount": (
+        "id",
+        "name",
+        "jwk",
+        "contact",
+        "cliadmin",
+        "reportadmin",
+        "certificateadmin",
+    ),
+    "cahandler": ("id", "name", "value1", "value2"),
+    "housekeeping": ("id", "name", "value"),
+    "nonce": ("id", "nonce"),
+}
+
+CHECK_MODEL_MAP: Dict[str, str] = {
+    "status": "Status",
+    "account": "Account",
+    "orders": "Order",
+    "authorization": "Authorization",
+    "challenge": "Challenge",
+    "certificate": "Certificate",
+    "cliaccount": "Cliaccount",
+    "cahandler": "Cahandler",
+    "housekeeping": "Housekeeping",
+    "nonce": "Nonce",
+}
+
+BOOL_CHECK_FIELDS: Dict[str, Tuple[str, ...]] = {
+    "cliaccount": ("cliadmin", "reportadmin", "certificateadmin"),
+    "certificate": ("replaced",),
+}
+
+INT_CHECK_FIELDS: Dict[str, Tuple[str, ...]] = {
+    "status": ("id",),
+    "account": ("id", "status_id"),
+    "orders": ("id", "account_id", "status_id", "notbefore", "notafter", "expires"),
+    "authorization": ("id", "order_id", "status_id", "expires"),
+    "challenge": ("id", "authorization_id", "status_id", "validated", "expires"),
+    "certificate": ("id", "order_id", "issue_uts", "expire_uts"),
+    "cliaccount": ("id",),
+    "cahandler": ("id",),
+    "housekeeping": ("id",),
+    "nonce": ("id",),
+}
+
+EMPTY_EQ_NONE_FIELDS: Dict[str, Tuple[str, ...]] = {
+    "account": ("name", "alg", "jwk", "contact", "eab_kid"),
+    "orders": ("name", "identifiers", "profile"),
+    "authorization": ("name", "type", "value", "token"),
+    "challenge": (
+        "name",
+        "token",
+        "type",
+        "keyauthorization",
+        "source",
+        "validation_error",
+    ),
+    "cliaccount": ("name", "jwk", "contact"),
+    "cahandler": ("name", "value1", "value2"),
+    "housekeeping": ("name", "value"),
+    "nonce": ("nonce",),
+}
+
+NONE_EQ_ZERO_FIELDS: Dict[str, Tuple[str, ...]] = {
+    "authorization": ("expires",),
+    "orders": ("notbefore", "notafter", "expires"),
+    "challenge": ("expires", "validated"),
+    "certificate": ("issue_uts", "expire_uts"),
+}
+
 
 class ExportError(Exception):
     """Raised when WSGI export validation fails."""
@@ -1036,8 +1164,237 @@ def cmd_import(args: argparse.Namespace) -> int:
         return 1
 
 
+def _normalize_check_value(table: str, field: str, value: Any) -> Any:
+    """Normalize values for deterministic dump/source/Django comparisons."""
+    if field in NONE_EQ_ZERO_FIELDS.get(table, ()):
+        if value is None or value == "":
+            return 0
+        if isinstance(value, str) and value.strip().lower() == "none":
+            return 0
+    if field in EMPTY_EQ_NONE_FIELDS.get(table, ()) and value is None:
+        return ""
+    if field in BOOL_CHECK_FIELDS.get(table, ()):
+        return _as_bool(value)
+    if field in INT_CHECK_FIELDS.get(table, ()):
+        if value is None or value == "":
+            return None
+        return int(value)
+    return value
+
+
+def _canonicalize_rows(
+    table: str, rows: Sequence[Mapping[str, Any]]
+) -> Dict[int, Dict[str, Any]]:
+    """Index table rows by id with normalized compare fields."""
+    canonical: Dict[int, Dict[str, Any]] = {}
+    fields = CHECK_FIELDS[table]
+    for row in rows:
+        if "id" not in row or row["id"] is None:
+            raise MigrationError(f"{table} row missing required id for check")
+        row_id = int(row["id"])
+        entry: Dict[str, Any] = {}
+        for field in fields:
+            entry[field] = _normalize_check_value(table, field, row.get(field))
+        canonical[row_id] = entry
+    return canonical
+
+
+def _diff_rows(
+    table: str,
+    left_rows: Sequence[Mapping[str, Any]],
+    right_rows: Sequence[Mapping[str, Any]],
+    *,
+    left_label: str,
+    right_label: str,
+) -> List[str]:
+    """Return mismatch lines between two row collections for a table."""
+    mismatches: List[str] = []
+    left = _canonicalize_rows(table, left_rows)
+    right = _canonicalize_rows(table, right_rows)
+
+    if len(left) != len(right):
+        mismatches.append(
+            f"{table}: count mismatch ({left_label}={len(left)} != {right_label}={len(right)})"
+        )
+
+    left_ids = set(left.keys())
+    right_ids = set(right.keys())
+    missing = sorted(left_ids - right_ids)
+    extra = sorted(right_ids - left_ids)
+    if missing:
+        mismatches.append(
+            f"{table}: ids missing in {right_label}: {missing[:5]}"
+        )
+    if extra:
+        mismatches.append(
+            f"{table}: ids unexpected in {right_label}: {extra[:5]}"
+        )
+
+    for row_id in sorted(left_ids & right_ids):
+        left_row = left[row_id]
+        right_row = right[row_id]
+        for field in CHECK_FIELDS[table]:
+            if left_row.get(field) != right_row.get(field):
+                mismatches.append(
+                    f"{table}.id={row_id} field {field}: "
+                    f"{left_label}={left_row.get(field)!r} != {right_label}={right_row.get(field)!r}"
+                )
+                break
+    return mismatches
+
+
+def _source_only_certificate_diagnostics(
+    dump_rows: Sequence[Mapping[str, Any]],
+    source_rows: Sequence[Mapping[str, Any]],
+    source_order_rows: Sequence[Mapping[str, Any]],
+) -> List[str]:
+    """Explain why certificate ids exist in source-db but not in dump."""
+    diagnostics: List[str] = []
+    dump_ids = set(_canonicalize_rows("certificate", dump_rows).keys())
+    source_ids = set(_canonicalize_rows("certificate", source_rows).keys())
+    extra_ids = sorted(source_ids - dump_ids)
+    if not extra_ids:
+        return diagnostics
+
+    source_by_id = {int(row["id"]): row for row in source_rows if row.get("id") is not None}
+    source_order_ids = {int(row["id"]) for row in source_order_rows if row.get("id") is not None}
+
+    for cert_id in extra_ids[:10]:
+        row = source_by_id.get(cert_id, {})
+        order_id = row.get("order_id")
+        if order_id is None:
+            diagnostics.append(
+                f"dump-vs-source-db detail: certificate.id={cert_id} excluded from dump: NULL order_id"
+            )
+            continue
+        try:
+            parsed_order_id = int(order_id)
+        except (TypeError, ValueError):
+            diagnostics.append(
+                f"dump-vs-source-db detail: certificate.id={cert_id} excluded from dump: invalid order_id={order_id!r}"
+            )
+            continue
+        if parsed_order_id not in source_order_ids:
+            diagnostics.append(
+                f"dump-vs-source-db detail: certificate.id={cert_id} excluded from dump: dangling order_id={parsed_order_id}"
+            )
+            continue
+        diagnostics.append(
+            f"dump-vs-source-db detail: certificate.id={cert_id} present in source-db but not in dump"
+        )
+    return diagnostics
+
+
+def _tables_for_check(dump: Mapping[str, Any], *, include_nonces: bool) -> Tuple[str, ...]:
+    """Check table set derived from dump settings."""
+    base = (
+        "status",
+        "account",
+        "orders",
+        "authorization",
+        "challenge",
+        "certificate",
+        "cliaccount",
+        "cahandler",
+        "housekeeping",
+    )
+    if include_nonces:
+        return base + ("nonce",)
+    return base
+
+
+def _django_rows_for_table(table: str) -> List[Dict[str, Any]]:
+    """Fetch table rows from Django models for comparison."""
+    models = _django_models()
+    model = getattr(models, CHECK_MODEL_MAP[table])
+    rows = list(model.objects.values(*CHECK_FIELDS[table]))
+    if rows and "id" in rows[0]:
+        rows.sort(key=lambda row: int(row["id"]))
+    return rows
+
+
+def _source_rows_for_table(db_path: Path, table: str) -> List[Dict[str, Any]]:
+    """Fetch table rows from a source WSGI SQLite DB."""
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        return _fetch_table(conn, table)
+    finally:
+        conn.close()
+
+
+def run_check(
+    dump: Mapping[str, Any], *, source_db: Optional[Path] = None
+) -> List[str]:
+    """Compare dump rows against Django and optional source SQLite."""
+    _validate_dump_for_import(dump)
+    assert_django_status_fixture(auto_seed=False)
+    tables = dump["tables"]
+    include_nonces = bool(dump.get("meta", {}).get("include_nonces"))
+    check_tables = _tables_for_check(dump, include_nonces=include_nonces)
+    mismatches: List[str] = []
+
+    for table in check_tables:
+        dump_rows = tables.get(table, [])
+        django_rows = _django_rows_for_table(table)
+        for mismatch in _diff_rows(
+            table,
+            dump_rows,
+            django_rows,
+            left_label="dump",
+            right_label="django",
+        ):
+            mismatches.append(f"dump-vs-django: {mismatch}")
+
+    if source_db is not None:
+        for table in check_tables:
+            dump_rows = tables.get(table, [])
+            source_rows = _source_rows_for_table(source_db, table)
+            for mismatch in _diff_rows(
+                table,
+                dump_rows,
+                source_rows,
+                left_label="dump",
+                right_label="source-db",
+            ):
+                mismatches.append(f"dump-vs-source-db: {mismatch}")
+            if table == "certificate":
+                source_order_rows = _source_rows_for_table(source_db, "orders")
+                mismatches.extend(
+                    _source_only_certificate_diagnostics(
+                        dump_rows, source_rows, source_order_rows
+                    )
+                )
+
+    return mismatches
+
+
+def cmd_check(args: argparse.Namespace) -> int:
+    """Handle ``check`` subcommand. Returns CI-friendly exit codes."""
+    dump_path = Path(args.dump)
+    source_db = Path(args.source_db) if args.source_db else None
+    try:
+        setup_django_orm()
+        dump = load_dump(dump_path)
+        mismatches = run_check(dump, source_db=source_db)
+        if mismatches:
+            for line in mismatches:
+                print(f"check mismatch: {line}", file=sys.stderr)
+            return CHECK_EXIT_MISMATCH
+        if source_db is not None:
+            print(
+                "check passed: dump matches Django and source-db"
+            )
+        else:
+            print("check passed: dump matches Django")
+        return CHECK_EXIT_OK
+    except (MigrationError, sqlite3.Error, OSError) as exc:
+        print(f"check failed: {exc}", file=sys.stderr)
+        return CHECK_EXIT_ERROR
+
+
 def build_parser() -> argparse.ArgumentParser:
-    """Build CLI argument parser (export / wipe / import)."""
+    """Build CLI argument parser (export / wipe / import / check)."""
     parser = argparse.ArgumentParser(
         prog="a2c-wsgi2django",
         description="Migrate ACME data from WSGI SQLite to Django (JSON dump).",
@@ -1110,6 +1467,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Validate and report counts without writing",
     )
     import_p.set_defaults(func=cmd_import)
+
+    check_p = sub.add_parser(
+        "check",
+        help="Compare dump with Django data and optional source WSGI SQLite",
+    )
+    check_p.add_argument(
+        "--dump",
+        required=True,
+        help="Path to a2c-wsgi dump JSON",
+    )
+    check_p.add_argument(
+        "--source-db",
+        default=None,
+        help="Optional path to source WSGI SQLite (acme_srv.db) for extra checks",
+    )
+    check_p.set_defaults(func=cmd_check)
     return parser
 
 
