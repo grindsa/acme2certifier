@@ -10,7 +10,7 @@ import warnings
 from typing import Optional, Set
 
 # Target major release for removing ``*_file`` keys and default ca_handler fallback.
-REMOVAL_VERSION = "1.0"
+REMOVAL_VERSION = "0.48"
 
 _WARNED: Set[str] = set()
 
@@ -57,7 +57,7 @@ def warn_file_config_deprecated(
     message = (
         f"{file_key} is deprecated; use {module_key} "
         f"(e.g. {example_module}). "
-        f"File-based handler loading will be removed in "
+        f"The {file_key} key will be removed in "
         f"acme2certifier {REMOVAL_VERSION}."
     )
     warnings.warn(message, DeprecationWarning, stacklevel=stacklevel)

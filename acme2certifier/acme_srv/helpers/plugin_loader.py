@@ -4,6 +4,7 @@
 import importlib
 import importlib.util
 import logging
+import os
 import sys
 from typing import Any, Dict, Optional, Set
 
@@ -25,6 +26,24 @@ def _log_once_info(
         logger.info(msg, *args)
     else:
         logger.debug(msg, *args)
+
+
+def _is_filesystem_path(value: str) -> bool:
+    """True if *value* is a filesystem path rather than a dotted module name.
+
+    Path form is preferred for out-of-tree customer handlers (no packaging,
+    no ``PYTHONPATH`` / ``__init__.py``). Detection: absolute path, ``.py``
+    suffix, or path separator.
+    """
+    if not value:
+        return False
+    if os.path.isabs(value):
+        return True
+    if value.endswith(".py"):
+        return True
+    if os.sep in value or (os.altsep and os.altsep in value) or "/" in value:
+        return True
+    return False
 
 
 def _load_from_file(
@@ -83,6 +102,21 @@ def _load_from_module(
         return None
 
 
+def _load_plugin_ref(
+    logger: logging.Logger,
+    ref: str,
+    *,
+    sys_module_name: str,
+    error_prefix: str,
+) -> Optional[Any]:
+    """Load a plugin from a dotted module name or a filesystem path."""
+    if _is_filesystem_path(ref):
+        logger.debug("Loading plugin from filesystem path=%s", ref)
+        return _load_from_file(logger, sys_module_name, ref, error_prefix)
+    logger.debug("Loading plugin via import_module=%s", ref)
+    return _load_from_module(logger, ref, error_prefix)
+
+
 def _section_option(section: Any, key: str) -> Optional[str]:
     """Return option value if present (ConfigParser- and dict-safe)."""
     if key in section:
@@ -126,10 +160,11 @@ def ca_handler_load(
 
     if handler_module:
         logger.debug("Loading CA handler via handler_module=%s", handler_module)
-        loaded = _load_from_module(
+        loaded = _load_plugin_ref(
             logger,
             handler_module,
-            "Loading CAhandler via handler_module",
+            sys_module_name="CAhandler",
+            error_prefix="Loading CAhandler via handler_module",
         )
         if loaded is not None:
             _log_once_info(
@@ -144,7 +179,7 @@ def ca_handler_load(
             logger,
             "handler_file",
             "handler_module",
-            "acme2certifier.cahandlers.openssl_ca_handler",
+            "acme2certifier.cahandlers.openssl_ca_handler or /path/to/handler.py",
         )
         loaded = _load_from_file(
             logger,
@@ -206,10 +241,11 @@ def eab_handler_load(
 
     if eab_module:
         logger.debug("Loading EAB handler via eab_handler_module=%s", eab_module)
-        loaded = _load_from_module(
+        loaded = _load_plugin_ref(
             logger,
             eab_module,
-            "Loading EABhandler via eab_handler_module",
+            sys_module_name="EABhandler",
+            error_prefix="Loading EABhandler via eab_handler_module",
         )
         if loaded is not None:
             _log_once_info(
@@ -224,7 +260,7 @@ def eab_handler_load(
             logger,
             "eab_handler_file",
             "eab_handler_module",
-            "acme2certifier.eabhandlers.file_handler",
+            "acme2certifier.eabhandlers.file_handler or /path/to/eab_handler.py",
         )
         loaded = _load_from_file(
             logger,
@@ -301,10 +337,11 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
 
     if hooks_module_name:
         logger.debug("Loading hooks via hooks_module=%s", hooks_module_name)
-        loaded = _load_from_module(
+        loaded = _load_plugin_ref(
             logger,
             hooks_module_name,
-            "Loading Hooks via hooks_module",
+            sys_module_name="Hooks",
+            error_prefix="Loading Hooks via hooks_module",
         )
         if loaded is not None:
             _log_once_info(
@@ -319,7 +356,7 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
             logger,
             "hooks_file",
             "hooks_module",
-            "acme2certifier.hookhandlers.skeleton_hooks",
+            "acme2certifier.hookhandlers.skeleton_hooks or /path/to/hooks.py",
         )
         loaded = _load_from_file(
             logger,
