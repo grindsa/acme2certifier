@@ -58,6 +58,7 @@ full = [
 test = [
     "pytest",
     "pytest-cov",
+    "Django",
 ]
 
 [project.scripts]

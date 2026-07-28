@@ -56,6 +56,7 @@ It is recommended to increase the enrollment timeout to prevent `acme2certifier`
 [Certificate]
 enrollment_timeout: 120
 ```
+
 ### Retrieving CA and Profile Information
 
 You can retrieve the list of certificate authorities by running the following REST call against ASA:

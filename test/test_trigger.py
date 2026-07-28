@@ -430,7 +430,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.trigger._config_load()
         self.assertIn(
-            "CRITICAL:test_a2c:Loading CAhandler configured in cfg failed with err: 'NoneType' object has no attribute 'loader'",
+            "CRITICAL:test_a2c:Loading CAhandler configured in cfg failed with err: Cannot load module 'CAhandler' from 'foo'",
             lcm.output,
         )
 

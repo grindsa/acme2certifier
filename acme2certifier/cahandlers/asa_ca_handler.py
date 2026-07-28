@@ -168,6 +168,7 @@ class CAhandler(object):
                     time.sleep(sleep_s)
 
         return 500, str(last_error)
+
     def _auth_set(self):
         """set basic authentication header"""
         self.logger.debug("CAhandler._auth_set()")
