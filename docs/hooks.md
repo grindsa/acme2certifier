@@ -4,13 +4,14 @@
 
 # Hooks
 
-`acme2certifier` allows for the specification of pre- and post-enrollment hooks. Hooks are disabled by default and must be activated in `acme_srv.cfg` by specifying a module (preferred) or file containing the required `Hooks` class and methods.
+`acme2certifier` allows for the specification of pre- and post-enrollment hooks. Hooks are disabled by default and must be activated in `acme_srv.cfg` by specifying `hooks_module` (dotted package name or filesystem path to a `.py` file containing the `Hooks` class).
 
-Prefer `hooks_module`. The older `hooks_file` option is **deprecated** but still supported; see [Upgrading](upgrading.md).
+Prefer `hooks_module`. For custom code, a path is enough (no packaging); see [Custom handlers](ca_handler.md#custom-handlers-path-or-package). The older `hooks_file` option is **deprecated** but still supported; see [Upgrading](upgrading.md).
 
 ```config
 [Hooks]
 hooks_module: acme2certifier.hookhandlers.skeleton_hooks
+# or: hooks_module: /var/www/acme2certifier/volume/hooks.py
 ```
 
 ## How to Create Your Own Hooks
