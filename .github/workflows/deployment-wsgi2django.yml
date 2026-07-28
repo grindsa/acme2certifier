@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         websrv: ['nginx', 'apache2']
         django_db: ['sqlite3', 'mariadb']
@@ -162,6 +162,10 @@ jobs:
           DB_HANDLER: django
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "[ * ] Collect migration artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/wf_specific/wsgi2django/collect_failure_artifacts
+
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         uses: ./.github/actions/collect_failure_logs
@@ -180,7 +184,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         # nginx+sqlite has known instability in current DEB deployment tests.
         websrv: ['apache2']
@@ -265,6 +269,10 @@ jobs:
       - name: "Fresh enrollment on Django"
         uses: ./.github/actions/acme_clients
 
+      - name: "[ * ] Collect migration artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/wf_specific/wsgi2django/collect_failure_artifacts
+
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         uses: ./.github/actions/collect_failure_logs
@@ -284,7 +292,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         rhversion: [8, 9]
         django_db: ['sqlite3', 'mariadb']
@@ -376,6 +384,12 @@ jobs:
       - name: "Fresh enrollment on Django"
         uses: ./.github/actions/acme_clients
 
+      - name: "[ * ] Collect migration artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/wf_specific/wsgi2django/collect_failure_artifacts
+        with:
+          APP_ROOT: /opt/acme2certifier
+
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         uses: ./.github/actions/collect_failure_logs
@@ -394,7 +408,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         ubuntu_version: ['24.04']
         websrv: [apache2, nginx]
@@ -482,6 +496,10 @@ jobs:
 
       - name: Fresh enrollment on Django
         uses: ./.github/actions/acme_clients
+
+      - name: "Collect migration artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/wf_specific/wsgi2django/collect_failure_artifacts
 
       - name: Collect logs
         if: ${{ failure() }}

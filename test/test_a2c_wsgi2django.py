@@ -740,6 +740,60 @@ def test_024_import_fails_contact_overflow(
         migrator.import_dump(sample_dump)
 
 
+def test_024b_import_fails_status_pk_mismatch(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Refuse import when dump status PK/name map drifts from fixture."""
+    for row in sample_dump["tables"]["status"]:
+        if int(row["id"]) == 1:
+            row["name"] = "bogus"
+            break
+    with pytest.raises(migrator.MigrationError, match="status PK 1"):
+        migrator.import_dump(sample_dump)
+
+
+def test_024c_import_fails_housekeeping_overflow(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Refuse import when housekeeping.value exceeds model max_length."""
+    sample_dump["tables"]["housekeeping"].append(
+        {"id": 99, "name": "profiles", "value": "x" * 301}
+    )
+    with pytest.raises(migrator.MigrationError, match="value length"):
+        migrator.import_dump(sample_dump)
+
+
+def test_024d_export_fails_housekeeping_overflow(wsgi_db: Path) -> None:
+    """Refuse export when housekeeping.value exceeds Django limit."""
+    conn = sqlite3.connect(str(wsgi_db))
+    try:
+        conn.execute(
+            "INSERT INTO housekeeping (name, value) VALUES (?, ?)",
+            ("profiles", "x" * 301),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    with pytest.raises(migrator.ExportError, match="value length"):
+        migrator.build_dump(wsgi_db)
+
+
+def test_024e_verbose_export_logs_progress(
+    wsgi_db: Path, tmp_path: Path, capsys: Any
+) -> None:
+    """CLI -v prints export progress to stderr."""
+    out = tmp_path / "dump.json"
+    rc = migrator.main(
+        ["-v", "export", "--db", str(wsgi_db), "--out", str(out)]
+    )
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert "export: reading WSGI database" in err
+    assert "export: status fixture validated" in err
+    assert "export: validation complete" in err
+
+
 def test_025_import_challenge_null_token_warns(
     clean_django_db: None, sample_dump: Dict[str, Any], capsys: Any
 ) -> None:

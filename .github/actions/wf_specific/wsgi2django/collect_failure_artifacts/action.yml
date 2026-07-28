@@ -1,0 +1,60 @@
+name: "wsgi2django collect failure artifacts"
+description: "On failure, copy migration dump JSON and re-run migrator check with verbose logging into artifact/migration/"
+inputs:
+  APP_ROOT:
+    description: "Application root inside container"
+    required: false
+    default: "/var/www/acme2certifier"
+  DUMP_PATHS:
+    description: "Space-separated dump paths inside container (first existing wins)"
+    required: false
+    default: "/var/www/acme2certifier/volume/wsgi-dump.json /tmp/wsgi-dump.json"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Collect migration dump and migrator logs"
+      shell: bash
+      env:
+        APP_ROOT: ${{ inputs.APP_ROOT }}
+        DUMP_PATHS: ${{ inputs.DUMP_PATHS }}
+      run: |
+        set -euo pipefail
+        dest="${GITHUB_WORKSPACE}/artifact/migration"
+        mkdir -p "${dest}"
+
+        docker exec \
+          -e APP_ROOT="${APP_ROOT}" \
+          -e DUMP_PATHS="${DUMP_PATHS}" \
+          acme-srv bash -c '
+          set -euo pipefail
+          A2C_ARGS=()
+          if [[ -x "${APP_ROOT}/venv/bin/a2c-wsgi2django" ]]; then
+            A2C="${APP_ROOT}/venv/bin/a2c-wsgi2django"
+          elif command -v a2c-wsgi2django >/dev/null 2>&1; then
+            A2C=a2c-wsgi2django
+          else
+            A2C=python3
+            A2C_ARGS=(-m acme2certifier.tools.a2c_wsgi2django)
+          fi
+          dump=""
+          for candidate in ${DUMP_PATHS}; do
+            if [[ -f "${candidate}" ]]; then
+              dump="${candidate}"
+              break
+            fi
+          done
+          if [[ -z "${dump}" ]]; then
+            echo "migration artifact: no dump found (searched: ${DUMP_PATHS})" > /tmp/wsgi2django-artifacts.log
+            exit 0
+          fi
+          cp -f "${dump}" /tmp/wsgi2django-dump.json
+          {
+            echo "migration artifact: dump=${dump}"
+            "${A2C}" "${A2C_ARGS[@]}" -v check --dump /tmp/wsgi2django-dump.json
+          } > /tmp/wsgi2django-check.log 2>&1 || true
+        ' || true
+
+        docker cp acme-srv:/tmp/wsgi2django-dump.json "${dest}/wsgi-dump.json" 2>/dev/null || true
+        docker cp acme-srv:/tmp/wsgi2django-check.log "${dest}/migrator-check.log" 2>/dev/null || true
+        docker cp acme-srv:/tmp/wsgi2django-artifacts.log "${dest}/migrator-artifacts.log" 2>/dev/null || true

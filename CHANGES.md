@@ -6,6 +6,13 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.45
+
+**Features and Improvements**:
+
+- [`a2c-wsgi2django`](docs/migrate_wsgi_to_django.md) CLI to migrate ACME runtime data from WSGI SQLite to Django ORM via a portable JSON dump (`export`, `import`, `check`, `wipe`)
+- Import supports `--dry-run` and `--wipe`; wipe requires `--yes`; optional `-v`/`--verbose` progress logging
+
 ## Changes in 0.44
 
 **Features and Improvements**:

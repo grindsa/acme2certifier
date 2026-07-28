@@ -240,6 +240,10 @@ If migration fails:
 
 ## Troubleshooting
 
+- Safety flags:
+  - `wipe` requires `--yes`.
+  - `import --dry-run` validates and prints counts without writing.
+  - `-v` / `--verbose` logs export/import/check progress to stderr.
 - `Value too long` during import:
   - inspect overlong values in source data (common: account contact, housekeeping values), fix source or prune value, export again.
 - Import refused because DB is not empty:

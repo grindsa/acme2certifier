@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+_VERBOSE = False
+
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 
 SCHEMA_VERSION = 1
@@ -256,6 +258,18 @@ class MigrationError(Exception):
     """Raised when wipe/import validation or ORM operations fail."""
 
 
+def set_verbose(enabled: bool) -> None:
+    """Enable or disable verbose progress logging to stderr."""
+    global _VERBOSE
+    _VERBOSE = enabled
+
+
+def _vlog(message: str) -> None:
+    """Print a progress line when verbose mode is enabled."""
+    if _VERBOSE:
+        print(message, file=sys.stderr)
+
+
 def _ensure_django_models() -> bool:
     """Configure Django just enough to read model field metadata.
 
@@ -492,10 +506,12 @@ def build_dump(
     if not db_path.is_file():
         raise ExportError(f"WSGI database not found: {db_path}")
 
+    _vlog(f"export: reading WSGI database {db_path.resolve()}")
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     try:
         dbversion = _read_dbversion(conn)
+        _vlog(f"export: source dbversion={dbversion!r}")
         _validate_dbversion(dbversion)
 
         tables: Dict[str, List[Dict[str, Any]]] = {}
@@ -504,11 +520,14 @@ def build_dump(
                 tables[name] = []
                 continue
             tables[name] = _fetch_table(conn, name)
+            _vlog(f"export: table {name}: {len(tables[name])} row(s)")
 
         _validate_status(tables["status"])
+        _vlog("export: status fixture validated")
         _drop_orphan_rows(tables)
         _validate_lengths(tables)
         _validate_required(tables)
+        _vlog("export: validation complete")
 
         dump: Dict[str, Any] = {
             "meta": {
@@ -736,11 +755,13 @@ def wipe_acme_data(*, dry_run: bool = False) -> Dict[str, int]:
     with transaction.atomic():
         for name in WIPE_MODEL_NAMES:
             model = getattr(models, name)
+            count = model.objects.count()
+            _vlog(f"wipe: {name.lower()}: {count} row(s)")
             _delete(name.lower(), model.objects.all())
-        _delete(
-            "housekeeping",
-            models.Housekeeping.objects.exclude(name="dbversion"),
-        )
+        hk_qs = models.Housekeeping.objects.exclude(name="dbversion")
+        hk_count = hk_qs.count()
+        _vlog(f"wipe: housekeeping: {hk_count} row(s) (dbversion preserved)")
+        _delete("housekeeping", hk_qs)
         # Status intentionally untouched.
         deleted["status"] = 0
     return deleted
@@ -1079,8 +1100,14 @@ def import_dump(
     from django.db import transaction
 
     setup_django_orm()
+    _vlog(
+        "import: validating dump "
+        f"(schema_version={dump.get('meta', {}).get('schema_version')!r}, "
+        f"dbversion={dump.get('meta', {}).get('dbversion')!r})"
+    )
     _validate_dump_for_import(dump)
     assert_django_status_fixture(auto_seed=not dry_run)
+    _vlog("import: Django Status fixture validated")
 
     tables = dump["tables"]
     include_nonces = bool(dump.get("meta", {}).get("include_nonces"))
@@ -1090,6 +1117,7 @@ def import_dump(
             raise MigrationError(
                 "target ACME tables are not empty; re-run with --wipe or wipe first"
             )
+        _vlog("import: wiping non-empty target ACME tables")
         wipe_acme_data(dry_run=dry_run)
 
     imported: Dict[str, int] = {key: 0 for key in IMPORT_TABLE_ORDER}
@@ -1102,6 +1130,7 @@ def import_dump(
                 imported[key] = 0
                 continue
             imported[key] = len(tables.get(key, []))
+            _vlog(f"import dry-run: would import {key}: {imported[key]} row(s)")
         return imported
 
     models = _django_models()
@@ -1112,6 +1141,7 @@ def import_dump(
                     continue
                 handler = _IMPORT_HANDLERS[key]
                 rows = tables.get(key, [])
+                _vlog(f"import: writing {key}: {len(rows)} row(s)")
                 for row in rows:
                     handler(row, models)
                     imported[key] += 1
@@ -1128,8 +1158,10 @@ def cmd_export(args: argparse.Namespace) -> int:
     db_path = Path(args.db)
     out_path = Path(args.out)
     try:
+        _vlog(f"export: include_nonces={bool(args.include_nonces)}")
         dump = build_dump(db_path, include_nonces=bool(args.include_nonces))
         write_dump(dump, out_path)
+        _vlog(f"export: wrote {out_path.resolve()}")
         print_summary(dump["tables"], prefix="export summary")
         print(f"wrote dump: {out_path.resolve()}")
         return 0
@@ -1165,6 +1197,10 @@ def cmd_import(args: argparse.Namespace) -> int:
     try:
         setup_django_orm()
         dump = load_dump(dump_path)
+        _vlog(
+            f"import: dump={dump_path.resolve()} "
+            f"wipe={bool(args.wipe)} dry_run={bool(args.dry_run)}"
+        )
         imported = import_dump(
             dump,
             wipe=bool(args.wipe),
@@ -1359,6 +1395,9 @@ def run_check(
     for table in check_tables:
         dump_rows = tables.get(table, [])
         django_rows = _django_rows_for_table(table)
+        _vlog(
+            f"check: comparing {table}: dump={len(dump_rows)} django={len(django_rows)}"
+        )
         for mismatch in _diff_rows(
             table,
             dump_rows,
@@ -1369,9 +1408,13 @@ def run_check(
             mismatches.append(f"dump-vs-django: {mismatch}")
 
     if source_db is not None:
+        _vlog(f"check: comparing dump against source-db {source_db.resolve()}")
         for table in check_tables:
             dump_rows = tables.get(table, [])
             source_rows = _source_rows_for_table(source_db, table)
+            _vlog(
+                f"check: comparing {table}: dump={len(dump_rows)} source-db={len(source_rows)}"
+            )
             for mismatch in _diff_rows(
                 table,
                 dump_rows,
@@ -1417,9 +1460,19 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     """Build CLI argument parser (export / wipe / import / check)."""
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Verbose progress logging to stderr",
+    )
+
     parser = argparse.ArgumentParser(
         prog="a2c-wsgi2django",
         description="Migrate ACME data from WSGI SQLite to Django (JSON dump).",
+        parents=[common],
     )
     parser.add_argument(
         "--version",
@@ -1430,6 +1483,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     export_p = sub.add_parser(
         "export",
+        parents=[common],
         help="Export WSGI acme_srv.db to a portable JSON dump",
     )
     export_p.add_argument(
@@ -1457,6 +1511,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     wipe_p = sub.add_parser(
         "wipe",
+        parents=[common],
         help="Delete ACME Django model rows (keeps Status and dbversion)",
     )
     wipe_p.add_argument(
@@ -1469,6 +1524,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     import_p = sub.add_parser(
         "import",
+        parents=[common],
         help="Import a JSON dump into Django via the ORM",
     )
     import_p.add_argument(
@@ -1492,6 +1548,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     check_p = sub.add_parser(
         "check",
+        parents=[common],
         help="Compare dump with Django data and optional source WSGI SQLite",
     )
     check_p.add_argument(
@@ -1508,12 +1565,27 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _extract_verbose(argv: Sequence[str]) -> Tuple[List[str], bool]:
+    """Strip global -v/--verbose flags (argparse subparsers miss pre-command opts)."""
+    verbose = False
+    filtered: List[str] = []
+    for arg in argv:
+        if arg in ("-v", "--verbose"):
+            verbose = True
+        else:
+            filtered.append(arg)
+    return filtered, verbose
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """CLI entry point."""
     parser = build_parser()
-    args = parser.parse_args(list(argv) if argv is not None else None)
+    raw_argv = list(argv) if argv is not None else sys.argv[1:]
+    parsed_argv, pre_verbose = _extract_verbose(raw_argv)
+    args = parser.parse_args(parsed_argv)
     if not getattr(args, "command", None):
         parser.error("command required (export, wipe, import, check)")
+    set_verbose(pre_verbose or bool(getattr(args, "verbose", False)))
     return int(args.func(args))
 
 
