@@ -54,7 +54,7 @@ runs:
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        COMPOSE_SERVICE: acme2certifier-${{ inputs.ACME_SERVER }}-1
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
         PATTERN: "enrollment failed"
 
     - name: "Enroll certificate without error forwarding - to fail"
@@ -72,5 +72,5 @@ runs:
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        COMPOSE_SERVICE: acme2certifier-${{ inputs.ACME_SERVER }}-1
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
         PATTERN: "ca lookup failed"
