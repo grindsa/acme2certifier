@@ -1,0 +1,493 @@
+name: Deployment Tests - WSGI to Django migration
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier1' }} # disable workflow
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['nginx', 'apache2']
+        django_db: ['sqlite3', 'mariadb']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Prepare container environment (WSGI first)"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: wsgi
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
+          DJANGO_DB: ${{ matrix.django_db }}
+          NAME_SPACE: acme
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
+
+      - name: "Load WSGI build image"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.wsgi.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Spin-up WSGI image"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: wsgi
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Enroll on WSGI"
+        uses: ./.github/actions/wf_specific/upgrade/enroll
+        with:
+          RENEWAL: false
+
+      - name: "Export WSGI DB dump"
+        run: |
+          set -euo pipefail
+          docker exec acme-srv bash -lc '
+            set -euo pipefail
+            DB_MAIN="/var/www/acme2certifier/acme_srv.db"
+            DB_LEGACY="/var/www/acme2certifier/acme_srv/acme_srv.db"
+            if [ -f "${DB_MAIN}" ]; then
+              a2c-wsgi2django export --db "${DB_MAIN}" --out /tmp/wsgi-dump.json
+            else
+              a2c-wsgi2django export --db "${DB_LEGACY}" --out /tmp/wsgi-dump.json
+            fi
+          '
+
+      - name: "Stop WSGI instance"
+        uses: ./.github/actions/container_down
+        with:
+          DB_HANDLER: wsgi
+          WEB_SRV: ${{ matrix.websrv }}
+
+      # Migration-specific deviation from upgrade workflow:
+      # switch image flavor in-place from wsgi to django on same build.
+      - name: "Switch compose env to Django image"
+        run: |
+          set -euo pipefail
+          sed -i 's/^DB_HANDLER=wsgi/DB_HANDLER=django/' examples/Docker/.env
+
+      - name: "Load Django build image"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.django.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Spin-up Django image"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: django
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Migrate DB schema to Django"
+        uses: ./.github/actions/wf_specific/upgrade/db_update
+        with:
+          APP_ROOT: /var/www/acme2certifier
+
+      - name: "Import and check migration dump"
+        run: |
+          set -euo pipefail
+          docker exec acme-srv bash -lc '
+            set -euo pipefail
+            a2c-wsgi2django import --dump /tmp/wsgi-dump.json --wipe
+            a2c-wsgi2django check --dump /tmp/wsgi-dump.json
+          '
+
+      - name: "Renew on Django"
+        uses: ./.github/actions/acme_clients_renew
+        with:
+          CLEANUP: true
+          HOSTNAME_SUFFIX: ""
+
+      - name: "Fresh enrollment on Django"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Check Django container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: django
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Stop Django instance"
+        uses: ./.github/actions/container_down
+        with:
+          DB_HANDLER: django
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: test-containers-${{ matrix.websrv }}-${{ matrix.django_db }}-wsgi2django.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  test-deb:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        # nginx+sqlite has known instability in current DEB deployment tests.
+        websrv: ['apache2']
+        django_db: ['sqlite3', 'mariadb']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Prepare Ubuntu environment"
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          DJANGO_DB: ${{ matrix.django_db }}
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: data/volume
+
+      - name: "Download build DEB artifact"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Install build as WSGI"
+        uses: ./.github/actions/wf_specific/upgrade/deb_install
+        with:
+          DEB_PATH: data/acme2certifier-${{ inputs.run_id }}-1_all.deb
+          MODE: wsgi
+          MODERN: "true"
+
+      - name: "Enroll on WSGI"
+        uses: ./.github/actions/wf_specific/upgrade/enroll
+        with:
+          RENEWAL: false
+
+      - name: "Export WSGI DB dump"
+        run: |
+          set -euo pipefail
+          docker exec acme-srv bash -lc '
+            set -euo pipefail
+            DB_MAIN="/var/www/acme2certifier/acme_srv.db"
+            DB_LEGACY="/var/www/acme2certifier/acme_srv/acme_srv.db"
+            if [ -f "${DB_MAIN}" ]; then
+              a2c-wsgi2django export --db "${DB_MAIN}" --out /tmp/wsgi-dump.json
+            else
+              a2c-wsgi2django export --db "${DB_LEGACY}" --out /tmp/wsgi-dump.json
+            fi
+          '
+
+      - name: "Switch build install to Django"
+        uses: ./.github/actions/wf_specific/upgrade/deb_install
+        with:
+          DEB_PATH: data/acme2certifier-${{ inputs.run_id }}-1_all.deb
+          MODE: django
+          MODERN: "true"
+
+      - name: "Migrate DB schema to Django"
+        uses: ./.github/actions/wf_specific/upgrade/db_update
+        with:
+          APP_ROOT: /var/www/acme2certifier
+
+      - name: "Import and check migration dump"
+        run: |
+          set -euo pipefail
+          docker exec acme-srv bash -lc '
+            set -euo pipefail
+            a2c-wsgi2django import --dump /tmp/wsgi-dump.json --wipe
+            a2c-wsgi2django check --dump /tmp/wsgi-dump.json
+          '
+
+      - name: "Renew on Django"
+        uses: ./.github/actions/acme_clients_renew
+        with:
+          CLEANUP: true
+          HOSTNAME_SUFFIX: ""
+
+      - name: "Fresh enrollment on Django"
+        uses: ./.github/actions/acme_clients
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.django_db }}-wsgi2django.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  test-rpm:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
+        django_db: ['sqlite3', 'mariadb']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
+          DJANGO_DB: ${{ matrix.django_db }}
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: data/volume
+
+      - name: "Download build RPM artifact"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Install build as WSGI"
+        uses: ./.github/actions/wf_specific/upgrade/rpm_install
+        with:
+          RPM_PATH: data/acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          MODE: wsgi
+          MODERN: "true"
+
+      - name: "Enroll on WSGI"
+        uses: ./.github/actions/wf_specific/upgrade/enroll
+        with:
+          RENEWAL: false
+
+      - name: "Export WSGI DB dump"
+        run: |
+          set -euo pipefail
+          docker exec acme-srv bash -lc '
+            set -euo pipefail
+            DB_MAIN="/opt/acme2certifier/acme_srv.db"
+            DB_LEGACY="/opt/acme2certifier/acme_srv/acme_srv.db"
+            if [ -f "${DB_MAIN}" ]; then
+              a2c-wsgi2django export --db "${DB_MAIN}" --out /tmp/wsgi-dump.json
+            else
+              a2c-wsgi2django export --db "${DB_LEGACY}" --out /tmp/wsgi-dump.json
+            fi
+          '
+
+      - name: "Switch build install to Django"
+        uses: ./.github/actions/wf_specific/upgrade/rpm_install
+        with:
+          RPM_PATH: data/acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          MODE: django
+          MODERN: "true"
+
+      - name: "Migrate DB schema to Django"
+        uses: ./.github/actions/wf_specific/upgrade/db_update
+
+      - name: "Import and check migration dump"
+        run: |
+          set -euo pipefail
+          docker exec acme-srv bash -lc '
+            set -euo pipefail
+            a2c-wsgi2django import --dump /tmp/wsgi-dump.json --wipe
+            a2c-wsgi2django check --dump /tmp/wsgi-dump.json
+          '
+
+      - name: "Renew on Django"
+        uses: ./.github/actions/acme_clients_renew
+        with:
+          CLEANUP: true
+          HOSTNAME_SUFFIX: ""
+
+      - name: "Fresh enrollment on Django"
+        uses: ./.github/actions/acme_clients
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.django_db }}-wsgi2django.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  test-pip:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu_version: ['24.04']
+        websrv: [apache2, nginx]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # Migration-specific deviation from deployment-manual-install:
+      # keep matrix lean for migration sequencing and rely on package jobs
+      # for broader Django DB backend coverage.
+      - name: Prepare container
+        uses: ./.github/actions/pip_install_prep
+        with:
+          DISTRO: ubuntu
+          VERSION: ${{ matrix.ubuntu_version }}
+
+      - name: Install via script (--from-source, WSGI)
+        run: |
+          set -euo pipefail
+          if [ "${WEBSRV}" = "apache2" ]; then
+            SCRIPT=examples/install_scripts/a2c-ubuntu-apache2.sh
+          else
+            SCRIPT=examples/install_scripts/a2c-ubuntu-nginx.sh
+          fi
+          docker exec acme-srv chmod a+rx "/data/acme2certifier/${SCRIPT}"
+          docker exec acme-srv bash -lc \
+            "cd /data/acme2certifier && ./${SCRIPT} --mode wsgi --from-source"
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+
+      - name: Enroll on WSGI
+        uses: ./.github/actions/wf_specific/upgrade/enroll
+        with:
+          RENEWAL: false
+
+      - name: Export WSGI DB dump
+        run: |
+          set -euo pipefail
+          docker exec acme-srv bash -lc '
+            set -euo pipefail
+            DB_MAIN="/var/www/acme2certifier/acme_srv.db"
+            DB_LEGACY="/var/www/acme2certifier/acme_srv/acme_srv.db"
+            if [ -f "${DB_MAIN}" ]; then
+              a2c-wsgi2django export --db "${DB_MAIN}" --out /tmp/wsgi-dump.json
+            else
+              a2c-wsgi2django export --db "${DB_LEGACY}" --out /tmp/wsgi-dump.json
+            fi
+          '
+
+      - name: Switch install to Django
+        run: |
+          set -euo pipefail
+          if [ "${WEBSRV}" = "apache2" ]; then
+            SCRIPT=examples/install_scripts/a2c-ubuntu-apache2.sh
+          else
+            SCRIPT=examples/install_scripts/a2c-ubuntu-nginx.sh
+          fi
+          docker exec acme-srv chmod a+rx "/data/acme2certifier/${SCRIPT}"
+          docker exec acme-srv bash -lc \
+            "cd /data/acme2certifier && ./${SCRIPT} --mode django --from-source"
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+
+      - name: Migrate DB schema to Django
+        uses: ./.github/actions/wf_specific/upgrade/db_update
+        with:
+          APP_ROOT: /var/www/acme2certifier
+
+      - name: Import and check migration dump
+        run: |
+          set -euo pipefail
+          docker exec acme-srv bash -lc '
+            set -euo pipefail
+            a2c-wsgi2django import --dump /tmp/wsgi-dump.json --wipe
+            a2c-wsgi2django check --dump /tmp/wsgi-dump.json
+          '
+
+      - name: Renew on Django
+        uses: ./.github/actions/acme_clients_renew
+        with:
+          CLEANUP: true
+          HOSTNAME_SUFFIX: ""
+
+      - name: Fresh enrollment on Django
+        uses: ./.github/actions/acme_clients
+
+      - name: Collect logs
+        if: ${{ failure() }}
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: pip
+          WEBSRV: ${{ matrix.websrv }}
+
+      - name: Upload artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: pip-${{ matrix.ubuntu_version }}-${{ matrix.websrv }}-wsgi2django.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
