@@ -268,24 +268,33 @@ jobs:
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Setup acme_srv.cfg with openssl CA material"
-        uses: ./.github/actions/setup_openssl_cahandler
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Setup legacy openssl_ca_handler via handler_file"
+      - name: "Setup acme_srv.cfg with legacy xca_ca_handler"
         run: |
-          sudo chmod 777 data/volume/acme_srv.cfg
+          mkdir -p data/volume/acme_ca/certs
 
           # download legacy handler
           curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/0.31 -o /tmp/a2c.tgz
-          tar -xvzf /tmp/a2c.tgz -C /tmp/ --strip-components=3 acme2certifier-0.31/examples/ca_handler/openssl_ca_handler.py
-          sed -i 's/from acme_srv\.helper/from acme2certifier.acme_srv.helper/g' /tmp/openssl_ca_handler.py
-          sudo cp /tmp/openssl_ca_handler.py data/volume/acme_ca/openssl_ca_handler.py
-          sudo chmod 777 data/volume/acme_ca/openssl_ca_handler.py
+          tar -xvzf /tmp/a2c.tgz -C /tmp/ --strip-components=3 acme2certifier-0.31/examples/ca_handler/xca_ca_handler.py
+          sed -i 's/from acme_srv\.helper/from acme2certifier.acme_srv.helper/g' /tmp/xca_ca_handler.py
+          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo cp /tmp/xca_ca_handler.py data/volume/acme_ca/xca_ca_handler.py
+          sudo chmod 777 data/volume/acme_ca/xca_ca_handler.py
 
           # point cfg at the volume file (legacy handler_file key)
-          sudo sed -i \
-            's|^handler_module: acme2certifier.cahandlers.openssl_ca_handler|handler_file: /var/www/acme2certifier/volume/acme_ca/openssl_ca_handler.py|' \
-            data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/volume/acme_ca/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
+          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
+          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
+          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
           grep -E '^handler_file:' data/volume/acme_srv.cfg
 
       - name: "Execute install script"
