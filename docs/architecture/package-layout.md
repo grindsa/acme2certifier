@@ -54,6 +54,8 @@ Preferred:
 ```ini
 [CAhandler]
 handler_module: acme2certifier.cahandlers.openssl_ca_handler
+# custom / volume file (no packaging):
+# handler_module: /var/www/acme2certifier/volume/ca_handler.py
 
 [EABhandler]
 eab_handler_module: acme2certifier.eabhandlers.file_handler
@@ -65,7 +67,9 @@ hooks_module: acme2certifier.hookhandlers.email_hooks
 handler: wsgi   # or django
 ```
 
-Deprecated until **0.48**: `handler_file`, `eab_handler_file`, `hooks_file`, and the default `acme_srv.ca_handler` fallback.
+`*_module` accepts a dotted import path **or** a filesystem path (absolute, relative with `/`, or ending in `.py`). Path form is the supported way to load out-of-tree customer handlers without packaging or `PYTHONPATH`.
+
+Deprecated until **0.48**: `handler_file`, `eab_handler_file`, `hooks_file` keys (migrate to `*_module` with the same path), and the default `acme_srv.ca_handler` fallback.
 
 If both `*_module` and `*_file` are set, `*_module` wins.
 

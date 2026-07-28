@@ -77,7 +77,13 @@ hooks_module: acme2certifier.hookhandlers.email_hooks
 handler: wsgi   # or django
 ```
 
-Built-in module names: [mapping below](#module-mapping). Custom handlers: keep `handler_file: /path/to/handler.py` until **1.0**, or package as a module and set `handler_module` (see [How to create your own CA handler](ca_handler.md#packaging-a-custom-handler-as-a-module) — howto TBD).
+Built-in module names: [mapping below](#module-mapping). Custom handlers: set `handler_module` (same for EAB/hooks) to a **filesystem path**:
+
+```ini
+handler_module: /var/www/acme2certifier/volume/ca_handler.py
+```
+
+See [How to create your own CA handler](ca_handler.md#custom-handlers-path-or-package). The deprecated `handler_file:` key still works until **0.48**; migrate by renaming the key and keeping the same path.
 
 ### Custom handler imports
 
@@ -116,7 +122,7 @@ Then migrate / load fixtures as shown per channel below.
 1. Backup the volume (`data/` or your compose mount → `/var/www/acme2certifier/volume`).
 2. Pull the matching image tag (`*-wsgi`, apache2 or nginx). Keep the same webserver variant.
 3. On the volume, edit `acme_srv.cfg` → set `handler_module` / `eab_handler_module` / `hooks_module` as above. Set `[DBhandler] handler: wsgi` (or omit; image default is wsgi).
-4. If you use `volume/ca_handler.py` as custom code: fix imports (`acme2certifier.acme_srv.helper`) and either keep the file (entrypoint may symlink it) or switch to `handler_module`.
+4. If you use `volume/ca_handler.py` as custom code: fix imports (`acme2certifier.acme_srv.helper`) and set `handler_module: /var/www/acme2certifier/volume/ca_handler.py` (path form; no packaging). Until 0.48 you may keep `handler_file` or the entrypoint symlink, but migrate before Phase 10.
 5. Pull the new image and replace the running container (volume mount stays; no `docker compose down` needed — avoid `down -v`, which can delete data):
 
 ```bash
