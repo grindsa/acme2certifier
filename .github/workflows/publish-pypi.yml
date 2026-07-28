@@ -18,7 +18,9 @@ jobs:
   publish:
     name: Build and publish
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && (github.event_name != 'workflow_dispatch' || inputs.confirm == 'publish')
     environment:
       name: pypi
       url: https://pypi.org/p/acme2certifier
@@ -30,14 +32,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Guard manual dispatch
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          if [[ "${{ inputs.confirm }}" != "publish" ]]; then
-            echo "Refusing publish: set confirm=publish" >&2
-            exit 1
-          fi
 
       - name: Install build tooling
         run: |
