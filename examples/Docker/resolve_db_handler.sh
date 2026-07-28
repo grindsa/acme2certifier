@@ -19,8 +19,9 @@ a2c_cfg_dbhandler_value() {
 }
 
 a2c_normalize_db_handler() {
+    local input="$1"
     local raw
-    raw=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+    raw=$(printf '%s' "${input}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
     case "$raw" in
         ""|wsgi|acme2certifier.dbhandlers.wsgi_handler)
             printf '%s\n' "wsgi"
@@ -39,6 +40,7 @@ a2c_normalize_db_handler() {
             printf '%s\n' "wsgi"
             ;;
     esac
+    return 0
 }
 
 a2c_resolve_db_handler() {
@@ -61,4 +63,5 @@ a2c_resolve_db_handler() {
     fi
 
     a2c_normalize_db_handler "$raw"
+    return 0
 }

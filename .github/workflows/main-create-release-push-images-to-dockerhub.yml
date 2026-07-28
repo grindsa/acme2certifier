@@ -11,14 +11,12 @@ concurrency:
   group: release-push-images-${{ github.repository }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  packages: write
-
 jobs:
   create_release:
     name: Create Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     outputs:

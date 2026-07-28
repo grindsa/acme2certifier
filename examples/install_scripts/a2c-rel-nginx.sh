@@ -363,4 +363,4 @@ echo "    HTTPS:    https://127.0.0.1/directory  (self-signed unless you replace
 echo "    Config:   ${CFG}"
 echo "    uWSGI:    ${UWSGI_INI}  module=${UWSGI_MODULE}"
 echo "    Check:    journalctl -u acme2certifier -n 50 --no-pager"
-echo "              tail -n 50 /var/log/nginx/error.log"
+echo "              tail -n 50 /var/log/nginx/error.log" >&2

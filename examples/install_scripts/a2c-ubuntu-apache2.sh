@@ -253,4 +253,4 @@ echo "==> Done (mode=${MODE})"
 echo "    HTTP:  http://127.0.0.1/directory"
 echo "    HTTPS: https://127.0.0.1/directory  (self-signed unless you replaced ${PEM})"
 echo "    Config: ${CFG}"
-echo "    Check:  tail -n 50 /var/log/apache2/error.log"
+echo "    Check:  tail -n 50 /var/log/apache2/error.log" >&2

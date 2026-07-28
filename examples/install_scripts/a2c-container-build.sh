@@ -70,7 +70,8 @@ cleanup() {
 }
 
 require_cmd() {
-  command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
+  local cmd="$1"
+  command -v "${cmd}" >/dev/null 2>&1 || die "required command not found: ${cmd}"
 }
 
 host_platform() {
@@ -106,29 +107,31 @@ load_dockerhub_credentials() {
 
 parse_args() {
   while [[ $# -gt 0 ]]; do
-    case "$1" in
+    local arg="$1"
+    local value="${2:-}"
+    case "${arg}" in
       -b|--branch)
-        BRANCH="${2:-}"
+        BRANCH="${value}"
         shift 2
         ;;
       -m|--mode)
-        MODE="${2:-}"
+        MODE="${value}"
         shift 2
         ;;
       -w|--webserver|--websrv)
-        WEBSRV="${2:-}"
+        WEBSRV="${value}"
         shift 2
         ;;
       -t|--tag)
-        IMAGE_TAG="${2:-}"
+        IMAGE_TAG="${value}"
         shift 2
         ;;
       -i|--image)
-        IMAGE_REPO="${2:-}"
+        IMAGE_REPO="${value}"
         shift 2
         ;;
       -r|--repo)
-        REPO_URL="${2:-}"
+        REPO_URL="${value}"
         shift 2
         ;;
       -u|--upload|--push)
@@ -152,14 +155,14 @@ parse_args() {
         exit 0
         ;;
       -*)
-        die "unknown option: $1 (use --help)"
+        die "unknown option: ${arg} (use --help)"
         ;;
       *)
         if [[ -z "${BRANCH}" ]]; then
-          BRANCH="$1"
+          BRANCH="${arg}"
           shift
         else
-          die "unexpected argument: $1"
+          die "unexpected argument: ${arg}"
         fi
         ;;
     esac

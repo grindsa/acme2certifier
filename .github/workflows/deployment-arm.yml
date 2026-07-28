@@ -28,9 +28,6 @@ concurrency:
   group: deployment-arm-${{ github.repository }}-${{ inputs.run_id }}-${{ inputs.sha }}
   cancel-in-progress: false
 
-permissions:
-  contents: read
-
 jobs:
   guard:
     runs-on: ubuntu-latest
@@ -52,6 +49,8 @@ jobs:
     name: build_test (${{ matrix.websrv }}-${{ matrix.dbhandler }})
     needs: guard
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
     timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier'
     strategy:

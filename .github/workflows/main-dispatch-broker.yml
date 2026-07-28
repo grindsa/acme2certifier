@@ -7,10 +7,6 @@ concurrency:
   group: dispatch-broker-${{ github.event.client_payload.branch || github.run_id }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  actions: write
-
 jobs:
   guard:
     name: Validate dispatch payload
@@ -53,6 +49,9 @@ jobs:
     name: Dispatch test workflows
     runs-on: ubuntu-latest
     needs: guard
+    permissions:
+      contents: read
+      actions: write
     if: >
       github.repository == 'grindsa/acme2certifier' &&
       !startsWith(github.event.client_payload.branch, 'wf_')

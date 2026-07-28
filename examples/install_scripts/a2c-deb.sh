@@ -643,5 +643,5 @@ echo "  Next:    edit ${CFG} (CA handler), see docs/acme_srv.md"
 if [[ "${WEBSRV}" == "${WEBSRV_APACHE2}" ]]; then
   echo "  Logs:    ${APACHE2_ERROR_LOG}"
 else
-  echo "  Logs:    /var/log/nginx/error.log  and  journalctl -u acme2certifier"
+  echo "  Logs:    /var/log/nginx/error.log  and  journalctl -u acme2certifier" >&2
 fi

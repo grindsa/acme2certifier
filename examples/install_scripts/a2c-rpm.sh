@@ -611,7 +611,7 @@ echo "  Config:   ${CFG}"
 echo "  Test:     curl -sS http://127.0.0.1/directory | head"
 echo "  Next:     edit ${CFG} (CA handler), see docs/acme_srv.md"
 echo "  Logs:     journalctl -u acme2certifier -n 50 --no-pager"
-echo "            tail -n 50 /var/log/nginx/error.log"
+echo "            tail -n 50 /var/log/nginx/error.log" >&2
 if [[ "${EL_MAJOR}" == "8" ]]; then
   echo
   echo "  Note (EL8): if imports fail on cryptography/jwcrypto/dns, install"
