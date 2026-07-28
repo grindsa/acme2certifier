@@ -340,8 +340,29 @@ jobs:
           username: ${{ env.GHCR_USER }}
           password: ${{ env.GHCR_TOKEN }}
 
-      - name: Install syft
-        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sudo sh -s -- -b /usr/local/bin
+      - name: Install syft (verified)
+        env:
+          SYFT_VERSION: v1.14.0
+        run: |
+          set -euo pipefail
+          ARCH="$(uname -m)"
+          case "${ARCH}" in
+            x86_64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+            *) echo "Unsupported architecture: ${ARCH}" >&2; exit 1 ;;
+          esac
+
+          BASE_URL="https://github.com/anchore/syft/releases/download/${SYFT_VERSION}"
+          TARBALL="syft_${SYFT_VERSION#v}_linux_${ARCH}.tar.gz"
+          CHECKSUMS="syft_${SYFT_VERSION#v}_checksums.txt"
+
+          curl -fsSLO "${BASE_URL}/${TARBALL}"
+          curl -fsSLO "${BASE_URL}/${CHECKSUMS}"
+          grep " ${TARBALL}\$" "${CHECKSUMS}" | sha256sum -c -
+
+          tar -xzf "${TARBALL}" syft
+          sudo install -m 0755 syft /usr/local/bin/syft
+          syft version
 
       - name: Retrieve SBOM repo
         run: git clone "https://${GH_USER}:${GH_SBOM_REPO_TOKEN}@github.com/${GH_USER}/sbom" /tmp/sbom
