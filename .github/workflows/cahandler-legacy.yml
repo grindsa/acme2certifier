@@ -110,7 +110,17 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Test enrollment"
+      - name: "Test enrollment (handler_file)"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Switch handler_file to handler_module (same path)"
+        run: |
+          sudo sed -i 's/^handler_file:/handler_module:/' examples/Docker/data/acme_srv.cfg
+          grep -E '^handler_module:' examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Test enrollment (handler_module path)"
         uses: ./.github/actions/acme_clients
 
       - name: "Check container configuration"
@@ -194,7 +204,16 @@ jobs:
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Test enrollment"
+      - name: "Test enrollment (handler_file)"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Switch handler_file to handler_module (same path)"
+        run: |
+          sudo sed -i 's/^handler_file:/handler_module:/' data/volume/acme_srv.cfg
+          grep -E '^handler_module:' data/volume/acme_srv.cfg
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+
+      - name: "Test enrollment (handler_module path)"
         uses: ./.github/actions/acme_clients
 
       - name: "[ * ] Collecting test logs"
@@ -249,12 +268,12 @@ jobs:
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Setup acme_srv.cfg with legacy xca_ca_handler"
+      - name: "Setup acme_srv.cfg with openssl CA material"
         uses: ./.github/actions/setup_openssl_cahandler
 
-      - name: "Setup acme_srv.cfg with legacy xca_ca_handler (config)"
+      - name: "Setup legacy openssl_ca_handler via handler_file"
         run: |
-          sudo chmod 777  data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
 
           # download legacy handler
           curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/0.31 -o /tmp/a2c.tgz
@@ -263,6 +282,12 @@ jobs:
           sudo cp /tmp/openssl_ca_handler.py data/volume/acme_ca/openssl_ca_handler.py
           sudo chmod 777 data/volume/acme_ca/openssl_ca_handler.py
 
+          # point cfg at the volume file (legacy handler_file key)
+          sudo sed -i \
+            's|^handler_module: acme2certifier.cahandlers.openssl_ca_handler|handler_file: /var/www/acme2certifier/volume/acme_ca/openssl_ca_handler.py|' \
+            data/volume/acme_srv.cfg
+          grep -E '^handler_file:' data/volume/acme_srv.cfg
+
       - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
@@ -270,7 +295,18 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           MODE: ${{ matrix.mode }}
 
-      - name: "Test enrollment"
+      - name: "Test enrollment (handler_file)"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Switch handler_file to handler_module (same path)"
+        run: |
+          sudo sed -i 's/^handler_file:/handler_module:/' data/volume/acme_srv.cfg
+          grep -E '^handler_module:' data/volume/acme_srv.cfg
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+
+      - name: "Test enrollment (handler_module path)"
         uses: ./.github/actions/acme_clients
 
       - name: "[ * ] Collecting test logs"
