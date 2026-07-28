@@ -1,15 +1,49 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-"""pytest for a2c-wsgi2django export (Phase 1; no Django)."""
+"""pytest for a2c-wsgi2django export / wipe / import."""
 
 from __future__ import annotations
 
 import json
 import sqlite3
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import pytest
+
+# Configure Django before migrator length introspection can lock :memory: settings.
+_TEST_DJANGO_DB = Path(tempfile.mkstemp(suffix="-a2c-wsgi2django.sqlite3")[1])
+
+
+def _bootstrap_django() -> None:
+    """Configure Django sqlite test DB once for this module."""
+    import django
+    from django.conf import settings
+
+    if settings.configured:
+        return
+    settings.configure(
+        INSTALLED_APPS=[
+            "django.contrib.contenttypes",
+            "django.contrib.auth",
+            "acme2certifier.django_app.apps.AcmeSrvConfig",
+        ],
+        DATABASES={
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": str(_TEST_DJANGO_DB),
+            }
+        },
+        USE_TZ=True,
+        SECRET_KEY="test-a2c-wsgi2django",
+        DEFAULT_AUTO_FIELD="django.db.models.AutoField",
+        TIME_ZONE="UTC",
+    )
+    django.setup()
+
+
+_bootstrap_django()
 
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 from acme2certifier.tools import a2c_wsgi2django as migrator
@@ -199,6 +233,25 @@ def _seed_fixture_data(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _migrate_django_db() -> None:
+    """Apply migrations and load Status (+ dbversion) fixture once."""
+    from django.core.management import call_command
+
+    call_command("migrate", interactive=False, verbosity=0, run_syncdb=True)
+    call_command("loaddata", "status", verbosity=0)
+
+
+@pytest.fixture
+def clean_django_db() -> None:
+    """Wipe migratable ACME rows; keep Status and housekeeping.dbversion."""
+    migrator.wipe_acme_data(dry_run=False)
+    from acme2certifier.django_app.models import Housekeeping, Status
+
+    assert Status.objects.count() == 8
+    assert Housekeeping.objects.filter(name="dbversion").exists()
+
+
 @pytest.fixture
 def wsgi_db(tmp_path: Path) -> Path:
     """Build a fixture WSGI acme_srv.db under tmp_path."""
@@ -210,6 +263,12 @@ def wsgi_db(tmp_path: Path) -> Path:
     finally:
         conn.close()
     return db_path
+
+
+@pytest.fixture
+def sample_dump(wsgi_db: Path) -> Dict[str, Any]:
+    """Export fixture WSGI DB to an in-memory dump dict."""
+    return migrator.build_dump(wsgi_db, include_nonces=False)
 
 
 def test_export_builds_schema_v1_dump(wsgi_db: Path, tmp_path: Path) -> None:
@@ -459,3 +518,210 @@ def test_export_respects_resolved_housekeeping_limit(wsgi_db: Path) -> None:
 
     names = {row["name"]: row["value"] for row in dump["tables"]["housekeeping"]}
     assert names["profiles"] == long_value
+
+
+def test_wipe_requires_yes(capsys: Any) -> None:
+    """CLI wipe without --yes refuses and exits 1."""
+    rc = migrator.main(["wipe"])
+    assert rc == 1
+    assert "refusing to wipe without --yes" in capsys.readouterr().err
+
+
+def test_wipe_keeps_status_and_dbversion(clean_django_db: None) -> None:
+    """Wipe deletes ACME rows but leaves Status fixture and dbversion."""
+    from acme2certifier.django_app.models import Account, Housekeeping, Status
+
+    Account.objects.create(
+        id=99,
+        name="tmpacct",
+        alg="ES256",
+        jwk="{}",
+        contact="mailto:t@example.com",
+        status_id=5,
+    )
+    Housekeeping.objects.create(name="profiles", value="[]")
+    assert Account.objects.count() == 1
+
+    deleted = migrator.wipe_acme_data(dry_run=False)
+    assert deleted["account"] == 1
+    assert deleted["housekeeping"] == 1
+    assert Account.objects.count() == 0
+    assert Status.objects.count() == 8
+    assert list(Status.objects.order_by("pk").values_list("pk", "name")) == [
+        (pk, name) for pk, name in STATUS_ROWS
+    ]
+    hk = Housekeeping.objects.get(name="dbversion")
+    assert hk.value == __dbversion__
+    assert not Housekeeping.objects.filter(name="profiles").exists()
+
+
+def test_import_preserves_pks_and_fks(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Import writes ORM rows with dump PKs and FK ids."""
+    from acme2certifier.django_app.models import (
+        Account,
+        Authorization,
+        Cahandler,
+        Certificate,
+        Challenge,
+        Cliaccount,
+        Housekeeping,
+        Order,
+    )
+
+    imported = migrator.import_dump(sample_dump, wipe=False, dry_run=False)
+    assert imported["account"] == 1
+    assert imported["orders"] == 1
+    assert imported["authorization"] == 1
+    assert imported["challenge"] == 1
+    assert imported["certificate"] == 1
+    assert imported["cliaccount"] == 1
+    assert imported["cahandler"] == 1
+
+    acct = Account.objects.get(pk=1)
+    assert acct.name == "acctAAAA"
+    assert acct.status_id == 5
+    assert acct.contact == "mailto:a@example.com"
+
+    order = Order.objects.get(pk=10)
+    assert order.account_id == 1
+    assert order.status_id == 5
+
+    authz = Authorization.objects.get(pk=20)
+    assert authz.order_id == 10
+
+    chal = Challenge.objects.get(pk=30)
+    assert chal.authorization_id == 20
+    assert chal.token == "tok-chal"
+
+    cert = Certificate.objects.get(pk=40)
+    assert cert.order_id == 10
+    assert cert.serial == "serial-1"
+    assert cert.replaced is False
+
+    cli = Cliaccount.objects.get(pk=50)
+    assert cli.cliadmin is True
+    assert cli.reportadmin is False
+    assert cli.certificateadmin is True
+
+    ca = Cahandler.objects.get(pk=60)
+    assert ca.value1 == "v1"
+
+    assert Housekeeping.objects.get(name="dbversion").value == __dbversion__
+
+
+def test_import_refuses_nonempty_without_wipe(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Non-empty target without --wipe fails."""
+    migrator.import_dump(sample_dump, wipe=False, dry_run=False)
+    with pytest.raises(migrator.MigrationError, match="not empty"):
+        migrator.import_dump(sample_dump, wipe=False, dry_run=False)
+
+
+def test_import_wipe_flag_replaces_data(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """--wipe clears prior ACME rows then imports."""
+    from acme2certifier.django_app.models import Account
+
+    migrator.import_dump(sample_dump, wipe=False, dry_run=False)
+    assert Account.objects.filter(pk=1).exists()
+    imported = migrator.import_dump(sample_dump, wipe=True, dry_run=False)
+    assert imported["account"] == 1
+    assert Account.objects.count() == 1
+    assert Account.objects.get(pk=1).name == "acctAAAA"
+
+
+def test_import_dry_run_writes_nothing(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """--dry-run validates and reports counts without ORM writes."""
+    from acme2certifier.django_app.models import Account
+
+    imported = migrator.import_dump(sample_dump, wipe=False, dry_run=True)
+    assert imported["account"] == 1
+    assert imported["orders"] == 1
+    assert Account.objects.count() == 0
+
+
+def test_import_cli(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+    capsys: Any,
+) -> None:
+    """CLI import --wipe writes rows and prints import summary."""
+    dump_path = tmp_path / "dump.json"
+    migrator.write_dump(sample_dump, dump_path)
+    rc = migrator.main(["import", "--dump", str(dump_path), "--wipe"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "import summary:" in out
+    assert "accounts=1" in out
+    from acme2certifier.django_app.models import Account
+
+    assert Account.objects.filter(pk=1).exists()
+
+
+def test_import_cli_dry_run(
+    clean_django_db: None,
+    sample_dump: Dict[str, Any],
+    tmp_path: Path,
+    capsys: Any,
+) -> None:
+    """CLI import --dry-run does not write."""
+    dump_path = tmp_path / "dump.json"
+    migrator.write_dump(sample_dump, dump_path)
+    rc = migrator.main(["import", "--dump", str(dump_path), "--dry-run"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "import dry-run summary:" in out
+    assert "dry-run: no changes written" in out
+    from acme2certifier.django_app.models import Account
+
+    assert Account.objects.count() == 0
+
+
+def test_import_fails_bad_schema_version(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Refuse import when dump schema_version is not 1."""
+    sample_dump["meta"]["schema_version"] = 99
+    with pytest.raises(migrator.MigrationError, match="schema_version"):
+        migrator.import_dump(sample_dump)
+
+
+def test_import_fails_contact_overflow(
+    clean_django_db: None, sample_dump: Dict[str, Any]
+) -> None:
+    """Refuse import when Account.contact exceeds model max_length."""
+    sample_dump["tables"]["account"][0]["contact"] = "x" * 256
+    with pytest.raises(migrator.MigrationError, match="contact length"):
+        migrator.import_dump(sample_dump)
+
+
+def test_import_challenge_null_token_warns(
+    clean_django_db: None, sample_dump: Dict[str, Any], capsys: Any
+) -> None:
+    """NULL challenge.token becomes empty string with a warning."""
+    sample_dump["tables"]["challenge"][0]["token"] = None
+    migrator.import_dump(sample_dump)
+    err = capsys.readouterr().err
+    assert "token is NULL" in err
+    from acme2certifier.django_app.models import Challenge
+
+    assert Challenge.objects.get(pk=30).token == ""
+
+
+def test_wipe_cli(clean_django_db: None, sample_dump: Dict[str, Any], capsys: Any) -> None:
+    """CLI wipe --yes clears imported rows and prints summary."""
+    migrator.import_dump(sample_dump)
+    rc = migrator.main(["wipe", "--yes"])
+    assert rc == 0
+    assert "wipe summary:" in capsys.readouterr().out
+    from acme2certifier.django_app.models import Account, Status
+
+    assert Account.objects.count() == 0
+    assert Status.objects.count() == 8

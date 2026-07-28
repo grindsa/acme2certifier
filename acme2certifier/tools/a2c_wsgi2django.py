@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ from acme2certifier.acme_srv.version import __dbversion__, __version__
 
 SCHEMA_VERSION = 1
 TOOL_VERSION = "0.1.0"
+DEFAULT_DJANGO_SETTINGS = "acme2certifier.django_project.settings"
 
 # Dump keys use WSGI table names (orders, not order).
 DUMP_TABLES: Tuple[str, ...] = (
@@ -93,9 +95,38 @@ SUMMARY_KEYS: Tuple[Tuple[str, str], ...] = (
     ("status", "status"),
 )
 
+# Wipe order (children before parents). Status is never wiped.
+WIPE_MODEL_NAMES: Tuple[str, ...] = (
+    "Challenge",
+    "Authorization",
+    "Certificate",
+    "Order",
+    "Account",
+    "Cliaccount",
+    "Cahandler",
+    "Nonce",
+)
+
+# Import order (FK-safe). Status is verify-only (never written).
+IMPORT_TABLE_ORDER: Tuple[str, ...] = (
+    "account",
+    "orders",
+    "authorization",
+    "challenge",
+    "certificate",
+    "cliaccount",
+    "cahandler",
+    "housekeeping",
+    "nonce",
+)
+
 
 class ExportError(Exception):
     """Raised when WSGI export validation fails."""
+
+
+class MigrationError(Exception):
+    """Raised when wipe/import validation or ORM operations fail."""
 
 
 def _ensure_django_models() -> bool:
@@ -378,7 +409,12 @@ def summary_counts(tables: Mapping[str, Sequence[Any]]) -> Dict[str, int]:
     return {label: len(tables.get(key, [])) for key, label in SUMMARY_KEYS}
 
 
-def print_summary(tables: Mapping[str, Sequence[Any]], stream: Any = None) -> None:
+def print_summary(
+    tables: Mapping[str, Sequence[Any]],
+    stream: Any = None,
+    *,
+    prefix: str = "export summary",
+) -> None:
     """Print entity counts to stdout (or *stream*)."""
     if stream is None:
         stream = sys.stdout
@@ -397,7 +433,7 @@ def print_summary(tables: Mapping[str, Sequence[Any]], stream: Any = None) -> No
     parts = [f"{name}={counts[name]}" for name in labels]
     if counts.get("nonces", 0):
         parts.append(f"nonces={counts['nonces']}")
-    print("export summary: " + ", ".join(parts), file=stream)
+    print(f"{prefix}: " + ", ".join(parts), file=stream)
 
 
 def write_dump(dump: Mapping[str, Any], out_path: Path) -> None:
@@ -408,6 +444,501 @@ def write_dump(dump: Mapping[str, Any], out_path: Path) -> None:
         handle.write("\n")
 
 
+def load_dump(dump_path: Path) -> Dict[str, Any]:
+    """Load and minimally validate a dump JSON file."""
+    if not dump_path.is_file():
+        raise MigrationError(f"dump not found: {dump_path}")
+    try:
+        with dump_path.open("r", encoding="utf-8") as handle:
+            dump = json.load(handle)
+    except json.JSONDecodeError as exc:
+        raise MigrationError(f"invalid dump JSON: {exc}") from exc
+    if not isinstance(dump, dict):
+        raise MigrationError("dump root must be a JSON object")
+    meta = dump.get("meta")
+    tables = dump.get("tables")
+    if not isinstance(meta, dict) or not isinstance(tables, dict):
+        raise MigrationError("dump must contain meta and tables objects")
+    return dump
+
+
+def setup_django_orm() -> None:
+    """Bootstrap Django for ORM wipe/import (same pattern as a2c-django-update)."""
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", DEFAULT_DJANGO_SETTINGS)
+    try:
+        import django
+        from django.apps import apps
+        from django.conf import settings
+    except ImportError as exc:
+        raise MigrationError(
+            f"Django is required for wipe/import: {exc}"
+        ) from exc
+
+    if apps.ready:
+        return
+    try:
+        if not settings.configured and not os.environ.get("DJANGO_SETTINGS_MODULE"):
+            raise MigrationError(
+                "Django settings are not configured; set DJANGO_SETTINGS_MODULE"
+            )
+        django.setup()
+    except MigrationError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — surface setup failures to CLI
+        raise MigrationError(f"Django setup failed: {exc}") from exc
+
+
+def _django_models() -> Any:
+    """Return django_app.models after ORM setup."""
+    setup_django_orm()
+    from acme2certifier.django_app import models as dj_models
+
+    return dj_models
+
+
+def assert_django_status_fixture() -> None:
+    """Refuse import when Django Status PKs 1–8 drift from the fixture map."""
+    models = _django_models()
+    by_id = {int(row.pk): str(row.name) for row in models.Status.objects.all()}
+    for pk, name in EXPECTED_STATUS.items():
+        if pk not in by_id:
+            raise MigrationError(
+                f"Django Status PK {pk} missing (expected name={name!r}); "
+                "run a2c-django-update / loaddata status"
+            )
+        if by_id[pk] != name:
+            raise MigrationError(
+                f"Django Status PK {pk} name mismatch: got {by_id[pk]!r}, "
+                f"expected {name!r}"
+            )
+
+
+def _validate_dump_for_import(dump: Mapping[str, Any]) -> None:
+    """Validate dump meta/tables before ORM import."""
+    meta = dump["meta"]
+    tables = dump["tables"]
+    schema_version = meta.get("schema_version")
+    if schema_version != SCHEMA_VERSION:
+        raise MigrationError(
+            f"dump schema_version {schema_version!r} != {SCHEMA_VERSION}"
+        )
+    dbversion = meta.get("dbversion")
+    if dbversion != __dbversion__:
+        raise MigrationError(
+            f"dump dbversion {dbversion!r} != tool __dbversion__ {__dbversion__!r}"
+        )
+    try:
+        _validate_status(tables.get("status", []))
+        _validate_lengths(tables)
+        _validate_required(tables)
+    except ExportError as exc:
+        raise MigrationError(str(exc)) from exc
+
+
+def target_acme_row_counts() -> Dict[str, int]:
+    """Count migratable ACME rows in the Django DB (Status excluded)."""
+    models = _django_models()
+    return {
+        "account": models.Account.objects.count(),
+        "orders": models.Order.objects.count(),
+        "authorization": models.Authorization.objects.count(),
+        "challenge": models.Challenge.objects.count(),
+        "certificate": models.Certificate.objects.count(),
+        "cliaccount": models.Cliaccount.objects.count(),
+        "cahandler": models.Cahandler.objects.count(),
+        "nonce": models.Nonce.objects.count(),
+        "housekeeping": models.Housekeeping.objects.exclude(name="dbversion").count(),
+    }
+
+
+def target_is_nonempty() -> bool:
+    """True when any migratable ACME data exists (ignores Status + dbversion)."""
+    return any(count > 0 for count in target_acme_row_counts().values())
+
+
+def wipe_acme_data(*, dry_run: bool = False) -> Dict[str, int]:
+    """Delete ACME app rows in FK-safe order; never delete Status.
+
+    Preserves Housekeeping ``dbversion`` so Django's post-migrate value remains.
+    """
+    from django.db import transaction
+
+    models = _django_models()
+    deleted: Dict[str, int] = {}
+
+    def _delete(label: str, queryset: Any) -> None:
+        count = queryset.count()
+        deleted[label] = count
+        if not dry_run and count:
+            queryset.delete()
+
+    with transaction.atomic():
+        for name in WIPE_MODEL_NAMES:
+            model = getattr(models, name)
+            _delete(name.lower(), model.objects.all())
+        _delete(
+            "housekeeping",
+            models.Housekeeping.objects.exclude(name="dbversion"),
+        )
+        # Status intentionally untouched.
+        deleted["status"] = 0
+    return deleted
+
+
+def print_wipe_summary(deleted: Mapping[str, int], stream: Any = None) -> None:
+    """Print wipe deletion counts."""
+    if stream is None:
+        stream = sys.stdout
+    order = (
+        "challenge",
+        "authorization",
+        "certificate",
+        "order",
+        "account",
+        "cliaccount",
+        "cahandler",
+        "nonce",
+        "housekeeping",
+    )
+    parts = [f"{key}={deleted.get(key, 0)}" for key in order]
+    print("wipe summary: " + ", ".join(parts), file=stream)
+
+
+def _as_bool(value: Any) -> bool:
+    """Coerce dump INT/NULL/bool to Django BooleanField."""
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(int(value))
+    text = str(value).strip().lower()
+    if text in ("", "0", "false", "no", "n"):
+        return False
+    if text in ("1", "true", "yes", "y"):
+        return True
+    return bool(value)
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    """Coerce NULL int fields to *default*."""
+    if value is None or value == "":
+        return default
+    return int(value)
+
+
+def _as_str(value: Any, default: str = "") -> str:
+    """Coerce NULL strings to *default* when blankable."""
+    if value is None:
+        return default
+    return str(value)
+
+
+def _parse_datetime(value: Any) -> Optional[datetime]:
+    """Parse dump timestamp into a datetime; make aware when USE_TZ=True."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(text)
+        except ValueError:
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+                try:
+                    dt = datetime.strptime(str(value).strip(), fmt)
+                    break
+                except ValueError:
+                    continue
+            else:
+                raise MigrationError(f"unparseable timestamp: {value!r}") from None
+
+    from django.conf import settings
+    from django.utils import timezone as dj_tz
+
+    if getattr(settings, "USE_TZ", False):
+        if dj_tz.is_naive(dt):
+            dt = dj_tz.make_aware(dt, dj_tz.get_default_timezone())
+    return dt
+
+
+def _save_with_timestamps(
+    model: Any,
+    fields: Dict[str, Any],
+    timestamps: Mapping[str, Any],
+) -> None:
+    """Create a row with explicit pk, then set auto_now(_add) timestamps via update."""
+    obj = model(**fields)
+    obj.save()
+    updates = {
+        key: value for key, value in timestamps.items() if value is not None
+    }
+    if updates:
+        model.objects.filter(pk=obj.pk).update(**updates)
+
+
+def _import_account(row: Mapping[str, Any], models: Any) -> None:
+    """Insert Account preserving pk and FKs."""
+    created_at = _parse_datetime(row.get("created_at"))
+    _save_with_timestamps(
+        models.Account,
+        {
+            "id": int(row["id"]),
+            "name": _as_str(row.get("name")),
+            "alg": _as_str(row.get("alg")),
+            "jwk": _as_str(row.get("jwk")),
+            "contact": _as_str(row.get("contact")),
+            "eab_kid": _as_str(row.get("eab_kid")),
+            "status_id": int(row["status_id"]),
+        },
+        {"created_at": created_at},
+    )
+
+
+def _import_order(row: Mapping[str, Any], models: Any) -> None:
+    """Insert Order from dump ``orders`` row."""
+    created_at = _parse_datetime(row.get("created_at"))
+    _save_with_timestamps(
+        models.Order,
+        {
+            "id": int(row["id"]),
+            "name": _as_str(row.get("name")),
+            "notbefore": _as_int(row.get("notbefore")),
+            "notafter": _as_int(row.get("notafter")),
+            "identifiers": _as_str(row.get("identifiers")),
+            "account_id": int(row["account_id"]),
+            "profile": _as_str(row.get("profile")),
+            "status_id": int(row["status_id"]),
+            "expires": _as_int(row.get("expires")),
+        },
+        {"created_at": created_at},
+    )
+
+
+def _import_authorization(row: Mapping[str, Any], models: Any) -> None:
+    """Insert Authorization preserving stored status_id."""
+    created_at = _parse_datetime(row.get("created_at"))
+    _save_with_timestamps(
+        models.Authorization,
+        {
+            "id": int(row["id"]),
+            "name": _as_str(row.get("name")),
+            "order_id": int(row["order_id"]),
+            "type": _as_str(row.get("type")),
+            "value": _as_str(row.get("value")),
+            "expires": _as_int(row.get("expires")),
+            "token": _as_str(row.get("token")),
+            "status_id": int(row["status_id"]),
+        },
+        {"created_at": created_at},
+    )
+
+
+def _import_challenge(row: Mapping[str, Any], models: Any) -> None:
+    """Insert Challenge; NULL token becomes empty string."""
+    created_at = _parse_datetime(row.get("created_at"))
+    token = row.get("token")
+    if token is None:
+        print(
+            f"warning: challenge.id={row.get('id')} token is NULL; using empty string",
+            file=sys.stderr,
+        )
+        token = ""
+    _save_with_timestamps(
+        models.Challenge,
+        {
+            "id": int(row["id"]),
+            "name": _as_str(row.get("name")),
+            "token": _as_str(token),
+            "authorization_id": int(row["authorization_id"]),
+            "expires": _as_int(row.get("expires")),
+            "type": _as_str(row.get("type")),
+            "keyauthorization": _as_str(row.get("keyauthorization")),
+            "source": _as_str(row.get("source")),
+            "status_id": int(row["status_id"]),
+            "validated": _as_int(row.get("validated")),
+            "validation_error": _as_str(row.get("validation_error")),
+        },
+        {"created_at": created_at},
+    )
+
+
+def _import_certificate(row: Mapping[str, Any], models: Any) -> None:
+    """Insert Certificate preserving pk and order_id."""
+    created_at = _parse_datetime(row.get("created_at"))
+    _save_with_timestamps(
+        models.Certificate,
+        {
+            "id": int(row["id"]),
+            "name": _as_str(row.get("name")),
+            "cert": row.get("cert"),
+            "cert_raw": row.get("cert_raw"),
+            "error": row.get("error"),
+            "order_id": int(row["order_id"]),
+            "csr": row.get("csr"),
+            "poll_identifier": row.get("poll_identifier"),
+            "header_info": row.get("header_info"),
+            "renewal_info": row.get("renewal_info"),
+            "aki": row.get("aki"),
+            "serial": row.get("serial"),
+            "issue_uts": _as_int(row.get("issue_uts")),
+            "expire_uts": _as_int(row.get("expire_uts")),
+            "replaced": _as_bool(row.get("replaced")),
+        },
+        {"created_at": created_at},
+    )
+
+
+def _import_cliaccount(row: Mapping[str, Any], models: Any) -> None:
+    """Insert Cliaccount via model (handler has no cliaccount_add)."""
+    created_at = _parse_datetime(row.get("created_at"))
+    _save_with_timestamps(
+        models.Cliaccount,
+        {
+            "id": int(row["id"]),
+            "name": _as_str(row.get("name")),
+            "jwk": _as_str(row.get("jwk")),
+            "contact": _as_str(row.get("contact")),
+            "cliadmin": _as_bool(row.get("cliadmin")),
+            "reportadmin": _as_bool(row.get("reportadmin")),
+            "certificateadmin": _as_bool(row.get("certificateadmin")),
+        },
+        {"created_at": created_at},
+    )
+
+
+def _import_cahandler(row: Mapping[str, Any], models: Any) -> None:
+    """Insert Cahandler preserving pk."""
+    created_at = _parse_datetime(row.get("created_at"))
+    _save_with_timestamps(
+        models.Cahandler,
+        {
+            "id": int(row["id"]),
+            "name": _as_str(row.get("name")),
+            "value1": _as_str(row.get("value1")),
+            "value2": _as_str(row.get("value2")),
+        },
+        {"created_at": created_at},
+    )
+
+
+def _import_housekeeping_row(row: Mapping[str, Any], models: Any) -> None:
+    """Insert/merge Housekeeping; never silently overwrite dbversion."""
+    name = _as_str(row.get("name"))
+    value = _as_str(row.get("value"))
+    modified_at = _parse_datetime(row.get("modified_at"))
+    row_id = int(row["id"])
+
+    if name == "dbversion":
+        if value != __dbversion__:
+            raise MigrationError(
+                f"housekeeping dbversion {value!r} != __dbversion__ {__dbversion__!r}; "
+                "refuse import (never downgrade silently)"
+            )
+        existing = models.Housekeeping.objects.filter(name="dbversion").first()
+        if existing is not None:
+            if existing.value == __dbversion__:
+                return
+            # Django drifted; dump matches tool version — repair via ORM.
+            models.Housekeeping.objects.filter(pk=existing.pk).update(
+                value=value,
+                **({"modified_at": modified_at} if modified_at is not None else {}),
+            )
+            return
+        _save_with_timestamps(
+            models.Housekeeping,
+            {"id": row_id, "name": name, "value": value},
+            {"modified_at": modified_at},
+        )
+        return
+
+    _save_with_timestamps(
+        models.Housekeeping,
+        {"id": row_id, "name": name, "value": value},
+        {"modified_at": modified_at},
+    )
+
+
+def _import_nonce(row: Mapping[str, Any], models: Any) -> None:
+    """Insert optional Nonce row."""
+    created_at = _parse_datetime(row.get("created_at"))
+    _save_with_timestamps(
+        models.Nonce,
+        {"id": int(row["id"]), "nonce": _as_str(row.get("nonce"))},
+        {"created_at": created_at},
+    )
+
+
+_IMPORT_HANDLERS = {
+    "account": _import_account,
+    "orders": _import_order,
+    "authorization": _import_authorization,
+    "challenge": _import_challenge,
+    "certificate": _import_certificate,
+    "cliaccount": _import_cliaccount,
+    "cahandler": _import_cahandler,
+    "housekeeping": _import_housekeeping_row,
+    "nonce": _import_nonce,
+}
+
+
+def import_dump(
+    dump: Mapping[str, Any],
+    *,
+    wipe: bool = False,
+    dry_run: bool = False,
+) -> Dict[str, int]:
+    """Import dump tables into Django via ORM. Returns imported counts per dump key."""
+    from django.db import transaction
+
+    setup_django_orm()
+    _validate_dump_for_import(dump)
+    assert_django_status_fixture()
+
+    tables = dump["tables"]
+    include_nonces = bool(dump.get("meta", {}).get("include_nonces"))
+
+    if target_is_nonempty():
+        if not wipe:
+            raise MigrationError(
+                "target ACME tables are not empty; re-run with --wipe or wipe first"
+            )
+        wipe_acme_data(dry_run=dry_run)
+
+    imported: Dict[str, int] = {key: 0 for key in IMPORT_TABLE_ORDER}
+    # status is never imported
+    imported["status"] = 0
+
+    if dry_run:
+        for key in IMPORT_TABLE_ORDER:
+            if key == "nonce" and not include_nonces:
+                imported[key] = 0
+                continue
+            imported[key] = len(tables.get(key, []))
+        return imported
+
+    models = _django_models()
+    try:
+        with transaction.atomic():
+            for key in IMPORT_TABLE_ORDER:
+                if key == "nonce" and not include_nonces:
+                    continue
+                handler = _IMPORT_HANDLERS[key]
+                rows = tables.get(key, [])
+                for row in rows:
+                    handler(row, models)
+                    imported[key] += 1
+    except MigrationError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — map ORM/integrity errors
+        raise MigrationError(f"import failed: {exc}") from exc
+
+    return imported
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     """Handle ``export`` subcommand. Returns process exit code."""
     db_path = Path(args.db)
@@ -415,7 +946,7 @@ def cmd_export(args: argparse.Namespace) -> int:
     try:
         dump = build_dump(db_path, include_nonces=bool(args.include_nonces))
         write_dump(dump, out_path)
-        print_summary(dump["tables"])
+        print_summary(dump["tables"], prefix="export summary")
         print(f"wrote dump: {out_path.resolve()}")
         return 0
     except ExportError as exc:
@@ -426,8 +957,53 @@ def cmd_export(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_wipe(args: argparse.Namespace) -> int:
+    """Handle ``wipe`` subcommand. Returns process exit code."""
+    if not args.yes:
+        print(
+            "wipe failed: refusing to wipe without --yes",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        setup_django_orm()
+        deleted = wipe_acme_data(dry_run=False)
+        print_wipe_summary(deleted)
+        return 0
+    except MigrationError as exc:
+        print(f"wipe failed: {exc}", file=sys.stderr)
+        return 1
+
+
+def cmd_import(args: argparse.Namespace) -> int:
+    """Handle ``import`` subcommand. Returns process exit code."""
+    dump_path = Path(args.dump)
+    try:
+        setup_django_orm()
+        dump = load_dump(dump_path)
+        imported = import_dump(
+            dump,
+            wipe=bool(args.wipe),
+            dry_run=bool(args.dry_run),
+        )
+        # Re-shape counts for print_summary (dump-key → label map).
+        tables_for_summary = {
+            key: [None] * imported.get(key, 0) for key, _label in SUMMARY_KEYS
+        }
+        prefix = "import dry-run summary" if args.dry_run else "import summary"
+        print_summary(tables_for_summary, prefix=prefix)
+        if args.dry_run:
+            print("dry-run: no changes written")
+        else:
+            print(f"imported dump: {dump_path.resolve()}")
+        return 0
+    except MigrationError as exc:
+        print(f"import failed: {exc}", file=sys.stderr)
+        return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
-    """Build CLI argument parser (export only in Phase 1)."""
+    """Build CLI argument parser (export / wipe / import)."""
     parser = argparse.ArgumentParser(
         prog="a2c-wsgi2django",
         description="Migrate ACME data from WSGI SQLite to Django (JSON dump).",
@@ -465,6 +1041,41 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include ephemeral nonce rows in the dump",
     )
     export_p.set_defaults(func=cmd_export)
+
+    wipe_p = sub.add_parser(
+        "wipe",
+        help="Delete ACME Django model rows (keeps Status and dbversion)",
+    )
+    wipe_p.add_argument(
+        "--yes",
+        action="store_true",
+        default=False,
+        help="Confirm wipe (required)",
+    )
+    wipe_p.set_defaults(func=cmd_wipe)
+
+    import_p = sub.add_parser(
+        "import",
+        help="Import a JSON dump into Django via the ORM",
+    )
+    import_p.add_argument(
+        "--dump",
+        required=True,
+        help="Path to a2c-wsgi dump JSON",
+    )
+    import_p.add_argument(
+        "--wipe",
+        action="store_true",
+        default=False,
+        help="Wipe migratable ACME rows before import",
+    )
+    import_p.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Validate and report counts without writing",
+    )
+    import_p.set_defaults(func=cmd_import)
     return parser
 
 
