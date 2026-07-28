@@ -176,8 +176,6 @@ acme_srv/acme_srv.db.old.*
 *.key
 *.db-wal
 *.db-shm
-acme2certifier/django_app/migrations/*
-
 settings.json
 coverage.lcov
 .github/acme2certifier_cert.pem
