@@ -1054,7 +1054,7 @@ jobs:
         with:
           RUN_ID: ${{ inputs.run_id }}
           ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
+          DESTINATION_PATH: ./
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 

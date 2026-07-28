@@ -49,7 +49,7 @@ runs:
         set -euo pipefail
         host "${MSCA_ADS_DOMAIN}" 127.0.0.1
         host "${MSCA_FQDN}" 127.0.0.1
-        host "${WES_HOST}" 127.0.0.1
+        # host "${WES_HOST}" 127.0.0.1
       shell: bash
       env:
         MSCA_FQDN: ${{ inputs.MSCA_FQDN }}

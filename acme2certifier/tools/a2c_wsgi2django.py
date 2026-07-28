@@ -10,14 +10,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
-
-_VERBOSE = False
-
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 
 SCHEMA_VERSION = 1
 TOOL_VERSION = "0.1.0"
 DEFAULT_DJANGO_SETTINGS = "acme2certifier.django_project.settings"
+_VERBOSE = False
 
 # Dump keys use WSGI table names (orders, not order).
 DUMP_TABLES: Tuple[str, ...] = (
@@ -1377,7 +1375,7 @@ def _source_only_certificate_diagnostics(
             continue
         try:
             parsed_order_id = int(order_id)
-        except TypeError, ValueError:
+        except Exception as _exc:  # noqa: BLE001 — map ORM/integrity errors
             diagnostics.append(
                 f"dump-vs-source-db detail: certificate.id={cert_id} excluded from dump: invalid order_id={order_id!r}"
             )
