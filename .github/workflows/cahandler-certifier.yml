@@ -42,6 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     # Shared NCM AWS host; keep in sync with instance_stop skip logic.
     if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_pip') || contains(inputs.branch, 'certifier')) }}
+    outputs:
+      # Live EC2 public IP captured after start; prefer over DNS (often stale post stop/start).
+      public_ip: ${{ steps.wait_ip.outputs.public_ip }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -78,6 +81,7 @@ jobs:
           sudo chown "$(id -u):$(id -g)" /tmp/rd/ak.tmp /tmp/rd/known_hosts
 
       - name: "Wait for instance public IP + SSH"
+        id: wait_ip
         run: |
           set -euo pipefail
           # Prefer the live EC2 public IP: DNS (SSH_HOST) can lag after stop/start.
@@ -108,6 +112,7 @@ jobs:
             echo "WARNING: DNS ${DNS_IP} != EC2 public IP ${PUBLIC_IP}; using EC2 IP for SSH"
           fi
           echo "SSH_CONNECT_HOST=${PUBLIC_IP}" >> "$GITHUB_ENV"
+          echo "public_ip=${PUBLIC_IP}" >> "$GITHUB_OUTPUT"
 
           # System status checks (sshd typically up once these pass).
           aws ec2 wait instance-status-ok --region "$REGION" --instance-ids "$INSTANCE_ID" || true
@@ -191,7 +196,7 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
@@ -568,7 +573,7 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
@@ -953,7 +958,7 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
@@ -1208,7 +1213,7 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
@@ -1430,7 +1435,7 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
@@ -1639,7 +1644,7 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
@@ -1831,33 +1836,44 @@ jobs:
           sudo chmod 600 /tmp/rd/ak.tmp
           sudo chown "$(id -u):$(id -g)" /tmp/rd/ak.tmp /tmp/rd/known_hosts
 
-      - name: "Resolve instance public IP"
+      - name: "Resolve SSH connect host"
         run: |
           set -euo pipefail
-          aws configure set aws_access_key_id "${{ env.AWS_ACCESS_KEY_ID }}"
-          aws configure set aws_secret_access_key "${{ env.AWS_SECRET_ACCESS_KEY }}"
-          aws configure set default.region "${{ env.AWS_REGION }}"
-          INSTANCE_ID="${{ env.AWS_X64-UB-01_INSTANCE_ID }}"
-          REGION="${{ env.AWS_REGION }}"
-          PUBLIC_IP="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
-            --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
-          if [[ -z "$PUBLIC_IP" || "$PUBLIC_IP" == "None" ]]; then
-            echo "ERROR: instance has no public IP" >&2
-            exit 1
+          # Prefer IP captured by instance_start (avoids DNS lag and a second EC2 lookup).
+          PUBLIC_IP="${{ needs.instance_start.outputs.public_ip }}"
+          if [[ -n "$PUBLIC_IP" && "$PUBLIC_IP" != "None" ]]; then
+            echo "Using instance_start public IP ${PUBLIC_IP}"
+          else
+            echo "WARNING: instance_start.public_ip empty; falling back to EC2 describe-instances"
+            aws configure set aws_access_key_id "${{ env.AWS_ACCESS_KEY_ID }}"
+            aws configure set aws_secret_access_key "${{ env.AWS_SECRET_ACCESS_KEY }}"
+            aws configure set default.region "${{ env.AWS_REGION }}"
+            INSTANCE_ID="${{ env.AWS_X64-UB-01_INSTANCE_ID }}"
+            REGION="${{ env.AWS_REGION }}"
+            PUBLIC_IP="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+              --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
+            if [[ -z "$PUBLIC_IP" || "$PUBLIC_IP" == "None" ]]; then
+              echo "ERROR: instance has no public IP" >&2
+              exit 1
+            fi
+            echo "Using EC2 public IP ${PUBLIC_IP}"
           fi
           echo "SSH_CONNECT_HOST=${PUBLIC_IP}" >> "$GITHUB_ENV"
-          echo "Using EC2 public IP ${PUBLIC_IP}"
 
       - name: "Stop ncm on remote instance"
+        # Best-effort: instance may still be stopped below even if SSH fails.
+        continue-on-error: true
         run: |
           ssh -i /tmp/rd/ak.tmp -p ${{ env.SSH_PORT }} \
             -o BatchMode=yes \
+            -o ConnectTimeout=15 \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/tmp/rd/known_hosts \
             ${{ env.SSH_USER }}@${{ env.SSH_CONNECT_HOST }} \
             "/usr/local/bin/ncm_mgr.sh stop"
 
       - name: "Stop AWS instance for testing"
+        if: always()
         uses: ./.github/actions/aws_instance_manage
         with:
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
