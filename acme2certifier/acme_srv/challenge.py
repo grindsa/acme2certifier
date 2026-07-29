@@ -70,6 +70,7 @@ class ChallengeConfiguration:
     caaidentities: Optional[List[str]] = None
     forward_address_check: bool = False
     reverse_address_check: bool = False
+    http01_block_private_ips: bool = False
     source_address: Optional[str] = None
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
@@ -456,6 +457,7 @@ class Challenge:
                 "accounturi": challenge_details.get("accounturi"),
                 "issuer_domain_names": self.config.caaidentities or [],
                 "allow_policy_wildcard": self.config.dns_persist_allow_policy_wildcard,
+                "http01_block_private_ips": self.config.http01_block_private_ips,
             },
         )
 
@@ -704,6 +706,14 @@ class Challenge:
         self.config.reverse_address_check = config_dic.getboolean(
             "Challenge", "reverse_address_check", fallback=False
         )
+        self.config.http01_block_private_ips = config_dic.getboolean(
+            "Challenge", "http01_block_private_ips", fallback=False
+        )
+        if self.config.http01_block_private_ips:
+            self.logger.info(
+                "HTTP-01 private/non-global IP blocking is enabled "
+                "(http01_block_private_ips=True)."
+            )
         self.logger.debug("Challenge._load_address_check_configuration() ended")
 
     def _load_dns_configuration(self, config_dic: ConfigParser):

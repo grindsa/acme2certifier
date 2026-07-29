@@ -3137,6 +3137,23 @@ class TestChallenge(unittest.TestCase):
         self.assertGreater(len(debug_messages), 0)
         self.assertGreater(len(info_messages), 0)
 
+    def test_155_load_http01_block_private_ips(self):
+        """http01_block_private_ips defaults false and can be enabled"""
+        from configparser import ConfigParser
+
+        config_dic = ConfigParser()
+        config_dic.add_section("Challenge")
+        self.challenge._load_address_check_configuration(config_dic)
+        self.assertFalse(self.challenge.config.http01_block_private_ips)
+
+        config_dic.set("Challenge", "http01_block_private_ips", "True")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.challenge._load_address_check_configuration(config_dic)
+        self.assertTrue(self.challenge.config.http01_block_private_ips)
+        self.assertTrue(
+            any("http01_block_private_ips=True" in line for line in lcm.output)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

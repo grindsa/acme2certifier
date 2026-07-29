@@ -7245,6 +7245,103 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         for char in self.generate_random_string(self.logger, 64):
             self.assertIn(char, digits + ascii_letters)
 
+    def test_571_normalize_resolved_ips(self):
+        """normalize_resolved_ips handles str/list/None"""
+        from acme2certifier.acme_srv.helpers.network import normalize_resolved_ips
+
+        self.assertEqual([], normalize_resolved_ips(None))
+        self.assertEqual([], normalize_resolved_ips(""))
+        self.assertEqual(["1.2.3.4"], normalize_resolved_ips("1.2.3.4"))
+        self.assertEqual(
+            ["1.2.3.4", "2001:db8::1"],
+            normalize_resolved_ips(["1.2.3.4", "2001:db8::1", ""]),
+        )
+
+    def test_572_filter_http01_target_ips_permissive(self):
+        """Default filter keeps private and public addresses"""
+        from acme2certifier.acme_srv.helpers.network import filter_http01_target_ips
+
+        allowed, err = filter_http01_target_ips(
+            self.logger,
+            ["10.0.0.1", "127.0.0.1", "8.8.8.8", "not-an-ip"],
+            block_private=False,
+        )
+        self.assertIsNone(err)
+        self.assertEqual(["10.0.0.1", "127.0.0.1", "8.8.8.8"], allowed)
+
+    def test_573_filter_http01_target_ips_strict(self):
+        """Strict filter keeps only global addresses and prefers IPv4"""
+        from acme2certifier.acme_srv.helpers.network import filter_http01_target_ips
+
+        allowed, err = filter_http01_target_ips(
+            self.logger,
+            [
+                "10.0.0.1",
+                "169.254.169.254",
+                "127.0.0.1",
+                "2001:db8::1",
+                "2606:4700:4700::1111",
+                "8.8.8.8",
+            ],
+            block_private=True,
+        )
+        self.assertIsNone(err)
+        self.assertEqual(["8.8.8.8", "2606:4700:4700::1111"], allowed)
+
+        allowed, err = filter_http01_target_ips(
+            self.logger, ["10.0.0.1", "127.0.0.1"], block_private=True
+        )
+        self.assertEqual([], allowed)
+        self.assertEqual("No allowed address for HTTP-01 validation", err)
+
+    @patch("acme2certifier.acme_srv.helpers.network.requests.get")
+    def test_574_url_get_dns_pinned_success(self, mock_get):
+        """url_get_dns_pinned connects to IP with Host header"""
+        from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
+
+        mock_resp = Mock()
+        mock_resp.text = "token.thumb"
+        mock_resp.status_code = 200
+        mock_resp.reason = "OK"
+        mock_get.return_value = mock_resp
+
+        result, status, err = url_get_dns_pinned(
+            self.logger,
+            host="example.com",
+            path="/.well-known/acme-challenge/tok",
+            pinned_ips=["8.8.8.8"],
+            verify=False,
+            timeout=5,
+        )
+        self.assertEqual("token.thumb", result)
+        self.assertEqual(200, status)
+        self.assertIsNone(err)
+        mock_get.assert_called_once()
+        args, kwargs = mock_get.call_args
+        self.assertEqual("http://8.8.8.8/.well-known/acme-challenge/tok", args[0])
+        self.assertEqual("example.com", kwargs["headers"]["Host"])
+        self.assertEqual({}, kwargs["proxies"])
+
+    @patch("acme2certifier.acme_srv.helpers.network.requests.get")
+    def test_575_url_get_dns_pinned_ipv6(self, mock_get):
+        """url_get_dns_pinned brackets IPv6 literals"""
+        from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
+
+        mock_resp = Mock()
+        mock_resp.text = "ok"
+        mock_resp.status_code = 200
+        mock_resp.reason = "OK"
+        mock_get.return_value = mock_resp
+
+        url_get_dns_pinned(
+            self.logger,
+            host="example.com",
+            path="/path",
+            pinned_ips=["2606:4700:4700::1111"],
+        )
+        args, _kwargs = mock_get.call_args
+        self.assertEqual("http://[2606:4700:4700::1111]/path", args[0])
+
 
 if __name__ == "__main__":
     unittest.main()

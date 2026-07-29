@@ -2,6 +2,7 @@
 """Network utilities for acme2certifier"""
 
 import html
+import ipaddress
 import socket
 import ssl
 import logging
@@ -375,6 +376,140 @@ def url_get(
         "Helper.url_get() ended with status: %s, error: %s", status_code, error_msg
     )
     return result, status_code, error_msg
+
+
+def normalize_resolved_ips(
+    resolved: Union[str, List[str], None],
+) -> List[str]:
+    """Normalize fqdn_resolve output to a list of IP strings."""
+    if resolved is None:
+        return []
+    if isinstance(resolved, str):
+        return [resolved] if resolved else []
+    return [ip for ip in resolved if ip]
+
+
+def filter_http01_target_ips(
+    logger: logging.Logger,
+    ips: List[str],
+    block_private: bool = False,
+) -> Tuple[List[str], Optional[str]]:
+    """Filter candidate IPs for HTTP-01 fetches.
+
+    Default (block_private=False): keep all parseable addresses (enterprise-friendly).
+    Strict (block_private=True): keep only global (public) addresses.
+    IPv4 addresses are preferred over IPv6 for connection attempts.
+    """
+    logger.debug(
+        "Helper.filter_http01_target_ips(block_private=%s): %s", block_private, ips
+    )
+    allowed_v4: List[str] = []
+    allowed_v6: List[str] = []
+    for ip_str in ips:
+        try:
+            addr = ipaddress.ip_address(ip_str)
+        except ValueError:
+            logger.debug("Helper.filter_http01_target_ips(): skipping invalid IP %s", ip_str)
+            continue
+        if block_private and not addr.is_global:
+            logger.debug(
+                "Helper.filter_http01_target_ips(): rejecting non-global IP %s", ip_str
+            )
+            continue
+        if isinstance(addr, ipaddress.IPv4Address):
+            allowed_v4.append(str(addr))
+        else:
+            allowed_v6.append(str(addr))
+
+    allowed = allowed_v4 + allowed_v6
+    if not allowed:
+        error_msg = "No allowed address for HTTP-01 validation"
+        logger.debug("Helper.filter_http01_target_ips() ended with: %s", error_msg)
+        return [], error_msg
+
+    logger.debug("Helper.filter_http01_target_ips() ended with: %s", allowed)
+    return allowed, None
+
+
+def url_get_dns_pinned(
+    logger: logging.Logger,
+    host: str,
+    path: str,
+    pinned_ips: List[str],
+    verify: bool = True,
+    timeout: int = 20,
+) -> Tuple[Optional[str], int, Optional[str]]:
+    """HTTP GET to pre-resolved IPs with Host set to the original identifier.
+
+    Prevents DNS rebinding between policy check and connection by never
+    re-resolving ``host`` for the TCP peer.
+    """
+    logger.debug(
+        "Helper.url_get_dns_pinned(host=%s, path=%s, ips=%s)", host, path, pinned_ips
+    )
+    if not path.startswith("/"):
+        path = f"/{path}"
+
+    headers = {
+        "Connection": "close",
+        "Accept-Encoding": "gzip",
+        "User-Agent": USER_AGENT,
+        "Host": host,
+    }
+
+    last_error: Optional[str] = "No pinned IP addresses provided"
+    last_status = 500
+    for ip_str in pinned_ips:
+        try:
+            addr = ipaddress.ip_address(ip_str)
+        except ValueError:
+            last_error = f"Invalid pinned IP: {ip_str}"
+            continue
+
+        if isinstance(addr, ipaddress.IPv6Address):
+            url = f"http://[{ip_str}]{path}"
+        else:
+            url = f"http://{ip_str}{path}"
+
+        try:
+            req = requests.get(
+                url,
+                verify=verify,
+                timeout=timeout,
+                headers=headers,
+                proxies={},
+            )
+            result = req.text
+            status_code = req.status_code
+            if status_code != 200:
+                error_msg = f"{url} {req.reason}"
+            else:
+                error_msg = None
+            logger.debug(
+                "Helper.url_get_dns_pinned() connected via %s status=%s",
+                ip_str,
+                status_code,
+            )
+            return result, status_code, error_msg
+        except requests.exceptions.ReadTimeout:
+            last_status = 500
+            last_error = f"Could not fetch URL via pinned IP {ip_str} - Read timeout."
+            logger.error(last_error)
+        except requests.exceptions.ConnectionError:
+            last_status = 500
+            last_error = f"Could not fetch URL via pinned IP {ip_str} - Connection error."
+            logger.error(last_error)
+        except Exception as err:
+            last_status = 500
+            last_error = f"Could not fetch URL via pinned IP {ip_str}: {err}"
+            logger.error(last_error)
+
+    logger.debug(
+        "Helper.url_get_dns_pinned() ended with status: %s, error: %s",
+        last_status,
+        last_error,
+    )
+    return None, last_status, last_error
 
 
 def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> List[str]:
