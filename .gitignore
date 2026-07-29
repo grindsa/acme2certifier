@@ -182,3 +182,6 @@ coverage.lcov
 .github/acme2certifier_key.pem
 # apple stuff
 .DS_Store
+
+# Local security review backlog (do not upload)
+.cursor/security-review-findings.md

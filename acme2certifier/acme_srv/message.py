@@ -4,7 +4,8 @@
 
 from __future__ import print_function
 import json
-from typing import Tuple, Dict, Optional
+import os
+from typing import Tuple, Dict, List, Optional
 from dataclasses import dataclass
 from acme2certifier.acme_srv.helper import (
     decode_message,
@@ -17,6 +18,10 @@ from acme2certifier.acme_srv.error import Error
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.signature import Signature
+
+# Break-glass acknowledgment for disabling nonce/signature checks (testing only).
+SECURITY_DISABLE_ACK_ENV = "ACME2CERTIFIER_I_KNOW_THE_RISK"
+_SECURITY_DISABLE_ACK_VALUES = frozenset({"1", "true", "yes", "on"})
 
 
 @dataclass
@@ -31,6 +36,14 @@ class MessageConfiguration:
     eab_strict_mode: bool = True
     invalid_eabkid_deactivate: bool = False
     eab_handler: Optional[object] = None
+
+
+def security_disable_acknowledged() -> bool:
+    """Return True when the break-glass env var acknowledges security-disable flags."""
+    return (
+        os.environ.get(SECURITY_DISABLE_ACK_ENV, "").strip().lower()
+        in _SECURITY_DISABLE_ACK_VALUES
+    )
 
 
 class AccountRepository:
@@ -73,6 +86,33 @@ class Message(object):
     def __exit__(self, *args):
         """Close the connection at the end of the context"""
 
+    def _enforce_security_disable_gate(
+        self, nonce_check_disable: bool, signature_check_disable: bool
+    ) -> None:
+        """Refuse insecure disable flags unless explicitly acknowledged via env."""
+        if not (nonce_check_disable or signature_check_disable):
+            return
+
+        enabled: List[str] = []
+        if nonce_check_disable:
+            enabled.append("nonce_check_disable")
+        if signature_check_disable:
+            enabled.append("signature_check_disable")
+        enabled_csv = ", ".join(enabled)
+
+        if not security_disable_acknowledged():
+            raise RuntimeError(
+                f"Refusing to start: {enabled_csv} enabled in [Nonce] without "
+                f"{SECURITY_DISABLE_ACK_ENV}=1. These options disable ACME "
+                "authentication and are break-glass testing only."
+            )
+
+        self.logger.critical(
+            "**** SECURITY DISABLE ACKNOWLEDGED via %s: %s ****",
+            SECURITY_DISABLE_ACK_ENV,
+            enabled_csv,
+        )
+
     def _load_configuration(self) -> MessageConfiguration:
         """Load and parse config from file and return MessageConfiguration dataclass."""
         self.logger.debug("Message._load_configuration()")
@@ -84,6 +124,9 @@ class Message(object):
             )
             msg_config.signature_check_disable = config_dic.getboolean(
                 "Nonce", "signature_check_disable", fallback=False
+            )
+            self._enforce_security_disable_gate(
+                msg_config.nonce_check_disable, msg_config.signature_check_disable
             )
         if "EABhandler" in config_dic:
             if config_dic.getboolean(

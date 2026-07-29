@@ -490,37 +490,63 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_030_config_load(self, mock_load_cfg):
-        """test _config_load"""
+        """test _config_load refuses nonce_check_disable without break-glass env"""
         parser = configparser.ConfigParser()
         parser["Nonce"] = {
             "nonce_check_disable": True,
             "signature_check_disable": False,
         }
         mock_load_cfg.return_value = parser
-        from acme2certifier.acme_srv.message import Message
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        self.message = Message(False, "http://tester.local", self.logger)
-        self.assertTrue(self.message.config.nonce_check_disable)
-        self.assertFalse(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
-        self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertRaises(RuntimeError) as err:
+                Message(False, "http://tester.local", self.logger)
+        self.assertIn(SECURITY_DISABLE_ACK_ENV, str(err.exception))
+        self.assertIn("nonce_check_disable", str(err.exception))
 
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_031_config_load(self, mock_load_cfg):
-        """test _config_load"""
+        """test _config_load refuses signature_check_disable without break-glass env"""
         parser = configparser.ConfigParser()
         parser["Nonce"] = {
             "nonce_check_disable": False,
             "signature_check_disable": True,
         }
         mock_load_cfg.return_value = parser
-        from acme2certifier.acme_srv.message import Message
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        self.message = Message(False, "http://tester.local", self.logger)
-        self.assertFalse(self.message.config.nonce_check_disable)
-        self.assertTrue(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
-        self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertRaises(RuntimeError) as err:
+                Message(False, "http://tester.local", self.logger)
+        self.assertIn(SECURITY_DISABLE_ACK_ENV, str(err.exception))
+        self.assertIn("signature_check_disable", str(err.exception))
+
+    @patch("acme2certifier.acme_srv.message.load_config")
+    def test_031b_config_load_security_disable_with_ack(self, mock_load_cfg):
+        """test _config_load allows disable flags when break-glass env is set"""
+        parser = configparser.ConfigParser()
+        parser["Nonce"] = {
+            "nonce_check_disable": True,
+            "signature_check_disable": True,
+        }
+        mock_load_cfg.return_value = parser
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
+
+        with patch.dict(
+            "os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False
+        ):
+            with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+                message = Message(False, "http://tester.local", self.logger)
+        self.assertTrue(message.config.nonce_check_disable)
+        self.assertTrue(message.config.signature_check_disable)
+        self.assertTrue(
+            any(
+                "SECURITY DISABLE ACKNOWLEDGED" in line
+                and SECURITY_DISABLE_ACK_ENV in line
+                for line in lcm.output
+            )
+        )
 
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_032_config_load(self, mock_load_cfg):
