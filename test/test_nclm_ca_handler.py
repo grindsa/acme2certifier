@@ -1532,6 +1532,27 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.error = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
+    @patch("acme2certifier.cahandlers.nclm_ca_handler.request_operation")
+    def test_103__api_post_non_dict_non_str(self, mock_req_op):
+        """test _api_post when request_operation returns non-dict non-str content"""
+        mock_req_op.return_value = (500, None)
+        result = self.cahandler._api_post("url", "data")
+        self.assertEqual({"status": 500}, result)
+
+    def test_104__config_timer_load_invalid_request_retries(self):
+        """test _config_timer_load with invalid request_retries"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"request_retries": "invalid"}
+        self.cahandler._config_timer_load(parser)
+        self.assertEqual(3, self.cahandler.request_retries)
+
+    def test_105__config_timer_load_invalid_request_retry_backoff(self):
+        """test _config_timer_load with invalid request_retry_backoff"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"request_retry_backoff": "invalid"}
+        self.cahandler._config_timer_load(parser)
+        self.assertEqual(2.0, self.cahandler.request_retry_backoff)
+
 
 if __name__ == "__main__":
 

@@ -1286,6 +1286,30 @@ class TestACMEHandler(unittest.TestCase):
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
+    def test_082__config_server_load_invalid_request_retries(self):
+        """test _config_server_load() with invalid request_retries"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"api_host": "api_host", "request_retries": "invalid"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_server_load(parser)
+        self.assertIn(
+            "ERROR:test_a2c:Could not load request_retries parameter:invalid literal for int() with base 10: 'invalid'",
+            lcm.output,
+        )
+        self.assertEqual(3, self.cahandler.request_retries)
+
+    def test_083__config_server_load_invalid_request_retry_backoff(self):
+        """test _config_server_load() with invalid request_retry_backoff"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"api_host": "api_host", "request_retry_backoff": "invalid"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_server_load(parser)
+        self.assertIn(
+            "ERROR:test_a2c:Could not load request_retry_backoff parameter:could not convert string to float: 'invalid'",
+            lcm.output,
+        )
+        self.assertEqual(2.0, self.cahandler.request_retry_backoff)
+
 
 if __name__ == "__main__":
 

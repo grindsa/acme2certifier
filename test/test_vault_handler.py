@@ -705,6 +705,38 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual("mock_hlc", self.cahandler._csr_check("dummy-csr"))
         self.assertTrue(mock_hic.called)
 
+    @patch("acme2certifier.cahandlers.vault_ca_handler.load_config")
+    def test_034_config_load_invalid_request_retries(self, mock_load_cfg):
+        """test _config_load with invalid request_retries"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_url": "api_url",
+            "request_retries": "invalid",
+        }
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "ERROR:test_a2c:Failed to parse request_retries parameter: invalid literal for int() with base 10: 'invalid'",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.vault_ca_handler.load_config")
+    def test_035_config_load_invalid_request_retry_backoff(self, mock_load_cfg):
+        """test _config_load with invalid request_retry_backoff"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_url": "api_url",
+            "request_retry_backoff": "invalid",
+        }
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "ERROR:test_a2c:Failed to parse request_retry_backoff parameter: could not convert string to float: 'invalid'",
+            lcm.output,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

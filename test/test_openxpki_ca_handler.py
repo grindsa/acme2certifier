@@ -902,6 +902,28 @@ class TestACMEHandler(unittest.TestCase):
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
+    def test_062__config_server_load_invalid_request_retries(self):
+        """test _config_server_load() with invalid request_retries"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"host": "host", "request_retries": "invalid"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_server_load(parser)
+        self.assertIn(
+            "ERROR:test_a2c:Could not load request_retries from config: invalid literal for int() with base 10: 'invalid'",
+            lcm.output,
+        )
+
+    def test_063__config_server_load_invalid_request_retry_backoff(self):
+        """test _config_server_load() with invalid request_retry_backoff"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"host": "host", "request_retry_backoff": "invalid"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_server_load(parser)
+        self.assertIn(
+            "ERROR:test_a2c:Could not load request_retry_backoff from config: could not convert string to float: 'invalid'",
+            lcm.output,
+        )
+
 
 if __name__ == "__main__":
 

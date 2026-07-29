@@ -1701,6 +1701,66 @@ class TestACMEHandler(unittest.TestCase):
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
+    def test_109_config_load(self, mock_load_cfg):
+        """test _config_load invalid request_retries value"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_host": "api_host",
+            "api_user": "api_user",
+            "api_password": "api_password",
+            "ca_name": "ca_name",
+            "request_retries": "invalid",
+        }
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "WARNING:test_a2c:Invalid value for request_retries in configuration. Using default: 3",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
+    def test_110_config_load(self, mock_load_cfg):
+        """test _config_load invalid request_retry_backoff value"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_host": "api_host",
+            "api_user": "api_user",
+            "api_password": "api_password",
+            "ca_name": "ca_name",
+            "request_retry_backoff": "invalid",
+        }
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "WARNING:test_a2c:Invalid value for request_retry_backoff in configuration. Using default: 2.0",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
+    @patch("time.sleep")
+    def test_111__loop_poll(self, mock_sleep, mock_req_op):
+        """CAhandler._loop_poll() - request_operation returns non-dict"""
+        self.cahandler.polling_timeout = 5
+        self.cahandler.session = requests
+        mock_req_op.return_value = (200, "not_a_dict")
+        result = self.cahandler._loop_poll("request_url")
+        self.assertEqual((None, None, None, "request_url"), result)
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
+    def test_112__pem_list_cert_get(self, mock_req_op):
+        """CAhandler._pem_list_cert_get() - second request_operation returns non-dict"""
+        self.cahandler.session = requests
+        cert_dic = {"issuerCa": "issuer_url"}
+        mock_req_op.side_effect = [
+            (200, {"certificates": {"active": "active_url"}}),
+            (200, "not_a_dict"),
+        ]
+        result = self.cahandler._pem_list_cert_get(cert_dic)
+        self.assertEqual({}, result)
+
 
 if __name__ == "__main__":
 
