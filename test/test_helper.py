@@ -7231,6 +7231,20 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertEqual("dbmod", db_handler_load(self.logger, {}))
             self.assertTrue(any("Loaded DB handler" in line for line in lcm.output))
 
+    def test_570_generate_random_string_charset_and_secrets(self):
+        """generate_random_string uses secrets and alphanumeric charset"""
+        from string import ascii_letters, digits
+
+        with patch(
+            "acme2certifier.acme_srv.helpers.crypto.secrets.choice",
+            side_effect=lambda seq: seq[0],
+        ) as mock_choice:
+            result = self.generate_random_string(self.logger, 8)
+        self.assertEqual(8, mock_choice.call_count)
+        self.assertEqual(result, "0" * 8)
+        for char in self.generate_random_string(self.logger, 64):
+            self.assertIn(char, digits + ascii_letters)
+
 
 if __name__ == "__main__":
     unittest.main()

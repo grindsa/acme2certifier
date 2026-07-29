@@ -35,6 +35,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme2certifier.acme_srv.acmechallenge import Acmechallenge
 
         self.acmechallenge = Acmechallenge(False, None, self.logger)
+        self.acmechallenge.dbstore.reset_mock()
 
     def test_001__enter_(self):
         """test enter"""
