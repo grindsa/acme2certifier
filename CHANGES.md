@@ -8,10 +8,23 @@ and pick the appropriate release branch.
 
 ## Changes in 0.45
 
-**Features and Improvements**:
+**New Features**:
 
+- [Package-first layout](docs/upgrading.md) (`acme2certifier.*`) with pip, DEB, RPM, and Docker installs; Django app and project shipped in the package
+- [Custom CA/EAB/Hooks loading](docs/ca_handler.md#custom-handlers-path-or-package) via `*_module` (dotted import or filesystem path); deprecated `*_file` keys still supported until 0.48
+- [DB handler selection](docs/acme_srv.md) via `[DBhandler] handler` or `ACME_SRV_DB_HANDLER` environment variable
 - [`a2c-wsgi2django`](docs/migrate_wsgi_to_django.md) CLI to migrate ACME runtime data from WSGI SQLite to Django ORM via a portable JSON dump (`export`, `import`, `check`, `wipe`)
-- Import supports `--dry-run` and `--wipe`; wipe requires `--yes`; optional `-v`/`--verbose` progress logging
+- Digicert CA handler options `request_retries` and `request_retry_backoff` for HTTP transport retries
+
+**Bug Fixes and Improvements**:
+
+- Route CA handler HTTP calls through the shared `request_operation` helper (including retry support)
+- Improve ASA CA handler parsing of error responses from the CA
+- Improve OpenSSL CA handler handling of absolute certificate/key paths
+- Resolve relative `acme_srv.db` paths against the deploy base directory and clarify default DB location
+- Stop shipping `acme_srv.cfg` inside DEB/RPM packages; preserve handler configuration across install/restart
+- Adapt Docker entrypoints and install scripts to the package layout
+- Log which config file and DB/CA handler are active at startup; reduce config/plugin log volume
 
 ## Changes in 0.44
 
