@@ -192,9 +192,15 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
           retention-days: 1
 
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-rpm:
     needs: guard
     runs-on: ubuntu-latest
@@ -352,9 +358,15 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
           retention-days: 1
 
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
   # ---------------------------------------------------------
   # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-deb:
     needs: guard
     runs-on: ubuntu-latest
@@ -507,3 +519,9 @@ jobs:
           name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
           retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
+

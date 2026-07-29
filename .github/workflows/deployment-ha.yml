@@ -484,3 +484,9 @@ jobs:
           name: test-rpm.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
           retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
+

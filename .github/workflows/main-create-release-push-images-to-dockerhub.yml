@@ -265,6 +265,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
+
   test_arm64:
     name: Test arm64 images
     runs-on: ubuntu-24.04-arm
@@ -314,6 +319,11 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
           if-no-files-found: ignore
           retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
 
   sbom_update:
     name: Update SBOMs

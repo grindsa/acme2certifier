@@ -176,16 +176,28 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-rpm:
     needs: guard
     runs-on: ubuntu-latest
@@ -324,16 +336,28 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # ---------------------------------------------------------
   # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-deb:
     needs: guard
     runs-on: ubuntu-latest
@@ -466,9 +490,21 @@ jobs:
           DEPLOYMENT_TYPE: deb
           WEBSRV: ${{ matrix.websrv }}
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
+
