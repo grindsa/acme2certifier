@@ -4807,11 +4807,11 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_get.return_value = mockresponse_get
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                (500, "'NoneType' object has no attribute 'status_code'"),
+                (500, "Unknown request method"),
                 self.request_operation(logger=self.logger, url="foo", method="unknown"),
             )
         self.assertIn(
-            "ERROR:test_a2c:Request_operation returned error: 'NoneType' object has no attribute 'status_code'",
+            "ERROR:test_a2c:Unknown request method: unknown",
             lcm.output,
         )
         self.assertFalse(mock_get.called)

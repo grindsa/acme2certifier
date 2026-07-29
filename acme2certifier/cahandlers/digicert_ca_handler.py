@@ -39,6 +39,8 @@ class CAhandler(object):
         self.order_validity = 1
         self.proxy = None
         self.request_timeout = 10
+        self.request_retries = 3
+        self.request_retry_backoff = 2.0
         self.organization_id = None
         self.organization_name = None
         self.header_info_field = False
@@ -70,6 +72,8 @@ class CAhandler(object):
             proxy=self.proxy,
             timeout=self.request_timeout,
             payload=None,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
         )
 
         self.logger.debug("CAhandler._api_get() ended with code: %s", code)
@@ -87,6 +91,8 @@ class CAhandler(object):
             proxy=self.proxy,
             timeout=self.request_timeout,
             payload=data,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
         )
 
         self.logger.debug("CAhandler._api_post() ended with code: %s", code)
@@ -104,6 +110,8 @@ class CAhandler(object):
             proxy=self.proxy,
             timeout=self.request_timeout,
             payload=data,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
         )
 
         self.logger.debug("CAhandler._api_put() ended with code: %s", code)
@@ -156,6 +164,20 @@ class CAhandler(object):
                     err,
                 )
                 self.request_timeout = 10
+            try:
+                self.request_retries = int(
+                    config_dic.get("CAhandler", "request_retries", fallback=3)
+                )
+            except Exception as err:
+                self.logger.error("Could not load request_retries:%s", err)
+                self.request_retries = 3
+            try:
+                self.request_retry_backoff = float(
+                    config_dic.get("CAhandler", "request_retry_backoff", fallback=2.0)
+                )
+            except Exception as err:
+                self.logger.error("Could not load request_retry_backoff:%s", err)
+                self.request_retry_backoff = 2.0
             self.organization_id = config_dic.get(
                 "CAhandler", "organization_id", fallback=self.organization_id
             )

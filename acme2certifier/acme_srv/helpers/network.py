@@ -7,6 +7,7 @@ import ssl
 import logging
 import json
 import re
+import time
 from typing import List, Dict, Tuple, Union, Optional
 from urllib.parse import urlparse, quote
 from urllib3.util import connection
@@ -627,53 +628,81 @@ def request_operation(
     method: str = "GET",
     payload: Dict[str, str] = None,
     verify: bool = True,
+    retries: int = 0,
+    retry_backoff: float = 1.0,
 ):
-    """check if a for a string value taken from profile if its a variable inside a class and apply value"""
+    """Execute an HTTP request with optional retry on transient failures."""
     logger.debug("Helper.api_operation(): method: %s", method)
 
-    try:
-        if method.lower() == "get":
-            api_response = session.get(
-                url=url, headers=headers, proxies=proxy, timeout=timeout, verify=verify
-            )
-        elif method.lower() == "post":
-            api_response = session.post(
-                url=url,
-                headers=headers,
-                proxies=proxy,
-                timeout=timeout,
-                json=payload,
-                verify=verify,
-            )
-        elif method.lower() == "put":
-            api_response = session.put(
-                url=url,
-                headers=headers,
-                proxies=proxy,
-                timeout=timeout,
-                json=payload,
-                verify=verify,
-            )
-        else:
-            logger.error("Unknown request method: %s", method)
-            api_response = None
+    _RETRYABLE_STATUS_CODES = {500, 502, 503, 504}
+    attempts = 1 + max(retries, 0)
 
-        code = api_response.status_code
-        if api_response.text:
-            try:
-                content = api_response.json()
-            except Exception as err_:
-                logger.error(
-                    "Request_operation returned error during json parsing: %s", err_
+    for attempt in range(1, attempts + 1):
+        try:
+            if method.lower() == "get":
+                api_response = session.get(
+                    url=url, headers=headers, proxies=proxy, timeout=timeout, verify=verify
                 )
+            elif method.lower() == "post":
+                api_response = session.post(
+                    url=url,
+                    headers=headers,
+                    proxies=proxy,
+                    timeout=timeout,
+                    json=payload,
+                    verify=verify,
+                )
+            elif method.lower() == "put":
+                api_response = session.put(
+                    url=url,
+                    headers=headers,
+                    proxies=proxy,
+                    timeout=timeout,
+                    json=payload,
+                    verify=verify,
+                )
+            else:
+                logger.error("Unknown request method: %s", method)
+                return 500, "Unknown request method"
+
+            code = api_response.status_code
+
+            if code in _RETRYABLE_STATUS_CODES and attempt < attempts:
+                wait = retry_backoff * (2 ** (attempt - 1))
+                logger.warning(
+                    "Request_operation got %s from %s, retry %s/%s in %.1fs",
+                    code, url, attempt, attempts - 1, wait,
+                )
+                time.sleep(wait)
+                continue
+
+            if api_response.text:
+                try:
+                    content = api_response.json()
+                except Exception as err_:
+                    logger.error(
+                        "Request_operation returned error during json parsing: %s", err_
+                    )
+                    content = str(err_)
+            else:
+                content = None
+
+            logger.debug("Helper.request_operation() ended with: %s", code)
+            return code, content
+
+        except Exception as err_:
+            if attempt < attempts:
+                wait = retry_backoff * (2 ** (attempt - 1))
+                logger.warning(
+                    "Request_operation error: %s, retry %s/%s in %.1fs",
+                    err_, attempt, attempts - 1, wait,
+                )
+                time.sleep(wait)
+            else:
+                logger.error("Request_operation returned error: %s", err_)
+                code = 500
                 content = str(err_)
-        else:
-            content = None
+                logger.debug("Helper.request_operation() ended with: %s", code)
+                return code, content
 
-    except Exception as err_:
-        logger.error("Request_operation returned error: %s", err_)
-        code = 500
-        content = str(err_)
-
-    logger.debug("Helper.request_operation() ended with: %s", code)
-    return code, content
+    return 500, "Unexpected retry loop exit"
