@@ -53,27 +53,37 @@ class TestACMEHandler(unittest.TestCase):
         """test lookup strange token returning wrong data"""
         path_info = "foo"
         self.acmechallenge.dbstore.cahandler_lookup.return_value = "lookup"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.acmechallenge.lookup(path_info))
-        self.assertIn("INFO:test_a2c:Lookup token: foo", lcm.output)
+        self.assertFalse(self.acmechallenge.lookup(path_info))
+        self.acmechallenge.dbstore.cahandler_lookup.assert_called_once_with("name", "foo")
 
     def test_005_lookup(self):
-        """test lookup strange token rest replace"""
+        """test lookup strips well-known path prefix"""
         path_info = "/.well-known/acme-challenge/foo1"
         self.acmechallenge.dbstore.cahandler_lookup.return_value = "lookup"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.acmechallenge.lookup(path_info))
-        self.assertIn("INFO:test_a2c:Lookup token: foo1", lcm.output)
+        self.assertFalse(self.acmechallenge.lookup(path_info))
+        self.acmechallenge.dbstore.cahandler_lookup.assert_called_once_with(
+            "name", "foo1"
+        )
 
     def test_006_lookup(self):
-        """test lookup strange token rest replace"""
+        """test lookup returns key_authorization without logging secrets at INFO"""
         path_info = "/.well-known/acme-challenge/foo"
         self.acmechallenge.dbstore.cahandler_lookup.return_value = {
             "value1": "key_authorization"
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual("key_authorization", self.acmechallenge.lookup(path_info))
-        self.assertIn("INFO:test_a2c:Lookup token: foo", lcm.output)
+        with self.assertRaises(AssertionError):
+            with self.assertLogs("test_a2c", level="INFO"):
+                self.assertEqual(
+                    "key_authorization", self.acmechallenge.lookup(path_info)
+                )
+
+    def test_007_lookup_no_info_token_leak(self):
+        """test lookup does not log challenge token at INFO"""
+        path_info = "/.well-known/acme-challenge/secret-token"
+        self.acmechallenge.dbstore.cahandler_lookup.return_value = "lookup"
+        with self.assertRaises(AssertionError):
+            with self.assertLogs("test_a2c", level="INFO"):
+                self.assertFalse(self.acmechallenge.lookup(path_info))
 
 
 if __name__ == "__main__":
