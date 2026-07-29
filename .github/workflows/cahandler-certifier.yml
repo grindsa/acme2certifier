@@ -41,7 +41,7 @@ jobs:
     needs: guard
     runs-on: ubuntu-latest
     # Shared NCM AWS host; keep in sync with instance_stop skip logic.
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_pip') || contains(inputs.branch, 'certifier')) }}
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_devel') || contains(inputs.branch, 'certifier')) }}
     outputs:
       # Live EC2 public IP captured after start; prefer over DNS (often stale post stop/start).
       public_ip: ${{ steps.wait_ip.outputs.public_ip }}
@@ -228,6 +228,12 @@ jobs:
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
@@ -508,12 +514,6 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -1266,6 +1266,12 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
       - name: "Wait for ACME directory"
         uses: ./.github/actions/wait_for_directory
 
@@ -1364,12 +1370,6 @@ jobs:
           PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
           REGEX: "true"
           IGNORE_CASE: "true"
-
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

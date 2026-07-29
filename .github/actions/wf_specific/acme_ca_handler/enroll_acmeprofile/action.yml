@@ -46,7 +46,9 @@ runs:
     uses: ./.github/actions/logs_assert
     with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      PATTERN: "unknown"
+      PATTERN: "invalidProfile|Invalid profile specified"
+      REGEX: "true"
+      IGNORE_CASE: "true"
 
   - name: "ACME Profile - 03 - Enroll lego with an allowed template_name"
     run: |

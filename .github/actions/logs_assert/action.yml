@@ -53,9 +53,36 @@ runs:
             fi
             ;;
           rpm)
-            docker exec "${ACME_SERVER}" grep "${GREP_OPTS[@]}" -- "${PATTERN}" /var/log/messages
+            matched=0
+            for i in {1..10}; do
+              if docker exec "${ACME_SERVER}" sh -c '
+                pattern=$1; shift
+                files=""
+                for f in /var/log/messages /var/log/httpd/error_log /var/log/apache2/error.log /var/log/nginx/error.log /var/log/syslog; do
+                  if [ -f "$f" ]; then
+                    files="$files $f"
+                  fi
+                done
+                if [ -n "$files" ]; then
+                  grep "$@" -- "$pattern" $files && exit 0
+                fi
+                exit 1
+              ' sh "${PATTERN}" "${GREP_OPTS[@]}" || docker logs "${ACME_SERVER}" 2>&1 | grep "${GREP_OPTS[@]}" -- "${PATTERN}"; then
+                matched=1
+                break
+              fi
+              sleep 1
+            done
+            if [[ "${matched}" -ne 1 ]]; then
+              echo "ERROR: pattern not found after retries in rpm logs: ${PATTERN}" >&2
+              exit 1
+            fi
             if [[ "${FLUSH}" == "true" ]]; then
-              docker exec "${ACME_SERVER}" truncate -s 0 /var/log/messages
+              docker exec "${ACME_SERVER}" sh -c '
+                for f in /var/log/messages /var/log/httpd/error_log /var/log/apache2/error.log /var/log/nginx/error.log /var/log/syslog; do
+                  if [ -f "$f" ]; then truncate -s 0 "$f"; fi
+                done
+              '
             fi
             ;;
           deb)
