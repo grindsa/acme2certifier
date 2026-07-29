@@ -1845,7 +1845,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         """Test perform_validation basic functionality"""
         # Mock DNS resolution to prevent network calls
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
-        mock_ptr_resolve.return_value = []
+        mock_ptr_resolve.return_value = ("example.com", False)
 
         context = ChallengeContext(
             challenge_name="test",
@@ -2041,29 +2041,27 @@ class TestSourceAddressValidator(unittest.TestCase):
     @patch("acme2certifier.acme_srv.helper.ptr_resolve")
     def test_012_perform_reverse_check_success(self, mock_ptr_resolve):
         """Test _perform_reverse_check success"""
-        mock_ptr_resolve.return_value = ["example.com", "www.example.com"]
+        mock_ptr_resolve.return_value = ("example.com", False)
 
-        with patch.object(self.validator, "_domain_matches", return_value=True):
-            result = self.validator._perform_reverse_check(
-                "example.com", "192.168.1.1", []
-            )
+        result = self.validator._perform_reverse_check(
+            "example.com", "192.168.1.1", []
+        )
 
-            self.assertTrue(result["reverse_check_passed"])
-            self.assertEqual(
-                result["reverse_domains"], ["example.com", "www.example.com"]
-            )
+        self.assertTrue(result["reverse_check_passed"])
+        self.assertEqual(result["reverse_domains"], ["example.com"])
 
     @patch("acme2certifier.acme_srv.helper.ptr_resolve")
     def test_013_perform_reverse_check_failure(self, mock_ptr_resolve):
-        """Test _perform_reverse_check failure"""
-        mock_ptr_resolve.return_value = ["other.com"]
+        """Test _perform_reverse_check failure when PTR hostname does not match"""
+        mock_ptr_resolve.return_value = ("other.com", False)
 
-        with patch.object(self.validator, "_domain_matches", return_value=False):
-            result = self.validator._perform_reverse_check(
-                "example.com", "192.168.1.1", []
-            )
+        result = self.validator._perform_reverse_check(
+            "example.com", "192.168.1.1", []
+        )
 
-            self.assertFalse(result["reverse_check_passed"])
+        self.assertFalse(result["reverse_check_passed"])
+        self.assertEqual(result["reverse_domains"], ["other.com"])
+        self.assertEqual(result["error"], "No matching domains found")
 
     @patch("acme2certifier.acme_srv.helper.ptr_resolve")
     def test_014_perform_reverse_check_exception(self, mock_ptr_resolve):
@@ -2163,6 +2161,31 @@ class TestSourceAddressValidator(unittest.TestCase):
         # Test with whitespace-only resolved_domain
         result = self.validator._domain_matches("example.com", "   ")
         self.assertFalse(result)
+
+    @patch("acme2certifier.acme_srv.helper.ptr_resolve")
+    def test_023_perform_reverse_check_ptr_invalid(self, mock_ptr_resolve):
+        """Test _perform_reverse_check fails closed when ptr_resolve marks invalid"""
+        mock_ptr_resolve.return_value = (None, True)
+
+        result = self.validator._perform_reverse_check(
+            "example.com", "192.168.1.1", []
+        )
+
+        self.assertFalse(result["reverse_check_passed"])
+        self.assertEqual(result["reverse_domains"], [])
+        self.assertEqual(result["error"], "PTR resolution failed")
+
+    @patch("acme2certifier.acme_srv.helper.ptr_resolve")
+    def test_024_perform_reverse_check_subdomain_match(self, mock_ptr_resolve):
+        """Test _perform_reverse_check passes for PTR subdomain of requested domain"""
+        mock_ptr_resolve.return_value = ("www.example.com", False)
+
+        result = self.validator._perform_reverse_check(
+            "example.com", "192.168.1.1", []
+        )
+
+        self.assertTrue(result["reverse_check_passed"])
+        self.assertEqual(result["reverse_domains"], ["www.example.com"])
 
 
 class TestDnsPersistChallengeValidator(unittest.TestCase):
