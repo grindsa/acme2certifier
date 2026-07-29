@@ -228,19 +228,24 @@ class TestA2CEABChk(unittest.TestCase):
 
     def test_014_module_main_entrypoint(self):
         """``__main__`` guard calls main()"""
+        import importlib
         import runpy
+        from pathlib import Path
 
+        path = Path(self.mod.__file__)
         sys.modules.pop("acme2certifier.tools.a2c_eab_chk", None)
-        with patch("sys.argv", ["prog", "-c", "/no/such.cfg"]), patch(
-            "acme2certifier.acme_srv.db_handler.initialize"
-        ), patch(
-            "acme2certifier.acme_srv.helper.logger_setup", return_value=self.logger
-        ), patch("acme2certifier.acme_srv.helper.print_debug"):
-            runpy.run_module(
-                "acme2certifier.tools.a2c_eab_chk",
-                run_name="__main__",
-                alter_sys=True,
-            )
+
+        # importlib binds submodules on the parent package; required for
+        # unittest.mock.patch on Python 3.10 (``__import__`` alone does not).
+        db_handler = importlib.import_module("acme2certifier.acme_srv.db_handler")
+        helper = importlib.import_module("acme2certifier.acme_srv.helper")
+
+        with patch("sys.argv", ["prog", "-c", "/no/such.cfg"]), patch.object(
+            db_handler, "initialize"
+        ), patch.object(helper, "logger_setup", return_value=self.logger), patch.object(
+            helper, "print_debug"
+        ):
+            runpy.run_path(str(path), run_name="__main__")
 
 
 if __name__ == "__main__":

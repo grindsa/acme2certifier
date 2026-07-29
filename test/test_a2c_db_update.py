@@ -3,8 +3,10 @@
 """unittests for a2c_db_update.py"""
 
 # pylint: disable=C0415
+import importlib
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 
@@ -32,16 +34,21 @@ class TestA2CDbUpdate(unittest.TestCase):
         """``__main__`` guard calls main()"""
         import runpy
 
+        from acme2certifier.tools import a2c_db_update as mod
+
+        path = Path(mod.__file__)
         sys.modules.pop("acme2certifier.tools.a2c_db_update", None)
-        with patch(
-            "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
-        ), patch("acme2certifier.acme_srv.db_handler.DBstore") as mock_cls:
+
+        # importlib binds submodules on the parent package; required for
+        # unittest.mock.patch on Python 3.10 (``__import__`` alone does not).
+        helper = importlib.import_module("acme2certifier.acme_srv.helper")
+        db_handler = importlib.import_module("acme2certifier.acme_srv.db_handler")
+
+        with patch.object(
+            helper, "logger_setup", return_value=MagicMock()
+        ), patch.object(db_handler, "DBstore") as mock_cls:
             mock_cls.return_value.db_update.return_value = None
-            runpy.run_module(
-                "acme2certifier.tools.a2c_db_update",
-                run_name="__main__",
-                alter_sys=True,
-            )
+            runpy.run_path(str(path), run_name="__main__")
             mock_cls.return_value.db_update.assert_called()
 
 

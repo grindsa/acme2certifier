@@ -127,15 +127,16 @@ class TestCertsrv(unittest.TestCase):
         obj._set_credentials("u", "p")
         self.assertEqual(obj.session.auth, ("u", "p"))
 
-    @patch("requests_ntlm.HttpNtlmAuth")
-    def test_008_set_credentials_ntlm(self, mock_ntlm):
-        """_set_credentials ntlm auth"""
-        mock_ntlm.return_value = "ntlm-auth"
+    @patch.dict("sys.modules", {"requests_ntlm": MagicMock()})
+    def test_008_set_credentials_ntlm(self):
+        """_set_credentials ntlm auth (stub package; do not require requests_ntlm installed)"""
+        mock_ntlm = sys.modules["requests_ntlm"]
+        mock_ntlm.HttpNtlmAuth.return_value = "ntlm-auth"
         obj = self._make_certsrv(auth_method="basic")
         obj.auth_method = "ntlm"
-        mock_ntlm.reset_mock()
+        mock_ntlm.HttpNtlmAuth.reset_mock()
         obj._set_credentials("DOMAIN\\user", "pass")
-        mock_ntlm.assert_called_once_with("DOMAIN\\user", "pass")
+        mock_ntlm.HttpNtlmAuth.assert_called_once_with("DOMAIN\\user", "pass")
         self.assertEqual(obj.session.auth, "ntlm-auth")
 
     def test_009_set_credentials_cert(self):

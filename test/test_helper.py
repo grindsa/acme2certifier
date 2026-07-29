@@ -7163,7 +7163,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 return_value=None,
             ),
             patch(
-                "importlib.import_module",
+                "acme2certifier.acme_srv.helpers.plugin_loader.importlib.import_module",
                 side_effect=ImportError("no default"),
             ),
             self.assertLogs("test_a2c", level="WARNING") as lcm,
@@ -7218,9 +7218,14 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(any("Hooks module load failed" in line for line in lcm.output))
 
         plugin_loader._HANDLER_LOAD_LOGGED.clear()
-        with patch(
-            "acme2certifier.acme_srv.db_handler.load_db_handler_module",
-            return_value="dbmod",
+        # Other suites may leave a MagicMock in sys.modules for db_handler.
+        # Reload the real module and patch.object so we do not patch a mock.
+        import importlib
+
+        sys.modules.pop("acme2certifier.acme_srv.db_handler", None)
+        db_handler_mod = importlib.import_module("acme2certifier.acme_srv.db_handler")
+        with patch.object(
+            db_handler_mod, "load_db_handler_module", return_value="dbmod"
         ):
             with self.assertLogs("test_a2c", level="INFO") as lcm:
                 self.assertEqual("dbmod", db_handler_load(self.logger, {}))

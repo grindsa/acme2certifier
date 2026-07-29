@@ -46,14 +46,16 @@ jobs:
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
+      fail-fast: false
       matrix:
         python_version: ['3.x', '3.14', '3.13', '3.12', '3.11', '3.10', '3.9']
 
     name: Python Unittest (${{ matrix.python_version }})
     steps:
     - uses: actions/checkout@v6
+
     - name: Set up Python ${{ matrix.python_version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python_version }}
 
@@ -84,6 +86,7 @@ jobs:
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
+      fail-fast: false
       matrix:
         python_version: ['3.x', '3.12', '3.11', '3.10', '3.9', '3.8']
 
@@ -92,8 +95,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+
       - name: Set up Python ${{ matrix.python_version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
 

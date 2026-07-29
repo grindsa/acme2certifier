@@ -3,8 +3,10 @@
 """unittests for a2c_cert_poll.py"""
 
 # pylint: disable=C0415, W0212
+import importlib
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 
@@ -78,38 +80,24 @@ class TestA2CCertPoll(unittest.TestCase):
         """``__main__`` guard calls main()"""
         import runpy
 
-        sys.modules.pop("acme2certifier.tools.a2c_cert_poll", None)
-        with patch("acme2certifier.tools.a2c_cert_poll.main") as mock_main:
-            # Patch will be overwritten on re-import; call main via run and stub deps
-            pass
-        with patch("acme2certifier.tools.a2c_cert_poll.initialize"), patch(
-            "acme2certifier.tools.a2c_cert_poll.logger_setup",
-            return_value=MagicMock(),
-        ), patch("acme2certifier.tools.a2c_cert_poll.Certificate") as mock_cls:
-            mock_cm = MagicMock()
-            mock_cm.__enter__.return_value.certlist_search.return_value = []
-            mock_cm.__exit__.return_value = False
-            mock_cls.return_value = mock_cm
-            # Direct guard coverage: invoke main then simulate __main__
-            from acme2certifier.tools import a2c_cert_poll
+        from acme2certifier.tools import a2c_cert_poll as mod
 
-            with patch.object(a2c_cert_poll, "main") as mock_main2:
-                a2c_cert_poll.main()
-                mock_main2.assert_called_once()
-
+        path = Path(mod.__file__)
         sys.modules.pop("acme2certifier.tools.a2c_cert_poll", None)
-        with patch("acme2certifier.acme_srv.db_handler.initialize"), patch(
-            "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
-        ), patch("acme2certifier.acme_srv.certificate.Certificate") as mock_cls2:
-            mock_cm2 = MagicMock()
-            mock_cm2.__enter__.return_value.certlist_search.return_value = []
-            mock_cm2.__exit__.return_value = False
-            mock_cls2.return_value = mock_cm2
-            runpy.run_module(
-                "acme2certifier.tools.a2c_cert_poll",
-                run_name="__main__",
-                alter_sys=True,
-            )
+
+        # importlib binds submodules on the parent package; required for
+        # unittest.mock.patch on Python 3.10 (``__import__`` alone does not).
+        db_handler = importlib.import_module("acme2certifier.acme_srv.db_handler")
+        helper = importlib.import_module("acme2certifier.acme_srv.helper")
+        certificate = importlib.import_module("acme2certifier.acme_srv.certificate")
+
+        mock_cm = MagicMock()
+        mock_cm.__enter__.return_value.certlist_search.return_value = []
+        mock_cm.__exit__.return_value = False
+        with patch.object(db_handler, "initialize"), patch.object(
+            helper, "logger_setup", return_value=MagicMock()
+        ), patch.object(certificate, "Certificate", return_value=mock_cm):
+            runpy.run_path(str(path), run_name="__main__")
 
 
 if __name__ == "__main__":
