@@ -27,6 +27,7 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     parse_url,
     proxy_check,
+    request_operation,
     uts_now,
     uts_to_date_utc,
 )
@@ -57,6 +58,8 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self.profile_mapping_field = "template_name"
+        self.request_retries = 3
+        self.request_retry_backoff = 2.0
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -75,22 +78,24 @@ class CAhandler(object):
     def _api_post(self, url: str, data: Dict[str, str]) -> Dict[str, str]:
         """generic wrapper for an API post call"""
         self.logger.debug("CAhandler._api_post()")
-        try:
-            response = requests.post(
-                url=url,
-                json=data,
-                headers=self.headers,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            )
-            try:
-                api_response = response.json()
-            except Exception:
-                api_response = {"status": response.status_code}
-        except Exception as err_:
-            self.logger.error("API POST request failed: %s", err_)
-            api_response = str(err_)
+        code, content = request_operation(
+            self.logger,
+            url=url,
+            method="post",
+            payload=data,
+            headers=self.headers,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if isinstance(content, dict):
+            api_response = content
+        elif isinstance(content, str):
+            api_response = content
+        else:
+            api_response = {"status": code}
 
         self.logger.debug("CAhandler._api_post() ended with: %s", api_response)
         return api_response
@@ -118,13 +123,16 @@ class CAhandler(object):
         self.logger.debug("CAhandler._ca_policylink_id_lookup()")
 
         # query CAs
-        ca_list = requests.get(
-            f'{self.api_host}{self.api_version}/containers/{self.container_info_dic["id"]}/issuers',
+        _code, ca_list = request_operation(
+            self.logger,
+            url=f'{self.api_host}{self.api_version}/containers/{self.container_info_dic["id"]}/issuers',
             headers=self.headers,
             verify=self.ca_bundle,
-            proxies=self.proxy,
+            proxy=self.proxy,
             timeout=self.request_timeout,
-        ).json()
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
         if "items" in ca_list:
             ca_id = self._ca_id_get(ca_list)
         else:
@@ -205,13 +213,16 @@ class CAhandler(object):
                 "CAhandler._cert_bundle_build() fetch issuer : %s",
                 cert_dic["urls"]["issuer"],
             )
-            cert_dic = requests.get(
-                self.api_host + cert_dic["urls"]["issuer"],
+            _code, cert_dic = request_operation(
+                self.logger,
+                url=self.api_host + cert_dic["urls"]["issuer"],
                 headers=self.headers,
                 verify=self.ca_bundle,
-                proxies=self.proxy,
+                proxy=self.proxy,
                 timeout=self.request_timeout,
-            ).json()
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
             if "urls" in cert_dic and "certificate" in cert_dic["urls"]:
                 cert_id = cert_dic["urls"]["certificate"].replace(
                     "/v2/certificates/", ""
@@ -243,13 +254,16 @@ class CAhandler(object):
                 cert_id,
             )
 
-            cert_dic = requests.get(
-                f"{self.api_host}{self.api_version}/certificates/{cert_id}",
+            _code, cert_dic = request_operation(
+                self.logger,
+                url=f"{self.api_host}{self.api_version}/certificates/{cert_id}",
                 headers=self.headers,
                 verify=self.ca_bundle,
-                proxies=self.proxy,
+                proxy=self.proxy,
                 timeout=self.request_timeout,
-            ).json()
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
             if "der" in cert_dic:
                 if count == 1:
                     # get cert_raw
@@ -280,14 +294,17 @@ class CAhandler(object):
         # check job status
         cnt = 0
         while cnt < 10:
-            response = requests.get(
-                f"{self.api_host}{self.api_version}/jobs/{job_id}",
+            _code, response = request_operation(
+                self.logger,
+                url=f"{self.api_host}{self.api_version}/jobs/{job_id}",
                 headers=self.headers,
                 verify=self.ca_bundle,
-                proxies=self.proxy,
+                proxy=self.proxy,
                 timeout=self.request_timeout,
-            ).json()
-            if response.get("status", None) == "done":
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+            if isinstance(response, dict) and response.get("status", None) == "done":
                 if (
                     len(response.get("entities", [])) > 0
                     and "ref" in response["entities"][0]
@@ -323,19 +340,17 @@ class CAhandler(object):
         cert_serial = cert_serial_get(self.logger, cert_raw, hexformat=True)
 
         # search for certificate
-        try:
-            cert_list = requests.get(
-                f"{self.api_host}{self.api_version}/certificates?freeText=={cert_serial}&containerId={self.container_info_dic['id']}",
-                headers=self.headers,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            ).json()
-        except Exception as err:
-            self.logger.error(
-                "API request to fetch certificates got aborted with err: %s",
-                err,
-            )
+        _code, cert_list = request_operation(
+            self.logger,
+            url=f"{self.api_host}{self.api_version}/certificates?freeText=={cert_serial}&containerId={self.container_info_dic['id']}",
+            headers=self.headers,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if not isinstance(cert_list, dict):
             cert_list = []
 
         if (
@@ -538,6 +553,22 @@ class CAhandler(object):
             except Exception:
                 self.request_timeout = 20
 
+        if "request_retries" in config_dic["CAhandler"]:
+            try:
+                self.request_retries = int(
+                    config_dic.get("CAhandler", "request_retries")
+                )
+            except Exception:
+                self.request_retries = 3
+
+        if "request_retry_backoff" in config_dic["CAhandler"]:
+            try:
+                self.request_retry_backoff = float(
+                    config_dic.get("CAhandler", "request_retry_backoff")
+                )
+            except Exception:
+                self.request_retry_backoff = 2.0
+
         self.logger.debug("CAhandler._config_proxy_load() ended")
 
     def _config_load(self):
@@ -575,20 +606,21 @@ class CAhandler(object):
             "CAhandler._container_id_lookup() for tsg: %s",
             self.container_info_dic["name"],
         )
-        try:
-            tsg_list = requests.get(
-                self.api_host
-                + "/containers?freeText="
-                + str(self.container_info_dic["name"])
-                + "&offset=0&limit=50&fetchPath=true",
-                headers=self.headers,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            ).json()
-        except Exception as err_:
-            self.logger.error("Failed to retrieve container id: %s", err_)
-            tsg_list = []
+        _code, tsg_list = request_operation(
+            self.logger,
+            url=self.api_host
+            + "/containers?freeText="
+            + str(self.container_info_dic["name"])
+            + "&offset=0&limit=50&fetchPath=true",
+            headers=self.headers,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if not isinstance(tsg_list, dict):
+            tsg_list = {}
 
         if "items" in tsg_list:
             for tsg in tsg_list["items"]:
@@ -653,18 +685,21 @@ class CAhandler(object):
         """_login into NCLM API"""
         self.logger.debug("CAhandler._login()")
         # check first if API is reachable
-        api_response = requests.get(
-            self.api_host + "/v1",
-            proxies=self.proxy,
+        api_code, api_content = request_operation(
+            self.logger,
+            url=self.api_host + "/v1",
+            proxy=self.proxy,
             timeout=self.request_timeout,
             verify=self.ca_bundle,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
         )
-        self.logger.debug("api response code:%s", api_response.status_code)
+        self.logger.debug("api response code:%s", api_code)
 
-        if api_response.ok:
+        if api_code and api_code < 400:
             # all fine try to login
-            if "versionNumber" in api_response.json():
-                self.nclm_version = api_response.json()["versionNumber"]
+            if isinstance(api_content, dict) and "versionNumber" in api_content:
+                self.nclm_version = api_content["versionNumber"]
                 self.logger.debug("NCLM version: %s", self.nclm_version)
 
             self.logger.debug(
@@ -676,18 +711,22 @@ class CAhandler(object):
                 "username": self.credential_dic["api_user"],
                 "password": self.credential_dic["api_password"],
             }
-            api_response = requests.post(
+            login_code, login_content = request_operation(
+                self.logger,
                 url=self.api_host
                 + self.api_version
                 + "/token?grant_type=client_credentials",
-                json=data,
-                proxies=self.proxy,
+                method="post",
+                payload=data,
+                proxy=self.proxy,
                 timeout=self.request_timeout,
                 verify=self.ca_bundle,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
             )
 
-            if api_response.ok:
-                json_dic = api_response.json()
+            if login_code and login_code < 400:
+                json_dic = login_content if isinstance(login_content, dict) else {}
                 if "access_token" in json_dic:
                     self.headers = {
                         "Authorization": f"Bearer {json_dic['access_token']}"
@@ -703,10 +742,9 @@ class CAhandler(object):
                 else:
                     self.logger.error("No token returned after logging in. Aborting.")
             else:
-                self.logger.error("Login Error: %s", api_response.status_code)
+                self.logger.error("Login Error: %s", login_code)
         else:
-            # If response code is not ok (200), print the resulting http error code with description
-            self.logger.error("Login failed. Error: %s", api_response.status_code)
+            self.logger.error("Login failed. Error: %s", api_code)
 
     def _revocation_status_poll(
         self, job_id: int, err_dic: Dict[str, str]
@@ -716,14 +754,17 @@ class CAhandler(object):
 
         cnt = 0
         while cnt < 10:
-            response = requests.get(
-                f"{self.api_host}{self.api_version}/jobs/{job_id}",
+            _code, response = request_operation(
+                self.logger,
+                url=f"{self.api_host}{self.api_version}/jobs/{job_id}",
                 headers=self.headers,
                 verify=self.ca_bundle,
-                proxies=self.proxy,
+                proxy=self.proxy,
                 timeout=self.request_timeout,
-            ).json()
-            if "status" in response and response["status"] in ["done", "failed"]:
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+            if isinstance(response, dict) and "status" in response and response["status"] in ["done", "failed"]:
                 if response["status"] == "done":
                     code = 200
                     message = None
@@ -747,16 +788,17 @@ class CAhandler(object):
     def _template_list_get(self, ca_id: int) -> Dict[str, str]:
         """get list of templates"""
         self.logger.debug("CAhandler._template_list_get(%s)", ca_id)
-        try:
-            template_list = requests.get(
-                f"{self.api_host}{self.api_version}/containers/{self.container_info_dic['id']}/issuers/{ca_id}/templates",
-                headers=self.headers,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            ).json()
-        except Exception as err_:
-            self.logger.error("Failed to retrieve template list: %s", err_)
+        _code, template_list = request_operation(
+            self.logger,
+            url=f"{self.api_host}{self.api_version}/containers/{self.container_info_dic['id']}/issuers/{ca_id}/templates",
+            headers=self.headers,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if not isinstance(template_list, dict):
             template_list = []
 
         if "items" in template_list:

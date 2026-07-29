@@ -696,13 +696,14 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_046__api_post(self):
         """CAhandler._api_post() returns an http error"""
+        self.cahandler.request_retries = 0
         mockresponse = Mock()
         mockresponse.post.side_effect = [Exception("exc_api_post")]
         self.cahandler.session = mockresponse
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("exc_api_post", self.cahandler._api_post("url", "data"))
         self.assertIn(
-            "ERROR:test_a2c:API post() returned error: exc_api_post",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_post",
             lcm.output,
         )
 
@@ -717,13 +718,14 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_048__api_put(self):
         """CAhandler._api_put() returns an http error"""
+        self.cahandler.request_retries = 0
         mockresponse = Mock()
         mockresponse.put.side_effect = [Exception("exc_api_put")]
         self.cahandler.session = mockresponse
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("exc_api_put", self.cahandler._api_put("url"))
         self.assertIn(
-            "ERROR:test_a2c:API put() returned error: exc_api_put",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_put",
             lcm.output,
         )
 
@@ -767,6 +769,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_053__cert_status_check(self):
         """test _cert_status_check exception"""
+        self.cahandler.request_retries = 0
         mockresponse = Mock()
         mockresponse.get.side_effect = [Exception("exc_cert_chk")]
         self.cahandler.session = mockresponse
@@ -777,7 +780,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._cert_status_check("issuer_dn", "cert_serial"),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate status check returned error: exc_cert_chk",
+            "ERROR:test_a2c:Request_operation returned error: exc_cert_chk",
             lcm.output,
         )
 
@@ -805,6 +808,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_056__status_get(self):
         """test _cert_status_check exception"""
+        self.cahandler.request_retries = 0
         mockresponse = Mock()
         mockresponse.get.side_effect = [Exception("exc_status_chk")]
         self.cahandler.session = mockresponse
@@ -815,7 +819,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._status_get(),
             )
         self.assertIn(
-            "ERROR:test_a2c:Could not get certificate status. Error: exc_status_chk",
+            "ERROR:test_a2c:Request_operation returned error: exc_status_chk",
             lcm.output,
         )
 

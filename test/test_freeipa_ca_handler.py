@@ -400,51 +400,53 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(result, {"result": "ok"})
 
     def test_027_rpc_post_http_error_testcase(self):
+        self.handler.request_retries = 0
         self.handler.session.post.side_effect = Exception("HTTP error")
-        with self.assertRaises(Exception):
-            self.handler._rpc_post({"foo": "bar"})
-
-    def test_028_rpc_post_http_error(self):
-        # Simulate HTTPError
-        self.handler.session.post.side_effect = requests.exceptions.HTTPError("fail")
         result = self.handler._rpc_post({"foo": "bar"})
         self.assertIn("error", result)
         self.assertIn("HTTP error", result["error"])
 
+    def test_028_rpc_post_http_error(self):
+        self.handler.request_retries = 0
+        self.handler.session.post.side_effect = requests.exceptions.HTTPError("fail")
+        result = self.handler._rpc_post({"foo": "bar"})
+        self.assertIn("error", result)
+        self.assertIn("fail", result["error"])
+
     def test_029_rpc_post_connection_error(self):
-        # Simulate ConnectionError
+        self.handler.request_retries = 0
         self.handler.session.post.side_effect = requests.exceptions.ConnectionError(
             "fail"
         )
         result = self.handler._rpc_post({"foo": "bar"})
         self.assertIn("error", result)
-        self.assertIn("Connection error", result["error"])
+        self.assertIn("fail", result["error"])
 
     def test_030_rpc_post_timeout_error(self):
-        # Simulate Timeout
+        self.handler.request_retries = 0
         self.handler.session.post.side_effect = requests.exceptions.Timeout("fail")
         result = self.handler._rpc_post({"foo": "bar"})
         self.assertIn("error", result)
-        self.assertIn("Timeout error", result["error"])
+        self.assertIn("fail", result["error"])
 
     def test_031_rpc_post_request_exception(self):
-        # Simulate generic RequestException
+        self.handler.request_retries = 0
         self.handler.session.post.side_effect = requests.exceptions.RequestException(
             "fail"
         )
         result = self.handler._rpc_post({"foo": "bar"})
         self.assertIn("error", result)
-        self.assertIn("Request exception", result["error"])
+        self.assertIn("fail", result["error"])
 
     def test_032_rpc_post_json_decode_error(self):
-        # Simulate ValueError on resp.json()
         mock_resp = MagicMock()
-        mock_resp.raise_for_status.return_value = None
+        mock_resp.status_code = 200
+        mock_resp.text = "not-json"
         mock_resp.json.side_effect = ValueError("fail")
         self.handler.session.post.return_value = mock_resp
         result = self.handler._rpc_post({"foo": "bar"})
         self.assertIn("error", result)
-        self.assertIn("JSON decode error", result["error"])
+        self.assertIn("fail", result["error"])
 
     def test_033_extract_api_version_testcase(self):
         self.handler._ipa_ping = MagicMock(

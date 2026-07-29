@@ -22,6 +22,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_headerinfo_load,
     enrollment_config_log,
+    request_operation,
 )
 
 
@@ -64,6 +65,8 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self.profile_mapping_field = "profile_id"
+        self.request_retries = 3
+        self.request_retry_backoff = 2.0
 
     def __enter__(self):
         """
@@ -123,6 +126,20 @@ class CAhandler(object):
             self.ca_bundle = config_dic.getboolean(
                 self.CONFIG_SECTION, "ca_bundle", fallback=self.ca_bundle
             )
+
+        try:
+            self.request_retries = int(
+                config_dic.get(self.CONFIG_SECTION, "request_retries", fallback=self.request_retries)
+            )
+        except ValueError:
+            self.logger.error("CAhandler._config_load(): request_retries is not an integer, using default")
+
+        try:
+            self.request_retry_backoff = float(
+                config_dic.get(self.CONFIG_SECTION, "request_retry_backoff", fallback=self.request_retry_backoff)
+            )
+        except ValueError:
+            self.logger.error("CAhandler._config_load(): request_retry_backoff is not a float, using default")
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
@@ -371,31 +388,21 @@ class CAhandler(object):
             requests.exceptions.RequestException: If the request fails.
         """
         self.logger.debug("CAhandler._rpc_post()")
-        try:
-            resp = self.session.post(
-                self.api_host + self.prefix + self.json_rpc_url,
-                json=data_dic,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            )
-            resp.raise_for_status()
-            response = resp.json()
-        except requests.exceptions.HTTPError as err:
-            self.logger.error("HTTP error during RPC POST: %s", err)
-            return {"error": f"HTTP error: {err}"}
-        except requests.exceptions.ConnectionError as err:
-            self.logger.error("Connection error during RPC POST: %s", err)
-            return {"error": f"Connection error: {err}"}
-        except requests.exceptions.Timeout as err:
-            self.logger.error("Timeout during RPC POST: %s", err)
-            return {"error": f"Timeout error: {err}"}
-        except requests.exceptions.RequestException as err:
-            self.logger.error("Unexpected request exception during RPC POST: %s", err)
-            return {"error": f"Request exception: {err}"}
-        except ValueError as err:
-            self.logger.error("Failed to decode JSON response: %s", err)
-            response = {"error": f"JSON decode error: {err}"}
+        code, response = request_operation(
+            self.logger,
+            url=self.api_host + self.prefix + self.json_rpc_url,
+            method="post",
+            payload=data_dic,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if isinstance(response, str):
+            self.logger.error("RPC POST request failed: %s", response)
+            return {"error": response}
         self.logger.debug("CAhandler._rpc_post() ended.")
         return response
 

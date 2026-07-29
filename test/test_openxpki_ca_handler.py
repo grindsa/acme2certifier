@@ -542,6 +542,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_040__rpc_post(self, mock_post):
         """CAhandler.get_ca() returns an http error"""
         self.cahandler.host = "api_host"
+        self.cahandler.request_retries = 0
         mockresponse = Mock()
         mockresponse.post.side_effect = [Exception("exc_api_post")]
         self.cahandler.session = mockresponse

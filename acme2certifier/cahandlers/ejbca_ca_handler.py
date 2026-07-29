@@ -27,6 +27,7 @@ from acme2certifier.acme_srv.helper import (
     enrollment_config_log,
     handler_config_check,
     load_config,
+    request_operation,
 )
 
 
@@ -50,6 +51,8 @@ class CAhandler(object):
         self.profiles = {}
         self.proxy = None
         self.request_timeout = 5
+        self.request_retries = 3
+        self.request_retry_backoff = 2.0
         self.session = None
         self.username = None
         self.username_append_cn = False
@@ -68,16 +71,17 @@ class CAhandler(object):
         """generic wrapper for an API put call"""
         self.logger.debug("_api_put(%s)", url)
 
-        try:
-            api_response = self.session.put(
-                url,
-                proxies=self.proxy,
-                verify=self.ca_bundle,
-                timeout=self.request_timeout,
-            ).json()
-        except Exception as err_:
-            self.logger.error("API put() returned error: %s", err_)
-            api_response = str(err_)
+        _code, api_response = request_operation(
+            self.logger,
+            url=url,
+            method="put",
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
 
         return api_response
 
@@ -91,18 +95,19 @@ class CAhandler(object):
         path = f"/ejbca/ejbca-rest-api/v1/certificate/{encode_url(self.logger, issuer_dn)}/{cert_serial}/revocationstatus"
 
         if self.api_host:
-            try:
-                certstatus_response = self.session.get(
-                    self.api_host + path,
-                    proxies=self.proxy,
-                    verify=self.ca_bundle,
-                    timeout=self.request_timeout,
-                ).json()
-            except Exception as err_:
-                self.logger.error(
-                    "Certificate status check returned error: %s", str(err_)
-                )
-                certstatus_response = {"status": "nok", "error": str(err_)}
+            _code, certstatus_response = request_operation(
+                self.logger,
+                url=self.api_host + path,
+                method="GET",
+                verify=self.ca_bundle,
+                proxy=self.proxy,
+                timeout=self.request_timeout,
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+            if isinstance(certstatus_response, str):
+                certstatus_response = {"status": "nok", "error": certstatus_response}
         else:
             self.logger.error("api_host parameter is missing in configuration")
             certstatus_response = {}
@@ -126,6 +131,28 @@ class CAhandler(object):
                     err,
                 )
                 self.request_timeout = 5
+
+            try:
+                self.request_retries = int(
+                    config_dic.get("CAhandler", "request_retries", fallback=3)
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Could not load request_retries parameter:%s",
+                    err,
+                )
+                self.request_retries = 3
+
+            try:
+                self.request_retry_backoff = float(
+                    config_dic.get("CAhandler", "request_retry_backoff", fallback=2.0)
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Could not load request_retry_backoff parameter:%s",
+                    err,
+                )
+                self.request_retry_backoff = 2.0
 
             self.ca_bundle = config_dic.get("CAhandler", "ca_bundle", fallback=True)
             if self.ca_bundle == "False":
@@ -321,17 +348,18 @@ class CAhandler(object):
         """generic wrapper for an API post call"""
         self.logger.debug("_api_post(%s)", url)
 
-        try:
-            api_response = self.session.post(
-                url,
-                json=data,
-                proxies=self.proxy,
-                verify=self.ca_bundle,
-                timeout=self.request_timeout,
-            ).json()
-        except Exception as err_:
-            self.logger.error("API post() returned error: %s", err_)
-            api_response = str(err_)
+        _code, api_response = request_operation(
+            self.logger,
+            url=url,
+            method="post",
+            payload=data,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
 
         return api_response
 
@@ -392,18 +420,19 @@ class CAhandler(object):
         self.logger.debug("_status_get()")
 
         if self.api_host:
-            try:
-                api_response = self.session.get(
-                    self.api_host + "/ejbca/ejbca-rest-api/v1/certificate/status",
-                    proxies=self.proxy,
-                    verify=self.ca_bundle,
-                    timeout=self.request_timeout,
-                ).json()
-            except Exception as err_:
-                self.logger.error(
-                    "Could not get certificate status. Error: %s", str(err_)
-                )
-                api_response = {"status": "nok", "error": str(err_)}
+            _code, api_response = request_operation(
+                self.logger,
+                url=self.api_host + "/ejbca/ejbca-rest-api/v1/certificate/status",
+                method="GET",
+                verify=self.ca_bundle,
+                proxy=self.proxy,
+                timeout=self.request_timeout,
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+            if isinstance(api_response, str):
+                api_response = {"status": "nok", "error": api_response}
         else:
             self.logger.error(
                 "Configuration incomplete: api_host parameter is missing in configuration"

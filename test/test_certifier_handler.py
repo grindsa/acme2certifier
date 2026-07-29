@@ -38,6 +38,8 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler.get_ca() returns an http error"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_get.side_effect = requests.exceptions.HTTPError
         self.assertEqual(
             {"status": 500, "message": "", "statusMessage": "Internal Server Error"},
@@ -49,6 +51,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler.get_ca() returns no json file"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
         mock_get.status_code = 200
         mock_get.return_value.json = {"bbs": "hahha"}
         self.assertEqual(
@@ -519,7 +522,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_user = "api_user"
         self.cahandler.api_password = "api_password"
         self.cahandler._auth_set()
-        self.assertTrue(self.cahandler.auth)
+        self.assertIsNotNone(self.cahandler.session)
+        self.assertIsNotNone(self.cahandler.session.auth)
 
     def test_029_auth_set(self):
         """test _auth_set without api_user"""
@@ -527,7 +531,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_password = "api_password"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._auth_set()
-        self.assertFalse(self.cahandler.auth)
+        self.assertIsNone(self.cahandler.session.auth)
         self.assertIn(
             'ERROR:test_a2c:Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file',
             lcm.output,
@@ -539,7 +543,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_password = None
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._auth_set()
-        self.assertFalse(self.cahandler.auth)
+        self.assertIsNone(self.cahandler.session.auth)
         self.assertIn(
             'ERROR:test_a2c:Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file',
             lcm.output,
@@ -548,6 +552,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch.object(requests, "post")
     def test_031__api_post(self, mock_req):
         """test _api_post successful run"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mock_req.return_value = mockresponse
         mockresponse.json = lambda: {"foo": "bar"}
@@ -558,11 +563,13 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler.get_ca() returns an http error"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_post.side_effect = Exception("exc_api_post")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("exc_api_post", self.cahandler._api_post("url", "data"))
         self.assertIn(
-            "ERROR:test_a2c:API post() request returned an error: exc_api_post",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_post",
             lcm.output,
         )
 
@@ -571,6 +578,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _ca_get successful run"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
         mockresponse = Mock()
         mock_req.return_value = mockresponse
         mockresponse.json = lambda: {"foo": "bar"}
@@ -590,6 +598,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_035__ca_get(self, mock_req):
         """test _ca_get auth none"""
         self.cahandler.api_host = "api_host"
+        self.cahandler.session = requests
         mockresponse = Mock()
         mock_req.return_value = mockresponse
         mockresponse.json = lambda: {"foo": "bar"}
@@ -600,6 +609,8 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler.get_ca() returns an http error"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_get.side_effect = Exception("exc_ca_get")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -611,7 +622,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._ca_get(),
             )
         self.assertIn(
-            "ERROR:test_a2c:API get() request returned error: exc_ca_get", lcm.output
+            "ERROR:test_a2c:Request_operation returned error: exc_ca_get", lcm.output
         )
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get")
@@ -783,6 +794,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._cert_get_properties() all good"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
         mockresponse = Mock()
         mock_req.return_value = mockresponse
         mockresponse.json = lambda: {"foo": "bar"}
@@ -795,6 +807,8 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._cert_get_properties() all good"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_get.side_effect = Exception("exc_api_get")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -845,6 +859,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - nothing come back from request get"""
         self.cahandler.polling_timeout = 5
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -860,6 +875,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - no status returned from  request get"""
         self.cahandler.polling_timeout = 5
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -874,6 +890,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - status "rejected" returned from  request get"""
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -889,6 +906,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - status "accepted" returned from  request get but no certificate in"""
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -905,6 +923,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - status "accepted" returned from  request "certifiate" in but no "certificateBase64" in 2dn request"""
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -932,6 +951,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - status "accepted" returned from  request "certifiate" in but no "certificateBase64" in 2dn request"""
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -1463,6 +1483,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_093__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - issuer in dict without certificateBase64"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer"}
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -1472,6 +1493,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_094__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns "certificates" but no active"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": "certificates"}
@@ -1486,6 +1508,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_095__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns certificate and active, 2nd request is bogus"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": {"active": "active"}}
@@ -1500,6 +1523,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_096__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns certificate two certs"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": {"active": "active"}}
@@ -1519,6 +1543,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_097__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns certificate three certs"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": {"active": "active"}}
@@ -1551,6 +1576,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_098__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - issuerCa in"""
+        self.cahandler.session = requests
         cert_dic = {"issuerCa": "issuerCa", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": "certificates"}
@@ -1569,6 +1595,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_100_request_poll(self, mock_get):
         """test request poll request returned exception"""
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_get.side_effect = Exception("exc_api_get")
         result = ('"status" field not found in response.', None, None, "url", False)
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1580,6 +1608,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_101_request_poll(self, mock_get):
         """test request poll request returned unknown status"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "unknown"}
         mock_get.return_value = mockresponse
@@ -1589,6 +1618,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_102_request_poll(self, mock_get):
         """test request poll request returned status rejected"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "rejected"}
         mock_get.return_value = mockresponse
@@ -1598,6 +1628,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_103_request_poll(self, mock_get):
         """test request poll request returned status accepted but no certinformation in"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "accepted", "foo": "bar"}
         mock_get.return_value = mockresponse
@@ -1613,6 +1644,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_104_request_poll(self, mock_get):
         """test request poll request returned status accepted but no certinformation in"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "accepted", "certificate": "certificate"}
         mock_get.return_value = mockresponse
@@ -1631,6 +1663,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_105_request_poll(self, mock_get, mock_pemgen):
         """test request poll request returned status accepted but no certinformation in"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {
             "status": "accepted",

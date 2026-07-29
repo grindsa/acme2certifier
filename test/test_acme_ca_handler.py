@@ -2831,7 +2831,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.cahandler._dns_challenge_deprovision()
         self.assertIn(
-            "DEBUG:test_a2c:CAhandler._dns_challenge_provision(): using shell: /bin/bash",
+            "DEBUG:test_a2c:CAhandler._shell_exec(): using shell: /bin/bash",
             lcm.output,
         )
 
@@ -3004,7 +3004,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.cahandler._dns_challenge_provision(fqdn, key_authorization, user_key)
         self.assertIn(
-            "DEBUG:test_a2c:CAhandler._dns_challenge_provision(): using shell: /bin/bash",
+            "DEBUG:test_a2c:CAhandler._shell_exec(): using shell: /bin/bash",
             lcm.output,
         )
 
@@ -3063,7 +3063,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.cahandler._dns_challenge_provision(fqdn, key_authorization, user_key)
         self.assertIn(
-            "DEBUG:test_a2c:CAhandler._dns_challenge_provision(): using shell: /bin/bash",
+            "DEBUG:test_a2c:CAhandler._shell_exec(): using shell: /bin/bash",
             lcm.output,
         )
         self.assertIn(
