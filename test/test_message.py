@@ -490,7 +490,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_030_config_load(self, mock_load_cfg):
-        """test _config_load refuses nonce_check_disable without break-glass env"""
+        """test _config_load ignores nonce_check_disable without break-glass env"""
         parser = configparser.ConfigParser()
         parser["Nonce"] = {
             "nonce_check_disable": True,
@@ -500,14 +500,21 @@ class TestACMEHandler(unittest.TestCase):
         from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
         with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
-            with self.assertRaises(RuntimeError) as err:
-                Message(False, "http://tester.local", self.logger)
-        self.assertIn(SECURITY_DISABLE_ACK_ENV, str(err.exception))
-        self.assertIn("nonce_check_disable", str(err.exception))
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                message = Message(False, "http://tester.local", self.logger)
+        self.assertFalse(message.config.nonce_check_disable)
+        self.assertFalse(message.config.signature_check_disable)
+        self.assertTrue(
+            any(
+                "Ignoring nonce_check_disable" in line
+                and SECURITY_DISABLE_ACK_ENV in line
+                for line in lcm.output
+            )
+        )
 
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_031_config_load(self, mock_load_cfg):
-        """test _config_load refuses signature_check_disable without break-glass env"""
+        """test _config_load ignores signature_check_disable without break-glass env"""
         parser = configparser.ConfigParser()
         parser["Nonce"] = {
             "nonce_check_disable": False,
@@ -517,10 +524,17 @@ class TestACMEHandler(unittest.TestCase):
         from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
         with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
-            with self.assertRaises(RuntimeError) as err:
-                Message(False, "http://tester.local", self.logger)
-        self.assertIn(SECURITY_DISABLE_ACK_ENV, str(err.exception))
-        self.assertIn("signature_check_disable", str(err.exception))
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                message = Message(False, "http://tester.local", self.logger)
+        self.assertFalse(message.config.nonce_check_disable)
+        self.assertFalse(message.config.signature_check_disable)
+        self.assertTrue(
+            any(
+                "Ignoring signature_check_disable" in line
+                and SECURITY_DISABLE_ACK_ENV in line
+                for line in lcm.output
+            )
+        )
 
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_031b_config_load_security_disable_with_ack(self, mock_load_cfg):

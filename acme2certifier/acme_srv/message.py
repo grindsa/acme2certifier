@@ -86,12 +86,12 @@ class Message(object):
     def __exit__(self, *args):
         """Close the connection at the end of the context"""
 
-    def _enforce_security_disable_gate(
+    def _apply_security_disable_gate(
         self, nonce_check_disable: bool, signature_check_disable: bool
-    ) -> None:
-        """Refuse insecure disable flags unless explicitly acknowledged via env."""
+    ) -> Tuple[bool, bool]:
+        """Keep checks on unless break-glass env acknowledges insecure disable flags."""
         if not (nonce_check_disable or signature_check_disable):
-            return
+            return False, False
 
         enabled: List[str] = []
         if nonce_check_disable:
@@ -101,17 +101,20 @@ class Message(object):
         enabled_csv = ", ".join(enabled)
 
         if not security_disable_acknowledged():
-            raise RuntimeError(
-                f"Refusing to start: {enabled_csv} enabled in [Nonce] without "
-                f"{SECURITY_DISABLE_ACK_ENV}=1. These options disable ACME "
-                "authentication and are break-glass testing only."
+            self.logger.warning(
+                "Ignoring %s in [Nonce]; nonce/signature checks remain enabled. "
+                "Set %s=1 only for testing if you intentionally need these options.",
+                enabled_csv,
+                SECURITY_DISABLE_ACK_ENV,
             )
+            return False, False
 
         self.logger.critical(
             "**** SECURITY DISABLE ACKNOWLEDGED via %s: %s ****",
             SECURITY_DISABLE_ACK_ENV,
             enabled_csv,
         )
+        return nonce_check_disable, signature_check_disable
 
     def _load_configuration(self) -> MessageConfiguration:
         """Load and parse config from file and return MessageConfiguration dataclass."""
@@ -119,14 +122,17 @@ class Message(object):
         config_dic = load_config()
         msg_config = MessageConfiguration()
         if "Nonce" in config_dic:
-            msg_config.nonce_check_disable = config_dic.getboolean(
+            nonce_check_disable = config_dic.getboolean(
                 "Nonce", "nonce_check_disable", fallback=False
             )
-            msg_config.signature_check_disable = config_dic.getboolean(
+            signature_check_disable = config_dic.getboolean(
                 "Nonce", "signature_check_disable", fallback=False
             )
-            self._enforce_security_disable_gate(
-                msg_config.nonce_check_disable, msg_config.signature_check_disable
+            (
+                msg_config.nonce_check_disable,
+                msg_config.signature_check_disable,
+            ) = self._apply_security_disable_gate(
+                nonce_check_disable, signature_check_disable
             )
         if "EABhandler" in config_dic:
             if config_dic.getboolean(
