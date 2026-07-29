@@ -88,12 +88,23 @@ runs:
             ;;
         esac
 
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        WEBSRV: ${{ inputs.WEBSRV }}
+
+    - name: "Sanitize artifact payload"
+      uses: ./.github/actions/sanitize_artifact_payload
+      with:
+        ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
+    - name: "Archive failure logs"
+      run: |
+        set -euo pipefail
+        mkdir -p "${GITHUB_WORKSPACE}/artifact/upload"
         # Always produce an archive (even if mostly empty) so upload-artifact has a path.
         # Include any pre-collected extras under artifact/ (exclude upload/).
         sudo tar -C "${GITHUB_WORKSPACE}/artifact/" -cvzf "${GITHUB_WORKSPACE}/artifact/upload/artifact.tar.gz" \
           --exclude=upload \
           .
       shell: bash
-      env:
-        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-        WEBSRV: ${{ inputs.WEBSRV }}

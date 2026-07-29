@@ -105,7 +105,7 @@ runs:
         time: 5s
 
     - name: "Cleanup certificates"
-      if: ${{ inputs.CLEANUP == 'true' }}
+      if: ${{ always() && inputs.CLEANUP == 'true' }}
       run: |
         echo "##### Cleanup certificates #####"
         sudo rm -rf lego/*

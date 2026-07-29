@@ -301,6 +301,20 @@ class CAhandler(object):
         self.logger.debug("CAhandler._challenge_info() ended with %s", chall_name)
         return (chall_name, chall_content, challenge)
 
+    def _shell_exec(self, cmd: str) -> int:
+        """Execute a shell command string.
+
+        shell=True is required because the commands use 'source' (a shell builtin)
+        to load acme.sh and DNS update scripts. All interpolated values are sanitized
+        with shlex.quote() before reaching this method.
+        """
+        if self.acme_sh_shell:
+            self.logger.debug(
+                "CAhandler._shell_exec(): using shell: %s", self.acme_sh_shell
+            )
+            return subprocess.call(cmd, shell=True, executable=self.acme_sh_shell)  # nosec B602
+        return subprocess.call(cmd, shell=True)  # nosec B602
+
     def _dns_challenge_deprovision(self):
         """delete dns challenge"""
         self.logger.debug("CAhandler._dns_challenge_deprovision()")
@@ -323,16 +337,7 @@ class CAhandler(object):
                     f"{shlex.quote(fqdn)} "
                     f"{shlex.quote(txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else str(txt_record_value))}"
                 )
-                if self.acme_sh_shell:
-                    self.logger.debug(
-                        "CAhandler._dns_challenge_provision(): using shell: %s",
-                        self.acme_sh_shell,
-                    )
-                    rcode = subprocess.call(
-                        cmd_list, shell=True, executable=self.acme_sh_shell
-                    )
-                else:
-                    rcode = subprocess.call(cmd_list, shell=True)
+                rcode = self._shell_exec(cmd_list)
 
                 self.logger.debug(
                     "_dns_challenge_deprovision(): %s rcode: %s", fqdn, rcode
@@ -372,14 +377,7 @@ class CAhandler(object):
         basename_w_ext_escaped = shlex.quote(basename_w_ext)
         cmd_list = f"source {acme_sh_script_escaped} &>/dev/null; source {dns_update_script_escaped};  {basename_w_ext_escaped}_add {fqdn_escaped} {txt_record_value_escaped}"  # noqa
 
-        if self.acme_sh_shell:
-            self.logger.debug(
-                "CAhandler._dns_challenge_provision(): using shell: %s",
-                self.acme_sh_shell,
-            )
-            rcode = subprocess.call(cmd_list, shell=True, executable=self.acme_sh_shell)
-        else:
-            rcode = subprocess.call(cmd_list, shell=True)
+        rcode = self._shell_exec(cmd_list)
 
         self.logger.debug("_dns_challenge_provision(): %s rcode: %s", fqdn, rcode)
 

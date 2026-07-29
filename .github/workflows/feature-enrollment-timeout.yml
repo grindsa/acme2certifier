@@ -112,16 +112,28 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-containers-timeout-cert-reusage-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # -----------------------------------------------------------
   # Test container images - django async enrollment
   # -----------------------------------------------------------
+
+
   test-containers-async:
     needs: guard
     runs-on: ubuntu-latest
@@ -204,16 +216,28 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-containers-async-${{ matrix.websrv }}-${{ matrix.django_db }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # -------------------------------------------------------------
   # Test RPMs (EL8 & EL9)  - enrollment timeout and cert re-usage
   # -------------------------------------------------------------
+
+
   test-rpm-timeout-cert-reusage:
     needs: guard
     runs-on: ubuntu-latest
@@ -290,16 +314,28 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-rpm-timeout-cert-reusage-rh${{ matrix.rhversion }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # -------------------------------------------------------------
   # Test RPMs (EL8 & EL9)  - async enrollment
   # -------------------------------------------------------------
+
+
   test-rpm-async:
     needs: guard
     runs-on: ubuntu-latest
@@ -389,9 +425,21 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-rpm-async-rh${{ matrix.rhversion }}-${{ matrix.django_db }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
+

@@ -113,6 +113,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _api_post(="""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 0
         mock_req.side_effect = Exception("exc_api_post")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -155,6 +156,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _api_get()"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 0
         mock_req.side_effect = Exception("exc_api_get")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((500, "exc_api_get"), self.cahandler._api_get("url"))
@@ -204,6 +206,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _api_put()"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 0
         mock_req.side_effect = Exception("exc_api_put")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(

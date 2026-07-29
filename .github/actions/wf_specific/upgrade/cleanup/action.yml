@@ -15,6 +15,7 @@ runs:
   steps:
 
     - name: "Cleanup"
+      if: ${{ always() }}
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |
         if [ -d $(pwd)/data/migrations ]

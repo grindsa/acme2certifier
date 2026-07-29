@@ -191,5 +191,6 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Delete lego folders"
+      if: ${{ always() }}
       run: sudo rm -rf lego/*
       shell: bash

@@ -129,5 +129,6 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Cleanup lego"
+      if: ${{ always() }}
       run: sudo rm -rf lego/*
       shell: bash

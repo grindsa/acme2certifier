@@ -242,6 +242,7 @@ class TestCAhandler(unittest.TestCase):
         self.cahandler.proxy = None
         self.cahandler.ca_bundle = True
         self.cahandler.request_timeout = 5
+        self.cahandler.request_retries = 0
         self.cahandler.session.post.side_effect = Exception("network error")
         with patch.object(self.cahandler.logger, "error") as mock_log:
             code, content = self.cahandler._api_post("/test", {"foo": "bar"})
@@ -306,6 +307,7 @@ class TestCAhandler(unittest.TestCase):
         self.cahandler.proxy = None
         self.cahandler.ca_bundle = True
         self.cahandler.request_timeout = 5
+        self.cahandler.request_retries = 0
         self.cahandler.session.get.side_effect = Exception("network error")
         with patch.object(self.cahandler.logger, "error") as mock_log:
             code, content = self.cahandler._api_get("/test")

@@ -46,6 +46,7 @@ runs:
     shell: bash
 
   - name: "Delete acme-sh, letsencypt and lego folders"
+    if: ${{ always() }}
     run: |
       sudo rm -rf  lego/*
       sudo rm -rf  acme-sh/*

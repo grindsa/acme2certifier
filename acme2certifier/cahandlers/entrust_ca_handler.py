@@ -81,6 +81,8 @@ class CAhandler(object):
         self.proxy = None
         self.session = None
         self.request_timeout = 10
+        self.request_retries = 3
+        self.request_retry_backoff = 2.0
 
         self.allowed_domainlist = []
         self.header_info_field = False
@@ -113,6 +115,8 @@ class CAhandler(object):
             proxy=self.proxy,
             timeout=self.request_timeout,
             payload=None,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
         )
         self.logger.debug("CAhandler._api_get() ended with code: %s", code)
         return code, content
@@ -130,6 +134,8 @@ class CAhandler(object):
             proxy=self.proxy,
             timeout=self.request_timeout,
             payload=data,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
         )
         self.logger.debug("CAhandler._api_post() ended with code: %s", code)
         return code, content
@@ -147,6 +153,8 @@ class CAhandler(object):
             proxy=self.proxy,
             timeout=self.request_timeout,
             payload=data,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
         )
 
         self.logger.debug("CAhandler._api_put() ended with code: %s", code)
@@ -199,6 +207,26 @@ class CAhandler(object):
                 )
             except Exception as err:
                 self.logger.error("Failed to parse request_timeout parameter: %s", err)
+            try:
+                self.request_retries = int(
+                    config_dic.get(
+                        "CAhandler", "request_retries", fallback=self.request_retries
+                    )
+                )
+            except Exception as err:
+                self.logger.error("Failed to parse request_retries parameter: %s", err)
+            try:
+                self.request_retry_backoff = float(
+                    config_dic.get(
+                        "CAhandler",
+                        "request_retry_backoff",
+                        fallback=self.request_retry_backoff,
+                    )
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Failed to parse request_retry_backoff parameter: %s", err
+                )
             try:
                 self.cert_validity_days = int(
                     config_dic.get(

@@ -250,6 +250,12 @@ jobs:
           name_space: acme-${{ matrix.websrv }}-${{ matrix.dbhandler }}
           container_name: acme-srv
 
+      - name: Sanitize failure artifacts
+        if: failure()
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v7
@@ -257,6 +263,12 @@ jobs:
           name: amd64-${{ matrix.websrv }}-${{ matrix.dbhandler }}
           path: ${{ github.workspace }}/artifact/upload/
           if-no-files-found: ignore
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
 
   test_arm64:
     name: Test arm64 images
@@ -293,6 +305,12 @@ jobs:
           name_space: acme-${{ matrix.websrv }}-${{ matrix.dbhandler }}
           container_name: acme-srv
 
+      - name: Sanitize failure artifacts
+        if: failure()
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v7
@@ -300,6 +318,12 @@ jobs:
           name: arm64-${{ matrix.websrv }}-${{ matrix.dbhandler }}
           path: ${{ github.workspace }}/artifact/upload/
           if-no-files-found: ignore
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
 
   sbom_update:
     name: Update SBOMs

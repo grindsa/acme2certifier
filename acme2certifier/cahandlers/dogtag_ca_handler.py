@@ -24,6 +24,7 @@ from acme2certifier.acme_srv.helper import (
     config_headerinfo_load,
     pkcs7_to_pem,
     enrollment_config_log,
+    request_operation,
     uts_now,
     uts_to_date_utc,
 )
@@ -263,6 +264,8 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self.request_timeout = self.DEFAULT_REQUEST_TIMEOUT
+        self.request_retries = 3
+        self.request_retry_backoff = 2.0
         self.proxy = None
         self.profile_mapping_field = "profile"
 
@@ -306,26 +309,20 @@ class CAhandler(object):
         if self.session is None:
             self._login()
 
-        try:
-            response = self.session.post(
-                url=self.api_host + url,
-                json=data,
-                proxies=self.proxy,
-                verify=self.ca_bundle,
-                timeout=self.request_timeout,
-            )
-            code = response.status_code
-            try:
-                content = response.json()
-            except Exception as err_:
-                self.logger.error(
-                    "Could not parse the response for an API post() request: %s", err_
-                )
-                content = {"error": f"Could not parse JSON: {err_}"}
-        except Exception as err_:
-            self.logger.error("API post() returned error: %s", err_)
-            code = 500
-            content = {"error": str(err_)}
+        code, content = request_operation(
+            self.logger,
+            url=self.api_host + url,
+            method="post",
+            payload=data,
+            proxy=self.proxy,
+            verify=self.ca_bundle,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if isinstance(content, str):
+            content = {"error": content}
 
         return code, content
 
@@ -344,26 +341,19 @@ class CAhandler(object):
         if self.session is None:
             self._login()
 
-        try:
-            api_response = self.session.get(
-                url=self.api_host + url,
-                headers=headers,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            )
-            code = api_response.status_code
-            try:
-                content = api_response.json()
-            except Exception as err_:
-                self.logger.error(
-                    "Could not parse the response for an API get() request: %s", err_
-                )
-                content = {"error": f"Could not parse JSON: {err_}"}
-        except Exception as err_:
-            self.logger.error("API get() request returned error: %s", err_)
-            code = 500
-            content = {"error": str(err_)}
+        code, content = request_operation(
+            self.logger,
+            url=self.api_host + url,
+            method="get",
+            proxy=self.proxy,
+            verify=self.ca_bundle,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if isinstance(content, str):
+            content = {"error": content}
 
         return code, content
 

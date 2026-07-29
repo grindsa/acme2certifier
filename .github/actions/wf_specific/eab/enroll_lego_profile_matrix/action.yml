@@ -26,6 +26,7 @@ runs:
       HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
   - name: "Cleanup lego workspace (no EAB)"
+    if: ${{ always() }}
     run: |
       sudo rm -rf "$PWD/lego"
       mkdir -p "$PWD/lego"
@@ -84,6 +85,7 @@ runs:
     shell: bash
 
   - name: "Cleanup lego workspace for keyid_00"
+    if: ${{ always() }}
     run: |
       sudo rm -rf "$PWD/lego"
       mkdir -p "$PWD/lego"
@@ -151,6 +153,7 @@ runs:
       HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
   - name: "Cleanup lego workspace for keyid_01"
+    if: ${{ always() }}
     run: |
       sudo rm -rf "$PWD/lego"
       mkdir -p "$PWD/lego"
@@ -203,6 +206,7 @@ runs:
       HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
   - name: "Cleanup lego workspace for keyid_02"
+    if: ${{ always() }}
     run: |
       sudo rm -rf "$PWD/lego"
       mkdir -p "$PWD/lego"

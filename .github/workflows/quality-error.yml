@@ -214,9 +214,22 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/artifact.tar.gz
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
+

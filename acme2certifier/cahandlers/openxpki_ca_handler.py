@@ -24,6 +24,7 @@ from acme2certifier.acme_srv.helper import (
     error_dic_get,
     handler_config_check,
     load_config,
+    request_operation,
 )
 from acme2certifier.acme_srv.db_handler import DBstore
 
@@ -37,6 +38,8 @@ class CAhandler(object):
         self.ca_bundle = True
         self.proxy = None
         self.request_timeout = 5
+        self.request_retries = 3
+        self.request_retry_backoff = 2.0
         self.session = None
         self.cert_profile_name = None
         self.client_cert = None
@@ -132,6 +135,28 @@ class CAhandler(object):
                     err,
                 )
                 self.request_timeout = 5
+
+            try:
+                self.request_retries = int(
+                    config_dic.get(
+                        "CAhandler", "request_retries", fallback=self.request_retries
+                    )
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Could not load request_retries from config: %s", err
+                )
+
+            try:
+                self.request_retry_backoff = float(
+                    config_dic.get(
+                        "CAhandler", "request_retry_backoff", fallback=self.request_retry_backoff
+                    )
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Could not load request_retry_backoff from config: %s", err
+                )
 
         self.logger.debug("CAhandler._config_server_load() ended")
 
@@ -346,18 +371,21 @@ class CAhandler(object):
     def _rpc_post(self, path: str, data_dic: Dict[str, str]) -> Dict[str, str]:
         """enrollment via post request to openxpki RPC interface"""
         self.logger.debug("CAhandler._rpc_post()")
-        try:
-            # enroll via rpc
-            response = self.session.post(
-                self.host + path,
-                json=data_dic,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            ).json()
 
-        except Exception as err:
-            self.logger.error("RPC POST request failed: %s", err)
+        _code, response = request_operation(
+            self.logger,
+            url=self.host + path,
+            method="post",
+            payload=data_dic,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if isinstance(response, str):
+            self.logger.error("RPC POST request failed: %s", response)
             response = {}
 
         self.logger.debug("CAhandler._rpc_post() ended.")
