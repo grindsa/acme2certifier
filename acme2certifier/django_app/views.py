@@ -24,7 +24,7 @@ from acme2certifier.acme_srv.housekeeping import Housekeeping
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
-from acme2certifier.acme_srv.trigger import Trigger
+from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 from acme2certifier.acme_srv.acmechallenge import Acmechallenge
 
@@ -37,6 +37,9 @@ LOGGER = logger_setup(DEBUG)
 LOGGER.info("starting acme2certifier version %s", __version__)
 log_loaded_acme_srv_cfg(LOGGER)
 log_active_db_handler(LOGGER, CONFIG)
+
+# Stack-start gate for /trigger (config + CA handler supports_trigger)
+TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
 
 METHOD_NOT_ALLOWED = "Method Not Allowed"
 ERR_DATA_POST = {

@@ -39,6 +39,8 @@ class TestACMEHandler(unittest.TestCase):
 
         self.order = Order(False, "http://tester.local", self.logger)
         self.trigger = Trigger(False, "http://tester.local", self.logger)
+        # Unit tests exercise parse/process when endpoint is enabled
+        self.trigger.enabled = True
 
     @patch("importlib.import_module")
     @patch("acme2certifier.acme_srv.certificate.Certificate.certlist_search")
@@ -128,6 +130,24 @@ class TestACMEHandler(unittest.TestCase):
             "data": {"detail": "payload missing", "type": "malformed", "status": 400},
         }
         self.assertEqual(result, self.trigger.parse(payload))
+
+    def test_006b_trigger_parse_disabled(self):
+        """Trigger.parse() returns 403 when endpoint is disabled"""
+        self.trigger.enabled = False
+        result = {
+            "header": {},
+            "code": 403,
+            "data": {
+                "status": 403,
+                "type": "unauthorized",
+                "detail": "trigger endpoint disabled",
+            },
+        }
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(result, self.trigger.parse('{"payload": "foo"}'))
+        self.assertTrue(
+            any("Trigger endpoint disabled" in line for line in lcm.output)
+        )
 
     def test_007_trigger_parse(self):
         """Trigger.parse() with wrong payload"""
@@ -399,6 +419,53 @@ class TestACMEHandler(unittest.TestCase):
             self.trigger._config_load()
         self.assertIn(
             "ERROR:test_a2c:CAhandler configuration missing in config file", lcm.output
+        )
+        self.assertFalse(self.trigger.enabled)
+
+    @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
+    @patch("acme2certifier.acme_srv.trigger.load_config")
+    def test_022b_config_load_trigger_enabled_with_support(
+        self, mock_load_cfg, mock_ca_load
+    ):
+        """_config_load sets enabled when config+supports_trigger"""
+        parser = configparser.ConfigParser()
+        parser["Trigger"] = {"enabled": "True"}
+        mock_load_cfg.return_value = parser
+
+        class _Handler:
+            supports_trigger = True
+
+        mock_ca_load.return_value = MagicMock(CAhandler=_Handler)
+        self.trigger._config_load()
+        self.assertTrue(self.trigger.enabled)
+
+    @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
+    def test_022c_resolve_trigger_endpoint_misconfig_warns(self, mock_ca_load):
+        """config enabled without supports_trigger → False + warning"""
+        from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
+
+        parser = configparser.ConfigParser()
+        parser["Trigger"] = {"enabled": "True"}
+
+        class _Handler:
+            pass
+
+        mock_ca_load.return_value = MagicMock(CAhandler=_Handler)
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(
+                resolve_trigger_endpoint(self.logger, parser, log_status=True)
+            )
+        self.assertTrue(
+            any("supports_trigger=True" in line for line in lcm.output)
+        )
+
+    def test_022d_resolve_trigger_endpoint_default_off(self):
+        """absent [Trigger] → False"""
+        from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
+
+        parser = configparser.ConfigParser()
+        self.assertFalse(
+            resolve_trigger_endpoint(self.logger, parser, log_status=False)
         )
 
     @patch("acme2certifier.acme_srv.trigger.Trigger._config_load")

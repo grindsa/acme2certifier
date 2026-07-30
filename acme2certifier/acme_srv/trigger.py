@@ -17,6 +17,68 @@ from acme2certifier.acme_srv.helper import (
 )
 
 
+def trigger_config_enabled(config_dic) -> bool:
+    """Return True when [Trigger] enabled is set in acme_srv.cfg."""
+    getboolean = getattr(config_dic, "getboolean", None)
+    if callable(getboolean):
+        return bool(getboolean("Trigger", "enabled", fallback=False))
+    # Defensive: empty/malformed mocks used in some unit tests
+    section = config_dic.get("Trigger") if hasattr(config_dic, "get") else None
+    if isinstance(section, dict):
+        value = str(section.get("enabled", "False")).strip().lower()
+        return value in {"1", "true", "yes", "on"}
+    return False
+
+
+def handler_supports_trigger(cahandler_cls) -> bool:
+    """Return True when the CA handler class opts into trigger support."""
+    return bool(getattr(cahandler_cls, "supports_trigger", False))
+
+
+def resolve_trigger_endpoint(
+    logger, config_dic, *, log_status: bool = False
+) -> bool:
+    """
+    Decide whether the /trigger HTTP endpoint should be active.
+
+    Requires both [Trigger] enabled=True and CAhandler.supports_trigger=True.
+    Missing supports_trigger defaults to False. Does not raise on misconfig.
+    """
+    config_enabled = trigger_config_enabled(config_dic)
+    if not config_enabled:
+        if log_status:
+            logger.info(
+                "Trigger HTTP endpoint disabled ([Trigger] enabled is False or absent)"
+            )
+        return False
+
+    ca_handler_module = ca_handler_load(logger, config_dic)
+    cahandler_cls = None
+    if ca_handler_module is not None:
+        cahandler_cls = getattr(ca_handler_module, "CAhandler", None)
+
+    if cahandler_cls is None:
+        if log_status:
+            logger.warning(
+                "Trigger enabled in config but CA handler could not be loaded; "
+                "leaving /trigger disabled"
+            )
+        return False
+
+    if not handler_supports_trigger(cahandler_cls):
+        if log_status:
+            logger.warning(
+                "Trigger enabled in config but CA handler %s does not set "
+                "supports_trigger=True; leaving /trigger disabled",
+                getattr(cahandler_cls, "__module__", cahandler_cls),
+            )
+        return False
+
+    if log_status:
+        logger.info("Trigger HTTP endpoint enabled")
+    return True
+
+
 class Trigger(object):
     """Challenge handler"""
 
@@ -29,6 +91,7 @@ class Trigger(object):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.tnauthlist_support = False
+        self.enabled = False
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -86,6 +149,7 @@ class Trigger(object):
                     err_,
                 )
 
+        self.enabled = resolve_trigger_endpoint(self.logger, config_dic, log_status=False)
         self.logger.debug("ca_handler: %s", ca_handler_module)
         self.logger.debug("Certificate._config_load() ended.")
 
@@ -161,6 +225,23 @@ class Trigger(object):
     def parse(self, content: str) -> Dict[str, str]:
         """new oder request"""
         self.logger.debug("Trigger.parse()")
+
+        if not self.enabled:
+            self.logger.warning(
+                "Trigger endpoint disabled; set [Trigger] enabled=True and "
+                "use a CA handler with supports_trigger=True"
+            )
+            response_dic = {
+                "header": {},
+                "code": 403,
+                "data": {
+                    "status": 403,
+                    "type": "unauthorized",
+                    "detail": "trigger endpoint disabled",
+                },
+            }
+            self.logger.debug("Trigger.parse() returns: %s", json.dumps(response_dic))
+            return response_dic
 
         # convert to json structure
         try:

@@ -39,6 +39,9 @@ from acme2certifier.acme_srv.helper import (
 class CAhandler(object):
     """CA  handler"""
 
+    # Opt into the /trigger HTTP callback endpoint (see [Trigger] enabled).
+    supports_trigger = True
+
     def __init__(self, debug: bool = False, logger: object = None):
         self.debug = debug
         self.logger = logger

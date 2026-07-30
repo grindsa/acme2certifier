@@ -18,7 +18,7 @@ from acme2certifier.acme_srv.housekeeping import Housekeeping
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
-from acme2certifier.acme_srv.trigger import Trigger
+from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
 from acme2certifier.acme_srv.helper import (
     get_url,
     load_config,
@@ -83,6 +83,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 LOGGER = logger_setup(DEBUG)
 log_loaded_acme_srv_cfg(LOGGER)
 log_active_db_handler(LOGGER, CONFIG)
+
+# Stack-start gate for /trigger (config + CA handler supports_trigger)
+TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
@@ -559,8 +562,10 @@ URLS = [
     (r"^acme/revokecert", revokecert),
     (r"^directory?$", directory),
     (r"^housekeeping", housekeeping),
-    (r"^trigger", trigger),
 ]
+
+if TRIGGER_ENDPOINT_ENABLED:
+    URLS.append((r"^trigger", trigger))
 
 
 # Helper to extract path with prefix
