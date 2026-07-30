@@ -39,7 +39,7 @@ runs:
 
     - name: "Prepare acme.sh container"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --network-alias acme-sh2 --name=acme-sh neilpang/acme.sh:latest daemon
       shell: bash
 
     - name: "Enroll HTTP-01 single domain acme.sh"
@@ -85,7 +85,7 @@ runs:
 
     - name: "Enroll HTTP-01 2x domain acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --keylength $KEYLENGTH --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --keylength $KEYLENGTH --issue -d acme-sh.acme -d acme-sh2.acme --standalone --debug 3 --output-insecure
         if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -101,7 +101,7 @@ runs:
         if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --keylength $KEYLENGTH --renew --force ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --keylength $KEYLENGTH --renew --force ${ECC} -d acme-sh.acme -d acme-sh2.acme --standalone --debug 3 --output-insecure
         if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -117,7 +117,7 @@ runs:
         if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --revoke ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --revoke ${ECC} -d acme-sh.acme -d acme-sh2.acme --standalone --debug 3 --output-insecure
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}

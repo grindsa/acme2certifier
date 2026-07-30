@@ -164,20 +164,13 @@ def fqdn_resolve(
     logger.debug("Helper.fqdn_resolve(%s catch_all: %s)", host, catch_all)
     req = dns.resolver.Resolver()
 
-    # hack to cover github workflows
-    if "." in host:
-        if dnssrv:
-            # add specific dns server
-            req.nameservers = dnssrv
-        # resolve hostname
-        result, invalid, error_msg = _fqdn_resolve(
-            logger, req, host, catch_all=catch_all
-        )
-
-    else:
-        result = None
-        invalid = False
-        error_msg = None
+    if dnssrv:
+        # add specific dns server
+        req.nameservers = dnssrv
+    # resolve hostname (including short/unqualified names)
+    result, invalid, error_msg = _fqdn_resolve(
+        logger, req, host, catch_all=catch_all
+    )
 
     logger.debug(
         "Helper.fqdn_resolve(%s) ended with: %s, %s, error: %s",

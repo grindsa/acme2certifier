@@ -119,17 +119,17 @@ jobs:
 
       - name: "Enroll HTTP-01 2x domain certbot"
         run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot. --cert-name certbot
+          docker run -i --rm --name certbot --network acme --network-alias certbot2 -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot2.acme --cert-name certbot
           sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
-      - name: "Renew HTTP-01 single domain certbot"
+      - name: "Renew HTTP-01 2x domain certbot"
         run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot. --cert-name certbot --force-renewal
+          docker run -i --rm --name certbot --network acme --network-alias certbot2 -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot2.acme --cert-name certbot --force-renewal
           sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
-      - name: "Revoke HTTP-01 single domain certbot"
+      - name: "Revoke HTTP-01 2x domain certbot"
         run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme -d certbot. --cert-name certbot
+          docker run -i --rm --name certbot --network acme --network-alias certbot2 -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme -d certbot2.acme --cert-name certbot
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check

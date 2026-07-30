@@ -1669,10 +1669,10 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
 
     @patch("dns.resolver.Resolver")
     def test_145_helper_fqdn_resolve(self, mock_resolve):
-        """successful dns-query returning covering github"""
-        mock_resolve.return_value.query.return_value = ["foo"]
+        """successful dns-query for short hostname with custom nameserver"""
+        mock_resolve.return_value.resolve.return_value = ["10.0.0.2"]
         self.assertEqual(
-            (None, False, None),
+            ("10.0.0.2", False, None),
             self.fqdn_resolve(self.logger, "foo", dnssrv="10.0.0.1"),
         )
 
@@ -1687,9 +1687,11 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
 
     @patch("dns.resolver.Resolver")
     def test_147_helper_fqdn_resolve(self, mock_resolve):
-        """successful dns-query returning a single entry and catch_single"""
-        mock_resolve.return_value.resolve.return_value = ["foo"]
-        self.assertEqual((None, False, None), self.fqdn_resolve(self.logger, "foo"))
+        """successful dns-query for short hostname returning a single entry"""
+        mock_resolve.return_value.resolve.return_value = ["10.0.0.2"]
+        self.assertEqual(
+            ("10.0.0.2", False, None), self.fqdn_resolve(self.logger, "foo")
+        )
 
     @patch("dns.resolver.Resolver")
     def test_148_helper_fqdn_resolve(self, mock_resolve):
