@@ -22,6 +22,34 @@ from acme2certifier.acme_srv.helper import (
 from acme2certifier.acme_srv.version import __version__
 
 
+def housekeeping_cli_enabled(config_dic) -> bool:
+    """Return True when [Housekeeping] cli_enabled is set in acme_srv.cfg."""
+    getboolean = getattr(config_dic, "getboolean", None)
+    if callable(getboolean):
+        return bool(getboolean("Housekeeping", "cli_enabled", fallback=False))
+    section = config_dic.get("Housekeeping") if hasattr(config_dic, "get") else None
+    if isinstance(section, dict):
+        value = str(section.get("cli_enabled", "False")).strip().lower()
+        return value in {"1", "true", "yes", "on"}
+    return False
+
+
+def resolve_housekeeping_cli_endpoint(
+    logger, config_dic, *, log_status: bool = False
+) -> bool:
+    """Decide whether the /housekeeping HTTP CLI endpoint should be active."""
+    enabled = housekeeping_cli_enabled(config_dic)
+    if log_status:
+        if enabled:
+            logger.info("Housekeeping HTTP CLI endpoint enabled")
+        else:
+            logger.info(
+                "Housekeeping HTTP CLI endpoint disabled "
+                "([Housekeeping] cli_enabled is False or absent)"
+            )
+    return False
+
+
 class Housekeeping(object):
     """Housekeeping class"""
 
@@ -31,6 +59,7 @@ class Housekeeping(object):
         self.message = Message(debug, None, self.logger)
         self.error_msg_dic = error_dic_get(self.logger)
         self.debug = debug
+        self.cli_enabled = False
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -180,8 +209,10 @@ class Housekeeping(object):
         """load config from file"""
         self.logger.debug("Housekeeping._config_load()")
         config_dic = load_config()
-        if "Housekeeping" in config_dic:
-            self.logger.debug("Housekeeping._config_load()")
+        self.cli_enabled = housekeeping_cli_enabled(config_dic)
+        self.logger.debug(
+            "Housekeeping._config_load() cli_enabled=%s", self.cli_enabled
+        )
 
     def _uts_fields_set(
         self,
@@ -833,6 +864,24 @@ class Housekeeping(object):
     def parse(self, content: str) -> Dict[str, str]:
         """new oder request"""
         self.logger.debug("Housekeeping.parse()")
+
+        if not self.cli_enabled:
+            self.logger.warning(
+                "Housekeeping CLI endpoint disabled; set [Housekeeping] cli_enabled=True"
+            )
+            response_dic = {
+                "header": {},
+                "code": 403,
+                "data": {
+                    "status": 403,
+                    "type": "unauthorized",
+                    "detail": "housekeeping CLI endpoint disabled",
+                },
+            }
+            self.logger.debug(
+                "Housekeeping.parse() returns: %s", json.dumps(response_dic)
+            )
+            return response_dic
 
         # def certreport_get(self, report_format='csv', report_name=None):
         # check message

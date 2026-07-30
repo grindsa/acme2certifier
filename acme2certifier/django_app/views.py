@@ -22,7 +22,10 @@ from acme2certifier.acme_srv.helper import (
     acme_get_method_not_allowed_problem,
 )
 from acme2certifier.acme_srv.db_handler import log_active_db_handler
-from acme2certifier.acme_srv.housekeeping import Housekeeping
+from acme2certifier.acme_srv.housekeeping import (
+    Housekeeping,
+    resolve_housekeeping_cli_endpoint,
+)
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
@@ -42,6 +45,10 @@ log_active_db_handler(LOGGER, CONFIG)
 
 # Stack-start gate for /trigger (config + CA handler supports_trigger)
 TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
+# Stack-start gate for /housekeeping HTTP CLI
+HOUSEKEEPING_CLI_ENABLED = resolve_housekeeping_cli_endpoint(
+    LOGGER, CONFIG, log_status=True
+)
 
 METHOD_NOT_ALLOWED = "Method Not Allowed"
 ERR_DATA_POST = {
@@ -53,6 +60,11 @@ ERR_TRIGGER_DISABLED = {
     "status": 403,
     "message": "Unauthorized",
     "detail": "trigger endpoint disabled",
+}
+ERR_HOUSEKEEPING_CLI_DISABLED = {
+    "status": 403,
+    "message": "Unauthorized",
+    "detail": "housekeeping CLI endpoint disabled",
 }
 ERR_RESPONSE_POST = JsonResponse(status=405, data=ERR_DATA_POST)
 ERR_RESPONSE_HEAD_GET = JsonResponse(
@@ -485,8 +497,21 @@ def renewalinfo(request):
 
 
 def housekeeping(request):
-    """ca trigger"""
+    """CLI housekeeping endpoint"""
     if request.method == "POST":
+        if not HOUSEKEEPING_CLI_ENABLED:
+            response_dic = {
+                "header": {},
+                "code": 403,
+                "data": ERR_HOUSEKEEPING_CLI_DISABLED,
+            }
+            logger_info(
+                LOGGER,
+                request.META["REMOTE_ADDR"],
+                request.META["PATH_INFO"],
+                response_dic,
+            )
+            return JsonResponse(status=403, data=ERR_HOUSEKEEPING_CLI_DISABLED)
         with Housekeeping(DEBUG, LOGGER) as housekeeping_:
             response_dic = housekeeping_.parse(request.body)
             # create the response

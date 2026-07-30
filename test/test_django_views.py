@@ -558,6 +558,7 @@ class TestDjangoViews(unittest.TestCase):
     @patch(f"{_VIEWS}.logger_info")
     def test_035_housekeeping_with_data(self, mock_log) -> None:
         """housekeeping POST with data → JsonResponse safe=False"""
+        self.views.HOUSEKEEPING_CLI_ENABLED = True
         cm, _inst = self._cm(parse=_ok([{"row": 1}]))
         with patch(f"{_VIEWS}.Housekeeping", return_value=cm):
             resp = self.views.housekeeping(
@@ -573,6 +574,7 @@ class TestDjangoViews(unittest.TestCase):
     @patch(f"{_VIEWS}.logger_info")
     def test_036_housekeeping_without_data(self, mock_log) -> None:
         """housekeeping POST without data → bare status"""
+        self.views.HOUSEKEEPING_CLI_ENABLED = True
         cm, _inst = self._cm(parse={"code": 204, "header": {}})
         with patch(f"{_VIEWS}.Housekeeping", return_value=cm):
             resp = self.views.housekeeping(
@@ -589,6 +591,23 @@ class TestDjangoViews(unittest.TestCase):
         """housekeeping GET returns 405 JsonResponse"""
         resp = self.views.housekeeping(self._meta(self.rf.get("/housekeeping")))
         self.assertEqual(405, resp.status_code)
+
+    @patch(f"{_VIEWS}.logger_info")
+    def test_037b_housekeeping_disabled(self, mock_log) -> None:
+        """housekeeping POST returns 403 when gate is disabled"""
+        self.views.HOUSEKEEPING_CLI_ENABLED = False
+        resp = self.views.housekeeping(
+            self._meta(
+                self.rf.post(
+                    "/housekeeping", data=b"{}", content_type="application/json"
+                )
+            )
+        )
+        self.assertEqual(403, resp.status_code)
+        self.assertEqual(
+            "housekeeping CLI endpoint disabled", json.loads(resp.content)["detail"]
+        )
+        self.assertTrue(mock_log.called)
 
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
     def test_038_acmechallenge_found(self, _url) -> None:

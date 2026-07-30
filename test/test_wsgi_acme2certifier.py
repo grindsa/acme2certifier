@@ -1110,6 +1110,7 @@ class TestACMEHandler(unittest.TestCase):
             )
             self.assertIsInstance(response, list)
 
+    @patch("acme2certifier.share.acme2certifier_wsgi.HOUSEKEEPING_CLI_ENABLED", True)
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")
@@ -1149,6 +1150,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
+    @patch("acme2certifier.share.acme2certifier_wsgi.HOUSEKEEPING_CLI_ENABLED", True)
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")
@@ -1165,6 +1167,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_post.called)
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
+
+    @patch("acme2certifier.share.acme2certifier_wsgi.HOUSEKEEPING_CLI_ENABLED", False)
+    @patch("acme2certifier.share.acme2certifier_wsgi.logger_info")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")
+    def test_063b_housekeeping_disabled(self, mock_parse, mock_header, mock_log):
+        """housekeeping returns 403 when endpoint gate is disabled"""
+        environ = {
+            "REQUEST_METHOD": "POST",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
+        mock_header.return_value = [("Content-Type", "application/json")]
+        response = self.housekeeping(environ, Mock())
+        self.assertIn(b'"detail": "housekeeping CLI endpoint disabled"', response[0])
+        self.assertFalse(mock_parse.called)
+        self.assertTrue(mock_log.called)
 
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")

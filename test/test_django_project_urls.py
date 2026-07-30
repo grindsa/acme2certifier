@@ -86,13 +86,21 @@ class TestDjangoProjectUrls(unittest.TestCase):
         for name in (_URLS, _VIEWS, _APP_URLS):
             sys.modules.pop(name, None)
 
-    def _reload_urls(self, config, trigger_enabled: bool = False):
+    def _reload_urls(
+        self, config, trigger_enabled: bool = False, housekeeping_enabled: bool = False
+    ):
         # Avoid coupling to whichever Django apps the prior suite configured.
         mock_views = MagicMock()
         mock_views.TRIGGER_ENDPOINT_ENABLED = trigger_enabled
+        mock_views.HOUSEKEEPING_CLI_ENABLED = housekeeping_enabled
         mock_app_urls = MagicMock(urlpatterns=[])
         sys.modules[_VIEWS] = mock_views
         sys.modules[_APP_URLS] = mock_app_urls
+        # Parent package may already hold a real submodule reference from other tests.
+        import acme2certifier.django_app as django_app_pkg
+
+        django_app_pkg.views = mock_views
+        django_app_pkg.urls = mock_app_urls
         fake_admin_site = MagicMock()
         fake_admin_site.urls = ([], "admin", "admin")
         with (
@@ -102,12 +110,13 @@ class TestDjangoProjectUrls(unittest.TestCase):
             return importlib.import_module(_URLS)
 
     def test_001_no_prefix_no_acme_challenge(self) -> None:
-        """empty Directory config → PREFIX '' and no acme-challenge / trigger routes"""
+        """empty Directory config → PREFIX '' and no acme-challenge / trigger / housekeeping routes"""
         mod = self._reload_urls(_cfg())
         self.assertEqual("", mod.PREFIX)
         names = [getattr(p, "name", None) for p in mod.urlpatterns]
         self.assertNotIn("acmechallenge_serve", names)
         self.assertNotIn("trigger", names)
+        self.assertNotIn("housekeeping", names)
         self.assertIn("directory", names)
 
     def test_001b_trigger_enabled(self) -> None:
@@ -115,6 +124,12 @@ class TestDjangoProjectUrls(unittest.TestCase):
         mod = self._reload_urls(_cfg(), trigger_enabled=True)
         names = [getattr(p, "name", None) for p in mod.urlpatterns]
         self.assertIn("trigger", names)
+
+    def test_001c_housekeeping_enabled(self) -> None:
+        """HOUSEKEEPING_CLI_ENABLED True registers housekeeping route"""
+        mod = self._reload_urls(_cfg(), housekeeping_enabled=True)
+        names = [getattr(p, "name", None) for p in mod.urlpatterns]
+        self.assertIn("housekeeping", names)
 
     def test_002_prefix_without_leading_slash(self) -> None:
         """url_prefix without leading slash is used as-is plus trailing /"""

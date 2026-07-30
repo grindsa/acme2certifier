@@ -14,7 +14,10 @@ from acme2certifier.acme_srv.authorization import Authorization
 from acme2certifier.acme_srv.certificate import Certificate
 from acme2certifier.acme_srv.challenge import Challenge
 from acme2certifier.acme_srv.directory import Directory
-from acme2certifier.acme_srv.housekeeping import Housekeeping
+from acme2certifier.acme_srv.housekeeping import (
+    Housekeeping,
+    resolve_housekeeping_cli_endpoint,
+)
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
@@ -101,6 +104,10 @@ LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
 
 # Stack-start gate for /trigger (config + CA handler supports_trigger)
 TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
+# Stack-start gate for /housekeeping HTTP CLI
+HOUSEKEEPING_CLI_ENABLED = resolve_housekeeping_cli_endpoint(
+    LOGGER, CONFIG, log_status=True
+)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
@@ -547,6 +554,21 @@ def trigger(environ, start_response):
 def housekeeping(environ, start_response):
     """cli housekeeping handler"""
     if environ["REQUEST_METHOD"] == "POST":
+        if not HOUSEKEEPING_CLI_ENABLED:
+            response_dic = {
+                "code": 403,
+                "data": {
+                    "status": 403,
+                    "message": HTTP_CODE_DIC[403],
+                    "detail": "housekeeping CLI endpoint disabled",
+                },
+            }
+            headers = create_header(response_dic)
+            start_response(f"403 {HTTP_CODE_DIC[403]}", headers)
+            logger_info(
+                LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
+            )
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
         with Housekeeping(DEBUG, LOGGER) as housekeeping_:
             request_body = get_request_body(environ)
             response_dic = housekeeping_.parse(request_body)
@@ -606,8 +628,10 @@ URLS = [
     (r"^acme/renewal-info", renewalinfo),
     (r"^acme/revokecert", revokecert),
     (r"^directory?$", directory),
-    (r"^housekeeping", housekeeping),
 ]
+
+if HOUSEKEEPING_CLI_ENABLED:
+    URLS.append((r"^housekeeping", housekeeping))
 
 if TRIGGER_ENDPOINT_ENABLED:
     URLS.append((r"^trigger", trigger))

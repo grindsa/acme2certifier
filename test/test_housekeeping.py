@@ -38,6 +38,8 @@ class TestACMEHandler(unittest.TestCase):
 
         self.challenge = Challenge(False, "http://tester.local", self.logger)
         self.housekeeping = Housekeeping(False, self.logger)
+        # Unit tests exercise parse when HTTP CLI endpoint is enabled
+        self.housekeeping.cli_enabled = True
 
     def test_001_housekeeping__certificatelist_get(self):
         """test Housekeeping._certificatelist_get()"""
@@ -892,21 +894,43 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.load_config")
     def test_057_config_load(self, mock_load_cfg):
-        """test _config_load empty config"""
+        """test _config_load empty config defaults cli_enabled off"""
         parser = configparser.ConfigParser()
         # parser['Account'] = {'foo': 'bar'}
         mock_load_cfg.return_value = parser
         self.housekeeping._config_load()
         self.assertTrue(mock_load_cfg.called)
+        self.assertFalse(self.housekeeping.cli_enabled)
 
     @patch("acme2certifier.acme_srv.housekeeping.load_config")
     def test_058_config_load(self, mock_load_cfg):
-        """test _config_load empty config"""
+        """test _config_load with Housekeeping section but no cli_enabled"""
         parser = configparser.ConfigParser()
         parser["Housekeeping"] = {"foo": "bar"}
         mock_load_cfg.return_value = parser
         self.housekeeping._config_load()
         self.assertTrue(mock_load_cfg.called)
+        self.assertFalse(self.housekeeping.cli_enabled)
+
+    @patch("acme2certifier.acme_srv.housekeeping.load_config")
+    def test_058b_config_load_cli_enabled(self, mock_load_cfg):
+        """test _config_load sets cli_enabled when configured"""
+        parser = configparser.ConfigParser()
+        parser["Housekeeping"] = {"cli_enabled": "True"}
+        mock_load_cfg.return_value = parser
+        self.housekeeping._config_load()
+        self.assertTrue(self.housekeeping.cli_enabled)
+
+    def test_058c_resolve_housekeeping_cli_endpoint_default_off(self):
+        """absent [Housekeeping] → False"""
+        from acme2certifier.acme_srv.housekeeping import (
+            resolve_housekeeping_cli_endpoint,
+        )
+
+        parser = configparser.ConfigParser()
+        self.assertFalse(
+            resolve_housekeeping_cli_endpoint(self.logger, parser, log_status=False)
+        )
 
     @patch("csv.writer")
     @patch("builtins.open", mock_open(read_data="csv_dump"), create=True)
@@ -1550,6 +1574,24 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.housekeeping.parse("content"))
         self.assertFalse(mock_report.called)
+
+    def test_087b_parse_disabled(self):
+        """parse returns 403 when CLI endpoint is disabled"""
+        self.housekeeping.cli_enabled = False
+        result = {
+            "header": {},
+            "code": 403,
+            "data": {
+                "status": 403,
+                "type": "unauthorized",
+                "detail": "housekeeping CLI endpoint disabled",
+            },
+        }
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(result, self.housekeeping.parse("content"))
+        self.assertTrue(
+            any("Housekeeping CLI endpoint disabled" in line for line in lcm.output)
+        )
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._clireport_get")
     @patch("acme2certifier.acme_srv.message.Message.cli_check")
