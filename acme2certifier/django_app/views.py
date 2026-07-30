@@ -26,7 +26,7 @@ from acme2certifier.acme_srv.housekeeping import Housekeeping
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
-from acme2certifier.acme_srv.trigger import Trigger
+from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 from acme2certifier.acme_srv.acmechallenge import Acmechallenge
 
@@ -40,11 +40,19 @@ LOGGER.info("starting acme2certifier version %s", __version__)
 log_loaded_acme_srv_cfg(LOGGER)
 log_active_db_handler(LOGGER, CONFIG)
 
+# Stack-start gate for /trigger (config + CA handler supports_trigger)
+TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
+
 METHOD_NOT_ALLOWED = "Method Not Allowed"
 ERR_DATA_POST = {
     "status": 405,
     "message": METHOD_NOT_ALLOWED,
     "detail": "Wrong request type. Expected POST.",
+}
+ERR_TRIGGER_DISABLED = {
+    "status": 403,
+    "message": "Unauthorized",
+    "detail": "trigger endpoint disabled",
 }
 ERR_RESPONSE_POST = JsonResponse(status=405, data=ERR_DATA_POST)
 ERR_RESPONSE_HEAD_GET = JsonResponse(
@@ -403,6 +411,19 @@ def revokecert(request):
 def trigger(request):
     """ca trigger"""
     if request.method == "POST":
+        if not TRIGGER_ENDPOINT_ENABLED:
+            response_dic = {
+                "header": {},
+                "code": 403,
+                "data": ERR_TRIGGER_DISABLED,
+            }
+            logger_info(
+                LOGGER,
+                request.META["REMOTE_ADDR"],
+                request.META["PATH_INFO"],
+                response_dic,
+            )
+            return JsonResponse(status=403, data=ERR_TRIGGER_DISABLED)
         with Trigger(DEBUG, get_url(request.META), LOGGER) as trigger_:
             response_dic = trigger_.parse(request.body)
             # create the response

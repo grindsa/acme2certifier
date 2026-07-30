@@ -86,9 +86,10 @@ class TestDjangoProjectUrls(unittest.TestCase):
         for name in (_URLS, _VIEWS, _APP_URLS):
             sys.modules.pop(name, None)
 
-    def _reload_urls(self, config):
+    def _reload_urls(self, config, trigger_enabled: bool = False):
         # Avoid coupling to whichever Django apps the prior suite configured.
         mock_views = MagicMock()
+        mock_views.TRIGGER_ENDPOINT_ENABLED = trigger_enabled
         mock_app_urls = MagicMock(urlpatterns=[])
         sys.modules[_VIEWS] = mock_views
         sys.modules[_APP_URLS] = mock_app_urls
@@ -101,12 +102,18 @@ class TestDjangoProjectUrls(unittest.TestCase):
             return importlib.import_module(_URLS)
 
     def test_001_no_prefix_no_acme_challenge(self) -> None:
-        """empty Directory config → PREFIX '' and no acme-challenge route"""
+        """empty Directory config → PREFIX '' and no acme-challenge / trigger routes"""
         mod = self._reload_urls(_cfg())
         self.assertEqual("", mod.PREFIX)
         names = [getattr(p, "name", None) for p in mod.urlpatterns]
         self.assertNotIn("acmechallenge_serve", names)
+        self.assertNotIn("trigger", names)
         self.assertIn("directory", names)
+
+    def test_001b_trigger_enabled(self) -> None:
+        """TRIGGER_ENDPOINT_ENABLED True registers trigger route"""
+        mod = self._reload_urls(_cfg(), trigger_enabled=True)
+        names = [getattr(p, "name", None) for p in mod.urlpatterns]
         self.assertIn("trigger", names)
 
     def test_002_prefix_without_leading_slash(self) -> None:

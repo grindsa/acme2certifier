@@ -918,6 +918,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", True)
     @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
     def test_052_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """trigger POST request"""
@@ -937,6 +938,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", True)
     @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
     def test_053_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """trigger POST request"""
@@ -956,6 +958,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", True)
     @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
     def test_054_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """trigger unknown request type"""
@@ -976,6 +979,24 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_url.called)
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
+
+    @patch("acme2certifier.share.acme2certifier_wsgi.logger_info")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", False)
+    @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
+    def test_054b_trigger_disabled(self, mock_parse, mock_header, mock_log):
+        """trigger returns 403 when endpoint gate is disabled"""
+        environ = {
+            "REQUEST_METHOD": "POST",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
+        mock_header.return_value = {"header": "foo"}
+        response = self.trigger(environ, Mock())
+        self.assertIn(b'"detail": "trigger endpoint disabled"', response[0])
+        self.assertFalse(mock_parse.called)
+        self.assertTrue(mock_header.called)
+        self.assertTrue(mock_log.called)
 
     def test_055_notfound(self):
         """notfound"""

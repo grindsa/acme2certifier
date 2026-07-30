@@ -4,6 +4,7 @@
 
 # pylint: disable=C0415, R0904, W0212
 import importlib
+import json
 import logging
 import sys
 import tempfile
@@ -468,6 +469,7 @@ class TestDjangoViews(unittest.TestCase):
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
     def test_029_trigger_with_data(self, _url, mock_log) -> None:
         """trigger POST with data → JsonResponse"""
+        self.views.TRIGGER_ENDPOINT_ENABLED = True
         cm, _inst = self._cm(parse=_ok({"done": True}))
         with patch(f"{_VIEWS}.Trigger", return_value=cm):
             resp = self.views.trigger(
@@ -484,6 +486,7 @@ class TestDjangoViews(unittest.TestCase):
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
     def test_030_trigger_without_data(self, _url, mock_log) -> None:
         """trigger POST without data → bare status"""
+        self.views.TRIGGER_ENDPOINT_ENABLED = True
         cm, _inst = self._cm(parse={"code": 202, "header": {}})
         with patch(f"{_VIEWS}.Trigger", return_value=cm):
             resp = self.views.trigger(
@@ -500,6 +503,21 @@ class TestDjangoViews(unittest.TestCase):
         """trigger GET returns ERR_RESPONSE_POST"""
         resp = self.views.trigger(self._meta(self.rf.get("/trigger")))
         self.assertEqual(405, resp.status_code)
+
+    @patch(f"{_VIEWS}.logger_info")
+    def test_031b_trigger_disabled(self, mock_log) -> None:
+        """trigger POST returns 403 when gate is disabled"""
+        self.views.TRIGGER_ENDPOINT_ENABLED = False
+        resp = self.views.trigger(
+            self._meta(
+                self.rf.post("/trigger", data=b"{}", content_type="application/json")
+            )
+        )
+        self.assertEqual(403, resp.status_code)
+        self.assertEqual(
+            "trigger endpoint disabled", json.loads(resp.content)["detail"]
+        )
+        self.assertTrue(mock_log.called)
 
     @patch(f"{_VIEWS}.logger_info")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")

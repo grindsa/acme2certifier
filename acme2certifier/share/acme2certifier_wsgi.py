@@ -18,7 +18,7 @@ from acme2certifier.acme_srv.housekeeping import Housekeeping
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
-from acme2certifier.acme_srv.trigger import Trigger
+from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
 from acme2certifier.acme_srv.helper import (
     get_url,
     load_config,
@@ -98,6 +98,9 @@ log_loaded_acme_srv_cfg(LOGGER)
 log_active_db_handler(LOGGER, CONFIG)
 config_check(LOGGER, CONFIG)
 LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
+
+# Stack-start gate for /trigger (config + CA handler supports_trigger)
+TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
@@ -502,6 +505,21 @@ def revokecert(environ, start_response):
 def trigger(environ, start_response):
     """ca trigger handler"""
     if environ["REQUEST_METHOD"] == "POST":
+        if not TRIGGER_ENDPOINT_ENABLED:
+            response_dic = {
+                "code": 403,
+                "data": {
+                    "status": 403,
+                    "message": HTTP_CODE_DIC[403],
+                    "detail": "trigger endpoint disabled",
+                },
+            }
+            headers = create_header(response_dic)
+            start_response(f"403 {HTTP_CODE_DIC[403]}", headers)
+            logger_info(
+                LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
+            )
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
         with Trigger(DEBUG, get_url(environ), LOGGER) as trigger_:
             request_body = get_request_body(environ)
             response_dic = trigger_.parse(request_body)
@@ -589,8 +607,10 @@ URLS = [
     (r"^acme/revokecert", revokecert),
     (r"^directory?$", directory),
     (r"^housekeeping", housekeeping),
-    (r"^trigger", trigger),
 ]
+
+if TRIGGER_ENDPOINT_ENABLED:
+    URLS.append((r"^trigger", trigger))
 
 
 # Helper to extract path with prefix
