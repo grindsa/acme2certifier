@@ -15,3 +15,4 @@ aliveStatusCodes:
 ignorePatterns:
   - pattern: '^https?://localhost'
   - pattern: '^https?://127\\.0\\.0\\.1'
+  - pattern: '^https://www\\.howtoforge\\.com/how-to-setup-mariadb-master-master-replication-on-debian-11/'
