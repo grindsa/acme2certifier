@@ -43,6 +43,10 @@ Behavior when `eab_strict_mode = False` (mixed mode):
 - Message validation allows accounts without `eab_kid` (unless other checks fail).
 - Directory metadata still shows EAB capability, but indicates it is not mandatory via `meta.externalAccountRequired = false`.
 
+> Security note: `eab_strict_mode = False` is an intentional mixed-enrollment mode.
+> Use it only when open or hybrid onboarding is desired. If EAB must be mandatory
+> for all account registrations, set `eab_strict_mode = True`.
+
 ## File Handler
 
 The `eab_file_handler.py` script allows `kid` and `mac_key` to be loaded from a CSV file. To activate this handler, configure the `EABhandler` section in `acme_srv.cfg` as follows:
