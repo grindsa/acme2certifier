@@ -492,8 +492,8 @@ and pick the appropriate release branch.
 - delete seclinux configuration files after rpm installation
 - delete obsolete files from repo
 - rpm package tests during regression
-- [sbom generation](https://github.com/grindsa/sbom/tree/main/sbom/acme2certifier) as part of [docker image create worflow](.github/workflows/push_images_to_dockerhub.yml)
-- rpm and deb package generatation as part of [create release workflow](.github/workflows/create_release.yml)
+- [sbom generation](https://github.com/grindsa/sbom/tree/main/sbom/acme2certifier) as part of [docker image create worflow](.github/workflows/main-create-release-push-images-to-dockerhub.yml)
+- rpm and deb package generatation as part of [create release workflow](.github/workflows/main-create-release-push-images-to-dockerhub.yml)
 - nginx django test workflows
 
 ## Changes in 0.23.2

@@ -106,7 +106,7 @@ Schemas for the database systems differ in relation to fields that are used to m
 
 #### When Using PostgreSQL
 
-Create a database and then these two tables. See [Usage](#Usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#Activate) with the database credentials that you have.
+Create a database and then these two tables. See [Usage](#usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#activate-handler) with the database credentials that you have.
 
 ```sql
 CREATE TABLE account (
@@ -127,7 +127,7 @@ CREATE TABLE credentials (
 
 #### When Using SQL Server
 
-Create a database and then these two tables. See [Usage](#Usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#Activate) with the database credentials that you have.
+Create a database and then these two tables. See [Usage](#usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#activate-handler) with the database credentials that you have.
 
 ```sql
 CREATE TABLE account (

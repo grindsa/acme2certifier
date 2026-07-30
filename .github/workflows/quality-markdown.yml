@@ -41,27 +41,35 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
   markdown-link-check:
-    # runs-on: ubuntu-latest
     runs-on: ubuntu-latest
     needs: guard
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     steps:
-    - uses: actions/checkout@master
-    - uses: umbrelladocs/action-linkspector@v1
-    - name: Lint changelog file root
+
+    - uses: actions/checkout@v6
+
+    - name: Check markdown links
+      uses: umbrelladocs/action-linkspector@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        config_file: .linkspector.yml
+        reporter: github-check
+        filter_mode: nofilter
+        fail_level: any
+        show_stats: 'true'
+
+    - name: Lint markdown root
       uses: avto-dev/markdown-lint@v1
       with:
         args: '*.md'
-    - name: Lint changelog file root
-      uses: avto-dev/markdown-lint@v1
-      with:
-        args: '*.md'
-    - name: Lint changelog file docs
+
+    - name: Lint markdown docs
       uses: avto-dev/markdown-lint@v1
       with:
         args: './docs/*.md'
-    - name: Lint changelog file docker
+
+    - name: Lint markdown docker
       uses: avto-dev/markdown-lint@v1
       with:
         args: './examples/Docker/*.md'
