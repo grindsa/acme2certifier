@@ -110,6 +110,8 @@ from .helpers.network import (
     v6_adjust,
     header_info_get,
     get_url,
+    configured_server_name_get,
+    server_name_configuration_validate,
     parse_url,
     encode_url,
     request_operation,

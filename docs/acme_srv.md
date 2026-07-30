@@ -9,6 +9,7 @@
 | Section         | Option                                | Description                                                                                                                                                                                                           | Values                                                                                                                  | Default                                     |
 | :-------------- | :------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- | :------------------------------------------ |
 | `DEFAULT`       | `debug`                               | Debug mode                                                                                                                                                                                                            | True/False                                                                                                              | False                                       |
+| `DEFAULT`       | `server_name`                         | Canonical server host name used for generated ACME URLs. When unset, acme2certifier falls back to request headers and logs a startup warning.                                                                       | FQDN                                                                                                                    | None                                        |
 | `DEFAULT`       | `legacy_acme_get`                     | Allow unauthenticated HTTP GET on ACME **challenge** and **authorization** resources (pre–RFC 8555 / legacy clients). When `False` (default), plain GET returns **405** with `urn:ietf:params:acme:error:malformed` and clients must use POST-as-GET. | True/False | False |
 | `DEFAULT`       | `async_mode`                          | Enable [asynchronous Mode](async_mode.md)                                                                                                                                                                             | True/False                                                                                                              | False                                       |
 | `DEFAULT`       | `dryrun`                              | Enables a simulation mode where ACME operations are validated and logged without making any changes or issuing real certificates. The `profile` parameter allows client-side control via the [acme-profile](https://datatracker.ietf.org/doc/draft-aaron-acme-profiles) attribute. | True/False/profile                                         | False                                       |
@@ -91,6 +92,10 @@ On pip, DEB, and RPM installs, `handler:` is the normal way to choose the backen
 The options for the `CAhandler` section depend on the CA handler.
 
 Further options for the `Hooks` section depend on the concrete hooks class.
+
+If `DEFAULT.server_name` is configured together with `Directory.caaidentities`,
+acme2certifier logs a startup warning when `server_name` is not present in
+`caaidentities` (sanity check only; no hard failure).
 
 ### Accepted risk: dynamic plugin loading
 

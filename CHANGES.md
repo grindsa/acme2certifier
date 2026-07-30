@@ -24,6 +24,7 @@ and pick the appropriate release branch.
 - Security defaults hardening:
   - `/trigger` endpoint is disabled by default and requires both `[Trigger] enabled=True` and CA handler opt-in (`supports_trigger=True`)
   - Legacy unauthenticated GET on challenge/authorization resources is disabled by default (`legacy_acme_get=False`)
+  - URL generation supports canonical host override via `[DEFAULT] server_name`; startup warnings are emitted when falling back to request headers and when `server_name` is not part of `Directory.caaidentities`
   - HTTP-01 can reject non-global/private targets via `http01_block_private_ips` (opt-in)
   - `nonce_check_disable` and `signature_check_disable` are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set
 - Resolve relative `acme_srv.db` paths against the deploy base directory and clarify default DB location

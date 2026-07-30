@@ -141,6 +141,8 @@ class TestACMEHandler(unittest.TestCase):
             config_allowed_domainlist_load,
             config_dns_server_list_load,
             config_async_mode_load,
+            configured_server_name_get,
+            server_name_configuration_validate,
             is_domain_whitelisted,
             allowed_domainlist_check,
             radomize_parameter_list,
@@ -254,6 +256,8 @@ class TestACMEHandler(unittest.TestCase):
         self.enrollment_config_log = enrollment_config_log
         self.config_enroll_config_log_load = config_enroll_config_log_load
         self.config_async_mode_load = config_async_mode_load
+        self.configured_server_name_get = configured_server_name_get
+        self.server_name_configuration_validate = server_name_configuration_validate
         self.is_domain_whitelisted = is_domain_whitelisted
         self.allowed_domainlist_check = allowed_domainlist_check
         self.radomize_parameter_list = radomize_parameter_list
@@ -1543,6 +1547,52 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             "PATH_INFO": "path_info",
         }
         self.assertEqual("http://http_host", self.get_url(data_dic, False))
+
+    @patch("acme2certifier.acme_srv.helpers.network.load_config")
+    def test_134b_helper_get_url_server_name_override(self, mock_load_cfg):
+        """get_url uses configured DEFAULT.server_name instead of Host header"""
+        cfg = configparser.ConfigParser()
+        cfg["DEFAULT"] = {"server_name": "acme.example.com"}
+        mock_load_cfg.return_value = cfg
+        data_dic = {
+            "HTTP_HOST": "attacker.example.net",
+            "HTTP_X_FORWARDED_PROTO": "https",
+            "SERVER_PORT": "443",
+            "PATH_INFO": "/acme/directory",
+        }
+        self.assertEqual("https://acme.example.com", self.get_url(data_dic, False))
+        self.assertEqual(
+            "https://acme.example.com/acme/directory", self.get_url(data_dic, True)
+        )
+
+    def test_134c_server_name_configuration_fallback_warning(self):
+        """startup warning when DEFAULT.server_name is not configured"""
+        cfg = configparser.ConfigParser()
+        cfg["Directory"] = {"caaidentities": '["acme.example.com"]'}
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.server_name_configuration_validate(self.logger, cfg)
+        self.assertTrue(
+            any("No [DEFAULT] server_name configured" in line for line in lcm.output)
+        )
+
+    def test_134d_server_name_caa_mismatch_warning(self):
+        """startup warning when server_name is not part of caaidentities"""
+        cfg = configparser.ConfigParser()
+        cfg["DEFAULT"] = {"server_name": "acme.example.com"}
+        cfg["Directory"] = {"caaidentities": '["issuer.example.com"]'}
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.server_name_configuration_validate(self.logger, cfg)
+        self.assertTrue(
+            any("is not listed in Directory.caaidentities" in line for line in lcm.output)
+        )
+
+    def test_134e_server_name_caa_match_no_warning(self):
+        """no warning when server_name matches caaidentities"""
+        cfg = configparser.ConfigParser()
+        cfg["DEFAULT"] = {"server_name": "acme.example.com"}
+        cfg["Directory"] = {"caaidentities": '["acme.example.com"]'}
+        with self.assertNoLogs("test_a2c", level="WARNING"):
+            self.server_name_configuration_validate(self.logger, cfg)
 
     def test_135_helper_validate_email(self):
         """validate email containing first letter of domain cannot be a number"""

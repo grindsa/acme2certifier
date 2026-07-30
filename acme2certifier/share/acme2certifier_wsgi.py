@@ -31,6 +31,7 @@ from acme2certifier.acme_srv.helper import (
     config_check,
     legacy_acme_get_load,
     acme_get_method_not_allowed_problem,
+    server_name_configuration_validate,
 )
 from acme2certifier.acme_srv.db_handler import log_active_db_handler
 from acme2certifier.acme_srv.version import __dbversion__, __version__
@@ -100,6 +101,7 @@ LOGGER = logger_setup(DEBUG)
 log_loaded_acme_srv_cfg(LOGGER)
 log_active_db_handler(LOGGER, CONFIG)
 config_check(LOGGER, CONFIG)
+server_name_configuration_validate(LOGGER, CONFIG)
 LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
 
 # Stack-start gate for /trigger (config + CA handler supports_trigger)

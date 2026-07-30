@@ -22,6 +22,50 @@ from .encoding import convert_string_to_byte, b64_encode
 from .global_variables import USER_AGENT
 
 
+def _caaidentities_parse(value: str) -> List[str]:
+    """Parse caaidentities from JSON list or comma-separated string."""
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    except Exception:
+        pass
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def configured_server_name_get(config_dic) -> Optional[str]:
+    """Return configured server_name from DEFAULT or Directory section."""
+    server_name = config_dic.get("DEFAULT", "server_name", fallback=None)
+    if server_name and str(server_name).strip():
+        return str(server_name).strip()
+    server_name = config_dic.get("Directory", "server_name", fallback=None)
+    if server_name and str(server_name).strip():
+        return str(server_name).strip()
+    return None
+
+
+def server_name_configuration_validate(logger: logging.Logger, config_dic) -> None:
+    """Emit startup warnings for server_name fallback and CAA alignment."""
+    server_name = configured_server_name_get(config_dic)
+    if not server_name:
+        logger.warning(
+            "No [DEFAULT] server_name configured; deriving server URL from request "
+            "headers. This is not recommended for production."
+        )
+        return
+
+    caa_raw = config_dic.get("Directory", "caaidentities", fallback=None)
+    caaidentities = _caaidentities_parse(caa_raw) if caa_raw else []
+    if caaidentities and server_name not in caaidentities:
+        logger.warning(
+            "Configured server_name '%s' is not listed in Directory.caaidentities %s",
+            server_name,
+            caaidentities,
+        )
+
+
 def _handle_dns_exception(
     logger: logging.Logger,
     host: str,
@@ -733,7 +777,11 @@ def header_info_get(
 
 def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
     """get url"""
-    if "HTTP_HOST" in environ:
+    config_dic = load_config()
+    configured_server_name = configured_server_name_get(config_dic)
+    if configured_server_name:
+        server_name = html.escape(configured_server_name)
+    elif "HTTP_HOST" in environ:
         server_name = html.escape(environ["HTTP_HOST"])
     else:
         server_name = "localhost"
