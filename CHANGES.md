@@ -21,6 +21,11 @@ and pick the appropriate release branch.
 - Route CA handler HTTP calls through the shared `request_operation` helper (including retry support)
 - Improve ASA CA handler parsing of error responses from the CA
 - Improve OpenSSL CA handler handling of absolute certificate/key paths
+- Security defaults hardening:
+  - `/trigger` endpoint is disabled by default and requires both `[Trigger] enabled=True` and CA handler opt-in (`supports_trigger=True`)
+  - Legacy unauthenticated GET on challenge/authorization resources is disabled by default (`legacy_acme_get=False`)
+  - HTTP-01 can reject non-global/private targets via `http01_block_private_ips` (opt-in)
+  - `nonce_check_disable` and `signature_check_disable` are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set
 - Resolve relative `acme_srv.db` paths against the deploy base directory and clarify default DB location
 - Stop shipping `acme_srv.cfg` inside DEB/RPM packages; preserve handler configuration across install/restart
 - Adapt Docker entrypoints and install scripts to the package layout
