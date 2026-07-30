@@ -13,10 +13,13 @@ class TestA2CDjangoSecretKeygen(unittest.TestCase):
 
     def test_001_main_prints_secret_key(self):
         """main() prints get_random_secret_key()"""
-        with patch(
-            "django.core.management.utils.get_random_secret_key",
-            return_value="secret-key-value",
-        ), patch("builtins.print") as mock_print:
+        with (
+            patch(
+                "django.core.management.utils.get_random_secret_key",
+                return_value="secret-key-value",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
             from acme2certifier.tools import a2c_django_secret_keygen
 
             a2c_django_secret_keygen.main()
@@ -28,10 +31,13 @@ class TestA2CDjangoSecretKeygen(unittest.TestCase):
         import runpy
 
         sys.modules.pop("acme2certifier.tools.a2c_django_secret_keygen", None)
-        with patch(
-            "django.core.management.utils.get_random_secret_key",
-            return_value="sk",
-        ), patch("builtins.print") as mock_print:
+        with (
+            patch(
+                "django.core.management.utils.get_random_secret_key",
+                return_value="sk",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
             runpy.run_module(
                 "acme2certifier.tools.a2c_django_secret_keygen",
                 run_name="__main__",

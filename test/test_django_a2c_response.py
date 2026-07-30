@@ -63,7 +63,9 @@ class TestJsonResponse(unittest.TestCase):
 
     def test_006_custom_json_dumps_params(self) -> None:
         """explicit json_dumps_params are honored"""
-        resp = JsonResponse({"a": 1}, json_dumps_params={"indent": None, "separators": (",", ":")})
+        resp = JsonResponse(
+            {"a": 1}, json_dumps_params={"indent": None, "separators": (",", ":")}
+        )
         self.assertEqual(b'{"a":1}', resp.content)
 
 

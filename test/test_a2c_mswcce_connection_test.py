@@ -18,13 +18,16 @@ class TestA2CMswcceConnectionTest(unittest.TestCase):
         mock_cm.__enter__.return_value = mock_handler
         mock_cm.__exit__.return_value = False
 
-        with patch(
-            "acme2certifier.tools.a2c_mswcce_connection_test.logger_setup",
-            return_value=MagicMock(),
-        ) as mock_log, patch(
-            "acme2certifier.tools.a2c_mswcce_connection_test.CAhandler",
-            return_value=mock_cm,
-        ) as mock_cls:
+        with (
+            patch(
+                "acme2certifier.tools.a2c_mswcce_connection_test.logger_setup",
+                return_value=MagicMock(),
+            ) as mock_log,
+            patch(
+                "acme2certifier.tools.a2c_mswcce_connection_test.CAhandler",
+                return_value=mock_cm,
+            ) as mock_cls,
+        ):
             from acme2certifier.tools import a2c_mswcce_connection_test as mod
 
             mod.main()
@@ -45,11 +48,14 @@ class TestA2CMswcceConnectionTest(unittest.TestCase):
         mock_cm = MagicMock()
         mock_cm.__enter__.return_value = MagicMock()
         mock_cm.__exit__.return_value = False
-        with patch(
-            "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
-        ), patch(
-            "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler",
-            return_value=mock_cm,
+        with (
+            patch(
+                "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
+            ),
+            patch(
+                "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler",
+                return_value=mock_cm,
+            ),
         ):
             runpy.run_path(str(path), run_name="__main__")
 

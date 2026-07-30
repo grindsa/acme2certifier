@@ -11,7 +11,6 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-
 _WSGI = "acme2certifier.django_project.wsgi"
 
 
@@ -34,15 +33,18 @@ class TestDjangoProjectWsgi(unittest.TestCase):
             try:
                 if tmp in sys.path:
                     sys.path.remove(tmp)
-                with patch.dict(
-                    os.environ,
-                    {
-                        "ACME2CERTIFIER_BASE_DIR": tmp,
-                        "DJANGO_SETTINGS_MODULE": "acme2certifier.django_project.settings",
-                    },
-                    clear=False,
-                ), patch(
-                    "django.core.wsgi.get_wsgi_application", return_value=mock_app
+                with (
+                    patch.dict(
+                        os.environ,
+                        {
+                            "ACME2CERTIFIER_BASE_DIR": tmp,
+                            "DJANGO_SETTINGS_MODULE": "acme2certifier.django_project.settings",
+                        },
+                        clear=False,
+                    ),
+                    patch(
+                        "django.core.wsgi.get_wsgi_application", return_value=mock_app
+                    ),
                 ):
                     mod = importlib.import_module(_WSGI)
                 self.assertIs(mock_app, mod.application)
@@ -56,15 +58,16 @@ class TestDjangoProjectWsgi(unittest.TestCase):
         saved_path = list(sys.path)
         mock_app = MagicMock(name="wsgi_app2")
         try:
-            with patch.dict(
-                os.environ,
-                {
-                    "ACME2CERTIFIER_BASE_DIR": missing,
-                    "DJANGO_SETTINGS_MODULE": "acme2certifier.django_project.settings",
-                },
-                clear=False,
-            ), patch(
-                "django.core.wsgi.get_wsgi_application", return_value=mock_app
+            with (
+                patch.dict(
+                    os.environ,
+                    {
+                        "ACME2CERTIFIER_BASE_DIR": missing,
+                        "DJANGO_SETTINGS_MODULE": "acme2certifier.django_project.settings",
+                    },
+                    clear=False,
+                ),
+                patch("django.core.wsgi.get_wsgi_application", return_value=mock_app),
             ):
                 mod = importlib.import_module(_WSGI)
             self.assertIs(mock_app, mod.application)
@@ -81,15 +84,18 @@ class TestDjangoProjectWsgi(unittest.TestCase):
                 if tmp not in sys.path:
                     sys.path.insert(0, tmp)
                 before = list(sys.path)
-                with patch.dict(
-                    os.environ,
-                    {
-                        "ACME2CERTIFIER_BASE_DIR": tmp,
-                        "DJANGO_SETTINGS_MODULE": "acme2certifier.django_project.settings",
-                    },
-                    clear=False,
-                ), patch(
-                    "django.core.wsgi.get_wsgi_application", return_value=mock_app
+                with (
+                    patch.dict(
+                        os.environ,
+                        {
+                            "ACME2CERTIFIER_BASE_DIR": tmp,
+                            "DJANGO_SETTINGS_MODULE": "acme2certifier.django_project.settings",
+                        },
+                        clear=False,
+                    ),
+                    patch(
+                        "django.core.wsgi.get_wsgi_application", return_value=mock_app
+                    ),
                 ):
                     mod = importlib.import_module(_WSGI)
                 self.assertIs(mock_app, mod.application)

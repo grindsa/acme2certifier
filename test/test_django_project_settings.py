@@ -11,7 +11,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-
 _SETTINGS = "acme2certifier.django_project.settings"
 
 
@@ -39,8 +38,9 @@ class TestDjangoProjectSettings(unittest.TestCase):
             "ACME2CERTIFIER_ALLOWED_HOSTS",
         ):
             env.pop(key, None)
-        with patch.dict(os.environ, env, clear=True), patch(
-            "os.path.isdir", return_value=False
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("os.path.isdir", return_value=False),
         ):
             mod = self._reload()
             self.assertEqual(os.getcwd(), mod.BASE_DIR)
@@ -72,8 +72,9 @@ class TestDjangoProjectSettings(unittest.TestCase):
         env = dict(os.environ)
         env.pop("ACME2CERTIFIER_BASE_DIR", None)
         env["ACME2CERTIFIER_DEBUG"] = "1"
-        with patch.dict(os.environ, env, clear=True), patch(
-            "os.path.isdir", return_value=True
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("os.path.isdir", return_value=True),
         ):
             mod = self._reload()
             self.assertEqual("/var/www/acme2certifier", mod.BASE_DIR)

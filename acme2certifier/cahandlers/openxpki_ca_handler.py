@@ -143,14 +143,14 @@ class CAhandler(object):
                     )
                 )
             except Exception as err:
-                self.logger.error(
-                    "Could not load request_retries from config: %s", err
-                )
+                self.logger.error("Could not load request_retries from config: %s", err)
 
             try:
                 self.request_retry_backoff = float(
                     config_dic.get(
-                        "CAhandler", "request_retry_backoff", fallback=self.request_retry_backoff
+                        "CAhandler",
+                        "request_retry_backoff",
+                        fallback=self.request_retry_backoff,
                     )
                 )
             except Exception as err:

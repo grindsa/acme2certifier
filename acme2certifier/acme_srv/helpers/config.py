@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import warnings
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from .plugin_loader import eab_handler_load
 from .global_variables import PARSING_ERR_MSG
 
@@ -297,6 +297,35 @@ def config_async_mode_load(
             )
     logger.debug("Helper.config_async_mode_load() ended with: %s", async_mode)
     return async_mode
+
+
+def legacy_acme_get_load(logger: logging.Logger, config_dic) -> bool:
+    """Load ``legacy_acme_get`` from ``[DEFAULT]`` (default False).
+
+    When False (default), unauthenticated GET on challenge and authorization
+    resources is rejected with HTTP 405 (RFC 8555 / Let's Encrypt behavior).
+    When True, legacy unauthenticated GET is allowed.
+    """
+    logger.debug("Helper.legacy_acme_get_load()")
+    enabled = False
+    if config_dic:
+        enabled = config_dic.getboolean("DEFAULT", "legacy_acme_get", fallback=False)
+    if enabled:
+        logger.warning(
+            "legacy_acme_get is enabled: unauthenticated GET is allowed for "
+            "challenge and authorization resources (RFC 8555 prefers POST-as-GET)."
+        )
+    logger.debug("Helper.legacy_acme_get_load() ended with: %s", enabled)
+    return enabled
+
+
+def acme_get_method_not_allowed_problem() -> Dict[str, Any]:
+    """ACME problem document for rejected plain GET on challenge/authz."""
+    return {
+        "type": "urn:ietf:params:acme:error:malformed",
+        "detail": "Method not allowed. Use POST-as-GET.",
+        "status": 405,
+    }
 
 
 def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):

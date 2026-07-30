@@ -55,7 +55,9 @@ class TestACMEHandler(unittest.TestCase):
         path_info = "foo"
         self.acmechallenge.dbstore.cahandler_lookup.return_value = "lookup"
         self.assertFalse(self.acmechallenge.lookup(path_info))
-        self.acmechallenge.dbstore.cahandler_lookup.assert_called_once_with("name", "foo")
+        self.acmechallenge.dbstore.cahandler_lookup.assert_called_once_with(
+            "name", "foo"
+        )
 
     def test_005_lookup(self):
         """test lookup strips well-known path prefix"""

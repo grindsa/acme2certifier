@@ -34,13 +34,13 @@ class TestA2CCertPoll(unittest.TestCase):
             },
         ]
 
-        with patch(
-            "acme2certifier.tools.a2c_cert_poll.initialize"
-        ) as mock_init, patch(
-            "acme2certifier.tools.a2c_cert_poll.logger_setup"
-        ) as mock_log, patch(
-            "acme2certifier.tools.a2c_cert_poll.Certificate",
-            return_value=mock_cert_cm,
+        with (
+            patch("acme2certifier.tools.a2c_cert_poll.initialize") as mock_init,
+            patch("acme2certifier.tools.a2c_cert_poll.logger_setup") as mock_log,
+            patch(
+                "acme2certifier.tools.a2c_cert_poll.Certificate",
+                return_value=mock_cert_cm,
+            ),
         ):
             mock_log.return_value = MagicMock()
             from acme2certifier.tools import a2c_cert_poll
@@ -63,12 +63,16 @@ class TestA2CCertPoll(unittest.TestCase):
         mock_cert_cm.__exit__.return_value = False
         mock_cert.certlist_search.return_value = []
 
-        with patch("acme2certifier.tools.a2c_cert_poll.initialize"), patch(
-            "acme2certifier.tools.a2c_cert_poll.logger_setup",
-            return_value=MagicMock(),
-        ), patch(
-            "acme2certifier.tools.a2c_cert_poll.Certificate",
-            return_value=mock_cert_cm,
+        with (
+            patch("acme2certifier.tools.a2c_cert_poll.initialize"),
+            patch(
+                "acme2certifier.tools.a2c_cert_poll.logger_setup",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "acme2certifier.tools.a2c_cert_poll.Certificate",
+                return_value=mock_cert_cm,
+            ),
         ):
             from acme2certifier.tools import a2c_cert_poll
 
@@ -94,9 +98,11 @@ class TestA2CCertPoll(unittest.TestCase):
         mock_cm = MagicMock()
         mock_cm.__enter__.return_value.certlist_search.return_value = []
         mock_cm.__exit__.return_value = False
-        with patch.object(db_handler, "initialize"), patch.object(
-            helper, "logger_setup", return_value=MagicMock()
-        ), patch.object(certificate, "Certificate", return_value=mock_cm):
+        with (
+            patch.object(db_handler, "initialize"),
+            patch.object(helper, "logger_setup", return_value=MagicMock()),
+            patch.object(certificate, "Certificate", return_value=mock_cm),
+        ):
             runpy.run_path(str(path), run_name="__main__")
 
 

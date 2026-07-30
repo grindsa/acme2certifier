@@ -317,7 +317,9 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIsInstance(aid, int)
         az = self.dbstore._authorization_getinstance("azAdd")
         self.assertEqual("azAdd", az.name)
-        rows = self.dbstore.authorization_lookup("name", "azAdd", vlist=["type", "value"])
+        rows = self.dbstore.authorization_lookup(
+            "name", "azAdd", vlist=["type", "value"]
+        )
         self.assertEqual(1, len(rows))
         self.assertEqual("dns", rows[0]["type"])
         rid = self.dbstore.authorization_update({"name": "azAdd", "status": "valid"})
@@ -364,8 +366,9 @@ class TestDjangoHandler(unittest.TestCase):
         mock_atomic = MagicMock()
         mock_atomic.return_value.__enter__ = MagicMock(return_value=None)
         mock_atomic.return_value.__exit__ = MagicMock(return_value=False)
-        with patch.object(dh_mod, "DJANGO_VERSION", 3), patch.object(
-            dh_mod.transaction, "atomic", mock_atomic
+        with (
+            patch.object(dh_mod, "DJANGO_VERSION", 3),
+            patch.object(dh_mod.transaction, "atomic", mock_atomic),
         ):
             rid = self.dbstore.authorization_update(
                 {"name": "az3", "status": "valid", "token": "tok"}
@@ -435,8 +438,9 @@ class TestDjangoHandler(unittest.TestCase):
         mock_atomic = MagicMock()
         mock_atomic.return_value.__enter__ = MagicMock(return_value=None)
         mock_atomic.return_value.__exit__ = MagicMock(return_value=False)
-        with patch.object(dh_mod, "DJANGO_VERSION", 3), patch.object(
-            dh_mod.transaction, "atomic", mock_atomic
+        with (
+            patch.object(dh_mod, "DJANGO_VERSION", 3),
+            patch.object(dh_mod.transaction, "atomic", mock_atomic),
         ):
             cid = self.dbstore.challenge_add(
                 "ex.com",
@@ -512,9 +516,7 @@ class TestDjangoHandler(unittest.TestCase):
     def test_027_cli_jwk_load_bytes(self) -> None:
         """test cli_jwk_load bytes.decode path via mocked ORM row"""
         values_qs = MagicMock()
-        values_qs.__getitem__.return_value = [
-            {"jwk": b'{"kty":"EC","crv":"P-256"}'}
-        ]
+        values_qs.__getitem__.return_value = [{"jwk": b'{"kty":"EC","crv":"P-256"}'}]
         with patch.object(Cliaccount.objects, "filter") as mock_filter:
             mock_filter.return_value.values.return_value = values_qs
             jwk = self.dbstore.cli_jwk_load("cliBytes")
@@ -556,9 +558,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual("RS256", jwk["alg"])
         self.assertEqual("RSA", jwk["kty"])
         values_qs = MagicMock()
-        values_qs.__getitem__.return_value = [
-            {"jwk": b'{"kty":"EC"}', "alg": "ES256"}
-        ]
+        values_qs.__getitem__.return_value = [{"jwk": b'{"kty":"EC"}', "alg": "ES256"}]
         with patch.object(Account.objects, "filter") as mock_filter:
             mock_filter.return_value.values.return_value = values_qs
             jwk2 = self.dbstore.jwk_load("acctJwk")
@@ -600,7 +600,12 @@ class TestDjangoHandler(unittest.TestCase):
             rid = self.dbstore.certificate_add({"name": "certNoOrd", "csr": "c"})
         self.assertEqual(99, rid)
         mock_uoc.assert_called_once()
-        self.assertNotIn("order", mock_uoc.call_args.kwargs.get("defaults", mock_uoc.call_args[1] if len(mock_uoc.call_args) > 1 else {}))
+        self.assertNotIn(
+            "order",
+            mock_uoc.call_args.kwargs.get(
+                "defaults", mock_uoc.call_args[1] if len(mock_uoc.call_args) > 1 else {}
+            ),
+        )
 
     def test_032_challenge_update_without_status(self) -> None:
         """test challenge_update without status key"""

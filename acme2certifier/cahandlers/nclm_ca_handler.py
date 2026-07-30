@@ -764,7 +764,11 @@ class CAhandler(object):
                 retries=self.request_retries,
                 retry_backoff=self.request_retry_backoff,
             )
-            if isinstance(response, dict) and "status" in response and response["status"] in ["done", "failed"]:
+            if (
+                isinstance(response, dict)
+                and "status" in response
+                and response["status"] in ["done", "failed"]
+            ):
                 if response["status"] == "done":
                     code = 200
                     message = None

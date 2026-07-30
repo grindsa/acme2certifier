@@ -248,7 +248,9 @@ class TestCertsrv(unittest.TestCase):
         post_resp = MagicMock()
         post_resp.text = '<a href="certnew.cer?ReqID=99&amp;Enc=b64">cert</a>'
         with patch.object(obj, "_post", return_value=post_resp) as mock_post:
-            with patch.object(obj, "get_existing_cert", return_value=b"CERT") as mock_ex:
+            with patch.object(
+                obj, "get_existing_cert", return_value=b"CERT"
+            ) as mock_ex:
                 result = obj.get_cert("CSRDATA", "WebServer", attributes="Attr:1\r\n")
         self.assertEqual(result, b"CERT")
         mock_post.assert_called_once()
@@ -274,9 +276,7 @@ class TestCertsrv(unittest.TestCase):
         """get_cert raises CertificatePendingException"""
         obj = self._make_certsrv()
         post_resp = MagicMock()
-        post_resp.text = (
-            "Certificate Pending<br>Your Request Id is 123."
-        )
+        post_resp.text = "Certificate Pending<br>Your Request Id is 123."
         with patch.object(obj, "_post", return_value=post_resp):
             with self.assertRaises(self.mod.CertificatePendingException) as cm:
                 obj.get_cert("CSR", "Tpl")

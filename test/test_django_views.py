@@ -71,12 +71,18 @@ class TestDjangoViews(unittest.TestCase):
         mock_cm.__exit__.return_value = False
 
         sys.modules.pop(_VIEWS, None)
-        with patch(
-            "acme2certifier.acme_srv.housekeeping.Housekeeping", return_value=mock_cm
-        ), patch("acme2certifier.acme_srv.helper.config_check"), patch(
-            "acme2certifier.acme_srv.helper.log_loaded_acme_srv_cfg"
-        ), patch(
-            "acme2certifier.acme_srv.db_handler.log_active_db_handler"
+        with (
+            patch(
+                "acme2certifier.acme_srv.housekeeping.Housekeeping",
+                return_value=mock_cm,
+            ),
+            patch("acme2certifier.acme_srv.helper.config_check"),
+            patch(
+                "acme2certifier.acme_srv.helper.legacy_acme_get_load",
+                return_value=False,
+            ),
+            patch("acme2certifier.acme_srv.helper.log_loaded_acme_srv_cfg"),
+            patch("acme2certifier.acme_srv.db_handler.log_active_db_handler"),
         ):
             self.views = importlib.import_module(_VIEWS)
 
@@ -155,7 +161,11 @@ class TestDjangoViews(unittest.TestCase):
         cm, _inst = self._cm(new=_ok({"status": "valid"}, {"Location": "/acct/1"}))
         with patch(f"{_VIEWS}.Account", return_value=cm):
             resp = self.views.newaccount(
-                self._meta(self.rf.post("/newaccount", data=b"{}", content_type="application/jose+json"))
+                self._meta(
+                    self.rf.post(
+                        "/newaccount", data=b"{}", content_type="application/jose+json"
+                    )
+                )
             )
         self.assertEqual(200, resp.status_code)
         self.assertEqual("/acct/1", resp["Location"])
@@ -201,9 +211,7 @@ class TestDjangoViews(unittest.TestCase):
         """servername_get returns escaped server name"""
         cm, _inst = self._cm(servername_get="srv.example")
         with patch(f"{_VIEWS}.Directory", return_value=cm):
-            resp = self.views.servername_get(
-                self._meta(self.rf.get("/servername_get"))
-            )
+            resp = self.views.servername_get(self._meta(self.rf.get("/servername_get")))
         self.assertEqual(200, resp.status_code)
         self.assertIn(b"srv.example", resp.content)
 
@@ -214,7 +222,11 @@ class TestDjangoViews(unittest.TestCase):
         cm, _inst = self._cm(parse=_ok(header={"Replay-Nonce": "n"}))
         with patch(f"{_VIEWS}.Account", return_value=cm):
             resp = self.views.acct(
-                self._meta(self.rf.post("/acct", data=b"{}", content_type="application/jose+json"))
+                self._meta(
+                    self.rf.post(
+                        "/acct", data=b"{}", content_type="application/jose+json"
+                    )
+                )
             )
         self.assertEqual(200, resp.status_code)
         self.assertEqual("n", resp["Replay-Nonce"])
@@ -228,7 +240,9 @@ class TestDjangoViews(unittest.TestCase):
         with patch(f"{_VIEWS}.Order", return_value=cm):
             resp = self.views.neworders(
                 self._meta(
-                    self.rf.post("/neworders", data=b"{}", content_type="application/jose+json")
+                    self.rf.post(
+                        "/neworders", data=b"{}", content_type="application/jose+json"
+                    )
                 )
             )
         self.assertEqual(200, resp.status_code)
@@ -243,7 +257,9 @@ class TestDjangoViews(unittest.TestCase):
         with patch(f"{_VIEWS}.Order", return_value=cm):
             resp = self.views.neworders(
                 self._meta(
-                    self.rf.post("/neworders", data=b"{}", content_type="application/jose+json")
+                    self.rf.post(
+                        "/neworders", data=b"{}", content_type="application/jose+json"
+                    )
                 )
             )
         self.assertEqual("", resp["Replay-Nonce"])
@@ -261,7 +277,11 @@ class TestDjangoViews(unittest.TestCase):
         cm, inst = self._cm(new_post=_ok())
         with patch(f"{_VIEWS}.Authorization", return_value=cm):
             resp = self.views.authz(
-                self._meta(self.rf.post("/authz", data=b"{}", content_type="application/jose+json"))
+                self._meta(
+                    self.rf.post(
+                        "/authz", data=b"{}", content_type="application/jose+json"
+                    )
+                )
             )
         self.assertEqual(200, resp.status_code)
         self.assertTrue(inst.new_post.called)
@@ -270,8 +290,23 @@ class TestDjangoViews(unittest.TestCase):
 
     @patch(f"{_VIEWS}.logger_info")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_016_authz_get(self, _url, mock_log) -> None:
-        """authz GET uses new_get"""
+    def test_016_authz_get_rejected_by_default(self, _url, mock_log) -> None:
+        """authz GET returns 405 when legacy_acme_get is False"""
+        self.views.LEGACY_ACME_GET = False
+        cm, inst = self._cm(new_get=_ok())
+        with patch(f"{_VIEWS}.Authorization", return_value=cm):
+            resp = self.views.authz(self._meta(self.rf.get("/authz/xyz")))
+        self.assertEqual(405, resp.status_code)
+        self.assertIn(b"POST-as-GET", resp.content)
+        self.assertEqual("POST", resp["Allow"])
+        self.assertFalse(inst.new_get.called)
+        self.assertFalse(mock_log.called)
+
+    @patch(f"{_VIEWS}.logger_info")
+    @patch(f"{_VIEWS}.get_url", return_value="http://srv")
+    def test_016b_authz_get_legacy_enabled(self, _url, mock_log) -> None:
+        """authz GET uses new_get when legacy_acme_get is True"""
+        self.views.LEGACY_ACME_GET = True
         cm, inst = self._cm(new_get=_ok())
         with patch(f"{_VIEWS}.Authorization", return_value=cm):
             resp = self.views.authz(self._meta(self.rf.get("/authz/xyz")))
@@ -292,15 +327,32 @@ class TestDjangoViews(unittest.TestCase):
         cm, inst = self._cm(parse=_ok())
         with patch(f"{_VIEWS}.Challenge", return_value=cm):
             resp = self.views.chall(
-                self._meta(self.rf.post("/chall", data=b"{}", content_type="application/jose+json"))
+                self._meta(
+                    self.rf.post(
+                        "/chall", data=b"{}", content_type="application/jose+json"
+                    )
+                )
             )
         self.assertEqual(200, resp.status_code)
         self.assertTrue(inst.parse.called)
         self.assertTrue(mock_log.called)
 
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_019_chall_get(self, _url) -> None:
-        """chall GET uses challenge.get"""
+    def test_019_chall_get_rejected_by_default(self, _url) -> None:
+        """chall GET returns 405 when legacy_acme_get is False"""
+        self.views.LEGACY_ACME_GET = False
+        cm, inst = self._cm(get=_ok())
+        with patch(f"{_VIEWS}.Challenge", return_value=cm):
+            resp = self.views.chall(self._meta(self.rf.get("/chall/xyz")))
+        self.assertEqual(405, resp.status_code)
+        self.assertIn(b"POST-as-GET", resp.content)
+        self.assertEqual("POST", resp["Allow"])
+        self.assertFalse(inst.get.called)
+
+    @patch(f"{_VIEWS}.get_url", return_value="http://srv")
+    def test_019b_chall_get_legacy_enabled(self, _url) -> None:
+        """chall GET uses challenge.get when legacy_acme_get is True"""
+        self.views.LEGACY_ACME_GET = True
         cm, inst = self._cm(get=_ok())
         with patch(f"{_VIEWS}.Challenge", return_value=cm):
             resp = self.views.chall(self._meta(self.rf.get("/chall/xyz")))
@@ -321,7 +373,11 @@ class TestDjangoViews(unittest.TestCase):
         cm, _inst = self._cm(parse=_ok())
         with patch(f"{_VIEWS}.Order", return_value=cm):
             resp = self.views.order(
-                self._meta(self.rf.post("/order", data=b"{}", content_type="application/jose+json"))
+                self._meta(
+                    self.rf.post(
+                        "/order", data=b"{}", content_type="application/jose+json"
+                    )
+                )
             )
         self.assertEqual(200, resp.status_code)
         self.assertTrue(mock_log.called)
@@ -336,11 +392,19 @@ class TestDjangoViews(unittest.TestCase):
     def test_023_cert_post_200(self, _url, mock_log) -> None:
         """cert POST 200 returns HttpResponse with headers"""
         cm, _inst = self._cm(
-            new_post={"code": 200, "data": "PEM", "header": {"Content-Type": "application/pem-certificate-chain"}}
+            new_post={
+                "code": 200,
+                "data": "PEM",
+                "header": {"Content-Type": "application/pem-certificate-chain"},
+            }
         )
         with patch(f"{_VIEWS}.Certificate", return_value=cm):
             resp = self.views.cert(
-                self._meta(self.rf.post("/cert", data=b"{}", content_type="application/jose+json"))
+                self._meta(
+                    self.rf.post(
+                        "/cert", data=b"{}", content_type="application/jose+json"
+                    )
+                )
             )
         self.assertEqual(200, resp.status_code)
         self.assertEqual(b"PEM", resp.content)
@@ -370,7 +434,9 @@ class TestDjangoViews(unittest.TestCase):
         with patch(f"{_VIEWS}.Certificate", return_value=cm):
             resp = self.views.revokecert(
                 self._meta(
-                    self.rf.post("/revokecert", data=b"{}", content_type="application/jose+json")
+                    self.rf.post(
+                        "/revokecert", data=b"{}", content_type="application/jose+json"
+                    )
                 )
             )
         self.assertEqual(200, resp.status_code)
@@ -384,7 +450,9 @@ class TestDjangoViews(unittest.TestCase):
         with patch(f"{_VIEWS}.Certificate", return_value=cm):
             resp = self.views.revokecert(
                 self._meta(
-                    self.rf.post("/revokecert", data=b"{}", content_type="application/jose+json")
+                    self.rf.post(
+                        "/revokecert", data=b"{}", content_type="application/jose+json"
+                    )
                 )
             )
         self.assertEqual(204, resp.status_code)
@@ -403,7 +471,11 @@ class TestDjangoViews(unittest.TestCase):
         cm, _inst = self._cm(parse=_ok({"done": True}))
         with patch(f"{_VIEWS}.Trigger", return_value=cm):
             resp = self.views.trigger(
-                self._meta(self.rf.post("/trigger", data=b"{}", content_type="application/json"))
+                self._meta(
+                    self.rf.post(
+                        "/trigger", data=b"{}", content_type="application/json"
+                    )
+                )
             )
         self.assertEqual(200, resp.status_code)
         self.assertTrue(mock_log.called)
@@ -415,7 +487,11 @@ class TestDjangoViews(unittest.TestCase):
         cm, _inst = self._cm(parse={"code": 202, "header": {}})
         with patch(f"{_VIEWS}.Trigger", return_value=cm):
             resp = self.views.trigger(
-                self._meta(self.rf.post("/trigger", data=b"{}", content_type="application/json"))
+                self._meta(
+                    self.rf.post(
+                        "/trigger", data=b"{}", content_type="application/json"
+                    )
+                )
             )
         self.assertEqual(202, resp.status_code)
         self.assertTrue(mock_log.called)
@@ -445,7 +521,11 @@ class TestDjangoViews(unittest.TestCase):
         with patch(f"{_VIEWS}.Renewalinfo", return_value=cm):
             resp = self.views.renewalinfo(
                 self._meta(
-                    self.rf.post("/renewal-info", data=b"{}", content_type="application/jose+json")
+                    self.rf.post(
+                        "/renewal-info",
+                        data=b"{}",
+                        content_type="application/jose+json",
+                    )
                 )
             )
         self.assertEqual(204, resp.status_code)
@@ -464,7 +544,9 @@ class TestDjangoViews(unittest.TestCase):
         with patch(f"{_VIEWS}.Housekeeping", return_value=cm):
             resp = self.views.housekeeping(
                 self._meta(
-                    self.rf.post("/housekeeping", data=b"{}", content_type="application/json")
+                    self.rf.post(
+                        "/housekeeping", data=b"{}", content_type="application/json"
+                    )
                 )
             )
         self.assertEqual(200, resp.status_code)
@@ -477,7 +559,9 @@ class TestDjangoViews(unittest.TestCase):
         with patch(f"{_VIEWS}.Housekeeping", return_value=cm):
             resp = self.views.housekeeping(
                 self._meta(
-                    self.rf.post("/housekeeping", data=b"{}", content_type="application/json")
+                    self.rf.post(
+                        "/housekeeping", data=b"{}", content_type="application/json"
+                    )
                 )
             )
         self.assertEqual(204, resp.status_code)

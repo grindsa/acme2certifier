@@ -1,12 +1,6 @@
----
-name: a2c-changelog
-description: >-
-  Updates CHANGES.md for acme2certifier by comparing git branches (default
-  master..devel), grouping user-visible changes into New Features vs Bug Fixes
-  and Improvements, and linking docs/issues. Use when the user asks to update
-  the changelog, CHANGES.md, or release notes.
-disable-model-invocation: true
----
+______________________________________________________________________
+
+## name: a2c-changelog description: >- Updates CHANGES.md for acme2certifier by comparing git branches (default master..devel), grouping user-visible changes into New Features vs Bug Fixes and Improvements, and linking docs/issues. Use when the user asks to update the changelog, CHANGES.md, or release notes. disable-model-invocation: true
 
 # a2c changelog
 
@@ -30,18 +24,18 @@ branches. If none are given, compare **`devel` against `master`**
 
 1. **Work on `devel`.** All changelog edits land on the `devel` branch. If not
    on `devel`, switch or stop and ask.
-2. **Never edit past releases.** Only update the section for the **current
+1. **Never edit past releases.** Only update the section for the **current
    in-progress** version (see version below). Do not rewrite, reorder, or
    “fix” older `## Changes in …` sections.
-3. **Do not list every commit.** Group related commits into one entry. Each
+1. **Do not list every commit.** Group related commits into one entry. Each
    entry is a single concise one-liner describing user-visible functionality.
-4. **Omit noise.** Do not mention:
+1. **Omit noise.** Do not mention:
    - documentation-only updates
    - additional / refactored unit tests
    - CI / GitHub Actions / workflow / composite-action changes
-5. **Decide the section yourself.** Categorize each grouped change as either a
+1. **Decide the section yourself.** Categorize each grouped change as either a
    new feature or a bugfix/improvement (see sections below).
-6. **No auto-commit or PR.** The user reviews and approves `CHANGES.md` updates
+1. **No auto-commit or PR.** The user reviews and approves `CHANGES.md` updates
    themselves. Do **not** create a git commit, push, or open a pull request for
    changelog changes unless the user explicitly asks in a later message.
 
@@ -49,9 +43,9 @@ branches. If none are given, compare **`devel` against `master`**
 
 1. Read `__version__` from `acme2certifier/acme_srv/version.py` (e.g.
    `0.45.dev1` → section `## Changes in 0.45`).
-2. If that heading is missing, create it at the **top** of the changelog body
+1. If that heading is missing, create it at the **top** of the changelog body
    (immediately under the intro blurb), before older releases.
-3. Merge new bullets into that section only. Deduplicate against entries already
+1. Merge new bullets into that section only. Deduplicate against entries already
    present.
 
 ## Branch comparison

@@ -2171,9 +2171,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         """Test _perform_reverse_check success"""
         mock_ptr_resolve.return_value = ("example.com", False)
 
-        result = self.validator._perform_reverse_check(
-            "example.com", "192.168.1.1", []
-        )
+        result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
 
         self.assertTrue(result["reverse_check_passed"])
         self.assertEqual(result["reverse_domains"], ["example.com"])
@@ -2183,9 +2181,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         """Test _perform_reverse_check failure when PTR hostname does not match"""
         mock_ptr_resolve.return_value = ("other.com", False)
 
-        result = self.validator._perform_reverse_check(
-            "example.com", "192.168.1.1", []
-        )
+        result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
 
         self.assertFalse(result["reverse_check_passed"])
         self.assertEqual(result["reverse_domains"], ["other.com"])
@@ -2295,9 +2291,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         """Test _perform_reverse_check fails closed when ptr_resolve marks invalid"""
         mock_ptr_resolve.return_value = (None, True)
 
-        result = self.validator._perform_reverse_check(
-            "example.com", "192.168.1.1", []
-        )
+        result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
 
         self.assertFalse(result["reverse_check_passed"])
         self.assertEqual(result["reverse_domains"], [])
@@ -2308,9 +2302,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         """Test _perform_reverse_check passes for PTR subdomain of requested domain"""
         mock_ptr_resolve.return_value = ("www.example.com", False)
 
-        result = self.validator._perform_reverse_check(
-            "example.com", "192.168.1.1", []
-        )
+        result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
 
         self.assertTrue(result["reverse_check_passed"])
         self.assertEqual(result["reverse_domains"], ["www.example.com"])

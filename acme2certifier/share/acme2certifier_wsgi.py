@@ -26,6 +26,8 @@ from acme2certifier.acme_srv.helper import (
     logger_setup,
     logger_info,
     config_check,
+    legacy_acme_get_load,
+    acme_get_method_not_allowed_problem,
 )
 from acme2certifier.acme_srv.db_handler import log_active_db_handler
 from acme2certifier.acme_srv.version import __dbversion__, __version__
@@ -50,6 +52,9 @@ WRT_ERROR_MSG = json.dumps(
     },
     indent=2,
 ).encode("utf-8")
+ACME_GET_ERROR_MSG = json.dumps(acme_get_method_not_allowed_problem(), indent=2).encode(
+    "utf-8"
+)
 CONTENT_TYPE_JSON = "application/json"
 WSGI_INPUT = "wsgi.input"
 
@@ -68,6 +73,14 @@ def err_wrong_request_method(start_response):
     start_response(f"405 {HTTP_CODE_DIC[405]}", [("Content-Type", CONTENT_TYPE_JSON)])
 
 
+def err_acme_get_not_allowed(start_response):
+    """RFC 8555: plain GET on challenge/authz must use POST-as-GET"""
+    start_response(
+        f"405 {HTTP_CODE_DIC[405]}",
+        [("Content-Type", CONTENT_TYPE_JSON), ("Allow", "POST")],
+    )
+
+
 def handle_exception(exc_type, exc_value, exc_traceback):
     """exception handler"""
     if issubclass(exc_type, KeyboardInterrupt):
@@ -83,6 +96,8 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 LOGGER = logger_setup(DEBUG)
 log_loaded_acme_srv_cfg(LOGGER)
 log_active_db_handler(LOGGER, CONFIG)
+config_check(LOGGER, CONFIG)
+LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
@@ -157,17 +172,14 @@ def acmechallenge_serve(environ, start_response):
 
 def authz(environ, start_response):
     """authorization handling"""
-    if "REQUEST_METHOD" in environ and environ["REQUEST_METHOD"] in ("POST", "GET"):
+    if "REQUEST_METHOD" in environ and environ["REQUEST_METHOD"] == "POST":
         with Authorization(DEBUG, get_url(environ), LOGGER) as authorization:
-            if environ["REQUEST_METHOD"] == "POST":
-                try:
-                    request_body_size = int(environ.get("CONTENT_LENGTH", 0))
-                except ValueError:
-                    request_body_size = 0
-                request_body = environ[WSGI_INPUT].read(request_body_size)
-                response_dic = authorization.new_post(request_body)
-            else:
-                response_dic = authorization.new_get(get_url(environ, True))
+            try:
+                request_body_size = int(environ.get("CONTENT_LENGTH", 0))
+            except ValueError:
+                request_body_size = 0
+            request_body = environ[WSGI_INPUT].read(request_body_size)
+            response_dic = authorization.new_post(request_body)
 
             # create header
             headers = create_header(response_dic)
@@ -176,6 +188,21 @@ def authz(environ, start_response):
             )
 
             # logging
+            logger_info(
+                LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
+            )
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
+    elif "REQUEST_METHOD" in environ and environ["REQUEST_METHOD"] == "GET":
+        if not LEGACY_ACME_GET:
+            err_acme_get_not_allowed(start_response)
+            return [ACME_GET_ERROR_MSG]
+        with Authorization(DEBUG, get_url(environ), LOGGER) as authorization:
+            response_dic = authorization.new_get(get_url(environ, True))
+
+            headers = create_header(response_dic)
+            start_response(
+                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
+            )
             logger_info(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
@@ -302,6 +329,9 @@ def chall(environ, start_response):
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
 
         elif environ["REQUEST_METHOD"] == "GET":
+            if not LEGACY_ACME_GET:
+                err_acme_get_not_allowed(start_response)
+                return [ACME_GET_ERROR_MSG]
 
             response_dic = challenge.get(get_url(environ, True))
 

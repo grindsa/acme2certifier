@@ -7334,9 +7334,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual(200, status)
         self.assertIsNone(err)
         args, kwargs = mock_get.call_args
-        self.assertEqual(
-            "http://example.com/.well-known/acme-challenge/tok", args[0]
-        )
+        self.assertEqual("http://example.com/.well-known/acme-challenge/tok", args[0])
         self.assertNotIn("Host", kwargs["headers"])
         self.assertEqual({}, kwargs["proxies"])
         self.assertEqual([("8.8.8.8", 80)], dialed)
@@ -7387,6 +7385,33 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         args, _kwargs = mock_get.call_args
         self.assertEqual("http://[2606:4700:4700::1111]/path", args[0])
         self.assertEqual([("2606:4700:4700::1111", 80)], dialed)
+
+    def test_576_legacy_acme_get_load_default_false(self):
+        """legacy_acme_get defaults to False"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.config import legacy_acme_get_load
+
+        config_dic = ConfigParser()
+        self.assertFalse(legacy_acme_get_load(self.logger, config_dic))
+
+    def test_577_legacy_acme_get_load_true_warns(self):
+        """legacy_acme_get True logs a warning"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.config import (
+            legacy_acme_get_load,
+            acme_get_method_not_allowed_problem,
+        )
+
+        config_dic = ConfigParser()
+        config_dic["DEFAULT"] = {"legacy_acme_get": "True"}
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertTrue(legacy_acme_get_load(self.logger, config_dic))
+        self.assertTrue(
+            any("legacy_acme_get is enabled" in line for line in lcm.output)
+        )
+        problem = acme_get_method_not_allowed_problem()
+        self.assertEqual(405, problem["status"])
+        self.assertIn("malformed", problem["type"])
 
 
 if __name__ == "__main__":

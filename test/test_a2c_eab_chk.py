@@ -36,9 +36,10 @@ class TestA2CEABChk(unittest.TestCase):
 
     def test_003_eab_dic_print_summary_only(self):
         """_eab_dic_print with summary flag"""
-        with patch.object(self.mod, "_summary_print") as mock_sum, patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch.object(self.mod, "_summary_print") as mock_sum,
+            patch("builtins.print") as mock_print,
+        ):
             self.mod._eab_dic_print(
                 self.logger,
                 {"k": {"hmac": "h"}},
@@ -69,8 +70,11 @@ class TestA2CEABChk(unittest.TestCase):
 
     def test_006_eab_dic_print_veryverbose(self):
         """_eab_dic_print veryverbose dumps yaml"""
-        with patch("builtins.print") as mock_print, patch(
-            "acme2certifier.tools.a2c_eab_chk.yaml.dump", return_value="yaml-out"
+        with (
+            patch("builtins.print") as mock_print,
+            patch(
+                "acme2certifier.tools.a2c_eab_chk.yaml.dump", return_value="yaml-out"
+            ),
         ):
             self.mod._eab_dic_print(
                 self.logger,
@@ -89,9 +93,7 @@ class TestA2CEABChk(unittest.TestCase):
 
     def test_008_arg_parse_keyid_and_verbose(self):
         """arg_parse accepts keyid and verbose flags"""
-        with patch(
-            "sys.argv", ["prog", "-c", "cfg", "-k", "kid1", "-v", "-d", "-vv"]
-        ):
+        with patch("sys.argv", ["prog", "-c", "cfg", "-k", "kid1", "-v", "-d", "-vv"]):
             debug, config_dic = self.mod.arg_parse()
         self.assertTrue(debug)
         self.assertEqual("kid1", config_dic["keyid"])
@@ -109,9 +111,14 @@ class TestA2CEABChk(unittest.TestCase):
         mock_cm.__exit__.return_value = False
         mock_handler_cls.return_value = mock_cm
 
-        with patch.object(
-            self.mod, "config_eab_profile_load", return_value=(True, mock_handler_cls)
-        ), patch.object(self.mod, "eab_handler_load") as mock_load:
+        with (
+            patch.object(
+                self.mod,
+                "config_eab_profile_load",
+                return_value=(True, mock_handler_cls),
+            ),
+            patch.object(self.mod, "eab_handler_load") as mock_load,
+        ):
             result = self.mod.eab_dic_load(self.logger, {"EABhandler": {}})
         self.assertEqual({"kid": {"hmac": "x"}}, result)
         mock_load.assert_not_called()
@@ -126,31 +133,37 @@ class TestA2CEABChk(unittest.TestCase):
         mock_cm.__exit__.return_value = False
         mock_module.EABhandler.return_value = mock_cm
 
-        with patch.object(
-            self.mod, "config_eab_profile_load", return_value=(False, None)
-        ), patch.object(self.mod, "eab_handler_load", return_value=mock_module):
+        with (
+            patch.object(
+                self.mod, "config_eab_profile_load", return_value=(False, None)
+            ),
+            patch.object(self.mod, "eab_handler_load", return_value=mock_module),
+        ):
             result = self.mod.eab_dic_load(self.logger, {"EABhandler": {}})
         self.assertEqual({"a": 1}, result)
 
     def test_011_main_missing_configfile(self):
         """main() reports missing configfile"""
         missing = "/no/such/acme_srv.cfg"
-        with patch.object(self.mod, "initialize"), patch.object(
-            self.mod,
-            "arg_parse",
-            return_value=(
-                False,
-                {
-                    "configfile": missing,
-                    "keyid": None,
-                    "summary": True,
-                    "verbose": False,
-                    "veryverbose": False,
-                },
+        with (
+            patch.object(self.mod, "initialize"),
+            patch.object(
+                self.mod,
+                "arg_parse",
+                return_value=(
+                    False,
+                    {
+                        "configfile": missing,
+                        "keyid": None,
+                        "summary": True,
+                        "verbose": False,
+                        "veryverbose": False,
+                    },
+                ),
             ),
-        ), patch.object(
-            self.mod, "logger_setup", return_value=self.logger
-        ), patch.object(self.mod, "print_debug") as mock_dbg:
+            patch.object(self.mod, "logger_setup", return_value=self.logger),
+            patch.object(self.mod, "print_debug") as mock_dbg,
+        ):
             # Path does not exist; no need to mock os.path.exists
             # (module uses ``import os.path``, so exists is not a module attr).
             self.assertFalse(self.mod.os.path.exists(missing))
@@ -160,30 +173,39 @@ class TestA2CEABChk(unittest.TestCase):
 
     def test_012_main_with_eab_and_keyid(self):
         """main() loads eab dic, filters by keyid, prints"""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as handle:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".cfg", delete=False
+        ) as handle:
             handle.write("[EABhandler]\n")
             cfg = handle.name
         try:
-            with patch.object(self.mod, "initialize"), patch.object(
-                self.mod,
-                "arg_parse",
-                return_value=(
-                    True,
-                    {
-                        "configfile": cfg,
-                        "keyid": "kid1",
-                        "summary": False,
-                        "verbose": True,
-                        "veryverbose": False,
-                    },
+            with (
+                patch.object(self.mod, "initialize"),
+                patch.object(
+                    self.mod,
+                    "arg_parse",
+                    return_value=(
+                        True,
+                        {
+                            "configfile": cfg,
+                            "keyid": "kid1",
+                            "summary": False,
+                            "verbose": True,
+                            "veryverbose": False,
+                        },
+                    ),
                 ),
-            ), patch.object(
-                self.mod, "logger_setup", return_value=self.logger
-            ), patch.object(
-                self.mod, "load_config", return_value={"EABhandler": {"foo": "bar"}}
-            ), patch.object(
-                self.mod, "eab_dic_load", return_value={"kid1": {"hmac": "h"}, "kid2": {}}
-            ), patch.object(self.mod, "_eab_dic_print") as mock_print:
+                patch.object(self.mod, "logger_setup", return_value=self.logger),
+                patch.object(
+                    self.mod, "load_config", return_value={"EABhandler": {"foo": "bar"}}
+                ),
+                patch.object(
+                    self.mod,
+                    "eab_dic_load",
+                    return_value={"kid1": {"hmac": "h"}, "kid2": {}},
+                ),
+                patch.object(self.mod, "_eab_dic_print") as mock_print,
+            ):
                 self.mod.main()
             mock_print.assert_called_once()
             printed = mock_print.call_args[0][1]
@@ -195,30 +217,35 @@ class TestA2CEABChk(unittest.TestCase):
 
     def test_013_main_empty_eab_skips_print(self):
         """main() skips print when filtered eab dic is empty"""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as handle:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".cfg", delete=False
+        ) as handle:
             handle.write("[EABhandler]\n")
             cfg = handle.name
         try:
-            with patch.object(self.mod, "initialize"), patch.object(
-                self.mod,
-                "arg_parse",
-                return_value=(
-                    False,
-                    {
-                        "configfile": cfg,
-                        "keyid": "missing",
-                        "summary": False,
-                        "verbose": False,
-                        "veryverbose": False,
-                    },
+            with (
+                patch.object(self.mod, "initialize"),
+                patch.object(
+                    self.mod,
+                    "arg_parse",
+                    return_value=(
+                        False,
+                        {
+                            "configfile": cfg,
+                            "keyid": "missing",
+                            "summary": False,
+                            "verbose": False,
+                            "veryverbose": False,
+                        },
+                    ),
                 ),
-            ), patch.object(
-                self.mod, "logger_setup", return_value=self.logger
-            ), patch.object(
-                self.mod, "load_config", return_value={"EABhandler": {}}
-            ), patch.object(
-                self.mod, "eab_dic_load", return_value={"kid1": {"hmac": "h"}}
-            ), patch.object(self.mod, "_eab_dic_print") as mock_print:
+                patch.object(self.mod, "logger_setup", return_value=self.logger),
+                patch.object(self.mod, "load_config", return_value={"EABhandler": {}}),
+                patch.object(
+                    self.mod, "eab_dic_load", return_value={"kid1": {"hmac": "h"}}
+                ),
+                patch.object(self.mod, "_eab_dic_print") as mock_print,
+            ):
                 self.mod.main()
             mock_print.assert_not_called()
         finally:
@@ -240,10 +267,11 @@ class TestA2CEABChk(unittest.TestCase):
         db_handler = importlib.import_module("acme2certifier.acme_srv.db_handler")
         helper = importlib.import_module("acme2certifier.acme_srv.helper")
 
-        with patch("sys.argv", ["prog", "-c", "/no/such.cfg"]), patch.object(
-            db_handler, "initialize"
-        ), patch.object(helper, "logger_setup", return_value=self.logger), patch.object(
-            helper, "print_debug"
+        with (
+            patch("sys.argv", ["prog", "-c", "/no/such.cfg"]),
+            patch.object(db_handler, "initialize"),
+            patch.object(helper, "logger_setup", return_value=self.logger),
+            patch.object(helper, "print_debug"),
         ):
             runpy.run_path(str(path), run_name="__main__")
 

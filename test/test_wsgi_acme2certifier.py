@@ -241,7 +241,31 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
     @patch("acme2certifier.acme_srv.authorization.Authorization.new_get")
     def test_021_authz(self, mock_get, mock_post, mock_header):
-        """authz get"""
+        """authz GET rejected when legacy_acme_get is False"""
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
+
+        wsgi_mod.LEGACY_ACME_GET = False
+        environ = {
+            "REQUEST_METHOD": "GET",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+            "wsgi.input": StringIO("""foo"""),
+        }
+        mock_header.return_value = {"header": "foo"}
+        mock_get.return_value = {"code": 200, "data": "data"}
+        result = self.authz(environ, Mock())
+        self.assertIn(b"POST-as-GET", result[0])
+        self.assertFalse(mock_get.called)
+        self.assertFalse(mock_post.called)
+
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_get")
+    def test_021b_authz_legacy_get(self, mock_get, mock_post, mock_header):
+        """authz GET allowed when legacy_acme_get is True"""
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
+
+        wsgi_mod.LEGACY_ACME_GET = True
         environ = {
             "REQUEST_METHOD": "GET",
             "REMOTE_ADDR": "REMOTE_ADDR",
@@ -253,6 +277,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual([b'"data"'], self.authz(environ, Mock()))
         self.assertTrue(mock_get.called)
         self.assertFalse(mock_post.called)
+        wsgi_mod.LEGACY_ACME_GET = False
 
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
@@ -629,7 +654,37 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.challenge.Challenge.parse")
     @patch("acme2certifier.acme_srv.challenge.Challenge.get")
     def test_040_chall(self, mock_get, mock_post, mock_url, mock_header, mock_body):
-        """chall GET request"""
+        """chall GET rejected when legacy_acme_get is False"""
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
+
+        wsgi_mod.LEGACY_ACME_GET = False
+        environ = {
+            "REQUEST_METHOD": "GET",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
+        mock_header.return_value = {"header": "foo"}
+        mock_get.return_value = {"code": 200, "data": "data"}
+        result = self.chall(environ, Mock())
+        self.assertIn(b"POST-as-GET", result[0])
+        self.assertFalse(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertTrue(mock_url.called)
+        self.assertFalse(mock_header.called)
+        self.assertFalse(mock_body.called)
+
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.parse")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.get")
+    def test_040b_chall_legacy_get(
+        self, mock_get, mock_post, mock_url, mock_header, mock_body
+    ):
+        """chall GET allowed when legacy_acme_get is True"""
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
+
+        wsgi_mod.LEGACY_ACME_GET = True
         environ = {
             "REQUEST_METHOD": "GET",
             "REMOTE_ADDR": "REMOTE_ADDR",
@@ -643,6 +698,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_url.called)
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
+        wsgi_mod.LEGACY_ACME_GET = False
 
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")

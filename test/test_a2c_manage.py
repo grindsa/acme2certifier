@@ -14,18 +14,19 @@ class TestA2CManage(unittest.TestCase):
     def test_001_main_executes_django_command(self):
         """main() sets DJANGO_SETTINGS_MODULE and runs execute_from_command_line"""
         mock_exec = MagicMock()
-        with patch.dict("os.environ", {}, clear=False), patch.dict(
-            "sys.modules",
-            {
-                "django.core.management": MagicMock(
-                    execute_from_command_line=mock_exec
-                ),
-            },
+        with (
+            patch.dict("os.environ", {}, clear=False),
+            patch.dict(
+                "sys.modules",
+                {
+                    "django.core.management": MagicMock(
+                        execute_from_command_line=mock_exec
+                    ),
+                },
+            ),
         ):
             # Ensure a fresh import path for execute_from_command_line
-            with patch(
-                "django.core.management.execute_from_command_line", mock_exec
-            ):
+            with patch("django.core.management.execute_from_command_line", mock_exec):
                 from acme2certifier.tools import a2c_manage
                 import os
 
@@ -61,9 +62,7 @@ class TestA2CManage(unittest.TestCase):
         import runpy
 
         sys.modules.pop("acme2certifier.tools.a2c_manage", None)
-        with patch(
-            "django.core.management.execute_from_command_line"
-        ) as mock_exec:
+        with patch("django.core.management.execute_from_command_line") as mock_exec:
             runpy.run_module(
                 "acme2certifier.tools.a2c_manage",
                 run_name="__main__",

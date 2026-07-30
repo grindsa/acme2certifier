@@ -125,6 +125,8 @@ from .helpers.config import (
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_async_mode_load,
+    legacy_acme_get_load,
+    acme_get_method_not_allowed_problem,
     config_proxy_load,
     config_dns_server_list_load,
     config_dryrun_load,

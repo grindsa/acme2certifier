@@ -129,17 +129,29 @@ class CAhandler(object):
 
         try:
             self.request_retries = int(
-                config_dic.get(self.CONFIG_SECTION, "request_retries", fallback=self.request_retries)
+                config_dic.get(
+                    self.CONFIG_SECTION,
+                    "request_retries",
+                    fallback=self.request_retries,
+                )
             )
         except ValueError:
-            self.logger.error("CAhandler._config_load(): request_retries is not an integer, using default")
+            self.logger.error(
+                "CAhandler._config_load(): request_retries is not an integer, using default"
+            )
 
         try:
             self.request_retry_backoff = float(
-                config_dic.get(self.CONFIG_SECTION, "request_retry_backoff", fallback=self.request_retry_backoff)
+                config_dic.get(
+                    self.CONFIG_SECTION,
+                    "request_retry_backoff",
+                    fallback=self.request_retry_backoff,
+                )
             )
         except ValueError:
-            self.logger.error("CAhandler._config_load(): request_retry_backoff is not a float, using default")
+            self.logger.error(
+                "CAhandler._config_load(): request_retry_backoff is not a float, using default"
+            )
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(

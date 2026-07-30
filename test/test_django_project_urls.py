@@ -94,10 +94,9 @@ class TestDjangoProjectUrls(unittest.TestCase):
         sys.modules[_APP_URLS] = mock_app_urls
         fake_admin_site = MagicMock()
         fake_admin_site.urls = ([], "admin", "admin")
-        with patch(
-            "acme2certifier.acme_srv.helper.load_config", return_value=config
-        ), patch(
-            "django.contrib.admin.site", fake_admin_site
+        with (
+            patch("acme2certifier.acme_srv.helper.load_config", return_value=config),
+            patch("django.contrib.admin.site", fake_admin_site),
         ):
             return importlib.import_module(_URLS)
 

@@ -101,9 +101,10 @@ class TestA2CCliuserMgmt(unittest.TestCase):
 
     def test_009_arg_parse_keyfile_error(self):
         """arg_parse prints error for invalid keyfile"""
-        with patch("sys.argv", ["prog", "-k", "/tmp/bad.json"]), patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch("sys.argv", ["prog", "-k", "/tmp/bad.json"]),
+            patch("builtins.print") as mock_print,
+        ):
             _debug, config_dic = self.mod.arg_parse()
         self.assertNotIn("jwk", config_dic)
         mock_print.assert_called()
@@ -115,11 +116,11 @@ class TestA2CCliuserMgmt(unittest.TestCase):
         mock_hk = MagicMock()
         mock_cm.__enter__.return_value = mock_hk
         mock_cm.__exit__.return_value = False
-        with patch.object(
-            self.mod, "arg_parse", return_value=(False, {"list": True})
-        ), patch.object(
-            self.mod, "logger_setup", return_value=MagicMock()
-        ), patch.object(self.mod, "Housekeeping", return_value=mock_cm):
+        with (
+            patch.object(self.mod, "arg_parse", return_value=(False, {"list": True})),
+            patch.object(self.mod, "logger_setup", return_value=MagicMock()),
+            patch.object(self.mod, "Housekeeping", return_value=mock_cm),
+        ):
             self.mod.main()
         mock_hk.cli_usermgr.assert_called_once()
         cfg = mock_hk.cli_usermgr.call_args[0][0]
@@ -134,11 +135,15 @@ class TestA2CCliuserMgmt(unittest.TestCase):
         mock_cm = MagicMock()
         mock_cm.__enter__.return_value = MagicMock()
         mock_cm.__exit__.return_value = False
-        with patch("sys.argv", ["prog", "--list"]), patch(
-            "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
-        ), patch(
-            "acme2certifier.acme_srv.housekeeping.Housekeeping",
-            return_value=mock_cm,
+        with (
+            patch("sys.argv", ["prog", "--list"]),
+            patch(
+                "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
+            ),
+            patch(
+                "acme2certifier.acme_srv.housekeeping.Housekeeping",
+                return_value=mock_cm,
+            ),
         ):
             runpy.run_module(
                 "acme2certifier.tools.a2c_cliuser_mgmt",

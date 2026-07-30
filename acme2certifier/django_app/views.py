@@ -18,6 +18,8 @@ from acme2certifier.acme_srv.helper import (
     logger_setup,
     logger_info,
     config_check,
+    legacy_acme_get_load,
+    acme_get_method_not_allowed_problem,
 )
 from acme2certifier.acme_srv.db_handler import log_active_db_handler
 from acme2certifier.acme_srv.housekeeping import Housekeeping
@@ -53,9 +55,14 @@ ERR_RESPONSE_HEAD_GET = JsonResponse(
         "detail": "Wrong request type. Expected HEAD or GET.",
     },
 )
+ERR_RESPONSE_ACME_GET = JsonResponse(
+    status=405, data=acme_get_method_not_allowed_problem()
+)
+ERR_RESPONSE_ACME_GET["Allow"] = "POST"
 
 # check configuration for parameters masked in ""
 config_check(LOGGER, CONFIG)
+LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
@@ -220,12 +227,9 @@ def neworders(request):
 
 def authz(request):
     """new-authz command"""
-    if request.method in ("POST", "GET"):
+    if request.method == "POST":
         with Authorization(DEBUG, get_url(request.META), LOGGER) as authorization:
-            if request.method == "POST":
-                response_dic = authorization.new_post(request.body)
-            else:
-                response_dic = authorization.new_get(request.build_absolute_uri())
+            response_dic = authorization.new_post(request.body)
             # create the response
             response = JsonResponse(
                 status=response_dic["code"], data=response_dic["data"]
@@ -243,6 +247,23 @@ def authz(request):
                 response_dic,
             )
             # send response
+            return response
+    elif request.method == "GET":
+        if not LEGACY_ACME_GET:
+            return ERR_RESPONSE_ACME_GET
+        with Authorization(DEBUG, get_url(request.META), LOGGER) as authorization:
+            response_dic = authorization.new_get(request.build_absolute_uri())
+            response = JsonResponse(
+                status=response_dic["code"], data=response_dic["data"]
+            )
+            for element in response_dic["header"]:
+                response[element] = response_dic["header"][element]
+            logger_info(
+                LOGGER,
+                request.META["REMOTE_ADDR"],
+                request.META["PATH_INFO"],
+                response_dic,
+            )
             return response
     else:
         return ERR_RESPONSE_POST
@@ -277,6 +298,8 @@ def chall(request):
             # send response
             return response
         elif request.method == "GET":
+            if not LEGACY_ACME_GET:
+                return ERR_RESPONSE_ACME_GET
             response_dic = challenge.get(request.build_absolute_uri())
             # create the response
             response = JsonResponse(

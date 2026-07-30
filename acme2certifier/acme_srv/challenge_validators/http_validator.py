@@ -40,9 +40,7 @@ class HttpChallengeValidator(ChallengeValidator):
             (context.options or {}).get("http01_block_private_ips", False)
         )
         challenge_path = f"/.well-known/acme-challenge/{context.token}"
-        logical_url = (
-            f"http://{context.authorization_value}{challenge_path}"
-        )
+        logical_url = f"http://{context.authorization_value}{challenge_path}"
 
         target_ips, resolve_error = self._resolve_http01_targets(
             context,

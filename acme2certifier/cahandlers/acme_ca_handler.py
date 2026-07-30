@@ -312,7 +312,9 @@ class CAhandler(object):
             self.logger.debug(
                 "CAhandler._shell_exec(): using shell: %s", self.acme_sh_shell
             )
-            return subprocess.call(cmd, shell=True, executable=self.acme_sh_shell)  # nosec B602
+            return subprocess.call(
+                cmd, shell=True, executable=self.acme_sh_shell
+            )  # nosec B602
         return subprocess.call(cmd, shell=True)  # nosec B602
 
     def _dns_challenge_deprovision(self):

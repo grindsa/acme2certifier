@@ -78,9 +78,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_008_allowed_domains_check(self):
         """test allowed_domains_check returns ERROR"""
-        self.assertEqual(
-            "ERROR", self.eabhandler.allowed_domains_check("csr", "value")
-        )
+        self.assertEqual("ERROR", self.eabhandler.allowed_domains_check("csr", "value"))
 
     def test_009_mac_key_get(self):
         """test mac_key_get returns stub mac_key"""

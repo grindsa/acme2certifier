@@ -18,17 +18,22 @@ class TestA2CReportGenerator(unittest.TestCase):
         mock_cm.__enter__.return_value = mock_hk
         mock_cm.__exit__.return_value = False
 
-        with patch(
-            "acme2certifier.tools.a2c_report_generator.logger_setup",
-            return_value=MagicMock(),
-        ), patch(
-            "acme2certifier.tools.a2c_report_generator.uts_to_date_utc",
-            return_value="2024-01-01-000000",
-        ), patch(
-            "acme2certifier.tools.a2c_report_generator.Housekeeping",
-            return_value=mock_cm,
-        ), patch(
-            "acme2certifier.tools.a2c_report_generator.time.time", return_value=1
+        with (
+            patch(
+                "acme2certifier.tools.a2c_report_generator.logger_setup",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "acme2certifier.tools.a2c_report_generator.uts_to_date_utc",
+                return_value="2024-01-01-000000",
+            ),
+            patch(
+                "acme2certifier.tools.a2c_report_generator.Housekeeping",
+                return_value=mock_cm,
+            ),
+            patch(
+                "acme2certifier.tools.a2c_report_generator.time.time", return_value=1
+            ),
         ):
             from acme2certifier.tools import a2c_report_generator
 
@@ -60,13 +65,15 @@ class TestA2CReportGenerator(unittest.TestCase):
         mock_cm = MagicMock()
         mock_cm.__enter__.return_value = MagicMock()
         mock_cm.__exit__.return_value = False
-        with patch(
-            "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
-        ), patch(
-            "acme2certifier.acme_srv.helper.uts_to_date_utc", return_value="sfx"
-        ), patch(
-            "acme2certifier.acme_srv.housekeeping.Housekeeping",
-            return_value=mock_cm,
+        with (
+            patch(
+                "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
+            ),
+            patch("acme2certifier.acme_srv.helper.uts_to_date_utc", return_value="sfx"),
+            patch(
+                "acme2certifier.acme_srv.housekeeping.Housekeeping",
+                return_value=mock_cm,
+            ),
         ):
             runpy.run_module(
                 "acme2certifier.tools.a2c_report_generator",

@@ -1301,7 +1301,10 @@ class TestACMEHandler(unittest.TestCase):
     def test_083__config_server_load_invalid_request_retry_backoff(self):
         """test _config_server_load() with invalid request_retry_backoff"""
         parser = configparser.ConfigParser()
-        parser["CAhandler"] = {"api_host": "api_host", "request_retry_backoff": "invalid"}
+        parser["CAhandler"] = {
+            "api_host": "api_host",
+            "request_retry_backoff": "invalid",
+        }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_server_load(parser)
         self.assertIn(

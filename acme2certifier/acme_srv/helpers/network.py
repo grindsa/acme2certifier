@@ -409,7 +409,9 @@ def filter_http01_target_ips(
         try:
             addr = ipaddress.ip_address(ip_str)
         except ValueError:
-            logger.debug("Helper.filter_http01_target_ips(): skipping invalid IP %s", ip_str)
+            logger.debug(
+                "Helper.filter_http01_target_ips(): skipping invalid IP %s", ip_str
+            )
             continue
         if block_private and not addr.is_global:
             logger.debug(
@@ -799,7 +801,11 @@ def request_operation(
         try:
             if method.lower() == "get":
                 api_response = session.get(
-                    url=url, headers=headers, proxies=proxy, timeout=timeout, verify=verify
+                    url=url,
+                    headers=headers,
+                    proxies=proxy,
+                    timeout=timeout,
+                    verify=verify,
                 )
             elif method.lower() == "post":
                 api_response = session.post(
@@ -829,7 +835,11 @@ def request_operation(
                 wait = retry_backoff * (2 ** (attempt - 1))
                 logger.warning(
                     "Request_operation got %s from %s, retry %s/%s in %.1fs",
-                    code, url, attempt, attempts - 1, wait,
+                    code,
+                    url,
+                    attempt,
+                    attempts - 1,
+                    wait,
                 )
                 time.sleep(wait)
                 continue
@@ -853,7 +863,10 @@ def request_operation(
                 wait = retry_backoff * (2 ** (attempt - 1))
                 logger.warning(
                     "Request_operation error: %s, retry %s/%s in %.1fs",
-                    err_, attempt, attempts - 1, wait,
+                    err_,
+                    attempt,
+                    attempts - 1,
+                    wait,
                 )
                 time.sleep(wait)
             else:

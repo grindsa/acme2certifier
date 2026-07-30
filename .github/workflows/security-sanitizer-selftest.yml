@@ -43,4 +43,3 @@ jobs:
           test ! -f artifact/data/acme_srv.cfg
           test ! -f artifact/data/settings.py
           test ! -d artifact/acme-sh/accounts
-

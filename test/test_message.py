@@ -547,9 +547,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        with patch.dict(
-            "os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False
-        ):
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
                 message = Message(False, "http://tester.local", self.logger)
         self.assertTrue(message.config.nonce_check_disable)

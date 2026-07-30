@@ -18,16 +18,21 @@ class TestA2CInvalidator(unittest.TestCase):
         mock_hk_cm.__enter__.return_value = mock_hk
         mock_hk_cm.__exit__.return_value = False
 
-        with patch(
-            "acme2certifier.tools.a2c_invalidator.logger_setup",
-            return_value=MagicMock(),
-        ), patch(
-            "acme2certifier.tools.a2c_invalidator.uts_to_date_utc",
-            return_value="2024-01-01-000000",
-        ), patch(
-            "acme2certifier.tools.a2c_invalidator.Housekeeping",
-            return_value=mock_hk_cm,
-        ), patch("acme2certifier.tools.a2c_invalidator.time.time", return_value=1):
+        with (
+            patch(
+                "acme2certifier.tools.a2c_invalidator.logger_setup",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "acme2certifier.tools.a2c_invalidator.uts_to_date_utc",
+                return_value="2024-01-01-000000",
+            ),
+            patch(
+                "acme2certifier.tools.a2c_invalidator.Housekeeping",
+                return_value=mock_hk_cm,
+            ),
+            patch("acme2certifier.tools.a2c_invalidator.time.time", return_value=1),
+        ):
             from acme2certifier.tools import a2c_invalidator
 
             a2c_invalidator.main()
@@ -49,14 +54,18 @@ class TestA2CInvalidator(unittest.TestCase):
         mock_hk_cm = MagicMock()
         mock_hk_cm.__enter__.return_value = MagicMock()
         mock_hk_cm.__exit__.return_value = False
-        with patch(
-            "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
-        ), patch(
-            "acme2certifier.acme_srv.helper.uts_to_date_utc",
-            return_value="suffix",
-        ), patch(
-            "acme2certifier.acme_srv.housekeeping.Housekeeping",
-            return_value=mock_hk_cm,
+        with (
+            patch(
+                "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
+            ),
+            patch(
+                "acme2certifier.acme_srv.helper.uts_to_date_utc",
+                return_value="suffix",
+            ),
+            patch(
+                "acme2certifier.acme_srv.housekeeping.Housekeeping",
+                return_value=mock_hk_cm,
+            ),
         ):
             runpy.run_module(
                 "acme2certifier.tools.a2c_invalidator",
