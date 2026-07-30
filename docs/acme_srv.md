@@ -92,6 +92,19 @@ The options for the `CAhandler` section depend on the CA handler.
 
 Further options for the `Hooks` section depend on the concrete hooks class.
 
+### Accepted risk: dynamic plugin loading
+
+Dynamic loading of CA/EAB/Hooks handlers from module names or filesystem paths
+is a by-design extensibility feature. If an attacker can modify `acme_srv.cfg`
+or referenced plugin files, they can execute arbitrary Python code as the
+acme2certifier service user.
+
+Recommended mitigations:
+
+- Restrict write access to `acme_srv.cfg` and custom plugin paths
+- Use read-only mounts for config/plugin files in production
+- Apply change-control / integrity monitoring for handler and hooks references
+
 Instructions for [Insta Certifier](certifier.md)
 
 Instructions for [NetGuard Certificate Lifecycle Manager](nclm.md)
