@@ -431,6 +431,20 @@ def filter_http01_target_ips(
     return allowed, None
 
 
+def _pinned_create_connection(pinned_ip: str):
+    """Return a create_connection that dials ``pinned_ip`` instead of resolving.
+
+    Same monkey-patch style as ``patched_create_connection`` / ``url_get_with_own_dns``.
+    """
+
+    def _create_connection(address, *args, **kwargs):
+        _hostname, port = address
+        # pylint: disable=W0212
+        return connection._orig_create_connection((pinned_ip, port), *args, **kwargs)
+
+    return _create_connection
+
+
 def url_get_dns_pinned(
     logger: logging.Logger,
     host: str,
@@ -439,10 +453,11 @@ def url_get_dns_pinned(
     verify: bool = True,
     timeout: int = 20,
 ) -> Tuple[Optional[str], int, Optional[str]]:
-    """HTTP GET to pre-resolved IPs with Host set to the original identifier.
+    """HTTP GET using a hostname URL while forcing the TCP peer to a pinned IP.
 
-    Prevents DNS rebinding between policy check and connection by never
-    re-resolving ``host`` for the TCP peer.
+    Keeps ``http://<host>/...`` in the request (normal Host / ingress behavior)
+    and overrides urllib3 ``create_connection`` so the socket connects to a
+    pre-resolved address without a second DNS lookup (rebinding mitigation).
     """
     logger.debug(
         "Helper.url_get_dns_pinned(host=%s, path=%s, ips=%s)", host, path, pinned_ips
@@ -450,27 +465,31 @@ def url_get_dns_pinned(
     if not path.startswith("/"):
         path = f"/{path}"
 
+    try:
+        host_addr = ipaddress.ip_address(host)
+        url_host = f"[{host}]" if isinstance(host_addr, ipaddress.IPv6Address) else host
+    except ValueError:
+        url_host = host
+
+    url = f"http://{url_host}{path}"
     headers = {
         "Connection": "close",
         "Accept-Encoding": "gzip",
         "User-Agent": USER_AGENT,
-        "Host": host,
     }
 
     last_error: Optional[str] = "No pinned IP addresses provided"
     last_status = 500
     for ip_str in pinned_ips:
         try:
-            addr = ipaddress.ip_address(ip_str)
+            ipaddress.ip_address(ip_str)
         except ValueError:
             last_error = f"Invalid pinned IP: {ip_str}"
             continue
 
-        if isinstance(addr, ipaddress.IPv6Address):
-            url = f"http://[{ip_str}]{path}"
-        else:
-            url = f"http://{ip_str}{path}"
-
+        # pylint: disable=W0212
+        connection._orig_create_connection = connection.create_connection
+        connection.create_connection = _pinned_create_connection(ip_str)
         try:
             req = requests.get(
                 url,
@@ -497,12 +516,16 @@ def url_get_dns_pinned(
             logger.error(last_error)
         except requests.exceptions.ConnectionError:
             last_status = 500
-            last_error = f"Could not fetch URL via pinned IP {ip_str} - Connection error."
+            last_error = (
+                f"Could not fetch URL via pinned IP {ip_str} - Connection error."
+            )
             logger.error(last_error)
         except Exception as err:
             last_status = 500
             last_error = f"Could not fetch URL via pinned IP {ip_str}: {err}"
             logger.error(last_error)
+        finally:
+            connection.create_connection = connection._orig_create_connection
 
     logger.debug(
         "Helper.url_get_dns_pinned() ended with status: %s, error: %s",

@@ -7296,35 +7296,55 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
     def test_574_url_get_dns_pinned_success(self, mock_get):
-        """url_get_dns_pinned connects to IP with Host header"""
+        """url_get_dns_pinned keeps hostname URL and pins TCP via create_connection"""
+        from acme2certifier.acme_srv.helpers import network as network_mod
         from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
 
         mock_resp = Mock()
         mock_resp.text = "token.thumb"
         mock_resp.status_code = 200
         mock_resp.reason = "OK"
-        mock_get.return_value = mock_resp
+        dialed = []
+        real_create = network_mod.connection.create_connection
 
-        result, status, err = url_get_dns_pinned(
-            self.logger,
-            host="example.com",
-            path="/.well-known/acme-challenge/tok",
-            pinned_ips=["8.8.8.8"],
-            verify=False,
-            timeout=5,
-        )
+        def recording_orig(address, *args, **kwargs):
+            dialed.append(address)
+
+        def capture_get(*args, **kwargs):
+            # urllib3 would call create_connection(hostname, port); pin wrapper
+            # must rewrite the peer to the pinned IP.
+            network_mod.connection.create_connection(("example.com", 80))
+            return mock_resp
+
+        mock_get.side_effect = capture_get
+        network_mod.connection.create_connection = recording_orig
+        try:
+            result, status, err = url_get_dns_pinned(
+                self.logger,
+                host="example.com",
+                path="/.well-known/acme-challenge/tok",
+                pinned_ips=["8.8.8.8"],
+                verify=False,
+                timeout=5,
+            )
+        finally:
+            network_mod.connection.create_connection = real_create
+
         self.assertEqual("token.thumb", result)
         self.assertEqual(200, status)
         self.assertIsNone(err)
-        mock_get.assert_called_once()
         args, kwargs = mock_get.call_args
-        self.assertEqual("http://8.8.8.8/.well-known/acme-challenge/tok", args[0])
-        self.assertEqual("example.com", kwargs["headers"]["Host"])
+        self.assertEqual(
+            "http://example.com/.well-known/acme-challenge/tok", args[0]
+        )
+        self.assertNotIn("Host", kwargs["headers"])
         self.assertEqual({}, kwargs["proxies"])
+        self.assertEqual([("8.8.8.8", 80)], dialed)
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-    def test_575_url_get_dns_pinned_ipv6(self, mock_get):
-        """url_get_dns_pinned brackets IPv6 literals"""
+    def test_575_url_get_dns_pinned_ipv6_host_and_peer(self, mock_get):
+        """FQDN stays in URL; IPv6 identifier is bracketed; peer is pinned"""
+        from acme2certifier.acme_srv.helpers import network as network_mod
         from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
 
         mock_resp = Mock()
@@ -7340,7 +7360,33 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             pinned_ips=["2606:4700:4700::1111"],
         )
         args, _kwargs = mock_get.call_args
+        self.assertEqual("http://example.com/path", args[0])
+
+        dialed = []
+        real_create = network_mod.connection.create_connection
+
+        def recording_orig(address, *args, **kwargs):
+            dialed.append(address)
+
+        def capture_get(*args, **kwargs):
+            network_mod.connection.create_connection(("2606:4700:4700::1111", 80))
+            return mock_resp
+
+        mock_get.side_effect = capture_get
+        network_mod.connection.create_connection = recording_orig
+        try:
+            url_get_dns_pinned(
+                self.logger,
+                host="2606:4700:4700::1111",
+                path="/path",
+                pinned_ips=["2606:4700:4700::1111"],
+            )
+        finally:
+            network_mod.connection.create_connection = real_create
+
+        args, _kwargs = mock_get.call_args
         self.assertEqual("http://[2606:4700:4700::1111]/path", args[0])
+        self.assertEqual([("2606:4700:4700::1111", 80)], dialed)
 
 
 if __name__ == "__main__":
