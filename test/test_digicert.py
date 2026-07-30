@@ -1064,6 +1064,44 @@ class TestACMEHandler(unittest.TestCase):
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.config_headerinfo_load")
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.config_eab_profile_load")
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.load_config")
+    def test_062_config_load_invalid_request_retries(self, mock_load, mock_eab, mock_hdl):
+        """test _config_load() falls back when request_retries is invalid"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"request_retries": "aa"}
+        mock_load.return_value = parser
+        mock_eab.return_value = True, "eab"
+        mock_hdl.return_value = "hdl"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "ERROR:test_a2c:Could not load request_retries:invalid literal for int() with base 10: 'aa'",
+            lcm.output,
+        )
+        self.assertEqual(3, self.cahandler.request_retries)
+
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.config_headerinfo_load")
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.config_eab_profile_load")
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.load_config")
+    def test_063_config_load_invalid_request_retry_backoff(
+        self, mock_load, mock_eab, mock_hdl
+    ):
+        """test _config_load() falls back when request_retry_backoff is invalid"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"request_retry_backoff": "aa"}
+        mock_load.return_value = parser
+        mock_eab.return_value = True, "eab"
+        mock_hdl.return_value = "hdl"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "ERROR:test_a2c:Could not load request_retry_backoff:could not convert string to float: 'aa'",
+            lcm.output,
+        )
+        self.assertEqual(2.0, self.cahandler.request_retry_backoff)
+
 
 if __name__ == "__main__":
 

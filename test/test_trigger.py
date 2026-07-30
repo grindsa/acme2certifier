@@ -7,6 +7,7 @@ import unittest
 import sys
 import importlib
 import configparser
+from types import SimpleNamespace
 from unittest.mock import patch, MagicMock, Mock
 
 sys.path.insert(0, ".")
@@ -563,6 +564,47 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.trigger._config_load()
         self.assertTrue(self.trigger.cahandler)
+
+    def test_032_trigger_config_enabled_dict_fallback(self):
+        """trigger_config_enabled() handles dict-style configs"""
+        from acme2certifier.acme_srv.trigger import trigger_config_enabled
+
+        self.assertTrue(trigger_config_enabled({"Trigger": {"enabled": "on"}}))
+
+    @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
+    def test_033_resolve_trigger_endpoint_handler_missing(self, mock_cahandler_load):
+        """resolve_trigger_endpoint() logs warning when handler missing"""
+        from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
+
+        mock_cahandler_load.return_value = object()
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(
+                resolve_trigger_endpoint(
+                    self.logger,
+                    {"Trigger": {"enabled": "true"}},
+                    log_status=True,
+                )
+            )
+        self.assertTrue(
+            any("Trigger enabled in config but CA handler could not be loaded" in line for line in lcm.output)
+        )
+
+    @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
+    def test_034_resolve_trigger_endpoint_enabled(self, mock_cahandler_load):
+        """resolve_trigger_endpoint() logs info when endpoint enabled"""
+        from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
+
+        cahandler_cls = type("FakeCAhandler", (), {"supports_trigger": True})
+        mock_cahandler_load.return_value = SimpleNamespace(CAhandler=cahandler_cls)
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertTrue(
+                resolve_trigger_endpoint(
+                    self.logger,
+                    {"Trigger": {"enabled": "true"}},
+                    log_status=True,
+                )
+            )
+        self.assertTrue(any("Trigger HTTP endpoint enabled" in line for line in lcm.output))
 
 
 if __name__ == "__main__":

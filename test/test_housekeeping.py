@@ -2289,6 +2289,38 @@ class TestACMEHandler(unittest.TestCase):
         result_dic = {"name": "jwkname"}
         self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
 
+    def test_131_housekeeping_cli_enabled_dict_fallback(self):
+        """housekeeping_cli_enabled() handles dict-style configs"""
+        from acme2certifier.acme_srv.housekeeping import housekeeping_cli_enabled
+
+        self.assertTrue(
+            housekeeping_cli_enabled({"Housekeeping": {"cli_enabled": "yes"}})
+        )
+
+    def test_132_resolve_housekeeping_cli_endpoint_status_log(self):
+        """resolve_housekeeping_cli_endpoint() logs enabled status"""
+        from acme2certifier.acme_srv.housekeeping import (
+            resolve_housekeeping_cli_endpoint,
+        )
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(
+                resolve_housekeeping_cli_endpoint(
+                    self.logger,
+                    {"Housekeeping": {"cli_enabled": "true"}},
+                    log_status=True,
+                )
+            )
+        self.assertTrue(
+            any("Housekeeping HTTP CLI endpoint enabled" in line for line in lcm.output)
+        )
+
+    def test_133_housekeeping_cli_enabled_invalid_section(self):
+        """housekeeping_cli_enabled() returns False for non-dict section"""
+        from acme2certifier.acme_srv.housekeeping import housekeeping_cli_enabled
+
+        self.assertFalse(housekeeping_cli_enabled({"Housekeeping": "enabled"}))
+
 
 if __name__ == "__main__":
     unittest.main()

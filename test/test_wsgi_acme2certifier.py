@@ -1493,6 +1493,26 @@ class TestACMEHandler(unittest.TestCase):
         config = {"Directory": {"url_prefix": "/my-prefix/"}}
         self.assertEqual(get_path_with_prefix(environ, config), "")
 
+    def test_075_urls_register_optional_endpoints_when_enabled(self):
+        """Module import appends /housekeeping and /trigger when gates are True"""
+        import importlib
+
+        with patch(
+            "acme2certifier.acme_srv.trigger.resolve_trigger_endpoint",
+            return_value=True,
+        ), patch(
+            "acme2certifier.acme_srv.housekeeping.resolve_housekeeping_cli_endpoint",
+            return_value=True,
+        ):
+            sys.modules.pop(_WSGI_MODULE, None)
+            wsgi_mod = importlib.import_module(_WSGI_MODULE)
+
+        patterns = [pattern for pattern, _callback in wsgi_mod.URLS]
+        self.assertIn("^housekeeping", patterns)
+        self.assertIn("^trigger", patterns)
+        self.assertTrue(wsgi_mod.HOUSEKEEPING_CLI_ENABLED)
+        self.assertTrue(wsgi_mod.TRIGGER_ENDPOINT_ENABLED)
+
 
 if __name__ == "__main__":
 

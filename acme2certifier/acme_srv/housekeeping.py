@@ -39,14 +39,9 @@ def resolve_housekeeping_cli_endpoint(
 ) -> bool:
     """Decide whether the /housekeeping HTTP CLI endpoint should be active."""
     enabled = housekeeping_cli_enabled(config_dic)
-    if log_status:
-        if enabled:
-            logger.info("Housekeeping HTTP CLI endpoint enabled")
-        else:
-            logger.info(
-                "Housekeeping HTTP CLI endpoint disabled "
-                "([Housekeeping] cli_enabled is False or absent)"
-            )
+    if log_status and enabled:
+        logger.info("Housekeeping HTTP CLI endpoint enabled")
+    # to be changed in future release
     return False
 
 

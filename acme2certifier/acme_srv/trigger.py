@@ -44,10 +44,6 @@ def resolve_trigger_endpoint(logger, config_dic, *, log_status: bool = False) ->
     """
     config_enabled = trigger_config_enabled(config_dic)
     if not config_enabled:
-        if log_status:
-            logger.info(
-                "Trigger HTTP endpoint disabled ([Trigger] enabled is False or absent)"
-            )
         return False
 
     ca_handler_module = ca_handler_load(logger, config_dic)
