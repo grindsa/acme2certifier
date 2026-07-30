@@ -1497,12 +1497,15 @@ class TestACMEHandler(unittest.TestCase):
         """Module import appends /housekeeping and /trigger when gates are True"""
         import importlib
 
-        with patch(
-            "acme2certifier.acme_srv.trigger.resolve_trigger_endpoint",
-            return_value=True,
-        ), patch(
-            "acme2certifier.acme_srv.housekeeping.resolve_housekeeping_cli_endpoint",
-            return_value=True,
+        with (
+            patch(
+                "acme2certifier.acme_srv.trigger.resolve_trigger_endpoint",
+                return_value=True,
+            ),
+            patch(
+                "acme2certifier.acme_srv.housekeeping.resolve_housekeeping_cli_endpoint",
+                return_value=True,
+            ),
         ):
             sys.modules.pop(_WSGI_MODULE, None)
             wsgi_mod = importlib.import_module(_WSGI_MODULE)

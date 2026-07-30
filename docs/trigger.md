@@ -12,14 +12,14 @@ This method is particularly useful in scenarios where a **CSR enters a pending s
 
 The `/trigger` HTTP route is **disabled by default**. Both of the following are required:
 
-1. Opt-in in `acme_srv.cfg`:
+- Opt-in in `acme_srv.cfg`:
 
 ```ini
 [Trigger]
 enabled: True
 ```
 
-2. The loaded CA handler must set class attribute `supports_trigger = True`. If the attribute is missing, it defaults to off. Built-in handlers leave this unset except **Certifier**, which sets `supports_trigger = True`.
+- The loaded CA handler must set class attribute `supports_trigger = True`. If the attribute is missing, it defaults to off. Built-in handlers leave this unset except **Certifier**, which sets `supports_trigger = True`.
 
 At process start, acme2certifier evaluates both conditions. If config is on but the handler does not support trigger, a warning is logged and the route stays disabled. When disabled, the route is not registered (Django/WSGI) and `Trigger.parse()` rejects requests with HTTP 403.
 

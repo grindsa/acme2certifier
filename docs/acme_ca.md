@@ -170,7 +170,7 @@ Example for `lego`:
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent acme_url=<acme-server url> -d <fqdn> --http
 ```
 
-# EAB Profiling
+## EAB Profiling
 
 To enable EAB profiling:
 

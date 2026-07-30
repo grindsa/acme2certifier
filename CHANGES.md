@@ -462,7 +462,7 @@ and pick the appropriate release branch.
 
 **Bugfixes**:
 
-- #104 - conffile support in debian package to avoid overriding configuration files
+- conffile support in debian package to avoid overriding configuration files
 
 ## Changes in 0.25.1
 

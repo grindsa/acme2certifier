@@ -19,7 +19,7 @@ The order subsystem implements a modular, extensible architecture using establis
 
 ### Component Structure
 
-```
+```text
 ┌─────────────────────────────┐
 │         Order Class         │
 │   (ACME Protocol Handler)   │
@@ -83,7 +83,7 @@ The order subsystem is designed for easy extension:
 
 ## Sequence Example: Order Creation
 
-```
+```text
 Client Request
      │
      ▼

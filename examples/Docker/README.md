@@ -250,9 +250,9 @@ ______________________________________________________________________
 
 To enable **TLS support**, place `acme2certifier.pem` in the volume. It must contain:
 
-- **Private key**
-- **End-entity certificate**
-- **Intermediate CA certificates** (from **leaf to root**; do **not** include the root CA)
+- Private key
+- End-entity certificate
+- Intermediate CA certificates (from **leaf to root**; do **not** include the root CA)
 
 Example:
 

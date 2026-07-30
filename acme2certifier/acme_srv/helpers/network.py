@@ -168,9 +168,7 @@ def fqdn_resolve(
         # add specific dns server
         req.nameservers = dnssrv
     # resolve hostname (including short/unqualified names)
-    result, invalid, error_msg = _fqdn_resolve(
-        logger, req, host, catch_all=catch_all
-    )
+    result, invalid, error_msg = _fqdn_resolve(logger, req, host, catch_all=catch_all)
 
     logger.debug(
         "Helper.fqdn_resolve(%s) ended with: %s, %s, error: %s",

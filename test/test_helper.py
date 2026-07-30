@@ -1583,7 +1583,10 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.server_name_configuration_validate(self.logger, cfg)
         self.assertTrue(
-            any("is not listed in Directory.caaidentities" in line for line in lcm.output)
+            any(
+                "is not listed in Directory.caaidentities" in line
+                for line in lcm.output
+            )
         )
 
     def test_134e_server_name_caa_match_no_warning(self):

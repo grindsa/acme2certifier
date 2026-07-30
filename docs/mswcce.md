@@ -220,7 +220,7 @@ docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --st
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent template=foo -d <fqdn> --http
 ```
 
-# EAB Profiling
+## EAB Profiling
 
 This handler supports [EAB profiling](eab_profiling.md), which allows individual enrollment configurations per ACME account and restricts CN/SANs in the CSR. To enable this feature, update `acme_srv.cfg`:
 
@@ -234,7 +234,7 @@ eab_profiling: True
 ...
 ```
 
-## Example Key File
+### Example Key File
 
 ```json
 {

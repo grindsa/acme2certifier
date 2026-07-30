@@ -97,7 +97,7 @@ Events:
 - You can check the private key with `microk8s.kubectl get secret acme-cert-key -o yaml -n cert-manager-acme`. You should see a base64 encoded key in the `tls.key` field.
 - certificate, issuer and namespace can be deleted with `microk8s.kubectl delete -f acme2certifier.yaml`
 
-# Troubleshooting
+## Troubleshooting
 
 There are [extensive troubleshooting guides at the cert-manager website](https://cert-manager.io/docs/faq/acme/).
 

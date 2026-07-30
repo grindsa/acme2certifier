@@ -133,5 +133,3 @@ def test_request_operation_unexpected_retry_loop_exit_guard() -> None:
             500,
             "Unexpected retry loop exit",
         )
-
-

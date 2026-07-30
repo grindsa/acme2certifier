@@ -8,8 +8,8 @@ Proxy support was introduced in **acme2certifier** version **0.18**.
 
 Currently, both **HTTP** and **SOCKS5** proxies are supported for:
 
-- **Validation of HTTP and TLS-ALPN challenges**
-- **Usage in the following CA handlers:**
+- Validation of HTTP and TLS-ALPN challenges
+- Usage in the following CA handlers:
   - `certifier_ca_handler.py`
   - `est_ca_handler.py`
   - `mscertsrv_ca_handler.py`

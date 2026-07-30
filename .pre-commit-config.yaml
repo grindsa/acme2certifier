@@ -27,10 +27,16 @@ repos:
     -   id: black
         args: [--target-version=py314]
 
--   repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.13
-    hooks:
-    - id: mdformat
-      additional_dependencies:
-        - mdformat-black
-        - black
+#-   repo: https://github.com/executablebooks/mdformat
+#    rev: 0.7.13#
+#    hooks:
+#    - id: mdformat
+#      additional_dependencies:
+#        - mdformat-black#
+#        - black
+
+- repo: https://github.com/jackdewinter/pymarkdown
+  rev: main
+  hooks:
+    - id: pymarkdown
+      args: [-d, MD013, scan]

@@ -586,7 +586,10 @@ class TestACMEHandler(unittest.TestCase):
                 )
             )
         self.assertTrue(
-            any("Trigger enabled in config but CA handler could not be loaded" in line for line in lcm.output)
+            any(
+                "Trigger enabled in config but CA handler could not be loaded" in line
+                for line in lcm.output
+            )
         )
 
     @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
@@ -604,7 +607,9 @@ class TestACMEHandler(unittest.TestCase):
                     log_status=True,
                 )
             )
-        self.assertTrue(any("Trigger HTTP endpoint enabled" in line for line in lcm.output))
+        self.assertTrue(
+            any("Trigger HTTP endpoint enabled" in line for line in lcm.output)
+        )
 
 
 if __name__ == "__main__":

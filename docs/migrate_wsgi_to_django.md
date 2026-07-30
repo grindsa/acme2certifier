@@ -40,180 +40,194 @@ Run exact commands only from the channel-specific sections below.
 Typical root: `/var/www/acme2certifier`.
 
 1. Stop apache2/nginx + uWSGI/mod_wsgi for ACME service.
+
 1. Back up:
+
    - `/var/www/acme2certifier/acme_srv.cfg`
    - `/var/www/acme2certifier/acme_srv.db`
    - custom handlers/settings under deploy root
+
 1. Export:
 
-```bash
-export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
-/var/www/acme2certifier/venv/bin/a2c-wsgi2django export \
-  --db /var/www/acme2certifier/acme_srv.db \
-  --out /var/www/acme2certifier/dump.json
-```
+   ```bash
+   export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
+   /var/www/acme2certifier/venv/bin/a2c-wsgi2django export \
+     --db /var/www/acme2certifier/acme_srv.db \
+     --out /var/www/acme2certifier/dump.json
+   ```
 
-4. Switch web entry to Django:
+1. Switch web entry to Django:
+
    - Apache: deploy the packaged Django vhost example from `$SHARE/apache2/` and ensure it points to `acme2certifier.django_project.wsgi.application`
    - Nginx/uWSGI: deploy the packaged Nginx/uWSGI examples from `$SHARE/nginx/` and set uWSGI `module = acme2certifier.django_project.wsgi:application`
    - For pip installs, resolve `SHARE` from the installed package (as in install guides), for example:
 
-```bash
-SHARE=$(/var/www/acme2certifier/venv/bin/python -c \
-  "import acme2certifier.share as s, pathlib; print(pathlib.Path(s.__file__).parent)")
-```
+   ```bash
+   SHARE=$(/var/www/acme2certifier/venv/bin/python -c \
+     "import acme2certifier.share as s, pathlib; print(pathlib.Path(s.__file__).parent)")
+   ```
 
-5. Set config and migrate:
+1. Set config and migrate:
 
-```bash
-export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
-sed -i 's/^handler:.*/handler: django/' /var/www/acme2certifier/acme_srv.cfg
-/var/www/acme2certifier/venv/bin/a2c-manage migrate
-/var/www/acme2certifier/venv/bin/a2c-manage loaddata status
-```
+   ```bash
+   export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
+   sed -i 's/^handler:.*/handler: django/' /var/www/acme2certifier/acme_srv.cfg
+   /var/www/acme2certifier/venv/bin/a2c-manage migrate
+   /var/www/acme2certifier/venv/bin/a2c-manage loaddata status
+   ```
 
-6. Import + check:
+1. Import + check:
 
-```bash
-/var/www/acme2certifier/venv/bin/a2c-wsgi2django import \
-  --dump /var/www/acme2certifier/dump.json --wipe
-/var/www/acme2certifier/venv/bin/a2c-wsgi2django check \
-  --dump /var/www/acme2certifier/dump.json
-```
+   ```bash
+   /var/www/acme2certifier/venv/bin/a2c-wsgi2django import \
+     --dump /var/www/acme2certifier/dump.json --wipe
+   /var/www/acme2certifier/venv/bin/a2c-wsgi2django check \
+     --dump /var/www/acme2certifier/dump.json
+   ```
 
-7. Restart services, then verify:
+1. Restart services, then verify:
 
-```bash
-curl -sS http://127.0.0.1/directory
-```
+   ```bash
+   curl -sS http://127.0.0.1/directory
+   ```
 
 ## DEB Migration
 
 Typical root: `/var/www/acme2certifier`.
 
 1. Stop services and back up cfg/db/runtime files.
+
 1. Export:
 
-```bash
-export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
-a2c-wsgi2django export \
-  --db /var/www/acme2certifier/acme_srv.db \
-  --out /var/www/acme2certifier/dump.json
-```
+   ```bash
+   export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
+   a2c-wsgi2django export \
+     --db /var/www/acme2certifier/acme_srv.db \
+     --out /var/www/acme2certifier/dump.json
+   ```
 
-3. Switch deployment mode to Django:
+1. Switch deployment mode to Django:
 
-```bash
-sudo ./examples/install_scripts/a2c-deb.sh \
-  --deb ./acme2certifier_<version>-1_all.deb \
-  --mode django \
-  --webserver apache2
-```
+   ```bash
+   sudo ./examples/install_scripts/a2c-deb.sh \
+     --deb ./acme2certifier_<version>-1_all.deb \
+     --mode django \
+     --webserver apache2
+   ```
 
-4. Ensure `/var/www/acme2certifier/acme_srv.cfg` has:
+1. Ensure `/var/www/acme2certifier/acme_srv.cfg` has:
+
    - `[DBhandler] handler: django`
    - `*_module` keys for CA/EAB/hooks
+
 1. Apply schema and status fixture:
 
-```bash
-export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
-sudo -E a2c-manage migrate
-sudo -E a2c-manage loaddata status
-```
+   ```bash
+   export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
+   sudo -E a2c-manage migrate
+   sudo -E a2c-manage loaddata status
+   ```
 
-6. Import + check:
+1. Import + check:
 
-```bash
-sudo -E a2c-wsgi2django import --dump /var/www/acme2certifier/dump.json --wipe
-sudo -E a2c-wsgi2django check --dump /var/www/acme2certifier/dump.json
-```
+   ```bash
+   sudo -E a2c-wsgi2django import --dump /var/www/acme2certifier/dump.json --wipe
+   sudo -E a2c-wsgi2django check --dump /var/www/acme2certifier/dump.json
+   ```
 
-7. Restart services and verify `/directory`.
+1. Restart services and verify `/directory`.
 
 ## RPM Migration
 
 Typical root: `/opt/acme2certifier`.
 
 1. Stop services and back up cfg/db/runtime files.
+
 1. Export:
 
-```bash
-export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
-export PYTHONPATH=/opt/acme2certifier
-a2c-wsgi2django export \
-  --db /opt/acme2certifier/acme_srv.db \
-  --out /opt/acme2certifier/dump.json
-```
+   ```bash
+   export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
+   export PYTHONPATH=/opt/acme2certifier
+   a2c-wsgi2django export \
+     --db /opt/acme2certifier/acme_srv.db \
+     --out /opt/acme2certifier/dump.json
+   ```
 
-3. Switch deployment mode to Django:
+1. Switch deployment mode to Django:
 
-```bash
-sudo ./examples/install_scripts/a2c-rpm.sh \
-  --rpm ./acme2certifier-<version>-1.0.noarch.rpm \
-  --mode django
-```
+   ```bash
+   sudo ./examples/install_scripts/a2c-rpm.sh \
+     --rpm ./acme2certifier-<version>-1.0.noarch.rpm \
+     --mode django
+   ```
 
-4. Ensure `/opt/acme2certifier/acme_srv.cfg` has:
+1. Ensure `/opt/acme2certifier/acme_srv.cfg` has:
+
    - `[DBhandler] handler: django`
    - `*_module` keys for CA/EAB/hooks
+
 1. Apply schema and status fixture:
 
-```bash
-export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
-export PYTHONPATH=/opt/acme2certifier
-sudo -E a2c-manage migrate
-sudo -E a2c-manage loaddata status
-```
+   ```bash
+   export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
+   export PYTHONPATH=/opt/acme2certifier
+   sudo -E a2c-manage migrate
+   sudo -E a2c-manage loaddata status
+   ```
 
-6. Import + check:
+1. Import + check:
 
-```bash
-sudo -E a2c-wsgi2django import --dump /opt/acme2certifier/dump.json --wipe
-sudo -E a2c-wsgi2django check --dump /opt/acme2certifier/dump.json
-```
+   ```bash
+   sudo -E a2c-wsgi2django import --dump /opt/acme2certifier/dump.json --wipe
+   sudo -E a2c-wsgi2django check --dump /opt/acme2certifier/dump.json
+   ```
 
-7. Restart services and verify `/directory`.
+1. Restart services and verify `/directory`.
 
 ## Docker Migration
 
 Use matching web stack tags; do not switch only `handler:` in cfg.
 
 1. Stop/quiet writers and back up the full mounted volume.
+
 1. Export from current `*-wsgi` runtime:
 
-```bash
-docker compose exec <service> a2c-wsgi2django export \
-  --db /var/www/acme2certifier/volume/acme_srv.db \
-  --out /var/www/acme2certifier/volume/dump.json
-```
+   ```bash
+   docker compose exec <service> a2c-wsgi2django export \
+     --db /var/www/acme2certifier/volume/acme_srv.db \
+     --out /var/www/acme2certifier/volume/dump.json
+   ```
 
-3. Update image tag from `*-wsgi` to matching `*-django` variant.
+1. Update image tag from `*-wsgi` to matching `*-django` variant.
+
 1. In volume config:
+
    - set `volume/acme_srv.cfg` to `[DBhandler] handler: django`
    - ensure `volume/settings.py` references `acme2certifier.django_app.apps.AcmeSrvConfig`
+
 1. Recreate container and run Django schema setup if needed:
 
-```bash
-docker compose pull
-docker compose up -d --force-recreate
-docker compose exec <service> a2c-manage migrate
-docker compose exec <service> a2c-manage loaddata status
-```
+   ```bash
+   docker compose pull
+   docker compose up -d --force-recreate
+   docker compose exec <service> a2c-manage migrate
+   docker compose exec <service> a2c-manage loaddata status
+   ```
 
-6. Import + check:
+1. Import + check:
 
-```bash
-docker compose exec <service> a2c-wsgi2django import \
-  --dump /var/www/acme2certifier/volume/dump.json --wipe
-docker compose exec <service> a2c-wsgi2django check \
-  --dump /var/www/acme2certifier/volume/dump.json
-```
+   ```bash
+   docker compose exec <service> a2c-wsgi2django import \
+     --dump /var/www/acme2certifier/volume/dump.json --wipe
+   docker compose exec <service> a2c-wsgi2django check \
+     --dump /var/www/acme2certifier/volume/dump.json
+   ```
 
-7. Verify endpoint:
+1. Verify endpoint:
 
-```bash
-curl -sS http://127.0.0.1:<host-port>/directory
-```
+   ```bash
+   curl -sS http://127.0.0.1:<host-port>/directory
+   ```
 
 For Docker stack background and image/tag behavior, see [Containerized installation](install_docker.md).
 

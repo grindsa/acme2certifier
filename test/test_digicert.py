@@ -1067,7 +1067,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.digicert_ca_handler.config_headerinfo_load")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.load_config")
-    def test_062_config_load_invalid_request_retries(self, mock_load, mock_eab, mock_hdl):
+    def test_062_config_load_invalid_request_retries(
+        self, mock_load, mock_eab, mock_hdl
+    ):
         """test _config_load() falls back when request_retries is invalid"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"request_retries": "aa"}
