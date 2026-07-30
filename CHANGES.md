@@ -27,6 +27,9 @@ and pick the appropriate release branch.
   - URL generation supports canonical host override via `[DEFAULT] server_name`; startup warnings are emitted when falling back to request headers and when `server_name` is not part of `Directory.caaidentities`
   - HTTP-01 can reject non-global/private targets via `http01_block_private_ips` (opt-in)
   - `nonce_check_disable` and `signature_check_disable` are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set
+  - Document MS CertSrv `verify: False` as break-glass MITM risk; prefer `ca_bundle` (`docs/mscertsrv.md`)
+  - Django packaged settings refuse to start with the insecure default `SECRET_KEY`; warn when `ALLOWED_HOSTS` contains `*`
+  - Certificate resource names use 15-character identifiers (full `Certificate.name` column width)
 - Resolve relative `acme_srv.db` paths against the deploy base directory and clarify default DB location
 - Stop shipping `acme_srv.cfg` inside DEB/RPM packages; preserve handler configuration across install/restart
 - Adapt Docker entrypoints and install scripts to the package layout

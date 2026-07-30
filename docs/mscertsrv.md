@@ -123,7 +123,8 @@ krb5_kinit_path: </path/to/kinit>
 - **user_variable** *(optional)* – Name of the environment variable containing the username (overridden if `user` is set in `acme_srv.cfg`).
 - **password** – Password for authentication.
 - **password_variable** *(optional)* – Name of the environment variable containing the password (overridden if `password` is set in `acme_srv.cfg`).
-- **ca_bundle** – CA certificate bundle in PEM format, required for validating the server certificate.
+- **ca_bundle** – CA certificate bundle in PEM format used to validate the AD CS HTTPS server certificate. Prefer this over disabling verification when the enrollment endpoint uses a private/enterprise CA.
+- **verify** *(optional, default `True`)* – Whether to verify the AD CS TLS server certificate. Set to `False` only as a break-glass measure (for example lab setups with untrusted certs). **Security warning:** `verify: False` disables TLS certificate validation for enrollment traffic (CSR, credentials, returned certificates) and enables man-in-the-middle attacks on the path to AD CS. Prefer `ca_bundle` / system trust instead.
 - **auth_method** – Authentication method (`basic`, `ntlm`, or `gssapi`).
 - **krb5_principal** *(optional, required for keytab mode)* – Kerberos principal, for example `svc-a2c-enroll@EXAMPLE.COM`.
 - **krb5_principal_variable** *(optional)* – Name of the environment variable containing the Kerberos principal (overridden if `krb5_principal` is set in `acme_srv.cfg`).

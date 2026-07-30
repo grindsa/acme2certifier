@@ -117,7 +117,7 @@ class CertificateBusinessLogic:
         Returns:
             Random certificate name string
         """
-        return generate_random_string(self.logger, 12)
+        return generate_random_string(self.logger, 15)
 
     def validate_certificate_data(self, certificate: str) -> bool:
         """

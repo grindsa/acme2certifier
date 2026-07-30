@@ -74,9 +74,10 @@ class TestCertificateBusinessLogic(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.certificate_business_logic.generate_random_string")
     def test_007_generate_certificate_name(self, mock_generate_random_string):
-        mock_generate_random_string.return_value = "randomname"
+        mock_generate_random_string.return_value = "randomname15chars"
         name = self.logic.generate_certificate_name()
-        self.assertEqual(name, "randomname")
+        self.assertEqual(name, "randomname15chars")
+        mock_generate_random_string.assert_called_once_with(self.logic.logger, 15)
 
     def test_008_validate_certificate_data_empty(self):
         self.assertFalse(self.logic.validate_certificate_data(""))
