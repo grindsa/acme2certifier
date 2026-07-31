@@ -21,6 +21,7 @@ from cryptography.x509 import (
     SubjectAlternativeName,
 )
 from cryptography.x509.oid import ExtendedKeyUsageOID
+# we cannot remove this import as it is used in the code as CA’s iss_hash has to line up with hashes XCA already stored when the CA was imported
 from OpenSSL import crypto as pyossslcrypto
 from acme2certifier.acme_srv.helper import (
     b64_decode,

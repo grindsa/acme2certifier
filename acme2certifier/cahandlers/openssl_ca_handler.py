@@ -1025,9 +1025,6 @@ class CAhandler(object):
             # load ca cert and key
             ca_key, ca_cert = self._ca_load()
 
-            # turn of chain_check due to issues in pyopenssl (check is not working if key-usage is set)
-            # result = self._certificate_chain_verify(cert, ca_cert)
-
             # get serial number from certicate to be revoked
             serial = cert_serial_get(self.logger, cert_pem)
 
