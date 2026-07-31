@@ -129,7 +129,6 @@ class TestACMEHandler(unittest.TestCase):
             eab_profile_list_check,
             eab_profile_check,
             eab_profile_header_info_check,
-            cryptography_version_get,
             cn_validate,
             csr_subject_get,
             eab_profile_subject_string_check,
@@ -181,7 +180,6 @@ class TestACMEHandler(unittest.TestCase):
         self.config_check = config_check
         self.convert_byte_to_string = convert_byte_to_string
         self.convert_string_to_byte = convert_string_to_byte
-        self.cryptography_version_get = cryptography_version_get
         self.csr_cn_get = csr_cn_get
         self.csr_dn_get = csr_dn_get
         self.csr_extensions_get = csr_extensions_get
@@ -3566,7 +3564,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         aki = self.cert_aki_get(self.logger, cert)
         self.assertEqual(aki, "abc9fffd566421164b62206dbc800fba8467659a")
 
-    @patch("acme2certifier.acme_srv.helpers.certificates._cert_ski_pyopenssl_get")
+    @patch("acme2certifier.acme_srv.helpers.certificates._cert_ski_asn1_get")
     @patch("acme2certifier.acme_srv.helpers.certificates.x509.Certificate.extensions")
     def test_324_cert_ski_get_error_handling(self, mock_ext, mock_ski_get):
         """test cert_ski_get() error handling when SKI is missing"""
@@ -3588,9 +3586,10 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
     t+eRUDECE+0UnjyeCjTn3EU="""
         mock_ext.get_extension_for_oid.side_effect = Exception("No SKI")
-        mock_ski_get.return_value = "pyopenssl"
+        mock_ski_get.return_value = "asn1-fallback"
         ski = self.cert_ski_get(self.logger, cert)
-        self.assertEqual(ski, "pyopenssl")
+        self.assertEqual(ski, "asn1-fallback")
+        mock_ski_get.assert_called_once()
 
     def test_325_validate_fqdn(self):
         """test validate_fqdn()"""
@@ -4490,19 +4489,6 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(mock_string.called)
         self.assertFalse(mock_list.called)
         self.assertTrue(mock_subject.called)
-
-    @patch("cryptography.__version__", "3.4.7")
-    def test_390_cryptography_version_get_success(self):
-        self.assertEqual(3, self.cryptography_version_get(self.logger))
-
-    @patch("cryptography.__version__", None)
-    def test_391_cryptography_version_get_success(self):
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(36, self.cryptography_version_get(self.logger))
-        self.assertIn(
-            "ERROR:test_a2c:Error while getting the version number of the cryptography module: 'NoneType' object has no attribute 'split'",
-            lcm.output,
-        )
 
     @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
     @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
@@ -6953,9 +6939,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
         self.assertTrue(is_email_whitelisted(self.logger, "ADMIN@FOO.COM", email_list))
 
-    def test_562_cert_aki_pyopenssl_extension_error_and_missing(self):
-        """_cert_aki_pyopenssl_get handles extension errors and missing AKI"""
-        from acme2certifier.acme_srv.helpers.certificates import _cert_aki_pyopenssl_get
+    def test_562_cert_aki_asn1_get_success_and_missing(self):
+        """_cert_aki_asn1_get returns hex or None when AKI absent"""
+        from acme2certifier.acme_srv.helpers.certificates import _cert_aki_asn1_get
 
         cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
                 LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
@@ -6974,28 +6960,23 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
                 keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
                 NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
-        mock_cert = MagicMock()
-        mock_cert.get_extension_count.return_value = 2
-        mock_cert.get_extension.side_effect = [Exception("ext boom"), Exception("ext2")]
+        self.assertEqual(
+            "a5627a4a430d7632610ca6fb1311e422d7b52c9c",
+            _cert_aki_asn1_get(self.logger, cert),
+        )
         with (
             patch(
-                "acme2certifier.acme_srv.helpers.certificates.crypto.load_certificate",
-                return_value=mock_cert,
+                "acme2certifier.acme_srv.helpers.certificates._cert_extension_raw_get",
+                return_value=None,
             ),
             self.assertLogs("test_a2c", level="WARNING") as lcm,
         ):
-            self.assertIsNone(_cert_aki_pyopenssl_get(self.logger, cert))
-        self.assertTrue(
-            any(
-                "Error while getting AKI from certificate extension" in line
-                for line in lcm.output
-            )
-        )
+            self.assertIsNone(_cert_aki_asn1_get(self.logger, cert))
         self.assertIn("WARNING:test_a2c:No AKI found in certificate", lcm.output)
 
-    def test_563_cert_ski_pyopenssl_get_success_and_missing(self):
-        """_cert_ski_pyopenssl_get returns hex or None when SKI absent"""
-        from acme2certifier.acme_srv.helpers.certificates import _cert_ski_pyopenssl_get
+    def test_563_cert_ski_asn1_get_success_and_missing(self):
+        """_cert_ski_asn1_get returns hex or None when SKI absent"""
+        from acme2certifier.acme_srv.helpers.certificates import _cert_ski_asn1_get
 
         cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
                 LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
@@ -7014,52 +6995,51 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
                 keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
                 NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
-        ski = _cert_ski_pyopenssl_get(self.logger, cert)
-        self.assertEqual(ski, "a5627a4a430d7632610ca6fb1311e422d7b52c9c")
-
-        mock_cert = MagicMock()
-        mock_cert.get_extension_count.return_value = 1
-        mock_ext = MagicMock()
-        mock_ext.get_short_name.return_value = b"basicConstraints"
-        mock_cert.get_extension.return_value = mock_ext
+        self.assertEqual(
+            "a5627a4a430d7632610ca6fb1311e422d7b52c9c",
+            _cert_ski_asn1_get(self.logger, cert),
+        )
         with (
             patch(
-                "acme2certifier.acme_srv.helpers.certificates.crypto.load_certificate",
-                return_value=mock_cert,
+                "acme2certifier.acme_srv.helpers.certificates._cert_extension_raw_get",
+                return_value=None,
             ),
             self.assertLogs("test_a2c", level="WARNING") as lcm,
         ):
-            self.assertIsNone(_cert_ski_pyopenssl_get(self.logger, cert))
+            self.assertIsNone(_cert_ski_asn1_get(self.logger, cert))
         self.assertIn("WARNING:test_a2c:No SKI found in certificate", lcm.output)
 
-    @patch(
-        "acme2certifier.acme_srv.helpers.certificates.cryptography_version_get",
-        return_value=35,
-    )
-    @patch(
-        "acme2certifier.acme_srv.helpers.certificates._cert_extensions_py_openssl_get",
-        return_value=["ext1"],
-    )
-    def test_564_cert_extensions_get_uses_pyopenssl_for_old_crypto(
-        self, mock_pyopenssl, mock_ver
-    ):
-        """cert_extensions_get falls back to pyOpenSSL when cryptography < 36"""
-        result = self.cert_extensions_get(self.logger, "cert", recode=True)
-        self.assertEqual(result, ["ext1"])
-        mock_pyopenssl.assert_called_once_with(self.logger, "cert", True)
-        mock_ver.assert_called_once()
+    def test_564_cert_aki_asn1_get_missing_key_identifier(self):
+        """_cert_aki_asn1_get warns when AKI has no keyIdentifier"""
+        from acme2certifier.acme_srv.helpers.certificates import _cert_aki_asn1_get
 
-    def test_565_cert_extensions_py_openssl_get_recode_true_and_false(self):
-        """_cert_extensions_py_openssl_get covers recode True/False paths"""
+        mock_aki = MagicMock()
+        mock_aki.__getitem__.return_value.isValue = False
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.certificates._cert_extension_raw_get",
+                return_value=b"\x30\x00",
+            ),
+            patch(
+                "acme2certifier.acme_srv.helpers.certificates.decoder.decode",
+                return_value=(mock_aki, None),
+            ),
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            self.assertIsNone(_cert_aki_asn1_get(self.logger, "cert"))
+        self.assertIn(
+            "WARNING:test_a2c:AKI extension present but keyIdentifier missing",
+            lcm.output,
+        )
+
+    def test_565_cert_extension_raw_get_no_extensions(self):
+        """_cert_extension_raw_get returns None when extensions absent or OID missing"""
         from acme2certifier.acme_srv.helpers.certificates import (
-            _cert_extensions_py_openssl_get,
-        )
-        from acme2certifier.acme_srv.helpers.encoding import (
-            build_pem_file,
-            b64_url_recode,
+            _cert_extension_raw_get,
+            _OID_SKI,
         )
 
-        cert_b64 = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
+        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
                 LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
                 MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
                 MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
@@ -7076,15 +7056,52 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
                 keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
                 NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
-        result_recode = _cert_extensions_py_openssl_get(self.logger, cert_b64, True)
-        self.assertTrue(isinstance(result_recode, list))
-        self.assertGreater(len(result_recode), 0)
+        self.assertIsNone(_cert_extension_raw_get(self.logger, cert, "1.2.3.4.5"))
+        self.assertIsNotNone(_cert_extension_raw_get(self.logger, cert, _OID_SKI))
 
-        pem = build_pem_file(
-            self.logger, None, b64_url_recode(self.logger, cert_b64), True
-        )
-        result_plain = _cert_extensions_py_openssl_get(self.logger, pem, False)
-        self.assertEqual(result_recode, result_plain)
+        mock_cert_asn1 = MagicMock()
+        mock_cert_asn1.__getitem__.return_value.__getitem__.return_value = None
+        with patch(
+            "acme2certifier.acme_srv.helpers.certificates.decoder.decode",
+            return_value=(mock_cert_asn1, None),
+        ):
+            self.assertIsNone(_cert_extension_raw_get(self.logger, cert, _OID_SKI))
+
+        mock_exts = MagicMock()
+        mock_exts.hasValue.return_value = False
+        mock_cert_asn1 = MagicMock()
+        mock_cert_asn1.__getitem__.return_value.__getitem__.return_value = mock_exts
+        with patch(
+            "acme2certifier.acme_srv.helpers.certificates.decoder.decode",
+            return_value=(mock_cert_asn1, None),
+        ):
+            self.assertIsNone(_cert_extension_raw_get(self.logger, cert, _OID_SKI))
+
+    @patch("acme2certifier.acme_srv.helpers.certificates._cert_aki_asn1_get")
+    @patch("acme2certifier.acme_srv.helpers.certificates.x509.Certificate.extensions")
+    def test_565b_cert_aki_get_falls_back_to_asn1(self, mock_ext, mock_aki_get):
+        """cert_aki_get falls back to ASN.1 helper on cryptography failure"""
+        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
+                LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
+                MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+                MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
+                KDljZNXdNT5Zi7K6HY9C622NOV7QefB6zTtm6mSY08ypNsaeorhIvJdnpaJ9gAGH
+                YeQqJ04fL099kiRXJAv8gT8wdpiekg2KEU4wlXMIRfSHiiB37yjcqUzXl6XYYKGe
+                2USMpDfliXL3o8TW2KByGUdCzXUdNbMgzRXwYxkX2+xV2f0vn8NyXHiHg9yJRof2
+                HTjyvAcXN5Nr987slq/Ex5lXLtpB861Ov3ZbwxyzREjmreZBlze7KTfP5IY66XuN
+                Mvhi7AAs0cLTd3SNjpppE/yvUi5q5gfhXQIDAQABo3MwcTAfBgNVHSMEGDAWgBSl
+                YnpKQw12MmEMpvsTEeQi17UsnDAdBgNVHQ4EFgQUpWJ6SkMNdjJhDKb7ExHkIte1
+                LJwwLwYDVR0RBCgwJoIRZm9vLTIuZXhhbXBsZS5jb22CEWZvby0xLmV4YW1wbGUu
+                Y29tMA0GCSqGSIb3DQEBCwUAA4IBAQASA20TtMPXIHH10dikLhFuI14EOtZzXvCx
+                kGlJw9/5JuvVKLsL1wd8BC9o/lg8apDqsrDZ/+0Nc8g3Z9HRN99vcLsVDdT27DkM
+                BslfXdN/qBhKAp3m7jw29uijX5fss+Wz9iHfHciUjVyMJ4DoFxHYPbMWQG8XEUKR
+                TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
+                keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
+                NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
+        mock_ext.get_extension_for_oid.side_effect = Exception("No AKI")
+        mock_aki_get.return_value = "asn1-aki"
+        self.assertEqual("asn1-aki", self.cert_aki_get(self.logger, cert))
+        mock_aki_get.assert_called_once()
 
     def test_566_default_deploy_base_dir_and_resolve_config_path(self):
         """default_deploy_base_dir and resolve_config_path cover env/dir/empty paths"""

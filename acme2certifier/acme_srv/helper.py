@@ -31,7 +31,6 @@ from .helpers.certificates import (
     cert_pubkey_get,
     cert_san_get,
     cert_ski_get,
-    cryptography_version_get,
     cert_extensions_get,
     cert_serial_get,
     pembundle_to_list,

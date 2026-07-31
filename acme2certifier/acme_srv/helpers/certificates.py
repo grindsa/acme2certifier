@@ -12,7 +12,6 @@ from cryptography.hazmat.primitives.serialization.pkcs7 import (
     load_der_pkcs7_certificates,
 )
 from cryptography.x509 import load_pem_x509_certificate, ocsp
-from OpenSSL import crypto
 from .encoding import (
     convert_string_to_byte,
     convert_byte_to_string,
@@ -21,24 +20,13 @@ from .encoding import (
     b64_decode,
 )
 from .datetime_utils import date_to_uts_utc
-from typing import Optional
 from pyasn1.codec.der import decoder
 from pyasn1.type import univ
 from pyasn1_modules import rfc5280
 
-
 _OID_SKI = "2.5.29.14"
 _OID_AKI = "2.5.29.35"
 
-
-def _cert_der_from_input(logger: logging.Logger, certificate: str) -> bytes:
-    """Build DER from URL-safe b64 or PEM certificate input."""
-    pem_data = convert_string_to_byte(
-        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    )
-    return serialization.load_pem_x509_certificate(
-        pem_data, default_backend()
-    ).tbs_certificate_bytes  # unused; keep PEM->DER below
 
 def _cert_pem_to_der(logger: logging.Logger, certificate: str) -> bytes:
     """Convert certificate input to DER bytes without parsing extensions."""
@@ -48,10 +36,9 @@ def _cert_pem_to_der(logger: logging.Logger, certificate: str) -> bytes:
     # Prefer cryptography load for PEM framing only; public_bytes touches extensions
     # on some versions, so strip PEM manually.
     lines = convert_byte_to_string(pem_data).strip().splitlines()
-    b64 = "".join(
-        line for line in lines if not line.startswith("-----")
-    )
+    b64 = "".join(line for line in lines if not line.startswith("-----"))
     return base64.b64decode(b64)
+
 
 def _cert_extension_raw_get(
     logger: logging.Logger, certificate: str, oid: str
@@ -67,6 +54,7 @@ def _cert_extension_raw_get(
         if str(ext["extnID"]) == oid:
             return bytes(ext["extnValue"])
     return None
+
 
 def _cert_aki_asn1_get(logger: logging.Logger, certificate: str) -> Optional[str]:
     """Get AKI keyIdentifier as hex via ASN.1 (tolerates illegal BasicConstraints)."""
@@ -94,13 +82,14 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
         aki_value = aki.value.key_identifier.hex()
     except Exception as _err:
         logger.error(
-            "Error while getting AKI from certificate: %s. Fallback to pyOpenSSL method",
+            "Error while getting AKI from certificate: %s. Fallback to ASN.1 method",
             _err,
         )
         aki_value = _cert_aki_asn1_get(logger, certificate)
 
     logger.debug("cert_aki_get() ended with: %s", aki_value)
     return aki_value
+
 
 def _cert_ski_asn1_get(logger: logging.Logger, certificate: str) -> Optional[str]:
     """Get SKI as hex via ASN.1 (tolerates illegal BasicConstraints)."""
@@ -113,6 +102,7 @@ def _cert_ski_asn1_get(logger: logging.Logger, certificate: str) -> Optional[str
     ski_hex = bytes(ski).hex()
     logger.debug("_cert_ski_asn1_get() ended with: %s", ski_hex)
     return ski_hex
+
 
 def cert_load(
     logger: logging.Logger, certificate: str, recode: bool
@@ -251,73 +241,25 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
         ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
         ski_value = ski.value.digest.hex()
     except Exception as err:
-        logger.error("Error while getting the SKI: %s. Fallback to pyopenssl", err)
+        logger.error("Error while getting the SKI: %s. Fallback to ASN.1 method", err)
         ski_value = _cert_ski_asn1_get(logger, certificate)
 
     logger.debug("Helper.cert_ski_get() ended with: %s", ski_value)
     return ski_value
-
-def cryptography_version_get(logger: logging.Logger) -> int:
-    """get version number of cryptography module"""
-    logger.debug("Helper.cryptography_version_get()")
-    # pylint: disable=c0415
-    import cryptography
-
-    major_version = None
-    try:
-        version_list = cryptography.__version__.split(".")
-        if version_list:
-            major_version = int(version_list[0])
-    except Exception as err:
-        logger.error(
-            "Error while getting the version number of the cryptography module: %s", err
-        )
-        major_version = 36
-
-    logger.debug("cryptography_version_get() ended with %s", major_version)
-    return major_version
 
 
 def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool = True):
     """get extenstions from certificate certificate"""
     logger.debug("Helper.cert_extensions_get()")
 
-    crypto_module_version = cryptography_version_get(logger)
-    if False:
-    # ugly hack for a small test
-    # if crypto_module_version < 36:
-        logger.debug("Helper.cert_extensions_get(): using pyopenssl")
-        extension_list = _cert_extensions_py_openssl_get(logger, certificate, recode)
-    else:
-        cert = cert_load(logger, certificate, recode=recode)
-        extension_list = []
-        for extension in cert.extensions:
-            extension_list.append(
-                convert_byte_to_string(base64.b64encode(extension.value.public_bytes()))
-            )
+    cert = cert_load(logger, certificate, recode=recode)
+    extension_list = []
+    for extension in cert.extensions:
+        extension_list.append(
+            convert_byte_to_string(base64.b64encode(extension.value.public_bytes()))
+        )
 
     logger.debug("Helper.cert_extensions_get() ended with: %s", extension_list)
-    return extension_list
-
-
-def _cert_extensions_py_openssl_get(logger, certificate, recode=True):
-    """get extenstions from certificate certificate"""
-    logger.debug("cert_extensions_py_openssl_get()")
-    if recode:
-        pem_file = build_pem_file(
-            logger, None, b64_url_recode(logger, certificate), True
-        )
-    else:
-        pem_file = certificate
-
-    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
-    extension_list = []
-    ext_count = cert.get_extension_count()
-    for i in range(0, ext_count):
-        ext = cert.get_extension(i)
-        extension_list.append(convert_byte_to_string(base64.b64encode(ext.get_data())))
-
-    logger.debug("cert_extensions_py_openssl_get() ended with: %s", extension_list)
     return extension_list
 
 
