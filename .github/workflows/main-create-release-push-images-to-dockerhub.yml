@@ -309,6 +309,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier' && needs.test_amd64.result == 'success'
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         websrv: [apache2, nginx]
         dbhandler: [wsgi, django]
@@ -375,10 +376,8 @@ jobs:
           SBOM_DIR="/tmp/sbom/sbom/acme2certifier"
           BASE="${SBOM_DIR}/acme2certifier-${WEBSRV}-${DBHANDLER}_sbom"
           mkdir -p "${SBOM_DIR}"
-
-          # Remove any leftover uncompressed SBOMs for this image
-          rm -f "${BASE}.txt" "${BASE}.json"
-
+          # Touch only this matrix cell's files
+          rm -f "${BASE}.txt" "${BASE}.json" "${BASE}.txt.gz" "${BASE}.json.gz"
           syft "${IMAGE}" > "${BASE}.txt"
           syft "${IMAGE}" -o json > "${BASE}.json"
           gzip -f "${BASE}.txt" "${BASE}.json"
@@ -387,19 +386,17 @@ jobs:
           DBHANDLER: ${{ matrix.dbhandler }}
 
       - name: Upload SBOM changes
-        continue-on-error: true
         run: |
           set -euo pipefail
           cd /tmp/sbom
           git config user.email "${EMAIL}"
           git config user.name "SBOM Generator"
-
-          # Drop any remaining uncompressed SBOMs under acme2certifier/
-          find sbom/acme2certifier -type f \( -name '*_sbom.txt' -o -name '*_sbom.json' \) -delete
-
-          git add -A sbom/acme2certifier/
+          # Stage only this variant so we never delete siblings
+          git add -A "sbom/acme2certifier/acme2certifier-${WEBSRV}-${DBHANDLER}_sbom."*
           git diff --cached --quiet && echo "No SBOM changes" && exit 0
-          git commit -m "SBOM update"
+          git commit -m "SBOM update (${WEBSRV}-${DBHANDLER})"
           git push
         env:
           EMAIL: ${{ env.EMAIL }}
+          WEBSRV: ${{ matrix.websrv }}
+          DBHANDLER: ${{ matrix.dbhandler }}
