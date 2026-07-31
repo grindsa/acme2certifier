@@ -396,9 +396,16 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="ghcr.io/grindsa/acme2certifier:${WEBSRV}-${DBHANDLER}"
-          mkdir -p /tmp/sbom/sbom/acme2certifier
-          syft "${IMAGE}" > "/tmp/sbom/sbom/acme2certifier/acme2certifier-${WEBSRV}-${DBHANDLER}_sbom.txt"
-          syft "${IMAGE}" -o json > "/tmp/sbom/sbom/acme2certifier/acme2certifier-${WEBSRV}-${DBHANDLER}_sbom.json"
+          SBOM_DIR="/tmp/sbom/sbom/acme2certifier"
+          BASE="${SBOM_DIR}/acme2certifier-${WEBSRV}-${DBHANDLER}_sbom"
+          mkdir -p "${SBOM_DIR}"
+
+          # Remove any leftover uncompressed SBOMs for this image
+          rm -f "${BASE}.txt" "${BASE}.json"
+
+          syft "${IMAGE}" > "${BASE}.txt"
+          syft "${IMAGE}" -o json > "${BASE}.json"
+          gzip -f "${BASE}.txt" "${BASE}.json"
         env:
           WEBSRV: ${{ matrix.websrv }}
           DBHANDLER: ${{ matrix.dbhandler }}
@@ -410,7 +417,11 @@ jobs:
           cd /tmp/sbom
           git config user.email "${EMAIL}"
           git config user.name "SBOM Generator"
-          git add sbom/acme2certifier/
+
+          # Drop any remaining uncompressed SBOMs under acme2certifier/
+          find sbom/acme2certifier -type f \( -name '*_sbom.txt' -o -name '*_sbom.json' \) -delete
+
+          git add -A sbom/acme2certifier/
           git diff --cached --quiet && echo "No SBOM changes" && exit 0
           git commit -m "SBOM update"
           git push
