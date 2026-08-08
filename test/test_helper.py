@@ -2457,8 +2457,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             lcm.output,
         )
 
-    def test_207a_log_response_warning_on_4xx(self):
-        """ACME 4xx responses are logged as concise WARNING"""
+    def test_207a_log_response_debug_dump_on_4xx(self):
+        """ACME 4xx responses: edge log_response only dumps at DEBUG"""
         addr = "addr"
         url = "/acme/newaccount"
         data_dic = {
@@ -2469,16 +2469,24 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 "detail": "EAB kid lookup failed",
             },
         }
-        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.log_response(self.logger, addr, url, data_dic)
-        self.assertIn(
-            "WARNING:test_a2c:ACME response error addr /acme/newaccount code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed",
-            lcm.output,
+        self.assertTrue(
+            any(
+                line.startswith("DEBUG:test_a2c:addr /acme/newaccount")
+                and "EAB kid lookup failed" in line
+                for line in lcm.output
+            )
         )
-        self.assertFalse(any(line.startswith("ERROR:") for line in lcm.output))
+        self.assertFalse(
+            any(
+                line.startswith("WARNING:") or line.startswith("ERROR:")
+                for line in lcm.output
+            )
+        )
 
-    def test_207b_log_response_error_on_5xx(self):
-        """ACME 5xx responses are logged as concise ERROR; dump at DEBUG"""
+    def test_207b_log_response_debug_dump_on_5xx(self):
+        """ACME 5xx responses: edge log_response only dumps at DEBUG"""
         addr = "addr"
         url = "/acme/order"
         data_dic = {
@@ -2492,14 +2500,16 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         }
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.log_response(self.logger, addr, url, data_dic)
-        self.assertIn(
-            "ERROR:test_a2c:ACME response error addr /acme/order code=500 type=urn:ietf:params:acme:error:serverInternal detail=Database error",
-            lcm.output,
-        )
         self.assertTrue(
             any(
                 line.startswith("DEBUG:test_a2c:addr /acme/order")
                 and "- modified -" in line
+                for line in lcm.output
+            )
+        )
+        self.assertFalse(
+            any(
+                line.startswith("WARNING:") or line.startswith("ERROR:")
                 for line in lcm.output
             )
         )

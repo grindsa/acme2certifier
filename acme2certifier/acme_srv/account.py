@@ -506,16 +506,22 @@ class Account:
                     400,
                     self.err_msg_dic["accountdoesnotexist"],
                     "Deactivation failed",
+                    account_name=account_name,
                 )
             code, message, detail = self._deactivate_account(account_name)
             if code == 200:
                 data = self._build_account_info(account_obj)
                 data["status"] = "deactivated"
                 return self._build_response(code, account_name, data)
-            return self._build_response(code, message, detail)
+            return self._build_response(
+                code, message, detail, account_name=account_name
+            )
         else:
             return self._build_response(
-                400, self.err_msg_dic["malformed"], "Invalid status for deactivation"
+                400,
+                self.err_msg_dic["malformed"],
+                "Invalid status for deactivation",
+                account_name=account_name,
             )
 
     def _deactivate_account(self, account_name: str) -> Tuple[int, str, str]:
@@ -550,8 +556,8 @@ class Account:
             account_obj = self._lookup_account_by_name(account_name)
             if account_obj:
                 data = self._build_account_info(account_obj)
-                return self._build_response(code, message, data)
-        return self._build_response(code, message, detail)
+                return self._build_response(code, account_name, data)
+        return self._build_response(code, message, detail, account_name=account_name)
 
     def _update_account_contacts(
         self, account_name: str, payload: Dict[str, str]
@@ -596,9 +602,12 @@ class Account:
                     account_name, protected, inner_protected, inner_payload
                 )
                 if code == 200:
-                    return self._build_response(code, message, None)
+                    return self._build_response(code, account_name, None)
         return self._build_response(
-            400, self.err_msg_dic["malformed"], "Malformed key-change request"
+            400,
+            self.err_msg_dic["malformed"],
+            "Malformed key-change request",
+            account_name=account_name,
         )
 
     def _rollover_account_key(
@@ -694,7 +703,10 @@ class Account:
             data = self._build_account_info(account_obj)
             return self._build_response(200, account_name, data)
         return self._build_response(
-            400, self.err_msg_dic["accountdoesnotexist"], "Account not found"
+            400,
+            self.err_msg_dic["accountdoesnotexist"],
+            "Account not found",
+            account_name=account_name,
         )
 
     def _lookup_account_by_name(self, value: str) -> Optional[Dict[str, str]]:
@@ -744,6 +756,7 @@ class Account:
         message: Optional[str],
         detail: Optional[str],
         payload: Optional[Dict] = None,
+        account_name: Optional[str] = None,
     ) -> Dict[str, str]:
         """Build a response dictionary."""
         self.logger.debug("Account._build_response()")
@@ -779,9 +792,18 @@ class Account:
             if detail == "tosfalse":
                 detail = "Terms of service must be accepted"
 
+        # On success, message is the account name used in Location
+        log_account = (
+            account_name
+            if account_name is not None
+            else (message if code in (200, 201) else None)
+        )
+
         # prepare/enrich response
         status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
+        response_dic = self.message.prepare_response(
+            response_dic, status_dic, account_name=log_account
+        )
 
         return response_dic
 
@@ -808,7 +830,9 @@ class Account:
             content
         )
         if code != 200:
-            return self._build_response(code, message, detail)
+            return self._build_response(
+                code, message, detail, account_name=account_name
+            )
 
         if "status" in payload:
             return self._handle_deactivation(account_name, payload)
@@ -820,7 +844,10 @@ class Account:
             return self._handle_account_query(account_name)
         else:
             return self._build_response(
-                400, self.err_msg_dic["malformed"], "Unknown request"
+                400,
+                self.err_msg_dic["malformed"],
+                "Unknown request",
+                account_name=account_name,
             )
 
     # Compatibility layer for external methods

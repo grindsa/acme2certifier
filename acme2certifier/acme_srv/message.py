@@ -4,6 +4,7 @@
 
 from __future__ import print_function
 import json
+import logging
 import os
 from typing import Tuple, Dict, List, Optional
 from dataclasses import dataclass
@@ -474,8 +475,9 @@ class Message(object):
         response_dic: Dict[str, str],
         status_dic: Dict[str, str],
         add_nonce: bool = True,
+        account_name: Optional[str] = None,
     ) -> Dict[str, str]:
-        """prepare response_dic"""
+        """prepare response_dic; log ACME problems at WARNING/ERROR"""
         self.logger.debug("Message.prepare_response()")
         if "code" not in status_dic:
             status_dic["code"] = 500
@@ -512,6 +514,16 @@ class Message(object):
                     "status": status_dic["code"],
                     "type": status_dic["type"],
                 }
+
+            log_level = logging.ERROR if status_dic["code"] >= 500 else logging.WARNING
+            self.logger.log(
+                log_level,
+                "ACME problem code=%s type=%s detail=%s account=%s",
+                status_dic["code"],
+                status_dic.get("type"),
+                response_dic["data"].get("detail"),
+                account_name,
+            )
 
         # always add nonce to header
         if add_nonce:

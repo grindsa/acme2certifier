@@ -1573,12 +1573,19 @@ class Certificate(object):
             )
 
     def _prepare_certificate_response(
-        self, response_dic: Dict, code: int, message: str, detail: str
+        self,
+        response_dic: Dict,
+        code: int,
+        message: str,
+        detail: str,
+        account_name: Optional[str] = None,
     ) -> Dict[str, str]:
         """Prepare and format certificate response"""
         try:
             status_dic = {"code": code, "type": message, "detail": detail}
-            response_dic = self.message.prepare_response(response_dic, status_dic)
+            response_dic = self.message.prepare_response(
+                response_dic, status_dic, account_name=account_name
+            )
 
             # Serialize dict data to JSON if needed
             if isinstance(response_dic.get("data"), dict):
@@ -1613,7 +1620,7 @@ class Certificate(object):
                 detail,
                 protected,
                 _payload,
-                _account_name,
+                account_name,
             ) = self._validate_certificate_request_message(content)
 
             response_dic = {}
@@ -1641,7 +1648,7 @@ class Certificate(object):
 
             # Prepare final response
             final_response = self._prepare_certificate_response(
-                response_dic, code, message, detail
+                response_dic, code, message, detail, account_name=account_name
             )
 
             result_code = final_response.get("code", "no code found")
@@ -1755,7 +1762,9 @@ class Certificate(object):
 
             # Prepare response
             status_dic = {"code": code, "type": message, "detail": detail}
-            response_dic = self.message.prepare_response({}, status_dic)
+            response_dic = self.message.prepare_response(
+                {}, status_dic, account_name=account_name
+            )
 
             self.logger.debug(
                 "Certificate.revoke_certificate() ended with: %s", response_dic

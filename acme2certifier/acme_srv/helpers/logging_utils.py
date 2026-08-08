@@ -69,18 +69,6 @@ def _response_log_level(code: Optional[int]) -> int:
     return logging.INFO
 
 
-def _acme_problem_fields(data_dic: Any) -> tuple:
-    """Extract ACME problem type/detail from response data."""
-    err_type = None
-    detail = None
-    if isinstance(data_dic, dict):
-        payload = data_dic.get("data")
-        if isinstance(payload, dict):
-            err_type = payload.get("type")
-            detail = payload.get("detail")
-    return err_type, detail
-
-
 def _sanitize_response_for_log(dat_dic: Any, locator: str) -> Any:
     """Deep-copy response and redact secrets for logging."""
     data_dic = copy.deepcopy(dat_dic)
@@ -96,27 +84,17 @@ def _sanitize_response_for_log(dat_dic: Any, locator: str) -> Any:
 def log_response(
     logger: logging.Logger, addr: str, locator: str, dat_dic: Dict[str, str]
 ) -> None:
-    """Log ACME HTTP responses.
+    """Log ACME HTTP responses at the edge.
 
-    Success stays at INFO with the (redacted) response dump.
-    Client errors (4xx) log a concise WARNING; server errors (5xx) log ERROR.
-    Full redacted dumps for failures go to DEBUG.
+    Success: INFO with redacted response dump.
+    Failures (4xx/5xx): DEBUG dump only — concise ACME problem lines are
+    emitted by Message.prepare_response to avoid duplicate operator noise.
     """
     code = _response_http_code(dat_dic)
     level = _response_log_level(code)
     data_dic = _sanitize_response_for_log(dat_dic, locator)
 
     if level >= logging.WARNING:
-        err_type, detail = _acme_problem_fields(dat_dic)
-        logger.log(
-            level,
-            "ACME response error %s %s code=%s type=%s detail=%s",
-            addr,
-            locator,
-            code,
-            err_type,
-            detail,
-        )
         logger.debug("%s %s %s", addr, locator, str(data_dic))
     else:
         logger.info("%s %s %s", addr, locator, str(data_dic))

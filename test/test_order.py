@@ -600,7 +600,7 @@ class TestOrderClass(unittest.TestCase):
                 with patch.object(
                     self.order.message,
                     "prepare_response",
-                    side_effect=lambda resp, stat: resp,
+                    side_effect=lambda resp, stat, **_kwargs: resp,
                 ):
                     result = self.order.create_from_content("content")
                     self.assertIn("header", result)
@@ -634,7 +634,7 @@ class TestOrderClass(unittest.TestCase):
                 with patch.object(
                     self.order.message,
                     "prepare_response",
-                    side_effect=lambda resp, stat: resp,
+                    side_effect=lambda resp, stat, **_kwargs: resp,
                 ):
                     result = self.order.create_from_content("content")
                     self.assertTrue(
@@ -669,7 +669,7 @@ class TestOrderClass(unittest.TestCase):
                 with patch.object(
                     self.order.message,
                     "prepare_response",
-                    side_effect=lambda resp, stat: resp,
+                    side_effect=lambda resp, stat, **_kwargs: resp,
                 ):
                     result = self.order.create_from_content("content")
                     self.assertTrue(
@@ -686,7 +686,7 @@ class TestOrderClass(unittest.TestCase):
             with patch.object(
                 self.order.message,
                 "prepare_response",
-                side_effect=lambda resp, stat: resp,
+                side_effect=lambda resp, stat, **_kwargs: resp,
             ):
                 result = self.order.create_from_content("content")
                 self.assertIsInstance(result, dict)
@@ -754,7 +754,7 @@ class TestOrderClass(unittest.TestCase):
                     with patch.object(
                         self.order.message,
                         "prepare_response",
-                        side_effect=lambda resp, stat: resp,
+                        side_effect=lambda resp, stat, **_kwargs: resp,
                     ):
                         result = self.order.parse_order_content("content")
                         self.assertIn("header", result)
@@ -781,7 +781,7 @@ class TestOrderClass(unittest.TestCase):
                     with patch.object(
                         self.order.message,
                         "prepare_response",
-                        side_effect=lambda resp, stat: resp,
+                        side_effect=lambda resp, stat, **_kwargs: resp,
                     ):
                         result = self.order.parse_order_content("content")
                         self.assertIn("header", result)
@@ -2072,7 +2072,7 @@ class TestOrderClass(unittest.TestCase):
                     with patch.object(
                         self.order.message,
                         "prepare_response",
-                        side_effect=lambda resp, stat: resp,
+                        side_effect=lambda resp, stat, **_kwargs: resp,
                     ):
                         self.order.path_dic["cert_path"] = "/acme/cert/"
                         self.order.server_name = "https://example.com"
@@ -2221,7 +2221,7 @@ class TestOrderClass(unittest.TestCase):
                 with patch.object(
                     self.order.message,
                     "prepare_response",
-                    side_effect=lambda resp, stat: {**resp, **stat},
+                    side_effect=lambda resp, stat, **_kwargs: {**resp, **stat},
                 ):
                     result = self.order.create_from_content("content")
                     self.assertEqual(result["code"], 403)
@@ -2251,7 +2251,7 @@ class TestOrderClass(unittest.TestCase):
                 with patch.object(
                     self.order.message,
                     "prepare_response",
-                    side_effect=lambda resp, stat: {**resp, **stat},
+                    side_effect=lambda resp, stat, **_kwargs: {**resp, **stat},
                 ):
                     result = self.order.create_from_content("content")
                     self.assertEqual(result["code"], 403)
@@ -2681,7 +2681,7 @@ class TestOrderClass(unittest.TestCase):
             patch.object(
                 self.order.message,
                 "prepare_response",
-                side_effect=lambda resp, status: {**resp, **status},
+                side_effect=lambda resp, status, **_kwargs: {**resp, **status},
             ),
         ):
             response = self.order.create_from_content("dummycontent")

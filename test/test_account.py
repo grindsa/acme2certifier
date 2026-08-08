@@ -1627,7 +1627,7 @@ class TestAccount(unittest.TestCase):
         with patch.object(
             self.account.message,
             "prepare_response",
-            side_effect=lambda response_dic, status_dic: response_dic,
+            side_effect=lambda response_dic, status_dic, **_kwargs: response_dic,
         ):
             result = self.account._build_response(200, "test_account", None)
         self.assertEqual(
@@ -1752,7 +1752,10 @@ class TestAccount(unittest.TestCase):
             result = self.account.parse_request(content)
             self.assertEqual(result, {"error": "Unknown request"})
             mock_build_response.assert_called_once_with(
-                400, self.account.err_msg_dic["malformed"], "Unknown request"
+                400,
+                self.account.err_msg_dic["malformed"],
+                "Unknown request",
+                account_name="test_account",
             )
 
     def test_069_new_calls_create_account(self):

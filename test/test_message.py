@@ -367,6 +367,50 @@ class TestACMEHandler(unittest.TestCase):
             self.message.prepare_response(data_dic, config_dic),
         )
 
+    @patch("acme2certifier.acme_srv.nonce.Nonce.generate_and_add")
+    def test_015a_message_prepare_response_logs_4xx_with_account(self, mock_nnonce):
+        """prepare_response logs ACME 4xx problems at WARNING with account"""
+        mock_nnonce.return_value = "new_nonce"
+        data_dic = {"header": {}}
+        config_dic = {
+            "code": 403,
+            "type": "urn:ietf:params:acme:error:unauthorized",
+            "detail": "EAB kid lookup failed",
+        }
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.message.prepare_response(
+                data_dic, config_dic, account_name="acct-123"
+            )
+        self.assertTrue(
+            any(
+                "ACME problem code=403" in line
+                and "type=urn:ietf:params:acme:error:unauthorized" in line
+                and "detail=EAB kid lookup failed" in line
+                and "account=acct-123" in line
+                for line in lcm.output
+            )
+        )
+
+    @patch("acme2certifier.acme_srv.nonce.Nonce.generate_and_add")
+    def test_015b_message_prepare_response_logs_5xx(self, mock_nnonce):
+        """prepare_response logs ACME 5xx problems at ERROR"""
+        mock_nnonce.return_value = "new_nonce"
+        data_dic = {"header": {}}
+        config_dic = {
+            "code": 500,
+            "type": "urn:ietf:params:acme:error:serverInternal",
+            "detail": "Database error",
+        }
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.message.prepare_response(data_dic, config_dic)
+        self.assertTrue(
+            any(
+                line.startswith("ERROR:test_a2c:ACME problem code=500")
+                and "account=None" in line
+                for line in lcm.output
+            )
+        )
+
     def test_016_message_name_get_empty_content(self):
         """test Message.name_get() with empty content"""
         protected = {}

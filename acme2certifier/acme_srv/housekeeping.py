@@ -886,7 +886,7 @@ class Housekeeping(object):
             detail,
             _protected,
             payload,
-            _account_name,
+            account_name,
             permissions_dic,
         ) = self.message.cli_check(content)
 
@@ -908,7 +908,9 @@ class Housekeeping(object):
 
         # prepare/enrich response
         status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic, False)
+        response_dic = self.message.prepare_response(
+            response_dic, status_dic, False, account_name=account_name
+        )
         self.logger.debug("Housekeeping.parse() returned something.")
 
         return response_dic
