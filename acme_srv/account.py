@@ -58,16 +58,22 @@ class ExternalAccountBinding:
         result = False
         if "jwk" in protected:
             jwk_outer = protected["jwk"]
-            jwk_inner = b64decode_pad(self.logger, payload)
-            jwk_inner = json.loads(jwk_inner)
-            if json.dumps(jwk_outer, sort_keys=True) == json.dumps(
-                jwk_inner, sort_keys=True
-            ):
-                result = True
+            try:
+                jwk_inner = json.loads(b64decode_pad(self.logger, payload))
+            except Exception as err:
+                self.logger.error("Failed to decode EAB JWK payload: %s", err)
             else:
-                self.logger.error("JWK from outer and inner JWS do not match")
-                self.logger.debug("outer: %s", jwk_outer)
-                self.logger.debug("inner: %s", jwk_inner)
+                if isinstance(jwk_inner, dict):
+                    if json.dumps(jwk_outer, sort_keys=True) == json.dumps(
+                        jwk_inner, sort_keys=True
+                    ):
+                        result = True
+                    else:
+                        self.logger.error("JWK from outer and inner JWS do not match")
+                        self.logger.debug("outer: %s", jwk_outer)
+                        self.logger.debug("inner: %s", jwk_inner)
+                else:
+                    self.logger.error("EAB JWK payload is not a JSON object")
         else:
             self.logger.error("No JWK in protected header")
         self.logger.debug("ExternalAccountBinding.compare_jwk() ended with: %s", result)
@@ -243,7 +249,7 @@ class Account:
         self.config = AccountConfiguration()
         self.err_msg_dic = error_dic_get(self.logger)
 
-    def __enter__(self) -> "Order":
+    def __enter__(self):
         """Enter the context manager, loading configuration."""
         self._load_configuration()
         return self
@@ -495,11 +501,19 @@ class Account:
         """Handle account deactivation."""
         self.logger.debug("Account._handle_deactivation(%s)", account_name)
         if payload.get("status", "").lower() == "deactivated":
+            account_obj = self._lookup_account_by_name(account_name)
+            if not account_obj:
+                return self._build_response(
+                    400,
+                    self.err_msg_dic["accountdoesnotexist"],
+                    "Deactivation failed",
+                )
             code, message, detail = self._deactivate_account(account_name)
             if code == 200:
-                return self._build_response(code, message, payload)
-            else:
-                return self._build_response(code, message, detail)
+                data = self._build_account_info(account_obj)
+                data["status"] = "deactivated"
+                return self._build_response(code, account_name, data)
+            return self._build_response(code, message, detail)
         else:
             return self._build_response(
                 400, self.err_msg_dic["malformed"], "Invalid status for deactivation"
@@ -753,7 +767,11 @@ class Account:
             ] = f'{self.server_name}{self.config.path_dic["acct_path"]}{message}'
 
             # add exernal account binding
-            if self.config.eab_check and "externalaccountbinding" in payload:
+            if (
+                self.config.eab_check
+                and payload
+                and "externalaccountbinding" in payload
+            ):
                 response_dic["data"]["externalaccountbinding"] = payload[
                     "externalaccountbinding"
                 ]

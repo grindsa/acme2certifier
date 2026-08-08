@@ -232,6 +232,8 @@ class Order(object):
                     self.logger.critical(
                         "Database error: failed to add authorization: %s", err_
                     )
+                    error = self.error_msg_dic["serverinternal"]
+                    break
         else:
             error = self.error_msg_dic["malformed"]
 
@@ -1131,7 +1133,7 @@ class Order(object):
         elif certificate_name == "urn:ietf:params:acme:error:rejectedIdentifier":
             code = 401
             message = certificate_name
-        elif detail in ["Dry run mode - enrollment skipped"]:
+        elif detail == DRYRUN_ENROLLMENT_SKIPPED_DETAIL:
             message = "urn:ietf:params:acme:error:unauthorized"
         else:
             message = certificate_name
@@ -1292,7 +1294,35 @@ class Order(object):
         self.logger.debug("Order._process_csr(%s)", order_name)
 
         order_dic = self._get_order_info(order_name)
-        if not order_dic:
+        if order_dic:
+            # change decoding from b64url to b64
+            csr = b64_url_recode(self.logger, csr)
+
+            with Certificate(self.debug, self.server_name, self.logger) as certificate:
+                certificate_name = certificate.store_csr(order_name, csr, header_info)
+                if certificate_name:
+                    error, detail = certificate.enroll_and_store(
+                        certificate_name, csr, order_name
+                    )
+                    if (
+                        error == "urn:ietf:params:acme:error:rejectedIdentifier"
+                        or detail == DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+                    ):
+                        code = 401
+                        message = error
+                    elif not error:
+                        code = 200
+                        message = certificate_name
+                    else:
+                        code = 400
+                        message = error
+                        if message == self.error_msg_dic["serverinternal"]:
+                            code = 500
+                else:
+                    code = 500
+                    message = self.error_msg_dic["serverinternal"]
+                    detail = "CSR processing failed"
+        else:
             code = 400
             message = self.error_msg_dic["unauthorized"]
             detail = f"order: {order_name} not found"

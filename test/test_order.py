@@ -263,26 +263,29 @@ class TestOrderRepository(unittest.TestCase):
 class TestOrderClass(unittest.TestCase):
     def test_022_process_csr_dryrun_skipped(self):
         # Covers: enroll_and_store returns dryrun skipped, triggers code=401, message=error, detail preserved
+        from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+
         with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
             self.order._get_order_info = MagicMock(return_value={"name": "order1"})
             cert_mock = MagicMock()
             cert_mock.store_csr.return_value = "cert1"
             cert_mock.enroll_and_store.return_value = (
                 "some_error",
-                "Dry run mode - enrollment skipped",
+                DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
             )
             with patch("acme_srv.order.Certificate") as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                     result = self.order._process_csr("order1", "csr", "header")
                     self.assertEqual(
-                        result, (401, "some_error", "Dry run mode - enrollment skipped")
+                        result,
+                        (401, "some_error", DRYRUN_ENROLLMENT_SKIPPED_DETAIL),
                     )
                 self.assertIn(
                     "DEBUG:test_a2c:Order._process_csr(order1)", log_cm.output
                 )
                 self.assertIn(
-                    "DEBUG:test_a2c:Order._process_csr() ended with order:order1 401:{some_error:Dry run mode - enrollment skipped",
+                    f"DEBUG:test_a2c:Order._process_csr() ended with order:order1 401:{{some_error:{DRYRUN_ENROLLMENT_SKIPPED_DETAIL}",
                     log_cm.output,
                 )
 
@@ -872,13 +875,13 @@ class TestOrderClass(unittest.TestCase):
                 result = self.order._add_order_and_authorizations(
                     data_dic, auth_dic, payload, error
                 )
-                self.assertIsNone(result)  # error is None, but DB error is logged
+                self.assertEqual(result, self.order.error_msg_dic["serverinternal"])
             self.assertIn(
                 "CRITICAL:test_a2c:Database error: failed to add authorization: fail",
                 log_cm.output,
             )
             self.assertIn(
-                "DEBUG:test_a2c:Order._add_order_and_authorizations() ended with None",
+                f"DEBUG:test_a2c:Order._add_order_and_authorizations() ended with {self.order.error_msg_dic['serverinternal']}",
                 log_cm.output,
             )
             mock_add_authz.assert_called_once()
@@ -2577,7 +2580,7 @@ class TestOrderClass(unittest.TestCase):
         auth_dic = {}
         with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
             error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
-            self.assertIsNone(error)  # error is not set in DB error, just logged
+            self.assertEqual(error, self.order.error_msg_dic["serverinternal"])
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to add authorization: fail",
             log_cm.output,
@@ -2709,7 +2712,7 @@ class TestOrderClass(unittest.TestCase):
 
         self.order._header_info_lookup = MagicMock(return_value={})
         self.order._process_csr = MagicMock(
-            return_value=(400, "certX", "Dry run mode - enrollment skipped")
+            return_value=(400, "certX", DRYRUN_ENROLLMENT_SKIPPED_DETAIL)
         )
         result = self.order._finalize_csr("order1", {"csr": "csrval"})
         self.assertEqual(
@@ -2717,7 +2720,7 @@ class TestOrderClass(unittest.TestCase):
             (
                 400,
                 "urn:ietf:params:acme:error:unauthorized",
-                "Dry run mode - enrollment skipped",
+                DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
                 "certX",
             ),
         )
