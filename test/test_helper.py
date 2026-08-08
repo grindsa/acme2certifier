@@ -80,7 +80,7 @@ class TestACMEHandler(unittest.TestCase):
             cert_extensions_get,
             csr_dn_get,
             logger_setup,
-            logger_info,
+            log_response,
             print_debug,
             jwk_thumbprint_get,
             allowed_gai_family,
@@ -205,7 +205,7 @@ class TestACMEHandler(unittest.TestCase):
         self.jwk_thumbprint_get = jwk_thumbprint_get
         self.load_config = load_config
         self.logger_setup = logger_setup
-        self.logger_info = logger_info
+        self.log_response = log_response
         self.logger_nonce_modify = _logger_nonce_modify
         self.logger_certificate_modify = _logger_certificate_modify
         self.logger_token_modify = _logger_token_modify
@@ -2377,53 +2377,53 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             config_mod._ACME_SRV_CFG_LOADED.clear()
             config_mod._LAST_LOADED_CFG = None
 
-    def test_202_logger_info(self):
-        """logger info"""
+    def test_202_log_response(self):
+        """log_response success dump at INFO"""
         addr = "addr"
         url = "url"
         data_dic = {"foo": "bar"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.logger_info(self.logger, addr, url, data_dic)
+            self.log_response(self.logger, addr, url, data_dic)
         self.assertIn("INFO:test_a2c:addr url {'foo': 'bar'}", lcm.output)
 
-    def test_203_logger_info(self):
-        """logger info replace remove Nonce in header"""
+    def test_203_log_response(self):
+        """log_response redacts Nonce in header"""
         addr = "addr"
         url = "url"
         data_dic = {"foo": "bar", "header": {"Replay-Nonce": "Replay-Nonce"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.logger_info(self.logger, addr, url, data_dic)
+            self.log_response(self.logger, addr, url, data_dic)
         self.assertIn(
             "INFO:test_a2c:addr url {'foo': 'bar', 'header': {'Replay-Nonce': '- modified -'}}",
             lcm.output,
         )
 
-    def test_204_logger_info(self):
-        """logger info replace remnove cert"""
+    def test_204_log_response(self):
+        """log_response redacts cert body"""
         addr = "addr"
         url = "/acme/cert/secret"
         data_dic = {"foo": "bar", "data": {"Replay-Nonce": "Replay-Nonce"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.logger_info(self.logger, addr, url, data_dic)
+            self.log_response(self.logger, addr, url, data_dic)
         self.assertIn(
             "INFO:test_a2c:addr /acme/cert/secret {'foo': 'bar', 'data': ' - certificate - '}",
             lcm.output,
         )
 
-    def test_205_logger_info(self):
-        """logger info replace remove token"""
+    def test_205_log_response(self):
+        """log_response redacts token"""
         addr = "addr"
         url = "url"
         data_dic = {"foo": "bar", "data": {"token": "token"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.logger_info(self.logger, addr, url, data_dic)
+            self.log_response(self.logger, addr, url, data_dic)
         self.assertIn(
             "INFO:test_a2c:addr url {'foo': 'bar', 'data': {'token': '- modified -'}}",
             lcm.output,
         )
 
-    def test_206_logger_info(self):
-        """logger info replace remove single token in challenges"""
+    def test_206_log_response(self):
+        """log_response redacts single token in challenges"""
         addr = "addr"
         url = "url"
         data_dic = {
@@ -2431,14 +2431,14 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             "data": {"challenges": [{"foo1": "bar1", "token": "token1"}]},
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.logger_info(self.logger, addr, url, data_dic)
+            self.log_response(self.logger, addr, url, data_dic)
         self.assertIn(
             "INFO:test_a2c:addr url {'foo': 'bar', 'data': {'challenges': [{'foo1': 'bar1', 'token': '- modified - '}]}}",
             lcm.output,
         )
 
-    def test_207_logger_info(self):
-        """logger info replace remove two token in challenges"""
+    def test_207_log_response(self):
+        """log_response redacts two tokens in challenges"""
         addr = "addr"
         url = "url"
         data_dic = {
@@ -2451,14 +2451,14 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             },
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.logger_info(self.logger, addr, url, data_dic)
+            self.log_response(self.logger, addr, url, data_dic)
         self.assertIn(
             "INFO:test_a2c:addr url {'foo': 'bar', 'data': {'challenges': [{'foo1': 'bar1', 'token': '- modified - '}, {'foo2': 'bar2', 'token': '- modified - '}]}}",
             lcm.output,
         )
 
-    def test_207a_logger_info_error_on_failure_response(self):
-        """ACME HTTP failures are logged at ERROR"""
+    def test_207a_log_response_warning_on_4xx(self):
+        """ACME 4xx responses are logged as concise WARNING"""
         addr = "addr"
         url = "/acme/newaccount"
         data_dic = {
@@ -2469,12 +2469,40 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 "detail": "EAB kid lookup failed",
             },
         }
-        with self.assertLogs("test_a2c", level="ERROR") as lcm:
-            self.logger_info(self.logger, addr, url, data_dic)
-        self.assertTrue(
-            any(line.startswith("ERROR:test_a2c:addr /acme/newaccount") for line in lcm.output)
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.log_response(self.logger, addr, url, data_dic)
+        self.assertIn(
+            "WARNING:test_a2c:ACME response error addr /acme/newaccount code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed",
+            lcm.output,
         )
-        self.assertIn("EAB kid lookup failed", lcm.output[0])
+        self.assertFalse(any(line.startswith("ERROR:") for line in lcm.output))
+
+    def test_207b_log_response_error_on_5xx(self):
+        """ACME 5xx responses are logged as concise ERROR; dump at DEBUG"""
+        addr = "addr"
+        url = "/acme/order"
+        data_dic = {
+            "code": 500,
+            "header": {"Replay-Nonce": "secret-nonce"},
+            "data": {
+                "status": 500,
+                "type": "urn:ietf:params:acme:error:serverInternal",
+                "detail": "Database error",
+            },
+        }
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.log_response(self.logger, addr, url, data_dic)
+        self.assertIn(
+            "ERROR:test_a2c:ACME response error addr /acme/order code=500 type=urn:ietf:params:acme:error:serverInternal detail=Database error",
+            lcm.output,
+        )
+        self.assertTrue(
+            any(
+                line.startswith("DEBUG:test_a2c:addr /acme/order")
+                and "- modified -" in line
+                for line in lcm.output
+            )
+        )
 
     @patch("builtins.print")
     def test_208_print_debug(self, mock_print):

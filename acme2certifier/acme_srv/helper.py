@@ -148,7 +148,7 @@ from .helpers.logging_utils import (
     _logger_certificate_modify,
     _logger_token_modify,
     _logger_challenges_modify,
-    logger_info,
+    log_response,
     logger_setup,
     print_debug,
     handle_exception,

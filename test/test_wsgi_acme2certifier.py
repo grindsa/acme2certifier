@@ -980,7 +980,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("acme2certifier.share.acme2certifier_wsgi.logger_info")
+    @patch("acme2certifier.share.acme2certifier_wsgi.log_response")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", False)
     @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
@@ -1169,7 +1169,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_body.called)
 
     @patch("acme2certifier.share.acme2certifier_wsgi.HOUSEKEEPING_CLI_ENABLED", False)
-    @patch("acme2certifier.share.acme2certifier_wsgi.logger_info")
+    @patch("acme2certifier.share.acme2certifier_wsgi.log_response")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")
     def test_063b_housekeeping_disabled(self, mock_parse, mock_header, mock_log):

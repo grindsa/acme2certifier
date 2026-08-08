@@ -16,7 +16,7 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     log_loaded_acme_srv_cfg,
     logger_setup,
-    logger_info,
+    log_response,
     config_check,
     legacy_acme_get_load,
     acme_get_method_not_allowed_problem,
@@ -150,7 +150,7 @@ def newaccount(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -178,7 +178,7 @@ def newnonce(request):
             response["Replay-Nonce"] = nonce.generate_and_add()
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -210,7 +210,7 @@ def acct(request):
             response[element] = response_dic["header"][element]
 
         # logging
-        logger_info(
+        log_response(
             LOGGER, request.META["REMOTE_ADDR"], request.META["PATH_INFO"], response_dic
         )
         # send response
@@ -235,7 +235,7 @@ def neworders(request):
                 response["Replay-Nonce"] = ""
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -262,7 +262,7 @@ def authz(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -280,7 +280,7 @@ def authz(request):
             )
             for element in response_dic["header"]:
                 response[element] = response_dic["header"][element]
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -311,7 +311,7 @@ def chall(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -348,7 +348,7 @@ def order(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -379,7 +379,7 @@ def cert(request):
                 response = HttpResponse(status=response_dic["code"])
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -410,7 +410,7 @@ def revokecert(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -431,7 +431,7 @@ def trigger(request):
                 "code": 403,
                 "data": ERR_TRIGGER_DISABLED,
             }
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -453,7 +453,7 @@ def trigger(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -484,7 +484,7 @@ def renewalinfo(request):
                 response = HttpResponse(status=response_dic["code"])
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -507,7 +507,7 @@ def housekeeping(request):
                 "code": 403,
                 "data": ERR_HOUSEKEEPING_CLI_DISABLED,
             }
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -529,7 +529,7 @@ def housekeeping(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, request.META["REMOTE_ADDR"], request.META["PATH_INFO"], "****"
             )
             # send response

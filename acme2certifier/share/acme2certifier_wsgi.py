@@ -27,7 +27,7 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     log_loaded_acme_srv_cfg,
     logger_setup,
-    logger_info,
+    log_response,
     config_check,
     legacy_acme_get_load,
     acme_get_method_not_allowed_problem,
@@ -178,7 +178,7 @@ def acmechallenge_serve(environ, start_response):
         else:
             start_response(f"200 {HTTP_CODE_DIC[200]}", [("Content-Type", "text/html")])
         # logging
-        logger_info(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], {})
+        log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], {})
         return [key_authorization.encode("utf-8")]
 
 
@@ -200,7 +200,7 @@ def authz(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -215,7 +215,7 @@ def authz(environ, start_response):
             start_response(
                 f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
             )
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -239,7 +239,7 @@ def newaccount(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -271,7 +271,7 @@ def directory(environ, start_response):
             headers = create_header({"code": 200})
             start_response("200 OK", headers)
             # logging
-            logger_info(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "")
+            log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "")
             return [json.dumps(response_dic, indent=2).encode("utf-8")]
 
 
@@ -288,7 +288,7 @@ def cert(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [response_dic["data"].encode("utf-8")]
@@ -304,7 +304,7 @@ def cert(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             # send response
@@ -335,7 +335,7 @@ def chall(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -355,7 +355,7 @@ def chall(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             # send response
@@ -407,7 +407,7 @@ def neworders(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -431,7 +431,7 @@ def order(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -454,7 +454,7 @@ def renewalinfo(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return []
@@ -470,7 +470,7 @@ def renewalinfo(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
 
@@ -499,7 +499,7 @@ def revokecert(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             if "data" in response_dic:
@@ -525,7 +525,7 @@ def trigger(environ, start_response):
             }
             headers = create_header(response_dic)
             start_response(f"403 {HTTP_CODE_DIC[403]}", headers)
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -540,7 +540,7 @@ def trigger(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
 
@@ -567,7 +567,7 @@ def housekeeping(environ, start_response):
             }
             headers = create_header(response_dic)
             start_response(f"403 {HTTP_CODE_DIC[403]}", headers)
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -582,7 +582,7 @@ def housekeeping(environ, start_response):
             )
 
             # logging
-            logger_info(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "****")
+            log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "****")
 
             if "data" in response_dic:
                 return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]

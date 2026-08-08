@@ -6,7 +6,7 @@ import logging.handlers
 import os
 import sys
 import copy
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 import datetime
 from .config import load_config
 
@@ -45,38 +45,81 @@ def _logger_challenges_modify(data_dic: Dict[str, str]) -> Dict[str, str]:
     return data_dic
 
 
-def _response_log_level(data_dic: Any) -> int:
-    """Return ERROR for ACME HTTP failures, INFO otherwise."""
-    if isinstance(data_dic, dict):
-        code = data_dic.get("code")
-        try:
-            if code is not None and int(code) >= 400:
-                return logging.ERROR
-        except (TypeError, ValueError):
-            pass
+def _response_http_code(data_dic: Any) -> Optional[int]:
+    """Extract HTTP status code from an ACME response dict."""
+    if not isinstance(data_dic, dict):
+        return None
+    code = data_dic.get("code")
+    try:
+        if code is not None:
+            return int(code)
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def _response_log_level(code: Optional[int]) -> int:
+    """Return WARNING for 4xx, ERROR for 5xx, INFO otherwise."""
+    if code is None:
+        return logging.INFO
+    if code >= 500:
+        return logging.ERROR
+    if code >= 400:
+        return logging.WARNING
     return logging.INFO
 
 
-def logger_info(
-    logger: logging.Logger, addr: str, locator: str, dat_dic: Dict[str, str]
-):
-    """log responses; ACME failures (HTTP code >= 400) at ERROR"""
-    # create a copy of the dictionary
-    data_dic = copy.deepcopy(dat_dic)
+def _acme_problem_fields(data_dic: Any) -> tuple:
+    """Extract ACME problem type/detail from response data."""
+    err_type = None
+    detail = None
+    if isinstance(data_dic, dict):
+        payload = data_dic.get("data")
+        if isinstance(payload, dict):
+            err_type = payload.get("type")
+            detail = payload.get("detail")
+    return err_type, detail
 
+
+def _sanitize_response_for_log(dat_dic: Any, locator: str) -> Any:
+    """Deep-copy response and redact secrets for logging."""
+    data_dic = copy.deepcopy(dat_dic)
     if isinstance(data_dic, dict):
         data_dic = _logger_nonce_modify(data_dic)
         if "data" in data_dic and isinstance(data_dic["data"], dict):
-            # remove cert from log entry
             data_dic = _logger_certificate_modify(data_dic, locator)
-
-            # remove token
             data_dic = _logger_token_modify(data_dic)
-
-            # remove token from challenge
             data_dic = _logger_challenges_modify(data_dic)
+    return data_dic
 
-    logger.log(_response_log_level(dat_dic), "%s %s %s", addr, locator, str(data_dic))
+
+def log_response(
+    logger: logging.Logger, addr: str, locator: str, dat_dic: Dict[str, str]
+) -> None:
+    """Log ACME HTTP responses.
+
+    Success stays at INFO with the (redacted) response dump.
+    Client errors (4xx) log a concise WARNING; server errors (5xx) log ERROR.
+    Full redacted dumps for failures go to DEBUG.
+    """
+    code = _response_http_code(dat_dic)
+    level = _response_log_level(code)
+    data_dic = _sanitize_response_for_log(dat_dic, locator)
+
+    if level >= logging.WARNING:
+        err_type, detail = _acme_problem_fields(dat_dic)
+        logger.log(
+            level,
+            "ACME response error %s %s code=%s type=%s detail=%s",
+            addr,
+            locator,
+            code,
+            err_type,
+            detail,
+        )
+        logger.debug("%s %s %s", addr, locator, str(data_dic))
+    else:
+        logger.info("%s %s %s", addr, locator, str(data_dic))
 
 
 _SYSLOG_FACILITY_MAP = {
