@@ -26,6 +26,7 @@ from acme_srv.helper import (
 )
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
+from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
 from acme_srv.message import Message
 
 
@@ -225,6 +226,8 @@ class Order(object):
                     self.logger.critical(
                         "Database error: failed to add authorization: %s", err_
                     )
+                    error = self.error_msg_dic["serverinternal"]
+                    break
         else:
             error = self.error_msg_dic["malformed"]
 
@@ -1091,7 +1094,7 @@ class Order(object):
         elif certificate_name == "urn:ietf:params:acme:error:rejectedIdentifier":
             code = 401
             message = certificate_name
-        elif detail in ["Dry run mode - enrollment skipped"]:
+        elif detail == DRYRUN_ENROLLMENT_SKIPPED_DETAIL:
             message = "urn:ietf:params:acme:error:unauthorized"
         else:
             message = certificate_name
@@ -1215,7 +1218,7 @@ class Order(object):
                     )
                     if (
                         error == "urn:ietf:params:acme:error:rejectedIdentifier"
-                        or detail in ["Dry run mode - enrollment skipped"]
+                        or detail == DRYRUN_ENROLLMENT_SKIPPED_DETAIL
                     ):
                         code = 401
                         message = error

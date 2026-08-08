@@ -869,10 +869,9 @@ class TestCertificate(unittest.TestCase):
 
     def test_065_execute_pre_enrollment_hooks(self):
         self.cert.hook_handler = MagicMock()
-        self.cert.hook_handler.execute_pre_enrollment_hooks.return_value = []
-        # _execute_pre_enrollment_hooks returns a list (possibly empty)
+        self.cert.hook_handler.execute_pre_enrollment_hooks.return_value = None
         result = self.cert._execute_pre_enrollment_hooks("order", "csr", None)
-        self.assertIsInstance(result, list)
+        self.assertIsNone(result)
 
     def test_066_pre_enrollment_hooks_with_hooks(self):
         self.cert.hooks = MagicMock()
@@ -880,7 +879,7 @@ class TestCertificate(unittest.TestCase):
         hook_errors = self.cert._execute_pre_enrollment_hooks(
             "cert_name", "order", "csr"
         )
-        self.assertEqual(hook_errors, [])
+        self.assertIsNone(hook_errors)
 
     def test_067_execute_post_enrollment_hooks(self):
         # Test normal post_hook execution logs debug (line 915)
@@ -1929,7 +1928,7 @@ class TestCertificate(unittest.TestCase):
     def test_147_process_enrollment_and_store_certificate_success(self):
         # Pre-enrollment hooks return empty (no error)
         with (
-            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
             patch.object(
                 self.cert,
                 "_process_certificate_enrollment",
@@ -1955,7 +1954,7 @@ class TestCertificate(unittest.TestCase):
     def test_148_process_enrollment_and_store_certificate_enrollment_error(self):
         # Enrollment returns no certificate, triggers error handling
         with (
-            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
             patch.object(
                 self.cert,
                 "_process_certificate_enrollment",
@@ -1977,17 +1976,19 @@ class TestCertificate(unittest.TestCase):
     def test_149_process_enrollment_and_store_certificate_pre_hook_error(self):
         # Pre-enrollment hook returns error, should return early
         with patch.object(
-            self.cert, "_execute_pre_enrollment_hooks", return_value=["pre_hook_error"]
+            self.cert,
+            "_execute_pre_enrollment_hooks",
+            return_value=(None, "pre_hook_error", "hook failed"),
         ):
             result = self.cert._process_enrollment_and_store_certificate(
                 "cert_name", "csr", "order_name"
             )
-            self.assertEqual(result, ["pre_hook_error"])
+            self.assertEqual(result, (None, "pre_hook_error", "hook failed"))
 
     def test_150_process_enrollment_and_store_certificate_post_hook_error(self):
         # Post-enrollment hook returns error, should return early
         with (
-            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
             patch.object(
                 self.cert,
                 "_process_certificate_enrollment",
@@ -2013,7 +2014,7 @@ class TestCertificate(unittest.TestCase):
     def test_151_process_enrollment_and_store_certificate_store_error(self):
         # _store_certificate_and_update_order returns error, should return error
         with (
-            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
             patch.object(
                 self.cert,
                 "_process_certificate_enrollment",
@@ -2033,7 +2034,7 @@ class TestCertificate(unittest.TestCase):
     def test_152_process_enrollment_and_store_certificate_logger_exception(self):
         # Exception in logger should not crash method
         with (
-            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
             patch.object(
                 self.cert,
                 "_process_certificate_enrollment",
@@ -2799,7 +2800,7 @@ class TestCertificate(unittest.TestCase):
 
     def test_195_process_enrollment_and_store_certificate_log_exception(self):
         """Test _process_enrollment_and_store_certificate covers log_certificate_issuance exception branch (lines 930-933)."""
-        self.cert._execute_pre_enrollment_hooks = MagicMock(return_value=[])
+        self.cert._execute_pre_enrollment_hooks = MagicMock(return_value=None)
         self.cert._process_certificate_enrollment = MagicMock(
             return_value=(None, "cert", "raw", "poll", True)
         )
@@ -3035,6 +3036,8 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.dryrun = True
         self.cert.err_msg_dic["unauthorized"] = "unauthorized"
         # Patch dependencies so validation passes
+        from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value=None),
             patch.object(self.cert, "_validate_csr_against_order", return_value=True),
@@ -3051,7 +3054,7 @@ class TestCertificate(unittest.TestCase):
             result,
             (
                 "unauthorized",
-                "Dry run mode - enrollment and certificate issuance skipped",
+                DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
             ),
         )
 
