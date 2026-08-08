@@ -89,7 +89,7 @@ jobs:
           sudo echo "url_prefix: /foo" >> examples/Docker/data/acme_srv.cfg
 
       - name: "Prep Helper logging smoke (log_file + remote syslog)"
-        uses: ./.github/actions/logging_smoke_prep
+        uses: ./.github/actions/wf_specific/wsgi/logging_smoke_prep
         with:
           CFG_FILE: examples/Docker/data/acme_srv.cfg
           LOG_FILE: /var/www/acme2certifier/volume/a2c-smoke.log
@@ -104,7 +104,7 @@ jobs:
         uses: ./.github/actions/acme_clients
 
       - name: "Smoke: Helper.log_file and syslog_address"
-        uses: ./.github/actions/logging_smoke_check
+        uses: ./.github/actions/wf_specific/wsgi/logging_smoke_check
         with:
           LOG_FILE_HOST: examples/Docker/data/a2c-smoke.log
 
@@ -189,7 +189,7 @@ jobs:
           sudo echo "url_prefix: /foo" >> data/volume/acme_srv.cfg
 
       - name: "Prep Helper logging smoke (log_file + remote syslog)"
-        uses: ./.github/actions/logging_smoke_prep
+        uses: ./.github/actions/wf_specific/wsgi/logging_smoke_prep
         with:
           CFG_FILE: data/volume/acme_srv.cfg
           LOG_FILE: /opt/acme2certifier/volume/a2c-smoke.log
@@ -204,7 +204,7 @@ jobs:
         uses: ./.github/actions/acme_clients
 
       - name: "Smoke: Helper.log_file and syslog_address"
-        uses: ./.github/actions/logging_smoke_check
+        uses: ./.github/actions/wf_specific/wsgi/logging_smoke_check
         with:
           LOG_FILE_CONTAINER: /opt/acme2certifier/volume/a2c-smoke.log
 
@@ -287,7 +287,7 @@ jobs:
           sudo echo "url_prefix: /foo" >> data/volume/acme_srv.cfg
 
       - name: "Prep Helper logging smoke (log_file + remote syslog)"
-        uses: ./.github/actions/logging_smoke_prep
+        uses: ./.github/actions/wf_specific/wsgi/logging_smoke_prep
         with:
           CFG_FILE: data/volume/acme_srv.cfg
           LOG_FILE: /var/www/acme2certifier/volume/a2c-smoke.log
@@ -303,7 +303,7 @@ jobs:
         uses: ./.github/actions/acme_clients
 
       - name: "Smoke: Helper.log_file and syslog_address"
-        uses: ./.github/actions/logging_smoke_check
+        uses: ./.github/actions/wf_specific/wsgi/logging_smoke_check
         with:
           LOG_FILE_CONTAINER: /var/www/acme2certifier/volume/a2c-smoke.log
 

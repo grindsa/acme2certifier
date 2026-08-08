@@ -167,14 +167,5 @@ grep 'account=acct-123' /var/log/…
 | ------- | --------- | ------------------------------------------------------------------------------ |
 | `debug` | `DEFAULT` | `True` → logger level `DEBUG` (full edge dumps on failures, verbose internals) |
 
-
 Other modules may emit their own `ERROR`/`CRITICAL` lines (DB failures, enrollment errors, EAB HMAC failures, etc.) independent of the ACME problem path.
-## CI smoke coverage
 
-Unit tests in `test/test_helper.py` cover config parsing, handler attach, levels, and redaction (`quality-python`).
-
-Runtime smoke for `log_file` and remote UDP `syslog_address` runs in [deployment-wsgi.yml](../.github/workflows/deployment-wsgi.yml) (container, RPM, and DEB jobs) via:
-
-- `.github/actions/logging_smoke_prep` — starts a UDP sink on the `acme` network and appends `[Helper]` options
-- `.github/actions/logging_smoke_check` — asserts enrollment traffic reached both destinations
-- `.github/scripts/udp_syslog_sink.py` — minimal UDP receiver used by the prep action
