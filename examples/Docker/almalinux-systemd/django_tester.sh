@@ -29,7 +29,7 @@ case "${1}" in
     yum -y install epel-release
     yum install -y procps syslog-ng krb5-workstation krb5-libs
     systemctl start syslog-ng.service
-
+    yum -y install python3-django
     yum -y localinstall /tmp/acme2certifier/*.rpm
 
 
