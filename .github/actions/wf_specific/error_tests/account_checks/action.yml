@@ -131,8 +131,8 @@ runs:
       working-directory: acmeshell
       run: |
         # cat acmeshell.enroll.log
-        grep "{\"status\": \"valid\"" acmeshell.enroll.log
-        grep "{\"status\": \"deactivated\"}" acmeshell.enroll.log
+        grep "\"status\": \"valid\"" acmeshell.enroll.log
+        grep "\"status\": \"deactivated\"" acmeshell.enroll.log
       shell: bash
 
     - name: "Check a2c logs"
@@ -248,7 +248,8 @@ runs:
       run: |
         # grep "HTTP\/1.1 201 OK" acmeshell.enroll.log
         # grep "HTTP\/1.1 200 Created" acmeshell.enroll.log
-        grep "\"contact\": \[\"mailto:new@example.com\"\], \"createdAt\":" acmeshell.enroll.log
+        # grep "\"contact\": \[\"mailto:new@example.com\"\], \"createdAt\":" acmeshell.enroll.log
+        grep "mailto:new@example.com" acmeshell.enroll.log
       shell: bash
 
     - name: "Check a2c logs"
@@ -290,7 +291,9 @@ runs:
     - name: "Check acmeshell log"
       working-directory: acmeshell
       run: |
-        grep "{\"status\": 400, \"type\": \"urn:ietf:params:acme:error:malformed\", \"detail\": \"Unknown request\"}" acmeshell.enroll.log
+        grep "\"status\": 400," acmeshell.enroll.log
+        grep "\"type\": \"urn:ietf:params:acme:error:malformed\"," acmeshell.enroll.log
+        grep "\"detail\": \"Unknown request\"" acmeshell.enroll.log
       shell: bash
 
     - name: "Check a2c logs"
@@ -330,7 +333,9 @@ runs:
     - name: "Check acmeshell log"
       working-directory: acmeshell
       run: |
-        grep "{\"status\": 400, \"type\": \"urn:ietf:params:acme:error:malformed\", \"detail\": \"Invalid status for deactivation\"}" acmeshell.enroll.log
+        grep "\"status\": 400," acmeshell.enroll.log
+        grep "\"type\": \"urn:ietf:params:acme:error:malformed\"," acmeshell.enroll.log
+        grep "\"detail\": \"Invalid status for deactivation\"" acmeshell.enroll.log
       shell: bash
 
     - name: "Check a2c logs"

@@ -26,7 +26,10 @@ from acme_srv.helper import (
 )
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
-from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+from acme_srv.helpers.global_variables import (
+    DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
+    ENROLLMENT_FAILED_DETAIL,
+)
 from acme_srv.message import Message
 
 
@@ -77,9 +80,11 @@ class OrderRepository:
             )
             raise OrderDatabaseError(f"Failed to update authorization: {err}") from err
 
-    def order_lookup(self, key, value):
+    def order_lookup(self, key, value, vlist=None):
         """Look up an order in the database."""
         try:
+            if vlist:
+                return self.dbstore.order_lookup(key, value, vlist)
             return self.dbstore.order_lookup(key, value)
         except Exception as err:
             self.logger.critical("Database error: failed to look up order: %s", err)
@@ -169,6 +174,7 @@ class OrderConfiguration:
     profile_mapping_field: Optional[str] = None
     dryrun_profilename: Optional[str] = None
     wildcard_certificate_disable: bool = False
+    ca_error_details_forward: bool = False
 
 
 class Order(object):
@@ -375,6 +381,13 @@ class Order(object):
                     "wildcard_certificate_disable",
                     self.config.wildcard_certificate_disable,
                 )
+                self.config.ca_error_details_forward = self._load_eab_profile_param(
+                    profile_dic,
+                    eab_kid,
+                    "ca_error_details_forward",
+                    self.config.ca_error_details_forward,
+                    section="cahandler",
+                )
 
                 eab_profile_dic = self._load_eab_profile_mapping(profile_dic, eab_kid)
                 self._apply_eab_profile_mapping(account_name, eab_profile_dic)
@@ -479,32 +492,37 @@ class Order(object):
         self.logger.debug("Order.create_order() ended")
         return (error, detail, order_name, auth_dic, uts_to_date_utc(expires))
 
-    def _load_eab_profile_param(self, profile_dic, eab_kid, param_name, default=None):
+    def _load_eab_profile_param(
+        self, profile_dic, eab_kid, param_name, default=None, section="order"
+    ):
         """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
         profile_entry = profile_dic.get(eab_kid, {})
-        order_cfg = profile_entry.get("order", {})
+        order_cfg = profile_entry.get(section, {})
 
         # Prefer order section and honor explicit falsy values like False or []
         if param_name in order_cfg:
             value = order_cfg.get(param_name)
             self.logger.debug(
-                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
+                "Order._load_eab_profile_param() - apply %s from eab profile.",
+                param_name,
             )
             return value
 
         # Backward compatibility for deprecated cahandler section
-        cahandler_cfg = profile_entry.get("cahandler", {})
-        if param_name in cahandler_cfg:
-            value = cahandler_cfg.get(param_name)
-            if param_name != self.config.profile_mapping_field:
-                self.logger.warning(
-                    "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+        if section == "order":
+            cahandler_cfg = profile_entry.get("cahandler", {})
+            if param_name in cahandler_cfg:
+                value = cahandler_cfg.get(param_name)
+                if param_name != self.config.profile_mapping_field:
+                    self.logger.warning(
+                        "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+                        param_name,
+                    )
+                self.logger.debug(
+                    "Order._load_eab_profile_param() - apply %s from eab profile.",
                     param_name,
                 )
-            self.logger.debug(
-                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
-            )
-            return value
+                return value
 
         return default
 
@@ -549,6 +567,10 @@ class Order(object):
             self.config.wildcard_certificate_disable = config_dic.getboolean(
                 "Order", "wildcard_certificate_disable", fallback=False
             )
+            self.config.ca_error_details_forward = config_dic.getboolean(
+                "CAhandler", "ca_error_details_forward", fallback=False
+            )
+
             try:
                 self.config.retry_after = int(
                     config_dic.get(
@@ -1050,6 +1072,22 @@ class Order(object):
             result = None
         return result
 
+    def _get_order_account_name(self, order_name: str) -> Optional[str]:
+        """Lookup account name for an order (needed for EAB profile at finalize)."""
+        self.logger.debug("Order._get_order_account_name(%s)", order_name)
+        try:
+            order_dic = self.repository.order_lookup(
+                "name", order_name, vlist=["account__name"]
+            )
+        except Exception as err_:
+            self.logger.critical(
+                "Database error: failed to look up order account: %s", err_
+            )
+            return None
+        if not order_dic:
+            return None
+        return order_dic.get("account__name") or order_dic.get("account")
+
     def _header_info_lookup(self, header: Optional[Dict[str, Any]]) -> str:
         """lookup header information and serialize them in a string"""
         self.logger.debug("Order._header_info_lookup()")
@@ -1083,6 +1121,7 @@ class Order(object):
         code, certificate_name, detail = self._process_csr(
             order_name, payload["csr"], header_info
         )
+
         # change status only if we do not have a poll_identifier (stored in detail variable)
         if code == 200:
             if not detail:
@@ -1098,7 +1137,8 @@ class Order(object):
             message = "urn:ietf:params:acme:error:unauthorized"
         else:
             message = certificate_name
-            detail = "enrollment failed"
+            if not detail:
+                detail = ENROLLMENT_FAILED_DETAIL
 
         self.logger.debug("Order._finalize_csr() ended")
         return (code, message, detail, certificate_name)
@@ -1199,6 +1239,54 @@ class Order(object):
         )
         return (code, message, detail, certificate_name)
 
+    def _apply_finalize_eab_profile(self, order_name: str) -> None:
+        """Apply EAB profile for finalize flow when enabled."""
+        if not (self.config.eab_profiling and self.config.eab_handler):
+            return
+
+        account_name = self._get_order_account_name(order_name)
+        if account_name:
+            self._apply_eab_profile(account_name)
+
+    def _map_csr_enrollment_result(
+        self, certificate_name: str, error: str, detail: str
+    ) -> Tuple[int, str, str]:
+        """Map CA enrollment result to ACME response tuple."""
+        if (
+            error == "urn:ietf:params:acme:error:rejectedIdentifier"
+            or detail == DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+        ):
+            return 401, error, detail
+
+        if not error:
+            return 200, certificate_name, detail
+
+        if error == self.error_msg_dic["serverinternal"]:
+            return 500, error, detail
+
+        return 400, error, detail
+
+    def _enroll_certificate_for_order(
+        self, order_name: str, csr: str, header_info: str
+    ) -> Tuple[int, str, str]:
+        """Store CSR and perform enrollment for an order."""
+        with Certificate(self.debug, self.server_name, self.logger) as certificate:
+            certificate.config.ca_error_details_forward = (
+                self.config.ca_error_details_forward
+            )
+            certificate_name = certificate.store_csr(order_name, csr, header_info)
+            if not certificate_name:
+                return (
+                    500,
+                    self.error_msg_dic["serverinternal"],
+                    "CSR processing failed",
+                )
+
+            error, detail = certificate.enroll_and_store(
+                certificate_name, csr, order_name
+            )
+            return self._map_csr_enrollment_result(certificate_name, error, detail)
+
     def _process_csr(
         self, order_name: str, csr: str, header_info: str
     ) -> Tuple[int, str, str]:
@@ -1238,6 +1326,12 @@ class Order(object):
             code = 400
             message = self.error_msg_dic["unauthorized"]
             detail = f"order: {order_name} not found"
+        else:
+            self._apply_finalize_eab_profile(order_name)
+            csr = b64_url_recode(self.logger, csr)
+            code, message, detail = self._enroll_certificate_for_order(
+                order_name, csr, header_info
+            )
 
         self.logger.debug(
             "Order._process_csr() ended with order:%s %s:{%s:%s",

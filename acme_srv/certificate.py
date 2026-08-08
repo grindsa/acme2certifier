@@ -34,8 +34,10 @@ from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 from acme_srv.certificate_manager import CertificateManager
 from acme_srv.certificate_repository import DatabaseCertificateRepository
-from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
-
+from acme_srv.helpers.global_variables import (
+    DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
+    ENROLLMENT_FAILED_DETAIL,
+)
 
 # CertificateLogger moved from certificate_logger.py
 class CertificateLogger:
@@ -248,6 +250,7 @@ class CertificateConfiguration:
     ignore_pre_hook_failure: bool = False
     ignore_post_hook_failure: bool = True
     ignore_success_hook_failure: bool = False
+    ca_error_details_forward: bool = False
 
 
 class Certificate(object):
@@ -572,6 +575,10 @@ class Certificate(object):
                 )
                 self.config.cn2san_add = True
 
+            self.config.ca_error_details_forward = config_dic.getboolean(
+                "CAhandler", "ca_error_details_forward", fallback=False
+            )
+
         # Directory section
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
             self.path_dic = {
@@ -825,6 +832,21 @@ class Certificate(object):
         self.logger.debug("Certificate._store_certificate_and_update_order() ended")
         return (result, error)
 
+    def _resolve_client_enrollment_error(
+        self, raw_error: str, poll_identifier: Optional[str]
+    ) -> Tuple[str, str]:
+        """Map internal enrollment failure to ACME type and client-visible detail."""
+        if poll_identifier:
+            return raw_error, poll_identifier
+        if raw_error == "Either CN or SANs are not allowed by configuration":
+            return (
+                self.err_msg_dic["rejectedidentifier"],
+                "CN or SANs are not allowed by configuration",
+            )
+        if self.config.ca_error_details_forward and raw_error:
+            return self.err_msg_dic["serverinternal"], raw_error
+        return self.err_msg_dic["serverinternal"], ENROLLMENT_FAILED_DETAIL
+
     def _handle_enrollment_error(
         self, error: str, poll_identifier: str, order_name: str, certificate_name: str
     ) -> Tuple[None, str, str]:
@@ -832,7 +854,6 @@ class Certificate(object):
         self.logger.debug("Certificate._handle_enrollment_error(%s)", error)
 
         result = None
-        detail = None
         try:
             if not poll_identifier:
                 self.logger.debug(
@@ -848,14 +869,7 @@ class Certificate(object):
                 "Database error: failed to store certificate error: %s", err_
             )
 
-        # cover polling cases
-        if poll_identifier:
-            detail = poll_identifier
-        elif error == "Either CN or SANs are not allowed by configuration":
-            error = self.err_msg_dic["rejectedidentifier"]
-            detail = "CN or SANs are not allowed by configuration"
-        else:
-            error = self.err_msg_dic["serverinternal"]
+        error, detail = self._resolve_client_enrollment_error(error, poll_identifier)
         self.logger.debug(
             "Certificate._handle_enrollment_error() ended with: %s", result
         )
