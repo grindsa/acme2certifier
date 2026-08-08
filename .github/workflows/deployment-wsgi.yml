@@ -88,6 +88,12 @@ jobs:
           sudo echo "[Directory]" >> examples/Docker/data/acme_srv.cfg
           sudo echo "url_prefix: /foo" >> examples/Docker/data/acme_srv.cfg
 
+      - name: "Prep Helper logging smoke (log_file + remote syslog)"
+        uses: ./.github/actions/logging_smoke_prep
+        with:
+          CFG_FILE: examples/Docker/data/acme_srv.cfg
+          LOG_FILE: /var/www/acme2certifier/volume/a2c-smoke.log
+
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
         with:
@@ -96,6 +102,11 @@ jobs:
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
+
+      - name: "Smoke: Helper.log_file and syslog_address"
+        uses: ./.github/actions/logging_smoke_check
+        with:
+          LOG_FILE_HOST: examples/Docker/data/a2c-smoke.log
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -125,6 +136,8 @@ jobs:
       - name: "Secure cleanup"
         if: ${{ always() }}
         uses: ./.github/actions/secure_cleanup
+        with:
+          CONTAINER_NAMES: "acme-srv,acme-sh,certbot,lego,mailserver,proxy,syslog-sink"
 
 
   test-rpm:
@@ -175,6 +188,12 @@ jobs:
           sudo echo "[Directory]" >> data/volume/acme_srv.cfg
           sudo echo "url_prefix: /foo" >> data/volume/acme_srv.cfg
 
+      - name: "Prep Helper logging smoke (log_file + remote syslog)"
+        uses: ./.github/actions/logging_smoke_prep
+        with:
+          CFG_FILE: data/volume/acme_srv.cfg
+          LOG_FILE: /opt/acme2certifier/volume/a2c-smoke.log
+
       - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
@@ -183,6 +202,11 @@ jobs:
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
+
+      - name: "Smoke: Helper.log_file and syslog_address"
+        uses: ./.github/actions/logging_smoke_check
+        with:
+          LOG_FILE_CONTAINER: /opt/acme2certifier/volume/a2c-smoke.log
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -206,6 +230,8 @@ jobs:
       - name: "Secure cleanup"
         if: ${{ always() }}
         uses: ./.github/actions/secure_cleanup
+        with:
+          CONTAINER_NAMES: "acme-srv,acme-sh,certbot,lego,mailserver,proxy,syslog-sink"
 
   # ---------------------------------------------------------
   # Test DEB downloaded from the producer run
@@ -260,6 +286,12 @@ jobs:
           sudo echo "[Directory]" >> data/volume/acme_srv.cfg
           sudo echo "url_prefix: /foo" >> data/volume/acme_srv.cfg
 
+      - name: "Prep Helper logging smoke (log_file + remote syslog)"
+        uses: ./.github/actions/logging_smoke_prep
+        with:
+          CFG_FILE: data/volume/acme_srv.cfg
+          LOG_FILE: /var/www/acme2certifier/volume/a2c-smoke.log
+
       - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
@@ -269,6 +301,11 @@ jobs:
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
+
+      - name: "Smoke: Helper.log_file and syslog_address"
+        uses: ./.github/actions/logging_smoke_check
+        with:
+          LOG_FILE_CONTAINER: /var/www/acme2certifier/volume/a2c-smoke.log
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -293,3 +330,5 @@ jobs:
       - name: "Secure cleanup"
         if: ${{ always() }}
         uses: ./.github/actions/secure_cleanup
+        with:
+          CONTAINER_NAMES: "acme-srv,acme-sh,certbot,lego,mailserver,proxy,syslog-sink"

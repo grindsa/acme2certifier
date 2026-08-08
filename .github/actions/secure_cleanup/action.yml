@@ -16,7 +16,7 @@ inputs:
   CONTAINER_NAMES:
     description: "Comma-separated explicit containers to remove"
     required: false
-    default: "acme-srv,acme-sh,certbot,lego,mailserver,proxy"
+    default: "acme-srv,acme-sh,certbot,lego,mailserver,proxy,syslog-sink"
 
 runs:
   using: "composite"

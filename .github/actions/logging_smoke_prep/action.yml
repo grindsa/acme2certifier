@@ -1,0 +1,77 @@
+name: "logging_smoke_prep"
+description: "Start UDP syslog sink and append Helper log_file/syslog_address to acme_srv.cfg"
+inputs:
+  CFG_FILE:
+    description: "Path to acme_srv.cfg to append [Helper] options"
+    required: true
+  LOG_FILE:
+    description: "Absolute log_file path inside the a2c container/service"
+    required: true
+  NETWORK:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+  SINK_NAME:
+    description: "Docker container name for the UDP sink"
+    required: false
+    default: "syslog-sink"
+  SINK_PORT:
+    description: "UDP port for remote syslog"
+    required: false
+    default: "5514"
+  SINK_OUT_DIR:
+    description: "Host directory for sink output"
+    required: false
+    default: "/tmp/syslog-sink"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Start UDP syslog sink"
+      shell: bash
+      env:
+        NETWORK: ${{ inputs.NETWORK }}
+        SINK_NAME: ${{ inputs.SINK_NAME }}
+        SINK_PORT: ${{ inputs.SINK_PORT }}
+        SINK_OUT_DIR: ${{ inputs.SINK_OUT_DIR }}
+      run: |
+        set -euo pipefail
+        mkdir -p "${SINK_OUT_DIR}"
+        rm -f "${SINK_OUT_DIR}/ready" "${SINK_OUT_DIR}/received.log"
+        docker rm -f "${SINK_NAME}" >/dev/null 2>&1 || true
+        docker run -d --rm --name "${SINK_NAME}" --network "${NETWORK}" \
+          -v "${GITHUB_WORKSPACE}/.github/scripts/udp_syslog_sink.py:/sink.py:ro" \
+          -v "${SINK_OUT_DIR}:/out" \
+          python:3.12-slim \
+          python -u /sink.py --port "${SINK_PORT}" --output /out/received.log --ready /out/ready
+        for _ in $(seq 1 50); do
+          if [[ -f "${SINK_OUT_DIR}/ready" ]]; then
+            echo "syslog sink ready"
+            exit 0
+          fi
+          sleep 0.2
+        done
+        echo "syslog sink did not become ready" >&2
+        docker logs "${SINK_NAME}" || true
+        exit 1
+
+    - name: "Append Helper logging options"
+      shell: bash
+      env:
+        CFG_FILE: ${{ inputs.CFG_FILE }}
+        LOG_FILE: ${{ inputs.LOG_FILE }}
+        SINK_NAME: ${{ inputs.SINK_NAME }}
+        SINK_PORT: ${{ inputs.SINK_PORT }}
+      run: |
+        set -euo pipefail
+        sudo chmod 777 "${CFG_FILE}"
+        {
+          echo ""
+          echo "[Helper]"
+          echo "log_format: %(asctime)s - acme2certifier - %(levelname)s - %(message)s"
+          echo "log_file: ${LOG_FILE}"
+          echo "syslog_address: ${SINK_NAME}:${SINK_PORT}"
+          echo "syslog_facility: user"
+        } | sudo tee -a "${CFG_FILE}" >/dev/null
+        echo "Appended [Helper] logging options to ${CFG_FILE}"
+        grep -A20 '^\[Helper\]' "${CFG_FILE}" || true
