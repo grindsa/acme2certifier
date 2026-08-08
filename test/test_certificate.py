@@ -1754,7 +1754,11 @@ class TestCertificate(unittest.TestCase):
         ):
             result = self.cert.process_certificate_request("content")
             mock_prepare.assert_called_with(
-                {"code": 400, "data": "data", "detail": "error"}, 400, "data", "error"
+                {"code": 400, "data": "data", "detail": "error"},
+                400,
+                "data",
+                "error",
+                account_name="",
             )
 
     def test_135_process_certificate_request_missing_url(self):
@@ -2166,7 +2170,11 @@ class TestCertificate(unittest.TestCase):
                 )
                 result = self.cert.process_certificate_request("dummy-content")
                 self.cert._prepare_certificate_response.assert_called_with(
-                    {}, 400, "malformed", "url missing in protected header"
+                    {},
+                    400,
+                    "malformed",
+                    "url missing in protected header",
+                    account_name="",
                 )
                 self.assertEqual(result, {"code": 400, "data": "error"})
 

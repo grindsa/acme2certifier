@@ -7630,6 +7630,127 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual(405, problem["status"])
         self.assertIn("malformed", problem["type"])
 
+    def test_578_response_http_code_non_dict(self):
+        """_response_http_code returns None for non-dict payloads"""
+        from acme2certifier.acme_srv.helpers.logging_utils import _response_http_code
+
+        self.assertIsNone(_response_http_code("not-a-dict"))
+        self.assertIsNone(_response_http_code(None))
+
+    def test_579_response_http_code_invalid_code(self):
+        """_response_http_code returns None when code cannot be converted to int"""
+        from acme2certifier.acme_srv.helpers.logging_utils import _response_http_code
+
+        self.assertIsNone(_response_http_code({"code": "not-an-int"}))
+        self.assertIsNone(_response_http_code({"code": object()}))
+
+    def test_580_log_response_success_with_code_200(self):
+        """log_response INFO path for successful HTTP codes (< 400)"""
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.log_response(
+                self.logger, "addr", "/acme/directory", {"code": 200, "data": "ok"}
+            )
+        self.assertIn(
+            "INFO:test_a2c:addr /acme/directory {'code': 200, 'data': 'ok'}",
+            lcm.output,
+        )
+
+    def test_581_syslog_address_host_port_and_fallbacks(self):
+        """_syslog_address parses host:port and falls back for invalid forms"""
+        from acme2certifier.acme_srv.helpers.logging_utils import _syslog_address
+
+        self.assertEqual(("localhost", 514), _syslog_address("localhost:514"))
+        self.assertEqual("host:bad", _syslog_address("host:bad"))
+        self.assertEqual("udp-host", _syslog_address("udp-host"))
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.handlers.SysLogHandler")
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_582_logger_setup_syslog_empty_address(self, mock_load_cfg, mock_syslog):
+        """empty syslog_address does not attach SysLogHandler"""
+        mock_cfg = configparser.RawConfigParser()
+        mock_cfg["Helper"] = {"syslog_address": "   ", "log_format": "%(message)s"}
+        mock_load_cfg.return_value = mock_cfg
+        self.logger_setup(False)
+        mock_syslog.assert_not_called()
+
+    def test_583_logger_setup_syslog_already_attached(self):
+        """existing SysLogHandler is not duplicated"""
+        import logging as logging_mod
+        from acme2certifier.acme_srv.helpers.logging_utils import _attach_syslog_handler
+
+        class DummySyslog(logging_mod.handlers.SysLogHandler):
+            def __init__(self):
+                logging_mod.Handler.__init__(self)
+
+        logger = logging_mod.getLogger("test_a2c_syslog_dup")
+        logger.handlers.clear()
+        existing = DummySyslog()
+        logger.addHandler(existing)
+        cfg = configparser.RawConfigParser()
+        cfg["Helper"] = {"syslog_address": "/dev/log"}
+        try:
+            _attach_syslog_handler(logger, cfg, logging_mod.Formatter("%(message)s"))
+            self.assertEqual([existing], logger.handlers)
+        finally:
+            logger.handlers.clear()
+
+    def test_584_logger_setup_syslog_oserror(self):
+        """SysLogHandler OSError is logged and does not raise"""
+        import logging as logging_mod
+        from acme2certifier.acme_srv.helpers.logging_utils import _attach_syslog_handler
+
+        class RaisingSyslog(logging_mod.handlers.SysLogHandler):
+            def __init__(self, *args, **kwargs):
+                raise OSError("syslog unavailable")
+
+        cfg = configparser.RawConfigParser()
+        cfg["Helper"] = {"syslog_address": "/dev/log"}
+        with patch(
+            "acme2certifier.acme_srv.helpers.logging_utils.logging.handlers.SysLogHandler",
+            RaisingSyslog,
+        ):
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                _attach_syslog_handler(
+                    self.logger, cfg, logging_mod.Formatter("%(message)s")
+                )
+        self.assertTrue(
+            any("Failed to attach SysLogHandler" in line for line in lcm.output)
+        )
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.FileHandler")
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_585_logger_setup_log_file_empty_path(self, mock_load_cfg, mock_file_handler):
+        """empty log_file does not attach FileHandler"""
+        mock_cfg = configparser.RawConfigParser()
+        mock_cfg["Helper"] = {"log_file": "  ", "log_format": "%(message)s"}
+        mock_load_cfg.return_value = mock_cfg
+        self.logger_setup(False)
+        mock_file_handler.assert_not_called()
+
+    def test_586_logger_setup_log_file_already_attached(self):
+        """existing FileHandler for same path is not duplicated"""
+        import logging as logging_mod
+        import os
+        from acme2certifier.acme_srv.helpers.logging_utils import _attach_file_handler
+
+        class DummyFileHandler(logging_mod.FileHandler):
+            def __init__(self, filename):
+                logging_mod.Handler.__init__(self)
+                self.baseFilename = os.path.abspath(filename)
+
+        log_path = "/tmp/a2c_logging_utils_coverage.log"
+        logger = logging_mod.getLogger("test_a2c_file_dup")
+        logger.handlers.clear()
+        existing = DummyFileHandler(log_path)
+        logger.addHandler(existing)
+        cfg = configparser.RawConfigParser()
+        cfg["Helper"] = {"log_file": log_path}
+        try:
+            _attach_file_handler(logger, cfg, logging_mod.Formatter("%(message)s"))
+            self.assertEqual([existing], logger.handlers)
+        finally:
+            logger.handlers.clear()
+
 
 if __name__ == "__main__":
     unittest.main()

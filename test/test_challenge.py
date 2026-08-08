@@ -1397,7 +1397,7 @@ class TestChallenge(unittest.TestCase):
             }
             self.challenge.process_challenge_request("invalid_content")
             mock_error_response.assert_called_once_with(
-                400, "bad request", "invalid format"
+                400, "bad request", "invalid format", account_name=""
             )
 
     def test_090_process_challenge_request_url_missing_in_protected(self):
@@ -1428,7 +1428,10 @@ class TestChallenge(unittest.TestCase):
             }
             self.challenge.process_challenge_request("content_without_url")
             mock_error_response.assert_called_once_with(
-                400, "malformed", "url missing in protected header"
+                400,
+                "malformed",
+                "url missing in protected header",
+                account_name="account",
             )
 
     def test_091_process_challenge_request_empty_challenge_name_extraction(self):
@@ -1464,7 +1467,7 @@ class TestChallenge(unittest.TestCase):
             }
             self.challenge.process_challenge_request("content_with_invalid_url")
             mock_error_response.assert_called_once_with(
-                400, "malformed", "could not get challenge"
+                400, "malformed", "could not get challenge", account_name="account"
             )
 
     def test_092_process_challenge_request_nonexistent_challenge_name(self):
@@ -1508,7 +1511,10 @@ class TestChallenge(unittest.TestCase):
                 "content_with_nonexistent_challenge"
             )
             mock_error_response.assert_called_once_with(
-                400, "malformed", "invalid challenge: nonexistent_challenge"
+                400,
+                "malformed",
+                "invalid challenge: nonexistent_challenge",
+                account_name="account",
             )
 
     # Tests for the final remaining uncovered lines (389-402, 508, 515)
