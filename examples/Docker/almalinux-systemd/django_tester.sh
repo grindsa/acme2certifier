@@ -29,7 +29,18 @@ case "${1}" in
     yum -y install epel-release
     yum install -y procps syslog-ng krb5-workstation krb5-libs
     systemctl start syslog-ng.service
-    yum -y install python3-django
+    if [[ -r /etc/os-release ]]
+      then
+      . /etc/os-release
+      if [[ "${VERSION_ID%%.*}" == "9" ]] && [[ " ${ID} ${ID_LIKE} " =~ (almalinux|rhel|rocky|centos|ol) ]]
+        then
+        yum -y install python3-django4.2
+        else
+        echo "skipping python3-django4.2 install (not EL9)"
+      fi
+      else
+      echo "skipping python3-django4.2 install (/etc/os-release not found)"
+    fi
     yum -y localinstall /tmp/acme2certifier/*.rpm
 
 
