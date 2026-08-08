@@ -2440,6 +2440,27 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             lcm.output,
         )
 
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_204c_log_response_keeps_pem_when_log_cert_content(
+        self, mock_load_config
+    ):
+        """log_response keeps PEM body when Helper.log_cert_content is True"""
+        from configparser import ConfigParser
+
+        cfg = ConfigParser()
+        cfg.add_section("Helper")
+        cfg.set("Helper", "log_cert_content", "True")
+        mock_load_config.return_value = cfg
+
+        addr = "addr"
+        url = "/acme/cert/secret"
+        pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----"
+        data_dic = {"code": 200, "data": pem}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.log_response(self.logger, addr, url, data_dic)
+        self.assertIn("BEGIN CERTIFICATE", lcm.output[0])
+        self.assertNotIn(" - certificate - ", lcm.output[0])
+
     def test_205_log_response(self):
         """log_response redacts token"""
         addr = "addr"

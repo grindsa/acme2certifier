@@ -35,6 +35,17 @@ def _logger_certificate_modify(
     return data_dic
 
 
+def _log_cert_content_enabled() -> bool:
+    """Return True when Helper.log_cert_content allows PEM bodies in logs."""
+    config_dic = load_config()
+    if "Helper" not in config_dic:
+        return False
+    try:
+        return config_dic.getboolean("Helper", "log_cert_content", fallback=False)
+    except ValueError:
+        return False
+
+
 def _logger_token_modify(data_dic: Dict[str, str]) -> Dict[str, str]:
     """remove token from challenge"""
     if "token" in data_dic["data"]:
@@ -83,9 +94,10 @@ def _sanitize_response_for_log(dat_dic: Any, locator: str) -> Any:
     if isinstance(data_dic, dict):
         data_dic = _logger_nonce_modify(data_dic)
         if "data" in data_dic:
-            # PEM string bodies (cert download) must be redacted too — not only dicts
-            data_dic = _logger_certificate_modify(data_dic, locator)
-            if isinstance(data_dic["data"], dict):
+            if not _log_cert_content_enabled():
+                # PEM string bodies (cert download) must be redacted too — not only dicts
+                data_dic = _logger_certificate_modify(data_dic, locator)
+            if isinstance(data_dic.get("data"), dict):
                 data_dic = _logger_token_modify(data_dic)
                 data_dic = _logger_challenges_modify(data_dic)
     return data_dic
