@@ -2399,7 +2399,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         )
 
     def test_204_log_response(self):
-        """log_response redacts cert body"""
+        """log_response redacts cert body (dict data on /acme/cert path)"""
         addr = "addr"
         url = "/acme/cert/secret"
         data_dic = {"foo": "bar", "data": {"Replay-Nonce": "Replay-Nonce"}}
@@ -2407,6 +2407,36 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             self.log_response(self.logger, addr, url, data_dic)
         self.assertIn(
             "INFO:test_a2c:addr /acme/cert/secret {'foo': 'bar', 'data': ' - certificate - '}",
+            lcm.output,
+        )
+
+    def test_204a_log_response_redacts_pem_chain(self):
+        """log_response redacts PEM certificate chain string on download"""
+        addr = "addr"
+        url = "/acme/cert/secret"
+        pem_chain = (
+            "-----BEGIN CERTIFICATE-----\nMIIBleaf\n-----END CERTIFICATE-----\n"
+            "-----BEGIN CERTIFICATE-----\nMIIBca\n-----END CERTIFICATE-----"
+        )
+        data_dic = {"code": 200, "data": pem_chain}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.log_response(self.logger, addr, url, data_dic)
+        self.assertIn(
+            "INFO:test_a2c:addr /acme/cert/secret {'code': 200, 'data': ' - certificate - '}",
+            lcm.output,
+        )
+        self.assertTrue(all("BEGIN CERTIFICATE" not in line for line in lcm.output))
+
+    def test_204b_log_response_redacts_pem_on_custom_path(self):
+        """log_response redacts PEM body even when locator is a custom cert path"""
+        addr = "addr"
+        url = "/certificate/abc123"
+        pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----"
+        data_dic = {"code": 200, "data": pem}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.log_response(self.logger, addr, url, data_dic)
+        self.assertIn(
+            "INFO:test_a2c:addr /certificate/abc123 {'code': 200, 'data': ' - certificate - '}",
             lcm.output,
         )
 
@@ -3335,6 +3365,16 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertEqual(
             {"data": " - certificate - "},
             self.logger_certificate_modify(data_dic, "foo/acme/cert"),
+        )
+
+    def test_285a_logger_certificate_modify_pem_content(self):
+        """test _logger_certificate_modify() redacts PEM without /acme/cert path"""
+        data_dic = {
+            "data": "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----"
+        }
+        self.assertEqual(
+            {"data": " - certificate - "},
+            self.logger_certificate_modify(data_dic, "/custom/cert/path"),
         )
 
     def test_286_logger_token_modify(self):

@@ -19,10 +19,18 @@ def _logger_nonce_modify(data_dic: Dict[str, str]) -> Dict[str, str]:
 
 
 def _logger_certificate_modify(
-    data_dic: Dict[str, str], locator: str
-) -> Dict[str, str]:
-    """remove cert from log entry"""
+    data_dic: Dict[str, Any], locator: str
+) -> Dict[str, Any]:
+    """Redact certificate / chain from log entry.
+
+    Cert downloads put a PEM string (often a full chain) in ``data``.
+    Match on ``/acme/cert`` path, or on PEM content for custom cert paths.
+    """
     if "/acme/cert" in locator:
+        data_dic["data"] = " - certificate - "
+        return data_dic
+    data = data_dic.get("data")
+    if isinstance(data, str) and "BEGIN CERTIFICATE" in data:
         data_dic["data"] = " - certificate - "
     return data_dic
 
@@ -74,10 +82,12 @@ def _sanitize_response_for_log(dat_dic: Any, locator: str) -> Any:
     data_dic = copy.deepcopy(dat_dic)
     if isinstance(data_dic, dict):
         data_dic = _logger_nonce_modify(data_dic)
-        if "data" in data_dic and isinstance(data_dic["data"], dict):
+        if "data" in data_dic:
+            # PEM string bodies (cert download) must be redacted too — not only dicts
             data_dic = _logger_certificate_modify(data_dic, locator)
-            data_dic = _logger_token_modify(data_dic)
-            data_dic = _logger_challenges_modify(data_dic)
+            if isinstance(data_dic["data"], dict):
+                data_dic = _logger_token_modify(data_dic)
+                data_dic = _logger_challenges_modify(data_dic)
     return data_dic
 
 
