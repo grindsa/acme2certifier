@@ -32,6 +32,7 @@ from acme2certifier.acme_srv.helper import (
     proxy_check,
     radomize_parameter_list,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 
 class CAhandler(object):
@@ -600,9 +601,7 @@ class CAhandler(object):
     def _config_is_complete(self) -> Tuple[bool, str]:
         """validate mandatory settings per auth mode"""
         self.logger.debug("CAhandler._config_is_complete()")
-        legacy_error = (
-            "Configuration incomplete: host, user, password, or template is missing."
-        )
+        legacy_error = f"{CONFIGURATION_ERROR_DETAIL}: host, user, password, or template is missing"
 
         if not (self.host and self.template):
             return (False, legacy_error)
@@ -625,7 +624,7 @@ class CAhandler(object):
             if self.krb5_auth_backend == "impacket" and not self.krb5_cache:
                 return (
                     False,
-                    "Configuration incomplete: kerberos keytab with krb5_auth_backend=impacket requires krb5_cache.",
+                    f"{CONFIGURATION_ERROR_DETAIL}: kerberos keytab with krb5_auth_backend=impacket requires krb5_cache",
                     "kerberos_keytab_impacket",
                 )
             return (
@@ -643,7 +642,7 @@ class CAhandler(object):
 
         return (
             False,
-            "Configuration incomplete: kerberos is enabled but neither keytab credentials nor user/password are configured.",
+            f"{CONFIGURATION_ERROR_DETAIL}: kerberos is enabled but neither keytab credentials nor user/password are configured",
             "kerberos_invalid",
         )
 

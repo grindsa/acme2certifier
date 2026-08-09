@@ -378,9 +378,7 @@ class TestACMEHandler(unittest.TestCase):
             "detail": "EAB kid lookup failed",
         }
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
-            self.message.prepare_response(
-                data_dic, config_dic, account_name="acct-123"
-            )
+            self.message.prepare_response(data_dic, config_dic, account_name="acct-123")
         self.assertTrue(
             any(
                 "ACME problem code=403" in line
@@ -689,7 +687,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.message._load_configuration()
         self.assertIn(
-            "CRITICAL:test_a2c:EABHandler configuration incomplete",
+            "CRITICAL:test_a2c:Configuration error: EABHandler incomplete",
             lcm.output,
         )
         self.assertFalse(self.message.config.nonce_check_disable)

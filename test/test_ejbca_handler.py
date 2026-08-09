@@ -126,7 +126,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
@@ -141,7 +141,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
@@ -156,7 +156,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
@@ -203,7 +203,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
@@ -218,7 +218,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
@@ -292,27 +292,27 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
@@ -334,23 +334,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
@@ -372,23 +372,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
@@ -410,23 +410,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
@@ -448,23 +448,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
@@ -504,23 +504,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
@@ -678,7 +678,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_session_load(parser)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)
@@ -802,7 +802,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._status_get()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete: api_host parameter is missing in configuration",
+            "ERROR:test_a2c:Configuration error: api_host parameter is missing in configuration",
             lcm.output,
         )
 
@@ -849,7 +849,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._sign("csr"))
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete: api_host is missing in configuration",
+            "ERROR:test_a2c:Configuration error: api_host is missing in configuration",
             lcm.output,
         )
 

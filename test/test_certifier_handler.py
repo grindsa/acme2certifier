@@ -95,7 +95,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "api_host" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: "api_host" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -116,7 +116,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "api_user" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: "api_user" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -141,7 +141,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "api_password" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: "api_password" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -167,7 +167,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "ca_name" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: "ca_name" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)

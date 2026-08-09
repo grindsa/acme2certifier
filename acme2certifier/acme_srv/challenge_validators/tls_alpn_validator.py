@@ -127,9 +127,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         )
 
         if not cert:
-            detail = (
-                f"Unable to retrieve server certificate for {context.authorization_value}"
-            )
+            detail = f"Unable to retrieve server certificate for {context.authorization_value}"
             self.logger.warning(
                 "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s",
                 context.challenge_name,

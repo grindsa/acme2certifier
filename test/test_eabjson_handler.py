@@ -79,9 +79,7 @@ class TestACMEHandler(unittest.TestCase):
         """test mac_key_get without file specified and without kid"""
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.assertFalse(self.eabhandler.mac_key_get(None))
-        self.assertIn(
-            "WARNING:test_a2c:MAC key retrieval failed: kid=None", lcm.output
-        )
+        self.assertIn("WARNING:test_a2c:MAC key retrieval failed: kid=None", lcm.output)
 
     def test_007b_mac_key_get_missing_key_file(self):
         """test mac_key_get with kid but no key_file"""
@@ -98,9 +96,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler.key_file = "file"
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.assertFalse(self.eabhandler.mac_key_get(None))
-        self.assertIn(
-            "WARNING:test_a2c:MAC key retrieval failed: kid=None", lcm.output
-        )
+        self.assertIn("WARNING:test_a2c:MAC key retrieval failed: kid=None", lcm.output)
 
     @patch("json.load")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)

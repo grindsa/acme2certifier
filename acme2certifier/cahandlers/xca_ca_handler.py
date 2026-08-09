@@ -21,6 +21,7 @@ from cryptography.x509 import (
     SubjectAlternativeName,
 )
 from cryptography.x509.oid import ExtendedKeyUsageOID
+
 # we cannot remove this import as it is used in the code as CA’s iss_hash has to line up with hashes XCA already stored when the CA was imported
 from OpenSSL import crypto as pyossslcrypto
 from acme2certifier.acme_srv.helper import (
@@ -45,6 +46,7 @@ from acme2certifier.acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 # Define constants
 DEFAULT_DATE_FORMAT = "%Y%m%d%H%M%SZ"
@@ -1495,7 +1497,7 @@ class CAhandler(object):
         else:
             code = 500
             message = err_msg_dic["serverinternal"]
-            detail = "configuration error"
+            detail = CONFIGURATION_ERROR_DETAIL
 
         self.logger.debug("Certificate.revoke() ended")
         return (code, message, detail)

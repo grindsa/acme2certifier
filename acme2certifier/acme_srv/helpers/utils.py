@@ -4,7 +4,7 @@
 import random
 import logging
 from typing import Dict, List
-from .global_variables import PARSING_ERR_MSG
+from .global_variables import PARSING_ERR_MSG, CONFIGURATION_ERROR_DETAIL
 
 
 def error_dic_get(logger: logging.Logger) -> Dict[str, str]:
@@ -56,7 +56,8 @@ def enrollment_config_log(
 
     if handler_skiplist and PARSING_ERR_MSG in handler_skiplist:
         logger.error(
-            "Enrollment configuration won't get logged due to a configuration error."
+            "Enrollment configuration won't get logged due to: %s",
+            CONFIGURATION_ERROR_DETAIL,
         )
     else:
         enroll_parameter_list = []
@@ -105,7 +106,7 @@ def handler_config_check(logger, handler, parameterlist) -> str:
     for ele in parameterlist:
         if not getattr(handler, ele):
             error = f"{ele} parameter is missing in config file"
-            logger.error("Configuration check ended with error: %s", error)
+            logger.error("%s: %s", CONFIGURATION_ERROR_DETAIL, error)
             break
 
     logger.debug("Helper.handler_config_check() ended with %s", error)

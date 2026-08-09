@@ -516,14 +516,14 @@ class TestACMEHandler(unittest.TestCase):
     def test_036_enroll(self):
         """enroll without having self.host"""
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            ("Configuration error", None, None, None), self.cahandler.enroll("csr")
         )
 
     def test_037_enroll(self):
         """enroll without having self.user"""
         self.cahandler.host = "host"
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            ("Configuration error", None, None, None), self.cahandler.enroll("csr")
         )
 
     def test_038_enroll(self):
@@ -531,7 +531,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.host = "host"
         self.cahandler.user = "user"
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            ("Configuration error", None, None, None), self.cahandler.enroll("csr")
         )
 
     def test_039_enroll(self):
@@ -540,7 +540,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            ("Configuration error", None, None, None), self.cahandler.enroll("csr")
         )
 
     @patch(
@@ -775,7 +775,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.krb5_keytab = "/tmp/svc.keytab"
 
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            ("Configuration error", None, None, None), self.cahandler.enroll("csr")
         )
 
     @patch(

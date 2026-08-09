@@ -27,6 +27,7 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     pkcs7_to_pem,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 
 class CAhandler(object):
@@ -86,7 +87,8 @@ class CAhandler(object):
                 pem = None
         else:
             self.logger.error(
-                'Configuration incomplete: "est_host" parameter is missing'
+                '%s: "est_host" parameter is missing',
+                CONFIGURATION_ERROR_DETAIL,
             )
             error = None
             pem = None
@@ -183,7 +185,8 @@ class CAhandler(object):
                 )
             else:
                 self.logger.error(
-                    'Clientauth configuration incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file'
+                    '%s: Clientauth incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file',
+                    CONFIGURATION_ERROR_DETAIL,
                 )
 
         self.logger.debug("CAhandler._config_clientauth_load() ended")
@@ -226,7 +229,8 @@ class CAhandler(object):
             self.est_password and not self.est_user
         ):
             self.logger.error(
-                'Configuration incomplete: either "est_user" or "est_password" parameter is missing in config file'
+                '%s: either "est_user" or "est_password" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
             )
 
         self.logger.debug("CAhandler._config_password_load() ended")
@@ -299,15 +303,18 @@ class CAhandler(object):
                 # check if we have one authentication scheme
                 if not self.est_client_cert and not self.est_user:
                     self.logger.error(
-                        "Configuration incomplete: either user or client authentication must be configured."
+                        "%s: either user or client authentication must be configured",
+                        CONFIGURATION_ERROR_DETAIL,
                     )
                 elif self.est_client_cert and self.est_user:
                     self.logger.error(
-                        "Configuration error: user and client authentication cannot be configured together."
+                        "%s: user and client authentication cannot be configured together",
+                        CONFIGURATION_ERROR_DETAIL,
                     )
                 if self.est_client_cert and not self.ca_bundle:
                     self.logger.error(
-                        "Configuration error: client authentication requires a ca_bundle."
+                        "%s: client authentication requires a ca_bundle",
+                        CONFIGURATION_ERROR_DETAIL,
                     )
 
         # load proxy information

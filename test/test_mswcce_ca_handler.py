@@ -803,7 +803,7 @@ class TestACMEHandler(unittest.TestCase):
         """test enrollment - unconfigured"""
         self.assertEqual(
             (
-                "Configuration incomplete: host, user, password, or template is missing.",
+                "Configuration error: host, user, password, or template is missing",
                 None,
                 None,
                 None,
@@ -821,7 +821,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.template = "template"
         self.assertEqual(
             (
-                "Configuration incomplete: host, user, password, or template is missing.",
+                "Configuration error: host, user, password, or template is missing",
                 None,
                 None,
                 None,
@@ -839,7 +839,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.template = "template"
         self.assertEqual(
             (
-                "Configuration incomplete: host, user, password, or template is missing.",
+                "Configuration error: host, user, password, or template is missing",
                 None,
                 None,
                 None,
@@ -857,7 +857,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.template = "template"
         self.assertEqual(
             (
-                "Configuration incomplete: host, user, password, or template is missing.",
+                "Configuration error: host, user, password, or template is missing",
                 None,
                 None,
                 None,
@@ -875,7 +875,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.template = None
         self.assertEqual(
             (
-                "Configuration incomplete: host, user, password, or template is missing.",
+                "Configuration error: host, user, password, or template is missing",
                 None,
                 None,
                 None,
@@ -1924,7 +1924,7 @@ class TestACMEHandler(unittest.TestCase):
 
         self.assertFalse(result)
         self.assertEqual(
-            "Configuration incomplete: kerberos keytab with krb5_auth_backend=impacket requires krb5_cache.",
+            "Configuration error: kerberos keytab with krb5_auth_backend=impacket requires krb5_cache",
             error,
         )
 

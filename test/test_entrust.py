@@ -1083,7 +1083,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertIn(
-            "ERROR:test_a2c:Configuration check ended with error: api_url parameter in missing in config file",
+            "ERROR:test_a2c:Configuration error: api_url parameter in missing in config file",
             lcm.output,
         )
 
@@ -1093,7 +1093,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertIn(
-            "ERROR:test_a2c:Configuration check ended with error: username parameter in missing in config file",
+            "ERROR:test_a2c:Configuration error: username parameter in missing in config file",
             lcm.output,
         )
 
@@ -1104,7 +1104,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertIn(
-            "ERROR:test_a2c:Configuration check ended with error: password parameter in missing in config file",
+            "ERROR:test_a2c:Configuration error: password parameter in missing in config file",
             lcm.output,
         )
 
@@ -1116,7 +1116,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertIn(
-            "ERROR:test_a2c:Configuration check ended with error: organization_name parameter in missing in config file",
+            "ERROR:test_a2c:Configuration error: organization_name parameter in missing in config file",
             lcm.output,
         )
 

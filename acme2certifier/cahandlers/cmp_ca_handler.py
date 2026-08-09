@@ -15,6 +15,7 @@ from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     config_profile_load,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 
 class CAhandler(object):
@@ -271,7 +272,7 @@ class CAhandler(object):
             self._tmp_dir_delete()
 
         else:
-            error = "Config incomplete"
+            error = CONFIGURATION_ERROR_DETAIL
 
         self.logger.debug("Certificate.enroll() ended with error: %s", error)
         return (error, cert_bundle, cert_raw, None)

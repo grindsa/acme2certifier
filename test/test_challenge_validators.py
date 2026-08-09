@@ -319,7 +319,9 @@ class TestChallengeValidator(unittest.TestCase):
                 return "retry-01"
 
             def perform_validation(self, context):
-                return ValidationResult(success=False, invalid=False, error_message=None)
+                return ValidationResult(
+                    success=False, invalid=False, error_message=None
+                )
 
         validator = InconclusiveValidator(self.logger)
         context = ChallengeContext(

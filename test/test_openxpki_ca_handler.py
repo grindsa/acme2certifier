@@ -935,7 +935,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme2certifier.cahandlers.openxpki_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.openxpki_ca_handler.eab_profile_header_info_check"
+    )
     @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._enroll")
     @patch("acme2certifier.cahandlers.openxpki_ca_handler.build_pem_file")
     @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_url_recode")

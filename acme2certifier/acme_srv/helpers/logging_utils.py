@@ -72,7 +72,7 @@ def _response_http_code(data_dic: Any) -> Optional[int]:
     try:
         if code is not None:
             return int(code)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         pass
     return None
 

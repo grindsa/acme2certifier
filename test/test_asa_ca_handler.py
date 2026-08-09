@@ -59,15 +59,15 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertEqual("api_host", self.cahandler.api_host)
@@ -87,15 +87,15 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -115,15 +115,15 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -143,15 +143,15 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -192,19 +192,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -224,19 +224,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -256,19 +256,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertIn(
@@ -292,19 +292,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         # self.assertIn('ERROR:test_a2c:CAhandler._config_load(): request_timeout not an integer', lcm.output)
@@ -325,19 +325,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -357,19 +357,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -389,19 +389,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -421,19 +421,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_host has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_user has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_key has not been not set",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            "ERROR:test_a2c:Configuration error: variable api_password has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)

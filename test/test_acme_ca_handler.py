@@ -75,7 +75,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "CAhandler" section is missing in config file',
+            'ERROR:test_a2c:Configuration error: "CAhandler" section is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -98,11 +98,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -126,11 +126,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -154,7 +154,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -181,7 +181,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertEqual("acme_keypath", self.cahandler.acme_keypath)
@@ -205,7 +205,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -229,11 +229,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -257,11 +257,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("acme_account_keysize", self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -285,11 +285,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertEqual("acme_account_email", self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -313,11 +313,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -341,11 +341,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -369,11 +369,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -397,11 +397,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -425,11 +425,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -454,11 +454,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -483,11 +483,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
@@ -517,11 +517,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("eab_kid", self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -547,11 +547,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.eab_kid)
         self.assertEqual("eab_hmac_key", self.cahandler.eab_hmac_key)
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: acme_ca_handler "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)

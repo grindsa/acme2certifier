@@ -4,6 +4,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union, Tuple
 from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
 
 class CertificateRepository(ABC):
@@ -99,7 +100,7 @@ class DatabaseCertificateRepository(CertificateRepository):
                 cert_list = []
 
         except Exception as err:
-            self.logger.critical(f"Database error during certificate search: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during certificate search: {err}")
             cert_list = None
 
         if cert_list is not None:
@@ -133,7 +134,7 @@ class DatabaseCertificateRepository(CertificateRepository):
                 ("name", "csr", "cert_raw", "cert", "order__name", "order__status_id"),
             )
         except Exception as err:
-            self.logger.critical(f"Database error during certificate lookup: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during certificate lookup: {err}")
             cert_info = {}
 
         if cert_info is not None and hasattr(cert_info, "__len__"):
@@ -162,7 +163,7 @@ class DatabaseCertificateRepository(CertificateRepository):
         try:
             result = self.dbstore.certificate_add(data_dic)
         except Exception as err:
-            self.logger.critical(f"Database error during certificate add: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during certificate add: {err}")
             result = False
 
         self.logger.debug(f"CertificateRepository.add_certificate() result: {result}")
@@ -185,7 +186,7 @@ class DatabaseCertificateRepository(CertificateRepository):
         try:
             result = self.dbstore.certificate_delete("name", certificate_name)
         except Exception as err:
-            self.logger.critical(f"Database error during certificate delete: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during certificate delete: {err}")
             result = False
 
         self.logger.debug(
@@ -213,7 +214,7 @@ class DatabaseCertificateRepository(CertificateRepository):
         try:
             result = self.dbstore.certificate_account_check(account_name, certificate)
         except Exception as err:
-            self.logger.critical(f"Database error during account check: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during account check: {err}")
             result = None
 
         return result
@@ -234,7 +235,7 @@ class DatabaseCertificateRepository(CertificateRepository):
             self.dbstore.order_update(data_dic)
             result = True
         except Exception as err:
-            self.logger.critical(f"Database error during order update: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during order update: {err}")
             result = False
 
         return result
@@ -258,7 +259,7 @@ class DatabaseCertificateRepository(CertificateRepository):
             if not orders:
                 orders = []
         except Exception as err:
-            self.logger.critical(f"Database error during orders search: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during orders search: {err}")
             orders = []
 
         return orders
@@ -287,7 +288,7 @@ class DatabaseCertificateRepository(CertificateRepository):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to search for certificates to clean up: %s",
+                f"{DB_ERROR_MSG}: failed to search for certificates to clean up: %s",
                 err_,
             )
             certificate_list = []
@@ -315,7 +316,7 @@ class DatabaseCertificateRepository(CertificateRepository):
             cert_info = self.dbstore.certificate_lookup("order__name", order_name)
         except Exception as err:
             self.logger.critical(
-                f"Database error during certificate lookup by order: {err}"
+                f"{DB_ERROR_MSG} during certificate lookup by order: {err}"
             )
             cert_info = {}
 
@@ -348,7 +349,7 @@ class DatabaseCertificateRepository(CertificateRepository):
             result = self.dbstore.cahandler_add(log_data)
         except Exception as err:
             self.logger.critical(
-                f"Database error during certificate operation log: {err}"
+                f"{DB_ERROR_MSG} during certificate operation log: {err}"
             )
             result = False
 
@@ -366,7 +367,7 @@ class DatabaseCertificateRepository(CertificateRepository):
             result = self.dbstore.certificate_account_check(account_name, certificate)
         except Exception as err:
             self.logger.critical(
-                f"Database error during certificate account check: {err}"
+                f"{DB_ERROR_MSG} during certificate account check: {err}"
             )
             result = None
 
@@ -386,7 +387,7 @@ class DatabaseCertificateRepository(CertificateRepository):
             else:
                 result = self.dbstore.certificate_lookup(key, value)
         except Exception as err:
-            self.logger.critical(f"Database error during certificate lookup: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during certificate lookup: {err}")
             result = {}
 
         return result
@@ -400,7 +401,7 @@ class DatabaseCertificateRepository(CertificateRepository):
         try:
             result = self.dbstore.certificate_add(data_dic)
         except Exception as err:
-            self.logger.critical(f"Database error during certificate add: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during certificate add: {err}")
             result = None
 
         return result
@@ -414,7 +415,7 @@ class DatabaseCertificateRepository(CertificateRepository):
         try:
             result = self.dbstore.certificate_delete(key, value)
         except Exception as err:
-            self.logger.critical(f"Database error during certificate delete: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during certificate delete: {err}")
             result = False
 
         return result
@@ -431,7 +432,7 @@ class DatabaseCertificateRepository(CertificateRepository):
             else:
                 result = self.dbstore.order_lookup(key, value)
         except Exception as err:
-            self.logger.critical(f"Database error during order lookup: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during order lookup: {err}")
             result = {}
 
         return result
@@ -445,7 +446,7 @@ class DatabaseCertificateRepository(CertificateRepository):
         try:
             result = self.dbstore.order_update(data_dic)
         except Exception as err:
-            self.logger.critical(f"Database error during order update: {err}")
+            self.logger.critical(f"{DB_ERROR_MSG} during order update: {err}")
             result = False
 
         return result

@@ -17,7 +17,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bind", default="0.0.0.0", help="Bind address")
     parser.add_argument("--port", type=int, default=5514, help="UDP port")
-    parser.add_argument("--output", required=True, help="Append received datagrams here")
+    parser.add_argument(
+        "--output", required=True, help="Append received datagrams here"
+    )
     parser.add_argument(
         "--ready",
         default=None,
@@ -33,7 +35,10 @@ def main() -> int:
         with open(args.ready, "w", encoding="utf-8"):
             pass
 
-    print(f"udp syslog sink listening on {args.bind}:{args.port} -> {args.output}", flush=True)
+    print(
+        f"udp syslog sink listening on {args.bind}:{args.port} -> {args.output}",
+        flush=True,
+    )
 
     with open(args.output, "ab") as out:
         while True:

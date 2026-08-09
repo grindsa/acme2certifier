@@ -5,6 +5,7 @@ from __future__ import print_function
 from typing import Tuple, Dict, Optional
 from acme2certifier.acme_srv.helper import signature_check, load_config, error_dic_get
 from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
 
 class Signature:
@@ -34,7 +35,7 @@ class Signature:
             return method(kid)
         except Exception as err_:
             self.logger.critical(
-                f"Database error: failed to load {'CLI ' if cli else ''}JWK for account id {kid}: {err_}"
+                f"{DB_ERROR_MSG}: failed to load {'CLI ' if cli else ''}JWK for account id {kid}: {err_}"
             )
             return None
 
@@ -97,9 +98,7 @@ class Signature:
                 self.logger.debug(f"Signature.check() ended with: {result}:{error}")
                 return (result, error, None)
             else:
-                self.logger.warning(
-                    "Signature check failed: embedded JWK missing"
-                )
+                self.logger.warning("Signature check failed: embedded JWK missing")
                 error = self.err_msg_dic["accountdoesnotexist"]
                 return (False, error, None)
         else:

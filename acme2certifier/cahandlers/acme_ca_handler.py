@@ -44,6 +44,7 @@ from acme2certifier.acme_srv.helper import (
     uts_to_date_utc,
     handler_config_check,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 
 class CAhandler(object):
@@ -97,7 +98,8 @@ class CAhandler(object):
         for ele in ("acme_keyfile", "acme_url"):
             if not getattr(self, ele):
                 self.logger.error(
-                    'acme_ca_handler configuration incomplete: "%s" parameter is missing in config file',
+                    '%s: acme_ca_handler "%s" parameter is missing in config file',
+                    CONFIGURATION_ERROR_DETAIL,
                     ele,
                 )
 
@@ -232,7 +234,8 @@ class CAhandler(object):
             self.logger.debug("CAhandler._config_load() ended")
         else:
             self.logger.error(
-                'Configuration incomplete: "CAhandler" section is missing in config file'
+                '%s: "CAhandler" section is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
             )
 
         # load profiling

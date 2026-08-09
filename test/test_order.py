@@ -719,8 +719,8 @@ class TestOrderClass(unittest.TestCase):
             # url in protected, order_name, no order_dic
             with patch.object(self.order, "get_order_details", return_value={}):
                 with self.assertLogs("test_a2c", level="WARNING") as log_cm:
-                    code, _msg, _detail, _cert, _order = self.order._parse_order_message(
-                        {"url": "url"}, {}, None
+                    code, _msg, _detail, _cert, _order = (
+                        self.order._parse_order_message({"url": "url"}, {}, None)
                     )
                 self.assertEqual(code, 403)
                 self.assertIn(
@@ -730,8 +730,8 @@ class TestOrderClass(unittest.TestCase):
             # url in protected, no order_name
             with patch.object(self.order, "_name_get", return_value=None):
                 with self.assertLogs("test_a2c", level="WARNING") as log_cm:
-                    code, _msg, _detail, _cert, _order = self.order._parse_order_message(
-                        {"url": "url"}, {}, None
+                    code, _msg, _detail, _cert, _order = (
+                        self.order._parse_order_message({"url": "url"}, {}, None)
                     )
                 self.assertEqual(code, 400)
                 self.assertIn(

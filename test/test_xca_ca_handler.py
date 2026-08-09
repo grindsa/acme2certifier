@@ -775,7 +775,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler.revocation without xdb file"""
         mock_date.return_value = "foo"
         self.assertEqual(
-            (500, "urn:ietf:params:acme:error:serverInternal", "configuration error"),
+            (500, "urn:ietf:params:acme:error:serverInternal", "Configuration error"),
             self.cahandler.revoke("cert", "reason", None),
         )
 

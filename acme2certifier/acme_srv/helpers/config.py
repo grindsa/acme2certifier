@@ -8,7 +8,7 @@ import os
 import warnings
 from typing import Any, Dict, List, Optional, Set, Tuple
 from .plugin_loader import eab_handler_load
-from .global_variables import PARSING_ERR_MSG
+from .global_variables import CONFIGURATION_ERROR_DETAIL, PARSING_ERR_MSG
 
 # Emit acme_srv.cfg path deprecation warnings at most once per path per process.
 _ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
@@ -116,7 +116,7 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
             else:
                 eab_handler = eab_handler_module.EABhandler
         else:
-            logger.critical("EABHandler configuration incomplete")
+            logger.critical("%s: EABHandler incomplete", CONFIGURATION_ERROR_DETAIL)
 
     logger.debug("_config_profile_load() ended")
     return eab_profiling, eab_handler

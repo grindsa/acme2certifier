@@ -454,10 +454,7 @@ class TestExternalAccountBinding(unittest.TestCase):
         self.assertEqual(message, "unauthorized")
         self.assertEqual(detail, "EAB kid lookup failed")
         self.assertTrue(
-            any(
-                "EAB kid lookup failed kid=None" in line
-                for line in log_cm.output
-            ),
+            any("EAB kid lookup failed kid=None" in line for line in log_cm.output),
             log_cm.output,
         )
 
@@ -1252,7 +1249,8 @@ class TestAccount(unittest.TestCase):
             with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
                 account._load_configuration()
                 self.assertIn(
-                    "EABHandler configuration incomplete", " ".join(log_cm.output)
+                    "Configuration error: EABHandler incomplete",
+                    " ".join(log_cm.output),
                 )
 
         # Test EABhandler load failure branch

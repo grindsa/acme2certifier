@@ -31,6 +31,7 @@ from acme2certifier.acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 CONTENT_TYPE = "application/json"
 
@@ -461,7 +462,7 @@ class CAhandler(object):
         for ele in ["api_url", "username", "password", "organization_name"]:
             if not getattr(self, ele):
                 error = f"{ele} parameter in missing in config file"
-                self.logger.error("Configuration check ended with error: %s", error)
+                self.logger.error("%s: %s", CONFIGURATION_ERROR_DETAIL, error)
                 break
 
         self.logger.debug("CAhandler._config_check() ended with: %s", error)

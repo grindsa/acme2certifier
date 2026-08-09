@@ -168,4 +168,3 @@ grep 'account=acct-123' /var/log/…
 | `debug` | `DEFAULT` | `True` → logger level `DEBUG` (full edge dumps on failures, verbose internals) |
 
 Other modules may emit their own `ERROR`/`CRITICAL` lines (DB failures, enrollment errors, EAB HMAC failures, etc.) independent of the ACME problem path.
-

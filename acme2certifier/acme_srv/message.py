@@ -19,6 +19,10 @@ from acme2certifier.acme_srv.error import Error
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.signature import Signature
+from acme2certifier.acme_srv.helpers.global_variables import (
+    DB_ERROR_MSG,
+    CONFIGURATION_ERROR_DETAIL,
+)
 
 # Break-glass acknowledgment for disabling nonce/signature checks (testing only).
 SECURITY_DISABLE_ACK_ENV = "ACME2CERTIFIER_I_KNOW_THE_RISK"
@@ -153,7 +157,9 @@ class Message(object):
                 else:
                     self.logger.critical("EABHandler could not get loaded")
             else:
-                self.logger.critical("EABHandler configuration incomplete")
+                self.logger.critical(
+                    "%s: EABHandler incomplete", CONFIGURATION_ERROR_DETAIL
+                )
 
             msg_config.eab_strict_mode = config_dic.getboolean(
                 "EABhandler", "eab_strict_mode", fallback=True
@@ -265,7 +271,7 @@ class Message(object):
             account_list = self.repo.account_lookup("jwk", json.dumps(content["jwk"]))
         except Exception as err_:
             self.logger.critical(
-                f"Database error: failed to look up account name for revocation: {err_}"
+                f"{DB_ERROR_MSG}: failed to look up account name for revocation: {err_}"
             )
             return None
         if account_list and "name" in account_list:

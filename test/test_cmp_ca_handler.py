@@ -619,7 +619,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_049_enroll(self):
         """test enroll without openssl_bin"""
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            ("Configuration error", None, None, None), self.cahandler.enroll("csr")
         )
 
     @patch("acme2certifier.cahandlers.cmp_ca_handler.CAhandler._certs_bundle")

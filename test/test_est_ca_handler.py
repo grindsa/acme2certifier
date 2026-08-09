@@ -96,7 +96,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete: either user or client authentication must be configured.",
+            "ERROR:test_a2c:Configuration error: either user or client authentication must be configured",
             lcm.output,
         )
         self.assertTrue(mock_load_cfg.called)
@@ -133,7 +133,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration error: user and client authentication cannot be configured together.",
+            "ERROR:test_a2c:Configuration error: user and client authentication cannot be configured together",
             lcm.output,
         )
         self.assertTrue(mock_load_cfg.called)
@@ -217,7 +217,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Configuration error: client authentication requires a ca_bundle.",
+            "ERROR:test_a2c:Configuration error: client authentication requires a ca_bundle",
             lcm.output,
         )
         self.assertEqual("foo_host/.well-known/est", self.cahandler.est_host)
@@ -233,7 +233,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_clientauth_load(parser)
         self.assertFalse(self.cahandler.est_client_cert)
         self.assertIn(
-            'ERROR:test_a2c:Clientauth configuration incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: Clientauth incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file',
             lcm.output,
         )
         self.assertEqual(20, self.cahandler.request_timeout)
@@ -405,7 +405,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_password_load(parser)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: either "est_user" or "est_password" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: either "est_user" or "est_password" parameter is missing in config file',
             lcm.output,
         )
 
@@ -417,7 +417,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_password_load(parser)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: either "est_user" or "est_password" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration error: either "est_user" or "est_password" parameter is missing in config file',
             lcm.output,
         )
 
@@ -598,7 +598,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((None, None), self.cahandler._cacerts_get())
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "est_host" parameter is missing',
+            'ERROR:test_a2c:Configuration error: "est_host" parameter is missing',
             lcm.output,
         )
 

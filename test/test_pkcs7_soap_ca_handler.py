@@ -996,7 +996,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_vrf.return_value = True
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                ("Config incomplete", None), self.cahandler._pkcs7_sign_external("csr")
+                ("Configuration error", None),
+                self.cahandler._pkcs7_sign_external("csr"),
             )
         self.assertIn(
             "ERROR:test_a2c:External signing configuration is incomplete: True",

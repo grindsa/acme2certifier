@@ -29,6 +29,7 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     request_operation,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 
 class CAhandler(object):
@@ -183,7 +184,8 @@ class CAhandler(object):
                 self.username = config_dic.get("CAhandler", "username", fallback=None)
         else:
             self.logger.error(
-                'Configuration incomplete: "username" parameter is missing in config file'
+                '%s: "username" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
             )
 
         # check if we need to add the common name of a certificate to the username
@@ -222,7 +224,8 @@ class CAhandler(object):
                 self.enrollment_code = config_dic.get("CAhandler", "enrollment_code")
         else:
             self.logger.error(
-                'Configuration incomplete: "enrollment_code" parameter is missing in config file'
+                '%s: "enrollment_code" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
             )
 
         self.logger.debug("CAhandler._config_enrollmentcode_load() ended")
@@ -269,7 +272,8 @@ class CAhandler(object):
                 )
         else:
             self.logger.error(
-                'Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.'
+                '%s: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
+                CONFIGURATION_ERROR_DETAIL,
             )
 
         self.logger.debug("CAhandler._config_session_load() ended")
@@ -333,7 +337,8 @@ class CAhandler(object):
         ]:
             if not variable_dic[ele]:
                 self.logger.error(
-                    'Configuration incomplete: parameter "%s" is missing in configuration file.',
+                    '%s: parameter "%s" is missing in configuration file',
+                    CONFIGURATION_ERROR_DETAIL,
                     ele,
                 )
 
@@ -435,7 +440,8 @@ class CAhandler(object):
                 api_response = {"status": "nok", "error": api_response}
         else:
             self.logger.error(
-                "Configuration incomplete: api_host parameter is missing in configuration"
+                "%s: api_host parameter is missing in configuration",
+                CONFIGURATION_ERROR_DETAIL,
             )
             api_response = {}
 
@@ -474,7 +480,8 @@ class CAhandler(object):
             )
         else:
             self.logger.error(
-                "Configuration incomplete: api_host is missing in configuration"
+                "%s: api_host is missing in configuration",
+                CONFIGURATION_ERROR_DETAIL,
             )
             sign_response = {}
 

@@ -33,6 +33,7 @@ from acme2certifier.acme_srv.helper import (
     proxy_check,
     pkcs7_to_pem,
 )  # pylint: disable=e0401
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 
 class CAhandler(object):
@@ -738,8 +739,8 @@ class CAhandler(object):
             and self._credentials_are_configured()
             and self.template
         ):
-            self.logger.error("Configuration incomplete")
-            error = "Config incomplete"
+            self.logger.error("%s", CONFIGURATION_ERROR_DETAIL)
+            error = CONFIGURATION_ERROR_DETAIL
             self.logger.debug("Certificate.enroll() ended")
             return (error, cert_bundle, cert_raw, None)
 

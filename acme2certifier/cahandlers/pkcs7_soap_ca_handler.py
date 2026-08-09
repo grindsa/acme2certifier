@@ -28,6 +28,7 @@ from acme2certifier.acme_srv.helper import (
     convert_string_to_byte,
     generate_random_string,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 INVALID_FILE_PATH_ERROR = "Invalid file path"
 
@@ -592,7 +593,7 @@ class CAhandler(object):
             self.logger.error(
                 "External signing configuration is incomplete: %s", signing_check
             )
-            rcode = "Config incomplete"
+            rcode = CONFIGURATION_ERROR_DETAIL
             pkcs7_bundle = None
         else:
             # define temporary filenames

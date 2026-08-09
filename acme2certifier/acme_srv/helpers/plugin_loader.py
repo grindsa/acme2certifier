@@ -3,6 +3,7 @@
 
 import importlib
 import importlib.util
+from .global_variables import CONFIGURATION_ERROR_DETAIL
 import logging
 import os
 import sys
@@ -140,7 +141,10 @@ def ca_handler_load(
     logger.debug("Helper.plugin_loader.ca_handler_load() start")
 
     if "CAhandler" not in config_dic:
-        logger.error("CAhandler configuration missing in config file")
+        logger.error(
+            "%s: CAhandler configuration missing in config file",
+            CONFIGURATION_ERROR_DETAIL,
+        )
         return None
 
     section = config_dic["CAhandler"]
