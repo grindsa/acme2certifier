@@ -1,6 +1,6 @@
+<!-- markdownlint-disable MD013 MD014 MD029 -->
 
-
-
+<!-- wiki-title Logging in acme2certifier -->
 
 # Logging in acme2certifier
 
@@ -10,7 +10,6 @@ Config reference table: [acme_srv.md](acme_srv.md) (`Helper` section). Implement
 
 ## Defaults
 
-
 | Behavior    | Default                                   |
 | ----------- | ----------------------------------------- |
 | Destination | stderr via `logging.basicConfig`          |
@@ -19,11 +18,9 @@ Config reference table: [acme_srv.md](acme_srv.md) (`Helper` section). Implement
 | Syslog      | off until `Helper.syslog_address` is set  |
 | File log    | off until `Helper.log_file` is set        |
 
-
 Stderr always remains. Syslog and file handlers are **additional** destinations when configured.
 
 ## Configuration (`[Helper]`)
-
 
 | Option             | Description                                                                            | Values                                                                                      | Default       |
 | ------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------- |
@@ -32,9 +29,6 @@ Stderr always remains. Syslog and file handlers are **additional** destinations 
 | `syslog_facility`  | Facility when syslog is enabled                                                        | e.g. `user`, `daemon`, `local0`                                                             | `user`        |
 | `log_file`         | Enables append-only file logging when set                                              | path/file                                                                                   | None          |
 | `log_cert_content` | When `True`, keep certificate / chain PEM in edge log dumps (legacy). Default redacts. | True/False                                                                                  | False         |
-
-
-
 
 ### Example: local syslog (preferred for rotation)
 
@@ -68,8 +62,6 @@ log_file: /var/log/acme2certifier/acme2certifier.log
 - Plain `FileHandler` (append only); **no in-process rotation**.
 - For rotation under multi-worker WSGI, prefer `syslog_address` (or external logrotate on a carefully shared file).
 
-
-
 ### Example: combined destinations
 
 ```ini
@@ -87,8 +79,6 @@ Under **systemd**, stderr is often already captured by journald. Adding `syslog_
 
 ## What operators see
 
-
-
 ### ACME problem responses (primary ops signal)
 
 When `Message.prepare_response` builds an ACME problem document (`code >= 400`), it logs **once**:
@@ -98,12 +88,10 @@ WARNING: ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized deta
 ERROR:   ACME problem code=500 type=… detail=… account=None
 ```
 
-
 | HTTP code | Level     |
 | --------- | --------- |
 | 400–499   | `WARNING` |
 | ≥ 500     | `ERROR`   |
-
 
 `detail` is the enriched message (after `Error.enrich_error`). `account=` is set when the call site knows the account name.
 
@@ -113,12 +101,10 @@ This is the greppable line for registration, authn, order, and similar client/se
 
 Django/WSGI views call `log_response` with client address, path, and response dict:
 
-
 | Outcome                             | Level   | Content                                                                |
 | ----------------------------------- | ------- | ---------------------------------------------------------------------- |
 | Success (`code` missing or `< 400`) | `INFO`  | Redacted response dump                                                 |
 | Failure (`4xx` / `5xx`)             | `DEBUG` | Redacted dump only (avoids duplicating the ACME problem WARNING/ERROR) |
-
 
 Example success line:
 
@@ -126,19 +112,15 @@ Example success line:
 INFO: 203.0.113.1 /acme/neworder {'code': 201, 'header': {'Replay-Nonce': '- modified -'}, 'data': {...}}
 ```
 
-
-
 ## Redaction
 
 `log_response` deep-copies the response and redacts before logging:
-
 
 | Data                                                                            | Redaction                                                   |
 | ------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | `header.Replay-Nonce`                                                           | `- modified -`                                              |
 | Challenge `token` / challenge list tokens                                       | `- modified -`                                              |
 | Certificate download body (`/acme/cert…` path, or PEM with `BEGIN CERTIFICATE`) | `- certificate -` (unless `Helper.log_cert_content = True`) |
-
 
 Certificate chains are not written to logs by default. Set `log_cert_content: True` to restore the previous behavior of logging the full PEM body. Client responses are unchanged; only the log copy is sanitized.
 
@@ -158,10 +140,7 @@ grep 'ACME problem code=5' /var/log/…
 grep 'account=acct-123' /var/log/…
 ```
 
-
-
 ## Related config
-
 
 | Option  | Section   | Effect on logging                                                              |
 | ------- | --------- | ------------------------------------------------------------------------------ |
