@@ -252,13 +252,27 @@ class EABhandler(object):
 
         mac_key = None
         try:
-            if self.key_file and kid:
+            if not kid:
+                self.logger.warning("MAC key retrieval failed: kid=%s", kid)
+            elif not self.key_file:
+                self.logger.warning("MAC key retrieval failed: key_file is None")
+            else:
                 with open(self.key_file, encoding="utf8") as key_file_content:
                     data_dic = self.keyfile_content_load(key_file_content.read())
                     if kid in data_dic and "hmac" in data_dic[kid]:
                         mac_key = data_dic[kid]["hmac"]
+                    elif kid in data_dic:
+                        self.logger.warning(
+                            "MAC key retrieval failed: kid=%s missing hmac in key file",
+                            kid,
+                        )
+                    else:
+                        self.logger.warning(
+                            "MAC key retrieval failed: kid=%s not found in key file",
+                            kid,
+                        )
         except Exception as err:
-            self.logger.error("Failed to retrieve MAC key for kid '%s': %s", kid, err)
+            self.logger.error("Failed to retrieve MAC key for kid=%s: %s", kid, err)
 
         self.logger.debug(
             "EABhandler.mac_key_get() ended with: {0}".format(bool(mac_key))
