@@ -714,21 +714,36 @@ class TestOrderClass(unittest.TestCase):
                     self.assertEqual(code, 200)
             # url in protected, order_name, no order_dic
             with patch.object(self.order, "get_order_details", return_value={}):
-                code, _msg, _detail, _cert, _order = self.order._parse_order_message(
-                    {"url": "url"}, {}, None
-                )
+                with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                    code, _msg, _detail, _cert, _order = self.order._parse_order_message(
+                        {"url": "url"}, {}, None
+                    )
                 self.assertEqual(code, 403)
+                self.assertIn(
+                    "WARNING:test_a2c:Order request failed: order not found order=order",
+                    log_cm.output,
+                )
             # url in protected, no order_name
             with patch.object(self.order, "_name_get", return_value=None):
-                code, _msg, _detail, _cert, _order = self.order._parse_order_message(
-                    {"url": "url"}, {}, None
-                )
+                with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                    code, _msg, _detail, _cert, _order = self.order._parse_order_message(
+                        {"url": "url"}, {}, None
+                    )
                 self.assertEqual(code, 400)
+                self.assertIn(
+                    "WARNING:test_a2c:Order request failed: order name missing",
+                    log_cm.output,
+                )
         # no url in protected
-        code, _msg, _detail, _cert, _order = self.order._parse_order_message(
-            {}, {}, None
-        )
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, _msg, _detail, _cert, _order = self.order._parse_order_message(
+                {}, {}, None
+            )
         self.assertEqual(code, 400)
+        self.assertIn(
+            "WARNING:test_a2c:Order request failed: url missing in protected",
+            log_cm.output,
+        )
 
     def test_052_parse_order_content_success(self):
         # test parse_order_content with code 200 and status processing
@@ -1110,14 +1125,19 @@ class TestOrderClass(unittest.TestCase):
             patch("acme2certifier.acme_srv.order.generate_random_string", return_value="randomstring"),
             patch("acme2certifier.acme_srv.order.uts_now", return_value=1234567890),
         ):
-            error, detail, order_name, auth_dic, expires = self.order.create_order(
-                payload, account_name
-            )
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                error, detail, order_name, auth_dic, expires = self.order.create_order(
+                    payload, account_name
+                )
             self.assertEqual(error, "urn:ietf:params:acme:error:unsupportedIdentifier")
             self.assertEqual(order_name, "randomstring")
             self.assertIsInstance(auth_dic, dict)
             self.assertEqual(expires, "2009-02-14T23:31:30Z")
             self.assertFalse(detail)
+            self.assertIn(
+                "WARNING:test_a2c:Order create failed: missing identifiers account=acct",
+                log_cm.output,
+            )
 
     def test_071_create_order_logging(self):
         # Check all log messages with severity INFO and higher
@@ -1654,8 +1674,13 @@ class TestOrderClass(unittest.TestCase):
         self.assertEqual(result[0], 200)
         # Not ready path
         self.order._get_order_info = MagicMock(return_value={"status": "pending"})
-        result = self.order._finalize_order("order1", {"csr": "csrval"})
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            result = self.order._finalize_order("order1", {"csr": "csrval"})
         self.assertEqual(result[0], 403)
+        self.assertIn(
+            "WARNING:test_a2c:Order finalize failed: orderNotReady order=order1 status=pending",
+            log_cm.output,
+        )
 
     def test_107_finalize_csr_updates_status_when_no_detail(self):
         # When code==200 and no detail, order_status should update to valid
@@ -1942,7 +1967,10 @@ class TestOrderClass(unittest.TestCase):
             self.assertEqual(result, (None, None))
             # Too many identifiers
             too_many = [{"type": "dns", "value": "a"}] * 3
-            result = self.order._check_identifiers_validity(too_many)
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                result = self.order._check_identifiers_validity(
+                    too_many, account_name="acct1", order_name="ord1"
+                )
             self.assertEqual(
                 result,
                 (
@@ -1950,11 +1978,22 @@ class TestOrderClass(unittest.TestCase):
                     "identifier limit exceeded",
                 ),
             )
+            self.assertIn(
+                "WARNING:test_a2c:Number of identifiers 3 exceeds limit 2 account=acct1 order=ord1",
+                log_cm.output,
+            )
             # Malformed (not a list)
-            result = self.order._check_identifiers_validity(None)
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                result = self.order._check_identifiers_validity(
+                    None, account_name="acct1", order_name="ord1"
+                )
             self.assertEqual(
                 result,
                 (self.order.error_msg_dic["malformed"], "malformed identifiers list"),
+            )
+            self.assertIn(
+                "WARNING:test_a2c:Order create failed: malformed identifiers list account=acct1 order=ord1",
+                log_cm.output,
             )
 
     def test_122_check_identifiers_validity_all_paths(self):
@@ -2139,11 +2178,16 @@ class TestOrderClass(unittest.TestCase):
     def test_134_finalize_order_ready_nocsr(self):
         # Covers lines 593-597: status not ready
         self.order.repository.order_lookup.return_value = {"status": "ready"}
-        result = self.order._finalize_order("ordername", {}, None)
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            result = self.order._finalize_order("ordername", {}, None)
         self.assertEqual(result[0], 400)
         self.assertEqual(result[1], "urn:ietf:params:acme:error:badCSR")
         self.assertEqual(result[2], "csr is missing in payload")
         self.assertIsNone(result[3])
+        self.assertIn(
+            "WARNING:test_a2c:Order finalize failed: csr missing order=ordername",
+            log_cm.output,
+        )
 
     def test_135_finalize_csr_timeout(self):
         # Patch _process_csr to return (200, 'timeout', 'not_none') so the elif branch is taken
@@ -3006,6 +3050,203 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.profiles = {"keep": True}
         self.order._apply_eab_profile_mapping("acct1", {})
         self.assertEqual(self.order.config.profiles, {"keep": True})
+
+    def test_193_get_order_account_name_success(self):
+        """_get_order_account_name returns account__name from lookup"""
+        self.order.repository.order_lookup.return_value = {"account__name": "acct1"}
+        self.assertEqual(self.order._get_order_account_name("order1"), "acct1")
+        self.order.repository.order_lookup.assert_called_once_with(
+            "name", "order1", vlist=["account__name"]
+        )
+
+    def test_194_get_order_account_name_fallback_account_key(self):
+        """_get_order_account_name falls back to account key"""
+        self.order.repository.order_lookup.return_value = {"account": "acct2"}
+        self.assertEqual(self.order._get_order_account_name("order1"), "acct2")
+
+    def test_195_get_order_account_name_empty_lookup(self):
+        """_get_order_account_name returns None when lookup is empty"""
+        self.order.repository.order_lookup.return_value = None
+        self.assertIsNone(self.order._get_order_account_name("order1"))
+        self.order.repository.order_lookup.return_value = {}
+        self.assertIsNone(self.order._get_order_account_name("order1"))
+
+    def test_196_get_order_account_name_db_error(self):
+        """_get_order_account_name logs critical and returns None on DB error"""
+        self.order.repository.order_lookup.side_effect = Exception("fail")
+        with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
+            self.assertIsNone(self.order._get_order_account_name("order1"))
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to look up order account: fail",
+            log_cm.output,
+        )
+
+    def test_197_identifier_errors_include_account_order_correlation(self):
+        """Per-identifier ERROR logs include account=/order= when provided."""
+        allowed = ["dns", "ip"]
+        with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+            self.order._check_single_identifier(
+                {"value": "bar"},
+                allowed,
+                account_name="acct1",
+                order_name="ord1",
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Identifier type is missing account=acct1 order=ord1",
+            log_cm.output,
+        )
+
+        with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+            self.order._check_single_identifier(
+                {"type": "dns"},
+                allowed,
+                account_name="acct1",
+                order_name="ord1",
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Identifier value is missing account=acct1 order=ord1",
+            log_cm.output,
+        )
+
+        with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+            self.order._check_single_identifier(
+                {"type": "unknown", "value": "bar"},
+                allowed,
+                account_name="acct1",
+                order_name="ord1",
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Identifier type unknown not supported account=acct1 order=ord1",
+            log_cm.output,
+        )
+
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=False
+        ):
+            with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+                self.order._check_single_identifier(
+                    {"type": "dns", "value": "foo"},
+                    allowed,
+                    account_name="acct1",
+                    order_name="ord1",
+                )
+            self.assertIn(
+                "ERROR:test_a2c:Identifier value foo not allowed for type dns account=acct1 order=ord1",
+                log_cm.output,
+            )
+
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.wildcard_certificate_disable = True
+            with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+                self.order._check_single_identifier(
+                    {"type": "dns", "value": "*.foo.com"},
+                    allowed,
+                    account_name="acct1",
+                    order_name="ord1",
+                )
+            self.assertIn(
+                "ERROR:test_a2c:Wildcard identifier *.foo.com not allowed by configuration account=acct1 order=ord1",
+                log_cm.output,
+            )
+
+            self.order.config.wildcard_certificate_disable = False
+            self.order.config.allowed_domainlist = ["allowed.example"]
+            with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+                self.order._check_single_identifier(
+                    {"type": "dns", "value": "denied.example"},
+                    allowed,
+                    account_name="acct1",
+                    order_name="ord1",
+                )
+            self.assertIn(
+                "ERROR:test_a2c:FQDN/SAN denied.example not allowed by configuration account=acct1 order=ord1",
+                log_cm.output,
+            )
+
+            self.order.config.allowed_domainlist = []
+            self.order.config.allowed_iplist = ["10.0.0.0/8"]
+            with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+                self.order._check_single_identifier(
+                    {"type": "ip", "value": "8.8.8.8"},
+                    allowed,
+                    account_name="acct1",
+                    order_name="ord1",
+                )
+            self.assertIn(
+                "ERROR:test_a2c:IP address 8.8.8.8 not allowed by configuration account=acct1 order=ord1",
+                log_cm.output,
+            )
+
+    def test_198_create_order_threads_correlation_into_identifier_errors(self):
+        """create_order passes account/order into identifier validity logging."""
+        with (
+            patch(
+                "acme2certifier.acme_srv.order.generate_random_string",
+                return_value="ordxyz",
+            ),
+            patch("acme2certifier.acme_srv.order.uts_now", return_value=1234567890),
+            patch(
+                "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+            ),
+        ):
+            with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+                error, _detail, order_name, _auth, _expires = self.order.create_order(
+                    {"identifiers": [{"type": "foo", "value": "bar"}]},
+                    "acctxyz",
+                )
+            self.assertEqual(error, self.order.error_msg_dic["unsupportedidentifier"])
+            self.assertEqual(order_name, "ordxyz")
+            self.assertIn(
+                "ERROR:test_a2c:Identifier type foo not supported account=acctxyz order=ordxyz",
+                log_cm.output,
+            )
+
+    def test_199_finalize_order_not_ready_missing_status(self):
+        """orderNotReady logs status=missing when order info has no status."""
+        self.order._get_order_info = MagicMock(return_value={})
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            result = self.order._finalize_order("order1", {"csr": "csrval"})
+        self.assertEqual(result[0], 403)
+        self.assertIn(
+            "WARNING:test_a2c:Order finalize failed: orderNotReady order=order1 status=missing",
+            log_cm.output,
+        )
+
+    def test_200_create_from_content_does_not_relog_create_failures(self):
+        """create_from_content mapping must not add duplicate WARNING for create errors."""
+        rejected = self.order.error_msg_dic["rejectedidentifier"]
+        with patch.object(
+            self.order.message,
+            "check",
+            return_value=(
+                200,
+                None,
+                None,
+                None,
+                {"identifiers": [{"type": "dns", "value": "a"}]},
+                "account",
+            ),
+        ):
+            with patch.object(
+                self.order,
+                "create_order",
+                return_value=(rejected, "detail", "order", {}, "2026-01-01T00:00:00Z"),
+            ):
+                with patch.object(
+                    self.order.message,
+                    "prepare_response",
+                    side_effect=lambda resp, stat, **_kwargs: {
+                        **resp,
+                        "code": stat["code"],
+                        "type": stat["type"],
+                    },
+                ):
+                    with patch.object(self.order.logger, "warning") as mock_warning:
+                        result = self.order.create_from_content("content")
+                    self.assertEqual(result.get("code"), 403)
+                    mock_warning.assert_not_called()
 
 
 if __name__ == "__main__":
