@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     b64_decode,
 )
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
 
 @dataclass
@@ -59,7 +60,7 @@ class RenewalinfoRepository:
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to look up certificate for renewal info (draft01): %s",
+                f"{DB_ERROR_MSG}: failed to look up certificate for renewal info (draft01): %s",
                 err_,
             )
             return None
@@ -87,7 +88,7 @@ class RenewalinfoRepository:
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to look up certificate for renewal info (draft02): %s",
+                f"{DB_ERROR_MSG}: failed to look up certificate for renewal info (draft02): %s",
                 err_,
             )
             return []
@@ -229,7 +230,7 @@ class Renewalinfo(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to retrieve certificate list for renewal info update: %s",
+                f"{DB_ERROR_MSG}: failed to retrieve certificate list for renewal info update: %s",
                 err_,
             )
             certificate_list = []

@@ -810,8 +810,17 @@ class TestChallenge(unittest.TestCase):
         )
         self.challenge.error_handler = ErrorHandler(self.logger)
         self.challenge.state_manager.transition_to_invalid = Mock()
-        self.challenge.repository.get_challenge_by_name.return_value = self.ChallengeInfo(
-            "c1", "dns-01", "tok", "processing", "authz", "dns", "example.com", "url"
+        self.challenge.repository.get_challenge_by_name.return_value = (
+            self.ChallengeInfo(
+                "c1",
+                "dns-01",
+                "tok",
+                "processing",
+                "authz",
+                "dns",
+                "example.com",
+                "url",
+            )
         )
         with self.assertLogs("test_a2c", level="WARNING") as log_cm:
             self.assertFalse(
@@ -837,8 +846,10 @@ class TestChallenge(unittest.TestCase):
         )
         self.challenge.error_handler = ErrorHandler(self.logger)
         self.challenge.state_manager.transition_to_invalid = Mock()
-        self.challenge.repository.get_challenge_by_name.return_value = self.ChallengeInfo(
-            "c2", "http-01", "tok", "processing", "authz", "dns", "foo.bar", "url"
+        self.challenge.repository.get_challenge_by_name.return_value = (
+            self.ChallengeInfo(
+                "c2", "http-01", "tok", "processing", "authz", "dns", "foo.bar", "url"
+            )
         )
         with self.assertLogs("test_a2c", level="WARNING") as log_cm:
             self.assertFalse(
@@ -3039,7 +3050,10 @@ class TestChallenge(unittest.TestCase):
             )
         )
         self.assertTrue(
-            any("POST response may still be processing" in message for message in log.output)
+            any(
+                "POST response may still be processing" in message
+                for message in log.output
+            )
         )
 
     @patch("acme2certifier.acme_srv.challenge.Thread")

@@ -32,6 +32,7 @@ from acme2certifier.acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 
 class CAhandler(object):
@@ -312,7 +313,8 @@ class CAhandler(object):
                 )
         else:
             self.logger.error(
-                'Configuration incomplete: "api_user" parameter is missing in config file'
+                '%s: "api_user" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
             )
 
         self.logger.debug("_config_user_load() ended")
@@ -341,7 +343,8 @@ class CAhandler(object):
                 self.api_password = config_dic.get("CAhandler", "api_password")
         else:
             self.logger.error(
-                'Configuration incomplete: "api_password" parameter is missing in config file'
+                '%s: "api_password" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
             )
 
         self.logger.debug("_config_password_load() ended")
@@ -354,7 +357,8 @@ class CAhandler(object):
             self.ca_name = config_dic.get("CAhandler", "ca_name", fallback=self.ca_name)
         else:
             self.logger.error(
-                'Configuration incomplete: "ca_name" parameter is missing in config file'
+                '%s: "ca_name" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
             )
 
         try:
@@ -435,7 +439,8 @@ class CAhandler(object):
                 )
             else:
                 self.logger.error(
-                    'Configuration incomplete: "api_host" parameter is missing in config file'
+                    '%s: "api_host" parameter is missing in config file',
+                    CONFIGURATION_ERROR_DETAIL,
                 )
 
             # load user from config

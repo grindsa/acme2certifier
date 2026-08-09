@@ -398,7 +398,8 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.trigger._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler configuration missing in config file", lcm.output
+            "ERROR:test_a2c:Configuration error: CAhandler configuration missing in config file",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.trigger.Trigger._config_load")
@@ -418,7 +419,8 @@ class TestACMEHandler(unittest.TestCase):
             self.trigger._config_load()
         self.assertFalse(self.trigger.tnauthlist_support)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler configuration missing in config file", lcm.output
+            "ERROR:test_a2c:Configuration error: CAhandler configuration missing in config file",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.trigger.load_config")

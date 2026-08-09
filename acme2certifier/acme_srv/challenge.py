@@ -20,6 +20,7 @@ from acme2certifier.acme_srv.helper import (
     config_async_mode_load,
     config_dns_server_list_load,
 )
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
 
@@ -121,7 +122,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             return result
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to search for challenges: %s", err
+                f"{DB_ERROR_MSG}: failed to search for challenges: %s", err
             )
             raise DatabaseError(f"Failed to search challenges: {err}") from err
 
@@ -149,7 +150,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
 
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to lookup challenge keyauthorization: %s", err
+                f"{DB_ERROR_MSG}: failed to lookup challenge keyauthorization: %s", err
             )
             raise DatabaseError(
                 f"Failed to lookup challenge keyauthorization: {err}"
@@ -204,7 +205,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 ),
             )
         except Exception as err:
-            self.logger.critical("Database error: failed to lookup challenge: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to lookup challenge: %s", err)
             raise DatabaseError(f"Failed to lookup challenge: {err}") from err
 
     def create_challenge(self, request: ChallengeCreationRequest) -> Optional[str]:
@@ -241,7 +242,9 @@ class DatabaseChallengeRepository(ChallengeRepository):
             return challenge_name if chid else None
 
         except Exception as err:
-            self.logger.critical("Database error: failed to add new challenge: %s", err)
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to add new challenge: %s", err
+            )
             raise DatabaseError(f"Failed to create challenge: {err}") from err
 
     def update_challenge(self, request: ChallengeUpdateRequest) -> bool:
@@ -269,7 +272,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             )
             return True
         except Exception as err:
-            self.logger.critical("Database error: failed to update challenge: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to update challenge: %s", err)
             raise DatabaseError(f"Failed to update challenge: {err}") from err
 
     def update_authorization_status(self, challenge_name: str, status: str) -> bool:
@@ -300,7 +303,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
 
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to update authorization: %s", err
+                f"{DB_ERROR_MSG}: failed to update authorization: %s", err
             )
             raise DatabaseError(f"Failed to update authorization: {err}") from err
 
@@ -325,7 +328,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             )
             return result
         except Exception as err:
-            self.logger.critical("Database error: failed to get account JWK: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to get account JWK: %s", err)
             raise DatabaseError(f"Failed to get account JWK: {err}") from err
 
     def get_authorization_account_name(self, authorization_name: str) -> Optional[str]:
@@ -347,7 +350,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             return None
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to get authorization account name: %s", err
+                f"{DB_ERROR_MSG}: failed to get authorization account name: %s", err
             )
             raise DatabaseError(
                 f"Failed to get authorization account name: {err}"
@@ -1186,7 +1189,7 @@ class Challenge:
                     reason = parsed.get("detail") or parsed.get("type") or str(err)
                 else:
                     reason = str(err)
-            except (TypeError, ValueError, json.JSONDecodeError):
+            except TypeError, ValueError, json.JSONDecodeError:
                 reason = str(err)
 
         details = validation_result.details or {}

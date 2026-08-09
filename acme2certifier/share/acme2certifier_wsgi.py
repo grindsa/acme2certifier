@@ -140,9 +140,7 @@ def acct(environ, start_response):
         )
 
         # logging
-        log_response(
-            LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
-        )
+        log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic)
         return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
 
 

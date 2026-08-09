@@ -2124,6 +2124,98 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         }
         self.assertTrue(self.logger_setup(True))
 
+    @patch(
+        "acme2certifier.acme_srv.helpers.logging_utils.logging.handlers.SysLogHandler"
+    )
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_195a_logger_setup_syslog(self, mock_load_cfg, mock_syslog):
+        """logger setup attaches SysLogHandler when Helper.syslog_address is set"""
+        from acme2certifier.acme_srv.helpers.logging_utils import _SYSLOG_FACILITY_MAP
+
+        mock_cfg = configparser.RawConfigParser()
+        mock_cfg["Helper"] = {
+            "syslog_address": "/dev/log",
+            "syslog_facility": "daemon",
+            "log_format": "%(message)s",
+        }
+        mock_load_cfg.return_value = mock_cfg
+        mock_handler = MagicMock()
+        mock_syslog.return_value = mock_handler
+
+        logger = self.logger_setup(False)
+        mock_syslog.assert_called_once()
+        call_kwargs = mock_syslog.call_args.kwargs
+        self.assertEqual(call_kwargs["address"], "/dev/log")
+        self.assertEqual(call_kwargs["facility"], _SYSLOG_FACILITY_MAP["daemon"])
+        self.assertIn(mock_handler, logger.handlers)
+        logger.removeHandler(mock_handler)
+
+    @patch(
+        "acme2certifier.acme_srv.helpers.logging_utils.logging.handlers.SysLogHandler"
+    )
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_195b_logger_setup_syslog_disabled_without_address(
+        self, mock_load_cfg, mock_syslog
+    ):
+        """SysLogHandler is not attached when syslog_address is absent"""
+        mock_cfg = configparser.RawConfigParser()
+        mock_cfg["Helper"] = {"log_format": "%(message)s"}
+        mock_load_cfg.return_value = mock_cfg
+
+        self.logger_setup(False)
+        mock_syslog.assert_not_called()
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.FileHandler")
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_195c_logger_setup_log_file(self, mock_load_cfg, mock_file_handler):
+        """logger setup attaches FileHandler when Helper.log_file is set"""
+        mock_cfg = configparser.RawConfigParser()
+        mock_cfg["Helper"] = {
+            "log_file": "/var/log/acme2certifier/acme2certifier.log",
+            "log_format": "%(message)s",
+        }
+        mock_load_cfg.return_value = mock_cfg
+        mock_handler = MagicMock()
+        mock_file_handler.return_value = mock_handler
+
+        logger = self.logger_setup(False)
+        mock_file_handler.assert_called_once_with(
+            "/var/log/acme2certifier/acme2certifier.log"
+        )
+        self.assertIn(mock_handler, logger.handlers)
+        logger.removeHandler(mock_handler)
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.FileHandler")
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_195d_logger_setup_log_file_disabled_without_path(
+        self, mock_load_cfg, mock_file_handler
+    ):
+        """FileHandler is not attached when log_file is absent"""
+        mock_cfg = configparser.RawConfigParser()
+        mock_cfg["Helper"] = {"log_format": "%(message)s"}
+        mock_load_cfg.return_value = mock_cfg
+
+        self.logger_setup(False)
+        mock_file_handler.assert_not_called()
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.FileHandler")
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_195e_logger_setup_log_file_open_failure(
+        self, mock_load_cfg, mock_file_handler
+    ):
+        """FileHandler open failure is logged and does not raise"""
+        mock_cfg = configparser.RawConfigParser()
+        mock_cfg["Helper"] = {
+            "log_file": "/no/such/dir/acme2certifier.log",
+            "log_format": "%(message)s",
+        }
+        mock_load_cfg.return_value = mock_cfg
+        mock_file_handler.side_effect = OSError("Permission denied")
+
+        logger = self.logger_setup(False)
+        self.assertTrue(logger)
+        mock_file_handler.assert_called_once()
+
     @patch("configparser.RawConfigParser")
     def test_196_load_config(self, mock_parser):
         """load config"""
@@ -2269,8 +2361,57 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             lcm.output,
         )
 
-    def test_205_logger_info(self):
-        """logger info replace remove token"""
+    def test_204a_log_response_redacts_pem_chain(self):
+        """log_response redacts PEM certificate chain string on download"""
+        addr = "addr"
+        url = "/acme/cert/secret"
+        pem_chain = (
+            "-----BEGIN CERTIFICATE-----\nMIIBleaf\n-----END CERTIFICATE-----\n"
+            "-----BEGIN CERTIFICATE-----\nMIIBca\n-----END CERTIFICATE-----"
+        )
+        data_dic = {"code": 200, "data": pem_chain}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.log_response(self.logger, addr, url, data_dic)
+        self.assertIn(
+            "INFO:test_a2c:addr /acme/cert/secret {'code': 200, 'data': ' - certificate - '}",
+            lcm.output,
+        )
+        self.assertTrue(all("BEGIN CERTIFICATE" not in line for line in lcm.output))
+
+    def test_204b_log_response_redacts_pem_on_custom_path(self):
+        """log_response redacts PEM body even when locator is a custom cert path"""
+        addr = "addr"
+        url = "/certificate/abc123"
+        pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----"
+        data_dic = {"code": 200, "data": pem}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.log_response(self.logger, addr, url, data_dic)
+        self.assertIn(
+            "INFO:test_a2c:addr /certificate/abc123 {'code': 200, 'data': ' - certificate - '}",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_204c_log_response_keeps_pem_when_log_cert_content(self, mock_load_config):
+        """log_response keeps PEM body when Helper.log_cert_content is True"""
+        from configparser import ConfigParser
+
+        cfg = ConfigParser()
+        cfg.add_section("Helper")
+        cfg.set("Helper", "log_cert_content", "True")
+        mock_load_config.return_value = cfg
+
+        addr = "addr"
+        url = "/acme/cert/secret"
+        pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----"
+        data_dic = {"code": 200, "data": pem}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.log_response(self.logger, addr, url, data_dic)
+        self.assertIn("BEGIN CERTIFICATE", lcm.output[0])
+        self.assertNotIn(" - certificate - ", lcm.output[0])
+
+    def test_205_log_response(self):
+        """log_response redacts token"""
         addr = "addr"
         url = "url"
         data_dic = {"foo": "bar", "data": {"token": "token"}}
@@ -2767,7 +2908,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler configuration missing in config file", lcm.output
+            "ERROR:test_a2c:Configuration error: CAhandler configuration missing in config file",
+            lcm.output,
         )
 
     @patch("importlib.import_module")
@@ -3917,7 +4059,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         self.assertFalse(mock_eabload.called)
         self.assertIn(
-            "CRITICAL:test_a2c:EABHandler configuration incomplete", lcm.output
+            "CRITICAL:test_a2c:Configuration error: EABHandler incomplete", lcm.output
         )
         self.assertFalse(mock_eabload.called)
 
@@ -4868,7 +5010,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.enrollment_config_log(self.logger, myclass, "failed to parse")
             )
         self.assertIn(
-            "ERROR:test_a2c:Enrollment configuration won't get logged due to a configuration error.",
+            "ERROR:test_a2c:Enrollment configuration won't get logged due to: Configuration error",
             lcm.output,
         )
 
@@ -5360,7 +5502,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.handler_config_check(self.logger, dummy_handler, required_keys),
             )
         self.assertIn(
-            "ERROR:test_a2c:Configuration check ended with error: vault_token parameter is missing in config file",
+            "ERROR:test_a2c:Configuration error: vault_token parameter is missing in config file",
             lcm.output,
         )
 
@@ -7433,7 +7575,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("host:bad", _syslog_address("host:bad"))
         self.assertEqual("udp-host", _syslog_address("udp-host"))
 
-    @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.handlers.SysLogHandler")
+    @patch(
+        "acme2certifier.acme_srv.helpers.logging_utils.logging.handlers.SysLogHandler"
+    )
     @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
     def test_582_logger_setup_syslog_empty_address(self, mock_load_cfg, mock_syslog):
         """empty syslog_address does not attach SysLogHandler"""
@@ -7489,7 +7633,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.FileHandler")
     @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
-    def test_585_logger_setup_log_file_empty_path(self, mock_load_cfg, mock_file_handler):
+    def test_585_logger_setup_log_file_empty_path(
+        self, mock_load_cfg, mock_file_handler
+    ):
         """empty log_file does not attach FileHandler"""
         mock_cfg = configparser.RawConfigParser()
         mock_cfg["Helper"] = {"log_file": "  ", "log_format": "%(message)s"}

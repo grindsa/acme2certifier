@@ -29,6 +29,7 @@ from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.helpers.global_variables import (
     DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
     ENROLLMENT_FAILED_DETAIL,
+    DB_ERROR_MSG,
 )
 from acme2certifier.acme_srv.message import Message
 
@@ -59,7 +60,7 @@ class OrderRepository:
         try:
             return self.dbstore.order_add(data_dic)
         except Exception as err:
-            self.logger.critical("Database error: failed to add order: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err)
             raise OrderDatabaseError(f"Failed to add order: {err}") from err
 
     def add_authorization(self, auth):
@@ -67,7 +68,9 @@ class OrderRepository:
         try:
             return self.dbstore.authorization_add(auth)
         except Exception as err:
-            self.logger.critical("Database error: failed to add authorization: %s", err)
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to add authorization: %s", err
+            )
             raise OrderDatabaseError(f"Failed to add authorization: {err}") from err
 
     def update_authorization(self, auth):
@@ -76,7 +79,7 @@ class OrderRepository:
             return self.dbstore.authorization_update(auth)
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to update authorization: %s", err
+                f"{DB_ERROR_MSG}: failed to update authorization: %s", err
             )
             raise OrderDatabaseError(f"Failed to update authorization: {err}") from err
 
@@ -87,7 +90,7 @@ class OrderRepository:
                 return self.dbstore.order_lookup(key, value, vlist)
             return self.dbstore.order_lookup(key, value)
         except Exception as err:
-            self.logger.critical("Database error: failed to look up order: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to look up order: %s", err)
             raise OrderDatabaseError(f"Failed to look up order: {err}") from err
 
     def order_update(self, data_dic):
@@ -95,7 +98,7 @@ class OrderRepository:
         try:
             return self.dbstore.order_update(data_dic)
         except Exception as err:
-            self.logger.critical("Database error: failed to update order: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to update order: %s", err)
             raise OrderDatabaseError(f"Failed to update order: {err}") from err
 
     def authorization_lookup(self, key, value, fields):
@@ -104,7 +107,7 @@ class OrderRepository:
             return self.dbstore.authorization_lookup(key, value, fields)
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to look up authorization: %s", err
+                f"{DB_ERROR_MSG}: failed to look up authorization: %s", err
             )
             raise OrderDatabaseError(f"Failed to look up authorization: {err}") from err
 
@@ -113,7 +116,7 @@ class OrderRepository:
         try:
             return self.dbstore.account_lookup(key, value)
         except Exception as err:
-            self.logger.critical("Database error: failed to look up account: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to look up account: %s", err)
             raise OrderDatabaseError(f"Failed to look up account: {err}") from err
 
     def certificate_lookup(self, key, value):
@@ -122,7 +125,7 @@ class OrderRepository:
             return self.dbstore.certificate_lookup(key, value)
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to look up certificate: %s", err
+                f"{DB_ERROR_MSG}: failed to look up certificate: %s", err
             )
             raise OrderDatabaseError(f"Failed to look up certificate: {err}") from err
 
@@ -131,7 +134,7 @@ class OrderRepository:
         try:
             return self.dbstore.hkparameter_get(param)
         except Exception as err:
-            self.logger.critical("Database error: failed to get hkparameter: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to get hkparameter: %s", err)
             raise OrderDatabaseError(f"Failed to get hkparameter: {err}") from err
 
     def orders_invalid_search(self, order_field, timestamp, vlist, operant):
@@ -142,7 +145,7 @@ class OrderRepository:
             )
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to search for invalid orders: %s", err
+                f"{DB_ERROR_MSG}: failed to search for invalid orders: %s", err
             )
             raise OrderDatabaseError(
                 f"Failed to search for invalid orders: {err}"
@@ -230,7 +233,7 @@ class Order(object):
                         self.repository.update_authorization(auth)
                 except Exception as err_:
                     self.logger.critical(
-                        "Database error: failed to add authorization: %s", err_
+                        f"{DB_ERROR_MSG}: failed to add authorization: %s", err_
                     )
                     error = self.error_msg_dic["serverinternal"]
                     break
@@ -288,7 +291,7 @@ class Order(object):
         try:
             oid = self.repository.add_order(data_dic)
         except Exception as err_:
-            self.logger.critical("Database error: failed to add order: %s", err_)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err_)
             oid = None
 
         if not error:
@@ -353,7 +356,7 @@ class Order(object):
             account_dic = self.repository.account_lookup("name", account_name)
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to look up account list: %s", err_
+                f"{DB_ERROR_MSG}: failed to look up account list: %s", err_
             )
             account_dic = {}
 
@@ -656,7 +659,7 @@ class Order(object):
                     profiles = self.repository.hkparameter_get("profiles")
                 except Exception as err:
                     self.logger.critical(
-                        "Database error: failed to get profile list: %s", err
+                        f"{DB_ERROR_MSG}: failed to get profile list: %s", err
                     )
                     profiles = None
                 if profiles:
@@ -1165,7 +1168,7 @@ class Order(object):
         try:
             result = self.repository.order_lookup("name", order_name)
         except Exception as err_:
-            self.logger.critical("Database error: failed to look up order: %s", err_)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to look up order: %s", err_)
             result = None
         return result
 
@@ -1178,7 +1181,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to look up order account: %s", err_
+                f"{DB_ERROR_MSG}: failed to look up order account: %s", err_
             )
             return None
         if not order_dic:
@@ -1280,7 +1283,7 @@ class Order(object):
                 cert_dic = self.repository.certificate_lookup("order__name", order_name)
             except Exception as err_:
                 self.logger.critical(
-                    "Database error: Certificate lookup failed: %s", err_
+                    f"{DB_ERROR_MSG}: Certificate lookup failed: %s", err_
                 )
                 cert_dic = {}
             if cert_dic and "name" in cert_dic:
@@ -1327,7 +1330,7 @@ class Order(object):
                     )
                 except Exception as err_:
                     self.logger.critical(
-                        "Database error: Certificate lookup failed: %s", err_
+                        f"{DB_ERROR_MSG}: Certificate lookup failed: %s", err_
                     )
                     cert_dic = {}
                 if cert_dic and "name" in cert_dic:
@@ -1455,7 +1458,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to look up authorization list: %s", err_
+                f"{DB_ERROR_MSG}: failed to look up authorization list: %s", err_
             )
             authz_list = []
         self.logger.debug("Order._get_authorization_list() ended")
@@ -1532,7 +1535,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to search for expired orders: %s", err_
+                f"{DB_ERROR_MSG}: failed to search for expired orders: %s", err_
             )
             order_list = []
         output_list = []
@@ -1550,7 +1553,7 @@ class Order(object):
                     self.repository.order_update(data_dic)
                 except Exception as err_:
                     self.logger.critical(
-                        "Database error: failed to update order status to invalid: %s",
+                        f"{DB_ERROR_MSG}: failed to update order status to invalid: %s",
                         err_,
                     )
 

@@ -131,9 +131,7 @@ class TestNonce(unittest.TestCase):
 
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             result = nonce._validate_and_consume_nonce("nonce")
-        self.assertEqual(
-            (400, "urn:ietf:params:acme:error:badNonce", "nonce"), result
-        )
+        self.assertEqual((400, "urn:ietf:params:acme:error:badNonce", "nonce"), result)
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to check nonce: exc_nonce_check",
             lcm.output,

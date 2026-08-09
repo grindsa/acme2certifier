@@ -20,7 +20,10 @@ from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
 
 from acme2certifier.acme_srv.signature import Signature
-from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+from acme2certifier.acme_srv.helpers.global_variables import (
+    DB_ERROR_MSG,
+    CONFIGURATION_ERROR_DETAIL,
+)
 
 
 class ExternalAccountBinding:
@@ -155,9 +158,7 @@ class ExternalAccountBinding:
             code = 403
             message = err_msg_dic["externalaccountrequired"]
             detail = "External account binding required"
-            self.logger.warning(
-                "EAB required: externalAccountBinding missing or empty"
-            )
+            self.logger.warning("EAB required: externalAccountBinding missing or empty")
         self.logger.debug("ExternalAccountBinding.check() ended with: %s", code)
         return (code, message, detail)
 
@@ -180,7 +181,7 @@ class AccountRepository:
         try:
             return self.dbstore.account_lookup(field, value)
         except Exception as err:
-            self.logger.critical("Database error during account lookup: %s", err)
+            self.logger.critical("%s during account lookup: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to look up account: {err}") from err
 
     def add_account(self, data_dic: Dict[str, str]) -> Tuple[Optional[str], bool]:
@@ -188,7 +189,7 @@ class AccountRepository:
         try:
             return self.dbstore.account_add(data_dic)
         except Exception as err:
-            self.logger.critical("Database error while adding account: %s", err)
+            self.logger.critical("%s while adding account: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to add account: {err}") from err
 
     def update_account(self, data_dic: Dict[str, str], active: bool = True) -> bool:
@@ -196,7 +197,7 @@ class AccountRepository:
         try:
             return self.dbstore.account_update(data_dic, active)
         except Exception as err:
-            self.logger.critical("Database error while updating account: %s", err)
+            self.logger.critical("%s while updating account: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to update account: {err}") from err
 
     def delete_account(self, account_name: str) -> bool:
@@ -204,7 +205,7 @@ class AccountRepository:
         try:
             return self.dbstore.account_delete(account_name)
         except Exception as err:
-            self.logger.critical("Database error while deleting account: %s", err)
+            self.logger.critical("%s while deleting account: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to delete account: {err}") from err
 
     def load_jwk(self, account_name: str) -> Optional[Dict[str, str]]:
@@ -212,7 +213,7 @@ class AccountRepository:
         try:
             return self.dbstore.jwk_load(account_name)
         except Exception as err:
-            self.logger.critical("Database error while loading JWK: %s", err)
+            self.logger.critical("%s while loading JWK: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to load JWK: {err}") from err
 
 
@@ -303,7 +304,9 @@ class Account:
                 else:
                     self.logger.critical("EABHandler could not get loaded")
             else:
-                self.logger.critical("EABHandler configuration incomplete")
+                self.logger.critical(
+                    "%s: EABHandler incomplete", CONFIGURATION_ERROR_DETAIL
+                )
 
         self.config.tos_url = config_dic.get("Directory", "tos_url", fallback=None)
         if config_dic.get("Directory", "url_prefix", fallback=None):
@@ -334,7 +337,7 @@ class Account:
             return 200, db_name, None
 
         except Exception as err:
-            self.logger.critical("Database error while adding account: %s", err)
+            self.logger.critical("%s while adding account: %s", DB_ERROR_MSG, err)
             return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
 
     def _validate_contact(self, contact: List[str]) -> Tuple[int, str, str]:
@@ -572,7 +575,7 @@ class Account:
                     "Deactivation failed",
                 )
         except Exception as err:
-            self.logger.critical("Database error while deactivating account: %s", err)
+            self.logger.critical("%s while deactivating account: %s", DB_ERROR_MSG, err)
             return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
 
     def _handle_contact_update(
@@ -610,7 +613,7 @@ class Account:
                 return 400, self.err_msg_dic["accountdoesnotexist"], "Update failed"
         except Exception as err:
             self.logger.critical(
-                "Database error while updating account contacts: %s", err
+                "%s while updating account contacts: %s", DB_ERROR_MSG, err
             )
             return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
 
@@ -653,9 +656,7 @@ class Account:
                 code, message, detail, account_name=account_name
             )
 
-        self.logger.warning(
-            "Malformed key-change request account=%s", account_name
-        )
+        self.logger.warning("Malformed key-change request account=%s", account_name)
         return self._build_response(
             400, self.err_msg_dic["malformed"], "Malformed key-change request"
         )
@@ -692,7 +693,7 @@ class Account:
                     )
             except Exception as err:
                 self.logger.critical(
-                    "Database error while updating account key: %s", err
+                    "%s while updating account key: %s", DB_ERROR_MSG, err
                 )
                 return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
         return code, message, detail
@@ -776,7 +777,7 @@ class Account:
             return self.repository.lookup_account("name", value)
         except Exception as err:
             self.logger.critical(
-                "Database error during account lookup by name: %s", err
+                "%s during account lookup by name: %s", DB_ERROR_MSG, err
             )
             return None
 
@@ -789,7 +790,7 @@ class Account:
             return self.repository.lookup_account(field, value)
         except Exception as err:
             self.logger.critical(
-                "Database error during account lookup by %s: %s", field, err
+                "%s during account lookup by %s: %s", DB_ERROR_MSG, field, err
             )
             return None
 
@@ -891,9 +892,7 @@ class Account:
         elif not payload:
             return self._handle_account_query(account_name)
         else:
-            self.logger.warning(
-                "Unknown request account=%s", account_name
-            )
+            self.logger.warning("Unknown request account=%s", account_name)
             return self._build_response(
                 400, self.err_msg_dic["malformed"], "Unknown request"
             )
