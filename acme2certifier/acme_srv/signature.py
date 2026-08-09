@@ -42,11 +42,20 @@ class Signature:
         """Check signature against CLI key for account."""
         self.logger.debug(f"Signature.cli_check({aname})")
         if not content:
+            self.logger.warning(
+                "Signature check failed: empty content account=%s", aname
+            )
             return (False, self.err_msg_dic["malformed"], None)
         if not aname:
+            self.logger.warning(
+                "Signature check failed: account does not exist account=%s", aname
+            )
             return (False, self.err_msg_dic["accountdoesnotexist"], None)
         pub_key = self._jwk_loader(aname, cli=True)
         if not pub_key:
+            self.logger.warning(
+                "Signature check failed: account does not exist account=%s", aname
+            )
             return (False, self.err_msg_dic["accountdoesnotexist"], None)
         result, error = signature_check(self.logger, content, pub_key)
         self.logger.debug(f"Signature.cli_check() ended with: {result}:{error}")
@@ -62,11 +71,17 @@ class Signature:
         """Check signature against account key or embedded JWK."""
         self.logger.debug(f"Signature.check({aname})")
         if not content:
+            self.logger.warning(
+                "Signature check failed: empty content account=%s", aname
+            )
             return (False, self.err_msg_dic["malformed"], None)
         error = None
         if aname:
             pub_key = self._jwk_loader(aname)
             if not pub_key:
+                self.logger.warning(
+                    "Signature check failed: account does not exist account=%s", aname
+                )
                 error = self.err_msg_dic["accountdoesnotexist"]
                 return (False, error, None)
             result, error = signature_check(self.logger, content, pub_key)
@@ -82,9 +97,15 @@ class Signature:
                 self.logger.debug(f"Signature.check() ended with: {result}:{error}")
                 return (result, error, None)
             else:
+                self.logger.warning(
+                    "Signature check failed: embedded JWK missing"
+                )
                 error = self.err_msg_dic["accountdoesnotexist"]
                 return (False, error, None)
         else:
+            self.logger.warning(
+                "Signature check failed: missing kid and no embedded JWK"
+            )
             error = self.err_msg_dic["accountdoesnotexist"]
             return (False, error, None)
 

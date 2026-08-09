@@ -46,18 +46,28 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_002_signature_check(self):
         """test Signature.check() without having content"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:malformed", None),
-            self.signature.check("foo", None),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:malformed", None),
+                self.signature.check("foo", None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: empty content account=foo",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_003_signature_check(self, mock_jwk):
         """test Signature.check() while pubkey lookup failed"""
         mock_jwk.return_value = {}
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check("foo", 1),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check("foo", 1),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=foo",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.signature_check")
@@ -70,17 +80,27 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_005_signature_check(self):
         """test successful Signature.check() without account_name and use_emb_key False"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, 1, False),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, 1, False),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: missing kid and no embedded JWK",
+            lcm.output,
         )
 
     def test_006_signature_check(self):
         """test successful Signature.check() without account_name and use_emb_key True but having a corrupted protected header"""
         protected = {"foo": "foo"}
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, 1, True, protected),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, 1, True, protected),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: embedded JWK missing",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.DBstore")
@@ -219,25 +239,40 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_018_signature_check(self):
         """test Signature.cli_check() without having aname"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.cli_check(None, "content"),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.cli_check(None, "content"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=None",
+            lcm.output,
         )
 
     def test_019_signature_check(self):
         """test Signature.check() without having content"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:malformed", None),
-            self.signature.cli_check("foo", None),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:malformed", None),
+                self.signature.cli_check("foo", None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: empty content account=foo",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_020_signature_check(self, mock_jwk):
         """test Signature.check() while pubkey lookup failed"""
         mock_jwk.return_value = {}
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.cli_check("foo", 1),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.cli_check("foo", 1),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=foo",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.signature_check")
@@ -258,25 +293,40 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_023_cli_check_no_content(self):
         """Signature.cli_check() returns malformed error if content is None"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:malformed", None),
-            self.signature.cli_check("foo", None),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:malformed", None),
+                self.signature.cli_check("foo", None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: empty content account=foo",
+            lcm.output,
         )
 
     def test_024_cli_check_no_aname(self):
         """Signature.cli_check() returns accountDoesNotExist error if aname is None"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.cli_check(None, "content"),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.cli_check(None, "content"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=None",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_025_cli_check_pubkey_none(self, mock_jwk):
         """Signature.cli_check() returns accountDoesNotExist error if pubkey is None"""
         mock_jwk.return_value = None
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.cli_check("foo", "content"),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.cli_check("foo", "content"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=foo",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.signature_check")
@@ -289,18 +339,28 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_027_check_no_content(self):
         """Signature.check() returns malformed error if content is None"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:malformed", None),
-            self.signature.check("foo", None),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:malformed", None),
+                self.signature.check("foo", None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: empty content account=foo",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_028_check_pubkey_none(self, mock_jwk):
         """Signature.check() returns accountDoesNotExist error if pubkey is None"""
         mock_jwk.return_value = None
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check("foo", "content"),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check("foo", "content"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=foo",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.signature_check")
@@ -313,17 +373,27 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_030_check_emb_key_no_protected(self):
         """Signature.check() returns accountDoesNotExist error if use_emb_key True but protected is None"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, "content", True, None),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, "content", True, None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: embedded JWK missing",
+            lcm.output,
         )
 
     def test_031_check_emb_key_no_jwk(self):
         """Signature.check() returns accountDoesNotExist error if use_emb_key True but protected lacks jwk"""
         protected = {"foo": "bar"}
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, "content", True, protected),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, "content", True, protected),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: embedded JWK missing",
+            lcm.output,
         )
 
     @patch("acme2certifier.acme_srv.signature.signature_check")
@@ -337,9 +407,14 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_033_check_no_aname_no_emb_key(self):
         """Signature.check() returns accountDoesNotExist error if no aname and use_emb_key False"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, "content", False),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, "content", False),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: missing kid and no embedded JWK",
+            lcm.output,
         )
 
     def test_034_eab_check_no_content(self):

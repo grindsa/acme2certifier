@@ -104,6 +104,7 @@ class Nonce(object):
             message = None
             detail = None
         else:
+            self.logger.warning("badNonce: unknown or already consumed")
             code = 400
             message = "urn:ietf:params:acme:error:badNonce"
             detail = nonce
@@ -123,6 +124,7 @@ class Nonce(object):
                 protected_decoded["nonce"]
             )
         else:
+            self.logger.warning("badNonce: missing")
             code = 400
             message = "urn:ietf:params:acme:error:badNonce"
             detail = "NONE"
