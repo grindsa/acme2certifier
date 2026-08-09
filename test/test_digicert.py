@@ -1046,7 +1046,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_serial.return_value = None
         mock_put.return_value = ("code", "content")
         self.assertEqual(
-            (500, None, "Failed to parse certificate serial"),
+            (400, None, "Failed to parse certificate serial"),
             self.cahandler.revoke("cert"),
         )
 

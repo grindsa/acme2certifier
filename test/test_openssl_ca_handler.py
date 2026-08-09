@@ -351,7 +351,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_ca_load.return_value = (None, "ca_cert")
         mock_serial.return_value = "serial"
         self.assertEqual(
-            (400, "urn:ietf:params:acme:error:serverInternal", "configuration error"),
+            (400, "urn:ietf:params:acme:error:serverInternal", "Configuration error"),
             self.cahandler.revoke(cert),
         )
 
@@ -370,7 +370,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_ca_load.return_value = ("ca_key", None)
         mock_serial.return_value = "serial"
         self.assertEqual(
-            (400, "urn:ietf:params:acme:error:serverInternal", "configuration error"),
+            (400, "urn:ietf:params:acme:error:serverInternal", "Configuration error"),
             self.cahandler.revoke(cert),
         )
 
@@ -389,7 +389,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_ca_load.return_value = ("ca_key", "ca_cert")
         mock_serial.return_value = None
         self.assertEqual(
-            (400, "urn:ietf:params:acme:error:serverInternal", "configuration error"),
+            (
+                400,
+                "urn:ietf:params:acme:error:serverInternal",
+                "Failed to parse certificate serial",
+            ),
             self.cahandler.revoke(cert),
         )
 

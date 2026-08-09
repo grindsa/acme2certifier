@@ -26,6 +26,7 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     request_operation,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 from acme2certifier.acme_srv.db_handler import DBstore
 
 
@@ -252,7 +253,8 @@ class CAhandler(object):
                     )
                 else:
                     self.logger.error(
-                        'Configuration incomplete: missing "client_cert", "client_key", or "client_passphrase variable" in config file.'
+                        '%s: missing "client_cert", "client_key", or "client_passphrase variable" in config file.',
+                        CONFIGURATION_ERROR_DETAIL,
                     )
         self.logger.debug("CAhandler._config_session_load() ended")
 
@@ -299,7 +301,8 @@ class CAhandler(object):
         for ele in ["host", self.profile_mapping_field, "endpoint_name"]:
             if not variable_dic[ele]:
                 self.logger.error(
-                    'Configuration incomplete: parameter "%s" is missing in configuration file.',
+                    '%s: parameter "%s" is missing in configuration file.',
+                    CONFIGURATION_ERROR_DETAIL,
                     ele,
                 )
         self.logger.debug("CAhandler._config_load() ended")
@@ -423,9 +426,13 @@ class CAhandler(object):
                     "Certificate revocation failed: %s", revocation_response
                 )
         else:
+            self.logger.warning(
+                "Certificate revoke failed: %s host not configured",
+                CONFIGURATION_ERROR_DETAIL,
+            )
             code = 400
             message = self.err_msg_dic["serverinternal"]
-            detail = "Incomplete configuration"
+            detail = CONFIGURATION_ERROR_DETAIL
 
         self.logger.debug("CAhandler._revoke() ended with: %s %s", code, detail)
         return (code, message, detail)
@@ -465,12 +472,18 @@ class CAhandler(object):
                     )
                 else:
                     self.logger.error(
-                        "Configuration incomplete: client authentication is missing."
+                        "%s: client authentication is missing",
+                        CONFIGURATION_ERROR_DETAIL,
                     )
-                    error = "Configuration incomplete"
+                    error = CONFIGURATION_ERROR_DETAIL
+            else:
+                self.logger.warning("CSR check failed: %s", error)
         else:
-            self.logger.error("Configuration incomplete: host variable is missing.")
-            error = "Configuration incomplete"
+            self.logger.error(
+                "%s: host variable is missing",
+                CONFIGURATION_ERROR_DETAIL,
+            )
+            error = CONFIGURATION_ERROR_DETAIL
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, poll_indentifier)
@@ -517,6 +530,9 @@ class CAhandler(object):
         if cert_identifier:
             code, message, detail = self._revoke(cert_identifier, rev_reason)
         else:
+            self.logger.warning(
+                "Certificate revoke failed: certificate identifier not found"
+            )
             code = 400
             message = self.err_msg_dic["serverinternal"]
             detail = "Unknown status"

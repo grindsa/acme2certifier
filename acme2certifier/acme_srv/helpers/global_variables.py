@@ -14,3 +14,6 @@ ENROLLMENT_FAILED_DETAIL = "enrollment failed"
 
 # Generic client-visible detail for database failures (ACME problem / API error payloads).
 DB_ERROR_MSG = "Database error"
+
+# Generic client-visible detail for configuration failures (ACME problem / API error payloads).
+CONFIGURATION_ERROR_DETAIL = "Configuration error"

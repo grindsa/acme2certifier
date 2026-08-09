@@ -290,7 +290,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_session_load(parser)
         self.assertFalse(self.cahandler.client_cert)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: missing "client_cert", "client_key", or "client_passphrase variable" in config file.',
+            'ERROR:test_a2c:Configuration error: missing "client_cert", "client_key", or "client_passphrase variable" in config file.',
             lcm.output,
         )
 
@@ -318,7 +318,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_session_load(parser)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: missing "client_cert", "client_key", or "client_passphrase variable" in config file.',
+            'ERROR:test_a2c:Configuration error: missing "client_cert", "client_key", or "client_passphrase variable" in config file.',
             lcm.output,
         )
         self.assertTrue(mock_pass.called)
@@ -409,15 +409,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "host" is missing in configuration file.',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file.',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "endpoint_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "endpoint_name" is missing in configuration file.',
             lcm.output,
         )
 
@@ -452,12 +452,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file.',
             lcm.output,
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "endpoint_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "endpoint_name" is missing in configuration file.',
             lcm.output,
         )
 
@@ -479,12 +479,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "host" is missing in configuration file.',
             lcm.output,
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "endpoint_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "endpoint_name" is missing in configuration file.',
             lcm.output,
         )
 
@@ -506,11 +506,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "host" is missing in configuration file.',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file.',
             lcm.output,
         )
 
@@ -561,11 +561,11 @@ class TestACMEHandler(unittest.TestCase):
         csr = "csr"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                ("Configuration incomplete", None, None, None),
+                ("Configuration error", None, None, None),
                 self.cahandler.enroll(csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete: host variable is missing.",
+            "ERROR:test_a2c:Configuration error: host variable is missing",
             lcm.output,
         )
         self.assertFalse(mock_recode.called)
@@ -583,11 +583,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_pem.return_value = "mock_pem"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                ("Configuration incomplete", None, None, None),
+                ("Configuration error", None, None, None),
                 self.cahandler.enroll(csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete: client authentication is missing.",
+            "ERROR:test_a2c:Configuration error: client authentication is missing",
             lcm.output,
         )
         self.assertTrue(mock_recode.called)
@@ -819,14 +819,20 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_055__revoke(self, mock_post):
         """test _revoke()"""
-        self.assertEqual(
-            (
-                400,
-                "urn:ietf:params:acme:error:serverInternal",
-                "Incomplete configuration",
-            ),
-            self.cahandler._revoke("cert_identifier", "rev_reason"),
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                (
+                    400,
+                    "urn:ietf:params:acme:error:serverInternal",
+                    "Configuration error",
+                ),
+                self.cahandler._revoke("cert_identifier", "rev_reason"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Certificate revoke failed: Configuration error host not configured",
+            lcm.output,
         )
+        self.assertFalse(mock_post.called)
 
     @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_056__revoke(self, mock_post):
@@ -856,9 +862,14 @@ class TestACMEHandler(unittest.TestCase):
     def test_058_revoke(self, mock_certid, mock_revoke):
         """test revoke"""
         mock_certid.return_value = None
-        self.assertEqual(
-            (400, "urn:ietf:params:acme:error:serverInternal", "Unknown status"),
-            self.cahandler.revoke("cert", "reason", "date"),
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                (400, "urn:ietf:params:acme:error:serverInternal", "Unknown status"),
+                self.cahandler.revoke("cert", "reason", "date"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Certificate revoke failed: certificate identifier not found",
+            lcm.output,
         )
         self.assertTrue(mock_certid.called)
         self.assertFalse(mock_revoke.called)
@@ -923,6 +934,30 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Could not load request_retry_backoff from config: could not convert string to float: 'invalid'",
             lcm.output,
         )
+
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.eab_profile_header_info_check")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._enroll")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.build_pem_file")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_url_recode")
+    def test_064_enroll_csr_check_failed(
+        self, mock_recode, mock_pem, mock_enroll, mock_eab
+    ):
+        """enroll logs WARNING when CSR/eab profile check fails"""
+        self.cahandler.host = "host"
+        self.cahandler.session = "session"
+        mock_eab.return_value = "eab profile mismatch"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                ("eab profile mismatch", None, None, None),
+                self.cahandler.enroll("csr"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:CSR check failed: eab profile mismatch",
+            lcm.output,
+        )
+        self.assertFalse(mock_recode.called)
+        self.assertFalse(mock_pem.called)
+        self.assertFalse(mock_enroll.called)
 
 
 if __name__ == "__main__":

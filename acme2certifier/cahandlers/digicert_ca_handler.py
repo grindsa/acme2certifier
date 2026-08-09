@@ -23,6 +23,7 @@ from acme2certifier.acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 CONTENT_TYPE = "application/json"
 
@@ -238,7 +239,9 @@ class CAhandler(object):
             # enroll certificate
             code, content = self._api_post(order_url, data_dic)
         else:
-            self.logger.error("Configuration incomplete: organisation_id is missing")
+            self.logger.error(
+                "%s: organisation_id is missing", CONFIGURATION_ERROR_DETAIL
+            )
             code = 500
             content = "organisation_id is missing"
 
@@ -352,6 +355,10 @@ class CAhandler(object):
                     else:
                         error = f"Error during order creation: {code} - {content}"
 
+                    self.logger.error("Certificate enrollment failed: %s", error)
+            else:
+                self.logger.warning("CSR check failed: %s", error)
+
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
@@ -403,7 +410,10 @@ class CAhandler(object):
                 # rewrite reponse code to not confuse with success
                 code = 200
         else:
-            code = 500
+            self.logger.warning(
+                "Certificate revoke failed: failed to parse certificate serial"
+            )
+            code = 400
             detail = "Failed to parse certificate serial"
 
         self.logger.debug("Certificate.revoke() ended")

@@ -35,6 +35,7 @@ from acme2certifier.acme_srv.helper import (
     csr_cn_get,
     csr_san_get,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 BLOCK_ALL_DOMAIN = "block.all"
 
@@ -369,7 +370,7 @@ class CAhandler(object):
         error = self._config_parameters_check(error)
 
         if error:
-            self.logger.error("Configuration error: %s", error)
+            self.logger.error("%s: %s", CONFIGURATION_ERROR_DETAIL, error)
 
         self.logger.debug("CAhandler._config_check() ended")
         return error
@@ -606,8 +607,14 @@ class CAhandler(object):
             if check_list:
                 # cover a cornercase with empty checklist (no san, no cn)
                 if False in check_list:
+                    self.logger.warning(
+                        "CSR check failed: domain not allowed by allowed_domainlist/blocked_domainlist"
+                    )
                     result = False
                 else:
+                    self.logger.debug(
+                        "CSR check passed: allowed_domainlist/blocked_domainlist"
+                    )
                     result = True
         else:
             result = True
@@ -1062,14 +1069,35 @@ class CAhandler(object):
                         fso.write(crl.public_bytes(serialization.Encoding.PEM))
                     code = 200
                 else:
+                    self.logger.warning("Certificate revoke failed: already revoked")
                     code = 400
                     message = "urn:ietf:params:acme:error:alreadyRevoked"
                     detail = "Certificate has already been revoked"
-            else:
+            elif not serial:
+                self.logger.warning(
+                    "Certificate revoke failed: failed to parse certificate serial"
+                )
                 code = 400
                 message = "urn:ietf:params:acme:error:serverInternal"
-                detail = "configuration error"
+                detail = "Failed to parse certificate serial"
+            else:
+                missing = []
+                if not ca_key:
+                    missing.append("ca_key")
+                if not ca_cert:
+                    missing.append("ca_cert")
+                self.logger.warning(
+                    "Certificate revoke failed: %s missing=%s",
+                    CONFIGURATION_ERROR_DETAIL,
+                    ",".join(missing),
+                )
+                code = 400
+                message = "urn:ietf:params:acme:error:serverInternal"
+                detail = CONFIGURATION_ERROR_DETAIL
         else:
+            self.logger.warning(
+                "Certificate revoke failed: Unsupported operation (issuing_ca_crl not configured)"
+            )
             code = 400
             message = "urn:ietf:params:acme:error:serverInternal"
             detail = "Unsupported operation"
