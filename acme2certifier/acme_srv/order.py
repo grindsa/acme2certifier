@@ -455,6 +455,19 @@ class Order(object):
         )
         return {}
 
+    def _corr_suffix(
+        self,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
+    ) -> str:
+        """Build optional account/order correlation suffix for ops log lines."""
+        parts: List[str] = []
+        if account_name:
+            parts.append(f"account={account_name}")
+        if order_name:
+            parts.append(f"order={order_name}")
+        return f" {' '.join(parts)}" if parts else ""
+
     def create_order(
         self, payload: Dict[str, str], account_name: str
     ) -> Tuple[str, str, str, Dict[str, str], str]:
@@ -475,7 +488,11 @@ class Order(object):
             data_dic = {"status": 2, "expires": expires, "account": account_name}
             data_dic["name"] = order_name
             data_dic["identifiers"] = json.dumps(payload["identifiers"])
-            error, detail = self._check_identifiers_validity(payload["identifiers"])
+            error, detail = self._check_identifiers_validity(
+                payload["identifiers"],
+                account_name=account_name,
+                order_name=order_name,
+            )
             if error:
                 data_dic["status"] = 1
             else:
@@ -487,6 +504,10 @@ class Order(object):
                 data_dic, auth_dic, payload, error
             )
         else:
+            self.logger.warning(
+                "Order create failed: missing identifiers account=%s",
+                account_name,
+            )
             error = self.error_msg_dic["unsupportedidentifier"]
 
         self.logger.debug("Order.create_order() ended")
@@ -770,7 +791,12 @@ class Order(object):
         self.logger.debug("Order._name_get() ended")
         return order_name
 
-    def are_identifiers_allowed(self, identifiers_list: List[str]) -> Tuple[str, str]:
+    def are_identifiers_allowed(
+        self,
+        identifiers_list: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
+    ) -> Tuple[str, str]:
         """Check if the provided identifiers are allowed."""
         self.logger.debug("Order.are_identifiers_allowed()")
         error = None
@@ -778,7 +804,10 @@ class Order(object):
         allowed_identifiers = self._get_allowed_identifier_types()
         for identifier in identifiers_list:
             error, detail = self._check_single_identifier(
-                identifier, allowed_identifiers
+                identifier,
+                allowed_identifiers,
+                account_name=account_name,
+                order_name=order_name,
             )
             if error:
                 break
@@ -794,64 +823,100 @@ class Order(object):
         return allowed
 
     def _check_single_identifier(
-        self, identifier: dict, allowed_identifiers: List[str]
+        self,
+        identifier: dict,
+        allowed_identifiers: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Tuple[str, str]:
         """Check if a single identifier is allowed."""
         self.logger.debug("Order._check_single_identifier(%s)", identifier)
 
-        error = self._validate_identifier_structure(identifier)
+        error = self._validate_identifier_structure(
+            identifier, account_name=account_name, order_name=order_name
+        )
         if error:
             return error
 
         id_type = identifier["type"].lower()
 
         error = self._validate_identifier_type_supported(
-            identifier["type"], id_type, allowed_identifiers
+            identifier["type"],
+            id_type,
+            allowed_identifiers,
+            account_name=account_name,
+            order_name=order_name,
         )
         if error:
             return error
 
-        error = self._validate_identifier_value(identifier, id_type)
+        error = self._validate_identifier_value(
+            identifier,
+            id_type,
+            account_name=account_name,
+            order_name=order_name,
+        )
         if error:
             return error
 
         if id_type == "dns":
-            return self._validate_dns_identifier_policy(identifier)
+            return self._validate_dns_identifier_policy(
+                identifier, account_name=account_name, order_name=order_name
+            )
 
         if id_type == "ip":
-            return self._validate_ip_identifier_policy(identifier)
+            return self._validate_ip_identifier_policy(
+                identifier, account_name=account_name, order_name=order_name
+            )
 
         return None, None
 
     def _validate_identifier_structure(
-        self, identifier: dict
+        self,
+        identifier: dict,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Optional[Tuple[str, str]]:
         """Validate mandatory identifier fields are present."""
+        corr = self._corr_suffix(account_name, order_name)
         if "type" not in identifier:
-            self.logger.error("Identifier type is missing")
+            self.logger.error("Identifier type is missing%s", corr)
             return self.error_msg_dic["malformed"], "Identifier type is missing"
 
         if "value" not in identifier:
-            self.logger.error("Identifier value is missing")
+            self.logger.error("Identifier value is missing%s", corr)
             return self.error_msg_dic["malformed"], "Identifier value is missing"
 
         return None
 
     def _validate_identifier_type_supported(
-        self, identifier_type: str, id_type: str, allowed_identifiers: List[str]
+        self,
+        identifier_type: str,
+        id_type: str,
+        allowed_identifiers: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Optional[Tuple[str, str]]:
         """Validate identifier type is supported."""
         if id_type in allowed_identifiers:
             return None
 
-        self.logger.error("Identifier type %s not supported", identifier_type)
+        self.logger.error(
+            "Identifier type %s not supported%s",
+            identifier_type,
+            self._corr_suffix(account_name, order_name),
+        )
         return (
             self.error_msg_dic["unsupportedidentifier"],
             f"Identifier type {identifier_type} not supported",
         )
 
     def _validate_identifier_value(
-        self, identifier: dict, id_type: str
+        self,
+        identifier: dict,
+        id_type: str,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Optional[Tuple[str, str]]:
         """Validate identifier value format."""
         if validate_identifier(
@@ -863,9 +928,10 @@ class Order(object):
             return None
 
         self.logger.error(
-            "Identifier value %s not allowed for type %s",
+            "Identifier value %s not allowed for type %s%s",
             identifier["value"],
             identifier["type"],
+            self._corr_suffix(account_name, order_name),
         )
         return (
             self.error_msg_dic["rejectedidentifier"],
@@ -873,15 +939,20 @@ class Order(object):
         )
 
     def _validate_dns_identifier_policy(
-        self, identifier: dict
+        self,
+        identifier: dict,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Tuple[Optional[str], Optional[str]]:
         """Validate DNS-specific policy constraints."""
+        corr = self._corr_suffix(account_name, order_name)
         if self.config.wildcard_certificate_disable and identifier["value"].startswith(
             "*."
         ):
             self.logger.error(
-                "Wildcard identifier %s not allowed by configuration",
+                "Wildcard identifier %s not allowed by configuration%s",
                 identifier["value"],
+                corr,
             )
             return (
                 self.error_msg_dic["rejectedidentifier"],
@@ -896,8 +967,9 @@ class Order(object):
             return None, None
 
         self.logger.error(
-            "FQDN/SAN %s not allowed by configuration",
+            "FQDN/SAN %s not allowed by configuration%s",
             identifier["value"],
+            corr,
         )
         return (
             self.error_msg_dic["rejectedidentifier"],
@@ -961,7 +1033,10 @@ class Order(object):
         return domain_allowed
 
     def _validate_ip_identifier_policy(
-        self, identifier: dict
+        self,
+        identifier: dict,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Tuple[Optional[str], Optional[str]]:
         """Validate IP-specific policy constraints."""
         if not self.config.allowed_iplist:
@@ -975,8 +1050,9 @@ class Order(object):
             return None, None
 
         self.logger.error(
-            "IP address %s not allowed by configuration",
+            "IP address %s not allowed by configuration%s",
             identifier["value"],
+            self._corr_suffix(account_name, order_name),
         )
         return (
             self.error_msg_dic["rejectedidentifier"],
@@ -1013,21 +1089,30 @@ class Order(object):
         self.logger.debug("Order._rewrite_email_identifiers() ended")
         return identifiers_modified
 
-    def _check_identifier_limit(self, identifiers_list: List[str]) -> bool:
+    def _check_identifier_limit(
+        self,
+        identifiers_list: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
+    ) -> bool:
         """Check and log if identifier limit is exceeded."""
         self.logger.debug("Order._check_identifier_limit()")
         error = False
         if len(identifiers_list) > self.config.identifier_limit:
             self.logger.warning(
-                "Number of identifiers %d exceeds limit %d",
+                "Number of identifiers %d exceeds limit %d%s",
                 len(identifiers_list),
                 self.config.identifier_limit,
+                self._corr_suffix(account_name, order_name),
             )
             error = True
         return error
 
     def _check_identifiers_validity(
-        self, identifiers_list: List[str]
+        self,
+        identifiers_list: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Tuple[str, str]:
         """Check validity of identifiers in the order."""
         self.logger.debug("Order._check_identifiers_validity(%s)", identifiers_list)
@@ -1040,14 +1125,22 @@ class Order(object):
             identifiers_list = self._rewrite_email_identifiers(identifiers_list)
 
             # check identifier limit
-            if self._check_identifier_limit(identifiers_list):
+            if self._check_identifier_limit(
+                identifiers_list,
+                account_name=account_name,
+                order_name=order_name,
+            ):
                 return (
                     self.error_msg_dic["rejectedidentifier"],
                     "identifier limit exceeded",
                 )
 
             # check if identifier types and values are allowed
-            error, detail = self.are_identifiers_allowed(identifiers_list)
+            error, detail = self.are_identifiers_allowed(
+                identifiers_list,
+                account_name=account_name,
+                order_name=order_name,
+            )
             if error:
                 self.logger.debug(
                     "Order._check_identifiers_validity() ended with %s:", error
@@ -1056,6 +1149,10 @@ class Order(object):
 
         else:
             # malformed identifiers list
+            self.logger.warning(
+                "Order create failed: malformed identifiers list%s",
+                self._corr_suffix(account_name, order_name),
+            )
             error = self.error_msg_dic["malformed"]
             detail = "malformed identifiers list"
 
@@ -1163,6 +1260,10 @@ class Order(object):
                     order_name, payload, header
                 )
             else:
+                self.logger.warning(
+                    "Order finalize failed: csr missing order=%s",
+                    order_name,
+                )
                 code = 400
                 message = self.error_msg_dic["badcsr"]
                 detail = "csr is missing in payload"
@@ -1185,6 +1286,12 @@ class Order(object):
             if cert_dic and "name" in cert_dic:
                 certificate_name = cert_dic["name"]
         else:
+            status = order_dic.get("status") if order_dic else None
+            self.logger.warning(
+                "Order finalize failed: orderNotReady order=%s status=%s",
+                order_name,
+                status if status is not None else "missing",
+            )
             code = 403
             message = self.error_msg_dic["ordernotready"]
             detail = "Order is not ready"
@@ -1537,14 +1644,20 @@ class Order(object):
                         order_name, protected, payload, header
                     )
                 else:
+                    self.logger.warning(
+                        "Order request failed: order not found order=%s",
+                        order_name,
+                    )
                     code = 403
                     message = self.error_msg_dic["ordernotready"]
                     detail = "order not found"
             else:
+                self.logger.warning("Order request failed: order name missing")
                 code = 400
                 message = self.error_msg_dic["malformed"]
                 detail = "order name is missing"
         else:
+            self.logger.warning("Order request failed: url missing in protected")
             code = 400
             message = self.error_msg_dic["malformed"]
             detail = "url is missing in protected"
