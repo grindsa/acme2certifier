@@ -58,12 +58,20 @@ runs:
     with:
       time: 5s
 
-  - name: "Check logs for registration failure"
+  - name: "Check logs for EAB kid lookup ERROR"
     uses: ./.github/actions/logs_assert
     with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
-      PATTERN: "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+      PATTERN: "EAB kid lookup failed kid=${{ inputs.EAB_KEY_ID }}"
+      FLUSH: "false"
+
+  - name: "Check logs for ACME problem (EAB kid lookup)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed"
 
   - name: "certbot - Failed registration with unknown credentials"
     continue-on-error: true
@@ -90,12 +98,20 @@ runs:
     with:
       time: 5s
 
-  - name: "Check logs for registration failure"
+  - name: "Check logs for EAB kid lookup ERROR"
     uses: ./.github/actions/logs_assert
     with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
-      PATTERN: "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+      PATTERN: "EAB kid lookup failed kid=${{ inputs.EAB_KEY_ID }}"
+      FLUSH: "false"
+
+  - name: "Check logs for ACME problem (EAB kid lookup)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed"
 
   - name: "lego - Failed registration with unknown credentials"
     continue-on-error: true
@@ -123,9 +139,17 @@ runs:
     with:
       time: 5s
 
-  - name: "Check logs for registration failure"
+  - name: "Check logs for EAB kid lookup ERROR"
     uses: ./.github/actions/logs_assert
     with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
-      PATTERN: "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+      PATTERN: "EAB kid lookup failed kid=${{ inputs.EAB_KEY_ID }}"
+      FLUSH: "false"
+
+  - name: "Check logs for ACME problem (EAB kid lookup)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed"

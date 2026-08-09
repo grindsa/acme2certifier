@@ -61,12 +61,13 @@ def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
             if not tmp_result:
                 result = tmp_result
     else:
+        logger.debug("Helper.validate_email(): %s is not a list", contact_list)
         contact_list = contact_list.replace("mailto:", "")
         contact_list = contact_list.lstrip()
         result = bool(re.search(pattern, contact_list))
-        logger.debug(
-            "Helper.validate_email() of: %s emded with result: %s", contact_list, result
-        )
+    logger.debug(
+        "Helper.validate_email() of: %s ended with result: %s", contact_list, result
+    )
     return result
 
 

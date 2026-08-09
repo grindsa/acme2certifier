@@ -54,13 +54,22 @@ runs:
         grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for malformed error"
+    - name: "Check a2c logs for contact missing WARNING"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Contact information is missing'}"
+        PATTERN: "Contact information is missing"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (contact missing)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Contact information is missing"
 
     - name: "Test Registration with wrong email format"
       working-directory: acmeshell
@@ -86,13 +95,22 @@ runs:
         grep "urn:ietf:params:acme:error:invalidContact" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for invalidContact error"
+    - name: "Check a2c logs for invalid contact WARNING"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "{'status': 400, 'type': 'urn:ietf:params:acme:error:invalidContact', 'detail': 'The provided contact URI was invalid: Invalid contact information'}"
+        PATTERN: "Invalid contact information"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (invalidContact)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:invalidContact detail=The provided contact URI was invalid: Invalid contact information"
 
     - name: "Test Registration with correct email format"
       working-directory: acmeshell
@@ -160,22 +178,22 @@ runs:
         exit 1
       shell: bash
 
-    - name: "Check a2c logs - no tos statement"
+    - name: "Check a2c logs for TOS missing WARNING"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "no tos statement found."
+        PATTERN: "termsofserviceagreed flag missing"
         FLUSH: "false"
 
-    - name: "Check a2c logs - userActionRequired tos missing"
+    - name: "Check a2c logs for ACME problem (TOS missing)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'termsofserviceagreed flag missing'}"
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:userActionRequired detail=termsofserviceagreed flag missing"
         FLUSH: "true"
 
     - name: "Test registration with TOC agreement false using a modifed acme.sh"
@@ -198,22 +216,22 @@ runs:
         exit 1
       shell: bash
 
-    - name: "Check a2c logs - tos:False"
+    - name: "Check a2c logs for TOS not agreed WARNING"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "tos:False"
+        PATTERN: "Terms of service must be agreed"
         FLUSH: "false"
 
-    - name: "Check a2c logs - Terms of service must be agreed"
+    - name: "Check a2c logs for ACME problem (TOS not agreed)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'Terms of service must be agreed'}"
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:userActionRequired detail=Terms of service must be agreed"
         FLUSH: "true"
 
     - name: "Update account information"
@@ -291,13 +309,23 @@ runs:
         grep "\"detail\": \"Unknown request\"" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs"
+    - name: "Check a2c logs for Unknown request WARNING"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
+        PATTERN: "Unknown request account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (Unknown request)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Unknown request"
+        FLUSH: "true"
 
     - name: "wrong status update"
       working-directory: acmeshell
@@ -327,13 +355,23 @@ runs:
         grep "\"detail\": \"Invalid status for deactivation\"" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs"
+    - name: "Check a2c logs for invalid deactivation status WARNING"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
+        PATTERN: "Invalid status for deactivation account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (invalid deactivation status)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Invalid status for deactivation"
+        FLUSH: "true"
 
     - name: "Key Rollover"
       working-directory: acmeshell

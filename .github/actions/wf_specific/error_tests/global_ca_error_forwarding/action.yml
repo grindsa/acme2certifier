@@ -56,6 +56,16 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
         PATTERN: "enrollment failed"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (enrollment failed)"
+      if: ${{ inputs.CA_ERROR_FORWARDING == 'false'}}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=500 type=urn:ietf:params:acme:error:serverInternal detail=enrollment failed"
 
     - name: "Check a2c logs"
       if: ${{ inputs.CA_ERROR_FORWARDING == 'true'}}
@@ -65,3 +75,13 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
         PATTERN: "ca lookup failed"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (ca lookup failed)"
+      if: ${{ inputs.CA_ERROR_FORWARDING == 'true'}}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=500 type=urn:ietf:params:acme:error:serverInternal detail=ca lookup failed"

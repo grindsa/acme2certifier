@@ -95,8 +95,20 @@ jobs:
       - name: "Install acmeshell"
         uses: ./.github/actions/wf_specific/error_tests/acmeshell_install
 
+      - name: "Flush logs before account error checks"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+          CONTAINER_NAME: acme-srv
+
       - name: "Test for Account Resource"
         uses: ./.github/actions/wf_specific/error_tests/account_checks
+
+      - name: "Flush logs before order error checks"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+          CONTAINER_NAME: acme-srv
 
       - name: "Test for Order Resource"
         uses: ./.github/actions/wf_specific/error_tests/order_checks
