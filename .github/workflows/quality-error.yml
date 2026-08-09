@@ -120,6 +120,15 @@ jobs:
       - name: "Test for Challenge Resource"
         uses: ./.github/actions/wf_specific/error_tests/challenge_checks
 
+      - name: "Flush logs before certificate error checks"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+          CONTAINER_NAME: acme-srv
+
+      - name: "Test for Certificate Resource"
+        uses: ./.github/actions/wf_specific/error_tests/certificate_checks
+
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
