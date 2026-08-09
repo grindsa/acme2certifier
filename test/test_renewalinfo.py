@@ -17,7 +17,7 @@ from acme2certifier.acme_srv.renewalinfo import (
 
 
 class TestRenewalinfoConfig(unittest.TestCase):
-    def test_default_values(self):
+    def test_001_default_values(self):
         config = RenewalinfoConfig()
         self.assertFalse(config.renewal_force)
         self.assertEqual(config.renewalthreshold_pctg, 85.0)
@@ -30,37 +30,37 @@ class TestRenewalinfoRepository(unittest.TestCase):
         self.logger = MagicMock()
         self.repo = RenewalinfoRepository(self.mock_dbstore, self.logger)
 
-    def test_get_certificate_by_certid_success(self):
+    def test_001_get_certificate_by_certid_success(self):
         self.mock_dbstore.certificate_lookup.return_value = {"foo": "bar"}
         result = self.repo.get_certificate_by_certid("abc")
         self.assertEqual(result, {"foo": "bar"})
 
-    def test_get_certificate_by_certid_exception(self):
+    def test_002_get_certificate_by_certid_exception(self):
         self.mock_dbstore.certificate_lookup.side_effect = Exception("fail")
         result = self.repo.get_certificate_by_certid("abc")
         self.assertIsNone(result)
         self.logger.critical.assert_called()
 
-    def test_get_certificates_by_serial_success(self):
+    def test_003_get_certificates_by_serial_success(self):
         self.mock_dbstore.certificates_search.return_value = [{"foo": "bar"}]
         result = self.repo.get_certificates_by_serial("serial")
         self.assertEqual(result, [{"foo": "bar"}])
 
-    def test_get_certificates_by_serial_exception(self):
+    def test_004_get_certificates_by_serial_exception(self):
         self.mock_dbstore.certificates_search.side_effect = Exception("fail")
         result = self.repo.get_certificates_by_serial("serial")
         self.assertEqual(result, [])
         self.logger.critical.assert_called()
 
-    def test_add_certificate(self):
+    def test_005_add_certificate(self):
         self.repo.add_certificate({"foo": "bar"})
         self.mock_dbstore.certificate_add.assert_called_with({"foo": "bar"})
 
-    def test_get_housekeeping_param(self):
+    def test_006_get_housekeeping_param(self):
         self.repo.get_housekeeping_param("name")
         self.mock_dbstore.hkparameter_get.assert_called_with("name")
 
-    def test_add_housekeeping_param(self):
+    def test_007_add_housekeeping_param(self):
         self.repo.add_housekeeping_param({"foo": "bar"})
         self.mock_dbstore.hkparameter_add.assert_called_with({"foo": "bar"})
 
@@ -665,7 +665,7 @@ class TestRenewalinfo(unittest.TestCase):
         self.renewalinfo._generate_renewalinfo_window.assert_called_once_with(cert_dic)
         self.assertEqual(result, renewalinfo_dic)
 
-    def test_009__load_ca_handler_success(self):
+    def test_035__load_ca_handler_success(self):
         # Patch ca_handler_load to return a mock module with CAhandler attribute
         mock_cahandler_class = MagicMock()
         mock_module = MagicMock()
@@ -680,7 +680,7 @@ class TestRenewalinfo(unittest.TestCase):
             )
             self.assertIs(self.renewalinfo.cahandler, mock_cahandler_class)
 
-    def test_010__load_ca_handler_failure(self):
+    def test_036__load_ca_handler_failure(self):
         # Patch ca_handler_load to return None
         with patch(
             "acme2certifier.acme_srv.renewalinfo.ca_handler_load", return_value=None
@@ -692,7 +692,7 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertIsNone(self.renewalinfo.cahandler)
             self.mock_logger.critical.assert_called_with("No ca_handler loaded")
 
-    def test_011_get_with_cahandler_lookup(self):
+    def test_037_get_with_cahandler_lookup(self):
         # Simulate config.renewalinfo_lookup True and cahandler with lookup_renewalinfo
         self.renewalinfo.config.renewalinfo_lookup = True
         self.renewalinfo.config.acme_url = "https://acme.example.com"

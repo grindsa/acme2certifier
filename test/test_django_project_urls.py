@@ -119,29 +119,29 @@ class TestDjangoProjectUrls(unittest.TestCase):
         self.assertNotIn("housekeeping", names)
         self.assertIn("directory", names)
 
-    def test_001b_trigger_enabled(self) -> None:
+    def test_002_trigger_enabled(self) -> None:
         """TRIGGER_ENDPOINT_ENABLED True registers trigger route"""
         mod = self._reload_urls(_cfg(), trigger_enabled=True)
         names = [getattr(p, "name", None) for p in mod.urlpatterns]
         self.assertIn("trigger", names)
 
-    def test_001c_housekeeping_enabled(self) -> None:
+    def test_003_housekeeping_enabled(self) -> None:
         """HOUSEKEEPING_CLI_ENABLED True registers housekeeping route"""
         mod = self._reload_urls(_cfg(), housekeeping_enabled=True)
         names = [getattr(p, "name", None) for p in mod.urlpatterns]
         self.assertIn("housekeeping", names)
 
-    def test_002_prefix_without_leading_slash(self) -> None:
+    def test_004_prefix_without_leading_slash(self) -> None:
         """url_prefix without leading slash is used as-is plus trailing /"""
         mod = self._reload_urls(_cfg(Directory={"url_prefix": "acme"}))
         self.assertEqual("acme/", mod.PREFIX)
 
-    def test_003_prefix_with_leading_slash_stripped(self) -> None:
+    def test_005_prefix_with_leading_slash_stripped(self) -> None:
         """url_prefix starting with / is stripped"""
         mod = self._reload_urls(_cfg(Directory={"url_prefix": "/prefixed"}))
         self.assertEqual("prefixed/", mod.PREFIX)
 
-    def test_004_acme_challenge_route_when_cahandler_acme_url(self) -> None:
+    def test_006_acme_challenge_route_when_cahandler_acme_url(self) -> None:
         """CAhandler.acme_url adds .well-known/acme-challenge route"""
         mod = self._reload_urls(
             _cfg(

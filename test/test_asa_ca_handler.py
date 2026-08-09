@@ -674,7 +674,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuers_list")
-    def test_037a_issuer_verify_api_error_string(self, mock_list):
+    def test_038_issuer_verify_api_error_string(self, mock_list):
         """_issuer_verify() must not TypeError when API returns error string containing 'issuers'"""
         self.cahandler.ca_name = "ca_name"
         mock_list.return_value = (
@@ -688,7 +688,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(any("ASA API error:" in line for line in lcm.output))
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profiles_list")
-    def test_037b_profile_verify_api_error_string(self, mock_list):
+    def test_039_profile_verify_api_error_string(self, mock_list):
         """_profile_verify() must not TypeError when API returns error string containing 'profiles'"""
         self.cahandler.profile_name = "profile_name"
         mock_list.return_value = (
@@ -702,7 +702,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(any("ASA API error:" in line for line in lcm.output))
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
-    def test_037c_issuers_list_cache(self, mock_get):
+    def test_040_issuers_list_cache(self, mock_get):
         """_issuers_list() caches successful responses"""
         mock_get.return_value = (200, {"issuers": ["ca_name"]})
         self.assertEqual({"issuers": ["ca_name"]}, self.cahandler._issuers_list())
@@ -711,7 +711,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.time.sleep")
     @patch("requests.get")
-    def test_037d_api_get_retries(self, mock_req, mock_sleep):
+    def test_041_api_get_retries(self, mock_req, mock_sleep):
         """_api_get() retries transport failures then succeeds"""
         self.cahandler.request_retries = 3
         mockresponse = Mock()
@@ -728,7 +728,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.uts_to_date_utc")
     @patch("acme2certifier.cahandlers.asa_ca_handler.uts_now")
-    def test_038__validity_dates_get(self, mock_now, mock_utc):
+    def test_042__validity_dates_get(self, mock_now, mock_utc):
         """test _validity_dates_get()"""
         mock_now.return_value = 10
         mock_utc.side_effect = ["date1", "date2"]
@@ -738,14 +738,14 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.asa_ca_handler.convert_byte_to_string")
     @patch("acme2certifier.cahandlers.asa_ca_handler.cert_der2pem")
     @patch("acme2certifier.cahandlers.asa_ca_handler.b64_decode")
-    def test_039__pem_cert_chain_generate(self, mock_dec, mock_d2p, mock_b2s):
+    def test_043__pem_cert_chain_generate(self, mock_dec, mock_d2p, mock_b2s):
         """test _pem_cert_chain_generate()"""
         mock_b2s.return_value = "cert"
         self.assertEqual(
             "certcert", self.cahandler._pem_cert_chain_generate(["cert", "chain"])
         )
 
-    def test_040__pem_cert_chain_generate(self):
+    def test_044__pem_cert_chain_generate(self):
         """test _pem_cert_chain_generate()"""
         cert_list = [
             "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"
@@ -791,7 +791,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         "acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate"
     )
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
-    def test_041___issuer_chain_get(self, mock_req, mock_pem):
+    def test_045___issuer_chain_get(self, mock_req, mock_pem):
         """test _issuer_chain_get()"""
         mock_req.return_value = ("code", {"certs": ["bar", "foo"]})
         mock_pem.return_value = "issuer_chain"
@@ -803,7 +803,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         "acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate"
     )
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
-    def test_042___issuer_chain_get(self, mock_req, mock_pem):
+    def test_046___issuer_chain_get(self, mock_req, mock_pem):
         """test _issuer_chain_get()"""
         mock_req.return_value = ("code", {"foobar": ["bar", "foo"]})
         mock_pem.return_value = "issuer_chain"
@@ -822,7 +822,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
     @patch("acme2certifier.cahandlers.asa_ca_handler.eab_profile_header_info_check")
-    def test_043_enroll(
+    def test_047_enroll(
         self,
         mock_pv,
         mock_iv,
@@ -868,7 +868,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
-    def test_044_enroll(
+    def test_048_enroll(
         self,
         mock_iv,
         mock_pv,
@@ -916,7 +916,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
-    def test_045_enroll(
+    def test_049_enroll(
         self,
         mock_iv,
         mock_pv,
@@ -960,7 +960,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
-    def test_046_enroll(
+    def test_050_enroll(
         self,
         mock_iv,
         mock_pv,
@@ -1002,7 +1002,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
-    def test_047_enroll(
+    def test_051_enroll(
         self,
         mock_iv,
         mock_pv,
@@ -1044,7 +1044,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
-    def test_048_enroll(
+    def test_052_enroll(
         self,
         mock_iv,
         mock_pv,
@@ -1088,7 +1088,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
-    def test_049_enroll(
+    def test_053_enroll(
         self,
         mock_iv,
         mock_pv,
@@ -1131,7 +1131,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.eab_profile_revocation_check")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
-    def test_050_revoke(self, mock_ski, mock_post, mock_epr):
+    def test_054_revoke(self, mock_ski, mock_post, mock_epr):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
         mock_ski.return_value = "serial"
@@ -1144,7 +1144,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.eab_profile_revocation_check")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
-    def test_051_revoke(self, mock_ski, mock_post, mock_epr):
+    def test_055_revoke(self, mock_ski, mock_post, mock_epr):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
         mock_ski.return_value = "serial"
@@ -1157,7 +1157,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
-    def test_052_revoke(self, mock_ski, mock_post):
+    def test_056_revoke(self, mock_ski, mock_post):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
         mock_ski.return_value = "mock_ski"
@@ -1171,7 +1171,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
-    def test_053_revoke(self, mock_ski, mock_post):
+    def test_057_revoke(self, mock_ski, mock_post):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
         mock_ski.return_value = "ski"
@@ -1185,7 +1185,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
-    def test_054_revoke(self, mock_ski, mock_post):
+    def test_058_revoke(self, mock_ski, mock_post):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
         mock_ski.return_value = "ski"
@@ -1198,7 +1198,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_post.called)
 
     @patch.dict("os.environ", {"api_user_var": "user_var"})
-    def test_055_config_user_load(self):
+    def test_059_config_user_load(self):
         """test _config_load - load template with user variable"""
         config_dic = {"api_user_variable": "api_user_var"}
         self.cahandler._config_user_load(config_dic)
@@ -1206,7 +1206,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_user_var": "user_var"})
-    def test_056_config_user_load(self):
+    def test_060_config_user_load(self):
         """test _config_load - load template with user variable"""
         config_dic = {"api_user_variable": "does_not_exist"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1219,7 +1219,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_user_var": "user_var"})
-    def test_057_config_user_load(self):
+    def test_061_config_user_load(self):
         """test _config_load - load template with user variable"""
         config_dic = {"api_user_variable": "api_user_var", "api_user": "api_user"}
         self.cahandler._config_user_load(config_dic)
@@ -1229,7 +1229,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_host_var": "host_var"})
-    def test_058_config_host_load(self):
+    def test_062_config_host_load(self):
         """test _config_load - load template with host variable"""
         config_dic = {"api_host_variable": "api_host_var"}
         self.cahandler._config_host_load(config_dic)
@@ -1237,7 +1237,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_host_var": "host_var"})
-    def test_059_config_host_load(self):
+    def test_063_config_host_load(self):
         """test _config_load - load template with host variable"""
         config_dic = {"api_host_variable": "does_not_exist"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1250,7 +1250,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_host_var": "host_var"})
-    def test_060_config_host_load(self):
+    def test_064_config_host_load(self):
         """test _config_load - load template with host variable"""
         config_dic = {"api_host_variable": "api_host_var", "api_host": "api_host"}
         self.cahandler._config_host_load(config_dic)
@@ -1260,7 +1260,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_key_var": "key_var"})
-    def test_061_config_key_load(self):
+    def test_065_config_key_load(self):
         """test _config_load - load template with key variable"""
         config_dic = {"api_key_variable": "api_key_var"}
         self.cahandler._config_key_load(config_dic)
@@ -1268,7 +1268,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_key_var": "key_var"})
-    def test_062_config_key_load(self):
+    def test_066_config_key_load(self):
         """test _config_load - load template with key variable"""
         config_dic = {"api_key_variable": "does_not_exist"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1281,7 +1281,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_key_var": "key_var"})
-    def test_063_config_key_load(self):
+    def test_067_config_key_load(self):
         """test _config_load - load template with key variable"""
         config_dic = {"api_key_variable": "api_key_var", "api_key": "api_key"}
         self.cahandler._config_key_load(config_dic)
@@ -1291,7 +1291,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_password_var": "password_var"})
-    def test_064_config_password_load(self):
+    def test_068_config_password_load(self):
         """test _config_load - load template with password variable"""
         config_dic = {"api_password_variable": "api_password_var"}
         self.cahandler._config_password_load(config_dic)
@@ -1299,7 +1299,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_password_var": "password_var"})
-    def test_065_config_password_load(self):
+    def test_069_config_password_load(self):
         """test _config_load - load template with password variable"""
         config_dic = {"api_password_variable": "does_not_exist"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1312,7 +1312,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_password_var": "password_var"})
-    def test_066_config_password_load(self):
+    def test_070_config_password_load(self):
         """test _config_load - load template with password variable"""
         config_dic = {
             "api_password_variable": "api_password_var",
@@ -1327,7 +1327,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._csr_cn_get")
     @patch("acme2certifier.cahandlers.asa_ca_handler.csr_pubkey_get")
-    def test_067_enrollment_dic_create(self, mock_pkg, mock_ccg, mock_vdg):
+    def test_071_enrollment_dic_create(self, mock_pkg, mock_ccg, mock_vdg):
         """test _enrollment_dic_create()"""
         mock_pkg.return_value = "pubkey"
         mock_ccg.return_value = "cn"
@@ -1343,14 +1343,14 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual(result, self.cahandler._enrollment_dic_create("csr"))
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.handler_config_check")
-    def test_068_handler_check(self, mock_handler_check):
+    def test_072_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.time.sleep")
     @patch("requests.post")
-    def test_069_api_post_retries(self, mock_req, mock_sleep):
+    def test_073_api_post_retries(self, mock_req, mock_sleep):
         """_api_post() retries transport failures then succeeds"""
         self.cahandler.request_retries = 3
         mockresponse = Mock()
@@ -1374,7 +1374,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         )
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
-    def test_070_config_load_request_retries_invalid(self, mock_config_load):
+    def test_074_config_load_request_retries_invalid(self, mock_config_load):
         """_config_load logs error when request_retries is not an integer"""
         mock_config_load.return_value = {"CAhandler": {"request_retries": "aa"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1387,7 +1387,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         )
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
-    def test_071_profiles_list_cache(self, mock_get):
+    def test_075_profiles_list_cache(self, mock_get):
         """_profiles_list() caches successful responses"""
         self.cahandler.ca_name = "ca_name"
         mock_get.return_value = (200, {"profiles": ["p1"]})
@@ -1399,7 +1399,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         "acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate"
     )
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
-    def test_072_issuer_chain_get_cache(self, mock_req, mock_pem):
+    def test_076_issuer_chain_get_cache(self, mock_req, mock_pem):
         """_issuer_chain_get() caches successful responses"""
         mock_req.return_value = ("code", {"certs": ["bar"]})
         mock_pem.return_value = "issuer_chain"
@@ -1409,7 +1409,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual(1, mock_req.call_count)
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
-    def test_073_issuer_chain_get_non_dict(self, mock_req):
+    def test_077_issuer_chain_get_non_dict(self, mock_req):
         """_issuer_chain_get() logs ASA API error for non-dict responses"""
         mock_req.return_value = ("code", "transport-error")
         self.cahandler.ca_name = "ca_name"
@@ -1421,7 +1421,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         )
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
-    def test_074_cert_status_get_non_dict(self, mock_req):
+    def test_078_cert_status_get_non_dict(self, mock_req):
         """_cert_status_get() wraps non-dict responses"""
         self.cahandler.ca_name = "ca_name"
         mock_req.return_value = (500, "boom")
@@ -1432,7 +1432,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
-    def test_075_revoke_non_dict_content(self, mock_ski, mock_post):
+    def test_079_revoke_non_dict_content(self, mock_ski, mock_post):
         """revoke() uses string content as detail when response is non-dict"""
         self.cahandler.ca_name = "ca_name"
         mock_ski.return_value = "ski"

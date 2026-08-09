@@ -20,19 +20,19 @@ def _logger() -> logging.Logger:
     return logging.getLogger("test_a2c_coverage_edges")
 
 
-def test_network_caaidentities_parse_empty_and_fallback_csv() -> None:
+def test_001_network_caaidentities_parse_empty_and_fallback_csv() -> None:
     assert _caaidentities_parse("") == []
     assert _caaidentities_parse("not-json,still-valid") == ["not-json", "still-valid"]
 
 
-def test_network_configured_server_name_directory_fallback() -> None:
+def test_002_network_configured_server_name_directory_fallback() -> None:
     parser = configparser.ConfigParser()
     parser["Directory"] = {"server_name": "directory.example"}
     assert configured_server_name_get(parser) == "directory.example"
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-def test_url_get_dns_pinned_invalid_ip_then_non_200_and_path_normalization(
+def test_003_url_get_dns_pinned_invalid_ip_then_non_200_and_path_normalization(
     mock_get: Mock,
 ) -> None:
     response = Mock()
@@ -56,7 +56,7 @@ def test_url_get_dns_pinned_invalid_ip_then_non_200_and_path_normalization(
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-def test_url_get_dns_pinned_read_timeout_returns_last_error(mock_get: Mock) -> None:
+def test_004_url_get_dns_pinned_read_timeout_returns_last_error(mock_get: Mock) -> None:
     mock_get.side_effect = requests.exceptions.ReadTimeout()
     body, code, error = url_get_dns_pinned(
         _logger(), "example.org", "/token", ["203.0.113.11"], verify=False
@@ -67,7 +67,7 @@ def test_url_get_dns_pinned_read_timeout_returns_last_error(mock_get: Mock) -> N
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-def test_url_get_dns_pinned_connection_and_generic_exception_paths(
+def test_005_url_get_dns_pinned_connection_and_generic_exception_paths(
     mock_get: Mock,
 ) -> None:
     mock_get.side_effect = [
@@ -86,7 +86,7 @@ def test_url_get_dns_pinned_connection_and_generic_exception_paths(
     assert "generic failure" in str(error)
 
 
-def test_request_operation_retries_retryable_status_then_success() -> None:
+def test_006_request_operation_retries_retryable_status_then_success() -> None:
     response_500 = Mock(status_code=500, text="")
     response_200 = Mock(status_code=200, text="ok")
     response_200.json.return_value = {"ok": True}
@@ -107,7 +107,7 @@ def test_request_operation_retries_retryable_status_then_success() -> None:
     mock_sleep.assert_called_once_with(0.5)
 
 
-def test_request_operation_retries_exception_then_success() -> None:
+def test_007_request_operation_retries_exception_then_success() -> None:
     response_200 = Mock(status_code=200, text="")
     session = Mock(get=Mock(side_effect=[RuntimeError("boom"), response_200]))
 
@@ -126,7 +126,7 @@ def test_request_operation_retries_exception_then_success() -> None:
     mock_sleep.assert_called_once_with(0.25)
 
 
-def test_request_operation_unexpected_retry_loop_exit_guard() -> None:
+def test_008_request_operation_unexpected_retry_loop_exit_guard() -> None:
     session = Mock(get=Mock())
     with patch("builtins.range", return_value=[]):
         assert request_operation(_logger(), session=session) == (

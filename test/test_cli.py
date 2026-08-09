@@ -431,7 +431,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("json.dumps")
     @patch("jwcrypto.jwk.JWK.generate")
     @patch("acme2certifier.tools.a2c_cli.file_dump")
-    def test_038_key_generate(self, mock_fd, mock_jwk, mock_json_dump):
+    def test_040_key_generate(self, mock_fd, mock_jwk, mock_json_dump):
         """test key generation  exception during filedump"""
         mock_fd.side_effect = Exception("exc_fd")
         self.keyops.print = Mock()
@@ -445,27 +445,27 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_jwk.called)
         self.assertTrue(mock_fd.called)
 
-    def test_039_isurl(self):
+    def test_041_isurl(self):
         """test is_url"""
         url = "http://foo.bar"
         self.assertTrue(self.is_url(url))
 
-    def test_040_isurl(self):
+    def test_042_isurl(self):
         """test is_url"""
         url = "https://foo.bar"
         self.assertTrue(self.is_url(url))
 
-    def test_041_isurl(self):
+    def test_043_isurl(self):
         """test is_url"""
         url = "https://foo.bar/foo"
         self.assertTrue(self.is_url(url))
 
-    def test_042_isurl(self):
+    def test_044_isurl(self):
         """test is_url"""
         url = "https://foo.bar:80/foo"
         self.assertTrue(self.is_url(url))
 
-    def test_043_isurl(self):
+    def test_045_isurl(self):
         """test is_url"""
         url = "foo.bar"
         self.assertFalse(self.is_url(url))
@@ -473,7 +473,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._cli_print")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_044_message_operations(self, mock_sign, mock_send, mock_print):
+    def test_046_message_operations(self, mock_sign, mock_send, mock_print):
         """test message operations all ok"""
         command = "message sign foo"
         self.a2ccli._message_operations(command)
@@ -484,7 +484,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._cli_print")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_045_message_operations(self, mock_sign, mock_send, mock_print):
+    def test_047_message_operations(self, mock_sign, mock_send, mock_print):
         """test message operations all ok"""
         command = "message send foo"
         self.a2ccli._message_operations(command)
@@ -495,7 +495,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._cli_print")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_046_message_operations(self, mock_sign, mock_send, mock_print):
+    def test_048_message_operations(self, mock_sign, mock_send, mock_print):
         """test message operations all ok"""
         command = "message send"
         self.a2ccli._message_operations(command)
@@ -505,7 +505,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("jwcrypto.jws.JWS.serialize")
     @patch("jwcrypto.jws.JWS.add_signature")
-    def test_047_msgops_sign(self, mock_add_sig, mock_serialize):
+    def test_049_msgops_sign(self, mock_add_sig, mock_serialize):
         """test add signature"""
         key = {"kid": "kid"}
         message = "message"
@@ -513,33 +513,33 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("foo", self.msgops.sign(key, message))
 
     @patch("requests.post")
-    def test_048_msgops_send(self, mock_post):
+    def test_050_msgops_send(self, mock_post):
         """test add signature"""
         mock_post.return_value = "foo"
         self.assertEqual("foo", self.msgops.send("server", "message"))
 
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
     @patch("csv.writer")
-    def test_049__csv_dump(self, mock_csv):
+    def test_051__csv_dump(self, mock_csv):
         """test csv dump"""
         self.csv_dump(self.logger, "filename", "content")
         self.assertTrue(mock_csv.called)
 
-    def test_050_helper_generate_random_string(self):
+    def test_052_helper_generate_random_string(self):
         """test date_to_uts_utc without format"""
         self.assertEqual(5, len(self.generate_random_string(self.logger, 5)))
 
-    def test_051_helper_generate_random_string(self):
+    def test_053_helper_generate_random_string(self):
         """test date_to_uts_utc without format"""
         self.assertEqual(15, len(self.generate_random_string(self.logger, 15)))
 
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_052__file_dump(self):
+    def test_054__file_dump(self):
         """test csv dump"""
         self.file_dump(self.logger, "filename", "content")
 
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_053__file_load(self):
+    def test_055__file_load(self):
         """test csv dump"""
         self.assertEqual("foo", self.file_load(self.logger, "filename"))
 
@@ -547,7 +547,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._command_check")
     @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="foo\nbar"), create=True)
-    def test_054__load_cfg(self, mock_isfile, mock_check, mock_sleep):
+    def test_056__load_cfg(self, mock_isfile, mock_check, mock_sleep):
         """test _load_cfg"""
         mock_isfile.return_value = True
         self.a2ccli._load_cfg("filename")
@@ -558,7 +558,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._command_check")
     @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="sleep 10\nbar"), create=True)
-    def test_055__load_cfg(self, mock_isfile, mock_check, mock_sleep):
+    def test_057__load_cfg(self, mock_isfile, mock_check, mock_sleep):
         """test _load_cfg with sleep command"""
         mock_isfile.return_value = True
         self.a2ccli._load_cfg("filename")
@@ -569,7 +569,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._command_check")
     @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="sleep\nbar"), create=True)
-    def test_056__load_cfg(self, mock_isfile, mock_check, mock_sleep):
+    def test_058__load_cfg(self, mock_isfile, mock_check, mock_sleep):
         """test _load_cfg with sleep command - slit failes"""
         mock_isfile.return_value = True
         self.a2ccli._load_cfg("filename")
@@ -580,7 +580,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._command_check")
     @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="#foo\n#bar"), create=True)
-    def test_057__load_cfg(self, mock_isfile, mock_check, mock_sleep):
+    def test_059__load_cfg(self, mock_isfile, mock_check, mock_sleep):
         """test _load_cfg"""
         mock_isfile.return_value = True
         self.a2ccli._load_cfg("filename")
@@ -588,7 +588,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_sleep.called)
 
     @patch("sys.exit")
-    def test_058__quit(self, mock_exit):
+    def test_060__quit(self, mock_exit):
         """test _quit()"""
         self.a2ccli._quit()
         self.assertTrue(mock_exit.called)
@@ -596,7 +596,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("jwcrypto.jwk.JWK.from_json")
     @patch("acme2certifier.tools.a2c_cli.file_load")
     @patch("os.path.exists")
-    def test_059_keyops_load(self, mock_exists, mock_fload, mock_json):
+    def test_061_keyops_load(self, mock_exists, mock_fload, mock_json):
         """test keyoperations.load()"""
         self.keyops.print = Mock()
         mock_exists.return_value = False
@@ -609,7 +609,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("jwcrypto.jwk.JWK.from_json")
     @patch("acme2certifier.tools.a2c_cli.file_load")
     @patch("os.path.exists")
-    def test_060_keyops_load(self, mock_exists, mock_fload, mock_json):
+    def test_062_keyops_load(self, mock_exists, mock_fload, mock_json):
         """test keyoperations.load()"""
         self.keyops.print = Mock()
         mock_exists.return_value = True
@@ -620,12 +620,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.keyops.print.called)
 
     @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._cli_print")
-    def test_061_config_ops(self, mock_print):
+    def test_063_config_ops(self, mock_print):
         """test config_operations"""
         self.a2ccli._config_operations("foo")
         self.assertTrue(mock_print.called)
 
-    def test_062_certificate_operations(self):
+    def test_064_certificate_operations(self):
         """test certificate operations"""
         self.a2ccli._certificate_operations("foo")
 
@@ -634,7 +634,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.csv_dump")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_063_report_operations(
+    def test_065_report_operations(
         self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print
     ):
         """test report operations with incomplete command"""
@@ -650,7 +650,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.csv_dump")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_064_report_operations(
+    def test_066_report_operations(
         self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print
     ):
         """test report operations with unknown format"""
@@ -666,7 +666,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.csv_dump")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_065_report_operations(
+    def test_067_report_operations(
         self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print
     ):
         """test report operations without fileextension"""
@@ -682,7 +682,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.csv_dump")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_066_report_operations(
+    def test_068_report_operations(
         self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print
     ):
         """test report operations request error - no message tag in json response"""
@@ -702,7 +702,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.csv_dump")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_067_report_operations(
+    def test_069_report_operations(
         self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print
     ):
         """test report operations request error - message tag in json response"""
@@ -722,7 +722,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.csv_dump")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_068_report_operations(
+    def test_070_report_operations(
         self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print
     ):
         """test report operations request error - detail tag in json response"""
@@ -742,7 +742,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.csv_dump")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_069_report_operations(
+    def test_071_report_operations(
         self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print
     ):
         """test report operations request success - csv dump"""
@@ -762,7 +762,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_cli.csv_dump")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.send")
     @patch("acme2certifier.tools.a2c_cli.MessageOperations.sign")
-    def test_070_report_operations(
+    def test_072_report_operations(
         self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print
     ):
         """test report operations request success - csv dump"""
@@ -779,40 +779,40 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._intro_print")
     @patch("builtins.input", side_effect=["5", "6", "/Q"])
-    def test_071_start(self, mock_input, mock_intro):
+    def test_073_start(self, mock_input, mock_intro):
         """mock start"""
         with self.assertRaises(SystemExit) as cm:
             self.a2ccli.start()
         self.assertEqual(cm.exception.code, 0)
         self.assertRaises(SystemExit)
 
-    def test_162_logger_setup(self):
+    def test_074_logger_setup(self):
         """logger setup"""
         self.assertTrue(self.logger_setup(False))
 
-    def test_163_logger_setup(self):
+    def test_075_logger_setup(self):
         """logger setup"""
         self.assertTrue(self.logger_setup(True))
 
-    def test_164_validate_batchfile_path_empty(self):
+    def test_076_validate_batchfile_path_empty(self):
         """_validate_batchfile_path rejects empty path"""
         with self.assertRaises(ValueError) as cm:
             self.a2ccli._validate_batchfile_path("")
         self.assertIn("Batchfile path is empty", str(cm.exception))
 
-    def test_165_validate_batchfile_path_outside_base(self):
+    def test_077_validate_batchfile_path_outside_base(self):
         """_validate_batchfile_path rejects paths outside cwd"""
         with self.assertRaises(ValueError) as cm:
             self.a2ccli._validate_batchfile_path("/tmp/outside_batchfile.txt")
         self.assertIn("Path must be within", str(cm.exception))
 
-    def test_166_validate_batchfile_path_missing_file(self):
+    def test_078_validate_batchfile_path_missing_file(self):
         """_validate_batchfile_path rejects missing file inside cwd"""
         with self.assertRaises(ValueError) as cm:
             self.a2ccli._validate_batchfile_path("no_such_batchfile_a2c_cli.txt")
         self.assertIn("File does not exist", str(cm.exception))
 
-    def test_167_module_main_entrypoint(self):
+    def test_079_module_main_entrypoint(self):
         """``__main__`` guard calls main()"""
         import runpy
 

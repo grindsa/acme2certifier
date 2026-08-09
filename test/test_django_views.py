@@ -305,7 +305,7 @@ class TestDjangoViews(unittest.TestCase):
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_016b_authz_get_legacy_enabled(self, _url, mock_log) -> None:
+    def test_017_authz_get_legacy_enabled(self, _url, mock_log) -> None:
         """authz GET uses new_get when legacy_acme_get is True"""
         self.views.LEGACY_ACME_GET = True
         cm, inst = self._cm(new_get=_ok())
@@ -316,14 +316,14 @@ class TestDjangoViews(unittest.TestCase):
         self.assertFalse(inst.new_post.called)
         self.assertTrue(mock_log.called)
 
-    def test_017_authz_wrong_method(self) -> None:
+    def test_018_authz_wrong_method(self) -> None:
         """authz HEAD returns ERR_RESPONSE_POST"""
         resp = self.views.authz(self._meta(self.rf.head("/authz")))
         self.assertEqual(405, resp.status_code)
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_018_chall_post(self, _url, mock_log) -> None:
+    def test_019_chall_post(self, _url, mock_log) -> None:
         """chall POST parses challenge"""
         cm, inst = self._cm(parse=_ok())
         with patch(f"{_VIEWS}.Challenge", return_value=cm):
@@ -339,7 +339,7 @@ class TestDjangoViews(unittest.TestCase):
         self.assertTrue(mock_log.called)
 
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_019_chall_get_rejected_by_default(self, _url) -> None:
+    def test_020_chall_get_rejected_by_default(self, _url) -> None:
         """chall GET returns 405 when legacy_acme_get is False"""
         self.views.LEGACY_ACME_GET = False
         cm, inst = self._cm(get=_ok())
@@ -351,7 +351,7 @@ class TestDjangoViews(unittest.TestCase):
         self.assertFalse(inst.get.called)
 
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_019b_chall_get_legacy_enabled(self, _url) -> None:
+    def test_021_chall_get_legacy_enabled(self, _url) -> None:
         """chall GET uses challenge.get when legacy_acme_get is True"""
         self.views.LEGACY_ACME_GET = True
         cm, inst = self._cm(get=_ok())
@@ -360,7 +360,7 @@ class TestDjangoViews(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertTrue(inst.get.called)
 
-    def test_020_chall_wrong_method(self) -> None:
+    def test_022_chall_wrong_method(self) -> None:
         """chall HEAD returns ERR_RESPONSE_POST"""
         cm, _inst = self._cm()
         with patch(f"{_VIEWS}.Challenge", return_value=cm):
@@ -369,7 +369,7 @@ class TestDjangoViews(unittest.TestCase):
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_021_order_post(self, _url, mock_log) -> None:
+    def test_023_order_post(self, _url, mock_log) -> None:
         """order POST parses order"""
         cm, _inst = self._cm(parse=_ok())
         with patch(f"{_VIEWS}.Order", return_value=cm):
@@ -383,14 +383,14 @@ class TestDjangoViews(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertTrue(mock_log.called)
 
-    def test_022_order_wrong_method(self) -> None:
+    def test_024_order_wrong_method(self) -> None:
         """order GET returns ERR_RESPONSE_POST"""
         resp = self.views.order(self._meta(self.rf.get("/order")))
         self.assertEqual(405, resp.status_code)
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_023_cert_post_200(self, _url, mock_log) -> None:
+    def test_025_cert_post_200(self, _url, mock_log) -> None:
         """cert POST 200 returns HttpResponse with headers"""
         cm, _inst = self._cm(
             new_post={
@@ -413,7 +413,7 @@ class TestDjangoViews(unittest.TestCase):
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_024_cert_get_error(self, _url, mock_log) -> None:
+    def test_026_cert_get_error(self, _url, mock_log) -> None:
         """cert GET non-200 returns status-only HttpResponse"""
         cm, inst = self._cm(new_get={"code": 404, "data": "", "header": {}})
         with patch(f"{_VIEWS}.Certificate", return_value=cm):
@@ -422,14 +422,14 @@ class TestDjangoViews(unittest.TestCase):
         self.assertTrue(inst.new_get.called)
         self.assertTrue(mock_log.called)
 
-    def test_025_cert_wrong_method(self) -> None:
+    def test_027_cert_wrong_method(self) -> None:
         """cert HEAD returns ERR_RESPONSE_POST"""
         resp = self.views.cert(self._meta(self.rf.head("/cert")))
         self.assertEqual(405, resp.status_code)
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_026_revokecert_with_data(self, _url, mock_log) -> None:
+    def test_028_revokecert_with_data(self, _url, mock_log) -> None:
         """revokecert POST with data → JsonResponse"""
         cm, _inst = self._cm(revoke=_ok({"status": 200}))
         with patch(f"{_VIEWS}.Certificate", return_value=cm):
@@ -445,7 +445,7 @@ class TestDjangoViews(unittest.TestCase):
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_027_revokecert_without_data(self, _url, mock_log) -> None:
+    def test_029_revokecert_without_data(self, _url, mock_log) -> None:
         """revokecert POST without data → bare HttpResponse status"""
         cm, _inst = self._cm(revoke={"code": 204, "header": {"Replay-Nonce": "r"}})
         with patch(f"{_VIEWS}.Certificate", return_value=cm):
@@ -460,14 +460,14 @@ class TestDjangoViews(unittest.TestCase):
         self.assertEqual("r", resp["Replay-Nonce"])
         self.assertTrue(mock_log.called)
 
-    def test_028_revokecert_wrong_method(self) -> None:
+    def test_030_revokecert_wrong_method(self) -> None:
         """revokecert GET returns ERR_RESPONSE_POST"""
         resp = self.views.revokecert(self._meta(self.rf.get("/revokecert")))
         self.assertEqual(405, resp.status_code)
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_029_trigger_with_data(self, _url, mock_log) -> None:
+    def test_031_trigger_with_data(self, _url, mock_log) -> None:
         """trigger POST with data → JsonResponse"""
         self.views.TRIGGER_ENDPOINT_ENABLED = True
         cm, _inst = self._cm(parse=_ok({"done": True}))
@@ -484,7 +484,7 @@ class TestDjangoViews(unittest.TestCase):
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_030_trigger_without_data(self, _url, mock_log) -> None:
+    def test_032_trigger_without_data(self, _url, mock_log) -> None:
         """trigger POST without data → bare status"""
         self.views.TRIGGER_ENDPOINT_ENABLED = True
         cm, _inst = self._cm(parse={"code": 202, "header": {}})
@@ -499,13 +499,13 @@ class TestDjangoViews(unittest.TestCase):
         self.assertEqual(202, resp.status_code)
         self.assertTrue(mock_log.called)
 
-    def test_031_trigger_wrong_method(self) -> None:
+    def test_033_trigger_wrong_method(self) -> None:
         """trigger GET returns ERR_RESPONSE_POST"""
         resp = self.views.trigger(self._meta(self.rf.get("/trigger")))
         self.assertEqual(405, resp.status_code)
 
     @patch(f"{_VIEWS}.log_response")
-    def test_031b_trigger_disabled(self, mock_log) -> None:
+    def test_034_trigger_disabled(self, mock_log) -> None:
         """trigger POST returns 403 when gate is disabled"""
         self.views.TRIGGER_ENDPOINT_ENABLED = False
         resp = self.views.trigger(
@@ -521,7 +521,7 @@ class TestDjangoViews(unittest.TestCase):
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_032_renewalinfo_get_200(self, _url, mock_log) -> None:
+    def test_035_renewalinfo_get_200(self, _url, mock_log) -> None:
         """renewalinfo GET 200 → JsonResponse with headers"""
         cm, inst = self._cm(get=_ok({"suggestedWindow": {}}, {"Replay-Nonce": "ri"}))
         with patch(f"{_VIEWS}.Renewalinfo", return_value=cm):
@@ -533,7 +533,7 @@ class TestDjangoViews(unittest.TestCase):
 
     @patch(f"{_VIEWS}.log_response")
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_033_renewalinfo_post(self, _url, mock_log) -> None:
+    def test_036_renewalinfo_post(self, _url, mock_log) -> None:
         """renewalinfo POST → bare HttpResponse status branch"""
         cm, inst = self._cm(update={"code": 204, "data": {}, "header": {}})
         with patch(f"{_VIEWS}.Renewalinfo", return_value=cm):
@@ -550,13 +550,13 @@ class TestDjangoViews(unittest.TestCase):
         self.assertTrue(inst.update.called)
         self.assertTrue(mock_log.called)
 
-    def test_034_renewalinfo_wrong_method(self) -> None:
+    def test_037_renewalinfo_wrong_method(self) -> None:
         """renewalinfo HEAD returns ERR_RESPONSE_POST"""
         resp = self.views.renewalinfo(self._meta(self.rf.head("/renewal-info")))
         self.assertEqual(405, resp.status_code)
 
     @patch(f"{_VIEWS}.log_response")
-    def test_035_housekeeping_with_data(self, mock_log) -> None:
+    def test_038_housekeeping_with_data(self, mock_log) -> None:
         """housekeeping POST with data → JsonResponse safe=False"""
         self.views.HOUSEKEEPING_CLI_ENABLED = True
         cm, _inst = self._cm(parse=_ok([{"row": 1}]))
@@ -572,7 +572,7 @@ class TestDjangoViews(unittest.TestCase):
         self.assertTrue(mock_log.called)
 
     @patch(f"{_VIEWS}.log_response")
-    def test_036_housekeeping_without_data(self, mock_log) -> None:
+    def test_039_housekeeping_without_data(self, mock_log) -> None:
         """housekeeping POST without data → bare status"""
         self.views.HOUSEKEEPING_CLI_ENABLED = True
         cm, _inst = self._cm(parse={"code": 204, "header": {}})
@@ -587,13 +587,13 @@ class TestDjangoViews(unittest.TestCase):
         self.assertEqual(204, resp.status_code)
         self.assertTrue(mock_log.called)
 
-    def test_037_housekeeping_wrong_method(self) -> None:
+    def test_040_housekeeping_wrong_method(self) -> None:
         """housekeeping GET returns 405 JsonResponse"""
         resp = self.views.housekeeping(self._meta(self.rf.get("/housekeeping")))
         self.assertEqual(405, resp.status_code)
 
     @patch(f"{_VIEWS}.log_response")
-    def test_037b_housekeeping_disabled(self, mock_log) -> None:
+    def test_041_housekeeping_disabled(self, mock_log) -> None:
         """housekeeping POST returns 403 when gate is disabled"""
         self.views.HOUSEKEEPING_CLI_ENABLED = False
         resp = self.views.housekeeping(
@@ -610,7 +610,7 @@ class TestDjangoViews(unittest.TestCase):
         self.assertTrue(mock_log.called)
 
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_038_acmechallenge_found(self, _url) -> None:
+    def test_042_acmechallenge_found(self, _url) -> None:
         """acmechallenge_serve returns key authorization"""
         cm, _inst = self._cm(lookup="token.thumbprint")
         with patch(f"{_VIEWS}.Acmechallenge", return_value=cm):
@@ -621,7 +621,7 @@ class TestDjangoViews(unittest.TestCase):
         self.assertEqual(b"token.thumbprint", resp.content)
 
     @patch(f"{_VIEWS}.get_url", return_value="http://srv")
-    def test_039_acmechallenge_not_found(self, _url) -> None:
+    def test_043_acmechallenge_not_found(self, _url) -> None:
         """acmechallenge_serve returns 404 when lookup empty"""
         cm, _inst = self._cm(lookup=None)
         with patch(f"{_VIEWS}.Acmechallenge", return_value=cm):

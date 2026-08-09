@@ -174,7 +174,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertTrue(created)
         self.assertTrue(Account.objects.filter(name="acctNew").exists())
 
-    def test_006b_account_add_existing_jwk(self) -> None:
+    def test_007_account_add_existing_jwk(self) -> None:
         """test DBstore.account_add() returns existing when jwk matches"""
         self._seed_account("acctDup", _jwk_str("dup"))
         aname, created = self.dbstore.account_add(
@@ -188,24 +188,24 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual("acctDup", aname)
         self.assertFalse(created)
 
-    def test_007_account_lookup_found(self) -> None:
+    def test_008_account_lookup_found(self) -> None:
         """test DBstore.account_lookup() hit"""
         self._seed_account("acctL")
         result = self.dbstore.account_lookup("name", "acctL")
         self.assertIsNotNone(result)
         self.assertEqual("acctL", result["name"])
 
-    def test_008_account_lookup_miss(self) -> None:
+    def test_009_account_lookup_miss(self) -> None:
         """test DBstore.account_lookup() miss"""
         self.assertIsNone(self.dbstore.account_lookup("name", "missing"))
 
-    def test_009_account_delete(self) -> None:
+    def test_010_account_delete(self) -> None:
         """test DBstore.account_delete()"""
         self._seed_account("acctDel")
         self.dbstore.account_delete("acctDel")
         self.assertFalse(Account.objects.filter(name="acctDel").exists())
 
-    def test_010_account_update(self) -> None:
+    def test_011_account_update(self) -> None:
         """test DBstore.account_update()"""
         self._seed_account("acctUp")
         rid = self.dbstore.account_update(
@@ -219,20 +219,20 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIsInstance(rid, int)
         self.assertEqual("ES256", Account.objects.get(name="acctUp").alg)
 
-    def test_011_accountlist_get(self) -> None:
+    def test_012_accountlist_get(self) -> None:
         """test DBstore.accountlist_get()"""
         self._seed_account("acctList")
         vlist, rows = self.dbstore.accountlist_get()
         self.assertIn("name", vlist)
         self.assertTrue(any(r["name"] == "acctList" for r in rows))
 
-    def test_012_account_getinstance(self) -> None:
+    def test_013_account_getinstance(self) -> None:
         """test DBstore._account_getinstance()"""
         self._seed_account("acctInst")
         obj = self.dbstore._account_getinstance("acctInst")
         self.assertEqual("acctInst", obj.name)
 
-    def test_013_order_add_and_getinstance(self) -> None:
+    def test_014_order_add_and_getinstance(self) -> None:
         """test DBstore.order_add() and _order_getinstance()"""
         self._seed_account("acctOrd")
         oid = self.dbstore.order_add(
@@ -248,7 +248,7 @@ class TestDjangoHandler(unittest.TestCase):
         order = self.dbstore._order_getinstance("ordAdd", "name")
         self.assertEqual("ordAdd", order.name)
 
-    def test_014_order_lookup_found(self) -> None:
+    def test_015_order_lookup_found(self) -> None:
         """test DBstore.order_lookup() hit with status rename"""
         acct = self._seed_account("acctOL")
         self._seed_order(acct, "ordLook")
@@ -256,11 +256,11 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual("pending", result["status"])
 
-    def test_015_order_lookup_miss(self) -> None:
+    def test_016_order_lookup_miss(self) -> None:
         """test DBstore.order_lookup() miss"""
         self.assertIsNone(self.dbstore.order_lookup("name", "nope"))
 
-    def test_016_order_lookup_account_name_branch(self) -> None:
+    def test_017_order_lookup_account_name_branch(self) -> None:
         """test DBstore.order_lookup() account_name rename branch via mock"""
         values_qs = MagicMock()
         values_qs.__getitem__.return_value = [
@@ -272,14 +272,14 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual("acctX", result["account"])
         self.assertNotIn("account__name", result)
 
-    def test_017_order_update(self) -> None:
+    def test_018_order_update(self) -> None:
         """test DBstore.order_update()"""
         acct = self._seed_account("acctOU")
         self._seed_order(acct, "ordUp")
         self.dbstore.order_update({"name": "ordUp", "status": "ready"})
         self.assertEqual(3, Order.objects.get(name="ordUp").status_id)
 
-    def test_018_orders_invalid_search(self) -> None:
+    def test_019_orders_invalid_search(self) -> None:
         """test DBstore.orders_invalid_search()"""
         acct = self._seed_account("acctOIS")
         Order.objects.create(
@@ -300,7 +300,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual(1, len(rows))
         self.assertEqual("ordInv", rows[0]["name"])
 
-    def test_019_authorization_add_lookup_update(self) -> None:
+    def test_020_authorization_add_lookup_update(self) -> None:
         """test authorization_add / lookup / update / getinstance"""
         acct = self._seed_account("acctAz")
         order = self._seed_order(acct, "ordAz")
@@ -326,7 +326,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIsInstance(rid, int)
         self.assertEqual(5, Authorization.objects.get(name="azAdd").status_id)
 
-    def test_020_authorizations_expired_search(self) -> None:
+    def test_021_authorizations_expired_search(self) -> None:
         """test DBstore.authorizations_expired_search()"""
         acct = self._seed_account("acctAzS")
         order = self._seed_order(acct, "ordAzS")
@@ -358,7 +358,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIn("azPend", names)
         self.assertNotIn("azExp", names)
 
-    def test_021_authorization_update_django3_sqlite(self) -> None:
+    def test_022_authorization_update_django3_sqlite(self) -> None:
         """test authorization_update Django<4 sqlite immediate branch"""
         acct = self._seed_account("acctAz3")
         order = self._seed_order(acct, "ordAz3")
@@ -376,7 +376,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIsInstance(rid, int)
         mock_atomic.assert_any_call(immediate=True)
 
-    def test_022_cahandler_add_lookup(self) -> None:
+    def test_023_cahandler_add_lookup(self) -> None:
         """test cahandler_add / cahandler_lookup"""
         cname, created = self.dbstore.cahandler_add(
             {"name": "ca1", "value1": "v1", "value2": "v2"}
@@ -392,7 +392,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual("v1", result["value1"])
         self.assertIsNone(self.dbstore.cahandler_lookup("name", "missing"))
 
-    def test_023_challenge_add_lookup_update_search(self) -> None:
+    def test_024_challenge_add_lookup_update_search(self) -> None:
         """test challenge_add / lookup / update / search"""
         acct = self._seed_account("acctCh")
         order = self._seed_order(acct, "ordCh")
@@ -430,7 +430,7 @@ class TestDjangoHandler(unittest.TestCase):
         )
         self.assertEqual(1, len(rows))
 
-    def test_024_challenge_add_django3_sqlite(self) -> None:
+    def test_025_challenge_add_django3_sqlite(self) -> None:
         """test challenge_add Django<4 sqlite immediate branch"""
         acct = self._seed_account("acctCh3")
         order = self._seed_order(acct, "ordCh3")
@@ -457,7 +457,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIsInstance(cid, int)
         mock_atomic.assert_any_call(immediate=True)
 
-    def test_025_certificate_add_lookup_delete_list(self) -> None:
+    def test_026_certificate_add_lookup_delete_list(self) -> None:
         """test certificate_add / lookup / delete / list / search / account_check"""
         acct = self._seed_account("acctCert")
         order = self._seed_order(acct, "ordCert")
@@ -495,7 +495,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.dbstore.certificate_delete("name", "cert1")
         self.assertFalse(Certificate.objects.filter(name="cert1").exists())
 
-    def test_026_cli_jwk_and_permissions(self) -> None:
+    def test_027_cli_jwk_and_permissions(self) -> None:
         """test cli_jwk_load / cli_permissions_get"""
         self.assertEqual({}, self.dbstore.cli_jwk_load("missing"))
         self.assertEqual({}, self.dbstore.cli_permissions_get("missing"))
@@ -513,7 +513,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertTrue(perms["cliadmin"])
         self.assertFalse(perms["reportadmin"])
 
-    def test_027_cli_jwk_load_bytes(self) -> None:
+    def test_028_cli_jwk_load_bytes(self) -> None:
         """test cli_jwk_load bytes.decode path via mocked ORM row"""
         values_qs = MagicMock()
         values_qs.__getitem__.return_value = [{"jwk": b'{"kty":"EC","crv":"P-256"}'}]
@@ -522,7 +522,7 @@ class TestDjangoHandler(unittest.TestCase):
             jwk = self.dbstore.cli_jwk_load("cliBytes")
         self.assertEqual("EC", jwk["kty"])
 
-    def test_027b_cli_jwk_load_decode_error(self) -> None:
+    def test_029_cli_jwk_load_decode_error(self) -> None:
         """test cli_jwk_load logs ERROR then falls back to json.loads(str)"""
         Cliaccount.objects.create(
             name="cliBad",
@@ -539,7 +539,7 @@ class TestDjangoHandler(unittest.TestCase):
             )
         )
 
-    def test_028_dbversion_and_hkparameter(self) -> None:
+    def test_030_dbversion_and_hkparameter(self) -> None:
         """test dbversion_get / hkparameter_add / hkparameter_get"""
         version, tool = self.dbstore.dbversion_get()
         self.assertEqual("a2c-django-update", tool)
@@ -550,7 +550,7 @@ class TestDjangoHandler(unittest.TestCase):
         Housekeeping.objects.filter(name="dbversion").delete()
         self.assertEqual((None, "a2c-django-update"), self.dbstore.dbversion_get())
 
-    def test_029_jwk_load(self) -> None:
+    def test_031_jwk_load(self) -> None:
         """test DBstore.jwk_load() str and bytes paths"""
         self.assertEqual({}, self.dbstore.jwk_load("missing"))
         self._seed_account("acctJwk", _jwk_str("jwk"))
@@ -565,7 +565,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual("EC", jwk2["kty"])
         self.assertEqual("ES256", jwk2["alg"])
 
-    def test_030_nonce_ops(self) -> None:
+    def test_032_nonce_ops(self) -> None:
         """test nonce_add / check / delete / delete_bulk / search_by_timestamp"""
         rid = self.dbstore.nonce_add("n1")
         self.assertIsInstance(rid, int)
@@ -586,7 +586,7 @@ class TestDjangoHandler(unittest.TestCase):
         found_empty = self.dbstore.nonce_search_by_timestamp(0)
         self.assertEqual([], found_empty)
 
-    def test_031_certificate_add_without_order(self) -> None:
+    def test_033_certificate_add_without_order(self) -> None:
         """test certificate_add without order key"""
         # order FK is required by model; create with order via ORM then update path
         # covers branch where "order" not in data_dic by mocking update_or_create
@@ -607,7 +607,7 @@ class TestDjangoHandler(unittest.TestCase):
             ),
         )
 
-    def test_032_challenge_update_without_status(self) -> None:
+    def test_034_challenge_update_without_status(self) -> None:
         """test challenge_update without status key"""
         acct = self._seed_account("acctCu")
         order = self._seed_order(acct, "ordCu")
@@ -622,14 +622,14 @@ class TestDjangoHandler(unittest.TestCase):
         self.dbstore.challenge_update({"name": "chCu", "keyauthorization": "ka2"})
         self.assertEqual("ka2", Challenge.objects.get(name="chCu").keyauthorization)
 
-    def test_033_order_update_without_status(self) -> None:
+    def test_035_order_update_without_status(self) -> None:
         """test order_update without status key"""
         acct = self._seed_account("acctOu2")
         self._seed_order(acct, "ordOu2")
         self.dbstore.order_update({"name": "ordOu2", "expires": 42})
         self.assertEqual(42, Order.objects.get(name="ordOu2").expires)
 
-    def test_034_authorization_add_without_optional(self) -> None:
+    def test_036_authorization_add_without_optional(self) -> None:
         """test authorization_add without order/status keys"""
         acct = self._seed_account("acctAzO")
         order = self._seed_order(acct, "ordAzO")
@@ -648,7 +648,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual(77, rid)
         self.assertEqual(order.name, "ordAzO")  # keep seed referenced
 
-    def test_035_modify_key_lte_branch_in_search(self) -> None:
+    def test_037_modify_key_lte_branch_in_search(self) -> None:
         """test certificates_search with <= operant"""
         acct = self._seed_account("acctLte")
         order = self._seed_order(acct, "ordLte")
@@ -665,7 +665,7 @@ class TestDjangoHandler(unittest.TestCase):
         )
         self.assertTrue(any(r["name"] == "certLte" for r in rows))
 
-    def test_036_model_unicode_methods(self) -> None:
+    def test_038_model_unicode_methods(self) -> None:
         """test Django model __unicode__() helpers"""
         nonce = Nonce.objects.create(nonce="n-unicode")
         self.assertEqual("n-unicode", nonce.__unicode__())

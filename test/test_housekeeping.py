@@ -913,7 +913,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.housekeeping.cli_enabled)
 
     @patch("acme2certifier.acme_srv.housekeeping.load_config")
-    def test_058b_config_load_cli_enabled(self, mock_load_cfg):
+    def test_059_config_load_cli_enabled(self, mock_load_cfg):
         """test _config_load sets cli_enabled when configured"""
         parser = configparser.ConfigParser()
         parser["Housekeeping"] = {"cli_enabled": "True"}
@@ -921,7 +921,7 @@ class TestACMEHandler(unittest.TestCase):
         self.housekeeping._config_load()
         self.assertTrue(self.housekeeping.cli_enabled)
 
-    def test_058c_resolve_housekeeping_cli_endpoint_default_off(self):
+    def test_060_resolve_housekeeping_cli_endpoint_default_off(self):
         """absent [Housekeeping] → False"""
         from acme2certifier.acme_srv.housekeeping import (
             resolve_housekeeping_cli_endpoint,
@@ -934,14 +934,14 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("csv.writer")
     @patch("builtins.open", mock_open(read_data="csv_dump"), create=True)
-    def test_059__csv_dump(self, mock_write):
+    def test_061__csv_dump(self, mock_write):
         """test csv dump"""
         self.housekeeping._csv_dump("filename", "data")
         self.assertTrue(mock_write.called)
 
     @patch("json.dumps")
     @patch("builtins.open", mock_open(read_data="csv_dump"), create=True)
-    def test_060__csv_dump(self, mock_json):
+    def test_062__csv_dump(self, mock_json):
         """test csv dump"""
         mock_json.return_value = {"foo": "bar"}
         self.housekeeping._json_dump("filename", "data")
@@ -951,7 +951,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._accountlist_get")
-    def test_061_accountreport_get(
+    def test_063_accountreport_get(
         self, mock_get, mock_norm, mock_convert, mock_tolist
     ):
         """test accountreport_get() no report name"""
@@ -972,7 +972,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._accountlist_get")
-    def test_062_accountreport_get(
+    def test_064_accountreport_get(
         self, mock_get, mock_norm, mock_convert, mock_list, mock_dump
     ):
         """test accountreport_get() report name csv"""
@@ -993,7 +993,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._accountlist_get")
-    def test_063_accountreport_get(
+    def test_065_accountreport_get(
         self, mock_get, mock_norm, mock_convert, mock_list, mock_dump
     ):
         """test accountreport_get() report name json not nested"""
@@ -1011,7 +1011,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._accountlist_get")
-    def test_064_accountreport_get(
+    def test_066_accountreport_get(
         self, mock_get, mock_norm, mock_convert, mock_list, mock_dump
     ):
         """test accountreport_get() report name json not nested"""
@@ -1029,7 +1029,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._certificatelist_get")
-    def test_065_certreport_get(self, mock_get, mock_norm, mock_convert, mock_list):
+    def test_067_certreport_get(self, mock_get, mock_norm, mock_convert, mock_list):
         """test accountreport_get() no report name"""
         mock_get.return_value = ("foo", "bar")
         mock_norm.return_value = (["foo"], "bar")
@@ -1044,7 +1044,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._certificatelist_get")
-    def test_066_certreport_get(
+    def test_068_certreport_get(
         self, mock_get, mock_norm, mock_convert, mock_list, mock_dump
     ):
         """test accountreport_get() no report name"""
@@ -1064,7 +1064,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._certificatelist_get")
-    def test_067_certreport_get(
+    def test_069_certreport_get(
         self, mock_get, mock_norm, mock_convert, mock_list, mock_dump
     ):
         """test accountreport_get() report name json not nested"""
@@ -1082,7 +1082,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._certificatelist_get")
-    def test_068_certreport_get(
+    def test_070_certreport_get(
         self, mock_get, mock_norm, mock_convert, mock_list, mock_dump
     ):
         """test accountreport_get() report name json not nested"""
@@ -1101,7 +1101,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.acme_srv.certificate.Certificate.dates_update")
-    def test_069_certificate_data_update(self, mock_update):
+    def test_071_certificate_data_update(self, mock_update):
         """test certificate_dates_update"""
         self.housekeeping.certificate_dates_update()
         self.assertTrue(mock_update.called)
@@ -1111,51 +1111,51 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
     @patch("acme2certifier.acme_srv.certificate.Certificate.cleanup")
     @patch("acme2certifier.acme_srv.housekeeping.uts_now")
-    def test_070_certificates_cleanup(
-        self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump
-    ):
-        """test certificates_cleanup no uts empty report_name"""
-        mock_uts.return_value = 1111111111
-        mock_cleanup.return_value = ("fieldlist", [])
-        self.assertFalse(
-            self.housekeeping.certificates_cleanup(
-                uts=None, purge=False, report_format="csv", report_name=None
-            )
-        )
-        self.assertTrue(mock_uts.called)
-        self.assertTrue(mock_cleanup.called)
-        self.assertFalse(mock_list.called)
-        self.assertFalse(mock_cdump.called)
-        self.assertFalse(mock_jdump.called)
-
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._json_dump")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._csv_dump")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
-    @patch("acme2certifier.acme_srv.certificate.Certificate.cleanup")
-    @patch("acme2certifier.acme_srv.housekeeping.uts_now")
-    def test_071_certificates_cleanup(
-        self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump
-    ):
-        """test certificates_cleanup no uts empty report_name"""
-        mock_uts.return_value = 1111111111
-        mock_cleanup.return_value = ("fieldlist", [])
-        self.assertFalse(
-            self.housekeeping.certificates_cleanup(
-                uts=None, purge=False, report_format="csv", report_name=None
-            )
-        )
-        self.assertTrue(mock_uts.called)
-        self.assertTrue(mock_cleanup.called)
-        self.assertFalse(mock_list.called)
-        self.assertFalse(mock_cdump.called)
-        self.assertFalse(mock_jdump.called)
-
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._json_dump")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._csv_dump")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
-    @patch("acme2certifier.acme_srv.certificate.Certificate.cleanup")
-    @patch("acme2certifier.acme_srv.housekeeping.uts_now")
     def test_072_certificates_cleanup(
+        self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump
+    ):
+        """test certificates_cleanup no uts empty report_name"""
+        mock_uts.return_value = 1111111111
+        mock_cleanup.return_value = ("fieldlist", [])
+        self.assertFalse(
+            self.housekeeping.certificates_cleanup(
+                uts=None, purge=False, report_format="csv", report_name=None
+            )
+        )
+        self.assertTrue(mock_uts.called)
+        self.assertTrue(mock_cleanup.called)
+        self.assertFalse(mock_list.called)
+        self.assertFalse(mock_cdump.called)
+        self.assertFalse(mock_jdump.called)
+
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._json_dump")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._csv_dump")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.cleanup")
+    @patch("acme2certifier.acme_srv.housekeeping.uts_now")
+    def test_073_certificates_cleanup(
+        self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump
+    ):
+        """test certificates_cleanup no uts empty report_name"""
+        mock_uts.return_value = 1111111111
+        mock_cleanup.return_value = ("fieldlist", [])
+        self.assertFalse(
+            self.housekeeping.certificates_cleanup(
+                uts=None, purge=False, report_format="csv", report_name=None
+            )
+        )
+        self.assertTrue(mock_uts.called)
+        self.assertTrue(mock_cleanup.called)
+        self.assertFalse(mock_list.called)
+        self.assertFalse(mock_cdump.called)
+        self.assertFalse(mock_jdump.called)
+
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._json_dump")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._csv_dump")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.cleanup")
+    @patch("acme2certifier.acme_srv.housekeeping.uts_now")
+    def test_074_certificates_cleanup(
         self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump
     ):
         """test certificates_cleanup uts but empty report_name"""
@@ -1177,7 +1177,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
     @patch("acme2certifier.acme_srv.certificate.Certificate.cleanup")
     @patch("acme2certifier.acme_srv.housekeeping.uts_now")
-    def test_073_certificates_cleanup(
+    def test_075_certificates_cleanup(
         self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump
     ):
         """test certificates_cleanup no uts empty certlist"""
@@ -1199,7 +1199,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
     @patch("acme2certifier.acme_srv.certificate.Certificate.cleanup")
     @patch("acme2certifier.acme_srv.housekeeping.uts_now")
-    def test_074_certificates_cleanup(
+    def test_076_certificates_cleanup(
         self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump
     ):
         """test certificates_cleanup csv"""
@@ -1222,7 +1222,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
     @patch("acme2certifier.acme_srv.certificate.Certificate.cleanup")
     @patch("acme2certifier.acme_srv.housekeeping.uts_now")
-    def test_075_certificates_cleanup(
+    def test_077_certificates_cleanup(
         self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump
     ):
         """test certificates_cleanup json"""
@@ -1245,7 +1245,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
     @patch("acme2certifier.acme_srv.certificate.Certificate.cleanup")
     @patch("acme2certifier.acme_srv.housekeeping.uts_now")
-    def test_076_certificates_cleanup(
+    def test_078_certificates_cleanup(
         self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump
     ):
         """test certificates_cleanup unknown output"""
@@ -1269,7 +1269,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.authorization.Authorization.invalidate")
-    def test_077_authorizations_invalidate(
+    def test_079_authorizations_invalidate(
         self,
         mock_invalidate,
         mock_normalize,
@@ -1284,64 +1284,6 @@ class TestACMEHandler(unittest.TestCase):
         mock_convert.return_value = "authorization_list"
         self.housekeeping.authorizations_invalidate(
             uts="foo", report_format="unkown", report_name=None
-        )
-        self.assertTrue(mock_invalidate.called)
-        self.assertTrue(mock_normalize.called)
-        self.assertTrue(mock_convert.called)
-        self.assertFalse(mock_list.called)
-        self.assertFalse(mock_cdump.called)
-        self.assertFalse(mock_jdump.called)
-
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._json_dump")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._csv_dump")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
-    @patch("acme2certifier.acme_srv.authorization.Authorization.invalidate")
-    def test_078_authorizations_invalidate(
-        self,
-        mock_invalidate,
-        mock_normalize,
-        mock_convert,
-        mock_list,
-        mock_cdump,
-        mock_jdump,
-    ):
-        """authorization with report name but empty auth_list"""
-        mock_invalidate.return_value = ("fieldlist", "cert_list")
-        mock_normalize.return_value = ("field_list", "authorization_list")
-        mock_convert.return_value = []
-        self.housekeeping.authorizations_invalidate(
-            uts="foo", report_format="unkown", report_name="foo"
-        )
-        self.assertTrue(mock_invalidate.called)
-        self.assertTrue(mock_normalize.called)
-        self.assertTrue(mock_convert.called)
-        self.assertFalse(mock_list.called)
-        self.assertFalse(mock_cdump.called)
-        self.assertFalse(mock_jdump.called)
-
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._json_dump")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._csv_dump")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
-    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
-    @patch("acme2certifier.acme_srv.authorization.Authorization.invalidate")
-    def test_079_authorizations_invalidate(
-        self,
-        mock_invalidate,
-        mock_normalize,
-        mock_convert,
-        mock_list,
-        mock_cdump,
-        mock_jdump,
-    ):
-        """authorization with report name unknown report format"""
-        mock_invalidate.return_value = ("fieldlist", "cert_list")
-        mock_normalize.return_value = ("field_list", "authorization_list")
-        mock_convert.return_value = "authorization_list"
-        self.housekeeping.authorizations_invalidate(
-            uts="foo", report_format="unkown", report_name="foo"
         )
         self.assertTrue(mock_invalidate.called)
         self.assertTrue(mock_normalize.called)
@@ -1365,6 +1307,64 @@ class TestACMEHandler(unittest.TestCase):
         mock_cdump,
         mock_jdump,
     ):
+        """authorization with report name but empty auth_list"""
+        mock_invalidate.return_value = ("fieldlist", "cert_list")
+        mock_normalize.return_value = ("field_list", "authorization_list")
+        mock_convert.return_value = []
+        self.housekeeping.authorizations_invalidate(
+            uts="foo", report_format="unkown", report_name="foo"
+        )
+        self.assertTrue(mock_invalidate.called)
+        self.assertTrue(mock_normalize.called)
+        self.assertTrue(mock_convert.called)
+        self.assertFalse(mock_list.called)
+        self.assertFalse(mock_cdump.called)
+        self.assertFalse(mock_jdump.called)
+
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._json_dump")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._csv_dump")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.invalidate")
+    def test_081_authorizations_invalidate(
+        self,
+        mock_invalidate,
+        mock_normalize,
+        mock_convert,
+        mock_list,
+        mock_cdump,
+        mock_jdump,
+    ):
+        """authorization with report name unknown report format"""
+        mock_invalidate.return_value = ("fieldlist", "cert_list")
+        mock_normalize.return_value = ("field_list", "authorization_list")
+        mock_convert.return_value = "authorization_list"
+        self.housekeeping.authorizations_invalidate(
+            uts="foo", report_format="unkown", report_name="foo"
+        )
+        self.assertTrue(mock_invalidate.called)
+        self.assertTrue(mock_normalize.called)
+        self.assertTrue(mock_convert.called)
+        self.assertFalse(mock_list.called)
+        self.assertFalse(mock_cdump.called)
+        self.assertFalse(mock_jdump.called)
+
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._json_dump")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._csv_dump")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._to_list")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.invalidate")
+    def test_082_authorizations_invalidate(
+        self,
+        mock_invalidate,
+        mock_normalize,
+        mock_convert,
+        mock_list,
+        mock_cdump,
+        mock_jdump,
+    ):
         """authorization with report name unknown report format"""
         mock_invalidate.return_value = ("fieldlist", "cert_list")
         mock_normalize.return_value = ("field_list", "authorization_list")
@@ -1385,7 +1385,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.authorization.Authorization.invalidate")
-    def test_081_authorizations_invalidate(
+    def test_083_authorizations_invalidate(
         self,
         mock_invalidate,
         mock_normalize,
@@ -1414,7 +1414,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.order.Order.invalidate")
-    def test_082_orders_invalidate(
+    def test_084_orders_invalidate(
         self,
         mock_invalidate,
         mock_normalize,
@@ -1443,7 +1443,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.order.Order.invalidate")
-    def test_083_orders_invalidate(
+    def test_085_orders_invalidate(
         self,
         mock_invalidate,
         mock_normalize,
@@ -1472,7 +1472,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.order.Order.invalidate")
-    def test_084_orders_invalidate(
+    def test_086_orders_invalidate(
         self,
         mock_invalidate,
         mock_normalize,
@@ -1501,7 +1501,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.order.Order.invalidate")
-    def test_085_orders_invalidate(
+    def test_087_orders_invalidate(
         self,
         mock_invalidate,
         mock_normalize,
@@ -1530,7 +1530,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._convert_data")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._lists_normalize")
     @patch("acme2certifier.acme_srv.order.Order.invalidate")
-    def test_086_orders_invalidate(
+    def test_088_orders_invalidate(
         self,
         mock_invalidate,
         mock_normalize,
@@ -1555,7 +1555,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._clireport_get")
     @patch("acme2certifier.acme_srv.message.Message.cli_check")
-    def test_087_parse(self, mock_check, mock_report):
+    def test_089_parse(self, mock_check, mock_report):
         """test parse cli_check() failed"""
         payload = {}
         mock_check.return_value = (
@@ -1575,7 +1575,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.housekeeping.parse("content"))
         self.assertFalse(mock_report.called)
 
-    def test_087b_parse_disabled(self):
+    def test_090_parse_disabled(self):
         """parse returns 403 when CLI endpoint is disabled"""
         self.housekeeping.cli_enabled = False
         result = {
@@ -1595,7 +1595,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._clireport_get")
     @patch("acme2certifier.acme_srv.message.Message.cli_check")
-    def test_088_parse(self, mock_check, mock_report):
+    def test_091_parse(self, mock_check, mock_report):
         """test parse cli_check() failed empty payload"""
         payload = {}
         mock_check.return_value = (
@@ -1621,7 +1621,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._clireport_get")
     @patch("acme2certifier.acme_srv.message.Message.cli_check")
-    def test_089_parse(self, mock_check, mock_report):
+    def test_092_parse(self, mock_check, mock_report):
         """test parse cli_check() failed data field missing"""
         payload = {"type": "type"}
         mock_check.return_value = (
@@ -1647,7 +1647,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._clireport_get")
     @patch("acme2certifier.acme_srv.message.Message.cli_check")
-    def test_090_parse(self, mock_check, mock_report):
+    def test_093_parse(self, mock_check, mock_report):
         """test parse cli_check() failed type field missing"""
         payload = {"data": "data"}
         mock_check.return_value = (
@@ -1673,7 +1673,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._clireport_get")
     @patch("acme2certifier.acme_srv.message.Message.cli_check")
-    def test_091_parse(self, mock_check, mock_report):
+    def test_094_parse(self, mock_check, mock_report):
         """test parse cli_check() failed unknown type"""
         payload = {"type": "type", "data": "data"}
         mock_check.return_value = (
@@ -1699,7 +1699,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._clireport_get")
     @patch("acme2certifier.acme_srv.message.Message.cli_check")
-    def test_092_parse(self, mock_check, mock_report):
+    def test_095_parse(self, mock_check, mock_report):
         """test parse cli_check() failed successfull report execution"""
         payload = {"type": "report", "data": "data"}
         mock_check.return_value = (
@@ -1723,7 +1723,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.accountreport_get")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.certreport_get")
-    def test_093_clireport_get(self, mock_cert, mock_account):
+    def test_096_clireport_get(self, mock_cert, mock_account):
         """test parse _clireport_get() - reportadmin flag does not exist"""
         payload = {"type": "report", "data": {"name": "accounts", "format": "json"}}
         permission_dic = {"foo": "bar"}
@@ -1743,7 +1743,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.accountreport_get")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.certreport_get")
-    def test_094_clireport_get(self, mock_cert, mock_account):
+    def test_097_clireport_get(self, mock_cert, mock_account):
         """test parse _clireport_get() - reportadmin flag does not exist"""
         payload = {"type": "report", "data": {"name": "accounts", "format": "json"}}
         permission_dic = {"reportadmin": False}
@@ -1763,7 +1763,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.accountreport_get")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.certreport_get")
-    def test_095_clireport_get(self, mock_cert, mock_account):
+    def test_098_clireport_get(self, mock_cert, mock_account):
         """test parse _clireport_get() -account report"""
         payload = {"type": "report", "data": {"name": "accounts", "format": "json"}}
         permission_dic = {"reportadmin": True}
@@ -1778,7 +1778,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.accountreport_get")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.certreport_get")
-    def test_096_clireport_get(self, mock_cert, mock_account):
+    def test_099_clireport_get(self, mock_cert, mock_account):
         """test parse _clireport_get() -cert report"""
         payload = {"type": "report", "data": {"name": "certificates", "format": "json"}}
         permission_dic = {"reportadmin": True}
@@ -1793,7 +1793,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.accountreport_get")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.certreport_get")
-    def test_097_clireport_get(self, mock_cert, mock_account):
+    def test_100_clireport_get(self, mock_cert, mock_account):
         """test parse _clireport_get() - unknown report"""
         payload = {"type": "report", "data": {"name": "unknown", "format": "json"}}
         permission_dic = {"reportadmin": True}
@@ -1813,7 +1813,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.accountreport_get")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.certreport_get")
-    def test_098_clireport_get(self, mock_cert, mock_account):
+    def test_101_clireport_get(self, mock_cert, mock_account):
         """test parse _clireport_get() - name tag is missing"""
         payload = {"type": "report", "data": {"foo": "unknown", "format": "json"}}
         permission_dic = {"reportadmin": True}
@@ -1833,7 +1833,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.accountreport_get")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.certreport_get")
-    def test_099_clireport_get(self, mock_cert, mock_account):
+    def test_102_clireport_get(self, mock_cert, mock_account):
         """test parse _clireport_get() - unknown format"""
         payload = {"type": "report", "data": {"name": "certificates", "format": "txt"}}
         permission_dic = {"reportadmin": True}
@@ -1851,7 +1851,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_cert.called)
         self.assertFalse(mock_account.called)
 
-    def test_100__cliconfig_check(self):
+    def test_103__cliconfig_check(self):
         """test _cliconfig_check - with empty input"""
         config_dic = {}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1861,7 +1861,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_101__cliconfig_check(self):
+    def test_104__cliconfig_check(self):
         """test _cliconfig_check - wrong input"""
         config_dic = {"foo": "bar", "bar": "foo"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1871,23 +1871,23 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_102__cliconfig_check(self):
+    def test_105__cliconfig_check(self):
         """test _cliconfig_check - list parameter is in"""
         config_dic = {"foo": "bar", "list": "list"}
         self.assertTrue(self.housekeeping._cliconfig_check(config_dic))
 
-    def test_103__cliconfig_check(self):
+    def test_106__cliconfig_check(self):
         """test _cliconfig_check - jwkname parameter is in"""
         config_dic = {"foo": "bar", "jwkname": "jwkname"}
         self.assertTrue(self.housekeeping._cliconfig_check(config_dic))
 
-    def test_104__cliconfig_check(self):
+    def test_107__cliconfig_check(self):
         """test _cliconfig_check - jwk parameter is in"""
         config_dic = {"foo": "bar", "jwk": "jwk"}
         self.assertTrue(self.housekeeping._cliconfig_check(config_dic))
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliaccounts_format")
-    def test_105__cliaccounts_list(self, mock_caf):
+    def test_108__cliaccounts_list(self, mock_caf):
         """test _cliaccounts_list silent false"""
         self.housekeeping.dbstore.cliaccountlist_get.return_value = "foo"
         mock_caf.return_value = "mock_caf"
@@ -1895,7 +1895,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_caf.called)
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliaccounts_format")
-    def test_106__cliaccounts_list(self, mock_caf):
+    def test_109__cliaccounts_list(self, mock_caf):
         """test _cliaccounts_list silent true"""
         self.housekeeping.dbstore.cliaccountlist_get.return_value = "foo"
         mock_caf.return_value = "mock_caf"
@@ -1903,7 +1903,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_caf.called)
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliaccounts_format")
-    def test_107__cliaccounts_list(self, mock_caf):
+    def test_110__cliaccounts_list(self, mock_caf):
         """test _cliaccounts_list silent true"""
         self.housekeeping.dbstore.cliaccountlist_get.side_effect = Exception("exc_calg")
         mock_caf.return_value = "mock_caf"
@@ -1916,7 +1916,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_caf.called)
 
     @patch("builtins.print")
-    def test_108__cliaccounts_format(self, mock_print):
+    def test_111__cliaccounts_format(self, mock_print):
         # def test_0107__cliaccounts_format(self):
         """test cliaccounts_format one entry"""
         result = [
@@ -1952,7 +1952,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn(call("\n"), mock_print.mock_calls)
 
     @patch("builtins.print")
-    def test_109__cliaccounts_format(self, mock_print):
+    def test_112__cliaccounts_format(self, mock_print):
         # def test_0107__cliaccounts_format(self):
         """test cliaccounts_format two entries"""
         result = [
@@ -2003,7 +2003,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn(call("\n"), mock_print.mock_calls)
 
     @patch("builtins.print")
-    def test_110__cliaccounts_format(self, mock_print):
+    def test_113__cliaccounts_format(self, mock_print):
         # def test_0107__cliaccounts_format(self):
         """test cliaccounts_format two entries to be reordered"""
         result = [
@@ -2054,7 +2054,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn(call("\n"), mock_print.mock_calls)
 
     @patch("builtins.print")
-    def test_111__cliaccounts_format(self, mock_print):
+    def test_114__cliaccounts_format(self, mock_print):
         """test cliaccounts_format two entries to be reordered"""
         result = ["string"]
 
@@ -2068,7 +2068,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_112_cli_usermgr(self, mock_chk):
+    def test_115_cli_usermgr(self, mock_chk):
         """test cli_usermgr with failed config check"""
         config_dic = {}
         mock_chk.return_value = False
@@ -2076,7 +2076,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_113_cli_usermgr(self, mock_chk, mock_build):
+    def test_116_cli_usermgr(self, mock_chk, mock_build):
         """test cli_usermgr incomplete config"""
         config_dic = {}
         mock_build.return_value = {}
@@ -2091,7 +2091,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_114_cli_usermgr(self, mock_chk, mock_build):
+    def test_117_cli_usermgr(self, mock_chk, mock_build):
         """test cli_usermgr add"""
         config_dic = {}
         mock_build.return_value = {"name": "name"}
@@ -2103,7 +2103,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_115_cli_usermgr(self, mock_chk, mock_build):
+    def test_118_cli_usermgr(self, mock_chk, mock_build):
         """test cli_usermgr delete False"""
         config_dic = {"delete": False}
         mock_build.return_value = {"name": "name"}
@@ -2115,7 +2115,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_116_cli_usermgr(self, mock_chk, mock_build):
+    def test_119_cli_usermgr(self, mock_chk, mock_build):
         """test cli_usermgr delete"""
         config_dic = {"delete": True}
         mock_build.return_value = {"name": "name"}
@@ -2127,7 +2127,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliaccounts_list")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_117_cli_usermgr(self, mock_chk, mock_build, mock_list):
+    def test_120_cli_usermgr(self, mock_chk, mock_build, mock_list):
         """test cli_usermgr list true"""
         config_dic = {"list": True}
         mock_build.return_value = {"name": "name"}
@@ -2139,7 +2139,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliaccounts_list")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_118_cli_usermgr(self, mock_chk, mock_build, mock_list):
+    def test_121_cli_usermgr(self, mock_chk, mock_build, mock_list):
         """test cli_usermgr list false"""
         config_dic = {"list": False}
         mock_build.return_value = {"name": "name"}
@@ -2150,7 +2150,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_119_cli_usermgr(self, mock_chk, mock_build):
+    def test_122_cli_usermgr(self, mock_chk, mock_build):
         """test cli_usermgr exception in add"""
         config_dic = {"list": False}
         mock_build.return_value = {"name": "name"}
@@ -2166,7 +2166,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_120_cli_usermgr(self, mock_chk, mock_build):
+    def test_123_cli_usermgr(self, mock_chk, mock_build):
         """test cli_usermgr exception in delete"""
         config_dic = {"delete": True}
         mock_build.return_value = {"name": "name"}
@@ -2185,7 +2185,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliaccounts_list")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_121_cli_usermgr(self, mock_chk, mock_build, mock_list):
+    def test_124_cli_usermgr(self, mock_chk, mock_build, mock_list):
         """test cli_usermgr exception in list"""
         config_dic = {"list": True}
         mock_build.return_value = {"name": "name"}
@@ -2199,36 +2199,36 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_list.called)
 
-    def test_122_data_dic_build(self):
+    def test_125_data_dic_build(self):
         """test _data_dic_build() - empty dic"""
         config_dic = {}
         self.assertFalse(self.housekeeping._data_dic_build(config_dic))
 
-    def test_123_data_dic_build(self):
+    def test_126_data_dic_build(self):
         """test _data_dic_build() - jwkname set"""
         config_dic = {"jwkname": "jwkname"}
         result_dic = {"name": "jwkname"}
         self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
 
-    def test_124_data_dic_build(self):
+    def test_127_data_dic_build(self):
         """test _data_dic_build() - kid set"""
         config_dic = {"jwk": {"kid": "kid", "foo": "bar"}}
         result_dic = {"jwk": '{"kid": "kid", "foo": "bar"}', "name": "kid"}
         self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
 
-    def test_125_data_dic_build(self):
+    def test_128_data_dic_build(self):
         """test _data_dic_build() - kid not set but other parameters"""
         config_dic = {"jwk": {"foo": "bar"}, "jwkname": "jwkname"}
         result_dic = {"jwk": '{"foo": "bar"}', "name": "jwkname"}
         self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
 
-    def test_126_data_dic_build(self):
+    def test_129_data_dic_build(self):
         """test _data_dic_build() - add email"""
         config_dic = {"jwk": {"foo": "bar"}, "jwkname": "jwkname", "email": "email"}
         result_dic = {"jwk": '{"foo": "bar"}', "name": "jwkname", "contact": "email"}
         self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
 
-    def test_127_data_dic_build(self):
+    def test_130_data_dic_build(self):
         """test _data_dic_build() - permissions set"""
         config_dic = {
             "jwk": {"foo": "bar"},
@@ -2244,7 +2244,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
 
-    def test_128_data_dic_build(self):
+    def test_131_data_dic_build(self):
         """test _data_dic_build() - string"""
         config_dic = {
             "jwk": {"foo": "bar"},
@@ -2260,7 +2260,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_129_data_dic_build(self):
+    def test_132_data_dic_build(self):
         """test _data_dic_build() - delete false"""
         config_dic = {
             "jwk": {"foo": "bar"},
@@ -2277,7 +2277,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
 
-    def test_130_data_dic_build(self):
+    def test_133_data_dic_build(self):
         """test _data_dic_build() - delete true"""
         config_dic = {
             "jwk": {"foo": "bar"},
@@ -2289,7 +2289,7 @@ class TestACMEHandler(unittest.TestCase):
         result_dic = {"name": "jwkname"}
         self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
 
-    def test_131_housekeeping_cli_enabled_dict_fallback(self):
+    def test_134_housekeeping_cli_enabled_dict_fallback(self):
         """housekeeping_cli_enabled() handles dict-style configs"""
         from acme2certifier.acme_srv.housekeeping import housekeeping_cli_enabled
 
@@ -2297,7 +2297,7 @@ class TestACMEHandler(unittest.TestCase):
             housekeeping_cli_enabled({"Housekeeping": {"cli_enabled": "yes"}})
         )
 
-    def test_132_resolve_housekeeping_cli_endpoint_status_log(self):
+    def test_135_resolve_housekeeping_cli_endpoint_status_log(self):
         """resolve_housekeeping_cli_endpoint() logs enabled status"""
         from acme2certifier.acme_srv.housekeeping import (
             resolve_housekeeping_cli_endpoint,
@@ -2315,7 +2315,7 @@ class TestACMEHandler(unittest.TestCase):
             any("Housekeeping HTTP CLI endpoint enabled" in line for line in lcm.output)
         )
 
-    def test_133_housekeeping_cli_enabled_invalid_section(self):
+    def test_136_housekeeping_cli_enabled_invalid_section(self):
         """housekeeping_cli_enabled() returns False for non-dict section"""
         from acme2certifier.acme_srv.housekeeping import housekeeping_cli_enabled
 

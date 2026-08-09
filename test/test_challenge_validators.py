@@ -1239,7 +1239,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
-    def test_003_perform_validation_dns_success(
+    def test_004_perform_validation_dns_success(
         self,
         mock_proxy_check,
         mock_servercert_get,
@@ -1285,7 +1285,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
-    def test_004_perform_validation_dns_resolution_failed(self, mock_fqdn_resolve):
+    def test_005_perform_validation_dns_resolution_failed(self, mock_fqdn_resolve):
         """Test TLS-ALPN validation with DNS resolution failure"""
         mock_fqdn_resolve.return_value = ([], True, "DNS resolution error")
 
@@ -1311,7 +1311,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
-    def test_005_perform_validation_ip_success(
+    def test_006_perform_validation_ip_success(
         self,
         mock_proxy_check,
         mock_servercert_get,
@@ -1350,7 +1350,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             mock_ip_validate.assert_called_once_with(self.logger, "192.168.1.1")
 
     @patch("acme2certifier.acme_srv.helper.ip_validate")
-    def test_006_perform_validation_invalid_ip(self, mock_ip_validate):
+    def test_007_perform_validation_invalid_ip(self, mock_ip_validate):
         """Test TLS-ALPN validation with invalid IP"""
         mock_ip_validate.return_value = ("", True)
 
@@ -1371,7 +1371,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             '{"status": 400, "type": "urn:ietf:params:acme:error:malformed", "detail": "Invalid IP address: invalid.ip"}',
         )
 
-    def test_007_perform_validation_unsupported_authorization_type(self):
+    def test_008_perform_validation_unsupported_authorization_type(self):
         """Test TLS-ALPN validation with unsupported authorization type"""
         context = ChallengeContext(
             challenge_name="test",
@@ -1395,7 +1395,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
-    def test_008_perform_validation_cert_retrieval_failed(
+    def test_009_perform_validation_cert_retrieval_failed(
         self,
         mock_proxy_check,
         mock_servercert_get,
@@ -1435,7 +1435,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
-    def test_009_perform_validation_cert_validation_failed(
+    def test_010_perform_validation_cert_validation_failed(
         self,
         mock_proxy_check,
         mock_servercert_get,
@@ -1477,7 +1477,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     @patch("acme2certifier.acme_srv.helper.cert_san_get")
     @patch("acme2certifier.acme_srv.helper.fqdn_in_san_check")
     @patch("acme2certifier.acme_srv.helper.cert_extensions_get")
-    def test_010_validate_certificate_extensions_success(
+    def test_011_validate_certificate_extensions_success(
         self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get
     ):
         """Test _validate_certificate_extensions with successful validation"""
@@ -1508,7 +1508,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helper.cert_san_get")
     @patch("acme2certifier.acme_srv.helper.fqdn_in_san_check")
-    def test_011_validate_certificate_extensions_fqdn_not_in_san(
+    def test_012_validate_certificate_extensions_fqdn_not_in_san(
         self, mock_fqdn_in_san_check, mock_cert_san_get
     ):
         """Test _validate_certificate_extensions with FQDN not in SAN"""
@@ -1525,7 +1525,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     @patch("acme2certifier.acme_srv.helper.cert_san_get")
     @patch("acme2certifier.acme_srv.helper.fqdn_in_san_check")
     @patch("acme2certifier.acme_srv.helper.cert_extensions_get")
-    def test_012_validate_certificate_extensions_extension_not_found(
+    def test_013_validate_certificate_extensions_extension_not_found(
         self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get
     ):
         """Test _validate_certificate_extensions with extension not found"""
@@ -1543,7 +1543,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     @patch("acme2certifier.acme_srv.helper.cert_san_get")
     @patch("acme2certifier.acme_srv.helper.fqdn_in_san_check")
     @patch("acme2certifier.acme_srv.helper.cert_extensions_get")
-    def test_013_validate_certificate_extensions_basic_functionality(
+    def test_014_validate_certificate_extensions_basic_functionality(
         self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get
     ):
         """Test _validate_certificate_extensions basic functionality"""
@@ -1559,7 +1559,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         # Should return True when everything matches
         self.assertTrue(result)
 
-    def test_014_validate_certificate_extensions_import_error(self):
+    def test_015_validate_certificate_extensions_import_error(self):
         """Test _validate_certificate_extensions with import error"""
         # Mock the import to raise ImportError for the helper functions
         with patch(
@@ -1589,7 +1589,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
-    def test_015_perform_validation_with_proxy_servers(
+    def test_016_perform_validation_with_proxy_servers(
         self,
         mock_proxy_check,
         mock_servercert_get,
@@ -1849,7 +1849,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
     @patch(
         "acme2certifier.acme_srv.challenge_validators.email_reply_validator.sha256_hash"
     )
-    def test_007_generate_email_keyauth(
+    def test_008_generate_email_keyauth(
         self, mock_sha256, mock_b64_encode, mock_convert
     ):
         """Test _generate_email_keyauth method"""
@@ -1872,7 +1872,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         mock_b64_encode.assert_called_once_with(self.logger, b"hash_result")
         mock_convert.assert_called_once_with(b"encoded_result")
 
-    def test_008_filter_email_matching_subject(self):
+    def test_009_filter_email_matching_subject(self):
         """Test _filter_email with matching subject"""
         email_data = {"subject": "ACME: token123", "body": "test email body"}
         rfc_token1 = "token123"
@@ -1881,7 +1881,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
         self.assertEqual(result, email_data)
 
-    def test_009_filter_email_non_matching_subject(self):
+    def test_010_filter_email_non_matching_subject(self):
         """Test _filter_email with non-matching subject"""
         email_data = {"subject": "Different subject", "body": "test email body"}
         rfc_token1 = "token123"
@@ -1890,7 +1890,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_010_filter_email_missing_subject(self):
+    def test_011_filter_email_missing_subject(self):
         """Test _filter_email with missing subject"""
         email_data = {"body": "test email body"}
         rfc_token1 = "token123"
@@ -1899,7 +1899,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_011_extract_email_keyauth_valid_format(self):
+    def test_012_extract_email_keyauth_valid_format(self):
         """Test _extract_email_keyauth with valid format"""
         email_body = """
         Some email content
@@ -1913,7 +1913,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
         self.assertEqual(result, "test_keyauth_value")
 
-    def test_012_extract_email_keyauth_multiline_response(self):
+    def test_013_extract_email_keyauth_multiline_response(self):
         """Test _extract_email_keyauth with multiline response"""
         email_body = """
         Some email content
@@ -1928,7 +1928,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
         self.assertEqual(result, "test_keyauth_value\n        with multiple lines")
 
-    def test_013_extract_email_keyauth_no_match(self):
+    def test_014_extract_email_keyauth_no_match(self):
         """Test _extract_email_keyauth with no match"""
         email_body = "Some email content without ACME response"
 
@@ -1936,19 +1936,19 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_014_extract_email_keyauth_empty_body(self):
+    def test_015_extract_email_keyauth_empty_body(self):
         """Test _extract_email_keyauth with empty body"""
         result = self.validator._extract_email_keyauth("")
 
         self.assertIsNone(result)
 
-    def test_015_extract_email_keyauth_none_body(self):
+    def test_016_extract_email_keyauth_none_body(self):
         """Test _extract_email_keyauth with None body"""
         result = self.validator._extract_email_keyauth(None)
 
         self.assertIsNone(result)
 
-    def test_016_extract_email_keyauth_base64url(self):
+    def test_017_extract_email_keyauth_base64url(self):
         """Test _extract_email_keyauth with base64url characters (.-_)"""
         email_body = """
 -----BEGIN ACME RESPONSE-----
@@ -1958,7 +1958,7 @@ abc-DEF_123.xyz==
         result = self.validator._extract_email_keyauth(email_body)
         self.assertEqual(result, "abc-DEF_123.xyz==")
 
-    def test_017_extract_email_keyauth_empty_block(self):
+    def test_018_extract_email_keyauth_empty_block(self):
         """Test _extract_email_keyauth with empty ACME response block"""
         email_body = """
 -----BEGIN ACME RESPONSE-----

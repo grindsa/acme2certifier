@@ -2301,7 +2301,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_default.called)
         self.assertTrue(mock_get.called)
 
-    def test_path_resolve_relative_without_base_dir(self):
+    def test_156_path_resolve_relative_without_base_dir(self):
         """relative paths stay relative when BASE_DIR is unset"""
         os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
         self.assertEqual(
@@ -2309,7 +2309,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._path_resolve("volume/acme_ca/sub-ca-key.pem"),
         )
 
-    def test_path_resolve_relative_with_base_dir(self):
+    def test_157_path_resolve_relative_with_base_dir(self):
         """relative paths are joined with ACME2CERTIFIER_BASE_DIR"""
         os.environ["ACME2CERTIFIER_BASE_DIR"] = "/var/www/acme2certifier"
         try:
@@ -2320,7 +2320,7 @@ class TestACMEHandler(unittest.TestCase):
         finally:
             os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
-    def test_path_resolve_absolute_unchanged(self):
+    def test_158_path_resolve_absolute_unchanged(self):
         """absolute paths are not rewritten"""
         os.environ["ACME2CERTIFIER_BASE_DIR"] = "/var/www/acme2certifier"
         try:
@@ -2332,7 +2332,7 @@ class TestACMEHandler(unittest.TestCase):
             os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_config_load_resolves_paths_with_base_dir(self, mock_load_cfg):
+    def test_159_config_load_resolves_paths_with_base_dir(self, mock_load_cfg):
         """_config_load applies BASE_DIR to CA path options"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -2375,7 +2375,7 @@ class TestACMEHandler(unittest.TestCase):
             os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_156__config_load_ca_cert_chain_list_invalid_json(self, mock_load_cfg):
+    def test_160__config_load_ca_cert_chain_list_invalid_json(self, mock_load_cfg):
         """_config_load logs error when ca_cert_chain_list is invalid JSON"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_cert_chain_list": "not-json"}

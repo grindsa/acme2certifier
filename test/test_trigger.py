@@ -132,7 +132,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.trigger.parse(payload))
 
-    def test_006b_trigger_parse_disabled(self):
+    def test_007_trigger_parse_disabled(self):
         """Trigger.parse() returns 403 when endpoint is disabled"""
         self.trigger.enabled = False
         result = {
@@ -148,7 +148,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(result, self.trigger.parse('{"payload": "foo"}'))
         self.assertTrue(any("Trigger endpoint disabled" in line for line in lcm.output))
 
-    def test_007_trigger_parse(self):
+    def test_008_trigger_parse(self):
         """Trigger.parse() with wrong payload"""
         payload = '{"foo": "bar"}'
         result = {
@@ -158,7 +158,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.trigger.parse(payload))
 
-    def test_008_trigger_parse(self):
+    def test_009_trigger_parse(self):
         """Trigger.parse() with empty payload key"""
         payload = '{"payload": ""}'
         result = {
@@ -169,7 +169,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.trigger.parse(payload))
 
     @patch("acme2certifier.acme_srv.trigger.Trigger._payload_process")
-    def test_009_trigger_parse(self, mock_process):
+    def test_010_trigger_parse(self, mock_process):
         """Trigger.parse() with payload mock result 400"""
         payload = '{"payload": "foo"}'
         mock_process.return_value = (400, "message", "detail")
@@ -181,7 +181,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.trigger.parse(payload))
 
     @patch("acme2certifier.acme_srv.trigger.Trigger._payload_process")
-    def test_010_trigger_parse(self, mock_process):
+    def test_011_trigger_parse(self, mock_process):
         """Trigger.parse() with payload mock result 200"""
         payload = '{"payload": "foo"}'
         mock_process.return_value = (200, "message", "detail")
@@ -192,7 +192,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.trigger.parse(payload))
 
-    def test_011_trigger__payload_process(self):
+    def test_012_trigger__payload_process(self):
         """Trigger._payload_process() without payload"""
         payload = {}
         ca_handler_module = importlib.import_module(
@@ -204,7 +204,7 @@ class TestACMEHandler(unittest.TestCase):
             (400, "payload malformed", None), self.trigger._payload_process(payload)
         )
 
-    def test_012_trigger__payload_process(self):
+    def test_013_trigger__payload_process(self):
         """Trigger._payload_process() without certbunde and cert_raw"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
@@ -214,7 +214,7 @@ class TestACMEHandler(unittest.TestCase):
         self.trigger.cahandler.trigger = Mock(return_value=("error", None, None))
         self.assertEqual((400, "error", None), self.trigger._payload_process(payload))
 
-    def test_013_trigger__payload_process(self):
+    def test_014_trigger__payload_process(self):
         """Trigger._payload_process() with bundle and without cart_raw"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
@@ -224,7 +224,7 @@ class TestACMEHandler(unittest.TestCase):
         self.trigger.cahandler.trigger = Mock(return_value=("error", "bundle", None))
         self.assertEqual((400, "error", None), self.trigger._payload_process(payload))
 
-    def test_014_trigger__payload_process(self):
+    def test_015_trigger__payload_process(self):
         """Trigger._payload_process() with bundle and without cart_raw"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
@@ -238,7 +238,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.trigger.b64_decode")
     @patch("acme2certifier.acme_srv.trigger.cert_der2pem")
     @patch("acme2certifier.acme_srv.trigger.convert_byte_to_string")
-    def test_015_trigger__payload_process(
+    def test_016_trigger__payload_process(
         self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup
     ):
         """Trigger._payload_process() with certificae_name"""
@@ -260,7 +260,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.trigger.b64_decode")
     @patch("acme2certifier.acme_srv.trigger.cert_der2pem")
     @patch("acme2certifier.acme_srv.trigger.convert_byte_to_string")
-    def test_016_trigger__payload_process(
+    def test_017_trigger__payload_process(
         self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup
     ):
         """Trigger._payload_process() without certificate_name"""
@@ -280,7 +280,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.trigger.b64_decode")
     @patch("acme2certifier.acme_srv.trigger.cert_der2pem")
     @patch("acme2certifier.acme_srv.trigger.convert_byte_to_string")
-    def test_017_trigger__payload_process(
+    def test_018_trigger__payload_process(
         self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup
     ):
         """Trigger._payload_process() _certname.lookup() returned empty list"""
@@ -303,7 +303,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.trigger.b64_decode")
     @patch("acme2certifier.acme_srv.trigger.cert_der2pem")
     @patch("acme2certifier.acme_srv.trigger.convert_byte_to_string")
-    def test_018_trigger__payload_process(
+    def test_019_trigger__payload_process(
         self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup
     ):
         """Trigger._payload_process() without certificate_name"""
@@ -326,7 +326,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.trigger.b64_decode")
     @patch("acme2certifier.acme_srv.trigger.cert_der2pem")
     @patch("acme2certifier.acme_srv.trigger.convert_byte_to_string")
-    def test_019_trigger__payload_process(
+    def test_020_trigger__payload_process(
         self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup
     ):
         """Trigger._payload_process() without certificate_name"""
@@ -349,7 +349,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.trigger.cert_der2pem")
     @patch("acme2certifier.acme_srv.trigger.Trigger._certname_lookup")
     @patch("acme2certifier.acme_srv.trigger.convert_byte_to_string")
-    def test_020_trigger__payload_process(
+    def test_021_trigger__payload_process(
         self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec
     ):
         """test Trigger._payload_process - dbstore.order_update() raises an exception"""
@@ -382,7 +382,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.trigger.cert_der2pem")
     @patch("acme2certifier.acme_srv.trigger.Trigger._certname_lookup")
     @patch("acme2certifier.acme_srv.trigger.convert_byte_to_string")
-    def test_021_trigger__payload_process(
+    def test_022_trigger__payload_process(
         self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec
     ):
         """test Trigger._payload_process - dbstore.order_update() raises an exception"""
@@ -411,7 +411,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_022_config_load(self, mock_load_cfg):
+    def test_023_config_load(self, mock_load_cfg):
         """test _config_load missing ca_handler"""
         mock_load_cfg.return_value = {}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -424,7 +424,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_022b_config_load_trigger_enabled_with_support(
+    def test_024_config_load_trigger_enabled_with_support(
         self, mock_load_cfg, mock_ca_load
     ):
         """_config_load sets enabled when config+supports_trigger"""
@@ -440,7 +440,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.trigger.enabled)
 
     @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
-    def test_022c_resolve_trigger_endpoint_misconfig_warns(self, mock_ca_load):
+    def test_025_resolve_trigger_endpoint_misconfig_warns(self, mock_ca_load):
         """config enabled without supports_trigger → False + warning"""
         from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
 
@@ -457,7 +457,7 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertTrue(any("supports_trigger=True" in line for line in lcm.output))
 
-    def test_022d_resolve_trigger_endpoint_default_off(self):
+    def test_026_resolve_trigger_endpoint_default_off(self):
         """absent [Trigger] → False"""
         from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
 
@@ -467,14 +467,14 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.acme_srv.trigger.Trigger._config_load")
-    def test_023__enter__(self, mock_cfg):
+    def test_027__enter__(self, mock_cfg):
         """test enter"""
         mock_cfg.return_value = True
         self.trigger.__enter__()
         self.assertTrue(mock_cfg.called)
 
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_024_config_load(self, mock_load_cfg):
+    def test_028_config_load(self, mock_load_cfg):
         """test _config_load empty config"""
         parser = configparser.ConfigParser()
         # parser['Account'] = {'foo': 'bar'}
@@ -488,7 +488,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_025_config_load(self, mock_load_cfg):
+    def test_029_config_load(self, mock_load_cfg):
         """test _config_load bogus ca_handler"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"handler_file": "foo"}
@@ -502,7 +502,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("importlib.import_module")
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_026_config_load(self, mock_load_cfg, mock_imp):
+    def test_030_config_load(self, mock_load_cfg, mock_imp):
         """test _config_load missing ca_handler"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"handler_file": "foo"}
@@ -513,7 +513,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("importlib.import_module")
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_027_config_load(self, mock_load_cfg, mock_imp):
+    def test_031_config_load(self, mock_load_cfg, mock_imp):
         """test _config_load missing ca_handler"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar"}
@@ -523,7 +523,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.trigger.cahandler)
 
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_028_config_load(self, mock_load_cfg):
+    def test_032_config_load(self, mock_load_cfg):
         """test _config_load empty config"""
         parser = configparser.ConfigParser()
         parser["Order"] = {"tnauthlist_support": False}
@@ -533,7 +533,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.trigger.tnauthlist_support)
 
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_029_config_load(self, mock_load_cfg):
+    def test_033_config_load(self, mock_load_cfg):
         """test _config_load empty config"""
         parser = configparser.ConfigParser()
         parser["Order"] = {"tnauthlist_support": True}
@@ -544,7 +544,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_030_config_load(self, mock_load_cfg, mock_cahandler_load):
+    def test_034_config_load(self, mock_load_cfg, mock_cahandler_load):
         """test _config_load()"""
         parser = configparser.ConfigParser()
         parser["Foo"] = {"foo": "bar"}
@@ -559,7 +559,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
     @patch("acme2certifier.acme_srv.trigger.load_config")
-    def test_031_config_load(self, mock_load_cfg, mock_cahandler_load):
+    def test_035_config_load(self, mock_load_cfg, mock_cahandler_load):
         """test _config_load()"""
         parser = configparser.ConfigParser()
         parser["Foo"] = {"foo": "bar"}
@@ -567,14 +567,14 @@ class TestACMEHandler(unittest.TestCase):
         self.trigger._config_load()
         self.assertTrue(self.trigger.cahandler)
 
-    def test_032_trigger_config_enabled_dict_fallback(self):
+    def test_036_trigger_config_enabled_dict_fallback(self):
         """trigger_config_enabled() handles dict-style configs"""
         from acme2certifier.acme_srv.trigger import trigger_config_enabled
 
         self.assertTrue(trigger_config_enabled({"Trigger": {"enabled": "on"}}))
 
     @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
-    def test_033_resolve_trigger_endpoint_handler_missing(self, mock_cahandler_load):
+    def test_037_resolve_trigger_endpoint_handler_missing(self, mock_cahandler_load):
         """resolve_trigger_endpoint() logs warning when handler missing"""
         from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
 
@@ -595,7 +595,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
-    def test_034_resolve_trigger_endpoint_enabled(self, mock_cahandler_load):
+    def test_038_resolve_trigger_endpoint_enabled(self, mock_cahandler_load):
         """resolve_trigger_endpoint() logs info when endpoint enabled"""
         from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
 

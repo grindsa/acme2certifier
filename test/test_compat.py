@@ -18,7 +18,7 @@ class TestCompatDeprecation(unittest.TestCase):
     def tearDown(self):
         compat._WARNED.clear()
 
-    def test_warn_file_config_deprecated(self):
+    def test_001_warn_file_config_deprecated(self):
         logger = logging.getLogger("test_compat")
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -35,7 +35,7 @@ class TestCompatDeprecation(unittest.TestCase):
             any("handler_file is deprecated" in line for line in lcm.output)
         )
 
-    def test_warn_default_ca_handler(self):
+    def test_002_warn_default_ca_handler(self):
         logger = logging.getLogger("test_compat")
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -57,7 +57,7 @@ class TestPluginLoaderFileDeprecated(unittest.TestCase):
         compat._WARNED.clear()
 
     @patch("importlib.util")
-    def test_ca_handler_file_deprecated(self, mock_util):
+    def test_001_ca_handler_file_deprecated(self, mock_util):
         from acme2certifier.acme_srv.helpers.plugin_loader import ca_handler_load
 
         mock_util.module_from_spec = lambda spec: "foo"

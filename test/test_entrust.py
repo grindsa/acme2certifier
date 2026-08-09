@@ -1531,7 +1531,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._trackingid_get")
-    def test_087_revoke(self, mock_track, mock_req):
+    def test_088_revoke(self, mock_track, mock_req):
         """test revoke()"""
         mock_track.return_value = "tracking_id"
         mock_req.return_value = (500, "response")
@@ -1542,7 +1542,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._trackingid_get")
-    def test_088_revoke(self, mock_track, mock_req):
+    def test_089_revoke(self, mock_track, mock_req):
         """test revoke()"""
         mock_track.return_value = None
         mock_req.return_value = (200, "response")
@@ -1556,7 +1556,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._api_get")
-    def test_089_certificates_get(self, mock_req):
+    def test_090_certificates_get(self, mock_req):
         """test certificates_get()"""
         mock_req.return_value = (500, "response")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1567,7 +1567,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._api_get")
-    def test_090_certificates_get(self, mock_req):
+    def test_091_certificates_get(self, mock_req):
         """test certificates_get()"""
         content = {"certificates": [1, 2, 3, 4], "summary": {"total": 4}}
         mock_req.return_value = (200, content)
@@ -1579,7 +1579,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._api_get")
-    def test_091_certificates_get(self, mock_req):
+    def test_092_certificates_get(self, mock_req):
         """test certificates_get()"""
         response1 = (200, {"certificates": [1, 2, 3, 4], "summary": {"total": 8}})
         response2 = (200, {"certificates": [5, 6, 7, 8]})
@@ -1598,7 +1598,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._api_get")
-    def test_092_certificates_get(self, mock_req):
+    def test_093_certificates_get(self, mock_req):
         """test certificates_get()"""
         response1 = (200, {"certificates": [1, 2, 3, 4]})
         response2 = (200, {"certificates": [5, 6, 7, 8]})
@@ -1611,7 +1611,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._api_get")
-    def test_093_certificates_get(self, mock_req):
+    def test_094_certificates_get(self, mock_req):
         """test certificates_get()"""
         response1 = (200, {"certificates": [1, 2, 3, 4], "summary": {"total": 9}})
         response2 = (200, {"certificates": [5, 6, 7, 8]})
@@ -1639,7 +1639,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.handler_config_check")
-    def test_094_handler_check(self, mock_handler_check):
+    def test_095_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
@@ -1647,7 +1647,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.entrust_ca_handler.eab_profile_revocation_check")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._api_post")
     @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._trackingid_get")
-    def test_095_revoke_eab_profiling(self, mock_track, mock_req, mock_eab):
+    def test_096_revoke_eab_profiling(self, mock_track, mock_req, mock_eab):
         """test revoke() with eab_profiling enabled"""
         mock_track.return_value = "tracking_id"
         mock_req.return_value = (200, "response")
@@ -1658,7 +1658,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_eab.called)
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
-    def test_096_config_load_invalid_request_retries(self, mock_load_cfg):
+    def test_097_config_load_invalid_request_retries(self, mock_load_cfg):
         """test _config_load with invalid request_retries"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -1679,7 +1679,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
-    def test_097_config_load_invalid_request_retry_backoff(self, mock_load_cfg):
+    def test_098_config_load_invalid_request_retry_backoff(self, mock_load_cfg):
         """test _config_load with invalid request_retry_backoff"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
