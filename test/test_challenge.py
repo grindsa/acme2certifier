@@ -806,18 +806,93 @@ class TestChallenge(unittest.TestCase):
         with patch("acme2certifier.acme_srv.challenge.Thread") as mock_thread:
             instance = mock_thread.return_value
             instance.join.return_value = True
+            instance.is_alive.return_value = False
             self.challenge._perform_challenge_validation = Mock()
             self.challenge._start_async_validation("c1", {})
             instance.start.assert_called_once()
             instance.join.assert_called_once()
 
     def test_058_update_challenge_state_from_validation_invalid(self):
-        validation_result = Mock(invalid=True, success=False)
+        from acme2certifier.acme_srv.challenge_error_handling import ErrorHandler
+
+        validation_result = Mock(
+            invalid=True,
+            success=False,
+            error_message='{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "DNS record not found or incorrect"}',
+            details={
+                "expected_hash": "abc",
+                "dns_record": "_acme-challenge.example.com",
+                "found_records": [],
+            },
+        )
+        self.challenge.error_handler = ErrorHandler(self.logger)
         self.challenge.state_manager.transition_to_invalid = Mock()
-        self.assertFalse(
-            self.challenge._update_challenge_state_from_validation(
-                "c1", validation_result
+        self.challenge.repository.get_challenge_by_name.return_value = self.ChallengeInfo(
+            "c1", "dns-01", "tok", "processing", "authz", "dns", "example.com", "url"
+        )
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            self.assertFalse(
+                self.challenge._update_challenge_state_from_validation(
+                    "c1", validation_result
+                )
             )
+        joined = "\n".join(log_cm.output)
+        self.assertIn(
+            "Challenge validation failed: challenge=c1 type=dns-01 host=example.com reason=DNS record not found or incorrect; expected_hash=abc dns_record=_acme-challenge.example.com found_records=[]",
+            joined,
+        )
+        self.challenge.state_manager.transition_to_invalid.assert_called_once()
+
+    def test_058b_update_challenge_state_from_validation_invalid_http_mismatch(self):
+        from acme2certifier.acme_srv.challenge_error_handling import ErrorHandler
+
+        validation_result = Mock(
+            invalid=True,
+            success=False,
+            error_message='{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Keyauthorization mismatch"}',
+            details={"expected": "tok.thumb", "received": "wrong", "url": "http://h"},
+        )
+        self.challenge.error_handler = ErrorHandler(self.logger)
+        self.challenge.state_manager.transition_to_invalid = Mock()
+        self.challenge.repository.get_challenge_by_name.return_value = self.ChallengeInfo(
+            "c2", "http-01", "tok", "processing", "authz", "dns", "foo.bar", "url"
+        )
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            self.assertFalse(
+                self.challenge._update_challenge_state_from_validation(
+                    "c2", validation_result
+                )
+            )
+        joined = "\n".join(log_cm.output)
+        self.assertIn(
+            "Challenge validation failed: challenge=c2 type=http-01 host=foo.bar reason=Keyauthorization mismatch; expected='tok.thumb' received='wrong'",
+            joined,
+        )
+
+    def test_058c_update_challenge_state_from_validation_invalid_unknown_challenge(
+        self,
+    ):
+        from acme2certifier.acme_srv.challenge_error_handling import ErrorHandler
+
+        validation_result = Mock(
+            invalid=True,
+            success=False,
+            error_message="plain failure",
+            details=None,
+        )
+        self.challenge.error_handler = ErrorHandler(self.logger)
+        self.challenge.state_manager.transition_to_invalid = Mock()
+        self.challenge.repository.get_challenge_by_name.return_value = None
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            self.assertFalse(
+                self.challenge._update_challenge_state_from_validation(
+                    "missing", validation_result
+                )
+            )
+        joined = "\n".join(log_cm.output)
+        self.assertIn(
+            "Challenge validation failed: challenge=missing type=unknown host=unknown reason=plain failure",
+            joined,
         )
 
     def test_059_update_challenge_state_from_validation_success(self):
@@ -831,10 +906,15 @@ class TestChallenge(unittest.TestCase):
 
     def test_060_update_challenge_state_from_validation_inconclusive(self):
         validation_result = Mock(invalid=False, success=False)
-        self.assertFalse(
-            self.challenge._update_challenge_state_from_validation(
-                "c1", validation_result
+        with self.assertLogs("test_a2c", level="INFO") as log_cm:
+            self.assertFalse(
+                self.challenge._update_challenge_state_from_validation(
+                    "c1", validation_result
+                )
             )
+        self.assertIn(
+            "INFO:test_a2c:Challenge validation inconclusive: challenge=c1 (status remains processing)",
+            log_cm.output,
         )
 
     def test_061_validate_tnauthlist_payload_success(self):
@@ -2925,6 +3005,7 @@ class TestChallenge(unittest.TestCase):
         """Test _start_async_validation with sync mode (async_mode=False)"""
         # Setup
         mock_thread = Mock()
+        mock_thread.is_alive.return_value = False
         mock_thread_class.return_value = mock_thread
         self.challenge.config.async_mode = False
         self.challenge.config.validation_timeout = 30
@@ -2951,6 +3032,12 @@ class TestChallenge(unittest.TestCase):
                 for message in log.output
             )
         )
+        self.assertTrue(
+            any(
+                "Challenge validation finished: challenge=test_challenge" in message
+                for message in log.output
+            )
+        )
 
     @patch("acme2certifier.acme_srv.challenge.Thread")
     def test_149_start_async_validation_async_mode(self, mock_thread_class):
@@ -2965,7 +3052,7 @@ class TestChallenge(unittest.TestCase):
         payload = {"test": "data"}
 
         # Execute
-        with self.assertLogs(self.logger, level="INFO") as log:
+        with self.assertLogs(self.logger, level="DEBUG") as log:
             self.challenge._start_async_validation(challenge_name, payload)
 
         # Verify thread creation and execution
@@ -2980,10 +3067,13 @@ class TestChallenge(unittest.TestCase):
         # Verify async logging
         self.assertTrue(
             any(
-                "asynchronous Challenge validation enabled, not waiting for result"
+                "Challenge validation started asynchronously: challenge=async_challenge"
                 in message
                 for message in log.output
             )
+        )
+        self.assertTrue(
+            any("POST response may still be processing" in message for message in log.output)
         )
 
     @patch("acme2certifier.acme_srv.challenge.Thread")
@@ -2991,6 +3081,7 @@ class TestChallenge(unittest.TestCase):
         """Test _start_async_validation with empty payload"""
         # Setup
         mock_thread = Mock()
+        mock_thread.is_alive.return_value = False
         mock_thread_class.return_value = mock_thread
         self.challenge.config.async_mode = False
         self.challenge.config.validation_timeout = 15
@@ -3048,6 +3139,7 @@ class TestChallenge(unittest.TestCase):
                 # Reset mock
                 mock_thread_class.reset_mock()
                 mock_thread = Mock()
+                mock_thread.is_alive.return_value = False
                 mock_thread_class.return_value = mock_thread
 
                 # Setup
@@ -3070,6 +3162,7 @@ class TestChallenge(unittest.TestCase):
         """Test _start_async_validation passes correct arguments to thread target"""
         # Setup
         mock_thread = Mock()
+        mock_thread.is_alive.return_value = False
         mock_thread_class.return_value = mock_thread
         self.challenge.config.async_mode = False
         self.challenge._perform_challenge_validation = Mock()
@@ -3087,6 +3180,7 @@ class TestChallenge(unittest.TestCase):
                 # Reset mock
                 mock_thread_class.reset_mock()
                 mock_thread = Mock()
+                mock_thread.is_alive.return_value = False
                 mock_thread_class.return_value = mock_thread
 
                 # Execute
@@ -3103,6 +3197,7 @@ class TestChallenge(unittest.TestCase):
         """Test _start_async_validation logging in both sync and async modes"""
         # Setup
         mock_thread = Mock()
+        mock_thread.is_alive.return_value = False
         mock_thread_class.return_value = mock_thread
         self.challenge._perform_challenge_validation = Mock()
         challenge_name = "logging_test_challenge"
@@ -3113,15 +3208,20 @@ class TestChallenge(unittest.TestCase):
         with self.assertLogs(self.logger, level="DEBUG") as log_sync:
             self.challenge._start_async_validation(challenge_name, payload)
 
-        # Verify sync mode only has debug logging
         debug_messages = [msg for msg in log_sync.output if "DEBUG" in msg]
-        info_messages = [
+        async_info_messages = [
             msg
             for msg in log_sync.output
-            if "asynchronous Challenge validation enabled" in msg
+            if "Challenge validation started asynchronously" in msg
+        ]
+        finished_messages = [
+            msg
+            for msg in log_sync.output
+            if "Challenge validation finished: challenge=logging_test_challenge" in msg
         ]
         self.assertGreater(len(debug_messages), 0)
-        self.assertEqual(len(info_messages), 0)
+        self.assertEqual(len(async_info_messages), 0)
+        self.assertGreater(len(finished_messages), 0)
 
         # Reset mock for async test
         mock_thread_class.reset_mock()
@@ -3133,15 +3233,14 @@ class TestChallenge(unittest.TestCase):
         with self.assertLogs(self.logger, level="DEBUG") as log_async:
             self.challenge._start_async_validation(challenge_name, payload)
 
-        # Verify async mode has both debug and info logging
-        debug_messages = [msg for msg in log_async.output if "DEBUG" in msg]
-        info_messages = [
+        # Verify async start is DEBUG only (no INFO flood)
+        async_start_messages = [
             msg
             for msg in log_async.output
-            if "asynchronous Challenge validation enabled" in msg
+            if "Challenge validation started asynchronously" in msg
         ]
-        self.assertGreater(len(debug_messages), 0)
-        self.assertGreater(len(info_messages), 0)
+        self.assertTrue(any("DEBUG:" in msg for msg in async_start_messages))
+        self.assertFalse(any("INFO:" in msg for msg in async_start_messages))
 
     def test_155_load_http01_block_private_ips(self):
         """http01_block_private_ips defaults false and can be enabled"""
@@ -3158,6 +3257,49 @@ class TestChallenge(unittest.TestCase):
         self.assertTrue(self.challenge.config.http01_block_private_ips)
         self.assertTrue(
             any("http01_block_private_ips=True" in line for line in lcm.output)
+        )
+
+    @patch("acme2certifier.acme_srv.challenge.Thread")
+    def test_156_start_async_validation_timeout_still_processing(
+        self, mock_thread_class
+    ):
+        """sync mode WARNING when validation thread is still alive after join"""
+        mock_thread = Mock()
+        mock_thread.is_alive.return_value = True
+        mock_thread_class.return_value = mock_thread
+        self.challenge.config.async_mode = False
+        self.challenge.config.validation_timeout = 7
+        self.challenge._perform_challenge_validation = Mock()
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.challenge._start_async_validation("slow_chal", {})
+
+        mock_thread.join.assert_called_once_with(timeout=7)
+        self.assertIn(
+            "WARNING:test_a2c:Challenge validation still processing after timeout: "
+            "challenge=slow_chal timeout=7 (result will be applied asynchronously)",
+            lcm.output,
+        )
+
+    def test_157_format_challenge_validation_reason_json_non_dict(self):
+        """_format_challenge_validation_reason stringifies non-dict JSON"""
+        validation_result = Mock(
+            error_message='["not", "a", "dict"]',
+            details=None,
+        )
+        reason = self.challenge._format_challenge_validation_reason(validation_result)
+        self.assertEqual(reason, '["not", "a", "dict"]')
+
+    def test_158_format_challenge_validation_reason_url_only_details(self):
+        """_format_challenge_validation_reason appends url from details"""
+        validation_result = Mock(
+            error_message='{"detail": "HTTP request failed"}',
+            details={"url": "http://example.com/.well-known/acme-challenge/t"},
+        )
+        reason = self.challenge._format_challenge_validation_reason(validation_result)
+        self.assertEqual(
+            reason,
+            "HTTP request failed; url=http://example.com/.well-known/acme-challenge/t",
         )
 
 

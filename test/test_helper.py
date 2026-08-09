@@ -7812,6 +7812,33 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         finally:
             logger.handlers.clear()
 
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_587_log_cert_content_enabled_missing_helper_section(
+        self, mock_load_config
+    ):
+        """_log_cert_content_enabled returns False when Helper section is absent"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.logging_utils import (
+            _log_cert_content_enabled,
+        )
+
+        mock_load_config.return_value = ConfigParser()
+        self.assertFalse(_log_cert_content_enabled())
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_588_log_cert_content_enabled_invalid_boolean(self, mock_load_config):
+        """_log_cert_content_enabled returns False when log_cert_content is not a bool"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.logging_utils import (
+            _log_cert_content_enabled,
+        )
+
+        cfg = ConfigParser()
+        cfg.add_section("Helper")
+        cfg.set("Helper", "log_cert_content", "not-a-bool")
+        mock_load_config.return_value = cfg
+        self.assertFalse(_log_cert_content_enabled())
+
 
 if __name__ == "__main__":
     unittest.main()

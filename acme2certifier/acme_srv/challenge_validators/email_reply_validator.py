@@ -46,6 +46,10 @@ class EmailReplyChallengeValidator(ChallengeValidator):
             )
 
             if not email_receive or "body" not in email_receive:
+                self.logger.warning(
+                    "Challenge validation failed: no email received or email body missing challenge=%s",
+                    context.challenge_name,
+                )
                 return ValidationResult(
                     success=False,
                     invalid=False,

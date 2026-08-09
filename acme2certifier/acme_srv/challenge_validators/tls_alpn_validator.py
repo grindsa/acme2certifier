@@ -40,6 +40,17 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 self.logger, context.authorization_value, context.dns_servers
             )
             if invalid:
+                detail = (
+                    f"DNS resolution failed: {error_msg}"
+                    if error_msg
+                    else "DNS resolution failed"
+                )
+                self.logger.warning(
+                    "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s",
+                    context.challenge_name,
+                    context.authorization_value,
+                    detail,
+                )
                 return ValidationResult(
                     success=False,
                     invalid=True,
@@ -47,11 +58,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                         {
                             "status": 400,
                             "type": "urn:ietf:params:acme:error:dns",
-                            "detail": (
-                                f"DNS resolution failed: {error_msg}"
-                                if error_msg
-                                else "DNS resolution failed"
-                            ),
+                            "detail": detail,
                         }
                     ),
                 )
@@ -59,6 +66,13 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         elif context.authorization_type == "ip":
             sni, invalid = ip_validate(self.logger, context.authorization_value)
             if invalid:
+                detail = f"Invalid IP address: {context.authorization_value}"
+                self.logger.warning(
+                    "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s",
+                    context.challenge_name,
+                    context.authorization_value,
+                    detail,
+                )
                 return ValidationResult(
                     success=False,
                     invalid=True,
@@ -66,12 +80,19 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                         {
                             "status": 400,
                             "type": "urn:ietf:params:acme:error:malformed",
-                            "detail": f"Invalid IP address: {context.authorization_value}",
+                            "detail": detail,
                         }
                     ),
                     details={"ip": context.authorization_value},
                 )
         else:
+            detail = f"Unsupported authorization type: {context.authorization_type}"
+            self.logger.warning(
+                "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s",
+                context.challenge_name,
+                context.authorization_value,
+                detail,
+            )
             return ValidationResult(
                 success=False,
                 invalid=True,
@@ -79,7 +100,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                     {
                         "status": 400,
                         "type": "urn:ietf:params:acme:error:unsupported",
-                        "detail": f"Unsupported authorization type: {context.authorization_type}",
+                        "detail": detail,
                     }
                 ),
                 details={"type": context.authorization_type},
@@ -106,6 +127,15 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         )
 
         if not cert:
+            detail = (
+                f"Unable to retrieve server certificate for {context.authorization_value}"
+            )
+            self.logger.warning(
+                "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s",
+                context.challenge_name,
+                context.authorization_value,
+                detail,
+            )
             return ValidationResult(
                 success=False,
                 invalid=False,
@@ -113,7 +143,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                     {
                         "status": 400,
                         "type": "urn:ietf:params:acme:error:incorrectResponse",
-                        "detail": f"Unable to retrieve server certificate for {context.authorization_value}",
+                        "detail": detail,
                     }
                 ),
             )
@@ -123,6 +153,15 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
             cert, extension_value, context.authorization_value
         )
 
+        if not success:
+            self.logger.warning(
+                "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s expected_extension=%s sni=%s",
+                context.challenge_name,
+                context.authorization_value,
+                "Certificate extension validation failed",
+                extension_value,
+                sni,
+            )
         self.logger.debug(
             "TlsAlpnChallengeValidator.perform_validation() ended with: %s", success
         )
@@ -166,8 +205,10 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
 
         if not fqdn_in_san:
-            self.logger.debug(
-                "TlsAlpnChallengeValidator._validate_certificate_extensions(): FQDN check against SAN failed"
+            self.logger.warning(
+                "tls-alpn-01 certificate SAN check failed: fqdn=%s san_list=%s",
+                fqdn,
+                san_list,
             )
             return False
 
@@ -177,8 +218,10 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 "TlsAlpnChallengeValidator._validate_certificate_extensions(): TLS-ALPN validation successful"
             )
             return True
-        else:
-            self.logger.debug(
-                "TlsAlpnChallengeValidator._validate_certificate_extensions(): TLS-ALPN validation not successful"
-            )
-            return False
+
+        self.logger.warning(
+            "tls-alpn-01 certificate extension mismatch: fqdn=%s expected_extension=%s",
+            fqdn,
+            extension_value,
+        )
+        return False

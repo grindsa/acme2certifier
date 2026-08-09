@@ -240,7 +240,7 @@ class TestChallengeValidator(unittest.TestCase):
         self.assertTrue(result.success)
         self.assertFalse(result.invalid)
 
-        # Verify logging calls
+        # Verify logging calls (start + success DEBUG)
         self.logger.debug.assert_called()
 
     def test_003_challenge_validator_validate_challenge_exception(self):
@@ -273,6 +273,76 @@ class TestChallengeValidator(unittest.TestCase):
 
         # Verify error logging
         self.logger.error.assert_called()
+
+    def test_004_challenge_validator_validate_challenge_soft_fail(self):
+        """validate_challenge logs WARNING on soft validation failure"""
+
+        class SoftFailValidator(ChallengeValidator):
+            def get_challenge_type(self):
+                return "soft-01"
+
+            def perform_validation(self, context):
+                return ValidationResult(
+                    success=False,
+                    invalid=True,
+                    error_message="incorrect response",
+                )
+
+        validator = SoftFailValidator(self.logger)
+        context = ChallengeContext(
+            challenge_name="c1",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+        )
+
+        result = validator.validate_challenge(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.logger.warning.assert_called_with(
+            "%s validation failed for challenge=%s host=%s success=%s invalid=%s error=%s",
+            "soft-01",
+            "c1",
+            "example.com",
+            False,
+            True,
+            "incorrect response",
+        )
+
+    def test_005_challenge_validator_validate_challenge_inconclusive(self):
+        """validate_challenge logs WARNING when success=False and invalid=False"""
+
+        class InconclusiveValidator(ChallengeValidator):
+            def get_challenge_type(self):
+                return "retry-01"
+
+            def perform_validation(self, context):
+                return ValidationResult(success=False, invalid=False, error_message=None)
+
+        validator = InconclusiveValidator(self.logger)
+        context = ChallengeContext(
+            challenge_name="c2",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="foo.bar",
+        )
+
+        result = validator.validate_challenge(context)
+
+        self.assertFalse(result.success)
+        self.assertFalse(result.invalid)
+        self.logger.warning.assert_called_with(
+            "%s validation failed for challenge=%s host=%s success=%s invalid=%s error=%s",
+            "retry-01",
+            "c2",
+            "foo.bar",
+            False,
+            False,
+            "None",
+        )
 
 
 class TestChallengeValidatorRegistry(unittest.TestCase):
@@ -678,7 +748,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self.assertTrue(result.invalid)
         self.assertEqual(
             result.error_message,
-            '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Keyauthorization mismatch"}',
+            '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Keyauthorization mismatch (expected=\'test_token.test_thumb\', received=\'wrong_response\')"}',
         )
         self.assertEqual(result.details["expected"], "test_token.test_thumb")
         self.assertEqual(result.details["received"], "wrong_response")
@@ -1696,6 +1766,12 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         self.assertEqual(
             result.error_message, "No email received or email body missing"
         )
+        self.logger.warning.assert_called()
+        warn_args = self.logger.warning.call_args[0]
+        self.assertIn(
+            "no email received or email body missing challenge=%s", warn_args[0]
+        )
+        self.assertEqual(warn_args[1], "test")
 
     @patch("acme2certifier.acme_srv.email_handler.EmailHandler")
     @patch.object(EmailReplyChallengeValidator, "_generate_email_keyauth")
@@ -1724,6 +1800,11 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         self.assertFalse(result.invalid)
         self.assertEqual(
             result.error_message, "No email received or email body missing"
+        )
+        self.logger.warning.assert_called()
+        warn_args = self.logger.warning.call_args[0]
+        self.assertIn(
+            "no email received or email body missing challenge=%s", warn_args[0]
         )
 
     @patch("acme2certifier.acme_srv.email_handler.EmailHandler")
@@ -2687,8 +2768,8 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
 
         self.assertIsNone(verdict)
         self.assertTrue(record_malformed)
-        self.logger.debug.assert_any_call(
-            "DnsPersistChallengeValidator._evaluate_record(): Record is malformed: %s",
+        self.logger.warning.assert_any_call(
+            "dns-persist-01 record malformed: record=%s",
             "bad-record",
         )
 
@@ -2714,8 +2795,8 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
 
         self.assertIsNone(verdict)
         self.assertFalse(record_malformed)
-        self.logger.debug.assert_any_call(
-            "DnsPersistChallengeValidator._evaluate_record(): Issuer '%s' not in normalized issuers: %s",
+        self.logger.warning.assert_any_call(
+            "dns-persist-01 issuer not allowed: issuer=%s allowed=%s",
             "other.example",
             {"authority.example"},
         )
@@ -2742,8 +2823,8 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
 
         self.assertIsNone(verdict)
         self.assertTrue(record_malformed)
-        self.logger.debug.assert_any_call(
-            "DnsPersistChallengeValidator._evaluate_record(): Missing accounturi parameter in record: %s",
+        self.logger.warning.assert_any_call(
+            "dns-persist-01 missing accounturi: record=%s",
             "authority.example",
         )
 
@@ -2771,8 +2852,8 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
 
         self.assertIsNone(verdict)
         self.assertFalse(record_malformed)
-        self.logger.debug.assert_any_call(
-            "DnsPersistChallengeValidator._evaluate_record(): Account URI mismatch. Expected: %s, Found: %s",
+        self.logger.warning.assert_any_call(
+            "dns-persist-01 accounturi mismatch: expected=%s found=%s",
             expected_accounturi,
             found_accounturi,
         )

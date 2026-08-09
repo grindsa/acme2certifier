@@ -354,6 +354,11 @@ class TestChallengeStateManager(unittest.TestCase):
         self.assertEqual(calls[1][0], "update_authorization_status")
         self.assertEqual(calls[1][1], "test-challenge")
         self.assertEqual(calls[1][2], "valid")
+        self.logger.debug.assert_any_call(
+            "Challenge state transition: challenge=%s status=valid success=%s",
+            "test-challenge",
+            True,
+        )
 
     def test_017_transition_to_valid_with_defaults(self):
         """Test transition to valid state with default parameters"""
@@ -388,7 +393,9 @@ class TestChallengeStateManager(unittest.TestCase):
     def test_020_transition_to_invalid_success(self):
         """Test successful transition to invalid state"""
         result = self.state_manager.transition_to_invalid(
-            "test-challenge", source_address="192.168.1.100"
+            "test-challenge",
+            source_address="192.168.1.100",
+            validation_error="boom",
         )
 
         self.assertTrue(result)
@@ -405,6 +412,12 @@ class TestChallengeStateManager(unittest.TestCase):
         # Check authorization update
         self.assertEqual(calls[1][0], "update_authorization_status")
         self.assertEqual(calls[1][2], "invalid")
+        self.logger.warning.assert_called_with(
+            "Challenge state transition: challenge=%s status=invalid success=%s reason=%s",
+            "test-challenge",
+            True,
+            "boom",
+        )
 
     def test_021_transition_to_invalid_with_defaults(self):
         """Test transition to invalid state with default parameters"""

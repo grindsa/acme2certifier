@@ -1161,12 +1161,66 @@ class Challenge:
         )
         twrv.start()
         if self.config.async_mode:
-            # full async mode - do not wait for result
-            self.logger.info(
-                "asynchronous Challenge validation enabled, not waiting for result"
+            # full async mode - do not wait for result; POST may still show processing
+            self.logger.debug(
+                "Challenge validation started asynchronously: challenge=%s "
+                "(POST response may still be processing)",
+                challenge_name,
             )
         else:
+            self.logger.debug(
+                "Waiting for challenge validation result: challenge=%s timeout=%s",
+                challenge_name,
+                self.config.validation_timeout,
+            )
             twrv.join(timeout=self.config.validation_timeout)
+            if twrv.is_alive():
+                self.logger.warning(
+                    "Challenge validation still processing after timeout: "
+                    "challenge=%s timeout=%s (result will be applied asynchronously)",
+                    challenge_name,
+                    self.config.validation_timeout,
+                )
+            else:
+                self.logger.debug(
+                    "Challenge validation finished: challenge=%s",
+                    challenge_name,
+                )
+
+    def _format_challenge_validation_reason(
+        self, validation_result: ValidationResult
+    ) -> str:
+        """Build a concise operator-facing reason from a ValidationResult."""
+        reason: Optional[str] = None
+        err = validation_result.error_message
+        if err:
+            try:
+                parsed = json.loads(err)
+                if isinstance(parsed, dict):
+                    reason = parsed.get("detail") or parsed.get("type") or str(err)
+                else:
+                    reason = str(err)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                reason = str(err)
+
+        details = validation_result.details or {}
+        extras: List[str] = []
+        if "expected" in details or "received" in details:
+            extras.append(f"expected={details.get('expected')!r}")
+            extras.append(f"received={details.get('received')!r}")
+        elif "expected_hash" in details:
+            extras.append(f"expected_hash={details.get('expected_hash')}")
+            if details.get("dns_record") is not None:
+                extras.append(f"dns_record={details.get('dns_record')}")
+            if "found_records" in details:
+                extras.append(f"found_records={details.get('found_records')}")
+        elif details.get("url") is not None:
+            extras.append(f"url={details.get('url')}")
+
+        if extras:
+            extra_s = " ".join(extras)
+            reason = f"{reason}; {extra_s}" if reason else extra_s
+        return reason or "validation failed"
 
     def _update_challenge_state_from_validation(
         self, challenge_name: str, validation_result: ValidationResult
@@ -1174,6 +1228,32 @@ class Challenge:
         """Update challenge state based on validation result."""
 
         if validation_result.invalid:
+            challenge_info = self.repository.get_challenge_by_name(challenge_name)
+            challenge_type = (
+                challenge_info.type if challenge_info is not None else "unknown"
+            )
+            host = (
+                challenge_info.authorization_value
+                if challenge_info is not None
+                else "unknown"
+            )
+            reason = self._format_challenge_validation_reason(validation_result)
+            # Soft-invalid path: route through ErrorHandler (WARNING for MEDIUM)
+            self.error_handler.handle_error(
+                ValidationError(
+                    (
+                        "Challenge validation failed: "
+                        f"challenge={challenge_name} type={challenge_type} "
+                        f"host={host} reason={reason}"
+                    ),
+                    details={
+                        "challenge_name": challenge_name,
+                        "type": challenge_type,
+                        "host": host,
+                        "reason": reason,
+                    },
+                )
+            )
             self.state_manager.transition_to_invalid(
                 challenge_name, self.source_address, validation_result.error_message
             )
@@ -1185,6 +1265,10 @@ class Challenge:
             return True
         else:
             # Validation inconclusive - keep in processing state
+            self.logger.info(
+                "Challenge validation inconclusive: challenge=%s (status remains processing)",
+                challenge_name,
+            )
             return False
 
     def _validate_tnauthlist_payload(

@@ -1325,7 +1325,11 @@ class TestAuthorization(unittest.TestCase):
             with patch(
                 "acme2certifier.acme_srv.authorization.DnsPersistChallengeValidator"
             ) as mock_validator_cls:
-                validation_result = Mock(success=True, invalid=True)
+                validation_result = Mock(
+                    success=False,
+                    invalid=True,
+                    error_message="dns-persist mismatch",
+                )
                 mock_validator = Mock()
                 mock_validator.perform_validation.return_value = validation_result
                 mock_validator_cls.return_value = mock_validator
@@ -1342,6 +1346,15 @@ class TestAuthorization(unittest.TestCase):
         context_kwargs = mock_context.call_args.kwargs
         self.assertIsNone(context_kwargs["options"]["accounturi"])
         self.assertEqual(context_kwargs["options"]["issuer_domain_names"], [])
+        self.mock_logger.warning.assert_called()
+        warn_args = self.mock_logger.warning.call_args[0]
+        self.assertEqual(
+            warn_args[0],
+            "JIT dns-persist-01 validation failed: authz=%s host=%s reason=%s",
+        )
+        self.assertEqual(warn_args[1], "test_authz")
+        self.assertEqual(warn_args[2], "example.com")
+        self.assertEqual(warn_args[3], "dns-persist mismatch")
 
     @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_064_get_authorization_details_jit_validation_exception_fallback(

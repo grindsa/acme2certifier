@@ -98,14 +98,24 @@ class ChallengeValidator(ABC):
 
         try:
             result = self.perform_validation(context)
-            self.logger.debug(
-                "%s validation completed for %s: success=%s, invalid=%s, error=%s",
-                self.get_challenge_type(),
-                context.challenge_name,
-                result.success,
-                result.invalid,
-                result.error_message if result.error_message else "None",
-            )
+            if result.success and not result.invalid:
+                self.logger.debug(
+                    "%s validation succeeded for challenge=%s host=%s",
+                    self.get_challenge_type(),
+                    context.challenge_name,
+                    context.authorization_value,
+                )
+            else:
+                # success=False and/or invalid=True
+                self.logger.warning(
+                    "%s validation failed for challenge=%s host=%s success=%s invalid=%s error=%s",
+                    self.get_challenge_type(),
+                    context.challenge_name,
+                    context.authorization_value,
+                    result.success,
+                    result.invalid,
+                    result.error_message if result.error_message else "None",
+                )
             return result
         except Exception as e:
             self.logger.error(

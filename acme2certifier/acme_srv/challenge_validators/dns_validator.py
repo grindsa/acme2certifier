@@ -49,8 +49,11 @@ class DnsChallengeValidator(ChallengeValidator):
             success = True
         else:
             success = False
-            self.logger.debug(
-                "DnsChallengeValidator.perform_validation(): Expected hash %s not found in DNS records: %s",
+            self.logger.warning(
+                "dns-01 validation failed: challenge=%s host=%s dns_record=%s expected_hash=%s found_records=%s",
+                context.challenge_name,
+                fqdn,
+                dns_record_name,
                 expected_hash,
                 txt_records,
             )
