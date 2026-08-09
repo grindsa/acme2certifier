@@ -21,7 +21,7 @@ def db_handler_mod(monkeypatch: pytest.MonkeyPatch) -> Iterator[object]:
     yield mod
 
 
-def test_normalize_short_names(db_handler_mod: object) -> None:
+def test_001_normalize_short_names(db_handler_mod: object) -> None:
     assert (
         db_handler_mod._normalize_handler("wsgi")
         == "acme2certifier.dbhandlers.wsgi_handler"
@@ -35,7 +35,7 @@ def test_normalize_short_names(db_handler_mod: object) -> None:
     )
 
 
-def test_cfg_handler_wins_over_env(
+def test_002_cfg_handler_wins_over_env(
     db_handler_mod: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("ACME_SRV_DB_HANDLER", "django")
@@ -46,7 +46,7 @@ def test_cfg_handler_wins_over_env(
     )
 
 
-def test_env_used_when_cfg_has_no_handler(
+def test_003_env_used_when_cfg_has_no_handler(
     db_handler_mod: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("ACME_SRV_DB_HANDLER", "django")
@@ -57,7 +57,7 @@ def test_env_used_when_cfg_has_no_handler(
     )
 
 
-def test_default_is_wsgi(db_handler_mod: object) -> None:
+def test_004_default_is_wsgi(db_handler_mod: object) -> None:
     config: Dict[str, Dict[str, str]] = {"DBhandler": {}}
     assert (
         db_handler_mod.resolve_db_handler_module(config)
@@ -65,7 +65,7 @@ def test_default_is_wsgi(db_handler_mod: object) -> None:
     )
 
 
-def test_handler_module_wins_over_handler(db_handler_mod: object) -> None:
+def test_005_handler_module_wins_over_handler(db_handler_mod: object) -> None:
     config: Dict[str, Dict[str, str]] = {
         "DBhandler": {
             "handler": "django",
@@ -78,13 +78,13 @@ def test_handler_module_wins_over_handler(db_handler_mod: object) -> None:
     )
 
 
-def test_load_wsgi_handler_exports_dbstore(db_handler_mod: object) -> None:
+def test_006_load_wsgi_handler_exports_dbstore(db_handler_mod: object) -> None:
     loaded = db_handler_mod.load_db_handler_module({"DBhandler": {"handler": "wsgi"}})
     assert hasattr(loaded, "DBstore")
     assert loaded.__name__ == "acme2certifier.dbhandlers.wsgi_handler"
 
 
-def test_log_active_db_handler(
+def test_007_log_active_db_handler(
     db_handler_mod: object, caplog: pytest.LogCaptureFixture
 ) -> None:
     logger = logging.getLogger("test.db_handler_startup")
@@ -94,7 +94,7 @@ def test_log_active_db_handler(
     assert any("Using DB handler" in rec.message for rec in caplog.records)
 
 
-def test_warn_dbhandler_missing_handler(
+def test_008_warn_dbhandler_missing_handler(
     db_handler_mod: object, caplog: pytest.LogCaptureFixture
 ) -> None:
     db_handler_mod._DBHANDLER_CFG_WARNED = False
@@ -109,7 +109,7 @@ def test_warn_dbhandler_missing_handler(
     assert "default: wsgi" in matches[0].message
 
 
-def test_warn_dbhandler_missing_section_with_env(
+def test_009_warn_dbhandler_missing_section_with_env(
     db_handler_mod: object,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -126,7 +126,7 @@ def test_warn_dbhandler_missing_section_with_env(
     )
 
 
-def test_warn_dbhandler_handler_module_suppresses(
+def test_010_warn_dbhandler_handler_module_suppresses(
     db_handler_mod: object, caplog: pytest.LogCaptureFixture
 ) -> None:
     db_handler_mod._DBHANDLER_CFG_WARNED = False
@@ -141,7 +141,7 @@ def test_warn_dbhandler_handler_module_suppresses(
     assert not caplog.records
 
 
-def test_warn_dbhandler_invalid_handler(
+def test_011_warn_dbhandler_invalid_handler(
     db_handler_mod: object, caplog: pytest.LogCaptureFixture
 ) -> None:
     db_handler_mod._DBHANDLER_CFG_WARNED = False
@@ -152,12 +152,50 @@ def test_warn_dbhandler_invalid_handler(
     assert any("handler='mysql'" in rec.message for rec in caplog.records)
 
 
-def test_package_db_handler_reexports_dbstore(db_handler_mod: object) -> None:
+def test_012_package_db_handler_reexports_dbstore(db_handler_mod: object) -> None:
     assert hasattr(db_handler_mod, "DBstore")
     assert callable(db_handler_mod.DBstore)
 
 
-def test_wsgi_backend_module_exports_dbstore() -> None:
+def test_013_wsgi_backend_module_exports_dbstore() -> None:
     mod = importlib.import_module("acme2certifier.dbhandlers.wsgi_handler")
     assert mod.DBstore is not None
     assert mod.DBstore.__module__ == "acme2certifier.dbhandlers.wsgi_handler"
+
+
+def test_014_cfg_handler_name_load_config_failure(
+    db_handler_mod: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _boom() -> None:
+        raise RuntimeError("cfg boom")
+
+    monkeypatch.setattr(
+        "acme2certifier.acme_srv.helpers.config.load_config",
+        _boom,
+    )
+    assert db_handler_mod._cfg_handler_name(None) is None
+
+
+def test_015_cfg_handler_name_missing_section(db_handler_mod: object) -> None:
+    assert db_handler_mod._cfg_handler_name({"DEFAULT": {}}) is None
+
+
+def test_016_load_db_handler_module_import_failure(
+    db_handler_mod: object,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(
+        db_handler_mod,
+        "_resolve_db_handler",
+        lambda config_dic=None: ("missing.db.handler.module", "cfg"),
+    )
+    with caplog.at_level(logging.CRITICAL, logger="acme2certifier.db_handler"):
+        with pytest.raises(ModuleNotFoundError):
+            db_handler_mod.load_db_handler_module({})
+    assert any("Loading DB handler" in rec.message for rec in caplog.records)
+
+
+def test_017_active_db_handler_label(db_handler_mod: object) -> None:
+    label = db_handler_mod.active_db_handler_label()
+    assert label in ("wsgi", "django") or isinstance(label, str)

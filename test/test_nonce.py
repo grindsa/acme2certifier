@@ -314,7 +314,7 @@ class TestNonceRepository(unittest.TestCase):
         self.dbstore_mock = MagicMock()
         self.repo = NonceRepository(self.dbstore_mock)
 
-    def test_020_repository_delete_nonces(self):
+    def test_001_repository_delete_nonces(self):
         """test NonceRepository.delete_nonces() forwards call to DB layer"""
         self.dbstore_mock.nonce_delete_bulk.return_value = 2
 
@@ -323,7 +323,7 @@ class TestNonceRepository(unittest.TestCase):
         self.assertEqual(2, result)
         self.dbstore_mock.nonce_delete_bulk.assert_called_once_with(["n1", "n2"])
 
-    def test_021_repository_check_nonce(self):
+    def test_002_repository_check_nonce(self):
         """test NonceRepository.check_nonce() forwards call to DB layer"""
         self.dbstore_mock.nonce_check.return_value = True
 
@@ -332,7 +332,7 @@ class TestNonceRepository(unittest.TestCase):
         self.assertTrue(result)
         self.dbstore_mock.nonce_check.assert_called_once_with("nonce-1")
 
-    def test_022_repository_delete_nonce(self):
+    def test_003_repository_delete_nonce(self):
         """test NonceRepository.delete_nonce() forwards call to DB layer"""
         self.dbstore_mock.nonce_delete.return_value = None
 
@@ -341,7 +341,7 @@ class TestNonceRepository(unittest.TestCase):
         self.assertIsNone(result)
         self.dbstore_mock.nonce_delete.assert_called_once_with("nonce-2")
 
-    def test_023_repository_add_nonce(self):
+    def test_004_repository_add_nonce(self):
         """test NonceRepository.add_nonce() forwards call to DB layer"""
         self.dbstore_mock.nonce_add.return_value = 42
 
@@ -350,7 +350,7 @@ class TestNonceRepository(unittest.TestCase):
         self.assertEqual(42, result)
         self.dbstore_mock.nonce_add.assert_called_once_with("nonce-3")
 
-    def test_024_repository_search_expired_nonces(self):
+    def test_005_repository_search_expired_nonces(self):
         """test NonceRepository.search_expired_nonces() forwards timestamp filter"""
         self.dbstore_mock.nonce_search_by_timestamp.return_value = ["n1", "n2"]
 

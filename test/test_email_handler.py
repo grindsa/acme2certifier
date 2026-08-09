@@ -641,7 +641,7 @@ class TestEmailHandler(unittest.TestCase):
         # Create callback function to track calls
         callback_calls = []
 
-        def test_callback(email_data):
+        def callback_filter(email_data):
             result = None
             if email_data["subject"] == "Test Email 2":
                 result = email_data
@@ -651,7 +651,7 @@ class TestEmailHandler(unittest.TestCase):
 
         with self.assertLogs(self.logger, level="DEBUG") as log:
             # Test receive with callback
-            emails = self.email_handler.receive(callback=test_callback)
+            emails = self.email_handler.receive(callback=callback_filter)
 
         # Assertions
         self.assertEqual("Test Email 2", emails["subject"])
@@ -685,14 +685,14 @@ class TestEmailHandler(unittest.TestCase):
         self.assertIn("INFO:test_a2c:Email passed filter: Test Email 2", log.output)
         # self.assertIn('DEBUG:test_a2c:mailHandler.receive(): email did not pass filter: Test Email 3', log.output)
 
-    def test_emails_fetch_no_emails(self):
+    def test_032_emails_fetch_no_emails(self):
         mail = self._mock_mail(search_ids=b"")
         emails = self.email_handler._emails_fetch(
             mail, callback=None, mark_as_read=True
         )
         self.assertEqual(emails, [])
 
-    def test_emails_fetch_multiple_emails(self):
+    def test_033_emails_fetch_multiple_emails(self):
         mail = self._mock_mail()
         # Patch _email_parse to return a simple dict
         self.email_handler._email_parse = lambda msg: {
@@ -706,7 +706,7 @@ class TestEmailHandler(unittest.TestCase):
         mail.store.assert_any_call(b"1", "+FLAGS", "\\Seen")
         mail.store.assert_any_call(b"2", "+FLAGS", "\\Seen")
 
-    def test_emails_fetch_mark_as_unread(self):
+    def test_034_emails_fetch_mark_as_unread(self):
         mail = self._mock_mail()
         self.email_handler._email_parse = lambda msg: {
             "subject": "Test",
@@ -718,7 +718,7 @@ class TestEmailHandler(unittest.TestCase):
         mail.store.assert_any_call(b"1", "-FLAGS", "\\Seen")
         mail.store.assert_any_call(b"2", "-FLAGS", "\\Seen")
 
-    def test_emails_fetch_with_callback_returns_result(self):
+    def test_035_emails_fetch_with_callback_returns_result(self):
         mail = self._mock_mail()
 
         # Only return a result for the first email
@@ -734,7 +734,7 @@ class TestEmailHandler(unittest.TestCase):
         )
         self.assertEqual(emails, {"subject": "Test", "body": "Body"})
 
-    def test_emails_fetch_with_callback_filters_all(self):
+    def test_036_emails_fetch_with_callback_filters_all(self):
         mail = self._mock_mail(subjects=["NoMatch", "NoMatch2"])
 
         def callback(email):
@@ -749,14 +749,14 @@ class TestEmailHandler(unittest.TestCase):
         )
         self.assertEqual(emails, [])
 
-    def test_emails_fetch_search_not_ok(self):
+    def test_037_emails_fetch_search_not_ok(self):
         mail = self._mock_mail(search_status="NO")
         emails = self.email_handler._emails_fetch(
             mail, callback=None, mark_as_read=True
         )
         self.assertEqual(emails, [])
 
-    def test_emails_fetch_fetch_not_ok(self):
+    def test_038_emails_fetch_fetch_not_ok(self):
         mail = self._mock_mail(fetch_status="NO")
         self.email_handler._email_parse = lambda msg: {
             "subject": "Test",
@@ -768,7 +768,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(emails, [])
 
     @patch.object(EmailHandler, "send")
-    def test_032_send_email_challenge_basic_functionality(self, mock_send):
+    def test_039_send_email_challenge_basic_functionality(self, mock_send):
         """Test send_email_challenge basic functionality"""
         # Setup
         to_address = "test@example.com"
@@ -804,7 +804,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertTrue(any(to_address in message for message in log.output))
 
     @patch.object(EmailHandler, "send")
-    def test_033_send_email_challenge_with_none_parameters(self, mock_send):
+    def test_040_send_email_challenge_with_none_parameters(self, mock_send):
         """Test send_email_challenge with None parameters"""
         # Test with None to_address
         self.email_handler.send_email_challenge(to_address=None, token1="token123")
@@ -836,7 +836,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(call_args[1]["subject"], "ACME: None")
 
     @patch.object(EmailHandler, "send")
-    def test_034_send_email_challenge_message_content(self, mock_send):
+    def test_041_send_email_challenge_message_content(self, mock_send):
         """Test send_email_challenge message content formatting"""
         to_address = "user@domain.com"
         token1 = "xyz789token"
@@ -865,7 +865,7 @@ class TestEmailHandler(unittest.TestCase):
             self.assertIn(part, message)
 
     @patch.object(EmailHandler, "send")
-    def test_035_send_email_challenge_subject_formatting(self, mock_send):
+    def test_042_send_email_challenge_subject_formatting(self, mock_send):
         """Test send_email_challenge subject formatting"""
         test_cases = [
             ("simple_token", "ACME: simple_token"),
@@ -886,7 +886,7 @@ class TestEmailHandler(unittest.TestCase):
             self.assertEqual(call_args[1]["subject"], expected_subject)
 
     @patch.object(EmailHandler, "send")
-    def test_036_send_email_challenge_no_default_parameters(self, mock_send):
+    def test_043_send_email_challenge_no_default_parameters(self, mock_send):
         """Test send_email_challenge called without any parameters"""
         # This should work since both parameters have default None values
         self.email_handler.send_email_challenge()
@@ -899,7 +899,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertIn('"None"', message)  # None gets formatted into the message
 
     @patch.object(EmailHandler, "send", return_value=True)
-    def test_037_send_email_challenge_integration_success(self, mock_send):
+    def test_044_send_email_challenge_integration_success(self, mock_send):
         """Test send_email_challenge integration when send succeeds"""
         to_address = "success@example.com"
         token1 = "success_token"
@@ -914,7 +914,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_send.assert_called_once()
 
     @patch.object(EmailHandler, "send", return_value=False)
-    def test_038_send_email_challenge_integration_failure(self, mock_send):
+    def test_045_send_email_challenge_integration_failure(self, mock_send):
         """Test send_email_challenge integration when send fails"""
         to_address = "fail@example.com"
         token1 = "fail_token"
@@ -929,7 +929,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_send.assert_called_once()
 
     @patch.object(EmailHandler, "send", side_effect=Exception("SMTP error"))
-    def test_039_send_email_challenge_send_exception(self, mock_send):
+    def test_046_send_email_challenge_send_exception(self, mock_send):
         """Test send_email_challenge when send raises an exception"""
         to_address = "error@example.com"
         token1 = "error_token"

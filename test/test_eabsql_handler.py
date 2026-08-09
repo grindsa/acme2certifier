@@ -269,7 +269,7 @@ class TestEABHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.eabhandlers.sql_handler.csr_cn_get")
-    def test_021_cn_add_cn_not_in_sans(self, mock_csr_cn_get):
+    def test_020_cn_add_cn_not_in_sans(self, mock_csr_cn_get):
         """CN present and not in SANs: should append CN"""
         mock_csr_cn_get.return_value = "example.com"
         result = self.eabhandler._cn_add("dummy_csr", ["test.com"])
@@ -278,7 +278,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(len(result), 2)
 
     @patch("acme2certifier.eabhandlers.sql_handler.csr_cn_get")
-    def test_022_cn_add_cn_already_in_sans(self, mock_csr_cn_get):
+    def test_021_cn_add_cn_already_in_sans(self, mock_csr_cn_get):
         """CN present and already in SANs: should not duplicate CN"""
         mock_csr_cn_get.return_value = "example.com"
         result = self.eabhandler._cn_add("dummy_csr", ["example.com", "test.com"])
@@ -287,52 +287,52 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(len(result), 2)
 
     @patch("acme2certifier.eabhandlers.sql_handler.csr_cn_get")
-    def test_023_cn_add_no_cn(self, mock_csr_cn_get):
+    def test_022_cn_add_no_cn(self, mock_csr_cn_get):
         """No CN present: should not modify SANs"""
         mock_csr_cn_get.return_value = None
         result = self.eabhandler._cn_add("dummy_csr", ["test.com"])
         self.assertEqual(result, ["test.com"])
 
-    def test_024_list_regex_check_match(self):
+    def test_023_list_regex_check_match(self):
         """Entry matches regex: should return True"""
         result = self.eabhandler._list_regex_check("example.com", ["example\\.com"])
         self.assertTrue(result)
 
-    def test_025_list_regex_check_no_match(self):
+    def test_024_list_regex_check_no_match(self):
         """Entry does not match regex: should return False"""
         result = self.eabhandler._list_regex_check("example.com", ["test\\.com"])
         self.assertFalse(result)
 
-    def test_026_list_regex_check_wildcard(self):
+    def test_025_list_regex_check_wildcard(self):
         """Entry matches wildcard regex: should return True"""
         result = self.eabhandler._list_regex_check(
             "sub.example.com", ["*.example\\.com"]
         )
         self.assertTrue(result)
 
-    def test_027_wllist_check_match(self):
+    def test_026_wllist_check_match(self):
         """Entry matches list: should return True"""
         result = self.eabhandler._wllist_check("example.com", ["example\\.com"])
         self.assertTrue(result)
 
-    def test_028_wllist_check_empty_list(self):
+    def test_027_wllist_check_empty_list(self):
         """Empty list: should return True"""
         result = self.eabhandler._wllist_check("example.com", [])
         self.assertTrue(result)
 
-    def test_029_wllist_check_toggle(self):
+    def test_028_wllist_check_toggle(self):
         """Toggle: should invert result"""
         result = self.eabhandler._wllist_check(
             "example.com", ["example\\.com"], toggle=True
         )
         self.assertFalse(result)
 
-    def test_030_wllist_check_no_match(self):
+    def test_029_wllist_check_no_match(self):
         """Entry does not match list: should return False"""
         result = self.eabhandler._wllist_check("example.com", ["test\\.com"])
         self.assertFalse(result)
 
-    def test_031_key_file_load_no_db_params(self):
+    def test_030_key_file_load_no_db_params(self):
         """No DB params: should return empty dict"""
         self.eabhandler.db_host = None
         self.eabhandler.db_name = None
@@ -342,7 +342,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(result, {})
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_mssql_profiles")
-    def test_032_key_file_load_mssql(self, mock_load_mssql):
+    def test_031_key_file_load_mssql(self, mock_load_mssql):
         """MSSQL: should call _load_mssql_profiles and return its result"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -355,7 +355,7 @@ class TestEABHandler(unittest.TestCase):
         mock_load_mssql.assert_called_once()
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_postgres_profiles")
-    def test_033_key_file_load_postgres(self, mock_load_postgres):
+    def test_032_key_file_load_postgres(self, mock_load_postgres):
         """Postgres: should call _load_postgres_profiles and return its result"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -369,7 +369,7 @@ class TestEABHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_mssql_profiles")
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_postgres_profiles")
-    def test_034_key_file_load_error(self, mock_postgres, mock_mssql):
+    def test_033_key_file_load_error(self, mock_postgres, mock_mssql):
         """Invalid db_system: should return empty dict"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -382,7 +382,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(result, {})
 
     @patch("acme2certifier.eabhandlers.sql_handler.connect")
-    def test_035_load_mssql_profiles_success(self, mock_connect):
+    def test_034_load_mssql_profiles_success(self, mock_connect):
         """Successful fetch: should return dict with profiles"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -402,7 +402,7 @@ class TestEABHandler(unittest.TestCase):
         mock_conn.close.assert_called_once()
 
     @patch("acme2certifier.eabhandlers.sql_handler.connect")
-    def test_036_load_mssql_profiles_empty(self, mock_connect):
+    def test_035_load_mssql_profiles_empty(self, mock_connect):
         """Empty result: should return empty dict"""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -413,7 +413,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(result, {})
 
     @patch("acme2certifier.eabhandlers.sql_handler.connect")
-    def test_037_load_mssql_profiles_exception(self, mock_connect):
+    def test_036_load_mssql_profiles_exception(self, mock_connect):
         """Exception: should log error and return empty dict"""
         mock_connect.side_effect = Exception("connection error")
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
@@ -422,7 +422,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
     @patch("acme2certifier.eabhandlers.sql_handler.psycopg2.connect")
-    def test_038_load_postgres_profiles_success(self, mock_connect):
+    def test_037_load_postgres_profiles_success(self, mock_connect):
         """Successful fetch: should return dict with profiles"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -438,7 +438,7 @@ class TestEABHandler(unittest.TestCase):
         mock_conn.close.assert_called_once()
 
     @patch("acme2certifier.eabhandlers.sql_handler.psycopg2.connect")
-    def test_039_load_postgres_profiles_empty(self, mock_connect):
+    def test_038_load_postgres_profiles_empty(self, mock_connect):
         """Empty result: should return empty dict"""
         mock_conn = MagicMock()
         mock_conn.close = MagicMock()
@@ -452,7 +452,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertTrue(mock_conn.close.called)
 
     @patch("acme2certifier.eabhandlers.sql_handler.psycopg2.connect")
-    def test_040_load_postgres_profiles_exception(self, mock_connect):
+    def test_039_load_postgres_profiles_exception(self, mock_connect):
         """Exception: should log error and return empty dict"""
         mock_connect.side_effect = Exception("connection error")
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
@@ -461,7 +461,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_041_mac_key_get_valid(self, mock_key_file_load):
+    def test_040_mac_key_get_valid(self, mock_key_file_load):
         """Valid key: should return mac_key"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -472,7 +472,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(result, "mac_value")
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_042_mac_key_get_missing_key(self, mock_key_file_load):
+    def test_041_mac_key_get_missing_key(self, mock_key_file_load):
         """Missing key: should return None"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -482,7 +482,7 @@ class TestEABHandler(unittest.TestCase):
         result = self.eabhandler.mac_key_get("key2")
         self.assertIsNone(result)
 
-    def test_043_mac_key_get_missing_db_params(self):
+    def test_042_mac_key_get_missing_db_params(self):
         """Missing DB params: should return None and log error"""
         self.eabhandler.db_host = None
         self.eabhandler.db_name = None
@@ -494,7 +494,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_044_mac_key_get_exception(self, mock_key_file_load):
+    def test_043_mac_key_get_exception(self, mock_key_file_load):
         """Exception: should return None and log error"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -506,7 +506,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertIsNone(result)
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
-    def test_045_eab_kid_get_exception(self):
+    def test_044_eab_kid_get_exception(self):
         """Exception branch: should log error and return None"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -523,6 +523,19 @@ class TestEABHandler(unittest.TestCase):
         self.assertTrue(
             any("Database error while retrieving eab_kid" in msg for msg in lcm.output)
         )
+
+    def test_045_eab_kid_get_revocation(self):
+        """test EABhandler.eab_kid_get() with revocation=True uses cert_raw"""
+        models_mock = MagicMock()
+        models_mock.DBstore().certificate_lookup.return_value = {
+            "order__account__eab_kid": "kid_rev"
+        }
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
+        patch.dict("sys.modules", modules).start()
+        result = self.eabhandler.eab_kid_get("cert_raw_data", revocation=True)
+        self.assertEqual(result, "kid_rev")
+        call_args = models_mock.DBstore().certificate_lookup.call_args
+        self.assertEqual(call_args[0][0], "cert_raw")
 
 
 if __name__ == "__main__":
