@@ -195,19 +195,24 @@ class TestACMEHandler(unittest.TestCase):
         environ = {"wsgi.input": StringIO("""foo"""), "CONTENT_LENGTH": "aaa"}
         self.assertFalse(self.get_request_body(environ))
 
+    @patch("acme2certifier.share.acme2certifier_wsgi.log_response")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.acme_srv.account.Account.parse")
-    def test_017_acct(self, mock_parse, mock_body, mock_url, mock_header):
+    def test_017_acct(self, mock_parse, mock_body, mock_url, mock_header, mock_log):
         """acct"""
-        environ = "environ"
+        environ = {
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
         mock_parse.return_value = {"code": 200, "data": "data"}
         self.assertEqual([b'"data"'], self.acct(environ, Mock()))
         self.assertTrue(mock_body.called)
         self.assertTrue(mock_parse.called)
         self.assertTrue(mock_url.called)
         self.assertTrue(mock_header.called)
+        self.assertTrue(mock_log.called)
 
     @patch("acme2certifier.acme_srv.acmechallenge.Acmechallenge.lookup")
     def test_018_acmechallenge_serve(self, mock_lookup):
