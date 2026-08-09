@@ -1149,10 +1149,14 @@ class TestCertificate(unittest.TestCase):
 
     def test_086_handle_failed_certificate_poll_order_update_error(self):
         self.cert.repository.order_update.side_effect = Exception("fail")
-        with self.assertLogs(self.cert.logger, level="CRITICAL") as log:
+        with self.assertLogs(self.cert.logger, level="WARNING") as log:
             self.cert._handle_failed_certificate_poll(
                 "cert", "error", "poll", "order", True
             )
+        self.assertIn(
+            "WARNING:test_a2c:Certificate poll failed: error certificate=cert order=order rejected=True",
+            log.output,
+        )
         self.assertIn(
             "CRITICAL:test_a2c:Database error updating order status to invalid: fail",
             log.output,
@@ -1431,15 +1435,18 @@ class TestCertificate(unittest.TestCase):
 
     def test_109_process_certificate_enrollment_request_csr_validation_failed(self):
         """Test process_certificate_enrollment_request with failed CSR validation"""
+        self.cert.err_msg_dic["badcsr"] = "badcsr"
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
             patch.object(self.cert, "_validate_csr_against_order", return_value=False),
         ):
-            with self.assertLogs(self.cert.logger, level="ERROR") as log:
-                result = self.cert.process_certificate_enrollment_request("cert", "csr")
-                self.assertEqual(result[0], "serverinternal")
+            with self.assertLogs(self.cert.logger, level="WARNING") as log:
+                result = self.cert.process_certificate_enrollment_request(
+                    "cert", "csr", "order"
+                )
+                self.assertEqual(result, ("badcsr", "CSR validation failed"))
             self.assertIn(
-                "CRITICAL:test_a2c:Unexpected error in process_certificate_enrollment_request: 'badcsr'",
+                "WARNING:test_a2c:Certificate enrollment failed: CSR vs order mismatch certificate=cert order=order",
                 log.output,
             )
 
@@ -1500,8 +1507,15 @@ class TestCertificate(unittest.TestCase):
         """Test _determine_certificate_response with invalid order"""
         cert_info = {"order__status_id": 99}
         self.cert.err_msg_dic["ordernotready"] = "order not ready"  # Add missing key
-        result = self.cert._determine_certificate_response(cert_info)
-        self.assertEqual(result["code"], 403)
+        with self.assertLogs(self.cert.logger, level="WARNING") as log:
+            result = self.cert._determine_certificate_response(
+                cert_info, certificate_name="cert-name"
+            )
+            self.assertEqual(result["code"], 403)
+        self.assertIn(
+            "WARNING:test_a2c:Certificate request failed: orderNotReady certificate=cert-name status=99",
+            log.output,
+        )
 
     def test_116_handle_valid_certificate_with_cert(self):
         """Test _handle_valid_certificate with certificate present"""
@@ -2039,12 +2053,17 @@ class TestCertificate(unittest.TestCase):
                 return_value=("result", "error", "detail"),
             ) as mock_handle,
             patch.object(self.cert, "_execute_post_enrollment_hooks", return_value=[]),
+            self.assertLogs(self.cert.logger, level="ERROR") as log,
         ):
             result = self.cert._process_enrollment_and_store_certificate(
                 "cert_name", "csr", "order_name"
             )
             self.assertEqual(result, ("result", "error", "detail"))
             mock_handle.assert_called()
+        self.assertIn(
+            "ERROR:test_a2c:Enrollment error: error order=order_name certificate=cert_name",
+            log.output,
+        )
 
     def test_151_process_enrollment_and_store_certificate_pre_hook_error(self):
         # Pre-enrollment hook returns error, should return early
@@ -2329,15 +2348,20 @@ class TestCertificate(unittest.TestCase):
             patch.object(
                 self.cert,
                 "_validate_revocation_message",
-                return_value=(200, "ok", "", "", {}, ""),
+                return_value=(200, "ok", "", "", {}, "acc"),
             ),
             patch.object(
                 self.cert.message, "prepare_response", return_value={"code": 400}
             ) as mock_prepare,
+            self.assertLogs(self.cert.logger, level="WARNING") as log,
         ):
             result = self.cert.revoke_certificate("content")
             mock_prepare.assert_called()
             self.assertEqual(result["code"], 400)
+        self.assertIn(
+            "WARNING:test_a2c:Certificate revoke failed: certificate missing in payload account=acc",
+            log.output,
+        )
 
     def test_166_revoke_certificate_outer_exception(self):
         # Covers: revoke_certificate outer except block
@@ -2476,6 +2500,10 @@ class TestCertificate(unittest.TestCase):
                 self.assertEqual(code, 403)
                 self.assertEqual(error, "unauth")
             self.assertIn(
+                "WARNING:test_a2c:Certificate revoke failed: unauthorized (authorization) account=acc order=order",
+                log.output,
+            )
+            self.assertIn(
                 "DEBUG:test_a2c:Certificate._validate_revocation_request() ended with: 403, unauth",
                 log.output,
             )
@@ -2511,9 +2539,14 @@ class TestCertificate(unittest.TestCase):
             "unauthorized": "unauth",
             "serverinternal": "internal",
         }
-        code, error = self.cert._validate_revocation_request("acc", payload)
-        self.assertEqual(code, 400)
-        self.assertEqual(error, "badreason")
+        with self.assertLogs(self.cert.logger, level="WARNING") as log:
+            code, error = self.cert._validate_revocation_request("acc", payload)
+            self.assertEqual(code, 400)
+            self.assertEqual(error, "badreason")
+        self.assertIn(
+            "WARNING:test_a2c:Certificate revoke failed: badRevocationReason account=acc reason=99",
+            log.output,
+        )
 
     def test_178_validate_revocation_request_no_reason(self):
         # Covers line 1162: rev_reason = "unspecified"
@@ -2526,9 +2559,14 @@ class TestCertificate(unittest.TestCase):
         with patch.object(
             self.cert, "_validate_certificate_account_ownership", return_value=None
         ):
-            code, error = self.cert._validate_revocation_request("acc", payload)
-            self.assertEqual(code, 403)
-            self.assertEqual(error, "unauth")
+            with self.assertLogs(self.cert.logger, level="WARNING") as log:
+                code, error = self.cert._validate_revocation_request("acc", payload)
+                self.assertEqual(code, 403)
+                self.assertEqual(error, "unauth")
+            self.assertIn(
+                "WARNING:test_a2c:Certificate revoke failed: unauthorized (ownership) account=acc",
+                log.output,
+            )
 
     def test_179_validate_revocation_request_unauthorized(self):
         # Explicitly cover line 1171: error = self.err_msg_dic["unauthorized"]
@@ -2577,7 +2615,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(error, "unspecified")
 
     def test_181_validate_revocation_request_nocert(self):
-        # Explicitly cover line 1171: error = self.err_msg_dic["unauthorized"] and check logger
+        # Explicitly cover missing certificate field and WARNING logger
         payload = {"reason": 0, "foo": "bar"}
         self.cert.err_msg_dic = {
             "badrevocationreason": "badreason",
@@ -2585,25 +2623,14 @@ class TestCertificate(unittest.TestCase):
             "serverinternal": "internal",
             "malformed": "malformed",
         }
-        with (
-            patch.object(
-                self.cert,
-                "_validate_certificate_account_ownership",
-                return_value="order",
-            ) as mock_own,
-            patch.object(
-                self.cert, "_validate_order_authorization", return_value=False
-            ) as mock_auth,
-            patch.object(self.cert.logger, "debug") as mock_logger_debug,
-        ):
+        with self.assertLogs(self.cert.logger, level="WARNING") as log:
             code, error = self.cert._validate_revocation_request("acc", payload)
             self.assertEqual(code, 400)
-            # self.assertEqual(error, 'unauth')
-            # mock_own.assert_called_once_with('acc', 'cert')
-            # mock_auth.assert_called_once_with('order', 'cert')
-            mock_logger_debug.assert_any_call(
-                "Certificate._validate_revocation_request(): Revocation request missing 'certificate' field"
-            )
+            self.assertEqual(error, "malformed")
+        self.assertIn(
+            "WARNING:test_a2c:Certificate revoke failed: certificate missing in payload account=acc",
+            log.output,
+        )
 
     def test_182_validate_csr_against_order_order_lookup_exception(self):
         # Covers exception branch at line 720 in _validate_csr_against_order
@@ -3211,6 +3238,40 @@ class TestCertificate(unittest.TestCase):
                 "unauthorized",
                 DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
             ),
+        )
+
+    def test_211_process_certificate_revocation_ca_non_200(self):
+        """CA revoke non-200 must ERROR with account correlation."""
+        payload = {"certificate": "cert"}
+        with (
+            patch.object(
+                self.cert,
+                "_validate_revocation_request",
+                return_value=(200, "unspecified"),
+            ),
+            patch.object(self.cert, "cahandler") as mock_cahandler,
+            self.assertLogs(self.cert.logger, level="ERROR") as log,
+        ):
+            mock_ca = MagicMock()
+            mock_ca.revoke.return_value = (400, "alreadyRevoked", "gone")
+            mock_cahandler.return_value.__enter__.return_value = mock_ca
+            result = self.cert._process_certificate_revocation("acc", payload)
+            self.assertEqual(result, (400, "alreadyRevoked", "gone"))
+        self.assertIn(
+            "ERROR:test_a2c:Certificate revoke failed: CA returned code=400 type=alreadyRevoked detail=gone account=acc",
+            log.output,
+        )
+
+    def test_212_handle_failed_certificate_poll_warning(self):
+        """Poll failure must WARNING with CA detail and correlation."""
+        with patch.object(self.cert, "_store_certificate_error", return_value=1):
+            with self.assertLogs(self.cert.logger, level="WARNING") as log:
+                self.cert._handle_failed_certificate_poll(
+                    "cert", "ca timeout", "poll-id", "order", False
+                )
+        self.assertIn(
+            "WARNING:test_a2c:Certificate poll failed: ca timeout certificate=cert order=order rejected=False",
+            log.output,
         )
 
 

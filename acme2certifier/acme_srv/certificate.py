@@ -981,7 +981,12 @@ class Certificate(object):
                     )
 
         else:
-            self.logger.error("Enrollment error: %s", error)
+            self.logger.error(
+                "Enrollment error: %s order=%s certificate=%s",
+                error,
+                order_name,
+                certificate_name,
+            )
             result, error, detail = self._handle_enrollment_error(
                 error, poll_identifier, order_name, certificate_name
             )
@@ -1165,6 +1170,11 @@ class Certificate(object):
             if not rev_reason:
                 code = 400
                 error = self.err_msg_dic["badrevocationreason"]
+                self.logger.warning(
+                    "Certificate revoke failed: badRevocationReason account=%s reason=%s",
+                    account_name,
+                    payload.get("reason"),
+                )
                 self.logger.debug(
                     log_msg,
                     code,
@@ -1176,8 +1186,9 @@ class Certificate(object):
             rev_reason = "unspecified"
 
         if "certificate" not in payload:
-            self.logger.debug(
-                "Certificate._validate_revocation_request(): Revocation request missing 'certificate' field"
+            self.logger.warning(
+                "Certificate revoke failed: certificate missing in payload account=%s",
+                account_name,
             )
             code = 400
             error = self.err_msg_dic["malformed"]
@@ -1195,6 +1206,10 @@ class Certificate(object):
         if not order_name:
             code = 403
             error = self.err_msg_dic["unauthorized"]
+            self.logger.warning(
+                "Certificate revoke failed: unauthorized (ownership) account=%s",
+                account_name,
+            )
             self.logger.debug(
                 log_msg,
                 code,
@@ -1209,6 +1224,11 @@ class Certificate(object):
         if not auth_chk:
             code = 403
             error = self.err_msg_dic["unauthorized"]
+            self.logger.warning(
+                "Certificate revoke failed: unauthorized (authorization) account=%s order=%s",
+                account_name,
+                order_name,
+            )
             self.logger.debug(
                 log_msg,
                 code,
@@ -1451,6 +1471,11 @@ class Certificate(object):
                 return self.err_msg_dic["serverinternal"], "CSR validation failed"
 
             if not csr_check_result:
+                self.logger.warning(
+                    "Certificate enrollment failed: CSR vs order mismatch certificate=%s order=%s",
+                    certificate_name,
+                    order_name,
+                )
                 return self.err_msg_dic["badcsr"], "CSR validation failed"
 
             if self.config.dryrun:
@@ -1482,7 +1507,9 @@ class Certificate(object):
                 "Unexpected error during enrollment",
             )
 
-    def _determine_certificate_response(self, cert_info: Dict) -> Dict[str, str]:
+    def _determine_certificate_response(
+        self, cert_info: Dict, certificate_name: Optional[str] = None
+    ) -> Dict[str, str]:
         """Determine appropriate response based on certificate info"""
         self.logger.debug("Certificate._determine_certificate_response()")
 
@@ -1496,6 +1523,11 @@ class Certificate(object):
         elif order_status == self.ORDER_STATUS_PROCESSING:
             return self._handle_processing_certificate()
         else:
+            self.logger.warning(
+                "Certificate request failed: orderNotReady certificate=%s status=%s",
+                certificate_name,
+                order_status,
+            )
             return self._create_error_response(403, self.err_msg_dic["ordernotready"])
 
     def _handle_valid_certificate(self, cert_info: Dict) -> Dict[str, str]:
@@ -1545,7 +1577,9 @@ class Certificate(object):
                     500, self.err_msg_dic["serverinternal"]
                 )
 
-            response_dic = self._determine_certificate_response(cert_info)
+            response_dic = self._determine_certificate_response(
+                cert_info, certificate_name=certificate_name
+            )
             self.logger.debug(
                 "Certificate.get_certificate_details(%s) ended", response_dic["code"]
             )
@@ -1701,6 +1735,15 @@ class Certificate(object):
                     payload["certificate"], error, rev_date
                 )
 
+            if code != 200:
+                self.logger.error(
+                    "Certificate revoke failed: CA returned code=%s type=%s detail=%s account=%s",
+                    code,
+                    message,
+                    detail,
+                    account_name,
+                )
+
             # Log revocation if configured
             if self.config.cert_operations_log:
                 try:
@@ -1756,6 +1799,10 @@ class Certificate(object):
                         account_name, payload
                     )
                 else:
+                    self.logger.warning(
+                        "Certificate revoke failed: certificate missing in payload account=%s",
+                        account_name,
+                    )
                     code = 400
                     message = self.err_msg_dic["malformed"]
                     detail = "certificate not found"
@@ -1822,6 +1869,13 @@ class Certificate(object):
     ) -> None:
         """Handle failed certificate polling result"""
         try:
+            self.logger.warning(
+                "Certificate poll failed: %s certificate=%s order=%s rejected=%s",
+                error,
+                certificate_name,
+                order_name,
+                rejected,
+            )
             # Store error message for later analysis
             self._store_certificate_error(certificate_name, error, poll_identifier)
 
