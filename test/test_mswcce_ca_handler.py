@@ -1183,9 +1183,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.Request")
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.Target")
-    def test_058_request_create_noninteractive_no_pass(
-        self, mock_target, mock_request
-    ):
+    def test_058_request_create_noninteractive_no_pass(self, mock_target, mock_request):
         """test request_create enforces no_pass=True to avoid interactive password prompts"""
         mock_target.return_value = True
         mock_request.return_value = "foo"
