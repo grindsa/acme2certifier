@@ -11,6 +11,7 @@ from acme2certifier.acme_srv.helper import (
     uts_to_date_utc,
 )
 from acme2certifier.acme_srv.helpers.certificates import cert_dates_get
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
 # Import will be added when needed to avoid circular imports
 # from acme2certifier.acme_srv.certificate import CertificateConfig
@@ -86,7 +87,7 @@ class CertificateManager:
                     "certificates": None,
                     "count": 0,
                     "total_found": 0,
-                    "error": "Database error",
+                    "error": DB_ERROR_MSG,
                 }
                 return result
 

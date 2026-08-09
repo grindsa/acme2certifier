@@ -53,13 +53,13 @@ runs:
         grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for rejectedIdentifier error"
+    - name: "Check a2c logs for ACME problem (identifier limit)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 403, [''"]type[''"]: [''"]urn:ietf:params:acme:error:rejectedIdentifier[''"], [''"]detail[''"]: [''"]identifier limit exceeded[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:rejectedIdentifier detail=identifier limit exceeded"
 
     - name: "Test wrong identifier format for type DNS"
       working-directory: acmeshell
@@ -85,13 +85,13 @@ runs:
         grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for rejectedIdentifier error"
+    - name: "Check a2c logs for ACME problem (DNS identifier not allowed)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 403, [''"]type[''"]: [''"]urn:ietf:params:acme:error:rejectedIdentifier[''"], [''"]detail[''"]: [''"]identifier value foo@bar.local not allowed[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:rejectedIdentifier detail=identifier value foo@bar.local not allowed"
 
     - name: "Test wrong identifier format for type IP"
       working-directory: acmeshell
@@ -117,13 +117,13 @@ runs:
         grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for rejectedIdentifier error"
+    - name: "Check a2c logs for ACME problem (IP identifier not allowed)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 403, [''"]type[''"]: [''"]urn:ietf:params:acme:error:rejectedIdentifier[''"], [''"]detail[''"]: [''"]identifier value unknown.bar.local not allowed[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:rejectedIdentifier detail=identifier value unknown.bar.local not allowed"
 
     - name: "Test unknown identifier type"
       working-directory: acmeshell
@@ -149,13 +149,13 @@ runs:
         grep "urn:ietf:params:acme:error:unsupportedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for unsupportedIdentifier error"
+    - name: "Check a2c logs for ACME problem (unsupportedIdentifier)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 400, [''"]type[''"]: [''"]urn:ietf:params:acme:error:unsupportedIdentifier[''"], [''"]detail[''"]: [''"]Could not process order[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:unsupportedIdentifier detail=Could not process order"
 
     - name: "Test missing identifier type"
       working-directory: acmeshell
@@ -181,13 +181,13 @@ runs:
         grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for malformedIdentifier error"
+    - name: "Check a2c logs for ACME problem (Identifier type is missing)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 400, [''"]type[''"]: [''"]urn:ietf:params:acme:error:malformed[''"], [''"]detail[''"]: [''"]Identifier type is missing[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Identifier type is missing"
 
     - name: "Test missing identifier value"
       working-directory: acmeshell
@@ -213,13 +213,13 @@ runs:
         grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for malformedIdentifier error"
+    - name: "Check a2c logs for ACME problem (Identifier value is missing)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 400, [''"]type[''"]: [''"]urn:ietf:params:acme:error:malformed[''"], [''"]detail[''"]: [''"]Identifier value is missing[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Identifier value is missing"
 
     - name: "Test ADL feature"
       working-directory: acmeshell
@@ -246,10 +246,10 @@ runs:
         grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for rejectedIdentifier error"
+    - name: "Check a2c logs for ACME problem (FQDN not allowed)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 403, [''"]type[''"]: [''"]urn:ietf:params:acme:error:rejectedIdentifier[''"], [''"]detail[''"]: [''"]FQDN/SAN foo-01.bar1.local not allowed by configuration[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:rejectedIdentifier detail=FQDN/SAN foo-01.bar1.local not allowed by configuration"

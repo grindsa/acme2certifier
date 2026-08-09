@@ -69,12 +69,14 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(result["certificates"], [{"name": "c1", "cert": "pem1"}])
 
     def test_003_search_certificates_repo_returns_none_treated_as_error(self):
+        from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+
         self.repository.search_certificates.return_value = None
         result = self.mgr.search_certificates("name", "x")
         self.assertEqual(result["count"], 0)
         self.assertEqual(result["total_found"], 0)
         self.assertEqual(result["certificates"], None)
-        self.assertIn("error", result)
+        self.assertEqual(result["error"], DB_ERROR_MSG)
 
     def test_004_search_certificates_repo_raises_exception(self):
         self.repository.search_certificates.side_effect = RuntimeError("boom")
