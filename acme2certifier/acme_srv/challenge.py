@@ -1180,32 +1180,51 @@ class Challenge:
         self, validation_result: ValidationResult
     ) -> str:
         """Build a concise operator-facing reason from a ValidationResult."""
-        reason: Optional[str] = None
-        err = validation_result.error_message
-        if err:
-            try:
-                parsed = json.loads(err)
-                if isinstance(parsed, dict):
-                    reason = parsed.get("detail") or parsed.get("type") or str(err)
-                else:
-                    reason = str(err)
-            except TypeError, ValueError, json.JSONDecodeError:
-                reason = str(err)
-
+        reason = self._reason_from_error_message(validation_result.error_message)
         details = validation_result.details or {}
+        extras = self._validation_detail_extras(details)
+        return self._compose_validation_reason(reason, extras)
+
+    def _reason_from_error_message(self, error_message: Optional[str]) -> Optional[str]:
+        """Extract a readable reason from the validator error message payload."""
+        if not error_message:
+            return None
+
+        try:
+            parsed = json.loads(error_message)
+        except (TypeError, ValueError):
+            return str(error_message)
+
+        if isinstance(parsed, dict):
+            return parsed.get("detail") or parsed.get("type") or str(error_message)
+        return str(error_message)
+
+    def _validation_detail_extras(self, details: Dict[str, Any]) -> List[str]:
+        """Extract structured validation metadata fragments for operator logs."""
         extras: List[str] = []
+
         if "expected" in details or "received" in details:
             extras.append(f"expected={details.get('expected')!r}")
             extras.append(f"received={details.get('received')!r}")
-        elif "expected_hash" in details:
+            return extras
+
+        if "expected_hash" in details:
             extras.append(f"expected_hash={details.get('expected_hash')}")
             if details.get("dns_record") is not None:
                 extras.append(f"dns_record={details.get('dns_record')}")
             if "found_records" in details:
                 extras.append(f"found_records={details.get('found_records')}")
-        elif details.get("url") is not None:
+            return extras
+
+        if details.get("url") is not None:
             extras.append(f"url={details.get('url')}")
 
+        return extras
+
+    def _compose_validation_reason(
+        self, reason: Optional[str], extras: List[str]
+    ) -> str:
+        """Combine base reason and metadata into the final operator-facing string."""
         if extras:
             extra_s = " ".join(extras)
             reason = f"{reason}; {extra_s}" if reason else extra_s
