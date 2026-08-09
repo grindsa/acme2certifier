@@ -1912,6 +1912,10 @@ class TestAccount(unittest.TestCase):
                 "WARNING:test_a2c:Unknown request account=test_account",
                 log_cm.output,
             )
+            self.assertIn(
+                "WARNING:test_a2c:Unknown request account=test_account",
+                log_cm.output,
+            )
 
     def test_069_new_calls_create_account(self):
         """test new() calls create_account and returns its result"""
