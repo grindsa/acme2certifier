@@ -1592,8 +1592,13 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         cfg = configparser.ConfigParser()
         cfg["DEFAULT"] = {"server_name": "acme.example.com"}
         cfg["Directory"] = {"caaidentities": '["acme.example.com"]'}
-        with self.assertNoLogs("test_a2c", level="WARNING"):
-            self.server_name_configuration_validate(self.logger, cfg)
+        if hasattr(self, "assertNoLogs"):
+            with self.assertNoLogs("test_a2c", level="WARNING"):
+                self.server_name_configuration_validate(self.logger, cfg)
+        else:
+            with patch.object(self.logger, "warning") as warning_mock:
+                self.server_name_configuration_validate(self.logger, cfg)
+            warning_mock.assert_not_called()
 
     def test_139_helper_validate_email(self):
         """validate email containing first letter of domain cannot be a number"""

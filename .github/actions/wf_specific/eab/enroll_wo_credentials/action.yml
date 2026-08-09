@@ -74,6 +74,7 @@ runs:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
       PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:externalAccountRequired detail=External account binding required"
+      FLUSH: "false"
 
   - name: "certbot - Failed registration without credentials"
     continue-on-error: true
@@ -112,6 +113,7 @@ runs:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
       PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:externalAccountRequired detail=External account binding required"
+      FLUSH: "false"
 
   - name: "lego - Failed registration without credentials"
     continue-on-error: true
@@ -150,3 +152,4 @@ runs:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
       PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:externalAccountRequired detail=External account binding required"
+      FLUSH: "false"

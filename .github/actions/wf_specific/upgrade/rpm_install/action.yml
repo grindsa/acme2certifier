@@ -91,13 +91,26 @@ runs:
 
         # Legacy django (≤0.44): same as almalinux-systemd/django_tester.sh.
         if [[ "${MODE}" == "django" ]]; then
-          if command -v dnf >/dev/null 2>&1; then
-            dnf install -y python3-django python3-mysqlclient python3-PyMySQL \
-              python3-pyyaml python3-sqlparse python3-psycopg2 || true
-          else
-            yum install -y python3-django python3-mysqlclient python3-PyMySQL \
-              python3-pyyaml python3-sqlparse python3-psycopg2 || true
+          PKG=dnf
+          command -v dnf >/dev/null 2>&1 || PKG=yum
+
+          DJANGO_RPM=""
+          for cand in python3-django4.2 python3-django; do
+            if ${PKG} install -y "${cand}" 2>/dev/null; then
+              DJANGO_RPM="${cand}"
+              break
+            fi
+          done
+          if [[ -z "${DJANGO_RPM}" ]]; then
+            echo "ERROR: could not install Django (tried python3-django4.2, python3-django)." >&2
+            exit 1
           fi
+          echo "Installed Django package: ${DJANGO_RPM}"
+
+          for cand in python3-mysqlclient python3-PyMySQL python3-pyyaml python3-sqlparse python3-psycopg2; do
+            ${PKG} install -y "${cand}" 2>/dev/null || true
+          done
+          python3 -c "import django" || { echo "ERROR: Django installed but import failed" >&2; exit 1; }
           if [[ ! -d "${APP_ROOT}/examples/django/acme2certifier" ]]; then
             echo "ERROR: legacy package missing examples/django" >&2
             exit 1

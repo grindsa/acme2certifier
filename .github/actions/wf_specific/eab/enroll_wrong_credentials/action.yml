@@ -72,6 +72,7 @@ runs:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
       PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB signature verification failed"
+      FLUSH: "false"
 
   - name: "certbot - Failed registration with wrong credentials"
     continue-on-error: true
@@ -112,6 +113,7 @@ runs:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
       PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB signature verification failed"
+      FLUSH: "false"
 
   - name: "lego - Failed registration with wrong credentials"
     continue-on-error: true
@@ -153,3 +155,4 @@ runs:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
       PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB signature verification failed"
+      FLUSH: "false"

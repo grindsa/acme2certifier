@@ -79,8 +79,8 @@ If installing on Red Hat 8.x, upgrade the following packages:
 Backports of these packages from RHEL 9 can be found in the [A2C RPM repository](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8):
 
 - [python3-cryptography-36.0.1-4.el8.x86_64.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-cryptography-36.0.1-4.el8.x86_64.rpm)
-- [python3-dns-2.1.0-6.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-dns-2.1.0-6.el8.noarch.rpm)
-- [python3-jwcrypto-0.8-4.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-jwcrypto-0.8-4.el8.noarch.rpm)
+- [python3-dns-2.2.1-2.el8.noarch.rpm](https://github.com/grindsa/sbom/blob/main/rpm-repo/RPMs/rhel8/python3-dns-2.2.1-2.el8.noarch.rpm)
+- [python3-jwcrypto-1.5.1-1.el8.noarch.rpm](https://github.com/grindsa/sbom/blob/main/rpm-repo/RPMs/rhel8/python3-jwcrypto-1.5.1-1.el8.noarch.rpm)
 
 ### Additional Modules for Specific CA Handlers
 
