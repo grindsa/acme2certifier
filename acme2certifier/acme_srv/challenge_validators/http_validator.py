@@ -101,6 +101,14 @@ class HttpChallengeValidator(ChallengeValidator):
             timeout=context.timeout,
         )
         if not req or status_code != 200:
+            self.logger.warning(
+                "http-01 fetch failed: challenge=%s host=%s url=%s status=%s error=%s",
+                context.challenge_name,
+                context.authorization_value,
+                logical_url,
+                status_code,
+                error_msg,
+            )
             return ValidationResult(
                 success=False,
                 invalid=False,
@@ -118,6 +126,15 @@ class HttpChallengeValidator(ChallengeValidator):
         response_expected = f"{context.token}.{context.jwk_thumbprint}"
 
         success = response_got == response_expected
+        if not success:
+            self.logger.warning(
+                "http-01 keyauthorization mismatch: challenge=%s host=%s url=%s expected=%r received=%r",
+                context.challenge_name,
+                context.authorization_value,
+                logical_url,
+                response_expected,
+                response_got,
+            )
         return ValidationResult(
             success=success,
             invalid=not success,
@@ -128,7 +145,10 @@ class HttpChallengeValidator(ChallengeValidator):
                     {
                         "status": 403,
                         "type": "urn:ietf:params:acme:error:incorrectResponse",
-                        "detail": "Keyauthorization mismatch",
+                        "detail": (
+                            "Keyauthorization mismatch "
+                            f"(expected={response_expected!r}, received={response_got!r})"
+                        ),
                     }
                 )
             ),

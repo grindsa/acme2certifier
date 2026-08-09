@@ -6854,6 +6854,700 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
         self.assertTrue(is_email_whitelisted(self.logger, "ADMIN@FOO.COM", email_list))
 
+    def test_562_cert_aki_asn1_get_success_and_missing(self):
+        """_cert_aki_asn1_get returns hex or None when AKI absent"""
+        from acme2certifier.acme_srv.helpers.certificates import _cert_aki_asn1_get
+
+        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
+                LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
+                MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+                MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
+                KDljZNXdNT5Zi7K6HY9C622NOV7QefB6zTtm6mSY08ypNsaeorhIvJdnpaJ9gAGH
+                YeQqJ04fL099kiRXJAv8gT8wdpiekg2KEU4wlXMIRfSHiiB37yjcqUzXl6XYYKGe
+                2USMpDfliXL3o8TW2KByGUdCzXUdNbMgzRXwYxkX2+xV2f0vn8NyXHiHg9yJRof2
+                HTjyvAcXN5Nr987slq/Ex5lXLtpB861Ov3ZbwxyzREjmreZBlze7KTfP5IY66XuN
+                Mvhi7AAs0cLTd3SNjpppE/yvUi5q5gfhXQIDAQABo3MwcTAfBgNVHSMEGDAWgBSl
+                YnpKQw12MmEMpvsTEeQi17UsnDAdBgNVHQ4EFgQUpWJ6SkMNdjJhDKb7ExHkIte1
+                LJwwLwYDVR0RBCgwJoIRZm9vLTIuZXhhbXBsZS5jb22CEWZvby0xLmV4YW1wbGUu
+                Y29tMA0GCSqGSIb3DQEBCwUAA4IBAQASA20TtMPXIHH10dikLhFuI14EOtZzXvCx
+                kGlJw9/5JuvVKLsL1wd8BC9o/lg8apDqsrDZ/+0Nc8g3Z9HRN99vcLsVDdT27DkM
+                BslfXdN/qBhKAp3m7jw29uijX5fss+Wz9iHfHciUjVyMJ4DoFxHYPbMWQG8XEUKR
+                TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
+                keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
+                NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
+        self.assertEqual(
+            "a5627a4a430d7632610ca6fb1311e422d7b52c9c",
+            _cert_aki_asn1_get(self.logger, cert),
+        )
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.certificates._cert_extension_raw_get",
+                return_value=None,
+            ),
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            self.assertIsNone(_cert_aki_asn1_get(self.logger, cert))
+        self.assertIn("WARNING:test_a2c:No AKI found in certificate", lcm.output)
+
+    def test_563_cert_ski_asn1_get_success_and_missing(self):
+        """_cert_ski_asn1_get returns hex or None when SKI absent"""
+        from acme2certifier.acme_srv.helpers.certificates import _cert_ski_asn1_get
+
+        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
+                LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
+                MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+                MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
+                KDljZNXdNT5Zi7K6HY9C622NOV7QefB6zTtm6mSY08ypNsaeorhIvJdnpaJ9gAGH
+                YeQqJ04fL099kiRXJAv8gT8wdpiekg2KEU4wlXMIRfSHiiB37yjcqUzXl6XYYKGe
+                2USMpDfliXL3o8TW2KByGUdCzXUdNbMgzRXwYxkX2+xV2f0vn8NyXHiHg9yJRof2
+                HTjyvAcXN5Nr987slq/Ex5lXLtpB861Ov3ZbwxyzREjmreZBlze7KTfP5IY66XuN
+                Mvhi7AAs0cLTd3SNjpppE/yvUi5q5gfhXQIDAQABo3MwcTAfBgNVHSMEGDAWgBSl
+                YnpKQw12MmEMpvsTEeQi17UsnDAdBgNVHQ4EFgQUpWJ6SkMNdjJhDKb7ExHkIte1
+                LJwwLwYDVR0RBCgwJoIRZm9vLTIuZXhhbXBsZS5jb22CEWZvby0xLmV4YW1wbGUu
+                Y29tMA0GCSqGSIb3DQEBCwUAA4IBAQASA20TtMPXIHH10dikLhFuI14EOtZzXvCx
+                kGlJw9/5JuvVKLsL1wd8BC9o/lg8apDqsrDZ/+0Nc8g3Z9HRN99vcLsVDdT27DkM
+                BslfXdN/qBhKAp3m7jw29uijX5fss+Wz9iHfHciUjVyMJ4DoFxHYPbMWQG8XEUKR
+                TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
+                keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
+                NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
+        self.assertEqual(
+            "a5627a4a430d7632610ca6fb1311e422d7b52c9c",
+            _cert_ski_asn1_get(self.logger, cert),
+        )
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.certificates._cert_extension_raw_get",
+                return_value=None,
+            ),
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            self.assertIsNone(_cert_ski_asn1_get(self.logger, cert))
+        self.assertIn("WARNING:test_a2c:No SKI found in certificate", lcm.output)
+
+    def test_564_cert_aki_asn1_get_missing_key_identifier(self):
+        """_cert_aki_asn1_get warns when AKI has no keyIdentifier"""
+        from acme2certifier.acme_srv.helpers.certificates import _cert_aki_asn1_get
+
+        mock_aki = MagicMock()
+        mock_aki.__getitem__.return_value.isValue = False
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.certificates._cert_extension_raw_get",
+                return_value=b"\x30\x00",
+            ),
+            patch(
+                "acme2certifier.acme_srv.helpers.certificates.decoder.decode",
+                return_value=(mock_aki, None),
+            ),
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            self.assertIsNone(_cert_aki_asn1_get(self.logger, "cert"))
+        self.assertIn(
+            "WARNING:test_a2c:AKI extension present but keyIdentifier missing",
+            lcm.output,
+        )
+
+    def test_565_cert_extension_raw_get_no_extensions(self):
+        """_cert_extension_raw_get returns None when extensions absent or OID missing"""
+        from acme2certifier.acme_srv.helpers.certificates import (
+            _cert_extension_raw_get,
+            _OID_SKI,
+        )
+
+        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
+                LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
+                MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+                MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
+                KDljZNXdNT5Zi7K6HY9C622NOV7QefB6zTtm6mSY08ypNsaeorhIvJdnpaJ9gAGH
+                YeQqJ04fL099kiRXJAv8gT8wdpiekg2KEU4wlXMIRfSHiiB37yjcqUzXl6XYYKGe
+                2USMpDfliXL3o8TW2KByGUdCzXUdNbMgzRXwYxkX2+xV2f0vn8NyXHiHg9yJRof2
+                HTjyvAcXN5Nr987slq/Ex5lXLtpB861Ov3ZbwxyzREjmreZBlze7KTfP5IY66XuN
+                Mvhi7AAs0cLTd3SNjpppE/yvUi5q5gfhXQIDAQABo3MwcTAfBgNVHSMEGDAWgBSl
+                YnpKQw12MmEMpvsTEeQi17UsnDAdBgNVHQ4EFgQUpWJ6SkMNdjJhDKb7ExHkIte1
+                LJwwLwYDVR0RBCgwJoIRZm9vLTIuZXhhbXBsZS5jb22CEWZvby0xLmV4YW1wbGUu
+                Y29tMA0GCSqGSIb3DQEBCwUAA4IBAQASA20TtMPXIHH10dikLhFuI14EOtZzXvCx
+                kGlJw9/5JuvVKLsL1wd8BC9o/lg8apDqsrDZ/+0Nc8g3Z9HRN99vcLsVDdT27DkM
+                BslfXdN/qBhKAp3m7jw29uijX5fss+Wz9iHfHciUjVyMJ4DoFxHYPbMWQG8XEUKR
+                TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
+                keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
+                NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
+        self.assertIsNone(_cert_extension_raw_get(self.logger, cert, "1.2.3.4.5"))
+        self.assertIsNotNone(_cert_extension_raw_get(self.logger, cert, _OID_SKI))
+
+        mock_cert_asn1 = MagicMock()
+        mock_cert_asn1.__getitem__.return_value.__getitem__.return_value = None
+        with patch(
+            "acme2certifier.acme_srv.helpers.certificates.decoder.decode",
+            return_value=(mock_cert_asn1, None),
+        ):
+            self.assertIsNone(_cert_extension_raw_get(self.logger, cert, _OID_SKI))
+
+        mock_exts = MagicMock()
+        mock_exts.hasValue.return_value = False
+        mock_cert_asn1 = MagicMock()
+        mock_cert_asn1.__getitem__.return_value.__getitem__.return_value = mock_exts
+        with patch(
+            "acme2certifier.acme_srv.helpers.certificates.decoder.decode",
+            return_value=(mock_cert_asn1, None),
+        ):
+            self.assertIsNone(_cert_extension_raw_get(self.logger, cert, _OID_SKI))
+
+    @patch("acme2certifier.acme_srv.helpers.certificates._cert_aki_asn1_get")
+    @patch("acme2certifier.acme_srv.helpers.certificates.x509.Certificate.extensions")
+    def test_565b_cert_aki_get_falls_back_to_asn1(self, mock_ext, mock_aki_get):
+        """cert_aki_get falls back to ASN.1 helper on cryptography failure"""
+        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
+                LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
+                MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+                MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
+                KDljZNXdNT5Zi7K6HY9C622NOV7QefB6zTtm6mSY08ypNsaeorhIvJdnpaJ9gAGH
+                YeQqJ04fL099kiRXJAv8gT8wdpiekg2KEU4wlXMIRfSHiiB37yjcqUzXl6XYYKGe
+                2USMpDfliXL3o8TW2KByGUdCzXUdNbMgzRXwYxkX2+xV2f0vn8NyXHiHg9yJRof2
+                HTjyvAcXN5Nr987slq/Ex5lXLtpB861Ov3ZbwxyzREjmreZBlze7KTfP5IY66XuN
+                Mvhi7AAs0cLTd3SNjpppE/yvUi5q5gfhXQIDAQABo3MwcTAfBgNVHSMEGDAWgBSl
+                YnpKQw12MmEMpvsTEeQi17UsnDAdBgNVHQ4EFgQUpWJ6SkMNdjJhDKb7ExHkIte1
+                LJwwLwYDVR0RBCgwJoIRZm9vLTIuZXhhbXBsZS5jb22CEWZvby0xLmV4YW1wbGUu
+                Y29tMA0GCSqGSIb3DQEBCwUAA4IBAQASA20TtMPXIHH10dikLhFuI14EOtZzXvCx
+                kGlJw9/5JuvVKLsL1wd8BC9o/lg8apDqsrDZ/+0Nc8g3Z9HRN99vcLsVDdT27DkM
+                BslfXdN/qBhKAp3m7jw29uijX5fss+Wz9iHfHciUjVyMJ4DoFxHYPbMWQG8XEUKR
+                TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
+                keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
+                NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
+        mock_ext.get_extension_for_oid.side_effect = Exception("No AKI")
+        mock_aki_get.return_value = "asn1-aki"
+        self.assertEqual("asn1-aki", self.cert_aki_get(self.logger, cert))
+        mock_aki_get.assert_called_once()
+
+    def test_566_default_deploy_base_dir_and_resolve_config_path(self):
+        """default_deploy_base_dir and resolve_config_path cover env/dir/empty paths"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        with patch.dict(
+            os.environ, {"ACME2CERTIFIER_BASE_DIR": "/custom/base"}, clear=False
+        ):
+            self.assertEqual(config_mod.default_deploy_base_dir(), "/custom/base")
+            self.assertEqual(
+                config_mod.resolve_config_path("rel/path.cfg"),
+                os.path.normpath("/custom/base/rel/path.cfg"),
+            )
+
+        env = os.environ.copy()
+        env.pop("ACME2CERTIFIER_BASE_DIR", None)
+        with patch.dict(os.environ, env, clear=True):
+            with patch(
+                "os.path.isdir", side_effect=lambda p: p == "/var/www/acme2certifier"
+            ):
+                self.assertEqual(
+                    config_mod.default_deploy_base_dir(), "/var/www/acme2certifier"
+                )
+            with patch(
+                "os.path.isdir", side_effect=lambda p: p == "/opt/acme2certifier"
+            ):
+                self.assertEqual(
+                    config_mod.default_deploy_base_dir(), "/opt/acme2certifier"
+                )
+            with patch("os.path.isdir", return_value=False):
+                self.assertEqual(
+                    config_mod.default_deploy_base_dir(), "/var/www/acme2certifier"
+                )
+            self.assertIsNone(config_mod.resolve_config_path(None))
+            self.assertEqual(config_mod.resolve_config_path(""), "")
+            self.assertEqual(
+                config_mod.resolve_config_path("/abs/path.cfg"), "/abs/path.cfg"
+            )
+            self.assertEqual(config_mod.resolve_config_path("rel.cfg"), "rel.cfg")
+
+    def test_567_warn_acme_srv_cfg_path_once(self):
+        """_warn_acme_srv_cfg_path warns once per path"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        config_mod._ACME_SRV_CFG_PATH_WARNED.clear()
+        with (
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+            warnings.catch_warnings(record=True) as caught,
+        ):
+            warnings.simplefilter("always")
+            config_mod._warn_acme_srv_cfg_path(
+                "/legacy/acme_srv.cfg", "/preferred/acme_srv.cfg", self.logger
+            )
+            config_mod._warn_acme_srv_cfg_path(
+                "/legacy/acme_srv.cfg", "/preferred/acme_srv.cfg", self.logger
+            )
+        self.assertEqual(
+            1,
+            sum(1 for line in lcm.output if "Loading acme_srv.cfg from" in line),
+        )
+        self.assertTrue(any(issubclass(w.category, DeprecationWarning) for w in caught))
+
+    def test_568_default_acme_srv_cfg_file_path_priority(self):
+        """_default_acme_srv_cfg_file covers nested/packaged/legacy/fallback"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        config_mod._ACME_SRV_CFG_PATH_WARNED.clear()
+
+        def _isfile_for(path_set):
+            return lambda p: p in path_set
+
+        # nested deploy path
+        with (
+            patch(
+                "os.path.isfile",
+                side_effect=_isfile_for(
+                    {"/var/www/acme2certifier/acme_srv/acme_srv.cfg"}
+                ),
+            ),
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            result = config_mod._default_acme_srv_cfg_file(self.logger)
+        self.assertEqual(result, "/var/www/acme2certifier/acme_srv/acme_srv.cfg")
+        self.assertTrue(any("Loading acme_srv.cfg from" in line for line in lcm.output))
+
+        # packaged next to module
+        helpers_dir = os.path.dirname(os.path.abspath(config_mod.__file__))
+        pkg_dir = os.path.dirname(helpers_dir)
+        packaged = os.path.join(pkg_dir, "acme_srv.cfg")
+        with patch("os.path.isfile", side_effect=_isfile_for({packaged})):
+            self.assertEqual(
+                config_mod._default_acme_srv_cfg_file(self.logger), packaged
+            )
+
+        # legacy repo layout
+        install_or_repo_root = os.path.dirname(os.path.dirname(pkg_dir))
+        legacy = os.path.join(install_or_repo_root, "acme_srv", "acme_srv.cfg")
+        config_mod._ACME_SRV_CFG_PATH_WARNED.clear()
+        with (
+            patch("os.path.isfile", side_effect=_isfile_for({legacy})),
+            self.assertLogs("test_a2c", level="WARNING"),
+        ):
+            self.assertEqual(config_mod._default_acme_srv_cfg_file(self.logger), legacy)
+
+        # fallback when nothing exists
+        with patch("os.path.isfile", return_value=False):
+            self.assertEqual(
+                config_mod._default_acme_srv_cfg_file(self.logger),
+                "/var/www/acme2certifier/acme_srv.cfg",
+            )
+
+    def test_569_plugin_loader_gap_coverage(self):
+        """Cover remaining plugin_loader branches"""
+        from acme2certifier.acme_srv.helpers import plugin_loader
+        from acme2certifier.acme_srv.helpers.plugin_loader import (
+            _is_filesystem_path,
+            _load_from_module,
+            db_handler_load,
+        )
+
+        self.assertTrue(_is_filesystem_path("volume/handlers"))
+        with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+            self.assertIsNone(
+                _load_from_module(self.logger, "missing.module.path", "prefix")
+            )
+        self.assertTrue(any("prefix failed with err" in line for line in lcm.output))
+
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.plugin_loader._load_plugin_ref",
+                return_value=None,
+            ),
+            patch(
+                "acme2certifier.acme_srv.helpers.plugin_loader.importlib.import_module",
+                side_effect=ImportError("no default"),
+            ),
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            self.assertIsNone(
+                self.ca_handler_load(
+                    self.logger, {"CAhandler": {"handler_module": "pkg.missing"}}
+                )
+            )
+        self.assertTrue(
+            any("falling back to default CAhandler" in line for line in lcm.output)
+        )
+
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.plugin_loader._load_plugin_ref",
+                return_value=None,
+            ),
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            result = self.eab_handler_load(
+                self.logger,
+                {
+                    "EABhandler": {
+                        "eab_handler_module": "pkg.eab",
+                        "eab_handler_file": "eab.py",
+                    }
+                },
+            )
+            self.assertIsNone(result)
+        self.assertTrue(any("ignoring eab_handler_file" in line for line in lcm.output))
+
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.plugin_loader._load_plugin_ref",
+                return_value=None,
+            ),
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            self.assertIsNone(
+                self.hooks_load(
+                    self.logger,
+                    {
+                        "Hooks": {
+                            "hooks_module": "pkg.hooks",
+                            "hooks_file": "hooks.py",
+                        }
+                    },
+                )
+            )
+        self.assertTrue(any("ignoring hooks_file" in line for line in lcm.output))
+        self.assertTrue(any("Hooks module load failed" in line for line in lcm.output))
+
+        plugin_loader._HANDLER_LOAD_LOGGED.clear()
+        # Other suites may leave a MagicMock in sys.modules for db_handler.
+        # Reload the real module and patch.object so we do not patch a mock.
+        import importlib
+
+        sys.modules.pop("acme2certifier.acme_srv.db_handler", None)
+        db_handler_mod = importlib.import_module("acme2certifier.acme_srv.db_handler")
+        with patch.object(
+            db_handler_mod, "load_db_handler_module", return_value="dbmod"
+        ):
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                self.assertEqual("dbmod", db_handler_load(self.logger, {}))
+            self.assertTrue(any("Loaded DB handler" in line for line in lcm.output))
+
+    def test_570_generate_random_string_charset_and_secrets(self):
+        """generate_random_string uses secrets and alphanumeric charset"""
+        from string import ascii_letters, digits
+
+        with patch(
+            "acme2certifier.acme_srv.helpers.crypto.secrets.choice",
+            side_effect=lambda seq: seq[0],
+        ) as mock_choice:
+            result = self.generate_random_string(self.logger, 8)
+        self.assertEqual(8, mock_choice.call_count)
+        self.assertEqual(result, "0" * 8)
+        for char in self.generate_random_string(self.logger, 64):
+            self.assertIn(char, digits + ascii_letters)
+
+    def test_571_normalize_resolved_ips(self):
+        """normalize_resolved_ips handles str/list/None"""
+        from acme2certifier.acme_srv.helpers.network import normalize_resolved_ips
+
+        self.assertEqual([], normalize_resolved_ips(None))
+        self.assertEqual([], normalize_resolved_ips(""))
+        self.assertEqual(["1.2.3.4"], normalize_resolved_ips("1.2.3.4"))
+        self.assertEqual(
+            ["1.2.3.4", "2001:db8::1"],
+            normalize_resolved_ips(["1.2.3.4", "2001:db8::1", ""]),
+        )
+
+    def test_572_filter_http01_target_ips_permissive(self):
+        """Default filter keeps private and public addresses"""
+        from acme2certifier.acme_srv.helpers.network import filter_http01_target_ips
+
+        allowed, err = filter_http01_target_ips(
+            self.logger,
+            ["10.0.0.1", "127.0.0.1", "8.8.8.8", "not-an-ip"],
+            block_private=False,
+        )
+        self.assertIsNone(err)
+        self.assertEqual(["10.0.0.1", "127.0.0.1", "8.8.8.8"], allowed)
+
+    def test_573_filter_http01_target_ips_strict(self):
+        """Strict filter keeps only global addresses and prefers IPv4"""
+        from acme2certifier.acme_srv.helpers.network import filter_http01_target_ips
+
+        allowed, err = filter_http01_target_ips(
+            self.logger,
+            [
+                "10.0.0.1",
+                "169.254.169.254",
+                "127.0.0.1",
+                "2001:db8::1",
+                "2606:4700:4700::1111",
+                "8.8.8.8",
+            ],
+            block_private=True,
+        )
+        self.assertIsNone(err)
+        self.assertEqual(["8.8.8.8", "2606:4700:4700::1111"], allowed)
+
+        allowed, err = filter_http01_target_ips(
+            self.logger, ["10.0.0.1", "127.0.0.1"], block_private=True
+        )
+        self.assertEqual([], allowed)
+        self.assertEqual("No allowed address for HTTP-01 validation", err)
+
+    @patch("acme2certifier.acme_srv.helpers.network.requests.get")
+    def test_574_url_get_dns_pinned_success(self, mock_get):
+        """url_get_dns_pinned keeps hostname URL and pins TCP via create_connection"""
+        from acme2certifier.acme_srv.helpers import network as network_mod
+        from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
+
+        mock_resp = Mock()
+        mock_resp.text = "token.thumb"
+        mock_resp.status_code = 200
+        mock_resp.reason = "OK"
+        dialed = []
+        real_create = network_mod.connection.create_connection
+
+        def recording_orig(address, *args, **kwargs):
+            dialed.append(address)
+
+        def capture_get(*args, **kwargs):
+            # urllib3 would call create_connection(hostname, port); pin wrapper
+            # must rewrite the peer to the pinned IP.
+            network_mod.connection.create_connection(("example.com", 80))
+            return mock_resp
+
+        mock_get.side_effect = capture_get
+        network_mod.connection.create_connection = recording_orig
+        try:
+            result, status, err = url_get_dns_pinned(
+                self.logger,
+                host="example.com",
+                path="/.well-known/acme-challenge/tok",
+                pinned_ips=["8.8.8.8"],
+                verify=False,
+                timeout=5,
+            )
+        finally:
+            network_mod.connection.create_connection = real_create
+
+        self.assertEqual("token.thumb", result)
+        self.assertEqual(200, status)
+        self.assertIsNone(err)
+        args, kwargs = mock_get.call_args
+        self.assertEqual("http://example.com/.well-known/acme-challenge/tok", args[0])
+        self.assertNotIn("Host", kwargs["headers"])
+        self.assertEqual({}, kwargs["proxies"])
+        self.assertEqual([("8.8.8.8", 80)], dialed)
+
+    @patch("acme2certifier.acme_srv.helpers.network.requests.get")
+    def test_575_url_get_dns_pinned_ipv6_host_and_peer(self, mock_get):
+        """FQDN stays in URL; IPv6 identifier is bracketed; peer is pinned"""
+        from acme2certifier.acme_srv.helpers import network as network_mod
+        from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
+
+        mock_resp = Mock()
+        mock_resp.text = "ok"
+        mock_resp.status_code = 200
+        mock_resp.reason = "OK"
+        mock_get.return_value = mock_resp
+
+        url_get_dns_pinned(
+            self.logger,
+            host="example.com",
+            path="/path",
+            pinned_ips=["2606:4700:4700::1111"],
+        )
+        args, _kwargs = mock_get.call_args
+        self.assertEqual("http://example.com/path", args[0])
+
+        dialed = []
+        real_create = network_mod.connection.create_connection
+
+        def recording_orig(address, *args, **kwargs):
+            dialed.append(address)
+
+        def capture_get(*args, **kwargs):
+            network_mod.connection.create_connection(("2606:4700:4700::1111", 80))
+            return mock_resp
+
+        mock_get.side_effect = capture_get
+        network_mod.connection.create_connection = recording_orig
+        try:
+            url_get_dns_pinned(
+                self.logger,
+                host="2606:4700:4700::1111",
+                path="/path",
+                pinned_ips=["2606:4700:4700::1111"],
+            )
+        finally:
+            network_mod.connection.create_connection = real_create
+
+        args, _kwargs = mock_get.call_args
+        self.assertEqual("http://[2606:4700:4700::1111]/path", args[0])
+        self.assertEqual([("2606:4700:4700::1111", 80)], dialed)
+
+    def test_576_legacy_acme_get_load_default_false(self):
+        """legacy_acme_get defaults to False"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.config import legacy_acme_get_load
+
+        config_dic = ConfigParser()
+        self.assertFalse(legacy_acme_get_load(self.logger, config_dic))
+
+    def test_577_legacy_acme_get_load_true_warns(self):
+        """legacy_acme_get True logs a warning"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.config import (
+            legacy_acme_get_load,
+            acme_get_method_not_allowed_problem,
+        )
+
+        config_dic = ConfigParser()
+        config_dic["DEFAULT"] = {"legacy_acme_get": "True"}
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertTrue(legacy_acme_get_load(self.logger, config_dic))
+        self.assertTrue(
+            any("legacy_acme_get is enabled" in line for line in lcm.output)
+        )
+        problem = acme_get_method_not_allowed_problem()
+        self.assertEqual(405, problem["status"])
+        self.assertIn("malformed", problem["type"])
+
+    def test_578_response_http_code_non_dict(self):
+        """_response_http_code returns None for non-dict payloads"""
+        from acme2certifier.acme_srv.helpers.logging_utils import _response_http_code
+
+        self.assertIsNone(_response_http_code("not-a-dict"))
+        self.assertIsNone(_response_http_code(None))
+
+    def test_579_response_http_code_invalid_code(self):
+        """_response_http_code returns None when code cannot be converted to int"""
+        from acme2certifier.acme_srv.helpers.logging_utils import _response_http_code
+
+        self.assertIsNone(_response_http_code({"code": "not-an-int"}))
+        self.assertIsNone(_response_http_code({"code": object()}))
+
+    def test_580_log_response_success_with_code_200(self):
+        """log_response INFO path for successful HTTP codes (< 400)"""
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.log_response(
+                self.logger, "addr", "/acme/directory", {"code": 200, "data": "ok"}
+            )
+        self.assertIn(
+            "INFO:test_a2c:addr /acme/directory {'code': 200, 'data': 'ok'}",
+            lcm.output,
+        )
+
+    def test_581_syslog_address_host_port_and_fallbacks(self):
+        """_syslog_address parses host:port and falls back for invalid forms"""
+        from acme2certifier.acme_srv.helpers.logging_utils import _syslog_address
+
+        self.assertEqual(("localhost", 514), _syslog_address("localhost:514"))
+        self.assertEqual("host:bad", _syslog_address("host:bad"))
+        self.assertEqual("udp-host", _syslog_address("udp-host"))
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.handlers.SysLogHandler")
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_582_logger_setup_syslog_empty_address(self, mock_load_cfg, mock_syslog):
+        """empty syslog_address does not attach SysLogHandler"""
+        mock_cfg = configparser.RawConfigParser()
+        mock_cfg["Helper"] = {"syslog_address": "   ", "log_format": "%(message)s"}
+        mock_load_cfg.return_value = mock_cfg
+        self.logger_setup(False)
+        mock_syslog.assert_not_called()
+
+    def test_583_logger_setup_syslog_already_attached(self):
+        """existing SysLogHandler is not duplicated"""
+        import logging as logging_mod
+        from acme2certifier.acme_srv.helpers.logging_utils import _attach_syslog_handler
+
+        class DummySyslog(logging_mod.handlers.SysLogHandler):
+            def __init__(self):
+                logging_mod.Handler.__init__(self)
+
+        logger = logging_mod.getLogger("test_a2c_syslog_dup")
+        logger.handlers.clear()
+        existing = DummySyslog()
+        logger.addHandler(existing)
+        cfg = configparser.RawConfigParser()
+        cfg["Helper"] = {"syslog_address": "/dev/log"}
+        try:
+            _attach_syslog_handler(logger, cfg, logging_mod.Formatter("%(message)s"))
+            self.assertEqual([existing], logger.handlers)
+        finally:
+            logger.handlers.clear()
+
+    def test_584_logger_setup_syslog_oserror(self):
+        """SysLogHandler OSError is logged and does not raise"""
+        import logging as logging_mod
+        from acme2certifier.acme_srv.helpers.logging_utils import _attach_syslog_handler
+
+        class RaisingSyslog(logging_mod.handlers.SysLogHandler):
+            def __init__(self, *args, **kwargs):
+                raise OSError("syslog unavailable")
+
+        cfg = configparser.RawConfigParser()
+        cfg["Helper"] = {"syslog_address": "/dev/log"}
+        with patch(
+            "acme2certifier.acme_srv.helpers.logging_utils.logging.handlers.SysLogHandler",
+            RaisingSyslog,
+        ):
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                _attach_syslog_handler(
+                    self.logger, cfg, logging_mod.Formatter("%(message)s")
+                )
+        self.assertTrue(
+            any("Failed to attach SysLogHandler" in line for line in lcm.output)
+        )
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.FileHandler")
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_585_logger_setup_log_file_empty_path(self, mock_load_cfg, mock_file_handler):
+        """empty log_file does not attach FileHandler"""
+        mock_cfg = configparser.RawConfigParser()
+        mock_cfg["Helper"] = {"log_file": "  ", "log_format": "%(message)s"}
+        mock_load_cfg.return_value = mock_cfg
+        self.logger_setup(False)
+        mock_file_handler.assert_not_called()
+
+    def test_586_logger_setup_log_file_already_attached(self):
+        """existing FileHandler for same path is not duplicated"""
+        import logging as logging_mod
+        import os
+        from acme2certifier.acme_srv.helpers.logging_utils import _attach_file_handler
+
+        class DummyFileHandler(logging_mod.FileHandler):
+            def __init__(self, filename):
+                logging_mod.Handler.__init__(self)
+                self.baseFilename = os.path.abspath(filename)
+
+        log_path = "/tmp/a2c_logging_utils_coverage.log"
+        logger = logging_mod.getLogger("test_a2c_file_dup")
+        logger.handlers.clear()
+        existing = DummyFileHandler(log_path)
+        logger.addHandler(existing)
+        cfg = configparser.RawConfigParser()
+        cfg["Helper"] = {"log_file": log_path}
+        try:
+            _attach_file_handler(logger, cfg, logging_mod.Formatter("%(message)s"))
+            self.assertEqual([existing], logger.handlers)
+        finally:
+            logger.handlers.clear()
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_587_log_cert_content_enabled_missing_helper_section(
+        self, mock_load_config
+    ):
+        """_log_cert_content_enabled returns False when Helper section is absent"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.logging_utils import (
+            _log_cert_content_enabled,
+        )
+
+        mock_load_config.return_value = ConfigParser()
+        self.assertFalse(_log_cert_content_enabled())
+
+    @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
+    def test_588_log_cert_content_enabled_invalid_boolean(self, mock_load_config):
+        """_log_cert_content_enabled returns False when log_cert_content is not a bool"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.logging_utils import (
+            _log_cert_content_enabled,
+        )
+
+        cfg = ConfigParser()
+        cfg.add_section("Helper")
+        cfg.set("Helper", "log_cert_content", "not-a-bool")
+        mock_load_config.return_value = cfg
+        self.assertFalse(_log_cert_content_enabled())
+
 
 if __name__ == "__main__":
     unittest.main()

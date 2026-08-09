@@ -639,6 +639,14 @@ class Authorization(object):
                 )
                 return True
 
+            reason = result.error_message or "validation failed"
+            self.logger.warning(
+                "JIT dns-persist-01 validation failed: authz=%s host=%s reason=%s",
+                authz_name,
+                id_value,
+                reason,
+            )
+
         except Exception as err:
             self.logger.error("JIT dns-persist-01 validation failed: %s", err)
 
