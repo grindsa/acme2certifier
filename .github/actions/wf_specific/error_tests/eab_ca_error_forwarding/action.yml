@@ -41,6 +41,7 @@ runs:
     - name: "Enroll certificate without error forwarding - to fail"
       continue-on-error: true
       run: |
+        sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER --accountemail 'acme-sh@example.com' --eab-kid keyid_01 --eab-hmac-key YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d acme-sh.$NAME_SPACE --alpn --standalone --debug 1 --output-insecure --insecure
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
@@ -67,9 +68,10 @@ runs:
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
         PATTERN: "ACME problem code=500 type=urn:ietf:params:acme:error:serverInternal detail=enrollment failed"
 
-    - name: "Enroll certificate without error forwarding - to fail"
+    - name: "Enroll certificate with error forwarding via eab - to fail"
       continue-on-error: true
       run: |
+        sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d acme-sh.$NAME_SPACE --alpn --standalone --debug 1 --output-insecure --insecure
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}

@@ -41,6 +41,7 @@ runs:
     - name: "Enroll certificate without error forwarding - to fail"
       continue-on-error: true
       run: |
+        sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER --accountemail 'acme-sh@example.com' -d acme-sh.$NAME_SPACE --alpn --standalone --debug 1 --output-insecure --insecure
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
