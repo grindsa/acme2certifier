@@ -12,6 +12,7 @@ from acme2certifier.acme_srv.helper import (
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_profile_load,
+    eab_profile_as_bool,
     error_dic_get,
     generate_random_string,
     load_config,
@@ -378,18 +379,24 @@ class Order(object):
                     "allowed_domainlist",
                     self.config.allowed_domainlist,
                 )
-                self.config.wildcard_certificate_disable = self._load_eab_profile_param(
-                    profile_dic,
-                    eab_kid,
-                    "wildcard_certificate_disable",
-                    self.config.wildcard_certificate_disable,
+                self.config.wildcard_certificate_disable = eab_profile_as_bool(
+                    self._load_eab_profile_param(
+                        profile_dic,
+                        eab_kid,
+                        "wildcard_certificate_disable",
+                        self.config.wildcard_certificate_disable,
+                    ),
+                    default=bool(self.config.wildcard_certificate_disable),
                 )
-                self.config.ca_error_details_forward = self._load_eab_profile_param(
-                    profile_dic,
-                    eab_kid,
-                    "ca_error_details_forward",
-                    self.config.ca_error_details_forward,
-                    section="cahandler",
+                self.config.ca_error_details_forward = eab_profile_as_bool(
+                    self._load_eab_profile_param(
+                        profile_dic,
+                        eab_kid,
+                        "ca_error_details_forward",
+                        self.config.ca_error_details_forward,
+                        section="cahandler",
+                    ),
+                    default=bool(self.config.ca_error_details_forward),
                 )
 
                 eab_profile_dic = self._load_eab_profile_mapping(profile_dic, eab_kid)
