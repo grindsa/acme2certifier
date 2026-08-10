@@ -37,6 +37,7 @@
 # Notes:
 #   - Works on AlmaLinux / RHEL / Rocky / CentOS Stream 8 and 9 (dnf or yum).
 #   - Default app Python is 3.9 (EL8: acme2certifier-python39, EL9: acme2certifier-python3).
+#   - EL8 python39 uses uwsgi-plugin-python39 (project RPM beside the main RPM, or repos).
 #   - If EL8 python39 flavor localinstall fails (missing modules), falls back to
 #     acme2certifier-python3 (3.6) unless --python was set explicitly.
 #   - Installs EPEL + nginx + uWSGI stack (soft Recommends of the RPM).
@@ -146,6 +147,65 @@ find_flavor_rpm() {
     fi
   fi
   return 1
+}
+
+# Locate uwsgi-plugin-python39 (or similar) next to the main RPM / data-dir.
+find_named_rpm() {
+  local pkg_name="$1"
+  local main_rpm="${2:-}"
+  local matches=()
+  local dir=""
+  if [[ -n "${main_rpm}" ]]; then
+    dir="$(dirname "${main_rpm}")"
+    # shellcheck disable=SC2086
+    mapfile -t matches < <(ls -1t "${dir}/${pkg_name}"-*.rpm 2>/dev/null || true)
+    if [[ ${#matches[@]} -gt 0 && -f "${matches[0]}" ]]; then
+      printf '%s\n' "${matches[0]}"
+      return 0
+    fi
+  fi
+  if [[ -n "${DATA_DIR}" ]]; then
+    # shellcheck disable=SC2086
+    mapfile -t matches < <(ls -1t "${DATA_DIR}/${pkg_name}"-*.rpm 2>/dev/null || true)
+    if [[ ${#matches[@]} -gt 0 && -f "${matches[0]}" ]]; then
+      printf '%s\n' "${matches[0]}"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+# Install the uWSGI Python plugin matching the selected flavor.
+# python39 → uwsgi-plugin-python39 (project/local RPM preferred); else system python3 plugin.
+install_uwsgi_python_plugin() {
+  local flavor="$1"
+  local main_rpm="${2:-}"
+  local plugin_pkg plugin_file
+  if [[ "${flavor}" == "acme2certifier-python39" ]]; then
+    plugin_pkg="uwsgi-plugin-python39"
+    if plugin_file="$(find_named_rpm "${plugin_pkg}" "${main_rpm}")"; then
+      echo "==> Installing ${plugin_pkg} from ${plugin_file}"
+      ${SUDO} ${PKG} localinstall -y "${plugin_file}"
+      return 0
+    fi
+    echo "==> Installing ${plugin_pkg} from repos"
+    if ! ${SUDO} ${PKG} install -y "${plugin_pkg}"; then
+      echo "ERROR: ${plugin_pkg} not found locally or in repos." >&2
+      echo "       Place ${plugin_pkg}-*.rpm next to the main RPM (project SBOM/build)." >&2
+      return 1
+    fi
+    return 0
+  fi
+  plugin_pkg="uwsgi-plugin-python3"
+  echo "==> Installing ${plugin_pkg} (+ python3-uwsgidecorators)"
+  ${SUDO} ${PKG} install -y "${plugin_pkg}" python3-uwsgidecorators
+}
+
+uwsgi_plugins_value() {
+  case "$1" in
+    acme2certifier-python39) echo "python39" ;;
+    *) echo "python3" ;;
+  esac
 }
 
 resolve_flavor_name() {
@@ -510,13 +570,12 @@ ${SUDO} ${PKG} install -y curl --allowerasing 2>/dev/null || ${SUDO} ${PKG} inst
 ${SUDO} ${PKG} install -y \
   nginx \
   uwsgi \
-  uwsgi-plugin-python3 \
-  python3-uwsgidecorators \
   openssl \
   policycoreutils-python-utils \
   checkpolicy \
   tar \
   procps-ng
+# Matching Python plugin is installed after flavor resolve (incl. fallback).
 
 if [[ "${MODE}" == "django" ]]; then
   echo "==> Installing Django-related system packages"
@@ -560,6 +619,8 @@ if ! ${SUDO} ${PKG} localinstall -y "${RPM_FILE}" "${FLAVOR_FILE}"; then
     exit 1
   fi
 fi
+
+install_uwsgi_python_plugin "${FLAVOR_PKG}" "${RPM_FILE}" || exit 1
 
 PY_BIN="$(selected_python_bin)"
 echo "==> Verifying package import (PYTHONPATH=${APP_ROOT}, python=${PY_BIN})"
@@ -658,7 +719,12 @@ else
     -e 's/module = acme2certifier\.django_project\.wsgi.*/module = acme2certifier_wsgi:application/' \
     "${UWSGI_INI}" || true
 fi
-grep -q '^plugins' "${UWSGI_INI}" || echo 'plugins = python3' | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
+UWSGI_PLUGIN="$(uwsgi_plugins_value "${FLAVOR_PKG}")"
+if grep -q '^plugins' "${UWSGI_INI}"; then
+  ${SUDO} sed -i "s|^plugins[[:space:]]*=.*|plugins = ${UWSGI_PLUGIN}|" "${UWSGI_INI}"
+else
+  echo "plugins = ${UWSGI_PLUGIN}" | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
+fi
 if grep -q '^python-path' "${UWSGI_INI}"; then
   ${SUDO} sed -i "s|^python-path = .*|python-path = ${APP_ROOT}|" "${UWSGI_INI}"
 else

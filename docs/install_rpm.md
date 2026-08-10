@@ -97,13 +97,18 @@ sudo yum -y localinstall \
   /tmp/acme2certifier/acme2certifier-python3-<version>-1.0.noarch.rpm
 ```
 
-Nginx and uWSGI are **Recommends**, not hard Requires. For the nginx path:
+Nginx and uWSGI are **Recommends**, not hard Requires. Matching Python plugin comes from the flavor:
 
 ```bash
-sudo yum -y install nginx uwsgi-plugin-python3 python3-uwsgidecorators
+# EL9 / EL8 legacy (system Python) — stock EPEL plugin
+sudo yum -y install nginx uwsgi uwsgi-plugin-python3 python3-uwsgidecorators
+
+# EL8 default (python39) — project-provided plugin + AppStream python39
+sudo yum -y install nginx uwsgi
+sudo yum -y localinstall /tmp/acme2certifier/uwsgi-plugin-python39-*.rpm
 ```
 
-> **Note:** `uwsgi-plugin-python3` matches **system** Python. That fits `acme2certifier-python3`. The EL8 `python39` default needs a matching process manager (or stay on legacy `python3` until one is available). See [rpm-el-packaging.md](architecture/rpm-el-packaging.md) §7.3.
+Set `plugins = python3` or `plugins = python39` in `/opt/acme2certifier/acme2certifier.ini` to match the flavor (flavor `%post` and `a2c-rpm.sh` do this). See [rpm-el-packaging.md](architecture/rpm-el-packaging.md) §7.3.
 
 ### Red Hat 8.x: Upgrade Required Packages (legacy python3 / 3.6)
 
