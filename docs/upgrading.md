@@ -257,8 +257,12 @@ sudo yum -y localinstall ./acme2certifier-<version>-1.0.noarch.rpm
 # or: sudo ./examples/install_scripts/a2c-rpm.sh --rpm ./acme2certifier-*.rpm --mode wsgi
 ```
 
-3. Edit `/opt/acme2certifier/acme_srv.cfg` → `*_module`; `[DBhandler] handler: wsgi`.
-4. Refresh nginx/uWSGI from share if needed:
+   ```bash
+   sudo yum -y localinstall ./acme2certifier-<version>-1.0.noarch.rpm \
+     ./acme2certifier-python3-<version>-1.0.noarch.rpm
+   # EL8 default 3.9: use acme2certifier-python39-*.rpm instead of python3
+   # or: sudo ./examples/install_scripts/a2c-rpm.sh --rpm ./acme2certifier-*.rpm --mode wsgi
+   ```
 
 ```bash
 sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/
