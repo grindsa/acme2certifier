@@ -28,9 +28,9 @@ Requires:       tar
 Requires(post): policycoreutils
 Requires:       policycoreutils-python-utils
 
-# Web stack is operator-chosen (nginx+uWSGI or httpd+mod_wsgi)
+# Web stack is operator-chosen (nginx+uWSGI or httpd+mod_wsgi).
+# Matching uWSGI Python plugin is Recommended on each flavor.
 Recommends:      nginx
-Recommends:      uwsgi-plugin-python3
 Recommends:      krb5-workstation
 Recommends:      krb5-libs
 
@@ -69,6 +69,7 @@ Requires:       python3-xmltodict
 Requires:       python3-pyasn1
 Requires:       python3-pyasn1-modules
 Requires:       python3-pyyaml
+Recommends:      uwsgi-plugin-python3
 Recommends:      python3-uwsgidecorators
 Recommends:      python3-dataclasses
 Conflicts:      acme2certifier-python39
@@ -80,7 +81,8 @@ Python flavor for acme2certifier using system python3-* modules.
   - EL9: default (system Python 3.9)
   - EL8: legacy/fallback (system Python 3.6)
 
-Writes %{python_confdir}/python.conf and conflicts with other flavors.
+Writes %{python_confdir}/python.conf, sets uWSGI plugins = python3,
+and conflicts with other flavors.
 
 %package -n acme2certifier-python39
 Summary:        acme2certifier runtime for Python 3.9 (python39-*)
@@ -102,14 +104,17 @@ Requires:       python39-xmltodict
 Requires:       python39-pyasn1
 Requires:       python39-pyasn1-modules
 Requires:       python39-pyyaml
+Recommends:      uwsgi-plugin-python39
 Conflicts:      acme2certifier-python3
 Conflicts:      acme2certifier-python3.11
 
 %description -n acme2certifier-python39
 Python flavor for acme2certifier using python39-* modules (EL8 default app runtime).
 
-Writes %{python_confdir}/python.conf and conflicts with other flavors.
-Missing modules may come from AppStream/EPEL or project-provided RPMs.
+Writes %{python_confdir}/python.conf, sets uWSGI plugins = python39,
+and conflicts with other flavors.
+Missing modules / uwsgi-plugin-python39 may come from AppStream/EPEL
+or project-provided RPMs.
 
 %prep
 %autosetup -p1 -n %{name}-%{?ghsha}%{?!ghsha:%{version}} -N
@@ -309,6 +314,14 @@ DST="${CONFDIR}/python.conf"
 if [ "$1" -eq 1 ] || [ ! -e "${DST}" ]; then
     cp -a "${SRC}" "${DST}"
 fi
+INI=%{app_root}/acme2certifier.ini
+if [ -f "${INI}" ]; then
+    if grep -q '^plugins' "${INI}"; then
+        sed -i 's/^plugins[[:space:]]*=.*/plugins = python3/' "${INI}"
+    else
+        echo 'plugins = python3' >> "${INI}"
+    fi
+fi
 
 %post -n acme2certifier-python39
 CONFDIR=%{python_confdir}
@@ -316,6 +329,14 @@ SRC="${CONFDIR}/python.conf.python39"
 DST="${CONFDIR}/python.conf"
 if [ "$1" -eq 1 ] || [ ! -e "${DST}" ]; then
     cp -a "${SRC}" "${DST}"
+fi
+INI=%{app_root}/acme2certifier.ini
+if [ -f "${INI}" ]; then
+    if grep -q '^plugins' "${INI}"; then
+        sed -i 's/^plugins[[:space:]]*=.*/plugins = python39/' "${INI}"
+    else
+        echo 'plugins = python39' >> "${INI}"
+    fi
 fi
 
 %postun python3

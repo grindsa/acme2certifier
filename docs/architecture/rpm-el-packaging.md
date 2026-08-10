@@ -229,16 +229,14 @@ Wrappers and service Environment files read this path. `%config(noreplace)` pres
 
 Distro package `uwsgi-plugin-python3` is built for **system** Python:
 
-- **EL9 default** (`acme2certifier-python3` / 3.9): matches system plugin — preferred nginx+uWSGI path.
-- **EL8 legacy** (`acme2certifier-python3` / 3.6): matches system plugin — preferred path for fallback hosts.
-- **EL8 default** (`acme2certifier-python39` / 3.9) and **python3.11** flavors: system `uwsgi-plugin-python3` does **not** automatically use that sitelib.
+- **EL9 default** (`acme2certifier-python3` / 3.9): matches system plugin — `plugins = python3`.
+- **EL8 legacy** (`acme2certifier-python3` / 3.6): matches system plugin — `plugins = python3`.
+- **EL8 default** (`acme2certifier-python39` / 3.9): requires project-provided **`uwsgi-plugin-python39`** — `plugins = python39`.
+- **python3.11** flavors: same pattern once a matching plugin RPM exists (or use httpd/`python3.11-mod_wsgi`).
 
-For non-system flavors:
+`acme2certifier-python39` **Recommends:** `uwsgi-plugin-python39`. Flavor `%post` and `a2c-rpm.sh` set `plugins = python39` in `acme2certifier.ini`. Build the plugin from EPEL `uwsgi` sources via `--build-plugin "plugins/python python39"` against AppStream `python39`.
 
-- Prefer a **matching** uWSGI Python plugin RPM if the project or distro provides one for that interpreter, **or**
-- Document that the supported web stack for that flavor is a versioned alternative (e.g. `python3.9-mod_wsgi` / `python3.11-mod_wsgi` under httpd) until a matching uWSGI plugin exists.
-
-Flavor documentation and CI must state the supported process manager per flavor.
+httpd + `python39-mod_wsgi` remains a documented alternate for sites that prefer Apache.
 
 ### 7.4 Default for new installs
 
@@ -347,7 +345,8 @@ Assertions:
 
 1. Add `acme2certifier-python3.11` when the module list and process manager are ready.
 2. Publish any missing `python39-*` / `python3.11-*` RPMs for EL8/EL9 via the project repo.
-3. Document per-flavor web-stack requirements (uWSGI plugin vs alternative), especially EL8 default 3.9.
+3. Document per-flavor web-stack requirements (uWSGI plugin vs alternative).
+   EL8 default 3.9 uses project `uwsgi-plugin-python39` (`plugins = python39`).
 
 ### Phase C — CI and deprecation polish
 
@@ -368,7 +367,7 @@ Assertions:
 | Selectable Python | Flavor metapackages + `python.conf` |
 | Missing distro modules | Project provides EL8/EL9 RPMs for supported flavors |
 | Air-gapped CA sites | dnf/yum from configured repos only |
-| uWSGI vs alternate Python | Explicit per-flavor process-manager constraint |
+| uWSGI vs alternate Python | EL8 `python39`: project `uwsgi-plugin-python39`; system flavors use `uwsgi-plugin-python3` |
 
 ---
 
