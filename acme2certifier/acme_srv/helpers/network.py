@@ -15,11 +15,13 @@ from urllib3.util import connection
 import socks
 import dns.resolver
 import requests
-import requests.packages.urllib3.util.connection as urllib3_cn  # pylint: disable=E0401
 from .config import load_config
 from .validation import ipv6_chk
 from .encoding import convert_string_to_byte, b64_encode
 from .global_variables import USER_AGENT
+
+# Backward-compatible alias used by existing tests that patch this symbol.
+urllib3_cn = connection
 
 
 def _caaidentities_parse(value: str) -> List[str]:
@@ -209,7 +211,7 @@ def dns_server_list_load() -> List[str]:
     config_dic = load_config()
 
     # define default dns servers
-    default_dns_server_list = ["9.9.9.9", "8.8.8.8"]
+    default_dns_server_list = ["9.9.9.9", "8.8.8.8"]  # NOSONAR
 
     if "Challenge" in config_dic:
         if "dns_server_list" in config_dic["Challenge"]:
@@ -377,7 +379,7 @@ def url_get_with_default_dns(
             result = None
             status_code = 500
             error_msg = f"Could not fetch URL: {url}"
-            logger.error(err)
+            logger.error(err)  # NOSONAR
 
         urllib3_cn.allowed_gai_family = old_gai_family
 
@@ -587,7 +589,7 @@ def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> Lis
         for rrecord in response:
             txt_record_list.append(rrecord.strings[0])
     except Exception as err_:
-        logger.error("Could not get TXT record: %s", err_)
+        logger.error("Could not get TXT record: %s", err_)  # NOSONAR
     logger.debug("Helper.txt_get() ended with: %s", txt_record_list)
     return txt_record_list
 
@@ -711,7 +713,7 @@ def servercert_get(
             if der_cert:
                 pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
     except Exception as err_:
-        logger.error("Could not get peer certificate. Error: %s", err_)
+        logger.error("Could not get peer certificate. Error: %s", err_)  # NOSONAR
         pem_cert = None
 
     if pem_cert:
@@ -761,7 +763,9 @@ def header_info_get(
         result = dbstore.certificates_search(field_name, csr, vlist)
     except Exception as err:
         result = []
-        logger.error("Error while getting header_info from database: %s", err)
+        logger.error(
+            "Error while getting header_info from database: %s", err
+        )  # NOSONAR
 
     return list(result)
 
@@ -817,6 +821,71 @@ def encode_url(logger: logging.Logger, input_string: str) -> str:
     return quote(input_string)
 
 
+RETRYABLE_STATUS_CODES = {500, 502, 503, 504}
+
+
+def _retry_wait_seconds(retry_backoff: float, attempt: int) -> float:
+    """Calculate exponential backoff delay for a retry attempt."""
+    return retry_backoff * (2 ** (attempt - 1))
+
+
+def _request_send_by_method(
+    logger: logging.Logger,
+    session,
+    method: str,
+    url: str,
+    headers: Dict[str, str],
+    proxy: Dict[str, str],
+    timeout: int,
+    payload: Dict[str, str],
+    verify: bool,
+) -> Tuple[Optional[requests.Response], Optional[Tuple[int, str]]]:
+    """Send request by HTTP method and return either response or error tuple."""
+    request_args = {
+        "url": url,
+        "headers": headers,
+        "proxies": proxy,
+        "timeout": timeout,
+        "verify": verify,
+    }
+    method_lower = method.lower()
+
+    if method_lower == "get":
+        return session.get(**request_args), None
+
+    if method_lower in ("post", "put"):
+        request_args["json"] = payload
+        request_func = session.post if method_lower == "post" else session.put
+        return request_func(**request_args), None
+
+    logger.error("Unknown request method: %s", method)
+    return None, (500, "Unknown request method")
+
+
+def _request_parse_response(
+    logger: logging.Logger, api_response: requests.Response
+) -> Tuple[int, Optional[Union[Dict, str]]]:
+    """Parse HTTP response body as JSON when possible."""
+    code = api_response.status_code
+    if not api_response.text:
+        return code, None
+
+    try:
+        content = api_response.json()
+    except Exception as err_:
+        logger.error(
+            "Request_operation returned error during json parsing: %s", err_
+        )  # NOSONAR
+        content = str(err_)
+
+    return code, content
+
+
+def _request_should_retry(code: int, attempt: int, attempts: int) -> bool:
+    """Return True when request should be retried for this attempt."""
+    return code in RETRYABLE_STATUS_CODES and attempt < attempts
+
+
 def request_operation(
     logger: logging.Logger,
     headers: Dict[str, str] = None,
@@ -833,45 +902,28 @@ def request_operation(
     """Execute an HTTP request with optional retry on transient failures."""
     logger.debug("Helper.api_operation(): method: %s", method)
 
-    _RETRYABLE_STATUS_CODES = {500, 502, 503, 504}
     attempts = 1 + max(retries, 0)
 
     for attempt in range(1, attempts + 1):
         try:
-            if method.lower() == "get":
-                api_response = session.get(
-                    url=url,
-                    headers=headers,
-                    proxies=proxy,
-                    timeout=timeout,
-                    verify=verify,
-                )
-            elif method.lower() == "post":
-                api_response = session.post(
-                    url=url,
-                    headers=headers,
-                    proxies=proxy,
-                    timeout=timeout,
-                    json=payload,
-                    verify=verify,
-                )
-            elif method.lower() == "put":
-                api_response = session.put(
-                    url=url,
-                    headers=headers,
-                    proxies=proxy,
-                    timeout=timeout,
-                    json=payload,
-                    verify=verify,
-                )
-            else:
-                logger.error("Unknown request method: %s", method)
-                return 500, "Unknown request method"
+            api_response, method_error = _request_send_by_method(
+                logger,
+                session,
+                method,
+                url,
+                headers,
+                proxy,
+                timeout,
+                payload,
+                verify,
+            )
+            if method_error:
+                return method_error
 
-            code = api_response.status_code
+            code, content = _request_parse_response(logger, api_response)
 
-            if code in _RETRYABLE_STATUS_CODES and attempt < attempts:
-                wait = retry_backoff * (2 ** (attempt - 1))
+            if _request_should_retry(code, attempt, attempts):
+                wait = _retry_wait_seconds(retry_backoff, attempt)
                 logger.warning(
                     "Request_operation got %s from %s, retry %s/%s in %.1fs",
                     code,
@@ -883,23 +935,12 @@ def request_operation(
                 time.sleep(wait)
                 continue
 
-            if api_response.text:
-                try:
-                    content = api_response.json()
-                except Exception as err_:
-                    logger.error(
-                        "Request_operation returned error during json parsing: %s", err_
-                    )
-                    content = str(err_)
-            else:
-                content = None
-
             logger.debug("Helper.request_operation() ended with: %s", code)
             return code, content
 
         except Exception as err_:
             if attempt < attempts:
-                wait = retry_backoff * (2 ** (attempt - 1))
+                wait = _retry_wait_seconds(retry_backoff, attempt)
                 logger.warning(
                     "Request_operation error: %s, retry %s/%s in %.1fs",
                     err_,
@@ -909,7 +950,7 @@ def request_operation(
                 )
                 time.sleep(wait)
             else:
-                logger.error("Request_operation returned error: %s", err_)
+                logger.error("Request_operation returned error: %s", err_)  # NOSONAR
                 code = 500
                 content = str(err_)
                 logger.debug("Helper.request_operation() ended with: %s", code)

@@ -305,15 +305,16 @@ class CAhandler(object):
                 retry_backoff=self.request_retry_backoff,
             )
             if isinstance(response, dict) and response.get("status", None) == "done":
+                entities = response.get("entities", [])
                 if (
-                    len(response.get("entities", [])) > 0
-                    and "ref" in response["entities"][0]
-                    and response["entities"][0]["ref"].lower() == "certificate"
-                    and "url" in response["entities"][0]
+                    isinstance(entities, list)
+                    and entities
+                    and isinstance(entities[0], dict)
+                    and "ref" in entities[0]
+                    and entities[0]["ref"].lower() == "certificate"
+                    and "url" in entities[0]
                 ):
-                    cert_id = response["entities"][0]["url"].replace(
-                        "/v2/certificates/", ""
-                    )
+                    cert_id = entities[0]["url"].replace("/v2/certificates/", "")
                     break
                 else:
                     self.logger.error(
@@ -351,15 +352,17 @@ class CAhandler(object):
             retry_backoff=self.request_retry_backoff,
         )
         if not isinstance(cert_list, dict):
-            cert_list = []
+            cert_list = {}
+
+        items = cert_list.get("items", [])
 
         if (
-            cert_list
-            and "items" in cert_list
-            and len(cert_list["items"]) > 0
-            and "id" in cert_list["items"][0]
+            isinstance(items, list)
+            and items
+            and isinstance(items[0], dict)
+            and "id" in items[0]
         ):
-            cert_id = cert_list["items"][0]["id"]
+            cert_id = items[0]["id"]
         else:
             cert_id = None
             self.logger.error(
@@ -681,10 +684,8 @@ class CAhandler(object):
         self.logger.debug("CAhandler._enroll() ended with: %s", error)
         return (error, cert_bundle, cert_raw, cert_id)
 
-    def _login(self):
-        """_login into NCLM API"""
-        self.logger.debug("CAhandler._login()")
-        # check first if API is reachable
+    def _login_preflight(self) -> Tuple[int, Dict[str, str]]:
+        """Check if NCLM API endpoint is reachable and return response payload."""
         api_code, api_content = request_operation(
             self.logger,
             url=self.api_host + "/v1",
@@ -695,56 +696,76 @@ class CAhandler(object):
             retry_backoff=self.request_retry_backoff,
         )
         self.logger.debug("api response code:%s", api_code)
+        return api_code, api_content
 
-        if api_code and api_code < 400:
-            # all fine try to login
-            if isinstance(api_content, dict) and "versionNumber" in api_content:
-                self.nclm_version = api_content["versionNumber"]
-                self.logger.debug("NCLM version: %s", self.nclm_version)
+    def _login_store_version(self, api_content: Dict[str, str]) -> None:
+        """Store NCLM version from API preflight response when available."""
+        if isinstance(api_content, dict) and "versionNumber" in api_content:
+            self.nclm_version = api_content["versionNumber"]
+            self.logger.debug("NCLM version: %s", self.nclm_version)
 
+    def _login_request(self) -> Tuple[int, Dict[str, str]]:
+        """Authenticate against NCLM and return login response tuple."""
+        self.logger.debug(
+            'log in to %s as user "%s"',
+            self.api_host,
+            self.credential_dic["api_user"],
+        )
+        data = {
+            "username": self.credential_dic["api_user"],
+            "password": self.credential_dic["api_password"],
+        }
+        return request_operation(
+            self.logger,
+            url=self.api_host
+            + self.api_version
+            + "/token?grant_type=client_credentials",
+            method="post",
+            payload=data,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            verify=self.ca_bundle,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+
+    def _login_handle_success(self, login_content: Dict[str, str]) -> None:
+        """Process successful login response and set authorization headers."""
+        json_dic = login_content if isinstance(login_content, dict) else {}
+        if "access_token" in json_dic:
+            self.headers = {"Authorization": f"Bearer {json_dic['access_token']}"}
+            _username = json_dic.get("username", None)
+            _realms = json_dic.get("realms", None)
             self.logger.debug(
-                'log in to %s as user "%s"',
-                self.api_host,
-                self.credential_dic["api_user"],
+                "login response:\n user: %s\n token: %s\n realms: %s\n",
+                _username,
+                json_dic["access_token"],
+                _realms,
             )
-            data = {
-                "username": self.credential_dic["api_user"],
-                "password": self.credential_dic["api_password"],
-            }
-            login_code, login_content = request_operation(
-                self.logger,
-                url=self.api_host
-                + self.api_version
-                + "/token?grant_type=client_credentials",
-                method="post",
-                payload=data,
-                proxy=self.proxy,
-                timeout=self.request_timeout,
-                verify=self.ca_bundle,
-                retries=self.request_retries,
-                retry_backoff=self.request_retry_backoff,
-            )
+            return
 
-            if login_code and login_code < 400:
-                json_dic = login_content if isinstance(login_content, dict) else {}
-                if "access_token" in json_dic:
-                    self.headers = {
-                        "Authorization": f"Bearer {json_dic['access_token']}"
-                    }
-                    _username = json_dic.get("username", None)
-                    _realms = json_dic.get("realms", None)
-                    self.logger.debug(
-                        "login response:\n user: %s\n token: %s\n realms: %s\n",
-                        _username,
-                        json_dic["access_token"],
-                        _realms,
-                    )
-                else:
-                    self.logger.error("No token returned after logging in. Aborting.")
-            else:
-                self.logger.error("Login Error: %s", login_code)
-        else:
+        self.logger.error("No token returned after logging in. Aborting.")
+
+    @staticmethod
+    def _response_ok(code: int) -> bool:
+        """Return True when an HTTP status code indicates success."""
+        return bool(code and code < 400)
+
+    def _login(self):
+        """_login into NCLM API"""
+        self.logger.debug("CAhandler._login()")
+        api_code, api_content = self._login_preflight()
+        if not self._response_ok(api_code):
             self.logger.error("Login failed. Error: %s", api_code)
+            return
+
+        self._login_store_version(api_content)
+        login_code, login_content = self._login_request()
+
+        if self._response_ok(login_code):
+            self._login_handle_success(login_content)
+        else:
+            self.logger.error("Login Error: %s", login_code)
 
     def _revocation_status_poll(
         self, job_id: int, err_dic: Dict[str, str]
@@ -803,12 +824,13 @@ class CAhandler(object):
             retry_backoff=self.request_retry_backoff,
         )
         if not isinstance(template_list, dict):
-            template_list = []
+            template_list = {}
 
-        if "items" in template_list:
-            tmpl_cnt = len(template_list["items"])
-        else:
-            tmpl_cnt = 0
+        items = template_list.get("items", [])
+        if not isinstance(items, list):
+            items = []
+
+        tmpl_cnt = len(items)
 
         self.logger.debug(
             "CAhandler._template_list_get() ended with: %s templates", tmpl_cnt
@@ -822,7 +844,13 @@ class CAhandler(object):
             self.template_info_dic["name"],
         )
 
-        for template in template_list["items"]:
+        items = (
+            template_list.get("items", []) if isinstance(template_list, dict) else []
+        )
+        if not isinstance(items, list):
+            return
+
+        for template in items:
             if (
                 "name" in template
                 and template["name"] == self.template_info_dic["name"]
@@ -840,9 +868,12 @@ class CAhandler(object):
 
         # get list of templates
         template_list = self._template_list_get(ca_id)
+        items = (
+            template_list.get("items", []) if isinstance(template_list, dict) else []
+        )
 
         # enumerate templates to get template-id
-        if "items" in template_list:
+        if isinstance(items, list) and items:
             self._templates_enumerate(template_list)
         else:
             self.logger.error(

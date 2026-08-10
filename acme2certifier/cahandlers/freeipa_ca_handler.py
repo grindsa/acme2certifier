@@ -400,7 +400,7 @@ class CAhandler(object):
             requests.exceptions.RequestException: If the request fails.
         """
         self.logger.debug("CAhandler._rpc_post()")
-        code, response = request_operation(
+        _code, response = request_operation(
             self.logger,
             url=self.api_host + self.prefix + self.json_rpc_url,
             method="post",

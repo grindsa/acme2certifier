@@ -7,6 +7,10 @@ from acme2certifier.acme_srv.helper import signature_check, load_config, error_d
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
+SIG_CHECK_ACCOUNT_MISSING_LOG = (
+    "Signature check failed: account does not exist account=%s"
+)
+
 
 class Signature:
     """Handles signature verification and key loading for ACME accounts."""
@@ -48,15 +52,11 @@ class Signature:
             )
             return (False, self.err_msg_dic["malformed"], None)
         if not aname:
-            self.logger.warning(
-                "Signature check failed: account does not exist account=%s", aname
-            )
+            self.logger.warning(SIG_CHECK_ACCOUNT_MISSING_LOG, aname)
             return (False, self.err_msg_dic["accountdoesnotexist"], None)
         pub_key = self._jwk_loader(aname, cli=True)
         if not pub_key:
-            self.logger.warning(
-                "Signature check failed: account does not exist account=%s", aname
-            )
+            self.logger.warning(SIG_CHECK_ACCOUNT_MISSING_LOG, aname)
             return (False, self.err_msg_dic["accountdoesnotexist"], None)
         result, error = signature_check(self.logger, content, pub_key)
         self.logger.debug(f"Signature.cli_check() ended with: {result}:{error}")
@@ -80,9 +80,7 @@ class Signature:
         if aname:
             pub_key = self._jwk_loader(aname)
             if not pub_key:
-                self.logger.warning(
-                    "Signature check failed: account does not exist account=%s", aname
-                )
+                self.logger.warning(SIG_CHECK_ACCOUNT_MISSING_LOG, aname)
                 error = self.err_msg_dic["accountdoesnotexist"]
                 return (False, error, None)
             result, error = signature_check(self.logger, content, pub_key)

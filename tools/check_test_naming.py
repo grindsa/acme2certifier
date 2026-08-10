@@ -14,9 +14,9 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
-CLASS_RE = re.compile(r"^(\s*)class\s+([A-Za-z_][A-Za-z0-9_]*)\b")
-TEST_DEF_RE = re.compile(r"^(\s*)def\s+(test_[A-Za-z0-9_]+)\s*\(")
-TEST_NAME_RE = re.compile(r"^test_(\d+)_([A-Za-z0-9_]+)$")
+CLASS_RE = re.compile(r"^(\s*)class\s+([A-Za-z_]\w*)\b")
+TEST_DEF_RE = re.compile(r"^(\s*)def\s+(test_\w+)\s*\(")
+TEST_NAME_RE = re.compile(r"^test_(\d+)_(\w+)$")
 
 
 def _indent_len(prefix: str) -> int:
@@ -52,6 +52,75 @@ def _normalize_paths(input_paths: Sequence[str]) -> List[Path]:
     return deduped
 
 
+def _pop_class_stack(class_stack: List[Tuple[int, str, int]], indent: int) -> None:
+    while class_stack and class_stack[-1][0] >= indent:
+        class_stack.pop()
+
+
+def _register_class_scope(
+    class_match: re.Match[str],
+    class_stack: List[Tuple[int, str, int]],
+    class_instance_counter: Dict[str, int],
+) -> None:
+    class_indent = _indent_len(class_match.group(1))
+    _pop_class_stack(class_stack, class_indent)
+    class_name = class_match.group(2)
+    class_idx = class_instance_counter.get(class_name, 0) + 1
+    class_instance_counter[class_name] = class_idx
+    class_stack.append((class_indent, class_name, class_idx))
+
+
+def _resolve_scope(
+    class_stack: List[Tuple[int, str, int]],
+) -> Tuple[Tuple[str, int], str]:
+    if class_stack:
+        scope = (class_stack[-1][1], class_stack[-1][2])
+        return scope, f"{scope[0]}[{scope[1]}]"
+    return ("__module__", 1), "module"
+
+
+def _check_duplicate_test_name(
+    errors: List[str],
+    file_path: Path,
+    line_no: int,
+    test_name: str,
+    scope: Tuple[str, int],
+    scope_label: str,
+    seen_name_by_scope: Dict[Tuple[str, int], set],
+) -> None:
+    names_in_scope = seen_name_by_scope.setdefault(scope, set())
+    if test_name in names_in_scope:
+        errors.append(
+            f"{file_path}:{line_no}: duplicate test name '{test_name}' in scope {scope_label}"
+        )
+    names_in_scope.add(test_name)
+
+
+def _check_test_sequence(
+    errors: List[str],
+    file_path: Path,
+    line_no: int,
+    test_name: str,
+    scope: Tuple[str, int],
+    scope_label: str,
+    prev_num_by_scope: Dict[Tuple[str, int], int],
+) -> None:
+    name_match = TEST_NAME_RE.match(test_name)
+    if not name_match:
+        errors.append(
+            f"{file_path}:{line_no}: invalid name '{test_name}' (expected test_<number>_<description>)"
+        )
+        return
+
+    num = int(name_match.group(1))
+    prev = prev_num_by_scope.get(scope)
+    if prev is not None and num <= prev:
+        errors.append(
+            f"{file_path}:{line_no}: non-increasing test number {num:03d} after {prev:03d} in scope {scope_label}"
+        )
+    prev_num_by_scope[scope] = num
+
+
 def check_file(file_path: Path) -> List[str]:
     errors: List[str] = []
     lines = file_path.read_text(encoding="utf-8").splitlines()
@@ -64,13 +133,7 @@ def check_file(file_path: Path) -> List[str]:
     for line_no, line in enumerate(lines, start=1):
         class_match = CLASS_RE.match(line)
         if class_match:
-            class_indent = _indent_len(class_match.group(1))
-            while class_stack and class_stack[-1][0] >= class_indent:
-                class_stack.pop()
-            class_name = class_match.group(2)
-            class_idx = class_instance_counter.get(class_name, 0) + 1
-            class_instance_counter[class_name] = class_idx
-            class_stack.append((class_indent, class_name, class_idx))
+            _register_class_scope(class_match, class_stack, class_instance_counter)
             continue
 
         def_match = TEST_DEF_RE.match(line)
@@ -78,39 +141,28 @@ def check_file(file_path: Path) -> List[str]:
             continue
 
         def_indent = _indent_len(def_match.group(1))
-        while class_stack and class_stack[-1][0] >= def_indent:
-            class_stack.pop()
+        _pop_class_stack(class_stack, def_indent)
 
         test_name = def_match.group(2)
-        if class_stack:
-            scope = (class_stack[-1][1], class_stack[-1][2])
-            scope_label = f"{scope[0]}[{scope[1]}]"
-        else:
-            scope = ("__module__", 1)
-            scope_label = "module"
-
-        if scope not in seen_name_by_scope:
-            seen_name_by_scope[scope] = set()
-        if test_name in seen_name_by_scope[scope]:
-            errors.append(
-                f"{file_path}:{line_no}: duplicate test name '{test_name}' in scope {scope_label}"
-            )
-        seen_name_by_scope[scope].add(test_name)
-
-        name_match = TEST_NAME_RE.match(test_name)
-        if not name_match:
-            errors.append(
-                f"{file_path}:{line_no}: invalid name '{test_name}' (expected test_<number>_<description>)"
-            )
-            continue
-
-        num = int(name_match.group(1))
-        prev = prev_num_by_scope.get(scope)
-        if prev is not None and num <= prev:
-            errors.append(
-                f"{file_path}:{line_no}: non-increasing test number {num:03d} after {prev:03d} in scope {scope_label}"
-            )
-        prev_num_by_scope[scope] = num
+        scope, scope_label = _resolve_scope(class_stack)
+        _check_duplicate_test_name(
+            errors,
+            file_path,
+            line_no,
+            test_name,
+            scope,
+            scope_label,
+            seen_name_by_scope,
+        )
+        _check_test_sequence(
+            errors,
+            file_path,
+            line_no,
+            test_name,
+            scope,
+            scope_label,
+            prev_num_by_scope,
+        )
 
     return errors
 

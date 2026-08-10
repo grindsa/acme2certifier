@@ -823,6 +823,57 @@ class Account:
         )
         return account_info
 
+    def _build_success_data(
+        self,
+        code: int,
+        message: Optional[str],
+        detail: Optional[str],
+        payload: Optional[Dict],
+    ) -> Dict[str, str]:
+        """Build response data payload for successful account operations."""
+        if code == 201:
+            data = {
+                "status": "valid",
+                "orders": f'{self.server_name}{self.config.path_dic["acct_path"]}{message}/orders',
+            }
+            if payload and "contact" in payload:
+                data["contact"] = payload["contact"]
+            return data
+
+        if code == 200 and detail and "status" in detail:
+            return detail
+
+        return {}
+
+    def _build_location_header(self, account_name: Optional[str]) -> Dict[str, str]:
+        """Build location header for successful account operations."""
+        return {
+            "Location": f'{self.server_name}{self.config.path_dic["acct_path"]}{account_name}'
+        }
+
+    def _add_eab_binding_to_response(
+        self, response_data: Dict[str, str], payload: Optional[Dict]
+    ) -> None:
+        """Append external account binding to response data when configured."""
+        if self.config.eab_check and payload and "externalaccountbinding" in payload:
+            response_data["externalaccountbinding"] = payload["externalaccountbinding"]
+
+    def _normalize_error_detail(self, detail: Optional[str]) -> Optional[str]:
+        """Normalize legacy error details for response payload."""
+        if detail == "tosfalse":
+            return "Terms of service must be accepted"
+        return detail
+
+    def _resolve_log_account(
+        self, code: int, message: Optional[str], account_name: Optional[str]
+    ) -> Optional[str]:
+        """Resolve account name used for response logging."""
+        if account_name is not None:
+            return account_name
+        if code in (200, 201):
+            return message
+        return None
+
     def _build_response(
         self,
         code: int,
@@ -834,45 +885,18 @@ class Account:
         """Build a response dictionary."""
         self.logger.debug("Account._build_response()")
         response_dic = {}
+
         if code in (200, 201):
-            response_dic["data"] = {}
-            if code == 201:
-                response_dic["data"] = {
-                    "status": "valid",
-                    "orders": f'{self.server_name}{self.config.path_dic["acct_path"]}{message}/orders',
-                }
-                if payload and "contact" in payload:
-                    response_dic["data"]["contact"] = payload["contact"]
-            elif code == 200 and detail and "status" in detail:
-                response_dic["data"] = detail
-
-            response_dic["header"] = {}
-            response_dic["header"][
-                "Location"
-            ] = f'{self.server_name}{self.config.path_dic["acct_path"]}{message}'
-
-            # add exernal account binding
-            if (
-                self.config.eab_check
-                and payload
-                and "externalaccountbinding" in payload
-            ):
-                response_dic["data"]["externalaccountbinding"] = payload[
-                    "externalaccountbinding"
-                ]
-
+            response_dic["data"] = self._build_success_data(
+                code, message, detail, payload
+            )
+            response_dic["header"] = self._build_location_header(message)
+            self._add_eab_binding_to_response(response_dic["data"], payload)
         else:
-            if detail == "tosfalse":
-                detail = "Terms of service must be accepted"
+            detail = self._normalize_error_detail(detail)
 
-        # On success, message is the account name used in Location
-        log_account = (
-            account_name
-            if account_name is not None
-            else (message if code in (200, 201) else None)
-        )
+        log_account = self._resolve_log_account(code, message, account_name)
 
-        # prepare/enrich response
         status_dic = {"code": code, "type": message, "detail": detail}
         response_dic = self.message.prepare_response(
             response_dic, status_dic, account_name=log_account

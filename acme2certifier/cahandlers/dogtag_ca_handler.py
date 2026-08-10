@@ -336,7 +336,6 @@ class CAhandler(object):
             Tuple[int, Dict[str, str]]: HTTP status code and response content.
         """
         self.logger.debug("CAhandler._api_get()")
-        headers = None
 
         if self.session is None:
             self._login()

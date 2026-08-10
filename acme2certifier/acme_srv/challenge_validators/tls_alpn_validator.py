@@ -7,6 +7,10 @@ Implements validation logic for TLS-ALPN-01 challenges according to RFC 8737.
 import json
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
+TLS_ALPN_VALIDATION_FAILED_LOG = (
+    "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s"
+)
+
 
 class TlsAlpnChallengeValidator(ChallengeValidator):
     """Validator for TLS-ALPN-01 challenges."""
@@ -46,7 +50,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                     else "DNS resolution failed"
                 )
                 self.logger.warning(
-                    "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s",
+                    TLS_ALPN_VALIDATION_FAILED_LOG,
                     context.challenge_name,
                     context.authorization_value,
                     detail,
@@ -68,7 +72,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
             if invalid:
                 detail = f"Invalid IP address: {context.authorization_value}"
                 self.logger.warning(
-                    "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s",
+                    TLS_ALPN_VALIDATION_FAILED_LOG,
                     context.challenge_name,
                     context.authorization_value,
                     detail,
@@ -88,7 +92,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         else:
             detail = f"Unsupported authorization type: {context.authorization_type}"
             self.logger.warning(
-                "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s",
+                TLS_ALPN_VALIDATION_FAILED_LOG,
                 context.challenge_name,
                 context.authorization_value,
                 detail,
@@ -129,7 +133,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         if not cert:
             detail = f"Unable to retrieve server certificate for {context.authorization_value}"
             self.logger.warning(
-                "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s",
+                TLS_ALPN_VALIDATION_FAILED_LOG,
                 context.challenge_name,
                 context.authorization_value,
                 detail,

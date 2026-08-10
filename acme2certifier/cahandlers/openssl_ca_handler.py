@@ -38,6 +38,7 @@ from acme2certifier.acme_srv.helper import (
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 BLOCK_ALL_DOMAIN = "block.all"
+ACME_ERR_SERVER_INTERNAL = "urn:ietf:params:acme:error:serverInternal"
 
 
 class CAhandler(object):
@@ -1014,96 +1015,100 @@ class CAhandler(object):
         self.logger.debug("CAhandler._crlobject_build() ended")
         return (builder, ret)
 
+    def _revoke_return(self, code: int, message: str = None, detail: str = None):
+        """Build revoke response tuple."""
+        return (code, message, detail)
+
     def revoke(
         self, cert_pem: str, rev_reason: str = "unspecified", rev_date: str = None
     ) -> Tuple[int, str, str]:
         """revoke certificate"""
         self.logger.debug("CAhandler.revoke(%s: %s)", rev_reason, rev_date)
-        code = None
-        message = None
-        detail = None
 
         rev_date_format = "%y%m%d%H%M%SZ"
 
         # overwrite revocation date - we ignore what has been submitted
         rev_date = uts_to_date_utc(uts_now(), rev_date_format)
 
-        if "issuing_ca_crl" in self.issuer_dict and self.issuer_dict["issuing_ca_crl"]:
-            # load ca cert and key
-            ca_key, ca_cert = self._ca_load()
-
-            # get serial number from certicate to be revoked
-            serial = cert_serial_get(self.logger, cert_pem)
-
-            if ca_key and ca_cert and serial:
-
-                # build crl object
-                builder, ret = self._crlobject_build(ca_cert, serial)
-
-                if not isinstance(ret, x509.RevokedCertificate):
-                    # this is the revocation operation
-                    # Set up the revoked entry
-                    revoked_entry = (
-                        x509.RevokedCertificateBuilder()
-                        .serial_number(serial)
-                        .revocation_date(
-                            datetime.datetime.strptime(rev_date, rev_date_format)
-                        )
-                        .build(default_backend())
-                    )
-                    builder = builder.add_revoked_certificate(revoked_entry)
-
-                    # Sign the CRL
-                    crl = (
-                        builder.last_update(
-                            datetime.datetime.strptime(rev_date, rev_date_format)
-                        )
-                        .next_update(
-                            datetime.datetime.strptime(rev_date, rev_date_format)
-                        )
-                        .sign(ca_key, hashes.SHA256())
-                    )
-
-                    # Save CRL
-                    with open(self.issuer_dict["issuing_ca_crl"], "wb") as fso:
-                        fso.write(crl.public_bytes(serialization.Encoding.PEM))
-                    code = 200
-                else:
-                    self.logger.warning("Certificate revoke failed: already revoked")
-                    code = 400
-                    message = "urn:ietf:params:acme:error:alreadyRevoked"
-                    detail = "Certificate has already been revoked"
-            elif not serial:
-                self.logger.warning(
-                    "Certificate revoke failed: failed to parse certificate serial"
-                )
-                code = 400
-                message = "urn:ietf:params:acme:error:serverInternal"
-                detail = "Failed to parse certificate serial"
-            else:
-                missing = []
-                if not ca_key:
-                    missing.append("ca_key")
-                if not ca_cert:
-                    missing.append("ca_cert")
-                self.logger.warning(
-                    "Certificate revoke failed: %s missing=%s",
-                    CONFIGURATION_ERROR_DETAIL,
-                    ",".join(missing),
-                )
-                code = 400
-                message = "urn:ietf:params:acme:error:serverInternal"
-                detail = CONFIGURATION_ERROR_DETAIL
-        else:
+        if not (
+            "issuing_ca_crl" in self.issuer_dict and self.issuer_dict["issuing_ca_crl"]
+        ):
             self.logger.warning(
                 "Certificate revoke failed: Unsupported operation (issuing_ca_crl not configured)"
             )
-            code = 400
-            message = "urn:ietf:params:acme:error:serverInternal"
-            detail = "Unsupported operation"
+            return self._revoke_return(
+                400,
+                ACME_ERR_SERVER_INTERNAL,
+                "Unsupported operation",
+            )
+
+        # load ca cert and key
+        ca_key, ca_cert = self._ca_load()
+
+        # get serial number from certicate to be revoked
+        serial = cert_serial_get(self.logger, cert_pem)
+
+        if not serial:
+            self.logger.warning(
+                "Certificate revoke failed: failed to parse certificate serial"
+            )
+            return self._revoke_return(
+                400,
+                ACME_ERR_SERVER_INTERNAL,
+                "Failed to parse certificate serial",
+            )
+
+        if not ca_key or not ca_cert:
+            missing = []
+            if not ca_key:
+                missing.append("ca_key")
+            if not ca_cert:
+                missing.append("ca_cert")
+            self.logger.warning(
+                "Certificate revoke failed: %s missing=%s",
+                CONFIGURATION_ERROR_DETAIL,
+                ",".join(missing),
+            )
+            return self._revoke_return(
+                400,
+                ACME_ERR_SERVER_INTERNAL,
+                CONFIGURATION_ERROR_DETAIL,
+            )
+
+        # build crl object
+        builder, ret = self._crlobject_build(ca_cert, serial)
+
+        if isinstance(ret, x509.RevokedCertificate):
+            self.logger.warning("Certificate revoke failed: already revoked")
+            return self._revoke_return(
+                400,
+                "urn:ietf:params:acme:error:alreadyRevoked",
+                "Certificate has already been revoked",
+            )
+
+        # this is the revocation operation
+        revoked_dt = datetime.datetime.strptime(rev_date, rev_date_format)
+        revoked_entry = (
+            x509.RevokedCertificateBuilder()
+            .serial_number(serial)
+            .revocation_date(revoked_dt)
+            .build(default_backend())
+        )
+        builder = builder.add_revoked_certificate(revoked_entry)
+
+        # Sign the CRL
+        crl = (
+            builder.last_update(revoked_dt)
+            .next_update(revoked_dt)
+            .sign(ca_key, hashes.SHA256())
+        )
+
+        # Save CRL
+        with open(self.issuer_dict["issuing_ca_crl"], "wb") as fso:
+            fso.write(crl.public_bytes(serialization.Encoding.PEM))
 
         self.logger.debug("CAhandler.revoke() ended")
-        return (code, message, detail)
+        return self._revoke_return(200)
 
     def trigger(self, _payload: str) -> Tuple[str, str, str]:
         """process trigger message and return certificate"""

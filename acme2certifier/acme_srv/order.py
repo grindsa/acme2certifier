@@ -1256,58 +1256,69 @@ class Order(object):
         """finalize request"""
         self.logger.debug("Order._finalize_order()")
 
-        certificate_name = None
-        message = None
-        detail = None
-
-        # lookup order-status (must be ready to proceed)
         order_dic = self._get_order_info(order_name)
-        if "status" in order_dic and order_dic["status"] == "ready":
-            # update order_status / set to processing
-            self.repository.order_update({"name": order_name, "status": "processing"})
-            if "csr" in payload:
-                code, message, detail, certificate_name = self._finalize_csr(
-                    order_name, payload, header
-                )
-            else:
-                self.logger.warning(
-                    "Order finalize failed: csr missing order=%s",
-                    order_name,
-                )
-                code = 400
-                message = self.error_msg_dic["badcsr"]
-                detail = "csr is missing in payload"
-        elif (
-            "status" in order_dic
-            and order_dic["status"] == "valid"
-            and self.config.idempotent_finalize
-        ):
-            self.logger.debug(
-                "Order._finalize_order(): kind of polling request - order is already valid - lookup certificate"
+        status = order_dic.get("status") if order_dic else None
+
+        if status == "ready":
+            code, message, detail, certificate_name = self._finalize_ready_order(
+                order_name, payload, header
             )
-            code = 200
-            try:
-                cert_dic = self.repository.certificate_lookup("order__name", order_name)
-            except Exception as err_:
-                self.logger.critical(
-                    f"{DB_ERROR_MSG}: Certificate lookup failed: %s", err_
-                )
-                cert_dic = {}
-            if cert_dic and "name" in cert_dic:
-                certificate_name = cert_dic["name"]
+        elif status == "valid" and self.config.idempotent_finalize:
+            code, message, detail, certificate_name = self._finalize_valid_order(
+                order_name
+            )
         else:
-            status = order_dic.get("status") if order_dic else None
-            self.logger.warning(
-                "Order finalize failed: orderNotReady order=%s status=%s",
-                order_name,
-                status if status is not None else "missing",
+            code, message, detail, certificate_name = self._finalize_not_ready_order(
+                order_name, status
             )
-            code = 403
-            message = self.error_msg_dic["ordernotready"]
-            detail = "Order is not ready"
 
         self.logger.debug("Order._finalize_order() ended")
         return (code, message, detail, certificate_name)
+
+    def _finalize_ready_order(
+        self, order_name: str, payload: Dict[str, str], header: str = None
+    ) -> Tuple[int, Optional[str], Optional[str], Optional[str]]:
+        """Handle finalize flow for ready orders."""
+        self.repository.order_update({"name": order_name, "status": "processing"})
+        if "csr" in payload:
+            return self._finalize_csr(order_name, payload, header)
+
+        self.logger.warning(
+            "Order finalize failed: csr missing order=%s",
+            order_name,
+        )
+        return 400, self.error_msg_dic["badcsr"], "csr is missing in payload", None
+
+    def _finalize_valid_order(
+        self, order_name: str
+    ) -> Tuple[int, Optional[str], Optional[str], Optional[str]]:
+        """Handle idempotent finalize flow when order is already valid."""
+        self.logger.debug(
+            "Order._finalize_order(): kind of polling request - order is already valid - lookup certificate"
+        )
+
+        certificate_name = None
+        try:
+            cert_dic = self.repository.certificate_lookup("order__name", order_name)
+        except Exception as err_:
+            self.logger.critical(f"{DB_ERROR_MSG}: Certificate lookup failed: %s", err_)
+            cert_dic = {}
+
+        if cert_dic and "name" in cert_dic:
+            certificate_name = cert_dic["name"]
+
+        return 200, None, None, certificate_name
+
+    def _finalize_not_ready_order(
+        self, order_name: str, status: Optional[str]
+    ) -> Tuple[int, str, str, None]:
+        """Handle finalize flow for orders that are not ready."""
+        self.logger.warning(
+            "Order finalize failed: orderNotReady order=%s status=%s",
+            order_name,
+            status if status is not None else "missing",
+        )
+        return 403, self.error_msg_dic["ordernotready"], "Order is not ready", None
 
     def _process_order_request(
         self,
