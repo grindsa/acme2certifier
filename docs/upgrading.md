@@ -268,7 +268,9 @@ Paths: `/opt/acme2certifier`, config `/opt/acme2certifier/acme_srv.cfg` (`%confi
 1. Install:
 
    ```bash
-   sudo yum -y localinstall ./acme2certifier-<version>-1.0.noarch.rpm
+   sudo yum -y localinstall ./acme2certifier-<version>-1.0.noarch.rpm \
+     ./acme2certifier-python3-<version>-1.0.noarch.rpm
+   # EL8 default 3.9: use acme2certifier-python39-*.rpm instead of python3
    # or: sudo ./examples/install_scripts/a2c-rpm.sh --rpm ./acme2certifier-*.rpm --mode wsgi
    ```
 

@@ -63,7 +63,9 @@ runs:
         sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
         if [ -f ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
           echo "RPM exists"
-          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+          # Main payload + python flavor subpackages
+          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-*.noarch.rpm data/
+          ls -la data/acme2certifier-*.rpm
         else
           echo "RPM does not exist"
         fi

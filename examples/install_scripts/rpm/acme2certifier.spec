@@ -1,5 +1,8 @@
-# Dual-EL noarch package: install under /opt (not %{python3_sitelib})
-# so one RPM works on EL8 (Python 3.6) and EL9 (Python 3.9).
+# Dual-EL noarch packaging (see docs/architecture/rpm-el-packaging.md):
+#   acme2certifier           — /opt payload (no python*-* module Requires)
+#   acme2certifier-python3   — system python3-* (EL9 default 3.9 / EL8 legacy 3.6)
+#   acme2certifier-python39  — parallel Python 3.9 (EL8 default)
+#
 # Disable automatic requires/provides processing
 AutoReqProv: no
 
@@ -7,6 +10,7 @@ AutoReqProv: no
 %global         __python        %{__python3}
 %global         dest_dir        /opt
 %global         app_root        %{dest_dir}/%{projname}
+%global         python_confdir  %{_sysconfdir}/%{projname}
 %{!?_unitdir: %global _unitdir /usr/lib/systemd/system}
 
 Summary:        library implementing ACME server functionality
@@ -19,9 +23,36 @@ Release:        1.0
 License:        GPL3; @grindsa@github
 URL:            https://github.com/grindsa/acme2certifier
 
-# Core runtime (EPEL often required on EL8)
-Requires:       python3
+# OS / packaging helpers only — Python modules live on flavor subpackages
 Requires:       tar
+Requires(post): policycoreutils
+Requires:       policycoreutils-python-utils
+
+# Web stack is operator-chosen (nginx+uWSGI or httpd+mod_wsgi)
+Recommends:      nginx
+Recommends:      uwsgi-plugin-python3
+Recommends:      krb5-workstation
+Recommends:      krb5-libs
+
+BuildArch:		noarch
+
+Source0:        %{name}-%{version}.tar.gz
+
+%description
+acme2certifier is an ACME protocol proxy for CA servers that do not speak ACME natively.
+
+This RPM installs the application under %{app_root} (PYTHONPATH=%{app_root}).
+Install a Python flavor metapackage for module dependencies:
+
+  - acme2certifier-python39  — EL8 default (parallel Python 3.9)
+  - acme2certifier-python3   — EL9 default (system 3.9) / EL8 legacy (system 3.6)
+
+See docs/architecture/rpm-el-packaging.md and docs/install_rpm.md.
+
+%package python3
+Summary:        acme2certifier runtime for system Python 3 (python3-*)
+Requires:       %{name} = %{version}-%{release}
+Requires:       python3
 Requires:       python3-dateutil
 Requires:       python3-pytz
 Requires:       python3-setuptools
@@ -38,37 +69,47 @@ Requires:       python3-xmltodict
 Requires:       python3-pyasn1
 Requires:       python3-pyasn1-modules
 Requires:       python3-pyyaml
-Requires(post): policycoreutils
-Requires:       policycoreutils-python-utils
-
-# Web stack is operator-chosen (nginx+uWSGI or httpd+mod_wsgi)
-Recommends:      nginx
-Recommends:      uwsgi-plugin-python3
 Recommends:      python3-uwsgidecorators
 Recommends:      python3-dataclasses
-Recommends:      krb5-workstation
-Recommends:      krb5-libs
+Conflicts:      acme2certifier-python39
+Conflicts:      acme2certifier-python3.11
 
-BuildArch:		noarch
+%description python3
+Python flavor for acme2certifier using system python3-* modules.
 
-Source0:        %{name}-%{version}.tar.gz
+  - EL9: default (system Python 3.9)
+  - EL8: legacy/fallback (system Python 3.6)
 
-%description
-acme2certifier is an ACME protocol proxy for CA servers that do not speak ACME natively.
+Writes %{python_confdir}/python.conf and conflicts with other flavors.
 
-This RPM installs:
-  - the acme2certifier Python package under %{app_root}/acme2certifier
-    (PYTHONPATH=%{app_root}; works on EL8 Python 3.6 and EL9 Python 3.9)
-  - deploy files under %{app_root} (WSGI entry, share/, examples/, systemd unit)
-  - console wrappers in %{_bindir} (a2c-*)
+%package -n acme2certifier-python39
+Summary:        acme2certifier runtime for Python 3.9 (python39-*)
+Requires:       %{name} = %{version}-%{release}
+Requires:       python39
+Requires:       python39-dateutil
+Requires:       python39-pytz
+Requires:       python39-setuptools
+Requires:       python39-jwcrypto
+Requires:       python39-cryptography
+Requires:       python39-pyOpenSSL
+Requires:       python39-dns
+Requires:       python39-requests
+Requires:       python39-requests-pkcs12
+Requires:       python39-pysocks
+Requires:       python39-josepy
+Requires:       python39-acme
+Requires:       python39-xmltodict
+Requires:       python39-pyasn1
+Requires:       python39-pyasn1-modules
+Requires:       python39-pyyaml
+Conflicts:      acme2certifier-python3
+Conflicts:      acme2certifier-python3.11
 
-Web servers are not hard dependencies. For nginx+uWSGI:
-  - cp %{app_root}/share/nginx/nginx_acme_srv[_ssl].conf /etc/nginx/conf.d/
-  - systemctl enable --now acme2certifier nginx
+%description -n acme2certifier-python39
+Python flavor for acme2certifier using python39-* modules (EL8 default app runtime).
 
-Apache example vhosts are under %{app_root}/share/apache2/.
-
-See https://github.com/grindsa/acme2certifier and docs/install_rpm.md.
+Writes %{python_confdir}/python.conf and conflicts with other flavors.
+Missing modules may come from AppStream/EPEL or project-provided RPMs.
 
 %prep
 %autosetup -p1 -n %{name}-%{?ghsha}%{?!ghsha:%{version}} -N
@@ -83,7 +124,8 @@ APP=%{buildroot}%{app_root}
     "$APP/examples" \
     %{buildroot}%{_unitdir} \
     %{buildroot}%{_bindir} \
-    %{buildroot}%{_docdir}/%{projname}
+    %{buildroot}%{_docdir}/%{projname} \
+    %{buildroot}%{python_confdir}
 
 # Importable package (parent of this dir is PYTHONPATH)
 %{__cp} -a acme2certifier "$APP/"
@@ -137,7 +179,22 @@ UNIT
 
 %{__chmod} -R go-w "$APP"
 
-# Console wrappers (set PYTHONPATH; do not rely on versioned sitelib)
+# Flavor python.conf files (only one flavor installed at a time)
+cat > %{buildroot}%{python_confdir}/python.conf.python3 <<'EOF'
+# Managed by acme2certifier-python3 (%config(noreplace)).
+# Absolute path preferred.
+python_interpreter=/usr/bin/python3
+python_min=3.6
+EOF
+
+cat > %{buildroot}%{python_confdir}/python.conf.python39 <<'EOF'
+# Managed by acme2certifier-python39 (%config(noreplace)).
+# Absolute path preferred.
+python_interpreter=/usr/bin/python3.9
+python_min=3.9
+EOF
+
+# Console wrappers: honor /etc/acme2certifier/python.conf when present
 install_wrapper() {
     name="$1"
     module="$2"
@@ -145,7 +202,17 @@ install_wrapper() {
 #!/bin/bash
 export PYTHONPATH="/opt/acme2certifier\${PYTHONPATH:+:\${PYTHONPATH}}"
 export ACME_SRV_CONFIGFILE="\${ACME_SRV_CONFIGFILE:-/opt/acme2certifier/acme_srv.cfg}"
-exec /usr/bin/python3 -m ${module} "\$@"
+PY=/usr/bin/python3
+PYCONF=/etc/acme2certifier/python.conf
+if [[ -r "\${PYCONF}" ]]; then
+  _py="\$(awk -F= '/^[[:space:]]*python_interpreter[[:space:]]*=/ {
+    gsub(/[[:space:]]/, "", \$2); print \$2; exit
+  }' "\${PYCONF}" 2>/dev/null || true)"
+  if [[ -n "\${_py}" && -x "\${_py}" ]]; then
+    PY="\${_py}"
+  fi
+fi
+exec "\${PY}" -m ${module} "\$@"
 EOF
     %{__chmod} 0755 "%{buildroot}%{_bindir}/${name}"
 }
@@ -191,6 +258,15 @@ install_wrapper a2c-wsgi2django acme2certifier.tools.a2c_wsgi2django
 %attr(0755,root,root) %{_bindir}/a2c-report-generator
 %attr(0755,root,root) %{_bindir}/a2c-mswcce-connection-test
 %attr(0755,root,root) %{_bindir}/a2c-wsgi2django
+%dir %{python_confdir}
+
+%files python3
+%dir %{python_confdir}
+%attr(0644,root,root) %{python_confdir}/python.conf.python3
+
+%files -n acme2certifier-python39
+%dir %{python_confdir}
+%attr(0644,root,root) %{python_confdir}/python.conf.python39
 
 %changelog
 
@@ -223,4 +299,32 @@ fi
 
 if id nginx >/dev/null 2>&1; then
     chown -R nginx:nginx /opt/acme2certifier 2>/dev/null || true
+fi
+
+%post python3
+CONFDIR=%{python_confdir}
+SRC="${CONFDIR}/python.conf.python3"
+DST="${CONFDIR}/python.conf"
+# $1==1 install (incl. flavor swap); $1>=2 upgrade — keep admin edits
+if [ "$1" -eq 1 ] || [ ! -e "${DST}" ]; then
+    cp -a "${SRC}" "${DST}"
+fi
+
+%post -n acme2certifier-python39
+CONFDIR=%{python_confdir}
+SRC="${CONFDIR}/python.conf.python39"
+DST="${CONFDIR}/python.conf"
+if [ "$1" -eq 1 ] || [ ! -e "${DST}" ]; then
+    cp -a "${SRC}" "${DST}"
+fi
+
+%postun python3
+# Conflicts ensure exclusivity; remove active conf when this flavor is erased.
+if [ "$1" -eq 0 ]; then
+    rm -f %{python_confdir}/python.conf
+fi
+
+%postun -n acme2certifier-python39
+if [ "$1" -eq 0 ]; then
+    rm -f %{python_confdir}/python.conf
 fi
