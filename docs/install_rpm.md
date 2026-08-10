@@ -110,28 +110,42 @@ sudo yum -y localinstall /tmp/acme2certifier/uwsgi-plugin-python39-*.rpm
 
 Set `plugins = python3` or `plugins = python39` in `/opt/acme2certifier/acme2certifier.ini` to match the flavor (flavor `%post` and `a2c-rpm.sh` do this). See [rpm-el-packaging.md](architecture/rpm-el-packaging.md) §7.3.
 
+### Project RPM repository (SBOM)
+
+Companion / backport RPMs live under [grindsa/sbom `rpm-repo/RPMs`](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs), split by **EL major** and **Python stack**:
+
+| OS | a2c flavor | Directory |
+| --- | --- | --- |
+| EL8 | `acme2certifier-python39` (default) | [`RPMs/rhel8/python39/`](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel8/python39) |
+| EL8 | `acme2certifier-python3` (legacy 3.6) | [`RPMs/rhel8/python36/`](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel8/python36) |
+| EL9 | `acme2certifier-python3` (default) | [`RPMs/rhel9/python3/`](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel9/python3) |
+
+Install matching `noarch` / host-arch RPMs only (do not mix `python3-*` and `python39-*` leaves).
+
 ### Red Hat 8.x: Upgrade Required Packages (legacy python3 / 3.6)
 
-If using **`acme2certifier-python3` on EL8**, upgrade:
+If using **`acme2certifier-python3` on EL8**, upgrade (from [`rhel8/python36`](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel8/python36)):
 
 - [python3-cryptography](https://cryptography.io/en/latest/) to version 36.0.1 or higher.
 - [python3-dns](https://www.dnspython.org/) to version 2.1 or higher.
 - [python3-jwcrypto](https://jwcrypto.readthedocs.io/en/latest/) to version 0.8 or higher.
 
-Backports of these packages from RHEL 9 can be found in the [A2C RPM repository](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8):
+Examples:
 
-- [python3-cryptography-36.0.1-4.el8.x86_64.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-cryptography-36.0.1-4.el8.x86_64.rpm)
-- [python3-dns-2.1.0-6.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-dns-2.1.0-6.el8.noarch.rpm)
-- [python3-jwcrypto-0.8-4.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-jwcrypto-0.8-4.el8.noarch.rpm)
+- [python3-cryptography-36.0.1-4.el8.x86_64.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-cryptography-36.0.1-4.el8.x86_64.rpm)
+- [python3-dns-2.2.1-2.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-dns-2.2.1-2.el8.noarch.rpm)
+- [python3-jwcrypto-1.5.1-1.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-jwcrypto-1.5.1-1.el8.noarch.rpm)
 
 ### Additional Modules for Specific CA Handlers
 
-Depending on your CA handler, you may need these additional modules (prefix must match the flavor: `python3-*` or `python39-*`):
+Depending on your CA handler, you may need these additional modules (prefix must match the flavor: `python3-*` or `python39-*`). Examples for **EL8 legacy** (`python36/`):
 
-- [python3-impacket-0.11.0](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) for [MS WCCE handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mswcce.md).
-- [python3-ntlm-auth-1.5.0](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-ntlm-auth-1.5.0-2.el8.noarch.rpm) for [MS WSE handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mscertsrv.md).
-- [python3-requests_ntlm-1.1.0](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-requests_ntlm-1.1.0-14.el8.noarch.rpm) for [MS WSE handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mscertsrv.md).
-- [python3-requests-pkcs12-1.16](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-requests-pkcs12-1.16-1.el8.noarch.rpm) for [EST](https://github.com/grindsa/acme2certifier/blob/master/docs/est.md) or [EJBCA](https://github.com/grindsa/acme2certifier/blob/master/docs/ejbca.md) handler.
+- [python3-impacket-0.11.0](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) for [MS WCCE handler](mswcce.md).
+- [python3-ntlm-auth-1.5.0](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-ntlm-auth-1.5.0-2.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
+- [python3-requests_ntlm-1.1.0](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-requests_ntlm-1.1.0-14.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
+- [python3-requests-pkcs12-1.16](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-requests-pkcs12-1.16-1.el8.noarch.rpm) for [EST](est.md) or [EJBCA](ejbca.md) handler.
+
+For **EL8 default** (`python39/`), use the matching `python39-*` NVRs from that leaf (e.g. `python39-impacket`, `python39-django`).
 
 ## 4. Copy the Nginx Configuration File
 

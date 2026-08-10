@@ -10,6 +10,12 @@ inputs:
   RH_VERSION:
     description: "RHEL version"
     required: true
+  PYTHON_STACK:
+    description: >-
+      SBOM leaf under rpm-repo/RPMs/rhelN/: python39 (EL8 default),
+      python36 (EL8 legacy), python3 (EL9 default). Empty = auto from RH_VERSION.
+    required: false
+    default: ""
   DJANGO_DB:
     description: "Django database"
   RPM_BUILD:
@@ -88,12 +94,58 @@ runs:
 
     - name: "Retrieve rpm from SBOM repo"
       run: |
-        git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/rhel$RH_VERSION/*.rpm  data
+        set -euo pipefail
+        # Map OS + flavor → SBOM leaf (see grindsa/sbom rpm-repo/README.md)
+        STACK="${PYTHON_STACK:-}"
+        if [[ -z "${STACK}" ]]; then
+          case "${RH_VERSION}" in
+            8) STACK=python39 ;;
+            9) STACK=python3 ;;
+            *)
+              echo "ERROR: unsupported RH_VERSION=${RH_VERSION} (expected 8 or 9)" >&2
+              exit 1
+              ;;
+          esac
+        fi
+        case "${STACK}" in
+          python36|python39|python3) ;;
+          *)
+            echo "ERROR: PYTHON_STACK must be python36|python39|python3 (got: ${STACK})" >&2
+            exit 1
+            ;;
+        esac
+        LEAF="rpm-repo/RPMs/rhel${RH_VERSION}/${STACK}"
+        echo "SBOM leaf: ${LEAF}"
+
+        rm -rf /tmp/sbom
+        # Partial clone + sparse checkout: only the needed RPM leaf (not whole repo / SRPMs)
+        git clone --filter=blob:none --sparse --depth 1 \
+          "https://${GH_USER}:${GH_SBOM_REPO_TOKEN}@github.com/${GH_USER}/sbom" /tmp/sbom
+        git -C /tmp/sbom sparse-checkout set "${LEAF}"
+
+        SRC="/tmp/sbom/${LEAF}"
+        if [[ ! -d "${SRC}" ]]; then
+          echo "ERROR: missing SBOM path ${SRC}" >&2
+          ls -la /tmp/sbom/rpm-repo/RPMs/rhel${RH_VERSION}/ 2>/dev/null || true
+          exit 1
+        fi
+
+        # Stage only noarch + runner arch (skip foreign-arch RPMs in the leaf)
+        ARCH="$(uname -m)"
+        shopt -s nullglob
+        copied=0
+        for r in "${SRC}"/*.noarch.rpm "${SRC}"/*."${ARCH}".rpm; do
+          [[ -f "${r}" ]] || continue
+          sudo cp -v "${r}" data/
+          copied=$((copied + 1))
+        done
+        echo "Staged ${copied} companion RPM(s) for arch=${ARCH} from ${LEAF}"
+        ls -la data/*.rpm 2>/dev/null | head -50 || true
       env:
         GH_USER: ${{ inputs.GH_USER }}
         GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
+        PYTHON_STACK: ${{ inputs.PYTHON_STACK }}
       shell: bash
 
     - name: "Pull AlmaLinux image"
