@@ -17,7 +17,7 @@ Be aware of the following limitations when using this handler:
 
 1. Active Directory Certificate Services (AD-CS) must be enabled and properly configured.
 1. The CA handler uses RPC/DCOM to communicate with the CA server, so the CA server must be accessible via **TCP port 445**.
-1. *(Optional)*: If installing from RPM or DEB and planning to use Kerberos authentication, ensure you have an updated [Impacket module (version 0.11 or higher)](https://github.com/fortra/impacket), as older versions have issues handling UTF-8 encoded passwords. You can find updated packages in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
+1. *(Optional)*: If installing from RPM or DEB and planning to use Kerberos authentication, ensure you have an updated [Impacket module (version 0.11 or higher)](https://github.com/fortra/impacket), as older versions have issues handling UTF-8 encoded passwords. You can find updated packages in the [A2C SBOM RPM repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs) (`rhel8/python36`, `rhel8/python39`, or `rhel9/python3`).
 1. You need a set of credentials with sufficient permissions to access the service and enrollment templates.
 
 ## Local Installation
@@ -28,7 +28,7 @@ Be aware of the following limitations when using this handler:
 
 Some malware scanners, such as Microsoft Defender, classify Impacket as a hacking tool (see [Fortra Impacket Issue #1762](https://github.com/fortra/impacket/issues/1762) or [Fortra Impacket Issue #1271](https://github.com/fortra/impacket/issues/1271#issuecomment-1058729047)). These alerts are triggered mainly by example scripts included in the package, not the library itself.
 
-To avoid issues with your security team, consider installing a stripped-down version of Impacket without flagged scripts. Pre-packaged versions are available for [RHEL 8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RHEL 9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) in the [SBOM repository](https://github.com/grindsa/sbom/tree/main/rpm-repo).
+To avoid issues with your security team, consider installing a stripped-down version of Impacket without flagged scripts. Pre-packaged versions are available for [RHEL 8 (python36)](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm), [RHEL 8 (python39)](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel8/python39), and [RHEL 9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) in the [SBOM repository](https://github.com/grindsa/sbom/tree/main/rpm-repo).
 
 If installing from pip or source, follow these steps:
 
