@@ -124,6 +124,7 @@ class TestACMEHandler(unittest.TestCase):
             config_profile_load,
             config_proxy_load,
             allowed_domainlist_check,
+            eab_profile_as_bool,
             eab_profile_string_check,
             eab_profile_list_check,
             eab_profile_check,
@@ -240,6 +241,7 @@ class TestACMEHandler(unittest.TestCase):
         self.config_allowed_domainlist_load = config_allowed_domainlist_load
         self.config_dns_server_list_load = config_dns_server_list_load
         self.allowed_domainlist_check = allowed_domainlist_check
+        self.eab_profile_as_bool = eab_profile_as_bool
         self.eab_profile_string_check = eab_profile_string_check
         self.eab_profile_list_check = eab_profile_list_check
         self.eab_profile_check = eab_profile_check
@@ -4241,6 +4243,21 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             "WARNING:test_a2c:EAB profile string checking: ignoring unrecognized string attribute: key: foobar value: bar",
             lcm.output,
         )
+
+    def test_382a_eab_profile_as_bool(self):
+        """test eab_profile_as_bool() normalization"""
+        self.assertTrue(self.eab_profile_as_bool(True))
+        self.assertFalse(self.eab_profile_as_bool(False))
+        self.assertTrue(self.eab_profile_as_bool("True"))
+        self.assertFalse(self.eab_profile_as_bool("False"))
+        self.assertTrue(self.eab_profile_as_bool("true"))
+        self.assertFalse(self.eab_profile_as_bool("false"))
+        self.assertTrue(self.eab_profile_as_bool("1"))
+        self.assertFalse(self.eab_profile_as_bool("0"))
+        self.assertTrue(self.eab_profile_as_bool(None, default=True))
+        self.assertFalse(self.eab_profile_as_bool(None, default=False))
+        self.assertTrue(self.eab_profile_as_bool("invalid", default=True))
+        self.assertFalse(self.eab_profile_as_bool("invalid", default=False))
 
     def test_383_eab_profile_list_check(self):
         """test _eab_profile_list_check()"""

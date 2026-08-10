@@ -2345,6 +2345,52 @@ class TestOrderClass(unittest.TestCase):
 
         self.assertFalse(self.order.config.wildcard_certificate_disable)
 
+    def test_122a_apply_eab_profile_wildcard_disable_string_false(self):
+        self.order.config.eab_profiling = True
+        self.order.config.wildcard_certificate_disable = True
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_false"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {
+            "kid_false": {"order": {"wildcard_certificate_disable": "False"}}
+        }
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertFalse(self.order.config.wildcard_certificate_disable)
+        self.assertIsInstance(self.order.config.wildcard_certificate_disable, bool)
+
+    def test_122b_apply_eab_profile_ca_error_details_forward_string_false(self):
+        self.order.config.eab_profiling = True
+        self.order.config.ca_error_details_forward = True
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_false"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {
+            "kid_false": {"cahandler": {"ca_error_details_forward": "False"}}
+        }
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertFalse(self.order.config.ca_error_details_forward)
+        self.assertIsInstance(self.order.config.ca_error_details_forward, bool)
+
+    def test_122c_apply_eab_profile_ca_error_details_forward_string_true(self):
+        self.order.config.eab_profiling = True
+        self.order.config.ca_error_details_forward = False
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_true"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {"kid_true": {"cahandler": {"ca_error_details_forward": "True"}}}
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertTrue(self.order.config.ca_error_details_forward)
+        self.assertIsInstance(self.order.config.ca_error_details_forward, bool)
+
     def test_123_load_eab_profile_param_false_cahandler_section(self):
         profile_dic = {
             "kid_false": {"cahandler": {"wildcard_certificate_disable": False}}

@@ -2,12 +2,26 @@
 """EAB (External Account Binding) utilities for acme2certifier"""
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 from .csr import csr_subject_get
 from .encoding import b64_url_recode
 from .config import client_parameter_validate, profile_lookup, header_info_lookup
 from .validation import cn_validate
 from .domain_utils import allowed_domainlist_check
+
+
+def eab_profile_as_bool(value: Any, default: bool = False) -> bool:
+    """Normalize EAB profile boolean values (bool or 'True'/'False' strings)."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    raw = str(value).strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 
 def _handle_eab_profiling(

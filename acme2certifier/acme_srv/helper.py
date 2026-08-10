@@ -158,6 +158,7 @@ from .helpers.plugin_loader import (
 
 # EAB functions
 from .helpers.eab import (
+    eab_profile_as_bool,
     eab_profile_header_info_check,
     eab_profile_subject_string_check,
     eab_profile_subject_check,
