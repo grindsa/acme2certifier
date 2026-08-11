@@ -6,6 +6,47 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.45
+
+**New Features**:
+
+- [Package-first layout](docs/upgrading.md) (`acme2certifier.*`) with pip, DEB, RPM, and Docker installs; Django app and project shipped in the package
+- [Custom CA/EAB/Hooks loading](docs/ca_handler.md#custom-handlers-path-or-package) via `*_module` (dotted import or filesystem path); deprecated `*_file` keys still supported until 0.48
+- [DB handler selection](docs/acme_srv.md) via `[DBhandler] handler` or `ACME_SRV_DB_HANDLER` environment variable
+- [`a2c-wsgi2django`](docs/migrate_wsgi_to_django.md) CLI to migrate ACME runtime data from WSGI SQLite to Django ORM via a portable JSON dump (`export`, `import`, `check`, `wipe`)
+- Digicert CA handler options `request_retries` and `request_retry_backoff` for HTTP transport retries
+
+**RPM packaging (quick reference)** — install: [install_rpm.md](docs/install_rpm.md); upgrade: [upgrading.md](docs/upgrading.md#rpm-pre-045--045)
+
+One **noarch** payload + one **Python flavor** metapackage (mutually exclusive). Default app Python is **3.9** on EL8 and EL9.
+
+| Package | Role |
+| --- | --- |
+| `acme2certifier` | Application under `/opt/acme2certifier` (no `python*-*` Requires) |
+| `acme2certifier-python39` | **EL8 default** — parallel Python 3.9 (`python39-*`, `uwsgi-plugin-python39`) |
+| `acme2certifier-python3` | **EL9 default** (system 3.9) / **EL8 legacy** (system 3.6) |
+
+Companions (cryptography, jwcrypto, …) come from AppStream/EPEL or [grindsa/sbom](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs) matching the flavor prefix.
+
+**Bug Fixes and Improvements**:
+
+- Route CA handler HTTP calls through the shared `request_operation` helper (including retry support)
+- Improve ASA CA handler parsing of error responses from the CA
+- Improve OpenSSL CA handler handling of absolute certificate/key paths
+- Security defaults hardening:
+  - `/trigger` endpoint is disabled by default and requires both `[Trigger] enabled=True` and CA handler opt-in (`supports_trigger=True`)
+  - Legacy unauthenticated GET on challenge/authorization resources is disabled by default (`legacy_acme_get=False`)
+  - URL generation supports canonical host override via `[DEFAULT] server_name`; startup warnings are emitted when falling back to request headers and when `server_name` is not part of `Directory.caaidentities`
+  - HTTP-01 can reject non-global/private targets via `http01_block_private_ips` (opt-in)
+  - `nonce_check_disable` and `signature_check_disable` are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set
+  - Django packaged settings refuse to start with the insecure default `SECRET_KEY`; warn when `ALLOWED_HOSTS` contains `*`
+  - Certificate resource names use 15-character identifiers (full `Certificate.name` column width)
+- Resolve relative `acme_srv.db` paths against the deploy base directory and clarify default DB location
+- Stop shipping `acme_srv.cfg` inside DEB/RPM packages; preserve handler configuration across install/restart
+- Adapt Docker entrypoints and install scripts to the package layout
+- Log which config file and DB/CA handler are active at startup
+- Operator [logging](docs/logging.md): optional syslog (`syslog_address`) and `log_file` destinations, ACME problem WARNING/ERROR lines with `account=`, HTTP edge dump redaction (nonce/tokens/cert PEM; `log_cert_content` restores legacy cert logging)
+
 ## Changes in 0.44
 
 **Features and Improvements**:

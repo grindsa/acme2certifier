@@ -228,3 +228,7 @@ Expected output:
 ## 11. Enroll a Certificate
 
 Use your preferred ACME client to enroll a certificate. If an issue occurs, enable debugging in `/opt/acme2certifier/acme_srv.cfg` and check `/var/log/messages` for errors.
+
+## Upgrading from pre-0.45
+
+Step-by-step RPM upgrade (EL8 python39 swap, SBOM companions, cfg `*_module`, SQLite path): [Upgrading — RPM: pre-0.45 → 0.45+](upgrading.md#rpm-pre-045--045).
