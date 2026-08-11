@@ -313,6 +313,44 @@ def load_config(
     return config
 
 
+def load_config_section(
+    logger: logging.Logger = None, section: str = "CAhandler"
+) -> configparser.ConfigParser:
+    """load the config file and expose the named handler section as "CAhandler".
+
+    In multi-handler mode each handler instance reads its own
+    ``[CAhandler:<name>]`` section, but existing handler code addresses the
+    section by the literal ``"CAhandler"``. To avoid editing every config read
+    in every handler this helper returns a ConfigParser where the keys of the
+    requested ``section`` are also reachable under the ``"CAhandler"`` alias.
+
+    Falls back to the classical ``"CAhandler"`` section when ``section`` is
+    ``"CAhandler"`` (single-handler mode) or when the named section is absent
+    in the config file, preserving full backwards compatibility.
+    """
+    logger.debug("load_config_section(%s)", section)
+    config = load_config(logger)
+
+    if section == "CAhandler":
+        return config
+
+    if not config.has_section(section):
+        logger.debug(
+            "load_config_section: section %s missing, falling back to CAhandler",
+            section,
+        )
+        return config
+
+    # alias: copy the named section's keys under "CAhandler" so that handlers'
+    # existing ``config_dic["CAhandler"]`` reads keep working unchanged.
+    if not config.has_section("CAhandler"):
+        config.add_section("CAhandler")
+    for key, value in config.items(section, raw=True):
+        if not config.has_option("CAhandler", key):
+            config.set("CAhandler", key, value)
+    return config
+
+
 def header_info_jsonify(logger: logging.Logger, header_info: str) -> Dict[str, str]:
     """jsonify header info"""
     logger.debug("Helper.header_info_json_parse()")

@@ -16,6 +16,7 @@ from acme_srv.helper import (
     cert_san_get,
     cert_serial_get,
     certid_asn1_get,
+    config_eab_profile_load,
     csr_san_get,
     csr_extensions_get,
     date_to_uts_utc,
@@ -29,6 +30,7 @@ from acme_srv.helper import (
     config_async_mode_load,
     config_dryrun_load,
 )
+from acme_srv.helpers.cahandler_registry import CAHandlerRegistry
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -283,6 +285,13 @@ class Certificate(object):
         self.err_msg_dic = error_dic_get(self.logger)
         self.hooks = None
         self.message = Message(self.debug, self.server_name, self.logger)
+
+        # Multi-handler support: registry resolves the handler class per
+        # enroll/revoke/poll; eab_handler_class is used to look up a per-kid
+        # cahandler_name selection directive when EAB profiling is active.
+        self.cahandler_registry = None
+        self.eab_handler_class = None
+        self.eab_profiling = False
 
         # Initialize the new architecture components with configuration
         self.certificate_manager = CertificateManager(
@@ -598,14 +607,27 @@ class Certificate(object):
         self.logger.debug("Certificate._load_configuration()")
         config_dic = load_config()
 
-        # load ca_handler according to configuration
-        ca_handler_module = ca_handler_load(self.logger, config_dic)
-
-        if ca_handler_module:
-            # store handler in variable
-            self.cahandler = ca_handler_module.CAhandler
+        # build the handler registry (single- or multi-handler mode)
+        self.cahandler_registry = CAHandlerRegistry(self.logger).load()
+        # store the default handler class for legacy callers and as a fallback
+        default_cls = self.cahandler_registry.default_handler()
+        if default_cls is not None:
+            self.cahandler = default_cls
         else:
-            self.logger.critical("No ca_handler loaded")
+            # fall back to the classical single-load path so existing behaviour
+            # (and error logs) are preserved when the registry could not load
+            ca_handler_module = ca_handler_load(self.logger, config_dic)
+            if ca_handler_module:
+                self.cahandler = ca_handler_module.CAhandler
+            else:
+                self.logger.critical("No ca_handler loaded")
+
+        # load EAB profiling so we can resolve a per-kid cahandler_name before
+        # a handler instance exists; the same classes are later attached to
+        # each handler instance by its own _config_load().
+        self.eab_profiling, self.eab_handler_class = config_eab_profile_load(
+            self.logger, config_dic
+        )
 
         # load hooks
         self._load_hooks_configuration(config_dic)
@@ -621,8 +643,47 @@ class Certificate(object):
             self.logger, config_dic
         )
 
-        self.logger.debug("ca_handler: %s", ca_handler_module)
+        self.logger.debug("ca_handler: %s", self.cahandler)
         self.logger.debug("Certificate._load_configuration() ended.")
+
+    def _resolve_cahandler(self, csr: str = None, revocation: bool = False):
+        """Resolve the CAhandler class for a single enroll/revoke/poll call.
+
+        In multi-handler mode the EAB kid's ``cahandler_name`` (looked up via
+        the EAB handler using the CSR or, for revocation, the cert) selects
+        the registered handler. Falls back to the registry default. Returns
+        the class (caller instantiates it as a context manager) or ``None``.
+        """
+        self.logger.debug("Certificate._resolve_cahandler()")
+        if self.cahandler_registry is None or not self.cahandler_registry.multi_handler:
+            return self.cahandler
+
+        cahandler_name = None
+        if self.eab_profiling and self.eab_handler_class is not None and csr:
+            try:
+                with self.eab_handler_class(self.logger) as eab_handler:
+                    if hasattr(eab_handler, "cahandler_name_get"):
+                        cahandler_name = eab_handler.cahandler_name_get(
+                            csr, revocation=revocation
+                        )
+            except Exception as err:
+                self.logger.warning(
+                    "Failed to look up cahandler_name via EAB handler: %s", err
+                )
+
+        handler_class = self.cahandler_registry.resolve(
+            cahandler_name=cahandler_name,
+            csr=csr,
+        )
+        if handler_class is None:
+            self.logger.error(
+                "Certificate._resolve_cahandler: no handler resolved "
+                "(cahandler_name=%s); falling back to default",
+                cahandler_name,
+            )
+            return self.cahandler
+        self.logger.debug("Certificate._resolve_cahandler() ended")
+        return handler_class
 
     def _load_and_validate_identifiers(
         self, identifier_dic: Dict[str, str], csr: str
@@ -746,7 +807,8 @@ class Certificate(object):
             self.logger.debug(
                 "Certificate._process_certificate_enrollment(): trigger enrollment"
             )
-            with self.cahandler(self.debug, self.logger) as ca_handler:
+            handler_class = self._resolve_cahandler(csr)
+            with handler_class(self.debug, self.logger) as ca_handler:
                 (
                     error,
                     certificate,
@@ -1682,7 +1744,10 @@ class Certificate(object):
 
             # Perform revocation
             rev_date = uts_to_date_utc(uts_now())
-            with self.cahandler(self.debug, self.logger) as ca_handler:
+            handler_class = self._resolve_cahandler(
+                csr=payload.get("certificate"), revocation=True
+            )
+            with handler_class(self.debug, self.logger) as ca_handler:
                 code, message, detail = ca_handler.revoke(
                     payload["certificate"], error, rev_date
                 )
@@ -1847,7 +1912,8 @@ class Certificate(object):
 
             # Poll certificate from CA handler
             try:
-                with self.cahandler(self.debug, self.logger) as ca_handler:
+                handler_class = self._resolve_cahandler(csr)
+                with handler_class(self.debug, self.logger) as ca_handler:
                     (
                         error,
                         certificate,

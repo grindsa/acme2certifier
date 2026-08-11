@@ -25,6 +25,7 @@ from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 # pylint: disable=e0401
 from acme_srv.helper import (
     load_config,
+    load_config_section,
     build_pem_file,
     uts_now,
     uts_to_date_utc,
@@ -41,6 +42,12 @@ BLOCK_ALL_DOMAIN = "block.all"
 
 class CAhandler(object):
     """CA  handler"""
+
+    # config section to read; set by CAHandlerRegistry in multi-handler mode
+    # (on the class), defaults to the classical "CAhandler" section otherwise.
+    # Kept as a class attribute so the registry's per-handler override is not
+    # clobbered by __init__ setting an instance attribute.
+    config_section = "CAhandler"
 
     def __init__(self, debug: bool = False, logger: object = None):
         self.debug = debug
@@ -486,7 +493,7 @@ class CAhandler(object):
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_load()")
-        config_dic = load_config(self.logger, "CAhandler")
+        config_dic = load_config_section(self.logger, self.config_section)
 
         # load credentials
         self._config_credentials_load(config_dic)

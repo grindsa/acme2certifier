@@ -36,6 +36,7 @@ from acme_srv.helper import (
     eab_profile_revocation_check,
     enrollment_config_log,
     load_config,
+    load_config_section,
     parse_url,
     url_get,
     sha256_hash,
@@ -48,6 +49,12 @@ from acme_srv.helper import (
 
 class CAhandler(object):
     """EST CA  handler"""
+
+    # config section to read; set by CAHandlerRegistry in multi-handler mode
+    # (on the class), defaults to the classical "CAhandler" section otherwise.
+    # Kept as a class attribute so the registry's per-handler override is not
+    # clobbered by __init__ setting an instance attribute.
+    config_section = "CAhandler"
 
     def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
@@ -222,7 +229,7 @@ class CAhandler(object):
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_load()")
-        config_dic = load_config()
+        config_dic = load_config_section(self.logger, self.config_section)
         if "CAhandler" in config_dic:
 
             # load account configuration and paramters
