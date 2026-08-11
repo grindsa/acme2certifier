@@ -130,22 +130,28 @@ If using **`acme2certifier-python3` on EL8**, upgrade (from [`rhel8/python36`](h
 - [python3-dns](https://www.dnspython.org/) to version 2.1 or higher.
 - [python3-jwcrypto](https://jwcrypto.readthedocs.io/en/latest/) to version 0.8 or higher.
 
-Examples:
+Examples (grindsa rebuilds):
 
-- [python3-cryptography-36.0.1-4.el8.x86_64.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-cryptography-36.0.1-4.el8.x86_64.rpm)
-- [python3-dns-2.2.1-2.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-dns-2.2.1-2.el8.noarch.rpm)
-- [python3-jwcrypto-1.5.1-1.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-jwcrypto-1.5.1-1.el8.noarch.rpm)
+- [python3-cryptography-36.0.1-4grindsa.el8.x86_64.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-cryptography-36.0.1-4grindsa.el8.x86_64.rpm)
+- [python3-dns-2.2.1-2grindsa.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-dns-2.2.1-2grindsa.el8.noarch.rpm)
+- [python3-jwcrypto-1.5.1-1grindsa.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-jwcrypto-1.5.1-1grindsa.el8.noarch.rpm)
 
 ### Additional Modules for Specific CA Handlers
 
 Depending on your CA handler, you may need these additional modules (prefix must match the flavor: `python3-*` or `python39-*`). Examples for **EL8 legacy** (`python36/`):
 
-- [python3-impacket-0.11.0](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) for [MS WCCE handler](mswcce.md).
-- [python3-ntlm-auth-1.5.0](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-ntlm-auth-1.5.0-2.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
-- [python3-requests_ntlm-1.1.0](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-requests_ntlm-1.1.0-14.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
-- [python3-requests-pkcs12-1.16](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-requests-pkcs12-1.16-1.el8.noarch.rpm) for [EST](est.md) or [EJBCA](ejbca.md) handler.
+- [python3-impacket-0.11.0-2grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) for [MS WCCE handler](mswcce.md).
+- [python3-ntlm-auth-1.5.0-2grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-ntlm-auth-1.5.0-2grindsa.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
+- [python3-requests_ntlm-1.1.0-14grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-requests_ntlm-1.1.0-14grindsa.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
+- [python3-requests-pkcs12-1.16-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-requests-pkcs12-1.16-1grindsa.el8.noarch.rpm) for [EST](est.md) or [EJBCA](ejbca.md) handler.
 
-For **EL8 default** (`python39/`), use the matching `python39-*` NVRs from that leaf (e.g. `python39-impacket`, `python39-django`).
+For **EL8 default** (`python39/`), matching grindsa NVRs:
+
+- [python39-impacket-0.11.0-2grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-impacket-0.11.0-2grindsa.el8.noarch.rpm) for [MS WCCE handler](mswcce.md).
+- [python39-ntlm-auth-1.5.0-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-ntlm-auth-1.5.0-1grindsa.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
+- [python39-requests_ntlm-1.1.0-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-requests_ntlm-1.1.0-1grindsa.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
+- [python39-requests-pkcs12-1.7-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-requests-pkcs12-1.7-1grindsa.el8.noarch.rpm) for [EST](est.md) or [EJBCA](ejbca.md) handler.
+- [python39-requests-gssapi-1.4.0-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-requests-gssapi-1.4.0-1grindsa.el8.noarch.rpm) / [python39-gssapi-1.6.9-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-gssapi-1.6.9-1grindsa.el8.x86_64.rpm) for Kerberos / GSSAPI handlers.
 
 ## 4. Copy the Nginx Configuration File
 
