@@ -497,6 +497,10 @@ jobs:
           GH_USER: ${{ env.GH_USER }}
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
           RH_VERSION: ${{ matrix.rhversion }}
+          # EL8 upgrades: pre045 (≤0.44) needs python36 companions; modern
+          # build/flavor needs python39. Stage both so from→to works.
+          # EL9: system python3 leaf only.
+          PYTHON_STACK: ${{ matrix.rhversion == 8 && 'python36 python39' || 'python3' }}
           RPM_BUILD: false
           DJANGO_DB: ${{ matrix.mode == 'django' && 'mariadb' || '' }}
 
