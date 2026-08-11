@@ -259,60 +259,157 @@ Paths: `/var/www/acme2certifier`, config `/var/www/acme2certifier/acme_srv.cfg`.
 
 ______________________________________________________________________
 
-## RPM (WSGI)
+## RPM: pre-0.45 → 0.45+
 
-Paths: `/opt/acme2certifier`, config `/opt/acme2certifier/acme_srv.cfg` (`%config(noreplace)`).
+Paths: `/opt/acme2certifier`, config `/opt/acme2certifier/acme_srv.cfg` (`%config(noreplace)`). Greenfield install: [install_rpm.md](install_rpm.md).
 
-1. Backup cfg, DB, custom handlers.
+Pre-0.45 RPMs were a **single** package that pulled system `python3-*` (EL8 = Python **3.6**). From 0.45 the layout is **payload + flavor**:
 
-1. Install:
+| Piece | Role |
+| --- | --- |
+| `acme2certifier-<ver>-1.0.noarch.rpm` | application under `/opt/acme2certifier` |
+| `acme2certifier-python39-<ver>-1.0.noarch.rpm` | **EL8 default** (Python 3.9) |
+| `acme2certifier-python3-<ver>-1.0.noarch.rpm` | **EL9 default** / EL8 optional legacy 3.6 |
+| SBOM companions | matching `python39-*` or `python3-*` from [grindsa/sbom](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs) |
+| `uwsgi-plugin-python39` | EL8 default uWSGI plugin (project RPM) |
 
-   ```bash
-   sudo yum -y localinstall ./acme2certifier-<version>-1.0.noarch.rpm \
-     ./acme2certifier-python3-<version>-1.0.noarch.rpm
-   # EL8 default 3.9: use acme2certifier-python39-*.rpm instead of python3
-   # or: sudo ./examples/install_scripts/a2c-rpm.sh --rpm ./acme2certifier-*.rpm --mode wsgi
-   ```
+Apply [Config](#config-all-install-types) (`*_module`, imports) together with the package swap below. Django settings/`INSTALLED_APPS`: see [Django settings](#django-settings-django-installs-only) above.
 
-1. Edit `/opt/acme2certifier/acme_srv.cfg` → `*_module`; `[DBhandler] handler: wsgi`.
+### 1. Backup
 
-1. Refresh nginx/uWSGI from share if needed:
+```bash
+sudo systemctl stop acme2certifier nginx || true
+sudo cp -a /opt/acme2certifier/acme_srv.cfg /root/acme_srv.cfg.pre045.bak
+# SQLite (legacy path was often acme_srv/acme_srv.db)
+sudo cp -a /opt/acme2certifier/acme_srv.db /root/acme_srv.db.pre045.bak 2>/dev/null || true
+sudo cp -a /opt/acme2certifier/acme_srv/acme_srv.db /root/acme_srv.db.pre045.bak 2>/dev/null || true
+sudo cp -a /opt/acme2certifier/volume /root/acme2certifier-volume.pre045.bak 2>/dev/null || true
+```
 
-   ```bash
-   sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/
-   sudo systemctl restart nginx acme2certifier
-   ```
+### 2. Migrate `acme_srv.cfg`
 
-1. Verify: `curl -sS http://127.0.0.1/directory`
+Edit `/opt/acme2certifier/acme_srv.cfg` (or the volume copy you symlink to it) per [Config](#config-all-install-types). Example:
 
-## RPM (Django)
+```ini
+[CAhandler]
+handler_module: acme2certifier.cahandlers.<your_handler>
+# remove: handler_file: ...
 
-1. Backup as above (DB includes `django_migrations` history; migration files ship in the RPM).
+[EABhandler]
+eab_handler_module: acme2certifier.eabhandlers.<your_handler>
+# remove: eab_handler_file: ...
 
-1. Install with Django mode:
+[Hooks]
+hooks_module: acme2certifier.hookhandlers.<your_hooks>
+# remove: hooks_file: ...
 
-   ```bash
-   sudo ./examples/install_scripts/a2c-rpm.sh \
-     --rpm ./acme2certifier-<version>-1.0.noarch.rpm \
-     --mode django
-   ```
+[DBhandler]
+handler: wsgi   # or django
+```
 
-1. Ensure uWSGI uses `module = acme2certifier.django_project.wsgi:application`.
+Custom handlers: set `handler_module:` to a **filesystem path** and fix imports to `acme2certifier.acme_srv…`. See [module mapping](#module-mapping).
 
-1. Update settings if you ship a custom `settings.py` (see Django section).
+### 3. EL8: clear conflicting `python3-*` helpers, then install `python39-*`
 
-1. Set `[DBhandler] handler: django` and `*_module` in `/opt/acme2certifier/acme_srv.cfg`.
+System / SBOM `python3-*` and grindsa `python39-*` both ship unversioned tools under `/usr/bin` (e.g. `django-admin`, `jws`). Install **one stack at a time**.
 
-1. Migrate:
+```bash
+sudo systemctl stop acme2certifier nginx || true
 
-   ```bash
-   export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
-   export PYTHONPATH=/opt/acme2certifier
-   sudo -E a2c-manage migrate
-   sudo -E a2c-manage loaddata status
-   ```
+# Remove packages that own colliding /usr/bin paths before python39 companions
+# (--nodeps keeps the acme2certifier RPM until the flavor install below).
+for bin in /usr/bin/django-admin /usr/bin/jws; do
+  [[ -e "$bin" ]] || continue
+  pkg="$(rpm -qf --qf '%{NAME}' "$bin" 2>/dev/null || true)"
+  [[ -n "$pkg" ]] || continue
+  echo "Removing $pkg (owns $bin)"
+  sudo rpm -e --nodeps "$pkg" || true
+done
 
-1. `sudo systemctl restart nginx acme2certifier`; verify `/directory`.
+sudo yum -y install python39
+sudo yum -y localinstall /path/to/sbom/rhel8/python39/*.noarch.rpm \
+  /path/to/sbom/rhel8/python39/*.$(uname -m).rpm
+```
+
+Companion leaf: [`RPMs/rhel8/python39/`](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel8/python39).
+
+**EL9:** skip the python39 swap; keep system `python3` and use [`RPMs/rhel9/python3/`](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel9/python3) only for grindsa backports you need.
+
+### 4. Install 0.45+ payload + flavor
+
+Download from [Releases](https://github.com/grindsa/acme2certifier/releases) into one directory (main + flavor + `uwsgi-plugin-python39` on EL8).
+
+**Preferred (EL8 → Python 3.9):**
+
+```bash
+chmod a+rx ./a2c-rpm.sh
+sudo ./a2c-rpm.sh --rpm ./acme2certifier-<version>-1.0.noarch.rpm \
+  --python 3.9 \
+  -m wsgi    # or: -m django
+```
+
+**Manual EL8:**
+
+```bash
+sudo yum -y localinstall \
+  ./acme2certifier-<version>-1.0.noarch.rpm \
+  ./acme2certifier-python39-<version>-1.0.noarch.rpm \
+  ./uwsgi-plugin-python39-*.rpm
+grep -E '^plugins' /opt/acme2certifier/acme2certifier.ini
+# expect: plugins = python39
+```
+
+**EL9:**
+
+```bash
+sudo ./a2c-rpm.sh --rpm ./acme2certifier-<version>-1.0.noarch.rpm --python 3 -m wsgi
+# or localinstall main + acme2certifier-python3-*.rpm + EPEL uwsgi-plugin-python3
+```
+
+`%config(noreplace)` keeps your edited `acme_srv.cfg` when present.
+
+### 5. WSGI SQLite path
+
+≤0.44 often stored SQLite at `/opt/acme2certifier/acme_srv/acme_srv.db`. 0.45+ defaults to `/opt/acme2certifier/acme_srv.db`. If you still have the old file only:
+
+```bash
+if [[ -f /opt/acme2certifier/acme_srv/acme_srv.db && ! -f /opt/acme2certifier/acme_srv.db ]]; then
+  sudo mv /opt/acme2certifier/acme_srv/acme_srv.db /opt/acme2certifier/acme_srv.db
+  sudo ln -sfn /opt/acme2certifier/acme_srv.db /opt/acme2certifier/acme_srv/acme_srv.db
+fi
+sudo chown nginx:nginx /opt/acme2certifier/acme_srv.db
+# ensure acme_srv.cfg [DBhandler] dbfile: points at the live path
+```
+
+### 6. Django mode extras
+
+If upgrading a Django deployment:
+
+1. Point settings at `acme2certifier.django_app` / `acme2certifier.django_project` (see [Django settings](#django-settings-django-installs-only)).
+2. Ensure uWSGI uses `module = acme2certifier.django_project.wsgi:application`.
+3. Set `[DBhandler] handler: django`.
+4. Migrate:
+
+```bash
+export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
+export PYTHONPATH=/opt/acme2certifier
+sudo -E a2c-manage migrate
+sudo -E a2c-manage loaddata status
+```
+
+### 7. Restart and verify
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart acme2certifier nginx
+curl -sS http://127.0.0.1/directory
+cat /etc/acme2certifier/python.conf   # EL8 default: python_interpreter=/usr/bin/python3.9
+PYTHONPATH=/opt/acme2certifier /usr/bin/python3.9 -c "import acme2certifier.acme_srv; print('ok')"
+```
+
+### 8. Staying on EL8 Python 3.6 (not recommended)
+
+Only if you cannot enable parallel 3.9: install `acme2certifier-python3` (legacy flavor) and companions from [`rhel8/python36/`](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel8/python36), with `uwsgi-plugin-python3` and `plugins = python3`. You still must migrate cfg to `*_module` and package imports as in this document.
 
 ______________________________________________________________________
 

@@ -497,10 +497,13 @@ jobs:
           GH_USER: ${{ env.GH_USER }}
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
           RH_VERSION: ${{ matrix.rhversion }}
-          # EL8 upgrades: pre045 (≤0.44) needs python36 companions; modern
-          # build/flavor needs python39. Stage both so from→to works.
-          # EL9: system python3 leaf only.
-          PYTHON_STACK: ${{ matrix.rhversion == 8 && 'python36 python39' || 'python3' }}
+          # EL8: pre045 needs python36 (python3-*); modern from-tags need python39.
+          # Do not stage both at once — python3-django and python39-django both
+          # own /usr/bin/django-admin.
+          # EL9: system python3 leaf.
+          PYTHON_STACK: >-
+            ${{ matrix.rhversion == 9 && 'python3'
+                || (matrix.hop.from_modern == 'true' && 'python39' || 'python36') }}
           RPM_BUILD: false
           DJANGO_DB: ${{ matrix.mode == 'django' && 'mariadb' || '' }}
 
@@ -557,6 +560,75 @@ jobs:
           DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+
+      - name: "EL8: swap SBOM to python39 before modern upgrade"
+        if: matrix.rhversion == 8 && matrix.hop.from_modern == 'false'
+        run: |
+          set -euo pipefail
+          # Legacy from-tag used python36 / system python3-*. Modern a2c needs
+          # python39-*. Unversioned /usr/bin helpers collide (django-admin, jws, …).
+          rm -rf /tmp/sbom-py39
+          git clone --filter=blob:none --sparse --depth 1 \
+            "https://${GH_USER}:${GH_SBOM_REPO_TOKEN}@github.com/${GH_USER}/sbom" /tmp/sbom-py39
+          git -C /tmp/sbom-py39 sparse-checkout set rpm-repo/RPMs/rhel8/python39
+          ARCH="$(uname -m)"
+          shopt -s nullglob
+          src=/tmp/sbom-py39/rpm-repo/RPMs/rhel8/python39
+          copied=0
+          for r in "${src}"/*.noarch.rpm "${src}"/*."${ARCH}".rpm; do
+            [[ -f "${r}" ]] || continue
+            sudo cp -v "${r}" data/
+            copied=$((copied + 1))
+          done
+          if [[ "${copied}" -eq 0 ]]; then
+            echo "ERROR: no python39 SBOM RPMs staged" >&2
+            exit 1
+          fi
+          docker exec acme-srv bash -c '
+            set -euo pipefail
+            PKG=yum
+            command -v dnf >/dev/null 2>&1 && PKG=dnf
+            shopt -s nullglob
+            filtered=()
+            for r in /tmp/acme2certifier/python39-*.rpm /tmp/acme2certifier/uwsgi-plugin-python39-*.rpm; do
+              [[ -f "${r}" ]] || continue
+              filtered+=("${r}")
+            done
+            if ((${#filtered[@]} == 0)); then
+              echo "ERROR: no python39 RPMs under /tmp/acme2certifier" >&2
+              exit 1
+            fi
+
+            # Drop whatever currently owns /usr/bin paths the new RPMs ship.
+            # Use rpm --nodeps so we do not cascade-remove acme2certifier-0.44
+            # (it Requires python3-josepy etc. until the modern upgrade step).
+            mapfile -t bins < <(
+              for r in "${filtered[@]}"; do
+                rpm -qpl "${r}" 2>/dev/null | grep -E "^/usr/bin/" || true
+              done | sort -u
+            )
+            owners=()
+            for b in "${bins[@]+"${bins[@]}"}"; do
+              [[ -e "${b}" ]] || continue
+              # NOTE: bash -c is single-quoted; do not nest '%{NAME}\n' or the
+              # closing quote truncates the format to "%{NAME}n".
+              if own="$(rpm -qf --qf %{NAME} "${b}" 2>/dev/null)"; then
+                owners+=("${own}")
+              fi
+            done
+            if ((${#owners[@]} > 0)); then
+              mapfile -t owners < <(printf "%s\n" "${owners[@]}" | sort -u)
+              echo "Removing conflicting owners of /usr/bin helpers (--nodeps):"
+              printf "  %s\n" "${owners[@]}"
+              rpm -e --nodeps "${owners[@]}"
+            fi
+
+            echo "Installing ${#filtered[@]} python39 companion RPM(s)"
+            ${PKG} localinstall -y "${filtered[@]}"
+          '
+        env:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
       - name: "Upgrade to build artifact"
         uses: ./.github/actions/wf_specific/upgrade/rpm_install
