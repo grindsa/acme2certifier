@@ -110,7 +110,7 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **krb5_cache_variable** *(optional)* – Environment variable containing the ccache path (overridden if `krb5_cache` is set in `acme_srv.cfg`).
 - **krb5_config** *(optional)* – Path to a custom `krb5.conf` file. Used by the kinit fallback path.
 - **krb5_config_variable** *(optional)* – Environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).
-- **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the kinit fallback path. Defaults to `kinit` resolved from `PATH`. If set, the value must be an **absolute** path whose basename is exactly `kinit` (for example `/usr/bin/kinit`). Other values are rejected and the kinit fallback fails.
+- **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the kinit fallback path. Defaults to `kinit` resolved from `PATH`. If set, the value must be an **absolute** path whose basename is exactly `kinit` (for example `/usr/bin/kinit`). Symlink targets such as Debian/Ubuntu `kinit.mit` / `kinit.heimdal` are accepted after resolution. Other values are rejected and the kinit fallback fails.
 - **krb5_kinit_path_variable** *(optional)* – Environment variable containing the `kinit` binary path (overridden if `krb5_kinit_path` is set in `acme_srv.cfg`).
 - **target_domain** *(optional)* – Active Directory domain name.
 - **domain_controller** *(optional)* – Domain controller endpoint. You can provide either an IP address or an FQDN. If an FQDN is configured, acme2certifier resolves it via DNS and uses the first returned IP address.

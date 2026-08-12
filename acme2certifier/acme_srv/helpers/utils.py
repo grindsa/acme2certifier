@@ -33,14 +33,21 @@ def error_dic_get(logger: logging.Logger) -> Dict[str, str]:
     return error_dic
 
 
+# Debian/Ubuntu kerberos alternatives install ``kinit`` as a symlink to
+# ``kinit.mit`` / ``kinit.heimdal``. Allow those resolved basenames only when
+# the configured path itself ends with ``kinit``.
+_KRB5_KINIT_RESOLVED_BASENAMES = frozenset({"kinit", "kinit.mit", "kinit.heimdal"})
+
+
 def kerberos_kinit_command_resolve(
     logger: logging.Logger, kinit_path: Optional[str]
 ) -> Optional[str]:
     """Resolve argv0 for a kinit subprocess.
 
     Default / bare ``kinit`` is resolved from PATH at exec time.
-    Any other configured value must be an absolute path whose final
-    component (after realpath) is exactly ``kinit``.
+    Any other configured value must be an absolute path whose basename is
+    exactly ``kinit``. After symlink resolution the basename must be one of
+    ``kinit``, ``kinit.mit``, or ``kinit.heimdal`` (Debian/Ubuntu alternatives).
     """
     logger.debug("Helper.kerberos_kinit_command_resolve()")
     if not isinstance(kinit_path, str) or not kinit_path.strip():
@@ -62,12 +69,21 @@ def kerberos_kinit_command_resolve(
         )
         return None
 
-    resolved = os.path.realpath(configured)
-    if os.path.basename(resolved) != "kinit":
+    if os.path.basename(configured) != "kinit":
         logger.error(
-            "Rejected krb5_kinit_path '%s': basename must be 'kinit' "
-            "(resolved to '%s')",
+            "Rejected krb5_kinit_path '%s': basename must be 'kinit'",
             configured,
+        )
+        return None
+
+    resolved = os.path.realpath(configured)
+    resolved_basename = os.path.basename(resolved)
+    if resolved_basename not in _KRB5_KINIT_RESOLVED_BASENAMES:
+        logger.error(
+            "Rejected krb5_kinit_path '%s': resolved basename must be one of "
+            "%s (resolved to '%s')",
+            configured,
+            sorted(_KRB5_KINIT_RESOLVED_BASENAMES),
             resolved,
         )
         return None
