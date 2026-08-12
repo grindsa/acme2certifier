@@ -43,7 +43,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -62,7 +61,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -82,7 +80,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -102,7 +99,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -127,7 +123,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -146,7 +141,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -165,7 +159,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("user_var", self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -185,7 +178,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -209,7 +201,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("user_local", self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -228,7 +219,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("user_local", self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -247,7 +237,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertEqual("password_var", self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -267,7 +256,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -294,7 +282,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertEqual("password_local", self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -313,7 +300,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.user)
         self.assertEqual("password_local", self.cahandler.password)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -333,7 +319,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertEqual("target_domain", self.cahandler.target_domain)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
@@ -352,7 +337,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertEqual("domain_controller", self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
@@ -370,7 +354,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertEqual("dns_server", self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
@@ -388,7 +371,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertEqual("ca_name", self.cahandler.ca_name)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_bundle)
@@ -407,7 +389,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertEqual("ca_bundle", self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -426,63 +407,47 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertEqual("template", self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
 
-    @patch("acme2certifier.cahandlers.mswcce_ca_handler.proxy_check")
-    @patch("json.loads")
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.load_config")
-    def test_022_config_load(self, mock_load_cfg, mock_json, mock_chk):
-        """test _config_load ca_handler configured load proxies"""
-        mock_load_cfg.return_value = {"DEFAULT": {"proxy_server_list": "foo"}}
-        mock_json.return_value = "foo.bar.local"
-        mock_chk.return_value = "proxy.bar.local"
-        self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertTrue(mock_chk.called)
-        self.assertEqual(
-            {"http": "proxy.bar.local", "https": "proxy.bar.local"},
-            self.cahandler.proxy,
-        )
-        self.assertFalse(self.cahandler.host)
-        self.assertFalse(self.cahandler.user)
-        self.assertFalse(self.cahandler.password)
-        self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.target_domain)
-        self.assertFalse(self.cahandler.domain_controller)
-        self.assertFalse(self.cahandler.ca_name)
-        self.assertFalse(self.cahandler.use_kerberos)
-
-    @patch("acme2certifier.cahandlers.mswcce_ca_handler.proxy_check")
-    @patch("json.loads")
-    @patch("acme2certifier.cahandlers.mswcce_ca_handler.load_config")
-    def test_023_config_load(self, mock_load_cfg, mock_json, mock_chk):
-        """test _config_load ca_handler configured load proxies failed with exception in json.load"""
-        mock_load_cfg.return_value = {"DEFAULT": {"proxy_server_list": "foo"}}
-        mock_json.side_effect = Exception("exc_load_config")
-        mock_chk.side = "proxy.bar.local"
+    def test_023_config_load_security_warnings_ntlm(self, mock_load_cfg):
+        """test _config_load emits NTLM and ca_bundle security warnings"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"host": "ca.example"}
+        mock_load_cfg.return_value = parser
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertFalse(mock_chk.called)
-        self.assertFalse(self.cahandler.proxy)
-        self.assertFalse(self.cahandler.host)
-        self.assertFalse(self.cahandler.user)
-        self.assertFalse(self.cahandler.password)
-        self.assertFalse(self.cahandler.template)
-        self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.target_domain)
-        self.assertFalse(self.cahandler.domain_controller)
-        self.assertFalse(self.cahandler.ca_name)
         self.assertIn(
-            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: exc_load_config",
+            "WARNING:test_a2c:Kerberos is disabled; MS-WCCE authentication uses NTLM. "
+            "Prefer use_kerberos=True (see Microsoft guidance on NTLM).",
             lcm.output,
         )
-        self.assertFalse(self.cahandler.use_kerberos)
+        self.assertIn(
+            "WARNING:test_a2c:MS-WCCE enrolls over SMB/DCE-RPC. ca_bundle only appends a local PEM "
+            "chain to the issued certificate; it does not authenticate the CA endpoint.",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.load_config")
+    def test_023b_config_load_security_warnings_kerberos_skips_ntlm(
+        self, mock_load_cfg
+    ):
+        """test _config_load skips NTLM warning when Kerberos is enabled"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"host": "ca.example", "use_kerberos": "True"}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertTrue(self.cahandler.use_kerberos)
+        self.assertFalse(
+            any("authentication uses NTLM" in msg for msg in lcm.output)
+        )
+        self.assertTrue(
+            any("ca_bundle only appends a local PEM" in msg for msg in lcm.output)
+        )
 
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.load_config")
     def test_024_config_load(self, mock_load_cfg):
@@ -496,7 +461,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -514,7 +478,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -532,7 +495,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -550,7 +512,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -569,7 +530,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -591,7 +551,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -609,7 +568,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -627,7 +585,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -646,7 +603,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -666,7 +622,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -689,7 +644,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -708,7 +662,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -727,7 +680,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
@@ -747,7 +699,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.proxy)
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)

@@ -10,7 +10,8 @@ This CA handler uses the Microsoft [Windows Client Certificate Enrollment Protoc
 
 Be aware of the following limitations when using this handler:
 
-- CA certificates cannot be fetched from the CA server and must be manually loaded via the `ca_bundle` option in `acme_srv.cfg`.
+- CA certificates cannot be fetched from the CA server and must be manually loaded via the `ca_bundle` option in `acme_srv.cfg`. `ca_bundle` only appends a local PEM chain to the issued certificate; it does **not** authenticate the CA endpoint. Enrollment uses SMB/DCE-RPC with RPC packet privacy, not HTTPS/TLS verification.
+- HTTP(S) `proxy_server_list` settings are **ignored**. MS-WCCE does not use HTTP(S) and cannot be routed through an HTTP proxy.
 - Revocation operations are not yet supported.
 
 ## Preparation
@@ -107,11 +108,11 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **target_domain** *(optional)* – Active Directory domain name.
 - **domain_controller** *(optional)* – Domain controller endpoint. You can provide either an IP address or an FQDN. If an FQDN is configured, acme2certifier resolves it via DNS and uses the first returned IP address.
 - **dns_server** *(optional)* – IP address of the DNS server.
-- **ca_bundle** – CA certificate chain in PEM format, provided along with the client certificate.
+- **ca_bundle** – CA certificate chain in PEM format, provided along with the client certificate. This is packaging only (appended to the issued cert); it does not verify the AD CS enrollment endpoint.
 - **template** – Certificate template used for enrollment.
 - **allowed_templates** *(optional)* – JSON list of ADCS templates permitted for enrollment (including templates selected via ACME profiles, `header_info`, or EAB). An empty or unset list allows any template and logs a warning (backwards compatible). When non-empty, enrollment is rejected if the selected template is not listed. EAB per-account template restrictions still apply on top of this global ceiling. MS-WCCE has no Web Enrollment template discovery API; CA-side membership checks are mscertsrv-only.
 - **timeout** *(optional)* – Enrollment timeout in seconds (default: `5`).
-- **use_kerberos** – Use Kerberos for authentication. If `False`, authentication is done via NTLM. Due to Microsoft's [October 2023 announcement](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848), Kerberos is recommended, but NTLM remains the default for backward compatibility.
+- **use_kerberos** – Use Kerberos for authentication. If `False`, authentication is done via NTLM. Due to Microsoft's [October 2023 announcement](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848), Kerberos is recommended, but NTLM remains the default for backward compatibility. Startup logs a warning when Kerberos is disabled.
 - **allowed_domainlist** *(optional)* – List of allowed domains for enrollment (JSON format).
 - **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`). This handler omits `password`, Kerberos credential locations (`krb5_keytab`, `krb5_cache`, `krb5_config`, `krb5_kinit_path`), and runtime TGT objects from that dump.
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
