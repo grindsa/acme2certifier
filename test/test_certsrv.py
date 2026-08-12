@@ -756,6 +756,50 @@ class TestCertsrv(unittest.TestCase):
         mock_requests_gssapi.HTTPSPNEGOAuth.assert_called_once_with(creds="raw-creds")
         self.assertEqual(obj.session.auth, "spnego-explicit")
 
+    def test_054_parse_template_option_values(self):
+        """_parse_template_option_values uses option value attributes"""
+        html = """
+        <html><body>
+        <select name="CertTemplate">
+          <option value="WebServer">Web Server</option>
+          <option value="User">User</option>
+          <option value="WebServer">Web Server Dup</option>
+          <option>NoValue</option>
+        </select>
+        </body></html>
+        """
+        self.assertEqual(
+            ["WebServer", "User"],
+            self.mod._parse_template_option_values(html),
+        )
+
+    def test_055_get_templates_with_url(self):
+        """get_templates uses url path and returns option values"""
+        obj = self._make_certsrv(auth_method="basic")
+        obj.url = "https://ca.example/certsrv"
+        obj.server = None
+        response = MagicMock()
+        response.text = (
+            '<select><option value="WebServer">Web Server</option>'
+            '<option value="User">User</option></select>'
+        )
+        with patch.object(obj, "_get", return_value=response) as mock_get:
+            result = obj.get_templates()
+        mock_get.assert_called_once_with("https://ca.example/certsrv/certrqxt.asp")
+        self.assertEqual(["WebServer", "User"], result)
+
+    def test_056_get_templates_with_server(self):
+        """get_templates uses server path when url is unset"""
+        obj = self._make_certsrv(auth_method="basic")
+        obj.url = None
+        obj.server = "ca.example"
+        response = MagicMock()
+        response.text = '<select><option value="User">User</option></select>'
+        with patch.object(obj, "_get", return_value=response) as mock_get:
+            result = obj.get_templates()
+        mock_get.assert_called_once_with("https://ca.example/certsrv/certrqxt.asp")
+        self.assertEqual(["User"], result)
+
 
 if __name__ == "__main__":
     unittest.main()

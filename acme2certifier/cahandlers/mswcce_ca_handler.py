@@ -8,7 +8,7 @@ import tempfile
 import importlib
 import subprocess
 from contextlib import contextmanager
-from typing import Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional
 
 # pylint: disable=e0401, e0611
 from acme2certifier.cahandlers.ms_wcce.target import Target
@@ -49,6 +49,7 @@ class CAhandler(object):
         self.user = None
         self.password = None
         self.template = None
+        self.allowed_templates: List[str] = []
         self.proxy = None
         self.target_domain = None
         self.domain_controller = None
@@ -231,6 +232,7 @@ class CAhandler(object):
         self.template = config_dic.get(
             "CAhandler", self.profile_mapping_field, fallback=None
         )
+        self._config_allowed_templates_load(config_dic)
 
         # load enrollment config log
         (
@@ -277,6 +279,40 @@ class CAhandler(object):
             self.krb5_auth_backend = "impacket"
 
         self.logger.debug("CAhandler._config_parameters_load()")
+
+    def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
+        """Load allowed_templates allowlist from config."""
+        self.logger.debug("CAhandler._config_allowed_templates_load()")
+        if "allowed_templates" not in config_dic["CAhandler"]:
+            self.logger.warning(
+                "allowed_templates is empty; any client-selected template is permitted. "
+                "Configure allowed_templates to restrict enrollment templates."
+            )
+            self.logger.debug("CAhandler._config_allowed_templates_load() ended")
+            return
+
+        try:
+            loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
+            if not isinstance(loaded, list):
+                raise ValueError("allowed_templates must be a JSON list")
+            self.allowed_templates = [str(item) for item in loaded]
+        except Exception as err_:
+            self.logger.warning(
+                "Failed to parse allowed_templates from configuration: %s. "
+                "Treating as empty allowlist.",
+                err_,
+            )
+            self.allowed_templates = []
+
+        if not self.allowed_templates:
+            self.logger.warning(
+                "allowed_templates is empty; any client-selected template is permitted. "
+                "Configure allowed_templates to restrict enrollment templates."
+            )
+        self.logger.debug(
+            "CAhandler._config_allowed_templates_load() ended with %s entries",
+            len(self.allowed_templates),
+        )
 
     def _domain_controller_resolve(
         self, domain_controller: Optional[str]
@@ -848,6 +884,23 @@ class CAhandler(object):
         )
         return template_name
 
+    def _allowed_templates_check(self) -> Optional[str]:
+        """Enforce configured allowed_templates allowlist."""
+        self.logger.debug(
+            "CAhandler._allowed_templates_check(%s)", self.template
+        )
+        if not self.allowed_templates:
+            return None
+        if self.template not in self.allowed_templates:
+            self.logger.error(
+                "Template '%s' is not in allowed_templates: %s",
+                self.template,
+                self.allowed_templates,
+            )
+            return f"Template '{self.template}' is not allowed"
+        self.logger.debug("CAhandler._allowed_templates_check() ended")
+        return None
+
     def _enroll(self, csr: str) -> Tuple[str, str, str]:
         """enroll certificate via MS-WCCE"""
         self.logger.debug("CAhandler._enroll(%s)", self.template)
@@ -940,12 +993,15 @@ class CAhandler(object):
             self.logger, self, csr, self.profile_mapping_field
         )
 
-        if not error:
-            # enroll certificate
-            error, cert_raw, cert_bundle = self._enroll(csr)
-
-        else:
+        if error:
             self.logger.error("EAB profile check failed: %s", error)
+        else:
+            error = self._allowed_templates_check()
+            if error:
+                self.logger.error("Template allowlist check failed: %s", error)
+            else:
+                # enroll certificate
+                error, cert_raw, cert_bundle = self._enroll(csr)
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)

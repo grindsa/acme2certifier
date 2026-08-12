@@ -120,6 +120,8 @@ ca_bundle: <filename>
 auth_method: <basic|ntlm|gssapi>
 gssapi_channel_bindings: <auto|on|off>
 template: <name>
+allowed_templates: ["WebServer", "WebServerModified"]
+ca_templates_check: warn
 allowed_domainlist: ["example.com", "*.example2.com"]
 krb5_principal: <principal@REALM>
 krb5_keytab: </path/to/keytab>
@@ -151,6 +153,8 @@ krb5_kinit_path: </path/to/kinit>
 - **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the keytab fallback path. Defaults to `kinit` resolved from `PATH`.
 - **krb5_kinit_path_variable** *(optional)* – Name of the environment variable containing the `kinit` binary path (overridden if `krb5_kinit_path` is set in `acme_srv.cfg`).
 - **template** – Certificate template used for enrollment.
+- **allowed_templates** *(optional)* – JSON list of ADCS templates permitted for enrollment (including templates selected via ACME profiles, `header_info`, or EAB). An empty or unset list allows any template and logs a warning (backwards compatible). When non-empty, enrollment is rejected if the selected template is not listed. EAB per-account template restrictions still apply on top of this global ceiling.
+- **ca_templates_check** *(optional, default `warn`)* – Compare the selected template against templates reported by ADCS Web Enrollment (`certrqxt.asp`): `warn` (log and continue), `on` (reject if missing from the CA list), or `off` (skip). The Web Enrollment dropdown is not a complete ADCS inventory; fetch failures or an empty CA list log a warning and enrollment continues. Results are cached process-wide (thread-safe).
 - **allowed_domainlist** *(optional)* – List of allowed domain names for enrollment (JSON format).
 - **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).

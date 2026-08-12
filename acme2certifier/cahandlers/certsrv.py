@@ -11,6 +11,8 @@ import base64
 import logging
 import warnings
 import inspect
+from html.parser import HTMLParser
+from typing import List, Tuple
 import requests
 
 __version__ = "2.1.1"
@@ -23,6 +25,41 @@ DEPRECATIONWARNING = (
     "This function is deprecated. Use the method on the Certsrv class instead"
 )
 CHANNEL_BINDINGS_TLS_SERVER_END_POINT = "tls-server-end-point"
+
+
+class _SelectOptionValueParser(HTMLParser):
+    """Extract non-empty option value attributes from HTML select elements."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._in_select = 0
+        self.values: List[str] = []
+
+    def handle_starttag(self, tag: str, attrs: List[Tuple[str, str]]) -> None:
+        if tag == "select":
+            self._in_select += 1
+        elif tag == "option" and self._in_select:
+            attrs_dic = dict(attrs)
+            value = attrs_dic.get("value")
+            if value:
+                self.values.append(value)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "select" and self._in_select:
+            self._in_select -= 1
+
+
+def _parse_template_option_values(html: str) -> List[str]:
+    """Parse certificate template names from certrqxt.asp option values."""
+    parser = _SelectOptionValueParser()
+    parser.feed(html or "")
+    seen = set()
+    templates: List[str] = []
+    for value in parser.values:
+        if value not in seen:
+            seen.add(value)
+            templates.append(value)
+    return templates
 
 
 def gssapi_channel_bindings_supported() -> bool:
@@ -423,6 +460,25 @@ class Certsrv(object):
             )
 
         return chain_response.content
+
+    def get_templates(self) -> List[str]:
+        """
+        Gets available certificate templates from the ADCS web enrollment page.
+
+        Parses option value attributes from /certsrv/certrqxt.asp. The Web
+        Enrollment dropdown is not a complete ADCS template inventory; treat
+        the result as a best-effort list for the authenticated identity.
+
+        Returns:
+            A list of template names (option values), deduplicated.
+        """
+        if self.url:
+            url = "{0}/certrqxt.asp".format(self.url)
+        else:
+            url = "https://{0}/certsrv/certrqxt.asp".format(self.server)
+
+        response = self._get(url)
+        return _parse_template_option_values(response.text)
 
     def check_credentials(self):
         """

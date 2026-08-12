@@ -27,6 +27,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme2certifier.cahandlers.mscertsrv_ca_handler import CAhandler
 
         self.cahandler = CAhandler(False, self.logger)
+        self.cahandler._ca_templates_cache.clear()
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
 
     def test_001_default(self):
@@ -1678,6 +1679,92 @@ class TestACMEHandler(unittest.TestCase):
             "explicit-creds",
             mock_certsrv.call_args.kwargs.get("gssapi_creds"),
         )
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_110_config_load_allowed_templates(self, mock_load_cfg):
+        """allowed_templates loads from JSON list"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "allowed_templates": '["WebServer", "User"]',
+            "ca_templates_check": "on",
+        }
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual(["WebServer", "User"], self.cahandler.allowed_templates)
+        self.assertEqual("on", self.cahandler.ca_templates_check)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_111_config_load_allowed_templates_invalid(self, mock_load_cfg):
+        """invalid allowed_templates falls back to empty list"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"allowed_templates": "not-json"}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual([], self.cahandler.allowed_templates)
+
+    def test_112_allowed_templates_check_reject(self):
+        """non-empty allowlist rejects unknown template"""
+        self.cahandler.template = "Other"
+        self.cahandler.allowed_templates = ["WebServer"]
+        self.assertEqual(
+            "Template 'Other' is not allowed",
+            self.cahandler._allowed_templates_check(),
+        )
+
+    def test_113_allowed_templates_check_allow(self):
+        """non-empty allowlist accepts listed template"""
+        self.cahandler.template = "WebServer"
+        self.cahandler.allowed_templates = ["WebServer"]
+        self.assertIsNone(self.cahandler._allowed_templates_check())
+
+    def test_114_ca_templates_membership_warn(self):
+        """ca_templates_check=warn continues when template missing"""
+        self.cahandler.host = "ca.example"
+        self.cahandler.template = "Missing"
+        self.cahandler.ca_templates_check = "warn"
+        ca_server = MagicMock()
+        ca_server.get_templates.return_value = ["WebServer"]
+        self.assertIsNone(self.cahandler._ca_templates_membership_check(ca_server))
+
+    def test_115_ca_templates_membership_on_reject(self):
+        """ca_templates_check=on rejects missing template"""
+        self.cahandler.host = "ca.example"
+        self.cahandler.template = "Missing"
+        self.cahandler.ca_templates_check = "on"
+        ca_server = MagicMock()
+        ca_server.get_templates.return_value = ["WebServer"]
+        self.assertIn(
+            "Missing",
+            self.cahandler._ca_templates_membership_check(ca_server),
+        )
+
+    def test_116_ca_templates_cache_thread_safe(self):
+        """CA template fetch is cached across calls"""
+        self.cahandler.host = "ca.example"
+        ca_server = MagicMock()
+        ca_server.get_templates.return_value = ["WebServer", "User"]
+        first = self.cahandler._ca_templates_get(ca_server)
+        second = self.cahandler._ca_templates_get(ca_server)
+        self.assertEqual(["WebServer", "User"], first)
+        self.assertEqual(first, second)
+        self.assertEqual(1, ca_server.get_templates.call_count)
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.eab_profile_header_info_check",
+        return_value=None,
+    )
+    def test_117_enroll_rejects_disallowed_template(self, _mock_eab):
+        """enroll rejects template not in allowed_templates"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "BadTemplate"
+        self.cahandler.allowed_templates = ["WebServer"]
+        error, cert_bundle, cert_raw, poll_id = self.cahandler.enroll("csr")
+        self.assertEqual("Template 'BadTemplate' is not allowed", error)
+        self.assertIsNone(cert_bundle)
+        self.assertIsNone(cert_raw)
+        self.assertIsNone(poll_id)
 
 
 if __name__ == "__main__":

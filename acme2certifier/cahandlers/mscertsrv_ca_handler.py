@@ -8,6 +8,7 @@ import json
 import tempfile
 import importlib
 import subprocess
+import threading
 from contextlib import contextmanager
 from typing import List, Tuple, Dict, Optional
 from cryptography.hazmat.primitives import serialization
@@ -46,6 +47,10 @@ from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR
 class CAhandler(object):
     """EST CA  handler"""
 
+    KINIT_TIMEOUT_SECONDS = 30
+    _ca_templates_cache: Dict[str, List[str]] = {}
+    _ca_templates_lock = threading.Lock()
+
     def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.host = None
@@ -56,6 +61,8 @@ class CAhandler(object):
         self.gssapi_channel_bindings = "auto"
         self.ca_bundle = False
         self.template = None
+        self.allowed_templates: List[str] = []
+        self.ca_templates_check = "warn"
         self.krb5_principal = None
         self.krb5_keytab = None
         self.krb5_cache = None
@@ -72,8 +79,6 @@ class CAhandler(object):
         self._krb5_cache_is_temporary = False
         self._gssapi_creds = None
         self.profile_mapping_field = "template"
-
-    KINIT_TIMEOUT_SECONDS = 30
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -211,6 +216,8 @@ class CAhandler(object):
         self.template = config_dic.get(
             "CAhandler", self.profile_mapping_field, fallback=self.template
         )
+        self._config_allowed_templates_load(config_dic)
+        self._config_ca_templates_check_load(config_dic)
         if "auth_method" in config_dic["CAhandler"] and config_dic["CAhandler"][
             "auth_method"
         ] in ["basic", "ntlm", "gssapi"]:
@@ -263,6 +270,62 @@ class CAhandler(object):
         ) = config_enroll_config_log_load(self.logger, config_dic)
 
         self.logger.debug("CAhandler._config_parameters_load() ended")
+
+    def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
+        """Load allowed_templates allowlist from config."""
+        self.logger.debug("CAhandler._config_allowed_templates_load()")
+        if "allowed_templates" not in config_dic["CAhandler"]:
+            self.logger.warning(
+                "allowed_templates is empty; any client-selected template is permitted. "
+                "Configure allowed_templates to restrict enrollment templates."
+            )
+            self.logger.debug("CAhandler._config_allowed_templates_load() ended")
+            return
+
+        try:
+            loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
+            if not isinstance(loaded, list):
+                raise ValueError("allowed_templates must be a JSON list")
+            self.allowed_templates = [str(item) for item in loaded]
+        except Exception as err_:
+            self.logger.warning(
+                "Failed to parse allowed_templates from configuration: %s. "
+                "Treating as empty allowlist.",
+                err_,
+            )
+            self.allowed_templates = []
+
+        if not self.allowed_templates:
+            self.logger.warning(
+                "allowed_templates is empty; any client-selected template is permitted. "
+                "Configure allowed_templates to restrict enrollment templates."
+            )
+        self.logger.debug(
+            "CAhandler._config_allowed_templates_load() ended with %s entries",
+            len(self.allowed_templates),
+        )
+
+    def _config_ca_templates_check_load(self, config_dic: Dict[str, str]) -> None:
+        """Load ca_templates_check mode (warn|on|off)."""
+        self.logger.debug("CAhandler._config_ca_templates_check_load()")
+        mode = config_dic.get(
+            "CAhandler", "ca_templates_check", fallback=self.ca_templates_check
+        )
+        if isinstance(mode, str):
+            mode = mode.lower()
+        if mode in ["warn", "on", "off"]:
+            self.ca_templates_check = mode
+        else:
+            self.logger.warning(
+                "Invalid ca_templates_check '%s'; using 'warn'. "
+                "Allowed values: warn, on, off.",
+                mode,
+            )
+            self.ca_templates_check = "warn"
+        self.logger.debug(
+            "CAhandler._config_ca_templates_check_load() ended with %s",
+            self.ca_templates_check,
+        )
 
     def _config_proxy_load(self, config_dic: Dict[str, str]):
         """load hostname"""
@@ -717,6 +780,92 @@ class CAhandler(object):
         )
         return template_name
 
+    def _allowed_templates_check(self) -> Optional[str]:
+        """Enforce configured allowed_templates allowlist."""
+        self.logger.debug(
+            "CAhandler._allowed_templates_check(%s)", self.template
+        )
+        if not self.allowed_templates:
+            return None
+        if self.template not in self.allowed_templates:
+            self.logger.error(
+                "Template '%s' is not in allowed_templates: %s",
+                self.template,
+                self.allowed_templates,
+            )
+            return f"Template '{self.template}' is not allowed"
+        self.logger.debug("CAhandler._allowed_templates_check() ended")
+        return None
+
+    def _ca_templates_cache_key(self) -> str:
+        """Cache key for CA-reported templates."""
+        return self.url or self.host or ""
+
+    def _ca_templates_get(self, ca_server: object) -> List[str]:
+        """Fetch CA templates with a process-wide thread-safe cache."""
+        cache_key = self._ca_templates_cache_key()
+        with self._ca_templates_lock:
+            cached = self._ca_templates_cache.get(cache_key)
+            if cached is not None:
+                self.logger.debug(
+                    "Using cached CA templates for %s (%s entries)",
+                    cache_key,
+                    len(cached),
+                )
+                return list(cached)
+
+        try:
+            templates = ca_server.get_templates()
+            if not isinstance(templates, list):
+                templates = []
+        except Exception as err_:
+            self.logger.warning(
+                "Failed to fetch CA templates from Web Enrollment: %s", err_
+            )
+            return []
+
+        with self._ca_templates_lock:
+            self._ca_templates_cache[cache_key] = list(templates)
+        self.logger.debug(
+            "Cached %s CA templates for %s", len(templates), cache_key
+        )
+        return list(templates)
+
+    def _ca_templates_membership_check(self, ca_server: object) -> Optional[str]:
+        """Compare enrollment template against CA-reported Web Enrollment list."""
+        self.logger.debug(
+            "CAhandler._ca_templates_membership_check(mode=%s, template=%s)",
+            self.ca_templates_check,
+            self.template,
+        )
+        if self.ca_templates_check == "off":
+            return None
+
+        ca_templates = self._ca_templates_get(ca_server)
+        if not ca_templates:
+            self.logger.warning(
+                "CA template list is empty or unavailable; continuing without "
+                "CA-side template membership check."
+            )
+            return None
+
+        if self.template in ca_templates:
+            self.logger.debug(
+                "CAhandler._ca_templates_membership_check() ended: template present"
+            )
+            return None
+
+        message = (
+            f"Template '{self.template}' was not found in CA Web Enrollment "
+            f"templates ({len(ca_templates)} reported)"
+        )
+        if self.ca_templates_check == "on":
+            self.logger.error(message)
+            return message
+
+        self.logger.warning("%s; continuing (ca_templates_check=warn)", message)
+        return None
+
     def _csr_process(self, ca_server, csr: str) -> Tuple[str, str, str]:
 
         # recode csr
@@ -829,6 +978,12 @@ class CAhandler(object):
             )
 
         if auth_check:
+            ca_template_error = self._ca_templates_membership_check(ca_server)
+            if ca_template_error:
+                self.logger.error(
+                    "CA template membership check failed: %s", ca_template_error
+                )
+                return (ca_template_error, None, None)
             # enroll certificate
             error, cert_bundle, cert_raw = self._csr_process(ca_server, csr)
         else:
@@ -875,11 +1030,15 @@ class CAhandler(object):
         error = eab_profile_header_info_check(
             self.logger, self, csr, self.profile_mapping_field
         )
-        if not error:
-            # enroll certificate (explicit GSSAPI creds; no process env mutation)
-            error, cert_bundle, cert_raw = self._enroll(csr)
-        else:
+        if error:
             self.logger.error("EAB profile check failed: %s", error)
+        else:
+            error = self._allowed_templates_check()
+            if error:
+                self.logger.error("Template allowlist check failed: %s", error)
+            else:
+                # enroll certificate (explicit GSSAPI creds; no process env mutation)
+                error, cert_bundle, cert_raw = self._enroll(csr)
 
         self._kerberos_cleanup_temporary_ccache()
         self.logger.debug("Certificate.enroll() ended")
