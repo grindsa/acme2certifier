@@ -895,67 +895,67 @@ class CAhandler(object):
         cert_bundle = None
         self._kerberos_tgt = None
 
-        # Optional python-only kerberos backend: acquire creds from keytab.
-        error = self._kerberos_prepare_python_backend()
-
-        if error:
-            self.logger.error("Kerberos backend setup failed: %s", error)
-            return error, cert_raw, cert_bundle
-
-        runtime_kerberos_python = (
-            self.use_kerberos
-            and self.krb5_auth_backend == "python"
-            and self._kerberos_keytab_is_configured()
-        )
-        if runtime_kerberos_python:
-            tgt, tgt_error = self._kerberos_tgt_from_ccache()
-            if tgt_error:
-                self.logger.error("Kerberos TGT load failed: %s", tgt_error)
-                self._kerberos_cleanup_temporary_ccache()
-                return tgt_error, cert_raw, cert_bundle
-            self._kerberos_tgt = tgt
-
-        # reformat csr
-        csr = build_pem_file(self.logger, None, csr, 64, True)
-
-        # pylint: disable=W0511
-        # currently getting certificate chain is not supported
-        ca_pem = self._file_load(self.ca_bundle)
-
         try:
-            cert_response = self._certificate_request_send(csr)
-            error, cert_raw = self._certificate_response_process(cert_response)
-        except Exception as err:
-            cert_raw = None
-            self.logger.error("Enrollment failed with error: %s", err)
-            error = self.CERT_FETCH_ERROR
-        finally:
-            if runtime_kerberos_python:
-                self._kerberos_cleanup_temporary_ccache()
+            # Optional python-only kerberos backend: acquire creds from keytab.
+            error = self._kerberos_prepare_python_backend()
 
-        if error:
-            self.logger.error(
-                "Certificate bundling skipped due to previous error: %s", error
+            if error:
+                self.logger.error("Kerberos backend setup failed: %s", error)
+                return error, cert_raw, cert_bundle
+
+            runtime_kerberos_python = (
+                self.use_kerberos
+                and self.krb5_auth_backend == "python"
+                and self._kerberos_keytab_is_configured()
             )
+            if runtime_kerberos_python:
+                tgt, tgt_error = self._kerberos_tgt_from_ccache()
+                if tgt_error:
+                    self.logger.error("Kerberos TGT load failed: %s", tgt_error)
+                    return tgt_error, cert_raw, cert_bundle
+                self._kerberos_tgt = tgt
+
+            # reformat csr
+            csr = build_pem_file(self.logger, None, csr, 64, True)
+
+            # pylint: disable=W0511
+            # currently getting certificate chain is not supported
+            ca_pem = self._file_load(self.ca_bundle)
+
+            try:
+                cert_response = self._certificate_request_send(csr)
+                error, cert_raw = self._certificate_response_process(cert_response)
+            except Exception as err:
+                cert_raw = None
+                self.logger.error("Enrollment failed with error: %s", err)
+                error = self.CERT_FETCH_ERROR
+
+            if error:
+                self.logger.error(
+                    "Certificate bundling skipped due to previous error: %s", error
+                )
+                self.logger.debug("CAhandler._enroll() ended with error: %s", error)
+                return error, cert_raw, cert_bundle
+
+            if cert_raw:
+                if ca_pem:
+                    cert_bundle = cert_raw + ca_pem
+                else:
+                    cert_bundle = cert_raw
+                cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
+                cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
+                cert_raw = cert_raw.replace("\n", "")
+            else:
+                self.logger.error(
+                    "Certificate bundling failed: CA certificate or issued certificate is missing."
+                )
+                error = "Certificate bundling failed: CA certificate or issued certificate is missing."
+
             self.logger.debug("CAhandler._enroll() ended with error: %s", error)
             return error, cert_raw, cert_bundle
-
-        if cert_raw:
-            if ca_pem:
-                cert_bundle = cert_raw + ca_pem
-            else:
-                cert_bundle = cert_raw
-            cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
-            cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
-            cert_raw = cert_raw.replace("\n", "")
-        else:
-            self.logger.error(
-                "Certificate bundling failed: CA certificate or issued certificate is missing."
-            )
-            error = "Certificate bundling failed: CA certificate or issued certificate is missing."
-
-        self.logger.debug("CAhandler._enroll() ended with error: %s", error)
-        return error, cert_raw, cert_bundle
+        finally:
+            # Always clear temp ccache (including prepare-failure paths that created one).
+            self._kerberos_cleanup_temporary_ccache()
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """enroll certificate via MS-WCCE"""

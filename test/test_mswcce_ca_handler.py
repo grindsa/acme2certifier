@@ -1362,6 +1362,43 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(cert_bundle)
         self.assertFalse(cert_raw)
 
+    @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
+    )
+    @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_prepare_python_backend"
+    )
+    def test_073b_enroll_cleans_temporary_ccache_on_prepare_failure(
+        self, mock_krb_prepare, mock_cleanup
+    ):
+        """prepare failure after temp ccache creation still runs cleanup"""
+
+        def _prepare_with_temp_ccache():
+            self.cahandler.krb5_cache = "/tmp/acme2certifier_krb5cc_prepare_fail"
+            self.cahandler._krb5_cache_is_temporary = True
+            return "Failed to acquire kerberos credentials via gssapi/keytab."
+
+        mock_krb_prepare.side_effect = _prepare_with_temp_ccache
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.ca_name = "ca"
+        self.cahandler.target_domain = "EXAMPLE.COM"
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
+        self.cahandler.krb5_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+
+        error, cert_bundle, cert_raw, _ = self.cahandler.enroll("csr")
+        self.assertEqual(
+            "Failed to acquire kerberos credentials via gssapi/keytab.",
+            error,
+        )
+        self.assertFalse(cert_bundle)
+        self.assertFalse(cert_raw)
+        mock_cleanup.assert_called_once()
+
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.importlib.import_module")
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.os.path.isfile")
     def test_074_kerberos_prepare_python_backend_fallback_kinit(
