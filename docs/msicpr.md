@@ -36,7 +36,7 @@ When using the MS-ICPR handler, acme2certifier communicates with the Microsoft C
 
 Some malware scanners, such as Microsoft Defender, classify Impacket as a hacking tool (see [Fortra Impacket Issue #1762](https://github.com/fortra/impacket/issues/1762) or [Fortra Impacket Issue #1271](https://github.com/fortra/impacket/issues/1271#issuecomment-1058729047)). These alerts are triggered mainly by example scripts included in the package, not the library itself.
 
-To avoid issues with your security team, consider installing a stripped-down version of Impacket without flagged scripts. Pre-packaged versions are available for [RHEL 8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RHEL 9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) in the [SBOM repository](https://github.com/grindsa/sbom/tree/main/rpm-repo).
+To avoid issues with your security team, consider installing a stripped-down version of Impacket without flagged scripts. Pre-packaged versions are available for [RHEL 8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RHEL 9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) in the [SBOM repository](https://github.com/grindsa/sbom/tree/main/rpm-repo).
 
 If installing from pip or source, follow these steps:
 
