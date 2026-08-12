@@ -1180,6 +1180,16 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.enrollment_config_log = True
         self.assertEqual("foo", self.cahandler.request_create())
         self.assertTrue(mock_ecl.called)
+        skiplist = mock_ecl.call_args[0][2]
+        for key in (
+            "password",
+            "krb5_keytab",
+            "krb5_cache",
+            "krb5_config",
+            "krb5_kinit_path",
+            "_kerberos_tgt",
+        ):
+            self.assertIn(key, skiplist)
 
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.Request")
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.Target")
@@ -1218,7 +1228,13 @@ class TestACMEHandler(unittest.TestCase):
             }
         ]
         self.cahandler.header_info_field = "header_field"
-        self.assertEqual("foo", self.cahandler._template_name_get("csr"))
+        csr_body = "-----BEGIN CERTIFICATE REQUEST-----\nSENSITIVE_CSR\n-----END CERTIFICATE REQUEST-----"
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.assertEqual("foo", self.cahandler._template_name_get(csr_body))
+        self.assertTrue(
+            any("CAhandler._template_name_get()" in msg for msg in lcm.output)
+        )
+        self.assertFalse(any("SENSITIVE_CSR" in msg for msg in lcm.output))
 
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.header_info_get")
     def test_062_template_name_get(self, mock_header):

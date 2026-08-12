@@ -772,7 +772,7 @@ class CAhandler(object):
 
     def _template_name_get(self, csr: str) -> str:
         """get templaate from csr"""
-        self.logger.debug("CAhandler._template_name_get(%s)", csr)
+        self.logger.debug("CAhandler._template_name_get()")
         template_name = None
 
         # parse profileid from http_header
@@ -990,7 +990,14 @@ class CAhandler(object):
                 self.logger,
                 self,
                 list(self.enrollment_config_log_skip_list)
-                + ["_gssapi_creds", "password"],
+                + [
+                    "password",
+                    "krb5_keytab",
+                    "krb5_cache",
+                    "krb5_config",
+                    "krb5_kinit_path",
+                    "_gssapi_creds",
+                ],
             )
 
         if auth_check:

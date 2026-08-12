@@ -113,7 +113,7 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **timeout** *(optional)* – Enrollment timeout in seconds (default: `5`).
 - **use_kerberos** – Use Kerberos for authentication. If `False`, authentication is done via NTLM. Due to Microsoft's [October 2023 announcement](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848), Kerberos is recommended, but NTLM remains the default for backward compatibility.
 - **allowed_domainlist** *(optional)* – List of allowed domains for enrollment (JSON format).
-- **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
+- **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`). This handler omits `password`, Kerberos credential locations (`krb5_keytab`, `krb5_cache`, `krb5_config`, `krb5_kinit_path`), and runtime TGT objects from that dump.
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
 
 ## Keytab Support

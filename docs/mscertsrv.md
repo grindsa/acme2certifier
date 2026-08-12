@@ -156,7 +156,7 @@ krb5_kinit_path: </path/to/kinit>
 - **allowed_templates** *(optional)* – JSON list of ADCS templates permitted for enrollment (including templates selected via ACME profiles, `header_info`, or EAB). An empty or unset list allows any template and logs a warning (backwards compatible). When non-empty, enrollment is rejected if the selected template is not listed. EAB per-account template restrictions still apply on top of this global ceiling.
 - **ca_templates_check** *(optional, default `warn`)* – Compare the selected template against templates reported by ADCS Web Enrollment (`certrqxt.asp`): `warn` (log and continue), `on` (reject if missing from the CA list), or `off` (skip). The Web Enrollment dropdown is not a complete ADCS inventory; fetch failures or an empty CA list log a warning and enrollment continues. Results are cached process-wide (thread-safe).
 - **allowed_domainlist** *(optional)* – List of allowed domain names for enrollment (JSON format).
-- **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
+- **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`). This handler omits `password`, Kerberos credential locations (`krb5_keytab`, `krb5_cache`, `krb5_config`, `krb5_kinit_path`), and runtime GSSAPI credentials from that dump.
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
 
 Enrollment failures against AD CS return a short handler error (`Could not get certificate from CA server`). Full exception text (HTTP status, Kerberos/GSSAPI details, etc.) is written to the server log only.
