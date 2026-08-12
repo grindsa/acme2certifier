@@ -9,6 +9,7 @@ import sys
 import datetime
 import socket
 import warnings
+from tempfile import TemporaryDirectory
 from unittest.mock import patch, MagicMock, Mock
 import dns.resolver
 import base64
@@ -5123,10 +5124,27 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     def test_434d_kerberos_kinit_command_resolve_absolute(self):
         """absolute path with basename kinit is accepted"""
-        self.assertEqual(
-            os.path.realpath("/usr/bin/kinit"),
-            self.kerberos_kinit_command_resolve(self.logger, "/usr/bin/kinit"),
-        )
+        with TemporaryDirectory() as tmpdir:
+            kinit_bin = os.path.join(tmpdir, "kinit")
+            with open(kinit_bin, "w", encoding="utf-8") as handle:
+                handle.write("#!/bin/sh\n")
+            self.assertEqual(
+                os.path.realpath(kinit_bin),
+                self.kerberos_kinit_command_resolve(self.logger, kinit_bin),
+            )
+
+    def test_434d2_kerberos_kinit_command_resolve_debian_alternatives(self):
+        """Debian/Ubuntu kinit -> kinit.mit symlink is accepted"""
+        with TemporaryDirectory() as tmpdir:
+            kinit_mit = os.path.join(tmpdir, "kinit.mit")
+            kinit_link = os.path.join(tmpdir, "kinit")
+            with open(kinit_mit, "w", encoding="utf-8") as handle:
+                handle.write("#!/bin/sh\n")
+            os.symlink(kinit_mit, kinit_link)
+            self.assertEqual(
+                os.path.realpath(kinit_mit),
+                self.kerberos_kinit_command_resolve(self.logger, kinit_link),
+            )
 
     def test_434e_kerberos_kinit_command_resolve_rejects_relative(self):
         """relative paths are rejected"""
@@ -5143,6 +5161,22 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.kerberos_kinit_command_resolve(self.logger, "/usr/bin/python3")
             )
         self.assertTrue(any("basename must be 'kinit'" in msg for msg in lcm.output))
+
+    def test_434g_kerberos_kinit_command_resolve_rejects_bad_symlink_target(self):
+        """kinit symlink pointing at a non-kinit binary is rejected"""
+        with TemporaryDirectory() as tmpdir:
+            evil = os.path.join(tmpdir, "evil.sh")
+            kinit_link = os.path.join(tmpdir, "kinit")
+            with open(evil, "w", encoding="utf-8") as handle:
+                handle.write("#!/bin/sh\n")
+            os.symlink(evil, kinit_link)
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                self.assertIsNone(
+                    self.kerberos_kinit_command_resolve(self.logger, kinit_link)
+                )
+            self.assertTrue(
+                any("resolved basename must be one of" in msg for msg in lcm.output)
+            )
 
     def test_435_enrollment_config_log(self):
         """test enrollment_config_log()"""

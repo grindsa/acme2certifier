@@ -520,26 +520,60 @@ class CAhandler(object):
             return ccache_value.split("FILE:", maxsplit=1)[1]
         return ccache_value
 
+    def _kerberos_config_path_resolve(self) -> Optional[str]:
+        """Resolve configured krb5_config to an absolute existing path."""
+        if not self.krb5_config:
+            return None
+        candidates = [self.krb5_config]
+        if not os.path.isabs(self.krb5_config):
+            candidates.append(os.path.abspath(self.krb5_config))
+        for candidate in candidates:
+            if os.path.isfile(candidate):
+                return os.path.abspath(candidate)
+        return None
+
+    def _kerberos_ccache_prepare(self) -> str:
+        """Ensure a ccache path exists; create a temporary file when unset."""
+        ccache_file = self._kerberos_ccache_path(self.krb5_cache)
+        self._krb5_cache_is_temporary = False
+        if not ccache_file:
+            ccache_fd, ccache_file = tempfile.mkstemp(prefix="acme2certifier_krb5cc_")
+            os.close(ccache_fd)
+            self.logger.debug(
+                "No kerberos ccache configured, created temporary ccache file: %s",
+                ccache_file,
+            )
+            self.krb5_cache = ccache_file
+            self._krb5_cache_is_temporary = True
+        else:
+            self.krb5_cache = ccache_file
+
+        if not os.path.exists(ccache_file):
+            with open(ccache_file, "a", encoding="utf-8") as ccache_handle:
+                ccache_handle.write("")
+
+        self.logger.debug("Using kerberos ccache file: %s", ccache_file)
+        return ccache_file
+
     def _kerberos_gssapi_creds_from_cache(
         self,
     ) -> Tuple[Optional[object], Optional[str]]:
         """Load initiate GSSAPI credentials from the prepared ccache (no env)."""
         self.logger.debug("CAhandler._kerberos_gssapi_creds_from_cache()")
-        if self.auth_method != "gssapi" or not self._kerberos_keytab_is_configured():
+        if self.auth_method != "gssapi":
             return (None, None)
 
         ccache_file = self._kerberos_ccache_path(self.krb5_cache)
         if not ccache_file:
-            return (
-                None,
-                "Kerberos ccache is not available for GSSAPI keytab authentication.",
-            )
+            # Password+GSSAPI without a prepared ccache falls back to in-process
+            # acquire_cred_with_password in Certsrv (legacy / system krb5.conf).
+            return (None, None)
 
         try:
             gssapi = importlib.import_module("gssapi")
         except Exception as err:
             self.logger.error("Failed to import gssapi module: %s", err)
-            return (None, "gssapi module is required for gssapi keytab authentication.")
+            return (None, "gssapi module is required for gssapi authentication.")
 
         try:
             credentials_class = getattr(gssapi, "Credentials", None)
@@ -646,8 +680,14 @@ class CAhandler(object):
         try:
             kinit_env = dict(os.environ)
             kinit_env["KRB5CCNAME"] = ccache_file
-            if self.krb5_config:
-                kinit_env["KRB5_CONFIG"] = self.krb5_config
+            krb5_config = self._kerberos_config_path_resolve()
+            if krb5_config:
+                kinit_env["KRB5_CONFIG"] = krb5_config
+            elif self.krb5_config:
+                self.logger.error(
+                    "Configured krb5_config does not exist: %s", self.krb5_config
+                )
+                return False
 
             subprocess.run(
                 [
@@ -691,11 +731,115 @@ class CAhandler(object):
                 )
             return False
 
-    def _kerberos_prepare_gssapi_backend(self) -> Optional[str]:
-        """prepare kerberos credentials in python using gssapi/keytab"""
-        self.logger.debug("CAhandler._kerberos_prepare_gssapi_backend()")
-        if self.auth_method != "gssapi" or not self._kerberos_keytab_is_configured():
+    def _kerberos_acquire_with_kinit_password(self, ccache_file: str) -> bool:
+        """Acquire Kerberos credentials via password kinit (subprocess-local env)."""
+        self.logger.debug("CAhandler._kerberos_acquire_with_kinit_password()")
+        kinit_cmd = kerberos_kinit_command_resolve(self.logger, self.krb5_kinit_path)
+        if not kinit_cmd:
+            return False
+        if not self.user or not self.password:
+            self.logger.error(
+                "user/password are required for GSSAPI password kinit authentication"
+            )
+            return False
+
+        try:
+            kinit_env = dict(os.environ)
+            kinit_env["KRB5CCNAME"] = ccache_file
+            krb5_config = self._kerberos_config_path_resolve()
+            if krb5_config:
+                kinit_env["KRB5_CONFIG"] = krb5_config
+            elif self.krb5_config:
+                self.logger.error(
+                    "Configured krb5_config does not exist: %s", self.krb5_config
+                )
+                return False
+
+            subprocess.run(
+                [kinit_cmd, self.user],
+                input=f"{self.password}\n",
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=kinit_env,
+                timeout=self.KINIT_TIMEOUT_SECONDS,
+                text=True,
+            )
+            self.logger.debug(
+                "Kerberos credentials acquired using password kinit for principal '%s'",
+                self.user,
+            )
+            return True
+        except subprocess.TimeoutExpired:
+            self.logger.error(
+                "kinit timed out after %s seconds while acquiring kerberos credentials",
+                self.KINIT_TIMEOUT_SECONDS,
+            )
+            return False
+        except FileNotFoundError as err:
+            self.logger.error("%s command not found: %s", kinit_cmd, err)
+            return False
+        except Exception as err:
+            stderr = None
+            if hasattr(err, "stderr") and err.stderr:
+                stderr = (
+                    err.stderr
+                    if isinstance(err.stderr, str)
+                    else err.stderr.decode("utf-8", errors="replace")
+                ).strip()
+
+            if stderr:
+                self.logger.error(
+                    "Failed to acquire kerberos credentials via password kinit: %s",
+                    stderr,
+                )
+            else:
+                self.logger.error(
+                    "Failed to acquire kerberos credentials via password kinit: %s",
+                    err,
+                )
+            return False
+
+    def _kerberos_prepare_gssapi_password_backend(self) -> Optional[str]:
+        """Prepare GSSAPI creds for user/password via subprocess kinit + ccache."""
+        self.logger.debug("CAhandler._kerberos_prepare_gssapi_password_backend()")
+        if not (self.user and self.password):
             return None
+
+        if self.krb5_config and not self._kerberos_config_path_resolve():
+            self.logger.error(
+                "Configured krb5_config does not exist: %s", self.krb5_config
+            )
+            return "Configured krb5_config does not exist."
+
+        ccache_file = self._kerberos_ccache_prepare()
+        if self._kerberos_acquire_with_kinit_password(ccache_file):
+            return None
+
+        if self.krb5_config:
+            # Custom krb5.conf cannot be applied to in-process GSSAPI without
+            # mutating process-global env; fail closed when kinit cannot use it.
+            self._kerberos_cleanup_temporary_ccache()
+            return (
+                "Failed to acquire kerberos credentials via password kinit "
+                "(required when krb5_config is set)."
+            )
+
+        # No custom krb5_config: allow Certsrv in-process password acquire.
+        self._kerberos_cleanup_temporary_ccache()
+        self.logger.debug(
+            "Password kinit unavailable; falling back to in-process GSSAPI password auth"
+        )
+        return None
+
+    def _kerberos_prepare_gssapi_backend(self) -> Optional[str]:
+        """prepare kerberos credentials for GSSAPI (keytab or password)"""
+        self.logger.debug("CAhandler._kerberos_prepare_gssapi_backend()")
+        if self.auth_method != "gssapi":
+            return None
+
+        if not self._kerberos_keytab_is_configured():
+            return self._kerberos_prepare_gssapi_password_backend()
 
         if not os.path.isfile(self.krb5_keytab):
             self.logger.error(
@@ -709,30 +853,7 @@ class CAhandler(object):
             self.logger.error("Failed to import gssapi module: %s", err)
             return "gssapi module is required for gssapi keytab authentication."
 
-        ccache_file = self.krb5_cache
-        self._krb5_cache_is_temporary = False
-        if not ccache_file:
-            ccache_fd, ccache_file = tempfile.mkstemp(prefix="acme2certifier_krb5cc_")
-            os.close(ccache_fd)
-            self.logger.debug(
-                "No kerberos ccache configured, created temporary ccache file: %s",
-                ccache_file,
-            )
-            self.krb5_cache = ccache_file
-            self._krb5_cache_is_temporary = True
-
-        if ccache_file.startswith("FILE:"):
-            ccache_file = ccache_file.split("FILE:", maxsplit=1)[1]
-            self.logger.debug(
-                "Normalized kerberos ccache path from FILE: prefix: %s", ccache_file
-            )
-            self.krb5_cache = ccache_file
-
-        if not os.path.exists(ccache_file):
-            with open(ccache_file, "a", encoding="utf-8") as ccache_handle:
-                ccache_handle.write("")
-
-        self.logger.debug("Using kerberos ccache file: %s", ccache_file)
+        ccache_file = self._kerberos_ccache_prepare()
 
         try:
             principal = gssapi.Name(

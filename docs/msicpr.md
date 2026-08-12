@@ -36,7 +36,7 @@ When using the MS-ICPR handler, acme2certifier communicates with the Microsoft C
 
 Some malware scanners, such as Microsoft Defender, classify Impacket as a hacking tool (see [Fortra Impacket Issue #1762](https://github.com/fortra/impacket/issues/1762) or [Fortra Impacket Issue #1271](https://github.com/fortra/impacket/issues/1271#issuecomment-1058729047)). These alerts are triggered mainly by example scripts included in the package, not the library itself.
 
-To avoid issues with your security team, consider installing a stripped-down version of Impacket without flagged scripts. Pre-packaged versions are available for [RHEL 8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RHEL 9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) in the [SBOM repository](https://github.com/grindsa/sbom/tree/main/rpm-repo).
+To avoid issues with your security team, consider installing a stripped-down version of Impacket without flagged scripts. Pre-packaged versions are available for [RHEL 8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RHEL 9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) in the [SBOM repository](https://github.com/grindsa/sbom/tree/main/rpm-repo).
 
 If installing from pip or source, follow these steps:
 
@@ -110,7 +110,7 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **krb5_cache_variable** *(optional)* – Environment variable containing the ccache path (overridden if `krb5_cache` is set in `acme_srv.cfg`).
 - **krb5_config** *(optional)* – Path to a custom `krb5.conf` file. Used by the kinit fallback path.
 - **krb5_config_variable** *(optional)* – Environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).
-- **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the kinit fallback path. Defaults to `kinit` resolved from `PATH`. If set, the value must be an **absolute** path whose basename is exactly `kinit` (for example `/usr/bin/kinit`). Other values are rejected and the kinit fallback fails.
+- **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the kinit fallback path. Defaults to `kinit` resolved from `PATH`. If set, the value must be an **absolute** path whose basename is exactly `kinit` (for example `/usr/bin/kinit`). Symlink targets such as Debian/Ubuntu `kinit.mit` / `kinit.heimdal` are accepted after resolution. Other values are rejected and the kinit fallback fails.
 - **krb5_kinit_path_variable** *(optional)* – Environment variable containing the `kinit` binary path (overridden if `krb5_kinit_path` is set in `acme_srv.cfg`).
 - **target_domain** *(optional)* – Active Directory domain name.
 - **domain_controller** *(optional)* – Domain controller endpoint. You can provide either an IP address or an FQDN. If an FQDN is configured, acme2certifier resolves it via DNS and uses the first returned IP address.
