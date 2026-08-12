@@ -112,8 +112,31 @@ class Request:
             do_kerberos=self.do_kerberos,
         )
 
+    def __enter__(self) -> "Request":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        self.close()
+        return False
+
+    def close(self) -> None:
+        """Disconnect DCE/RPC session if connected."""
+        if self.dce is None:
+            return
+        try:
+            self.dce.disconnect()
+        except Exception as err:
+            logging.warning("Failed to disconnect DCE/RPC session: %s", err)
+        finally:
+            self.dce = None
+
     def get_cert(self, csr: bytes) -> Dict[str, Any]:
         """submit certificate request and return structured response"""
+        if self.dce is None:
+            raise ConnectionError(
+                "DCE/RPC connection to CA server is not available"
+            )
+
         csr = csr_pem_to_der(csr)
 
         attributes = ["CertificateTemplate:%s" % self.template]

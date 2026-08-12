@@ -622,6 +622,60 @@ class TestMsWcceRequest(unittest.TestCase):
             )
         )
 
+    @patch("acme2certifier.cahandlers.ms_wcce.request.get_dce_rpc")
+    def test_010_get_cert_raises_when_dce_unavailable(self, mock_get_dce):
+        """get_cert raises ConnectionError when DCE bind/connect returned None"""
+        from acme2certifier.cahandlers.ms_wcce.request import Request
+
+        mock_get_dce.return_value = None
+        req = Request(target=SimpleNamespace(timeout=5), ca="CA", template="T")
+        with self.assertRaises(ConnectionError) as raised:
+            req.get_cert(b"CSR")
+        self.assertIn("DCE/RPC connection", str(raised.exception))
+
+    @patch("acme2certifier.cahandlers.ms_wcce.request.get_dce_rpc")
+    def test_011_request_close_disconnects(self, mock_get_dce):
+        """close() disconnects DCE and clears the handle"""
+        from acme2certifier.cahandlers.ms_wcce.request import Request
+
+        mock_dce = Mock()
+        mock_get_dce.return_value = mock_dce
+        req = Request(target=SimpleNamespace(timeout=5), ca="CA", template="T")
+        req.close()
+        mock_dce.disconnect.assert_called_once_with()
+        self.assertIsNone(req.dce)
+        # Second close is a no-op
+        req.close()
+        mock_dce.disconnect.assert_called_once_with()
+
+    @patch("acme2certifier.cahandlers.ms_wcce.request.get_dce_rpc")
+    def test_012_request_context_manager_closes(self, mock_get_dce):
+        """Request context manager disconnects on exit"""
+        from acme2certifier.cahandlers.ms_wcce.request import Request
+
+        mock_dce = Mock()
+        mock_get_dce.return_value = mock_dce
+        with Request(target=SimpleNamespace(timeout=5), ca="CA", template="T") as req:
+            self.assertIs(mock_dce, req.dce)
+        mock_dce.disconnect.assert_called_once_with()
+        self.assertIsNone(req.dce)
+
+    @patch("acme2certifier.cahandlers.ms_wcce.request.get_dce_rpc")
+    def test_013_request_close_logs_disconnect_failure(self, mock_get_dce):
+        """close() logs disconnect failures and still clears the handle"""
+        from acme2certifier.cahandlers.ms_wcce.request import Request
+
+        mock_dce = Mock()
+        mock_dce.disconnect.side_effect = Exception("disconnect fail")
+        mock_get_dce.return_value = mock_dce
+        req = Request(target=SimpleNamespace(timeout=5), ca="CA", template="T")
+        with self.assertLogs(level="WARNING") as lcm:
+            req.close()
+        self.assertIsNone(req.dce)
+        self.assertTrue(
+            any("Failed to disconnect DCE/RPC session" in msg for msg in lcm.output)
+        )
+
 
 if __name__ == "__main__":
 

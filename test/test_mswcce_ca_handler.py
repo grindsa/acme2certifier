@@ -2349,7 +2349,21 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._certificate_request_send("csr"),
         )
         mock_request.get_cert.assert_called_once_with(b"csr")
+        mock_request.close.assert_called_once_with()
 
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.CAhandler.request_create")
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.convert_string_to_byte")
+    def test_114b_certificate_request_send_closes_on_error(self, mock_s2b, mock_rcr):
+        """_certificate_request_send closes DCE even when get_cert raises"""
+        mock_request = Mock()
+        mock_request.get_cert.side_effect = ConnectionError(
+            "DCE/RPC connection to CA server is not available"
+        )
+        mock_rcr.return_value = mock_request
+        mock_s2b.return_value = b"csr"
+        with self.assertRaises(ConnectionError):
+            self.cahandler._certificate_request_send("csr")
+        mock_request.close.assert_called_once_with()
     def test_115_certificate_response_process_issued_without_bytes(self):
         """issued disposition without certificate bytes returns fetch error"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:

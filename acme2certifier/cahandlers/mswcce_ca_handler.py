@@ -785,7 +785,10 @@ class CAhandler(object):
         """submit certificate request and return structured CA response"""
         csr_bytes = convert_string_to_byte(csr)
         request = self.request_create()
-        return request.get_cert(csr_bytes)
+        try:
+            return request.get_cert(csr_bytes)
+        finally:
+            request.close()
 
     def _certificate_response_process(
         self, cert_response: Dict[str, object]
