@@ -483,11 +483,13 @@ class TestMsWcceRequest(unittest.TestCase):
         request_id=11,
         cert_bytes=b"",
         disposition_message=b"",
+        chain_bytes=b"",
     ):
         return {
             "pdwDisposition": disposition,
             "pdwRequestId": request_id,
             "pctbEncodedCert": {"pb": [cert_bytes] if cert_bytes else []},
+            "pctbCert": {"pb": [chain_bytes] if chain_bytes else []},
             "pctbDispositionMessage": {
                 "pb": [disposition_message] if disposition_message else []
             },
@@ -531,10 +533,86 @@ class TestMsWcceRequest(unittest.TestCase):
         self.assertEqual(3, result["disposition"])
         self.assertEqual("issued", result["disposition_message"])
         self.assertEqual(b"PEM", result["certificate"])
+        self.assertIsNone(result["certificate_chain"])
         mock_der.assert_called_once()
         self.assertTrue(
             any("Successfully requested certificate" in msg for msg in lcm.output)
         )
+
+    @patch(
+        "acme2certifier.cahandlers.ms_wcce.request.csr_pem_to_der", return_value=b"DER"
+    )
+    @patch("acme2certifier.cahandlers.ms_wcce.request.get_dce_rpc")
+    def test_005b_get_cert_issued_with_cms_chain(self, mock_get_dce, _mock_csr):
+        """get_cert extracts CA chain from pctbCert CMS blob"""
+        from acme2certifier.cahandlers.ms_wcce.request import Request
+        from cryptography import x509
+        from cryptography.hazmat.primitives.serialization import Encoding
+        from cryptography.hazmat.primitives.serialization.pkcs7 import (
+            serialize_certificates,
+        )
+        import os
+
+        base = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ca")
+        with open(os.path.join(base, "sub-ca-client.pem"), "rb") as open_file:
+            leaf = x509.load_pem_x509_certificate(open_file.read())
+        with open(os.path.join(base, "sub-ca-cert.pem"), "rb") as open_file:
+            sub_ca = x509.load_pem_x509_certificate(open_file.read())
+        with open(os.path.join(base, "root-ca-cert.pem"), "rb") as open_file:
+            root_ca = x509.load_pem_x509_certificate(open_file.read())
+
+        leaf_der = leaf.public_bytes(Encoding.DER)
+        cms_der = serialize_certificates([leaf, sub_ca, root_ca], Encoding.DER)
+
+        mock_dce = Mock()
+        mock_dce.request.return_value = self._response(
+            disposition=3,
+            cert_bytes=leaf_der,
+            chain_bytes=cms_der,
+            disposition_message="issued".encode("utf-16le"),
+        )
+        mock_get_dce.return_value = mock_dce
+        req = Request(target=SimpleNamespace(timeout=5), ca="CA", template="T")
+        with self.assertLogs(level="INFO") as lcm:
+            result = req.get_cert(b"CSR")
+
+        self.assertEqual(leaf.public_bytes(Encoding.PEM), result["certificate"])
+        self.assertIsNotNone(result["certificate_chain"])
+        chain_pem = result["certificate_chain"].decode()
+        self.assertIn("BEGIN CERTIFICATE", chain_pem)
+        self.assertNotIn(leaf.public_bytes(Encoding.PEM).decode(), chain_pem)
+        self.assertIn(sub_ca.public_bytes(Encoding.PEM).decode(), chain_pem)
+        self.assertIn(root_ca.public_bytes(Encoding.PEM).decode(), chain_pem)
+        self.assertTrue(
+            any("Extracted CA certificate chain" in msg for msg in lcm.output)
+        )
+
+    def test_005c_ca_chain_pem_from_cms_empty(self):
+        """ca_chain_pem_from_cms returns None for empty input"""
+        from acme2certifier.cahandlers.ms_wcce.request import ca_chain_pem_from_cms
+
+        self.assertIsNone(ca_chain_pem_from_cms(b""))
+        self.assertIsNone(ca_chain_pem_from_cms(b"not-a-cms"))
+
+    def test_005d_ca_chain_pem_from_cms_strips_leaf(self):
+        """ca_chain_pem_from_cms strips matching leaf certificate"""
+        from acme2certifier.cahandlers.ms_wcce.request import ca_chain_pem_from_cms
+        from cryptography import x509
+        from cryptography.hazmat.primitives.serialization import Encoding
+        from cryptography.hazmat.primitives.serialization.pkcs7 import (
+            serialize_certificates,
+        )
+        import os
+
+        base = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ca")
+        with open(os.path.join(base, "sub-ca-client.pem"), "rb") as open_file:
+            leaf = x509.load_pem_x509_certificate(open_file.read())
+        with open(os.path.join(base, "sub-ca-cert.pem"), "rb") as open_file:
+            sub_ca = x509.load_pem_x509_certificate(open_file.read())
+
+        cms_der = serialize_certificates([leaf, sub_ca], Encoding.DER)
+        chain = ca_chain_pem_from_cms(cms_der, leaf.public_bytes(Encoding.DER))
+        self.assertEqual(sub_ca.public_bytes(Encoding.PEM), chain)
 
     @patch(
         "acme2certifier.cahandlers.ms_wcce.request.csr_pem_to_der", return_value=b"DER"

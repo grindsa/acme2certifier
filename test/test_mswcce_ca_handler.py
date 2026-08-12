@@ -426,8 +426,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertIn(
-            "WARNING:test_a2c:MS-WCCE enrolls over SMB/DCE-RPC. ca_bundle only appends a local PEM "
-            "chain to the issued certificate; it does not authenticate the CA endpoint.",
+            "WARNING:test_a2c:MS-WCCE enrolls over SMB/DCE-RPC. Certificate packaging uses the CMS "
+            "chain from the enrollment response when available; ca_bundle is an "
+            "optional local PEM fallback and does not authenticate the CA endpoint.",
             lcm.output,
         )
 
@@ -446,7 +447,11 @@ class TestACMEHandler(unittest.TestCase):
             any("authentication uses NTLM" in msg for msg in lcm.output)
         )
         self.assertTrue(
-            any("ca_bundle only appends a local PEM" in msg for msg in lcm.output)
+            any(
+                "Certificate packaging uses the CMS" in msg
+                or "ca_bundle is an optional local PEM fallback" in msg
+                for msg in lcm.output
+            )
         )
 
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.load_config")
@@ -919,6 +924,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
+        self.cahandler.ca_bundle = "ca_bundle"
         mock_request = Mock()
         mock_request.get_cert.return_value = {
             "request_id": 1,
@@ -946,6 +952,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
+        self.cahandler.ca_bundle = "ca_bundle"
         mock_request = Mock()
         mock_request.get_cert.return_value = {
             "request_id": 1,
@@ -973,6 +980,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
+        self.cahandler.ca_bundle = "ca_bundle"
         mock_request = Mock()
         mock_request.get_cert.return_value = {
             "request_id": 1,
@@ -2197,7 +2205,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_s2b.return_value = "s2b"
 
         self.assertEqual(
-            ("Certificate request is pending approval.", None, None, None),
+            ("Certificate request is pending approval.", None, None, "55"),
             self.cahandler.enroll("csr"),
         )
 
@@ -2315,23 +2323,46 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertRaises(ConnectionError):
             self.cahandler._certificate_request_send("csr")
         mock_request.close.assert_called_once_with()
+
     def test_115_certificate_response_process_issued_without_bytes(self):
         """issued disposition without certificate bytes returns fetch error"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            error, cert_raw = self.cahandler._certificate_response_process(
-                {
-                    "request_id": 7,
-                    "disposition": 3,
-                    "disposition_message": "issued",
-                    "certificate": None,
-                }
+            error, cert_raw, poll_identifier, ca_chain = (
+                self.cahandler._certificate_response_process(
+                    {
+                        "request_id": 7,
+                        "disposition": 3,
+                        "disposition_message": "issued",
+                        "certificate": None,
+                    }
+                )
             )
         self.assertEqual("Could not get certificate from CA server", error)
         self.assertIsNone(cert_raw)
+        self.assertIsNone(poll_identifier)
+        self.assertIsNone(ca_chain)
         self.assertIn(
             "ERROR:test_a2c:Enrollment response has issued disposition but no certificate bytes. request_id=7",
             lcm.output,
         )
+
+    def test_115b_certificate_response_process_pending_returns_poll_identifier(self):
+        """pending disposition returns CA request_id as poll identifier"""
+        with self.assertLogs("test_a2c", level="INFO"):
+            error, cert_raw, poll_identifier, ca_chain = (
+                self.cahandler._certificate_response_process(
+                    {
+                        "request_id": 55,
+                        "disposition": 5,
+                        "disposition_message": "pending",
+                        "certificate": None,
+                    }
+                )
+            )
+        self.assertEqual("Certificate request is pending approval.", error)
+        self.assertIsNone(cert_raw)
+        self.assertEqual("55", poll_identifier)
+        self.assertIsNone(ca_chain)
 
     @patch(
         "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
@@ -2370,6 +2401,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.template = "template"
         self.cahandler.use_kerberos = True
         self.cahandler.krb5_auth_backend = "python"
+        self.cahandler.ca_bundle = "ca_bundle"
         mock_keytab.return_value = True
         mock_prepare.return_value = None
         mock_pem.return_value = "csr_pem"
@@ -2434,6 +2466,47 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(cert_bundle)
         self.assertIsNone(cert_raw)
         self.assertIsNone(poll_id)
+
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.CAhandler.request_create")
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.convert_string_to_byte")
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._file_load")
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.build_pem_file")
+    def test_enroll_prefers_rpc_certificate_chain(
+        self, mock_pem, mock_file, mock_s2b, mock_rcr
+    ):
+        """enrollment prefers CMS chain from response over local ca_bundle"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.ca_bundle = "ca_bundle"
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": None,
+            "certificate": (
+                b"-----BEGIN CERTIFICATE-----\nleaf\n-----END CERTIFICATE-----\n"
+            ),
+            "certificate_chain": (
+                b"-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----\n"
+            ),
+        }
+        mock_rcr.return_value = mock_request
+        mock_file.return_value = "file_load"
+        mock_s2b.return_value = b"csr"
+        mock_pem.return_value = "csr"
+
+        error, cert_bundle, cert_raw, poll_id = self.cahandler.enroll("csr")
+        self.assertIsNone(error)
+        self.assertEqual(
+            "-----BEGIN CERTIFICATE-----\nleaf\n-----END CERTIFICATE-----\n"
+            "-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----\n",
+            cert_bundle,
+        )
+        self.assertEqual("leaf", cert_raw)
+        self.assertIsNone(poll_id)
+        self.assertFalse(mock_file.called)
 
 
 if __name__ == "__main__":

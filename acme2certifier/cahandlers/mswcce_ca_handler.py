@@ -287,8 +287,9 @@ class CAhandler(object):
                 "Prefer use_kerberos=True (see Microsoft guidance on NTLM)."
             )
         self.logger.warning(
-            "MS-WCCE enrolls over SMB/DCE-RPC. ca_bundle only appends a local PEM "
-            "chain to the issued certificate; it does not authenticate the CA endpoint."
+            "MS-WCCE enrolls over SMB/DCE-RPC. Certificate packaging uses the CMS "
+            "chain from the enrollment response when available; ca_bundle is an "
+            "optional local PEM fallback and does not authenticate the CA endpoint."
         )
         self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
 
@@ -787,12 +788,19 @@ class CAhandler(object):
 
     def _certificate_response_process(
         self, cert_response: Dict[str, object]
-    ) -> Tuple[Optional[str], Optional[str]]:
-        """validate structured CA response and extract certificate text"""
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """validate structured CA response and extract certificate text
+
+        Returns (error, cert_raw, poll_identifier, ca_chain). poll_identifier is
+        the CA request_id as a string when disposition is pending (for a future
+        poll()). ca_chain is PEM CA certificates extracted from pctbCert when
+        present.
+        """
         disposition = cert_response.get("disposition")
         request_id = cert_response.get("request_id")
         disposition_message = cert_response.get("disposition_message")
         certificate_bytes = cert_response.get("certificate")
+        certificate_chain = cert_response.get("certificate_chain")
 
         if disposition != self.CERT_DISPOSITION_ISSUED:
             error = (
@@ -800,23 +808,39 @@ class CAhandler(object):
                 if disposition == self.CERT_DISPOSITION_PENDING
                 else self.CERT_FETCH_ERROR
             )
+            poll_identifier = (
+                str(request_id)
+                if disposition == self.CERT_DISPOSITION_PENDING
+                and request_id is not None
+                else None
+            )
             self.logger.error(
                 "Enrollment did not return an issued certificate. request_id=%s disposition=%s message=%s",
                 request_id,
                 disposition,
                 disposition_message,
             )
-            return error, None
+            return error, None, poll_identifier, None
 
         if not certificate_bytes:
             self.logger.error(
                 "Enrollment response has issued disposition but no certificate bytes. request_id=%s",
                 request_id,
             )
-            return self.CERT_FETCH_ERROR, None
+            return self.CERT_FETCH_ERROR, None, None, None
 
         cert_raw = convert_byte_to_string(certificate_bytes)
-        return None, cert_raw.replace("\r\n", "\n") if cert_raw else cert_raw
+        ca_chain = None
+        if certificate_chain:
+            ca_chain = convert_byte_to_string(certificate_chain)
+            if ca_chain:
+                ca_chain = ca_chain.replace("\r\n", "\n")
+        return (
+            None,
+            cert_raw.replace("\r\n", "\n") if cert_raw else cert_raw,
+            None,
+            ca_chain,
+        )
 
     def request_create(self) -> Request:
         """create request object"""
@@ -885,12 +909,16 @@ class CAhandler(object):
         self.logger.debug("CAhandler._allowed_templates_check() ended")
         return None
 
-    def _enroll(self, csr: str) -> Tuple[str, str, str]:
-        """enroll certificate via MS-WCCE"""
+    def _enroll(self, csr: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """enroll certificate via MS-WCCE
+
+        Returns (error, cert_raw, cert_bundle, poll_identifier).
+        """
         self.logger.debug("CAhandler._enroll(%s)", self.template)
         error = None
         cert_raw = None
         cert_bundle = None
+        poll_identifier = None
         self._kerberos_tgt = None
 
         try:
@@ -899,7 +927,7 @@ class CAhandler(object):
 
             if error:
                 self.logger.error("Kerberos backend setup failed: %s", error)
-                return error, cert_raw, cert_bundle
+                return error, cert_raw, cert_bundle, poll_identifier
 
             runtime_kerberos_python = (
                 self.use_kerberos
@@ -910,21 +938,21 @@ class CAhandler(object):
                 tgt, tgt_error = self._kerberos_tgt_from_ccache()
                 if tgt_error:
                     self.logger.error("Kerberos TGT load failed: %s", tgt_error)
-                    return tgt_error, cert_raw, cert_bundle
+                    return tgt_error, cert_raw, cert_bundle, poll_identifier
                 self._kerberos_tgt = tgt
 
             # reformat csr
             csr = build_pem_file(self.logger, None, csr, 64, True)
 
-            # pylint: disable=W0511
-            # currently getting certificate chain is not supported
-            ca_pem = self._file_load(self.ca_bundle)
-
             try:
                 cert_response = self._certificate_request_send(csr)
-                error, cert_raw = self._certificate_response_process(cert_response)
+                error, cert_raw, poll_identifier, ca_pem_rpc = (
+                    self._certificate_response_process(cert_response)
+                )
             except Exception as err:
                 cert_raw = None
+                poll_identifier = None
+                ca_pem_rpc = None
                 self.logger.error("Enrollment failed with error: %s", err)
                 error = self.CERT_FETCH_ERROR
 
@@ -933,7 +961,20 @@ class CAhandler(object):
                     "Certificate bundling skipped due to previous error: %s", error
                 )
                 self.logger.debug("CAhandler._enroll() ended with error: %s", error)
-                return error, cert_raw, cert_bundle
+                return error, cert_raw, cert_bundle, poll_identifier
+
+            ca_pem = ca_pem_rpc
+            if not ca_pem and self.ca_bundle:
+                ca_pem = self._file_load(self.ca_bundle)
+                if ca_pem:
+                    self.logger.info(
+                        "Using local ca_bundle as CA chain fallback for certificate packaging."
+                    )
+            if cert_raw and not ca_pem:
+                self.logger.warning(
+                    "Enrollment response did not include a CA chain and no "
+                    "ca_bundle is configured; returning leaf certificate only."
+                )
 
             if cert_raw:
                 if ca_pem:
@@ -950,17 +991,18 @@ class CAhandler(object):
                 error = "Certificate bundling failed: CA certificate or issued certificate is missing."
 
             self.logger.debug("CAhandler._enroll() ended with error: %s", error)
-            return error, cert_raw, cert_bundle
+            return error, cert_raw, cert_bundle, poll_identifier
         finally:
             # Always clear temp ccache (including prepare-failure paths that created one).
             self._kerberos_cleanup_temporary_ccache()
 
-    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
+    def enroll(self, csr: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         """enroll certificate via MS-WCCE"""
         self.logger.debug("CAhandler.enroll(%s)", self.template)
         cert_bundle = None
         error = None
         cert_raw = None
+        poll_identifier = None
 
         config_complete, config_error = self._config_is_complete()
         if not config_complete:
@@ -985,10 +1027,10 @@ class CAhandler(object):
                 self.logger.error("Template allowlist check failed: %s", error)
             else:
                 # enroll certificate
-                error, cert_raw, cert_bundle = self._enroll(csr)
+                error, cert_raw, cert_bundle, poll_identifier = self._enroll(csr)
 
         self.logger.debug("Certificate.enroll() ended")
-        return (error, cert_bundle, cert_raw, None)
+        return (error, cert_bundle, cert_raw, poll_identifier)
 
     def handler_check(self):
         """check if handler is ready"""
