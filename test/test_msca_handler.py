@@ -1652,6 +1652,14 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_gssapi_creds_from_cache",
+        return_value=(None, None),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
+        return_value=None,
+    )
+    @patch(
         "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._gssapi_channel_bindings_resolve",
         return_value=(
             None,
@@ -1659,7 +1667,9 @@ class TestACMEHandler(unittest.TestCase):
             "with channel_bindings support.",
         ),
     )
-    def test_104_enroll_channel_bindings_error(self, mock_resolve):
+    def test_104_enroll_channel_bindings_error(
+        self, mock_resolve, _mock_prepare, _mock_creds
+    ):
         """enroll returns channel bindings resolve error"""
         self.cahandler.host = "host"
         self.cahandler.user = "user"
@@ -1682,11 +1692,19 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_gssapi_creds_from_cache",
+        return_value=(None, None),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
+        return_value=None,
+    )
+    @patch(
         "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._gssapi_channel_bindings_resolve",
         return_value=("tls-server-end-point", None),
     )
     def test_105_enroll_passes_channel_bindings(
-        self, mock_resolve, mock_certsrv, mock_credchk
+        self, mock_resolve, _mock_prepare, _mock_creds, mock_certsrv, mock_credchk
     ):
         """enroll passes resolved channel_bindings to Certsrv"""
         self.cahandler.host = "host"
@@ -2133,6 +2151,227 @@ class TestACMEHandler(unittest.TestCase):
             error = self.cahandler.handler_check()
         self.assertEqual("krb5_kinit_path is invalid", error)
         self.assertTrue(any("Rejected krb5_kinit_path" in msg for msg in lcm.output))
+
+    def test_131_kerberos_config_path_resolve_relative_exists(self):
+        """_kerberos_config_path_resolve accepts relative existing paths"""
+        rel = os.path.relpath(os.path.join(self.dir_path, "ca", "root-ca-cert.pem"))
+        self.cahandler.krb5_config = rel
+        resolved = self.cahandler._kerberos_config_path_resolve()
+        self.assertEqual(os.path.abspath(rel), resolved)
+
+    def test_132_kerberos_config_path_resolve_missing(self):
+        """_kerberos_config_path_resolve returns None when file is absent"""
+        self.cahandler.krb5_config = "/tmp/missing-krb5-config-a2c.conf"
+        self.assertIsNone(self.cahandler._kerberos_config_path_resolve())
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.kerberos_kinit_command_resolve",
+        return_value="/usr/bin/kinit",
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_config_path_resolve",
+        return_value=None,
+    )
+    def test_133_kerberos_acquire_with_kinit_missing_krb5_config(
+        self, _mock_resolve, _mock_kinit
+    ):
+        """keytab kinit fails when configured krb5_config cannot be resolved"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_config = "/tmp/missing.conf"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(self.cahandler._kerberos_acquire_with_kinit("/tmp/cc"))
+        self.assertTrue(
+            any("Configured krb5_config does not exist" in msg for msg in lcm.output)
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.kerberos_kinit_command_resolve",
+        return_value=None,
+    )
+    def test_134_kerberos_acquire_with_kinit_password_no_binary(self, _mock_kinit):
+        """password kinit returns False when kinit binary cannot be resolved"""
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        self.assertFalse(
+            self.cahandler._kerberos_acquire_with_kinit_password("/tmp/cc")
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.kerberos_kinit_command_resolve",
+        return_value="/usr/bin/kinit",
+    )
+    def test_135_kerberos_acquire_with_kinit_password_missing_creds(self, _mock_kinit):
+        """password kinit requires user and password"""
+        self.cahandler.user = None
+        self.cahandler.password = None
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(
+                self.cahandler._kerberos_acquire_with_kinit_password("/tmp/cc")
+            )
+        self.assertTrue(
+            any(
+                "user/password are required for GSSAPI password kinit" in msg
+                for msg in lcm.output
+            )
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.kerberos_kinit_command_resolve",
+        return_value="/usr/bin/kinit",
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_config_path_resolve",
+        return_value=None,
+    )
+    def test_136_kerberos_acquire_with_kinit_password_missing_krb5_config(
+        self, _mock_resolve, _mock_kinit
+    ):
+        """password kinit fails when configured krb5_config cannot be resolved"""
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        self.cahandler.krb5_config = "/tmp/missing.conf"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(
+                self.cahandler._kerberos_acquire_with_kinit_password("/tmp/cc")
+            )
+        self.assertTrue(
+            any("Configured krb5_config does not exist" in msg for msg in lcm.output)
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="kinit", timeout=1),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.kerberos_kinit_command_resolve",
+        return_value="/usr/bin/kinit",
+    )
+    def test_137_kerberos_acquire_with_kinit_password_timeout(
+        self, _mock_kinit, _mock_run
+    ):
+        """password kinit handles timeout"""
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(
+                self.cahandler._kerberos_acquire_with_kinit_password("/tmp/cc")
+            )
+        self.assertTrue(any("kinit timed out" in msg for msg in lcm.output))
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run",
+        side_effect=FileNotFoundError("missing"),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.kerberos_kinit_command_resolve",
+        return_value="/usr/bin/kinit",
+    )
+    def test_138_kerberos_acquire_with_kinit_password_not_found(
+        self, _mock_kinit, _mock_run
+    ):
+        """password kinit handles missing binary at execution time"""
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(
+                self.cahandler._kerberos_acquire_with_kinit_password("/tmp/cc")
+            )
+        self.assertTrue(any("command not found" in msg for msg in lcm.output))
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.kerberos_kinit_command_resolve",
+        return_value="/usr/bin/kinit",
+    )
+    def test_139_kerberos_acquire_with_kinit_password_stderr(
+        self, _mock_kinit, mock_run
+    ):
+        """password kinit logs stderr from CalledProcessError"""
+        mock_run.side_effect = subprocess.CalledProcessError(
+            1, "kinit", stderr="bad password"
+        )
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(
+                self.cahandler._kerberos_acquire_with_kinit_password("/tmp/cc")
+            )
+        self.assertTrue(
+            any(
+                "Failed to acquire kerberos credentials via password kinit: bad password"
+                in msg
+                for msg in lcm.output
+            )
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run",
+        side_effect=RuntimeError("boom"),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.kerberos_kinit_command_resolve",
+        return_value="/usr/bin/kinit",
+    )
+    def test_140_kerberos_acquire_with_kinit_password_generic_error(
+        self, _mock_kinit, _mock_run
+    ):
+        """password kinit logs generic exceptions without stderr"""
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(
+                self.cahandler._kerberos_acquire_with_kinit_password("/tmp/cc")
+            )
+        self.assertTrue(
+            any(
+                "Failed to acquire kerberos credentials via password kinit: boom"
+                in msg
+                for msg in lcm.output
+            )
+        )
+
+    def test_141_kerberos_prepare_gssapi_password_noop_without_creds(self):
+        """password prepare is a no-op without user/password"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.user = None
+        self.cahandler.password = None
+        self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_password_backend())
+
+    def test_142_kerberos_prepare_gssapi_password_missing_krb5_config(self):
+        """password prepare fails when configured krb5_config is missing"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        self.cahandler.krb5_config = "/tmp/missing-krb5-a2c.conf"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error = self.cahandler._kerberos_prepare_gssapi_password_backend()
+        self.assertEqual("Configured krb5_config does not exist.", error)
+        self.assertTrue(
+            any("Configured krb5_config does not exist" in msg for msg in lcm.output)
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_acquire_with_kinit_password",
+        return_value=False,
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_ccache_prepare",
+        return_value="/tmp/cc_pw",
+    )
+    def test_143_kerberos_prepare_gssapi_password_fallback_without_config(
+        self, _mock_ccache, _mock_kinit_pw, mock_cleanup
+    ):
+        """password prepare falls back to in-process GSSAPI when no krb5_config"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        self.cahandler.krb5_config = None
+        self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_password_backend())
+        self.assertTrue(mock_cleanup.called)
 
 
 if __name__ == "__main__":

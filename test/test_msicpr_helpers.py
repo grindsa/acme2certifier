@@ -754,6 +754,57 @@ class TestMsWcceRequest(unittest.TestCase):
             any("Failed to disconnect DCE/RPC session" in msg for msg in lcm.output)
         )
 
+    def test_014_ca_chain_pem_from_cms_leaf_only(self):
+        """ca_chain_pem_from_cms returns None when CMS contains only the leaf"""
+        from acme2certifier.cahandlers.ms_icpr.request import ca_chain_pem_from_cms
+        from cryptography import x509
+        from cryptography.hazmat.primitives.serialization import Encoding
+        from cryptography.hazmat.primitives.serialization.pkcs7 import (
+            serialize_certificates,
+        )
+        import os
+
+        base = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ca")
+        with open(os.path.join(base, "sub-ca-client.pem"), "rb") as open_file:
+            leaf = x509.load_pem_x509_certificate(open_file.read())
+
+        leaf_der = leaf.public_bytes(Encoding.DER)
+        cms_der = serialize_certificates([leaf], Encoding.DER)
+        self.assertIsNone(ca_chain_pem_from_cms(cms_der, leaf_der))
+
+    @patch("acme2certifier.cahandlers.ms_icpr.request.der_to_pem", return_value=b"PEM")
+    @patch(
+        "acme2certifier.cahandlers.ms_icpr.request.ca_chain_pem_from_cms",
+        return_value=None,
+    )
+    @patch(
+        "acme2certifier.cahandlers.ms_icpr.request.csr_pem_to_der", return_value=b"DER"
+    )
+    @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
+    def test_015_get_cert_issued_cms_chain_unextractable(
+        self, mock_get_dce, _mock_csr, _mock_chain, _mock_der
+    ):
+        """get_cert warns when pctbCert is present but CA chain cannot be extracted"""
+        from acme2certifier.cahandlers.ms_icpr.request import Request
+
+        mock_dce = Mock()
+        mock_dce.request.return_value = self._response(
+            disposition=3,
+            cert_bytes=b"leaf-der",
+            chain_bytes=b"cms-blob",
+            disposition_message="issued".encode("utf-16le"),
+        )
+        mock_get_dce.return_value = mock_dce
+        req = Request(target=SimpleNamespace(timeout=5), ca="CA", template="T")
+        with self.assertLogs(level="WARNING") as lcm:
+            result = req.get_cert(b"CSR")
+        self.assertIsNone(result["certificate_chain"])
+        self.assertTrue(
+            any(
+                "no CA certificates could be extracted" in msg for msg in lcm.output
+            )
+        )
+
 
 if __name__ == "__main__":
 
