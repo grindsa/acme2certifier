@@ -10,6 +10,7 @@ import re
 import base64
 import logging
 import warnings
+import inspect
 import requests
 
 __version__ = "2.1.1"
@@ -21,6 +22,16 @@ UNKOWN_ERR_MSG = "An unknown error occured"
 DEPRECATIONWARNING = (
     "This function is deprecated. Use the method on the Certsrv class instead"
 )
+CHANNEL_BINDINGS_TLS_SERVER_END_POINT = "tls-server-end-point"
+
+
+def gssapi_channel_bindings_supported() -> bool:
+    """Return True if requests-gssapi accepts channel_bindings ( >= 1.4.0 )."""
+    try:
+        from requests_gssapi import HTTPSPNEGOAuth
+    except ImportError:
+        return False
+    return "channel_bindings" in inspect.signature(HTTPSPNEGOAuth).parameters
 
 
 class RequestDeniedException(Exception):
@@ -70,6 +81,9 @@ class Certsrv(object):
         proxies: Dictionary of proxy server for post of get operations
             {'http': 'http://foo.bar:3128', 'https': 'socks5://foo.bar:1080'}
             The default is None
+        channel_bindings: Optional GSSAPI channel bindings value. Use
+            'tls-server-end-point' for EPA/CBT (requires requests-gssapi >= 1.4.0).
+            None disables channel bindings.
     Note:
         If you use a client certificate for authentication (auth_method=cert),
         the username parameter should be the path to a certificate, and
@@ -88,12 +102,14 @@ class Certsrv(object):
         verify=True,
         timeout=TIMEOUT,
         proxies=None,
+        channel_bindings=None,
     ):
 
         self.server = server
         self.url = url
         self.timeout = timeout
         self.auth_method = auth_method
+        self.channel_bindings = channel_bindings
         self.session = requests.Session()
         self.proxies = proxies
 
@@ -118,6 +134,26 @@ class Certsrv(object):
             "User-agent": "Mozilla/5.0 certsrv (https://github.com/magnuswatn/certsrv)"
         }
 
+    def _http_spnego_auth(self, **kwargs):
+        """Build HTTPSPNEGOAuth, optionally enabling channel bindings."""
+        from requests_gssapi import HTTPSPNEGOAuth
+
+        if self.channel_bindings:
+            if self.channel_bindings != CHANNEL_BINDINGS_TLS_SERVER_END_POINT:
+                raise ValueError(
+                    "channel_bindings must be None or '{0}'".format(
+                        CHANNEL_BINDINGS_TLS_SERVER_END_POINT
+                    )
+                )
+            if not gssapi_channel_bindings_supported():
+                raise RuntimeError(
+                    "channel_bindings='{0}' requires requests-gssapi >= 1.4.0".format(
+                        CHANNEL_BINDINGS_TLS_SERVER_END_POINT
+                    )
+                )
+            kwargs["channel_bindings"] = self.channel_bindings
+        return HTTPSPNEGOAuth(**kwargs)
+
     def _set_credentials(self, username, password):
         if self.auth_method == "ntlm":
             from requests_ntlm import HttpNtlmAuth
@@ -126,7 +162,6 @@ class Certsrv(object):
         elif self.auth_method == "cert":
             self.session.cert = (username, password)
         elif self.auth_method == "gssapi":
-            from requests_gssapi import HTTPSPNEGOAuth
             import gssapi
 
             # Support two GSSAPI modes:
@@ -141,11 +176,11 @@ class Certsrv(object):
                     mechs=[gssapi.OID.from_int_seq(oid)],
                     usage="initiate",
                 )
-                self.session.auth = HTTPSPNEGOAuth(
+                self.session.auth = self._http_spnego_auth(
                     creds=cred.creds, mech=gssapi.OID.from_int_seq(oid)
                 )
             else:
-                self.session.auth = HTTPSPNEGOAuth()
+                self.session.auth = self._http_spnego_auth()
         else:
             self.session.auth = (username, password)
 

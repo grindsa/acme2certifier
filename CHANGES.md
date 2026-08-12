@@ -42,6 +42,7 @@ and pick the appropriate release branch.
 - Option `ca_error_details_forward` allowing to pass error messages from CA to acme-client
 - Align account deactivation responses with the relevant RFC requirements
 - Harmonize the formatting of JSON responses across project
+- Optional GSSAPI channel bindings (`gssapi_channel_bindings`) for mscertsrv EPA/CBT support
 
 **Bug Fixes**:
 

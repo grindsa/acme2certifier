@@ -17,7 +17,11 @@ from cryptography.hazmat.primitives.serialization.pkcs7 import (
 )
 
 # pylint: disable=e0401, e0611
-from acme2certifier.cahandlers.certsrv import Certsrv
+from acme2certifier.cahandlers.certsrv import (
+    CHANNEL_BINDINGS_TLS_SERVER_END_POINT,
+    Certsrv,
+    gssapi_channel_bindings_supported,
+)
 from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     config_eab_profile_load,
@@ -46,6 +50,7 @@ class CAhandler(object):
         self.user = None
         self.password = None
         self.auth_method = "basic"
+        self.gssapi_channel_bindings = "auto"
         self.ca_bundle = False
         self.template = None
         self.krb5_principal = None
@@ -212,6 +217,20 @@ class CAhandler(object):
                     "Please migrate to 'gssapi' (Kerberos).",
                     self.auth_method,
                 )
+        channel_bindings_mode = config_dic.get(
+            "CAhandler", "gssapi_channel_bindings", fallback=self.gssapi_channel_bindings
+        )
+        if isinstance(channel_bindings_mode, str):
+            channel_bindings_mode = channel_bindings_mode.lower()
+        if channel_bindings_mode in ["auto", "on", "off"]:
+            self.gssapi_channel_bindings = channel_bindings_mode
+        else:
+            self.logger.warning(
+                "Invalid gssapi_channel_bindings '%s'; using 'auto'. "
+                "Allowed values: auto, on, off.",
+                channel_bindings_mode,
+            )
+            self.gssapi_channel_bindings = "auto"
         # check if we get a ca bundle for verification
         self.ca_bundle = config_dic.get(
             "CAhandler", "ca_bundle", fallback=self.ca_bundle
@@ -683,6 +702,40 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
+    def _gssapi_channel_bindings_resolve(self) -> Tuple[Optional[str], Optional[str]]:
+        """Resolve gssapi_channel_bindings mode to Certsrv channel_bindings value."""
+        self.logger.debug(
+            "CAhandler._gssapi_channel_bindings_resolve(%s)",
+            self.gssapi_channel_bindings,
+        )
+        if self.auth_method != "gssapi" or self.gssapi_channel_bindings == "off":
+            return (None, None)
+
+        supported = gssapi_channel_bindings_supported()
+        if self.gssapi_channel_bindings == "on":
+            if not supported:
+                return (
+                    None,
+                    "gssapi_channel_bindings=on requires requests-gssapi >= 1.4.0 "
+                    "with channel_bindings support.",
+                )
+            return (CHANNEL_BINDINGS_TLS_SERVER_END_POINT, None)
+
+        # auto
+        if supported:
+            self.logger.info(
+                "Enabling GSSAPI channel bindings (%s)",
+                CHANNEL_BINDINGS_TLS_SERVER_END_POINT,
+            )
+            return (CHANNEL_BINDINGS_TLS_SERVER_END_POINT, None)
+
+        self.logger.warning(
+            "requests-gssapi does not support channel_bindings; continuing without. "
+            "For EPA Required, upgrade to requests-gssapi >= 1.4.0 or set IIS "
+            "Extended Protection to Accept."
+        )
+        return (None, None)
+
     def _parameter_overwrite(self, _csr: str):
         """overwrite overwrite krb5.conf or user-template"""
         if self.krb5_config:
@@ -691,6 +744,13 @@ class CAhandler(object):
     def _enroll(self, csr: str) -> Tuple[str, str, str]:
         """enroll certificate"""
         self.logger.debug("CAhandler._enroll()")
+        channel_bindings, channel_bindings_error = (
+            self._gssapi_channel_bindings_resolve()
+        )
+        if channel_bindings_error:
+            self.logger.error(channel_bindings_error)
+            return (channel_bindings_error, None, None)
+
         # setup certserv
         ca_server = Certsrv(
             self.host,
@@ -701,6 +761,7 @@ class CAhandler(object):
             self.ca_bundle,
             verify=self.verify,
             proxies=self.proxy,
+            channel_bindings=channel_bindings,
         )
 
         error = None

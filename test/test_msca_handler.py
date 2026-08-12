@@ -1445,6 +1445,168 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_prepare.called)
         self.assertTrue(mock_cleanup.called)
 
+    def test_094_default_gssapi_channel_bindings(self):
+        """default gssapi_channel_bindings mode is auto"""
+        self.assertEqual("auto", self.cahandler.gssapi_channel_bindings)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_095_config_load_gssapi_channel_bindings_on(self, mock_load_cfg):
+        """test _config_load gssapi_channel_bindings=on"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"gssapi_channel_bindings": "on"}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual("on", self.cahandler.gssapi_channel_bindings)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_096_config_load_gssapi_channel_bindings_off(self, mock_load_cfg):
+        """test _config_load gssapi_channel_bindings=off"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"gssapi_channel_bindings": "OFF"}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual("off", self.cahandler.gssapi_channel_bindings)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_097_config_load_gssapi_channel_bindings_invalid(self, mock_load_cfg):
+        """test _config_load falls back to auto on invalid value"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"gssapi_channel_bindings": "maybe"}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertEqual("auto", self.cahandler.gssapi_channel_bindings)
+        self.assertIn(
+            "WARNING:test_a2c:Invalid gssapi_channel_bindings 'maybe'; using 'auto'. "
+            "Allowed values: auto, on, off.",
+            lcm.output,
+        )
+
+    def test_098_gssapi_channel_bindings_resolve_off(self):
+        """off mode never enables channel bindings"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.gssapi_channel_bindings = "off"
+        self.assertEqual((None, None), self.cahandler._gssapi_channel_bindings_resolve())
+
+    def test_099_gssapi_channel_bindings_resolve_non_gssapi(self):
+        """non-gssapi auth skips channel bindings"""
+        self.cahandler.auth_method = "basic"
+        self.cahandler.gssapi_channel_bindings = "on"
+        self.assertEqual((None, None), self.cahandler._gssapi_channel_bindings_resolve())
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.gssapi_channel_bindings_supported",
+        return_value=True,
+    )
+    def test_100_gssapi_channel_bindings_resolve_auto_supported(self, _mock_supported):
+        """auto enables tls-server-end-point when supported"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.gssapi_channel_bindings = "auto"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._gssapi_channel_bindings_resolve()
+        self.assertEqual(("tls-server-end-point", None), result)
+        self.assertIn(
+            "INFO:test_a2c:Enabling GSSAPI channel bindings (tls-server-end-point)",
+            lcm.output,
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.gssapi_channel_bindings_supported",
+        return_value=False,
+    )
+    def test_101_gssapi_channel_bindings_resolve_auto_unsupported(
+        self, _mock_supported
+    ):
+        """auto continues without channel bindings when unsupported"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.gssapi_channel_bindings = "auto"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._gssapi_channel_bindings_resolve()
+        self.assertEqual((None, None), result)
+        self.assertTrue(
+            any(
+                "does not support channel_bindings; continuing without" in entry
+                for entry in lcm.output
+            )
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.gssapi_channel_bindings_supported",
+        return_value=False,
+    )
+    def test_102_gssapi_channel_bindings_resolve_on_unsupported(self, _mock_supported):
+        """on mode fails when channel bindings are unsupported"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.gssapi_channel_bindings = "on"
+        value, error = self.cahandler._gssapi_channel_bindings_resolve()
+        self.assertIsNone(value)
+        self.assertIn("requests-gssapi >= 1.4.0", error)
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.gssapi_channel_bindings_supported",
+        return_value=True,
+    )
+    def test_103_gssapi_channel_bindings_resolve_on_supported(self, _mock_supported):
+        """on mode enables tls-server-end-point when supported"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.gssapi_channel_bindings = "on"
+        self.assertEqual(
+            ("tls-server-end-point", None),
+            self.cahandler._gssapi_channel_bindings_resolve(),
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._gssapi_channel_bindings_resolve",
+        return_value=(
+            None,
+            "gssapi_channel_bindings=on requires requests-gssapi >= 1.4.0 "
+            "with channel_bindings support.",
+        ),
+    )
+    def test_104_enroll_channel_bindings_error(self, mock_resolve):
+        """enroll returns channel bindings resolve error"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.gssapi_channel_bindings = "on"
+        self.assertEqual(
+            (
+                "gssapi_channel_bindings=on requires requests-gssapi >= 1.4.0 "
+                "with channel_bindings support.",
+                None,
+                None,
+                None,
+            ),
+            self.cahandler.enroll("csr"),
+        )
+        self.assertTrue(mock_resolve.called)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._gssapi_channel_bindings_resolve",
+        return_value=("tls-server-end-point", None),
+    )
+    def test_105_enroll_passes_channel_bindings(
+        self, mock_resolve, mock_certsrv, mock_credchk
+    ):
+        """enroll passes resolved channel_bindings to Certsrv"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.auth_method = "gssapi"
+        mock_credchk.return_value = False
+        self.cahandler.enroll("csr")
+        self.assertTrue(mock_resolve.called)
+        self.assertTrue(mock_certsrv.called)
+        self.assertEqual(
+            "tls-server-end-point",
+            mock_certsrv.call_args.kwargs.get("channel_bindings"),
+        )
+
 
 if __name__ == "__main__":
 
