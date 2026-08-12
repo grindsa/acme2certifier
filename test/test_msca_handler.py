@@ -214,6 +214,59 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_015b_config_load_warn_default_basic(self, mock_load_cfg):
+        """test warning when auth_method defaults to basic"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"host": "host.example"}
+        mock_load_cfg.return_value = parser
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+
+        self.assertEqual("basic", self.cahandler.auth_method)
+        self.assertIn(
+            "WARNING:test_a2c:Auth method 'basic' is deprecated and will be removed in a future release. Please migrate to 'gssapi' (Kerberos).",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_015c_config_load_warn_verify_false(self, mock_load_cfg):
+        """test warning when verify is disabled"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"auth_method": "gssapi", "verify": "False"}
+        mock_load_cfg.return_value = parser
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+
+        self.assertFalse(self.cahandler.verify)
+        self.assertIn(
+            "WARNING:test_a2c:TLS certificate verification is disabled (verify=False). Enrollment traffic to AD CS is vulnerable to MITM. Prefer ca_bundle / system trust.",
+            lcm.output,
+        )
+        self.assertFalse(
+            any("Auth method" in msg and "deprecated" in msg for msg in lcm.output)
+        )
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_015d_config_load_gssapi_no_auth_deprecation(self, mock_load_cfg):
+        """gssapi auth_method does not emit auth deprecation warning"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"auth_method": "gssapi", "verify": "True"}
+        mock_load_cfg.return_value = parser
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+
+        self.assertEqual("gssapi", self.cahandler.auth_method)
+        self.assertFalse(
+            any("Auth method" in msg and "deprecated" in msg for msg in lcm.output)
+        )
+        self.assertFalse(
+            any("verify=False" in msg for msg in lcm.output)
+        )
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
     def test_016_config_load(self, mock_load_cfg):
         """test _config_load cahandler section with authmethod unknown"""
         parser = configparser.ConfigParser()

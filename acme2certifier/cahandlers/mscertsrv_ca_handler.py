@@ -223,12 +223,6 @@ class CAhandler(object):
             "auth_method"
         ] in ["basic", "ntlm", "gssapi"]:
             self.auth_method = config_dic.get("CAhandler", "auth_method")
-            if self.auth_method in ["basic", "ntlm"]:
-                self.logger.warning(
-                    "Auth method '%s' is deprecated and will be removed in a future release. "
-                    "Please migrate to 'gssapi' (Kerberos).",
-                    self.auth_method,
-                )
         channel_bindings_mode = config_dic.get(
             "CAhandler", "gssapi_channel_bindings", fallback=self.gssapi_channel_bindings
         )
@@ -270,7 +264,25 @@ class CAhandler(object):
             self.enrollment_config_log_skip_list,
         ) = config_enroll_config_log_load(self.logger, config_dic)
 
+        self._security_configuration_warnings_log()
         self.logger.debug("CAhandler._config_parameters_load() ended")
+
+    def _security_configuration_warnings_log(self) -> None:
+        """Log non-blocking security risk warnings for current handler settings."""
+        self.logger.debug("CAhandler._security_configuration_warnings_log()")
+        if self.verify is False:
+            self.logger.warning(
+                "TLS certificate verification is disabled (verify=False). "
+                "Enrollment traffic to AD CS is vulnerable to MITM. "
+                "Prefer ca_bundle / system trust."
+            )
+        if self.auth_method in ["basic", "ntlm"]:
+            self.logger.warning(
+                "Auth method '%s' is deprecated and will be removed in a future release. "
+                "Please migrate to 'gssapi' (Kerberos).",
+                self.auth_method,
+            )
+        self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
 
     def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
         """Load allowed_templates allowlist from config."""
