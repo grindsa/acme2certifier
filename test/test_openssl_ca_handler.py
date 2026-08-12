@@ -784,7 +784,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._certificate_store(cert)
         self.assertIn("DEBUG:test_a2c:Convert serial to hex: 42: 2A", lcm.output)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_075__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -793,7 +793,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.save_cert_as_hex)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_076__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -803,7 +803,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.cahandler.save_cert_as_hex)
 
     @patch("json.loads")
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_077__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
@@ -814,7 +814,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("blocked_domainlist", self.cahandler.blocked_domainlist)
 
     @patch("json.loads")
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_078__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
@@ -830,7 +830,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("json.loads")
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_079__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
@@ -846,7 +846,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("json.loads")
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_080__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
@@ -856,7 +856,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertEqual("allowed_domainlist", self.cahandler.allowed_domainlist)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_081__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -866,7 +866,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["*.bar.local"], self.cahandler.allowed_domainlist)
 
     @patch("json.loads")
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_082__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
@@ -881,7 +881,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(["block.all"], self.cahandler.allowed_domainlist)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_083__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -891,7 +891,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["*.bar.local"], self.cahandler.blocked_domainlist)
 
     @patch("json.loads")
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_084__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
@@ -906,7 +906,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(["block.all"], self.cahandler.allowed_domainlist)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_085__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -916,7 +916,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["*.bar.local"], self.cahandler.allowed_domainlist)
 
     @patch("json.loads")
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_086__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
@@ -931,7 +931,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(["block.all"], self.cahandler.allowed_domainlist)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_087__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -941,7 +941,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["*.bar.local"], self.cahandler.blocked_domainlist)
 
     @patch("json.loads")
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_088__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
@@ -957,7 +957,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["block.all"], self.cahandler.allowed_domainlist)
 
     @patch("json.loads")
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_089__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
@@ -967,7 +967,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertEqual("openssl_conf", self.cahandler.openssl_conf)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_090__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -976,7 +976,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertEqual("issuing_ca_key", self.cahandler.issuer_dict["issuing_ca_key"])
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_091__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -987,7 +987,7 @@ class TestACMEHandler(unittest.TestCase):
             "issuing_ca_cert", self.cahandler.issuer_dict["issuing_ca_cert"]
         )
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_092__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -998,7 +998,7 @@ class TestACMEHandler(unittest.TestCase):
             b"issuing_ca_key_passphrase", self.cahandler.issuer_dict["passphrase"]
         )
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_093__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -1007,7 +1007,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertEqual(10, self.cahandler.cert_validity_days)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_094__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -1016,7 +1016,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertEqual("cert_save_path", self.cahandler.cert_save_path)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_095__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -1025,7 +1025,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertEqual(["root_ca"], self.cahandler.ca_cert_chain_list)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_096__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -1034,7 +1034,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertEqual(["root_ca", "sub_ca"], self.cahandler.ca_cert_chain_list)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_097__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
@@ -1044,7 +1044,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("issuing_ca_crl", self.cahandler.issuer_dict["issuing_ca_crl"])
 
     @patch.dict("os.environ", {"foo": "foo_var"})
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_098_config_load(self, mock_load_cfg):
         """test _config_load - load template with passphrase variable"""
         parser = configparser.ConfigParser()
@@ -1054,7 +1054,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(b"foo_var", self.cahandler.issuer_dict["passphrase"])
 
     @patch.dict("os.environ", {"foo": "foo_var"})
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_099_config_load(self, mock_load_cfg):
         """test _config_load - load template passpharese variable configured but does not exist"""
         parser = configparser.ConfigParser()
@@ -1068,7 +1068,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"foo": "foo_var"})
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_100_config_load(self, mock_load_cfg):
         """test _config_load - load template with passphrase variable  - overwritten bei cfg file"""
         parser = configparser.ConfigParser()
@@ -1085,7 +1085,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_101__config_load(self, mock_load_cfg):
         """config load no cn_enforce"""
         parser = configparser.ConfigParser()
@@ -1094,7 +1094,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.cn_enforce)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_102__config_load(self, mock_load_cfg):
         """config load cn_enforce True"""
         parser = configparser.ConfigParser()
@@ -1103,7 +1103,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertTrue(self.cahandler.cn_enforce)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_103__config_load(self, mock_load_cfg):
         """config load cn_enforce True"""
         parser = configparser.ConfigParser()
@@ -1112,7 +1112,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.cn_enforce)
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_104__config_load(self, mock_load_cfg):
         """config load cn_enforce True"""
         parser = configparser.ConfigParser()
@@ -1126,7 +1126,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openssl_ca_handler.load_config")
+    @patch("examples.ca_handler.openssl_ca_handler.load_config_section")
     def test_105__config_load(self, mock_load_cfg):
         """config load cn_enforce True"""
         parser = configparser.ConfigParser()

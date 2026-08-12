@@ -18,18 +18,11 @@ def ca_handler_load(
         return None
 
     if "handler_file" in config_dic["CAhandler"]:
-        # try to load handler from file
-        try:
-            spec = importlib.util.spec_from_file_location(
-                "CAhandler", config_dic["CAhandler"]["handler_file"]
-            )
-            ca_handler_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(ca_handler_module)
+        ca_handler_module = ca_handler_load_by_file(
+            logger, config_dic["CAhandler"]["handler_file"]
+        )
+        if ca_handler_module is not None:
             return ca_handler_module
-        except Exception as err_:
-            logger.critical(
-                "Loading CAhandler configured in cfg failed with err: %s", err_
-            )
 
     # if no 'handler_file' provided or loading was unsuccessful, try to load default handler
     try:
@@ -39,6 +32,28 @@ def ca_handler_load(
         ca_handler_module = None
 
     return ca_handler_module
+
+
+def ca_handler_load_by_file(
+    logger: logging.Logger, handler_file: str
+) -> importlib.import_module:
+    """load a ca_handler module from an arbitrary file path.
+
+    Used by the multi-handler registry to load each named handler module
+    independently of the global ``[CAhandler]`` section. Returns the loaded
+    module on success or ``None`` on failure (so callers can fall back).
+    """
+    logger.debug("Helper.ca_handler_load_by_file(%s)", handler_file)
+    try:
+        spec = importlib.util.spec_from_file_location("CAhandler", handler_file)
+        ca_handler_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ca_handler_module)
+        return ca_handler_module
+    except Exception as err_:
+        logger.critical(
+            "Loading CAhandler from %s failed with err: %s", handler_file, err_
+        )
+        return None
 
 
 def eab_handler_load(

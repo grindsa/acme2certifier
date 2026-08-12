@@ -59,7 +59,7 @@ class TestACMEHandler(unittest.TestCase):
         """exit"""
         self.assertFalse(self.cahandler.__exit__())
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_018__config_load(self, mock_load_cfg):
         """test _config_load default configparser object"""
         parser = configparser.ConfigParser()
@@ -81,7 +81,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(self.cahandler.acme_keypath)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_019__config_load(self, mock_load_cfg):
         """test _config_load empty cahandler section"""
         parser = configparser.ConfigParser()
@@ -109,7 +109,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_020__config_load(self, mock_load_cfg):
         """test _config_load unknown values"""
         parser = configparser.ConfigParser()
@@ -137,7 +137,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_021__config_load(self, mock_load_cfg):
         """test _config_load key_file value"""
         parser = configparser.ConfigParser()
@@ -161,7 +161,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_022__config_load(self, mock_load_cfg):
         """test _config_load key_file value"""
         parser = configparser.ConfigParser()
@@ -188,7 +188,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("acme_keypath", self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_023__config_load(self, mock_load_cfg):
         """test _config_load url value"""
         parser = configparser.ConfigParser()
@@ -212,7 +212,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_024__config_load(self, mock_load_cfg):
         """test _config_load account values"""
         parser = configparser.ConfigParser()
@@ -240,7 +240,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_025__config_load(self, mock_load_cfg):
         """test _config_load key_size"""
         parser = configparser.ConfigParser()
@@ -268,7 +268,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_026__config_load(self, mock_load_cfg):
         """test _config_load email"""
         parser = configparser.ConfigParser()
@@ -296,7 +296,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_027__config_load(self, mock_load_cfg):
         """test _config_load email"""
         parser = configparser.ConfigParser()
@@ -324,7 +324,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_028__config_load(self, mock_load_cfg):
         """test _config_load email"""
         parser = configparser.ConfigParser()
@@ -352,7 +352,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_029__config_load(self, mock_load_cfg):
         """test _config_load allowlist"""
         parser = configparser.ConfigParser()
@@ -380,7 +380,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_030__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -408,7 +408,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_031__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -436,7 +436,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertFalse(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_032__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -465,7 +465,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_033__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -498,7 +498,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_034__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -528,7 +528,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("examples.ca_handler.acme_ca_handler.load_config_section")
     def test_035__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()

@@ -205,6 +205,29 @@ class EABhandler(object):
         )
         return profile_dic
 
+    def cahandler_name_get(self, csr: str, revocation=False) -> str:
+        """return the per-kid ``cahandler_name`` selection directive, or None.
+
+        ``cahandler_name`` is a sibling of the ``cahandler`` dict in the kid
+        keyfile entry and selects which registered handler (see
+        CAHandlerRegistry) serves this enrollment. It is deliberately *not*
+        part of the ``cahandler`` dict so the existing eab-profiling setattr
+        loop does not treat it as a handler attribute.
+        """
+        self.logger.debug("EABhandler.cahandler_name_get()")
+        name = None
+        profiles_dic = self.key_file_load()
+        eab_kid = self.eab_kid_get(csr, revocation=revocation)
+        if (
+            profiles_dic
+            and eab_kid
+            and eab_kid in profiles_dic
+            and "cahandler_name" in profiles_dic[eab_kid]
+        ):
+            name = profiles_dic[eab_kid]["cahandler_name"]
+        self.logger.debug("EABhandler.cahandler_name_get() ended with: %s", name)
+        return name
+
     def keyfile_content_load(self, key_file_content) -> dict:
         """load profiles from key_file"""
         self.logger.debug("EABhandler.keyfile_content_load()")
