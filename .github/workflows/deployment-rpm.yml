@@ -56,7 +56,7 @@ jobs:
   test-rpm-flavor:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

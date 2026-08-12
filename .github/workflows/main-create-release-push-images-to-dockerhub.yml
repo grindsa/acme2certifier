@@ -123,6 +123,8 @@ jobs:
           files: |
             acme2certifier_${{ steps.versions.outputs.tag_n }}-1_all.deb
             ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ steps.versions.outputs.tag_n }}-1.0.noarch.rpm
+            ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-python3-${{ steps.versions.outputs.tag_n }}-1.0.noarch.rpm
+            ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-python39-${{ steps.versions.outputs.tag_n }}-1.0.noarch.rpm
             ${{ steps.rpm_build.outputs.source_rpm_path }}
           fail_on_unmatched_files: true
         env:

@@ -16,6 +16,18 @@ and pick the appropriate release branch.
 - [`a2c-wsgi2django`](docs/migrate_wsgi_to_django.md) CLI to migrate ACME runtime data from WSGI SQLite to Django ORM via a portable JSON dump (`export`, `import`, `check`, `wipe`)
 - Digicert CA handler options `request_retries` and `request_retry_backoff` for HTTP transport retries
 
+**RPM packaging (quick reference)** — install: [install_rpm.md](docs/install_rpm.md); upgrade: [upgrading.md](docs/upgrading.md#rpm-pre-045--045)
+
+One **noarch** payload + one **Python flavor** metapackage (mutually exclusive). Default app Python is **3.9** on EL8 and EL9.
+
+| Package | Role |
+| --- | --- |
+| `acme2certifier` | Application under `/opt/acme2certifier` (no `python*-*` Requires) |
+| `acme2certifier-python39` | **EL8 default** — parallel Python 3.9 (`python39-*`, `uwsgi-plugin-python39`) |
+| `acme2certifier-python3` | **EL9 default** (system 3.9) / **EL8 legacy** (system 3.6) |
+
+Companions (cryptography, jwcrypto, …) come from AppStream/EPEL or [grindsa/sbom](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs) matching the flavor prefix.
+
 **Bug Fixes and Improvements**:
 
 - Route CA handler HTTP calls through the shared `request_operation` helper (including retry support)
