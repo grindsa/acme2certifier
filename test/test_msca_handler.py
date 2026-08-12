@@ -1730,8 +1730,8 @@ class TestACMEHandler(unittest.TestCase):
             usage="initiate", store={"ccache": "/tmp/cc"}
         )
 
-    def test_108_kerberos_gssapi_creds_from_cache_noop_without_keytab(self):
-        """_kerberos_gssapi_creds_from_cache is a no-op without keytab mode"""
+    def test_108_kerberos_gssapi_creds_from_cache_noop_without_cache(self):
+        """_kerberos_gssapi_creds_from_cache is a no-op without prepared ccache"""
         self.cahandler.auth_method = "gssapi"
         self.assertEqual((None, None), self.cahandler._kerberos_gssapi_creds_from_cache())
 
@@ -1773,6 +1773,82 @@ class TestACMEHandler(unittest.TestCase):
             "explicit-creds",
             mock_certsrv.call_args.kwargs.get("gssapi_creds"),
         )
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=True,
+    )
+    def test_109b_kerberos_acquire_with_kinit_password(
+        self, _mock_isfile, mock_subprocess_run
+    ):
+        """password kinit uses user principal and subprocess-local KRB5_CONFIG"""
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        self.cahandler.krb5_config = "/tmp/krb5.conf"
+        self.cahandler.krb5_kinit_path = "/usr/bin/kinit"
+
+        result = self.cahandler._kerberos_acquire_with_kinit_password("/tmp/krb5cc_pw")
+
+        self.assertTrue(result)
+        run_args, run_kwargs = mock_subprocess_run.call_args
+        self.assertEqual(os.path.realpath("/usr/bin/kinit"), run_args[0][0])
+        self.assertEqual("a2c", run_args[0][1])
+        self.assertEqual("secret\n", run_kwargs["input"])
+        self.assertEqual("/tmp/krb5cc_pw", run_kwargs["env"]["KRB5CCNAME"])
+        self.assertEqual(
+            os.path.abspath("/tmp/krb5.conf"), run_kwargs["env"]["KRB5_CONFIG"]
+        )
+        self.assertTrue(run_kwargs["text"])
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_acquire_with_kinit_password",
+        return_value=True,
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_ccache_prepare",
+        return_value="/tmp/cc_pw",
+    )
+    def test_109c_kerberos_prepare_gssapi_password_success(
+        self, mock_ccache, mock_kinit_pw
+    ):
+        """password+GSSAPI prepare succeeds via password kinit"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        self.cahandler.krb5_config = "/tmp/krb5.conf"
+        with patch.object(
+            self.cahandler, "_kerberos_config_path_resolve", return_value="/tmp/krb5.conf"
+        ):
+            self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_backend())
+        self.assertTrue(mock_ccache.called)
+        self.assertTrue(mock_kinit_pw.called)
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_acquire_with_kinit_password",
+        return_value=False,
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_ccache_prepare",
+        return_value="/tmp/cc_pw",
+    )
+    def test_109d_kerberos_prepare_gssapi_password_requires_kinit_with_config(
+        self, _mock_ccache, _mock_kinit_pw, mock_cleanup
+    ):
+        """password+GSSAPI with krb5_config fails closed when kinit fails"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.user = "a2c"
+        self.cahandler.password = "secret"
+        self.cahandler.krb5_config = "/tmp/krb5.conf"
+        with patch.object(
+            self.cahandler, "_kerberos_config_path_resolve", return_value="/tmp/krb5.conf"
+        ):
+            error = self.cahandler._kerberos_prepare_gssapi_backend()
+        self.assertIn("password kinit", error)
+        self.assertTrue(mock_cleanup.called)
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
     def test_110_config_load_allowed_templates(self, mock_load_cfg):
