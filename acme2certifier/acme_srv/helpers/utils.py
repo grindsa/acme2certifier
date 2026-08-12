@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """General utilities for acme2certifier"""
 
+import os
 import random
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 from .global_variables import PARSING_ERR_MSG, CONFIGURATION_ERROR_DETAIL
 
 
@@ -30,6 +31,51 @@ def error_dic_get(logger: logging.Logger) -> Dict[str, str]:
         "useractionrequired": "urn:ietf:params:acme:error:userActionRequired",
     }
     return error_dic
+
+
+def kerberos_kinit_command_resolve(
+    logger: logging.Logger, kinit_path: Optional[str]
+) -> Optional[str]:
+    """Resolve argv0 for a kinit subprocess.
+
+    Default / bare ``kinit`` is resolved from PATH at exec time.
+    Any other configured value must be an absolute path whose final
+    component (after realpath) is exactly ``kinit``.
+    """
+    logger.debug("Helper.kerberos_kinit_command_resolve()")
+    if not isinstance(kinit_path, str) or not kinit_path.strip():
+        return "kinit"
+
+    configured = kinit_path.strip()
+    if configured == "kinit":
+        return "kinit"
+
+    if "\x00" in configured:
+        logger.error("Rejected krb5_kinit_path: null byte in path")
+        return None
+
+    if not os.path.isabs(configured):
+        logger.error(
+            "Rejected krb5_kinit_path '%s': path must be absolute "
+            "(or the bare name 'kinit' for PATH lookup)",
+            configured,
+        )
+        return None
+
+    resolved = os.path.realpath(configured)
+    if os.path.basename(resolved) != "kinit":
+        logger.error(
+            "Rejected krb5_kinit_path '%s': basename must be 'kinit' "
+            "(resolved to '%s')",
+            configured,
+            resolved,
+        )
+        return None
+
+    logger.debug(
+        "Helper.kerberos_kinit_command_resolve() ended with: %s", resolved
+    )
+    return resolved
 
 
 def enrollment_config_log(

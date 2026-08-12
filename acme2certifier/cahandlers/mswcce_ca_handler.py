@@ -28,6 +28,7 @@ from acme2certifier.acme_srv.helper import (
     header_info_get,
     fqdn_resolve,
     ip_validate,
+    kerberos_kinit_command_resolve,
     load_config,
     proxy_check,
     radomize_parameter_list,
@@ -623,7 +624,9 @@ class CAhandler(object):
     def _kerberos_acquire_with_kinit(self, ccache_file: str) -> bool:
         """acquire kerberos credentials using kinit fallback"""
         self.logger.debug("CAhandler._kerberos_acquire_with_kinit()")
-        kinit_cmd = self.krb5_kinit_path or "kinit"
+        kinit_cmd = kerberos_kinit_command_resolve(self.logger, self.krb5_kinit_path)
+        if not kinit_cmd:
+            return False
         try:
             kinit_env = dict(os.environ)
             kinit_env["KRB5CCNAME"] = ccache_file

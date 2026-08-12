@@ -809,9 +809,23 @@ class TestACMEHandler(unittest.TestCase):
 
         self.assertTrue(result)
         run_args, run_kwargs = mock_subprocess_run.call_args
-        self.assertEqual("/usr/local/bin/kinit", run_args[0][0])
+        self.assertEqual(os.path.realpath("/usr/local/bin/kinit"), run_args[0][0])
         self.assertEqual("/tmp/krb5cc_svc", run_kwargs["env"]["KRB5CCNAME"])
         self.assertEqual("/tmp/krb5.conf", run_kwargs["env"]["KRB5_CONFIG"])
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.subprocess.run")
+    def test_049b_kerberos_acquire_with_kinit_rejects_unsafe_path(
+        self, mock_subprocess_run
+    ):
+        """unsafe krb5_kinit_path is rejected before subprocess"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.krb5_kinit_path = "/tmp/evil.sh"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            result = self.cahandler._kerberos_acquire_with_kinit("/tmp/krb5cc_svc")
+        self.assertFalse(result)
+        self.assertFalse(mock_subprocess_run.called)
+        self.assertTrue(any("Rejected krb5_kinit_path" in msg for msg in lcm.output))
 
     def test_050_credentials_are_configured_gssapi_keytab(self):
         """test gssapi keytab mode does not require user/password"""

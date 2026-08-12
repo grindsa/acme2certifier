@@ -149,6 +149,7 @@ class TestACMEHandler(unittest.TestCase):
             profile_lookup,
             eab_profile_revocation_check,
             handler_config_check,
+            kerberos_kinit_command_resolve,
             pkcs7_to_pem,
             config_dryrun_load,
             is_ip_whitelisted,
@@ -267,6 +268,7 @@ class TestACMEHandler(unittest.TestCase):
         self.b64_url_decode = b64_url_decode
         self.eab_profile_revocation_check = eab_profile_revocation_check
         self.handler_config_check = handler_config_check
+        self.kerberos_kinit_command_resolve = kerberos_kinit_command_resolve
         self.pkcs7_to_pem = pkcs7_to_pem
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.config_dryrun_load = config_dryrun_load
@@ -5106,6 +5108,41 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             "INFO:test_a2c:Enrollment configuration: ['foo: foo_val', 'bar: bar_val']",
             lcm.output,
         )
+
+    def test_434c_kerberos_kinit_command_resolve_default(self):
+        """bare/default kinit is allowed for PATH lookup"""
+        self.assertEqual(
+            "kinit", self.kerberos_kinit_command_resolve(self.logger, None)
+        )
+        self.assertEqual(
+            "kinit", self.kerberos_kinit_command_resolve(self.logger, "kinit")
+        )
+        self.assertEqual(
+            "kinit", self.kerberos_kinit_command_resolve(self.logger, "  kinit  ")
+        )
+
+    def test_434d_kerberos_kinit_command_resolve_absolute(self):
+        """absolute path with basename kinit is accepted"""
+        self.assertEqual(
+            os.path.realpath("/usr/bin/kinit"),
+            self.kerberos_kinit_command_resolve(self.logger, "/usr/bin/kinit"),
+        )
+
+    def test_434e_kerberos_kinit_command_resolve_rejects_relative(self):
+        """relative paths are rejected"""
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertIsNone(
+                self.kerberos_kinit_command_resolve(self.logger, "./kinit")
+            )
+        self.assertTrue(any("must be absolute" in msg for msg in lcm.output))
+
+    def test_434f_kerberos_kinit_command_resolve_rejects_wrong_basename(self):
+        """absolute paths not named kinit are rejected"""
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertIsNone(
+                self.kerberos_kinit_command_resolve(self.logger, "/usr/bin/python3")
+            )
+        self.assertTrue(any("basename must be 'kinit'" in msg for msg in lcm.output))
 
     def test_435_enrollment_config_log(self):
         """test enrollment_config_log()"""
