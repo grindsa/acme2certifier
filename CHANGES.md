@@ -18,6 +18,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- Soft-rename of the former MS-WCCE CA handler to [MS-ICPR](docs/msicpr.md) (`msicpr_ca_handler` / `ms_icpr`); `mswcce_ca_handler` remains a deprecated alias. Docs clarify RPC high-port requirements ([#358](https://github.com/grindsa/acme2certifier/issues/358))
 - Route CA handler HTTP calls through the shared `request_operation` helper (including retry support)
 - Improve ASA CA handler parsing of error responses from the CA
 - Improve OpenSSL CA handler handling of absolute certificate/key paths
@@ -75,7 +76,7 @@ and pick the appropriate release branch.
 - [Dogtag CA Handler](docs/dogtag_ca_handler.md)
 - [Dryrun Mode](docs/dryrun.md)
 - Option `wildcard_certificate_disable` to prevent the ernollment of wildcard certificates globally. Can be overridden via [eab-profiling](docs/eab_profiling.md)
-- Kerberos keytab support in [mswcce_ca_handler.py](docs/mswcce.md#keytab-support) and [mscertserv_ca_handler.py](docs/mscertsrv.md#gssapi-keytab-mode)
+- Kerberos keytab support in [msicpr_ca_handler.py](docs/msicpr.md#keytab-support) and [mscertserv_ca_handler.py](docs/mscertsrv.md#gssapi-keytab-mode)
 
 **Bug Fixes**:
 

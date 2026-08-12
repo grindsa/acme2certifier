@@ -665,7 +665,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "false"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -710,7 +710,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -745,7 +745,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -778,7 +778,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -814,7 +814,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -941,7 +941,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "false"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -1000,7 +1000,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -1816,7 +1816,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "false"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -1851,7 +1851,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -1884,7 +1884,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "false"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -1924,7 +1924,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "false"
           CERTIFICATE_OPTIONS: |
@@ -2060,7 +2060,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "false"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -2111,7 +2111,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -2567,7 +2567,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "false"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -2604,7 +2604,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "true"
           CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
@@ -2638,7 +2638,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "false"
           WEBSRV: ${{ matrix.websrv }}
@@ -2672,7 +2672,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
           RESTART: "true"
           COPY_CA_CERTS: "false"
           WEBSRV: ${{ matrix.websrv }}

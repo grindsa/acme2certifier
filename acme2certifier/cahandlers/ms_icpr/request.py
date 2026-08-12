@@ -15,9 +15,9 @@ from impacket.dcerpc.v5.ndr import NDRCALL, NDRSTRUCT
 from impacket.dcerpc.v5.nrpc import checkNullString
 from impacket.uuid import uuidtup_to_bin
 
-from acme2certifier.cahandlers.ms_wcce.errors import translate_error_code
-from acme2certifier.cahandlers.ms_wcce.rpc import get_dce_rpc
-from acme2certifier.cahandlers.ms_wcce.target import Target
+from acme2certifier.cahandlers.ms_icpr.errors import translate_error_code
+from acme2certifier.cahandlers.ms_icpr.rpc import get_dce_rpc
+from acme2certifier.cahandlers.ms_icpr.target import Target
 
 NAME = "req"
 MSRPC_UUID_ICPR = uuidtup_to_bin(("91ae6020-9e3c-11cf-8d7c-00aa00c091be", "0.0"))

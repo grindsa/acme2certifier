@@ -38,7 +38,7 @@ Depending on the CA-handler the profile value replaces a certain value in the CA
 | [EJBCA](ejbca.md)                                                               | cert_profile_name       |
 | [Insta ActiveCMS](asa.md)                                                       | profile_name            |
 | [Microsoft Certificate Enrollment Web Services](mscertsrv.md)                   | template                |
-| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](mswcce.md) | template                |
+| [Microsoft ICertPassage Remote Protocol (MS-ICPR)](msicpr.md)                   | template                |
 | [NetGuard Certificate Manager/Insta Certifier](certifier.md)                    | profile_id              |
 | [OpenXPKI](openxpki.md)                                                         | cert_profile_name       |
 | [XCA](xca.md)                                                                   | template_name           |

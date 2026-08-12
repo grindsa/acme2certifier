@@ -77,7 +77,7 @@ a2c-cert-poll = "acme2certifier.tools.a2c_cert_poll:main"
 a2c-cliuser-mgmt = "acme2certifier.tools.a2c_cliuser_mgmt:main"
 a2c-invalidator = "acme2certifier.tools.a2c_invalidator:main"
 a2c-report-generator = "acme2certifier.tools.a2c_report_generator:main"
-a2c-mswcce-connection-test = "acme2certifier.tools.a2c_mswcce_connection_test:main"
+a2c-msicpr-connection-test = "acme2certifier.tools.a2c_msicpr_connection_test:main"
 a2c-wsgi2django = "acme2certifier.tools.a2c_wsgi2django:main"
 
 [project.urls]
