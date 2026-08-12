@@ -614,9 +614,6 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.enroll("csr"),
         )
 
-    @patch(
-        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._template_name_get"
-    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
@@ -625,7 +622,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_044_enroll(
-        self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p, mock_tmpl
+        self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p
     ):
         """enroll enroll successful"""
         self.cahandler.host = "host"
@@ -643,11 +640,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(
             (None, "get_certp2p", "get_cert", None), self.cahandler.enroll("csr")
         )
-        self.assertFalse(mock_tmpl.called)
 
-    @patch(
-        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._template_name_get"
-    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
@@ -662,7 +655,6 @@ class TestACMEHandler(unittest.TestCase):
         mockwrap,
         mock_b2s,
         mock_p2p,
-        mock_tmpl,
     ):
         """enroll enroll successful"""
         self.cahandler.host = "host"
@@ -680,11 +672,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(
             (None, "get_certp2p", "get_cert", None), self.cahandler.enroll("csr")
         )
-        self.assertFalse(mock_tmpl.called)
 
-    @patch(
-        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._template_name_get"
-    )
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.convert_byte_to_string")
     @patch("textwrap.fill")
@@ -699,7 +687,6 @@ class TestACMEHandler(unittest.TestCase):
         mockwrap,
         mock_b2s,
         mock_p2p,
-        mock_tmpl,
     ):
         """enroll enroll successful"""
         self.cahandler.host = "host"
@@ -717,7 +704,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(
             (None, "get_certp2p", "get_cert", None), self.cahandler.enroll("csr")
         )
-        self.assertFalse(mock_tmpl.called)
 
     @patch(
         "acme2certifier.cahandlers.mscertsrv_ca_handler.eab_profile_header_info_check"
@@ -1009,46 +995,32 @@ class TestACMEHandler(unittest.TestCase):
         ):
             self.assertIn(key, skiplist)
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.header_info_get")
-    def test_057_template_name_get(self, mock_header):
-        """test _template_name_get()"""
-        mock_header.return_value = [
-            {
-                "header_info": '{"header_field": "template=foo lego-cli/4.14.2 xenolf-acme/4.14.2 (release; linux; amd64)"}'
-            }
-        ]
-        self.cahandler.header_info_field = "header_field"
-        csr_body = "-----BEGIN CERTIFICATE REQUEST-----\nSENSITIVE_CSR\n-----END CERTIFICATE REQUEST-----"
-        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
-            self.assertEqual("foo", self.cahandler._template_name_get(csr_body))
-        self.assertTrue(
-            any("CAhandler._template_name_get()" in msg for msg in lcm.output)
-        )
-        self.assertFalse(any(csr_body in msg for msg in lcm.output))
-        self.assertFalse(any("SENSITIVE_CSR" in msg for msg in lcm.output))
+    def test_057_enrollment_url_https_check_ok(self):
+        """https enrollment url is accepted"""
+        self.cahandler.url = "https://ca.example.com/certsrv"
+        self.assertIsNone(self.cahandler._enrollment_url_https_check())
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.header_info_get")
-    def test_058_template_name_get(self, mock_header):
-        """test _template_name_get()"""
-        mock_header.return_value = [
-            {
-                "header_info": '{"header_field": "Template=foo lego-cli/4.14.2 xenolf-acme/4.14.2 (release; linux; amd64)"}'
-            }
-        ]
-        self.cahandler.header_info_field = "header_field"
-        self.assertEqual("foo", self.cahandler._template_name_get("csr"))
+    def test_058_enrollment_url_https_check_rejects_http(self):
+        """http enrollment url is rejected"""
+        self.cahandler.url = "http://ca.example.com/certsrv"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error = self.cahandler._enrollment_url_https_check()
+        self.assertIn("must use HTTPS", error)
+        self.assertTrue(any("must use HTTPS" in msg for msg in lcm.output))
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.header_info_get")
-    def test_059_template_name_get(self, mock_header):
-        """test _template_name_get()"""
-        mock_header.return_value = [{"header_info": "header_info"}]
-        self.cahandler.header_info_field = "header_field"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.cahandler._template_name_get("csr"))
-        self.assertIn(
-            "ERROR:test_a2c:Failed to parse template from header_info: Expecting value: line 1 column 1 (char 0)",
-            lcm.output,
-        )
+    def test_059_enroll_rejects_http_url(self):
+        """enroll fails fast when url is http"""
+        self.cahandler.host = "host"
+        self.cahandler.url = "http://ca.example.com/certsrv"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, cert_bundle, cert_raw, _poll = self.cahandler.enroll("csr")
+        self.assertIn("must use HTTPS", error)
+        self.assertIsNone(cert_bundle)
+        self.assertIsNone(cert_raw)
+        self.assertTrue(any("must use HTTPS" in msg for msg in lcm.output))
 
     def test_060_config_headerinfo_load(self):
         """test config_headerinfo_load()"""
@@ -1112,8 +1084,40 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.handler_config_check")
     def test_067_handler_check(self, mock_handler_check):
         """test handler_check"""
+        self.cahandler.host = "ca.example.com"
+        self.cahandler.template = "template"
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.handler_config_check")
+    def test_067b_handler_check_accepts_url_without_host(self, mock_handler_check):
+        """handler_check allows url-only endpoint config"""
+        self.cahandler.url = "https://ca.example.com/certsrv"
+        self.cahandler.template = "template"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        mock_handler_check.return_value = None
+        self.assertIsNone(self.cahandler.handler_check())
+        self.assertTrue(mock_handler_check.called)
+
+    def test_067c_handler_check_rejects_http_url(self):
+        """handler_check fails for http enrollment url"""
+        self.cahandler.url = "http://ca.example.com/certsrv"
+        self.cahandler.template = "template"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error = self.cahandler.handler_check()
+        self.assertIn("must use HTTPS", error)
+        self.assertTrue(any("must use HTTPS" in msg for msg in lcm.output))
+
+    def test_067d_handler_check_requires_host_or_url(self):
+        """handler_check requires host or url"""
+        self.cahandler.template = "template"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error = self.cahandler.handler_check()
+        self.assertIn("host or url", error)
+        self.assertTrue(any("host or url" in msg for msg in lcm.output))
 
     def test_068_config_kerberos_parameter_item_load_env_error(self):
         """_config_kerberos_parameter_item_load logs missing env variables"""

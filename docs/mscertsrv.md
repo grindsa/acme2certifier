@@ -132,8 +132,10 @@ krb5_kinit_path: </path/to/kinit>
 
 ### Parameter Explanations
 
-- **host** – The hostname of the system providing the Web Enrollment Service.
+- **host** – The hostname of the system providing the Web Enrollment Service (FQDN/hostname without a URL scheme). When `url` is unset, requests use `https://<host>/certsrv/...`.
 - **host_variable** *(optional)* – Name of the environment variable containing the host address (overridden if `host` is set in `acme_srv.cfg`).
+- **url** *(optional)* – Full Web Enrollment base URL (for example `https://ca.example.com/certsrv`). When set, it overrides the default `https://<host>/certsrv` path construction. **Must use HTTPS**; `http://` is rejected.
+- **url_variable** *(optional)* – Name of the environment variable containing the enrollment URL (overridden if `url` is set in `acme_srv.cfg`).
 - **user** – Username for accessing the service.
 - **user_variable** *(optional)* – Name of the environment variable containing the username (overridden if `user` is set in `acme_srv.cfg`).
 - **password** – Password for authentication.
@@ -146,7 +148,7 @@ krb5_kinit_path: </path/to/kinit>
 - **krb5_principal_variable** *(optional)* – Name of the environment variable containing the Kerberos principal (overridden if `krb5_principal` is set in `acme_srv.cfg`).
 - **krb5_keytab** *(optional, required for keytab mode)* – Path to the Kerberos keytab file used by the service account.
 - **krb5_keytab_variable** *(optional)* – Name of the environment variable containing the keytab path (overridden if `krb5_keytab` is set in `acme_srv.cfg`).
-- **krb5_cache** *(optional)* – Path to the Kerberos credential cache (ccache). In keytab mode, a temporary ccache is created if this value is omitted.
+- **krb5_cache** *(optional)* – Path to the Kerberos credential cache (ccache). In keytab mode, a temporary ccache is created if this value is omitted. If you set a shared path used by multiple worker processes or threads, concurrent `kinit`/ticket refresh can race on the same file; prefer a per-process temporary cache, or a dedicated cache with a single writer and clear operational ownership.
 - **krb5_cache_variable** *(optional)* – Name of the environment variable containing the ccache path (overridden if `krb5_cache` is set in `acme_srv.cfg`).
 - **krb5_config** *(optional)* – Path to an individual `krb5.conf` file.
 - **krb5_config_variable** *(optional)* – Name of the environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).

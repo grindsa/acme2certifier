@@ -25,7 +25,6 @@ from acme2certifier.acme_srv.helper import (
     eab_profile_header_info_check,
     enrollment_config_log,
     handler_config_check,
-    header_info_get,
     fqdn_resolve,
     ip_validate,
     kerberos_kinit_command_resolve,
@@ -871,29 +870,6 @@ class CAhandler(object):
         self.logger.debug("CAhandler.request_create() ended")
         return request
 
-    def _template_name_get(self, csr: str) -> str:
-        """get templaate from csr"""
-        self.logger.debug("CAhandler._template_name_get()")
-        template_name = None
-
-        # parse profileid from http_header
-        header_info = header_info_get(self.logger, csr=csr)
-        if header_info:
-            try:
-                header_info_dic = json.loads(header_info[-1]["header_info"])
-                if self.header_info_field in header_info_dic:
-                    for ele in header_info_dic[self.header_info_field].split(" "):
-                        if self.profile_mapping_field in ele.lower():
-                            template_name = ele.split("=")[1]
-                            break
-            except Exception as err:
-                self.logger.error("Failed to parse template from header info: %s", err)
-
-        self.logger.debug(
-            "CAhandler._template_name_get() ended with: %s", template_name
-        )
-        return template_name
-
     def _allowed_templates_check(self) -> Optional[str]:
         """Enforce configured allowed_templates allowlist."""
         self.logger.debug(
@@ -1042,6 +1018,9 @@ class CAhandler(object):
             ]
 
         error = handler_config_check(self.logger, self, required_fields)
+        if not error and self.krb5_kinit_path and self.krb5_kinit_path != "kinit":
+            if not kerberos_kinit_command_resolve(self.logger, self.krb5_kinit_path):
+                error = "krb5_kinit_path is invalid"
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error
 

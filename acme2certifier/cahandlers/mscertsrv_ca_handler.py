@@ -11,11 +11,6 @@ import subprocess
 import threading
 from contextlib import contextmanager
 from typing import List, Tuple, Dict, Optional
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization.pkcs7 import (
-    load_pem_pkcs7_certificates,
-    load_der_pkcs7_certificates,
-)
 
 # pylint: disable=e0401, e0611
 from acme2certifier.cahandlers.certsrv import (
@@ -29,14 +24,10 @@ from acme2certifier.acme_srv.helper import (
     config_enroll_config_log_load,
     config_profile_load,
     convert_byte_to_string,
-
-
-
     convert_string_to_byte,
     eab_profile_header_info_check,
     enrollment_config_log,
     handler_config_check,
-    header_info_get,
     kerberos_kinit_command_resolve,
     load_config,
     proxy_check,
@@ -194,6 +185,12 @@ class CAhandler(object):
             if self.host:
                 self.logger.info("Overwrite host")
             self.host = config_dic.get("CAhandler", "host")
+        if self.host and "://" in self.host:
+            self.logger.warning(
+                "host '%s' looks like a URL; use a hostname/FQDN for host, "
+                "or set url= to an https:// Web Enrollment base URL.",
+                self.host,
+            )
         self.logger.debug("CAhandler._config_hostname_load() ended")
 
     def _config_url_load(self, config_dic: Dict[str, str]):
@@ -209,7 +206,22 @@ class CAhandler(object):
                 self.logger.info("Overwrite url")
             self.url = config_dic.get("CAhandler", "url")
 
+        self._enrollment_url_https_check()
         self.logger.debug("CAhandler._config_url_load() ended")
+
+    def _enrollment_url_https_check(self) -> Optional[str]:
+        """Require HTTPS when an explicit Web Enrollment URL is configured."""
+        self.logger.debug("CAhandler._enrollment_url_https_check()")
+        if not self.url:
+            return None
+        if self.url.strip().lower().startswith("https://"):
+            return None
+        error = (
+            f"Enrollment url must use HTTPS (got '{self.url}'). "
+            "Cleartext HTTP is not supported for AD CS Web Enrollment."
+        )
+        self.logger.error(error)
+        return error
 
     def _config_parameters_load(self, config_dic: Dict[str, str]):
         """load hostname"""
@@ -773,29 +785,6 @@ class CAhandler(object):
         self.logger.debug("Certificate._pkcs7_to_pem() ended")
         return result
 
-    def _template_name_get(self, csr: str) -> str:
-        """get templaate from csr"""
-        self.logger.debug("CAhandler._template_name_get()")
-        template_name = None
-
-        # parse profileid from http_header
-        header_info = header_info_get(self.logger, csr=csr)
-        if header_info:
-            try:
-                header_info_dic = json.loads(header_info[-1]["header_info"])
-                if self.header_info_field in header_info_dic:
-                    for ele in header_info_dic[self.header_info_field].split(" "):
-                        if self.profile_mapping_field in ele.lower():
-                            template_name = ele.split("=")[1]
-                            break
-            except Exception as err:
-                self.logger.error("Failed to parse template from header_info: %s", err)
-
-        self.logger.debug(
-            "CAhandler._template_name_get() ended with: %s", template_name
-        )
-        return template_name
-
     def _allowed_templates_check(self) -> Optional[str]:
         """Enforce configured allowed_templates allowlist."""
         self.logger.debug(
@@ -1039,6 +1028,10 @@ class CAhandler(object):
             self.logger.debug("Certificate.enroll() ended")
             return (error, cert_bundle, cert_raw, None)
 
+        https_error = self._enrollment_url_https_check()
+        if https_error:
+            return (https_error, cert_bundle, cert_raw, None)
+
         kerberos_error = self._kerberos_prepare_gssapi_backend()
         if kerberos_error:
             self.logger.error("Kerberos backend setup failed: %s", kerberos_error)
@@ -1072,13 +1065,26 @@ class CAhandler(object):
 
     def handler_check(self):
         """check if handler is ready"""
-        self.logger.debug("CAhandler.check()")
-        required = ["host", self.profile_mapping_field]
+        self.logger.debug("CAhandler.handler_check()")
+
+        if not self.host and not self.url:
+            error = "host or url parameter is missing in config file"
+            self.logger.error("%s: %s", CONFIGURATION_ERROR_DETAIL, error)
+            self.logger.debug("CAhandler.handler_check() ended with %s", error)
+            return error
+
+        required = [self.profile_mapping_field]
         if not self._kerberos_keytab_is_configured():
             required.extend(["user", "password"])
 
         error = handler_config_check(self.logger, self, required)
-        self.logger.debug("CAhandler.check() ended with %s", error)
+        if not error:
+            error = self._enrollment_url_https_check()
+        if not error and self.krb5_kinit_path and self.krb5_kinit_path != "kinit":
+            if not kerberos_kinit_command_resolve(self.logger, self.krb5_kinit_path):
+                error = "krb5_kinit_path is invalid"
+
+        self.logger.debug("CAhandler.handler_check() ended with %s", error)
         return error
 
     def poll(

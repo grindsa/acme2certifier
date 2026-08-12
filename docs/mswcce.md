@@ -98,7 +98,7 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **krb5_principal_variable** *(optional)* – Environment variable containing the Kerberos principal (overridden if `krb5_principal` is set in `acme_srv.cfg`).
 - **krb5_keytab** *(optional, required for keytab mode)* – Path to the Kerberos keytab file used by the service account.
 - **krb5_keytab_variable** *(optional)* – Environment variable containing the keytab path (overridden if `krb5_keytab` is set in `acme_srv.cfg`).
-- **krb5_cache** *(optional)* – Path to the Kerberos credential cache (ccache). Required when using `krb5_auth_backend=impacket` together with keytab mode. For `krb5_auth_backend=python`, a temporary ccache is created automatically if not configured.
+- **krb5_cache** *(optional)* – Path to the Kerberos credential cache (ccache). Required when using `krb5_auth_backend=impacket` together with keytab mode. For `krb5_auth_backend=python`, a temporary ccache is created automatically if not configured. If you set a shared path used by multiple worker processes or threads, concurrent `kinit`/ticket refresh can race on the same file; prefer a per-process temporary cache, or a dedicated cache with a single writer and clear operational ownership.
 - **krb5_cache_variable** *(optional)* – Environment variable containing the ccache path (overridden if `krb5_cache` is set in `acme_srv.cfg`).
 - **krb5_config** *(optional)* – Path to a custom `krb5.conf` file. Used by the kinit fallback path.
 - **krb5_config_variable** *(optional)* – Environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).

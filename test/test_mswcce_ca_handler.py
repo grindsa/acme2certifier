@@ -1219,46 +1219,6 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
-    @patch("acme2certifier.cahandlers.mswcce_ca_handler.header_info_get")
-    def test_061_template_name_get(self, mock_header):
-        """test _template_name_get()"""
-        mock_header.return_value = [
-            {
-                "header_info": '{"header_field": "template=foo lego-cli/4.14.2 xenolf-acme/4.14.2 (release; linux; amd64)"}'
-            }
-        ]
-        self.cahandler.header_info_field = "header_field"
-        csr_body = "-----BEGIN CERTIFICATE REQUEST-----\nSENSITIVE_CSR\n-----END CERTIFICATE REQUEST-----"
-        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
-            self.assertEqual("foo", self.cahandler._template_name_get(csr_body))
-        self.assertTrue(
-            any("CAhandler._template_name_get()" in msg for msg in lcm.output)
-        )
-        self.assertFalse(any("SENSITIVE_CSR" in msg for msg in lcm.output))
-
-    @patch("acme2certifier.cahandlers.mswcce_ca_handler.header_info_get")
-    def test_062_template_name_get(self, mock_header):
-        """test _template_name_get()"""
-        mock_header.return_value = [
-            {
-                "header_info": '{"header_field": "Template=foo lego-cli/4.14.2 xenolf-acme/4.14.2 (release; linux; amd64)"}'
-            }
-        ]
-        self.cahandler.header_info_field = "header_field"
-        self.assertEqual("foo", self.cahandler._template_name_get("csr"))
-
-    @patch("acme2certifier.cahandlers.mswcce_ca_handler.header_info_get")
-    def test_063_template_name_get(self, mock_header):
-        """test _template_name_get()"""
-        mock_header.return_value = [{"header_info": "header_info"}]
-        self.cahandler.header_info_field = "header_field"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.cahandler._template_name_get("csr"))
-        self.assertIn(
-            "ERROR:test_a2c:Failed to parse template from header info: Expecting value: line 1 column 1 (char 0)",
-            lcm.output,
-        )
-
     def test_064_config_headerinfo_load(self):
         """test config_headerinfo_load()"""
         config_dic = {"Order": {"header_info_list": '["foo", "bar", "foobar"]'}}
@@ -1287,6 +1247,16 @@ class TestACMEHandler(unittest.TestCase):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
+
+    @patch("acme2certifier.cahandlers.mswcce_ca_handler.handler_config_check")
+    def test_067b_handler_check_rejects_invalid_kinit_path(self, mock_handler_check):
+        """handler_check rejects unsafe krb5_kinit_path"""
+        mock_handler_check.return_value = None
+        self.cahandler.krb5_kinit_path = "/tmp/evil.sh"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error = self.cahandler.handler_check()
+        self.assertEqual("krb5_kinit_path is invalid", error)
+        self.assertTrue(any("Rejected krb5_kinit_path" in msg for msg in lcm.output))
 
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.load_config")
     def test_068_config_load_python_kerberos_backend(self, mock_load_cfg):
