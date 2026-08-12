@@ -189,6 +189,7 @@ from .helpers.domain_utils import (
 from .helpers.utils import (
     error_dic_get,
     enrollment_config_log,
+    kerberos_kinit_command_resolve,
     radomize_parameter_list,
     handler_config_check,
 )

@@ -4,7 +4,7 @@
 import logging
 from impacket import uuid
 from impacket.dcerpc.v5 import epm, rpcrt, transport
-from acme2certifier.cahandlers.ms_wcce.target import Target
+from acme2certifier.cahandlers.ms_icpr.target import Target
 
 
 def get_dce_rpc_from_string_binding(
@@ -38,6 +38,7 @@ def get_dce_rpc_from_string_binding(
         target.domain,
         target.lmhash,
         target.nthash,
+        TGT=getattr(target, "tgt", None),
         TGS=None,
     )
 

@@ -12,7 +12,7 @@ a2c-cert-poll
 a2c-cliuser-mgmt --list
 a2c-invalidator
 a2c-report-generator
-a2c-mswcce-connection-test
+a2c-msicpr-connection-test
 ```
 
 You can also run modules directly (names match the CLI scripts):

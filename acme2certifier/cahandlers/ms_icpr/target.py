@@ -109,6 +109,8 @@ class DnsResolver:
 class Target:
     """target class"""
 
+    _REPR_REDACT_KEYS = frozenset({"password", "lmhash", "nthash", "tgt"})
+
     def __init__(
         self,
         domain: str = None,
@@ -121,6 +123,7 @@ class Target:
         ns_: str = None,
         dns_tcp: bool = False,
         timeout: int = 5,
+        tgt: object = None,
     ):
         if domain is None:
             domain = ""
@@ -141,6 +144,8 @@ class Target:
         self.nthash = nthash
         self.dc_ip = dc_ip
         self.timeout = timeout
+        # Explicit Kerberos TGT from ccache (avoids process-global KRB5CCNAME).
+        self.tgt = tgt
 
         if ns_ is None:
             ns_ = dc_ip
@@ -155,4 +160,9 @@ class Target:
             self.target_ip = self.resolver.resolve(remote_name)
 
     def __repr__(self) -> str:
-        return "<Target (%s)>" % repr(self.__dict__)
+        """Stringify without leaking credentials or Kerberos material."""
+        safe = {
+            key: ("******" if key in self._REPR_REDACT_KEYS else value)
+            for key, value in self.__dict__.items()
+        }
+        return "<Target (%s)>" % repr(safe)

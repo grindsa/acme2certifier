@@ -8,16 +8,16 @@ import json
 import tempfile
 import importlib
 import subprocess
+import threading
 from contextlib import contextmanager
 from typing import List, Tuple, Dict, Optional
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization.pkcs7 import (
-    load_pem_pkcs7_certificates,
-    load_der_pkcs7_certificates,
-)
 
 # pylint: disable=e0401, e0611
-from acme2certifier.cahandlers.certsrv import Certsrv
+from acme2certifier.cahandlers.certsrv import (
+    CHANNEL_BINDINGS_TLS_SERVER_END_POINT,
+    Certsrv,
+    gssapi_channel_bindings_supported,
+)
 from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     config_eab_profile_load,
@@ -28,7 +28,7 @@ from acme2certifier.acme_srv.helper import (
     eab_profile_header_info_check,
     enrollment_config_log,
     handler_config_check,
-    header_info_get,
+    kerberos_kinit_command_resolve,
     load_config,
     proxy_check,
     pkcs7_to_pem,
@@ -39,6 +39,11 @@ from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR
 class CAhandler(object):
     """EST CA  handler"""
 
+    KINIT_TIMEOUT_SECONDS = 30
+    CERT_FETCH_ERROR = "Could not get certificate from CA server"
+    _ca_templates_cache: Dict[str, List[str]] = {}
+    _ca_templates_lock = threading.Lock()
+
     def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.host = None
@@ -46,8 +51,11 @@ class CAhandler(object):
         self.user = None
         self.password = None
         self.auth_method = "basic"
+        self.gssapi_channel_bindings = "auto"
         self.ca_bundle = False
         self.template = None
+        self.allowed_templates: List[str] = []
+        self.ca_templates_check = "warn"
         self.krb5_principal = None
         self.krb5_keytab = None
         self.krb5_cache = None
@@ -62,9 +70,8 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self._krb5_cache_is_temporary = False
+        self._gssapi_creds = None
         self.profile_mapping_field = "template"
-
-    KINIT_TIMEOUT_SECONDS = 30
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -178,6 +185,12 @@ class CAhandler(object):
             if self.host:
                 self.logger.info("Overwrite host")
             self.host = config_dic.get("CAhandler", "host")
+        if self.host and "://" in self.host:
+            self.logger.warning(
+                "host '%s' looks like a URL; use a hostname/FQDN for host, "
+                "or set url= to an https:// Web Enrollment base URL.",
+                self.host,
+            )
         self.logger.debug("CAhandler._config_hostname_load() ended")
 
     def _config_url_load(self, config_dic: Dict[str, str]):
@@ -193,7 +206,22 @@ class CAhandler(object):
                 self.logger.info("Overwrite url")
             self.url = config_dic.get("CAhandler", "url")
 
+        self._enrollment_url_https_check()
         self.logger.debug("CAhandler._config_url_load() ended")
+
+    def _enrollment_url_https_check(self) -> Optional[str]:
+        """Require HTTPS when an explicit Web Enrollment URL is configured."""
+        self.logger.debug("CAhandler._enrollment_url_https_check()")
+        if not self.url:
+            return None
+        if self.url.strip().lower().startswith("https://"):
+            return None
+        error = (
+            f"Enrollment url must use HTTPS (got '{self.url}'). "
+            "Cleartext HTTP is not supported for AD CS Web Enrollment."
+        )
+        self.logger.error(error)
+        return error
 
     def _config_parameters_load(self, config_dic: Dict[str, str]):
         """load hostname"""
@@ -202,16 +230,26 @@ class CAhandler(object):
         self.template = config_dic.get(
             "CAhandler", self.profile_mapping_field, fallback=self.template
         )
+        self._config_allowed_templates_load(config_dic)
+        self._config_ca_templates_check_load(config_dic)
         if "auth_method" in config_dic["CAhandler"] and config_dic["CAhandler"][
             "auth_method"
         ] in ["basic", "ntlm", "gssapi"]:
             self.auth_method = config_dic.get("CAhandler", "auth_method")
-            if self.auth_method in ["basic", "ntlm"]:
-                self.logger.warning(
-                    "Auth method '%s' is deprecated and will be removed in a future release. "
-                    "Please migrate to 'gssapi' (Kerberos).",
-                    self.auth_method,
-                )
+        channel_bindings_mode = config_dic.get(
+            "CAhandler", "gssapi_channel_bindings", fallback=self.gssapi_channel_bindings
+        )
+        if isinstance(channel_bindings_mode, str):
+            channel_bindings_mode = channel_bindings_mode.lower()
+        if channel_bindings_mode in ["auto", "on", "off"]:
+            self.gssapi_channel_bindings = channel_bindings_mode
+        else:
+            self.logger.warning(
+                "Invalid gssapi_channel_bindings '%s'; using 'auto'. "
+                "Allowed values: auto, on, off.",
+                channel_bindings_mode,
+            )
+            self.gssapi_channel_bindings = "auto"
         # check if we get a ca bundle for verification
         self.ca_bundle = config_dic.get(
             "CAhandler", "ca_bundle", fallback=self.ca_bundle
@@ -239,7 +277,81 @@ class CAhandler(object):
             self.enrollment_config_log_skip_list,
         ) = config_enroll_config_log_load(self.logger, config_dic)
 
+        self._security_configuration_warnings_log()
         self.logger.debug("CAhandler._config_parameters_load() ended")
+
+    def _security_configuration_warnings_log(self) -> None:
+        """Log non-blocking security risk warnings for current handler settings."""
+        self.logger.debug("CAhandler._security_configuration_warnings_log()")
+        if self.verify is False:
+            self.logger.warning(
+                "TLS certificate verification is disabled (verify=False). "
+                "Enrollment traffic to AD CS is vulnerable to MITM. "
+                "Prefer ca_bundle / system trust."
+            )
+        if self.auth_method in ["basic", "ntlm"]:
+            self.logger.warning(
+                "Auth method '%s' is deprecated and will be removed in a future release. "
+                "Please migrate to 'gssapi' (Kerberos).",
+                self.auth_method,
+            )
+        self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
+
+    def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
+        """Load allowed_templates allowlist from config."""
+        self.logger.debug("CAhandler._config_allowed_templates_load()")
+        if "allowed_templates" not in config_dic["CAhandler"]:
+            self.logger.warning(
+                "allowed_templates is empty; any client-selected template is permitted. "
+                "Configure allowed_templates to restrict enrollment templates."
+            )
+            self.logger.debug("CAhandler._config_allowed_templates_load() ended")
+            return
+
+        try:
+            loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
+            if not isinstance(loaded, list):
+                raise ValueError("allowed_templates must be a JSON list")
+            self.allowed_templates = [str(item) for item in loaded]
+        except Exception as err_:
+            self.logger.warning(
+                "Failed to parse allowed_templates from configuration: %s. "
+                "Treating as empty allowlist.",
+                err_,
+            )
+            self.allowed_templates = []
+
+        if not self.allowed_templates:
+            self.logger.warning(
+                "allowed_templates is empty; any client-selected template is permitted. "
+                "Configure allowed_templates to restrict enrollment templates."
+            )
+        self.logger.debug(
+            "CAhandler._config_allowed_templates_load() ended with %s entries",
+            len(self.allowed_templates),
+        )
+
+    def _config_ca_templates_check_load(self, config_dic: Dict[str, str]) -> None:
+        """Load ca_templates_check mode (warn|on|off)."""
+        self.logger.debug("CAhandler._config_ca_templates_check_load()")
+        mode = config_dic.get(
+            "CAhandler", "ca_templates_check", fallback=self.ca_templates_check
+        )
+        if isinstance(mode, str):
+            mode = mode.lower()
+        if mode in ["warn", "on", "off"]:
+            self.ca_templates_check = mode
+        else:
+            self.logger.warning(
+                "Invalid ca_templates_check '%s'; using 'warn'. "
+                "Allowed values: warn, on, off.",
+                mode,
+            )
+            self.ca_templates_check = "warn"
+        self.logger.debug(
+            "CAhandler._config_ca_templates_check_load() ended with %s",
+            self.ca_templates_check,
+        )
 
     def _config_proxy_load(self, config_dic: Dict[str, str]):
         """load hostname"""
@@ -359,27 +471,17 @@ class CAhandler(object):
 
     @contextmanager
     def _kerberos_runtime_environment(self):
-        """scope kerberos env vars to the current enrollment operation"""
-        self.logger.debug("CAhandler._kerberos_runtime_environment()")
-        env_backup = {
-            "KRB5CCNAME": os.environ.get("KRB5CCNAME"),
-            "KRB5_CONFIG": os.environ.get("KRB5_CONFIG"),
-        }
+        """Deprecated no-op kept for callers/tests; prefer explicit GSSAPI creds.
 
-        if self.krb5_cache:
-            os.environ["KRB5CCNAME"] = self.krb5_cache
-
-        if self.krb5_config:
-            os.environ["KRB5_CONFIG"] = self.krb5_config
-
-        try:
-            yield
-        finally:
-            for env_key, env_value in env_backup.items():
-                if env_value is None:
-                    os.environ.pop(env_key, None)
-                else:
-                    os.environ[env_key] = env_value
+        Process-wide KRB5CCNAME/KRB5_CONFIG mutation is unsafe under threaded WSGI.
+        Keytab enroll loads credentials from the ccache store and passes them to
+        Certsrv via gssapi_creds instead.
+        """
+        self.logger.debug(
+            "CAhandler._kerberos_runtime_environment() is a no-op; "
+            "using explicit GSSAPI credentials"
+        )
+        yield
         self.logger.debug("CAhandler._kerberos_runtime_environment() ended")
 
     def _kerberos_cleanup_temporary_ccache(self):
@@ -407,6 +509,60 @@ class CAhandler(object):
         finally:
             self._krb5_cache_is_temporary = False
             self.krb5_cache = None
+            self._gssapi_creds = None
+
+    @staticmethod
+    def _kerberos_ccache_path(ccache_value: Optional[str]) -> Optional[str]:
+        """Normalize FILE:/path and plain path forms for GSSAPI store lookups."""
+        if not ccache_value:
+            return None
+        if ccache_value.startswith("FILE:"):
+            return ccache_value.split("FILE:", maxsplit=1)[1]
+        return ccache_value
+
+    def _kerberos_gssapi_creds_from_cache(
+        self,
+    ) -> Tuple[Optional[object], Optional[str]]:
+        """Load initiate GSSAPI credentials from the prepared ccache (no env)."""
+        self.logger.debug("CAhandler._kerberos_gssapi_creds_from_cache()")
+        if self.auth_method != "gssapi" or not self._kerberos_keytab_is_configured():
+            return (None, None)
+
+        ccache_file = self._kerberos_ccache_path(self.krb5_cache)
+        if not ccache_file:
+            return (
+                None,
+                "Kerberos ccache is not available for GSSAPI keytab authentication.",
+            )
+
+        try:
+            gssapi = importlib.import_module("gssapi")
+        except Exception as err:
+            self.logger.error("Failed to import gssapi module: %s", err)
+            return (None, "gssapi module is required for gssapi keytab authentication.")
+
+        try:
+            credentials_class = getattr(gssapi, "Credentials", None)
+            if credentials_class is None:
+                return (
+                    None,
+                    "gssapi.Credentials is required to load credentials from ccache.",
+                )
+            creds = credentials_class(usage="initiate", store={"ccache": ccache_file})
+            self.logger.debug(
+                "Loaded GSSAPI credentials from ccache store '%s'", ccache_file
+            )
+            return (creds, None)
+        except Exception as err:
+            self.logger.error(
+                "Failed to load GSSAPI credentials from ccache '%s': %s",
+                ccache_file,
+                err,
+            )
+            return (
+                None,
+                "Failed to load GSSAPI credentials from Kerberos ccache.",
+            )
 
     def _kerberos_acquire_with_gssapi_raw(
         self,
@@ -484,7 +640,9 @@ class CAhandler(object):
     def _kerberos_acquire_with_kinit(self, ccache_file: str) -> bool:
         """acquire kerberos credentials using kinit fallback"""
         self.logger.debug("CAhandler._kerberos_acquire_with_kinit()")
-        kinit_cmd = self.krb5_kinit_path or "kinit"
+        kinit_cmd = kerberos_kinit_command_resolve(self.logger, self.krb5_kinit_path)
+        if not kinit_cmd:
+            return False
         try:
             kinit_env = dict(os.environ)
             kinit_env["KRB5CCNAME"] = ccache_file
@@ -627,33 +785,97 @@ class CAhandler(object):
         self.logger.debug("Certificate._pkcs7_to_pem() ended")
         return result
 
-    def _template_name_get(self, csr: str) -> str:
-        """get templaate from csr"""
-        self.logger.debug("CAhandler._template_name_get(%s)", csr)
-        template_name = None
-
-        # parse profileid from http_header
-        header_info = header_info_get(self.logger, csr=csr)
-        if header_info:
-            try:
-                header_info_dic = json.loads(header_info[-1]["header_info"])
-                if self.header_info_field in header_info_dic:
-                    for ele in header_info_dic[self.header_info_field].split(" "):
-                        if self.profile_mapping_field in ele.lower():
-                            template_name = ele.split("=")[1]
-                            break
-            except Exception as err:
-                self.logger.error("Failed to parse template from header_info: %s", err)
-
+    def _allowed_templates_check(self) -> Optional[str]:
+        """Enforce configured allowed_templates allowlist."""
         self.logger.debug(
-            "CAhandler._template_name_get() ended with: %s", template_name
+            "CAhandler._allowed_templates_check(%s)", self.template
         )
-        return template_name
+        if not self.allowed_templates:
+            return None
+        if self.template not in self.allowed_templates:
+            self.logger.error(
+                "Template '%s' is not in allowed_templates: %s",
+                self.template,
+                self.allowed_templates,
+            )
+            return f"Template '{self.template}' is not allowed"
+        self.logger.debug("CAhandler._allowed_templates_check() ended")
+        return None
+
+    def _ca_templates_cache_key(self) -> str:
+        """Cache key for CA-reported templates."""
+        return self.url or self.host or ""
+
+    def _ca_templates_get(self, ca_server: object) -> List[str]:
+        """Fetch CA templates with a process-wide thread-safe cache."""
+        cache_key = self._ca_templates_cache_key()
+        with self._ca_templates_lock:
+            cached = self._ca_templates_cache.get(cache_key)
+            if cached is not None:
+                self.logger.debug(
+                    "Using cached CA templates for %s (%s entries)",
+                    cache_key,
+                    len(cached),
+                )
+                return list(cached)
+
+        try:
+            templates = ca_server.get_templates()
+            if not isinstance(templates, list):
+                templates = []
+        except Exception as err_:
+            self.logger.warning(
+                "Failed to fetch CA templates from Web Enrollment: %s", err_
+            )
+            return []
+
+        with self._ca_templates_lock:
+            self._ca_templates_cache[cache_key] = list(templates)
+        self.logger.debug(
+            "Cached %s CA templates for %s", len(templates), cache_key
+        )
+        return list(templates)
+
+    def _ca_templates_membership_check(self, ca_server: object) -> Optional[str]:
+        """Compare enrollment template against CA-reported Web Enrollment list."""
+        self.logger.debug(
+            "CAhandler._ca_templates_membership_check(mode=%s, template=%s)",
+            self.ca_templates_check,
+            self.template,
+        )
+        if self.ca_templates_check == "off":
+            return None
+
+        ca_templates = self._ca_templates_get(ca_server)
+        if not ca_templates:
+            self.logger.warning(
+                "CA template list is empty or unavailable; continuing without "
+                "CA-side template membership check."
+            )
+            return None
+
+        if self.template in ca_templates:
+            self.logger.debug(
+                "CAhandler._ca_templates_membership_check() ended: template present"
+            )
+            return None
+
+        message = (
+            f"Template '{self.template}' was not found in CA Web Enrollment "
+            f"templates ({len(ca_templates)} reported)"
+        )
+        if self.ca_templates_check == "on":
+            self.logger.error(message)
+            return message
+
+        self.logger.warning("%s; continuing (ca_templates_check=warn)", message)
+        return None
 
     def _csr_process(self, ca_server, csr: str) -> Tuple[str, str, str]:
 
         # recode csr
         csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + "\n"
+        error = None
 
         # get ca_chain
         try:
@@ -672,7 +894,9 @@ class CAhandler(object):
             cert_raw = cert_raw.replace("\r\n", "\n")
         except Exception as err_:
             cert_raw = None
-            error = str(err_)
+            # Keep ACME/client-visible detail short even when ca_error_details_forward
+            # is enabled; full CA/auth exception text stays in the server log.
+            error = self.CERT_FETCH_ERROR
             self.logger.error("Failed to enroll certificate from CA: %s", err_)
 
         # create bundle
@@ -683,6 +907,40 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
+    def _gssapi_channel_bindings_resolve(self) -> Tuple[Optional[str], Optional[str]]:
+        """Resolve gssapi_channel_bindings mode to Certsrv channel_bindings value."""
+        self.logger.debug(
+            "CAhandler._gssapi_channel_bindings_resolve(%s)",
+            self.gssapi_channel_bindings,
+        )
+        if self.auth_method != "gssapi" or self.gssapi_channel_bindings == "off":
+            return (None, None)
+
+        supported = gssapi_channel_bindings_supported()
+        if self.gssapi_channel_bindings == "on":
+            if not supported:
+                return (
+                    None,
+                    "gssapi_channel_bindings=on requires requests-gssapi >= 1.4.0 "
+                    "with channel_bindings support.",
+                )
+            return (CHANNEL_BINDINGS_TLS_SERVER_END_POINT, None)
+
+        # auto
+        if supported:
+            self.logger.info(
+                "Enabling GSSAPI channel bindings (%s)",
+                CHANNEL_BINDINGS_TLS_SERVER_END_POINT,
+            )
+            return (CHANNEL_BINDINGS_TLS_SERVER_END_POINT, None)
+
+        self.logger.warning(
+            "requests-gssapi does not support channel_bindings; continuing without. "
+            "For EPA Required, upgrade to requests-gssapi >= 1.4.0 or set IIS "
+            "Extended Protection to Accept."
+        )
+        return (None, None)
+
     def _parameter_overwrite(self, _csr: str):
         """overwrite overwrite krb5.conf or user-template"""
         if self.krb5_config:
@@ -691,6 +949,13 @@ class CAhandler(object):
     def _enroll(self, csr: str) -> Tuple[str, str, str]:
         """enroll certificate"""
         self.logger.debug("CAhandler._enroll()")
+        channel_bindings, channel_bindings_error = (
+            self._gssapi_channel_bindings_resolve()
+        )
+        if channel_bindings_error:
+            self.logger.error(channel_bindings_error)
+            return (channel_bindings_error, None, None)
+
         # setup certserv
         ca_server = Certsrv(
             self.host,
@@ -701,6 +966,8 @@ class CAhandler(object):
             self.ca_bundle,
             verify=self.verify,
             proxies=self.proxy,
+            channel_bindings=channel_bindings,
+            gssapi_creds=self._gssapi_creds,
         )
 
         error = None
@@ -712,10 +979,26 @@ class CAhandler(object):
 
         if self.enrollment_config_log:
             enrollment_config_log(
-                self.logger, self, self.enrollment_config_log_skip_list
+                self.logger,
+                self,
+                list(self.enrollment_config_log_skip_list)
+                + [
+                    "password",
+                    "krb5_keytab",
+                    "krb5_cache",
+                    "krb5_config",
+                    "krb5_kinit_path",
+                    "_gssapi_creds",
+                ],
             )
 
         if auth_check:
+            ca_template_error = self._ca_templates_membership_check(ca_server)
+            if ca_template_error:
+                self.logger.error(
+                    "CA template membership check failed: %s", ca_template_error
+                )
+                return (ca_template_error, None, None)
             # enroll certificate
             error, cert_bundle, cert_raw = self._csr_process(ca_server, csr)
         else:
@@ -731,6 +1014,7 @@ class CAhandler(object):
         cert_bundle = None
         error = None
         cert_raw = None
+        self._gssapi_creds = None
 
         self._parameter_overwrite(csr)
 
@@ -744,22 +1028,36 @@ class CAhandler(object):
             self.logger.debug("Certificate.enroll() ended")
             return (error, cert_bundle, cert_raw, None)
 
+        https_error = self._enrollment_url_https_check()
+        if https_error:
+            return (https_error, cert_bundle, cert_raw, None)
+
         kerberos_error = self._kerberos_prepare_gssapi_backend()
         if kerberos_error:
             self.logger.error("Kerberos backend setup failed: %s", kerberos_error)
             self._kerberos_cleanup_temporary_ccache()
             return (kerberos_error, None, None, None)
 
+        gssapi_creds, gssapi_creds_error = self._kerberos_gssapi_creds_from_cache()
+        if gssapi_creds_error:
+            self.logger.error("Kerberos credential load failed: %s", gssapi_creds_error)
+            self._kerberos_cleanup_temporary_ccache()
+            return (gssapi_creds_error, None, None, None)
+        self._gssapi_creds = gssapi_creds
+
         # check for eab profiling and header_info
         error = eab_profile_header_info_check(
             self.logger, self, csr, self.profile_mapping_field
         )
-        if not error:
-            # enroll certificate
-            with self._kerberos_runtime_environment():
-                error, cert_bundle, cert_raw = self._enroll(csr)
-        else:
+        if error:
             self.logger.error("EAB profile check failed: %s", error)
+        else:
+            error = self._allowed_templates_check()
+            if error:
+                self.logger.error("Template allowlist check failed: %s", error)
+            else:
+                # enroll certificate (explicit GSSAPI creds; no process env mutation)
+                error, cert_bundle, cert_raw = self._enroll(csr)
 
         self._kerberos_cleanup_temporary_ccache()
         self.logger.debug("Certificate.enroll() ended")
@@ -767,13 +1065,26 @@ class CAhandler(object):
 
     def handler_check(self):
         """check if handler is ready"""
-        self.logger.debug("CAhandler.check()")
-        required = ["host", self.profile_mapping_field]
+        self.logger.debug("CAhandler.handler_check()")
+
+        if not self.host and not self.url:
+            error = "host or url parameter is missing in config file"
+            self.logger.error("%s: %s", CONFIGURATION_ERROR_DETAIL, error)
+            self.logger.debug("CAhandler.handler_check() ended with %s", error)
+            return error
+
+        required = [self.profile_mapping_field]
         if not self._kerberos_keytab_is_configured():
             required.extend(["user", "password"])
 
         error = handler_config_check(self.logger, self, required)
-        self.logger.debug("CAhandler.check() ended with %s", error)
+        if not error:
+            error = self._enrollment_url_https_check()
+        if not error and self.krb5_kinit_path and self.krb5_kinit_path != "kinit":
+            if not kerberos_kinit_command_resolve(self.logger, self.krb5_kinit_path):
+                error = "krb5_kinit_path is invalid"
+
+        self.logger.debug("CAhandler.handler_check() ended with %s", error)
         return error
 
     def poll(

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""unittests for a2c_mswcce_connection_test.py"""
+"""unittests for a2c_msicpr_connection_test.py"""
 
 # pylint: disable=C0415
 import sys
@@ -8,8 +8,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 
-class TestA2CMswcceConnectionTest(unittest.TestCase):
-    """tests for a2c_mswcce_connection_test"""
+class TestA2CMsicprConnectionTest(unittest.TestCase):
+    """tests for a2c_msicpr_connection_test"""
 
     def test_001_main_creates_request(self):
         """main() builds CAhandler and calls request_create()"""
@@ -20,15 +20,15 @@ class TestA2CMswcceConnectionTest(unittest.TestCase):
 
         with (
             patch(
-                "acme2certifier.tools.a2c_mswcce_connection_test.logger_setup",
+                "acme2certifier.tools.a2c_msicpr_connection_test.logger_setup",
                 return_value=MagicMock(),
             ) as mock_log,
             patch(
-                "acme2certifier.tools.a2c_mswcce_connection_test.CAhandler",
+                "acme2certifier.tools.a2c_msicpr_connection_test.CAhandler",
                 return_value=mock_cm,
             ) as mock_cls,
         ):
-            from acme2certifier.tools import a2c_mswcce_connection_test as mod
+            from acme2certifier.tools import a2c_msicpr_connection_test as mod
 
             mod.main()
 
@@ -41,10 +41,10 @@ class TestA2CMswcceConnectionTest(unittest.TestCase):
         import runpy
         from pathlib import Path
 
-        from acme2certifier.tools import a2c_mswcce_connection_test as mod
+        from acme2certifier.tools import a2c_msicpr_connection_test as mod
 
         path = Path(mod.__file__)
-        sys.modules.pop("acme2certifier.tools.a2c_mswcce_connection_test", None)
+        sys.modules.pop("acme2certifier.tools.a2c_msicpr_connection_test", None)
         mock_cm = MagicMock()
         mock_cm.__enter__.return_value = MagicMock()
         mock_cm.__exit__.return_value = False
@@ -53,7 +53,7 @@ class TestA2CMswcceConnectionTest(unittest.TestCase):
                 "acme2certifier.acme_srv.helper.logger_setup", return_value=MagicMock()
             ),
             patch(
-                "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler",
+                "acme2certifier.cahandlers.msicpr_ca_handler.CAhandler",
                 return_value=mock_cm,
             ),
         ):

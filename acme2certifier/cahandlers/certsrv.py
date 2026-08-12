@@ -10,6 +10,9 @@ import re
 import base64
 import logging
 import warnings
+import inspect
+from html.parser import HTMLParser
+from typing import List, Tuple
 import requests
 
 __version__ = "2.1.1"
@@ -21,6 +24,51 @@ UNKOWN_ERR_MSG = "An unknown error occured"
 DEPRECATIONWARNING = (
     "This function is deprecated. Use the method on the Certsrv class instead"
 )
+CHANNEL_BINDINGS_TLS_SERVER_END_POINT = "tls-server-end-point"
+
+
+class _SelectOptionValueParser(HTMLParser):
+    """Extract non-empty option value attributes from HTML select elements."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._in_select = 0
+        self.values: List[str] = []
+
+    def handle_starttag(self, tag: str, attrs: List[Tuple[str, str]]) -> None:
+        if tag == "select":
+            self._in_select += 1
+        elif tag == "option" and self._in_select:
+            attrs_dic = dict(attrs)
+            value = attrs_dic.get("value")
+            if value:
+                self.values.append(value)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "select" and self._in_select:
+            self._in_select -= 1
+
+
+def _parse_template_option_values(html: str) -> List[str]:
+    """Parse certificate template names from certrqxt.asp option values."""
+    parser = _SelectOptionValueParser()
+    parser.feed(html or "")
+    seen = set()
+    templates: List[str] = []
+    for value in parser.values:
+        if value not in seen:
+            seen.add(value)
+            templates.append(value)
+    return templates
+
+
+def gssapi_channel_bindings_supported() -> bool:
+    """Return True if requests-gssapi accepts channel_bindings ( >= 1.4.0 )."""
+    try:
+        from requests_gssapi import HTTPSPNEGOAuth
+    except ImportError:
+        return False
+    return "channel_bindings" in inspect.signature(HTTPSPNEGOAuth).parameters
 
 
 class RequestDeniedException(Exception):
@@ -70,6 +118,12 @@ class Certsrv(object):
         proxies: Dictionary of proxy server for post of get operations
             {'http': 'http://foo.bar:3128', 'https': 'socks5://foo.bar:1080'}
             The default is None
+        channel_bindings: Optional GSSAPI channel bindings value. Use
+            'tls-server-end-point' for EPA/CBT (requires requests-gssapi >= 1.4.0).
+            None disables channel bindings.
+        gssapi_creds: Optional explicit GSSAPI credentials (gssapi.Credentials or
+            raw creds) for auth_method='gssapi'. Preferred for keytab/ccache flows
+            so callers need not mutate process KRB5CCNAME.
     Note:
         If you use a client certificate for authentication (auth_method=cert),
         the username parameter should be the path to a certificate, and
@@ -88,12 +142,16 @@ class Certsrv(object):
         verify=True,
         timeout=TIMEOUT,
         proxies=None,
+        channel_bindings=None,
+        gssapi_creds=None,
     ):
 
         self.server = server
         self.url = url
         self.timeout = timeout
         self.auth_method = auth_method
+        self.channel_bindings = channel_bindings
+        self.gssapi_creds = gssapi_creds
         self.session = requests.Session()
         self.proxies = proxies
 
@@ -118,6 +176,34 @@ class Certsrv(object):
             "User-agent": "Mozilla/5.0 certsrv (https://github.com/magnuswatn/certsrv)"
         }
 
+    def _http_spnego_auth(self, **kwargs):
+        """Build HTTPSPNEGOAuth, optionally enabling channel bindings."""
+        from requests_gssapi import HTTPSPNEGOAuth
+
+        if self.channel_bindings:
+            if self.channel_bindings != CHANNEL_BINDINGS_TLS_SERVER_END_POINT:
+                raise ValueError(
+                    "channel_bindings must be None or '{0}'".format(
+                        CHANNEL_BINDINGS_TLS_SERVER_END_POINT
+                    )
+                )
+            if not gssapi_channel_bindings_supported():
+                raise RuntimeError(
+                    "channel_bindings='{0}' requires requests-gssapi >= 1.4.0".format(
+                        CHANNEL_BINDINGS_TLS_SERVER_END_POINT
+                    )
+                )
+            kwargs["channel_bindings"] = self.channel_bindings
+        return HTTPSPNEGOAuth(**kwargs)
+
+    @staticmethod
+    def _gssapi_creds_for_spnego(gssapi_creds):
+        """Normalize gssapi.Credentials / raw creds for HTTPSPNEGOAuth."""
+        if gssapi_creds is None:
+            return None
+        # python-gssapi Credentials exposes .creds; raw AcquireCredResult also does.
+        return getattr(gssapi_creds, "creds", gssapi_creds)
+
     def _set_credentials(self, username, password):
         if self.auth_method == "ntlm":
             from requests_ntlm import HttpNtlmAuth
@@ -126,13 +212,15 @@ class Certsrv(object):
         elif self.auth_method == "cert":
             self.session.cert = (username, password)
         elif self.auth_method == "gssapi":
-            from requests_gssapi import HTTPSPNEGOAuth
             import gssapi
 
-            # Support two GSSAPI modes:
-            # 1) username/password (legacy behavior)
-            # 2) default credential cache (for keytab/kinit prepared by caller)
-            if password:
+            # Prefer explicit credentials (keytab/ccache prepared by caller) so
+            # process-global KRB5CCNAME mutation is not required.
+            if self.gssapi_creds is not None:
+                self.session.auth = self._http_spnego_auth(
+                    creds=self._gssapi_creds_for_spnego(self.gssapi_creds)
+                )
+            elif password:
                 oid = "1.3.6.1.5.5.2"  # SPNEGO
                 # pylint: disable=e1101
                 cred = gssapi.raw.acquire_cred_with_password(
@@ -141,11 +229,12 @@ class Certsrv(object):
                     mechs=[gssapi.OID.from_int_seq(oid)],
                     usage="initiate",
                 )
-                self.session.auth = HTTPSPNEGOAuth(
+                self.session.auth = self._http_spnego_auth(
                     creds=cred.creds, mech=gssapi.OID.from_int_seq(oid)
                 )
             else:
-                self.session.auth = HTTPSPNEGOAuth()
+                # Legacy fallback: default credential cache via process env.
+                self.session.auth = self._http_spnego_auth()
         else:
             self.session.auth = (username, password)
 
@@ -371,6 +460,25 @@ class Certsrv(object):
             )
 
         return chain_response.content
+
+    def get_templates(self) -> List[str]:
+        """
+        Gets available certificate templates from the ADCS web enrollment page.
+
+        Parses option value attributes from /certsrv/certrqxt.asp. The Web
+        Enrollment dropdown is not a complete ADCS template inventory; treat
+        the result as a best-effort list for the authenticated identity.
+
+        Returns:
+            A list of template names (option values), deduplicated.
+        """
+        if self.url:
+            url = "{0}/certrqxt.asp".format(self.url)
+        else:
+            url = "https://{0}/certsrv/certrqxt.asp".format(self.server)
+
+        response = self._get(url)
+        return _parse_template_option_values(response.text)
 
     def check_credentials(self):
         """

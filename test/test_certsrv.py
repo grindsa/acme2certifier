@@ -4,12 +4,20 @@
 
 # pylint: disable=C0415, R0904, W0212
 import sys
+import types
 import unittest
 import warnings
 from unittest.mock import patch, Mock, MagicMock, call
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
+
+
+def _fake_requests_gssapi(auth_cls):
+    """Build a fake requests_gssapi module exposing HTTPSPNEGOAuth."""
+    fake_mod = types.ModuleType("requests_gssapi")
+    fake_mod.HTTPSPNEGOAuth = auth_cls
+    return fake_mod
 
 
 class TestCertsrv(unittest.TestCase):
@@ -619,6 +627,178 @@ class TestCertsrv(unittest.TestCase):
         self.assertTrue(any(issubclass(w.category, DeprecationWarning) for w in caught))
         mock_cls.assert_called_once_with("srv", "u", "p", auth_method="ntlm")
         instance.check_credentials.assert_called_once_with()
+
+    def test_046_gssapi_channel_bindings_supported_true(self):
+        """gssapi_channel_bindings_supported returns True when parameter exists"""
+
+        class FakeAuth:
+            def __init__(self, channel_bindings=None, **_kwargs):
+                self.channel_bindings = channel_bindings
+
+        with patch.dict(
+            "sys.modules", {"requests_gssapi": _fake_requests_gssapi(FakeAuth)}
+        ):
+            self.assertTrue(self.mod.gssapi_channel_bindings_supported())
+
+    def test_047_gssapi_channel_bindings_supported_false_missing_param(self):
+        """gssapi_channel_bindings_supported returns False without parameter"""
+
+        class FakeAuth:
+            def __init__(self, **_kwargs):
+                pass
+
+        with patch.dict(
+            "sys.modules", {"requests_gssapi": _fake_requests_gssapi(FakeAuth)}
+        ):
+            self.assertFalse(self.mod.gssapi_channel_bindings_supported())
+
+    def test_048_gssapi_channel_bindings_supported_false_import_error(self):
+        """gssapi_channel_bindings_supported returns False if import fails"""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def _fake_import(name, *args, **kwargs):
+            if name == "requests_gssapi":
+                raise ImportError("missing")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=_fake_import):
+            self.assertFalse(self.mod.gssapi_channel_bindings_supported())
+
+    def test_049_http_spnego_auth_without_bindings(self):
+        """_http_spnego_auth omits channel_bindings when unset"""
+        calls = []
+
+        class FakeAuth:
+            def __init__(self, **kwargs):
+                calls.append(kwargs)
+
+        with patch.dict(
+            "sys.modules", {"requests_gssapi": _fake_requests_gssapi(FakeAuth)}
+        ):
+            client = self.mod.Certsrv.__new__(self.mod.Certsrv)
+            client.channel_bindings = None
+            auth = client._http_spnego_auth(creds="cred")
+            self.assertIsInstance(auth, FakeAuth)
+            self.assertEqual([{"creds": "cred"}], calls)
+
+    def test_050_http_spnego_auth_with_bindings(self):
+        """_http_spnego_auth passes channel_bindings when supported"""
+        calls = []
+
+        class FakeAuth:
+            def __init__(self, channel_bindings=None, **kwargs):
+                calls.append({"channel_bindings": channel_bindings, **kwargs})
+
+        with patch.dict(
+            "sys.modules", {"requests_gssapi": _fake_requests_gssapi(FakeAuth)}
+        ):
+            with patch(
+                "acme2certifier.cahandlers.certsrv.gssapi_channel_bindings_supported",
+                return_value=True,
+            ):
+                client = self.mod.Certsrv.__new__(self.mod.Certsrv)
+                client.channel_bindings = "tls-server-end-point"
+                client._http_spnego_auth()
+                self.assertEqual(
+                    [{"channel_bindings": "tls-server-end-point"}], calls
+                )
+
+    def test_051_http_spnego_auth_unsupported_raises(self):
+        """_http_spnego_auth raises when bindings requested but unsupported"""
+
+        class FakeAuth:
+            def __init__(self, **_kwargs):
+                pass
+
+        with patch.dict(
+            "sys.modules", {"requests_gssapi": _fake_requests_gssapi(FakeAuth)}
+        ):
+            with patch(
+                "acme2certifier.cahandlers.certsrv.gssapi_channel_bindings_supported",
+                return_value=False,
+            ):
+                client = self.mod.Certsrv.__new__(self.mod.Certsrv)
+                client.channel_bindings = "tls-server-end-point"
+                with self.assertRaises(RuntimeError):
+                    client._http_spnego_auth()
+
+    def test_052_http_spnego_auth_invalid_value(self):
+        """_http_spnego_auth rejects unsupported channel_bindings values"""
+
+        class FakeAuth:
+            def __init__(self, **_kwargs):
+                pass
+
+        with patch.dict(
+            "sys.modules", {"requests_gssapi": _fake_requests_gssapi(FakeAuth)}
+        ):
+            client = self.mod.Certsrv.__new__(self.mod.Certsrv)
+            client.channel_bindings = "invalid"
+            with self.assertRaises(ValueError):
+                client._http_spnego_auth()
+
+
+    @patch.dict("sys.modules", {"requests_gssapi": MagicMock(), "gssapi": MagicMock()})
+    def test_053_set_credentials_gssapi_with_explicit_creds(self):
+        """_set_credentials gssapi prefers explicit gssapi_creds over default cache"""
+        mock_requests_gssapi = sys.modules["requests_gssapi"]
+        mock_requests_gssapi.HTTPSPNEGOAuth.return_value = "spnego-explicit"
+        explicit = MagicMock()
+        explicit.creds = "raw-creds"
+
+        obj = self._make_certsrv(auth_method="basic")
+        obj.auth_method = "gssapi"
+        obj.gssapi_creds = explicit
+        mock_requests_gssapi.HTTPSPNEGOAuth.reset_mock()
+        obj._set_credentials("user", None)
+        mock_requests_gssapi.HTTPSPNEGOAuth.assert_called_once_with(creds="raw-creds")
+        self.assertEqual(obj.session.auth, "spnego-explicit")
+
+    def test_054_parse_template_option_values(self):
+        """_parse_template_option_values uses option value attributes"""
+        html = """
+        <html><body>
+        <select name="CertTemplate">
+          <option value="WebServer">Web Server</option>
+          <option value="User">User</option>
+          <option value="WebServer">Web Server Dup</option>
+          <option>NoValue</option>
+        </select>
+        </body></html>
+        """
+        self.assertEqual(
+            ["WebServer", "User"],
+            self.mod._parse_template_option_values(html),
+        )
+
+    def test_055_get_templates_with_url(self):
+        """get_templates uses url path and returns option values"""
+        obj = self._make_certsrv(auth_method="basic")
+        obj.url = "https://ca.example/certsrv"
+        obj.server = None
+        response = MagicMock()
+        response.text = (
+            '<select><option value="WebServer">Web Server</option>'
+            '<option value="User">User</option></select>'
+        )
+        with patch.object(obj, "_get", return_value=response) as mock_get:
+            result = obj.get_templates()
+        mock_get.assert_called_once_with("https://ca.example/certsrv/certrqxt.asp")
+        self.assertEqual(["WebServer", "User"], result)
+
+    def test_056_get_templates_with_server(self):
+        """get_templates uses server path when url is unset"""
+        obj = self._make_certsrv(auth_method="basic")
+        obj.url = None
+        obj.server = "ca.example"
+        response = MagicMock()
+        response.text = '<select><option value="User">User</option></select>'
+        with patch.object(obj, "_get", return_value=response) as mock_get:
+            result = obj.get_templates()
+        mock_get.assert_called_once_with("https://ca.example/certsrv/certrqxt.asp")
+        self.assertEqual(["User"], result)
 
 
 if __name__ == "__main__":

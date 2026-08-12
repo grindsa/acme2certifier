@@ -454,6 +454,7 @@ ______________________________________________________________________
 | Role | Example `*_module` |
 | --- | --- |
 | OpenSSL CA | `acme2certifier.cahandlers.openssl_ca_handler` |
+| MS-ICPR CA | `acme2certifier.cahandlers.msicpr_ca_handler` (deprecated alias: `mswcce_ca_handler`) |
 | Skeleton CA | `acme2certifier.cahandlers.skeleton_ca_handler` |
 | ACME proxy CA | `acme2certifier.cahandlers.acme_ca_handler` |
 | EAB file | `acme2certifier.eabhandlers.file_handler` |

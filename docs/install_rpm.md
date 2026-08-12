@@ -140,14 +140,14 @@ Examples (grindsa rebuilds):
 
 Depending on your CA handler, you may need these additional modules (prefix must match the flavor: `python3-*` or `python39-*`). Examples for **EL8 legacy** (`python36/`):
 
-- [python3-impacket-0.11.0-2grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) for [MS WCCE handler](mswcce.md).
+- [python3-impacket-0.11.0-2grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) for [MS-ICPR handler](msicpr.md).
 - [python3-ntlm-auth-1.5.0-2grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-ntlm-auth-1.5.0-2grindsa.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
 - [python3-requests_ntlm-1.1.0-14grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-requests_ntlm-1.1.0-14grindsa.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
 - [python3-requests-pkcs12-1.16-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python36/python3-requests-pkcs12-1.16-1grindsa.el8.noarch.rpm) for [EST](est.md) or [EJBCA](ejbca.md) handler.
 
 For **EL8 default** (`python39/`), matching grindsa NVRs:
 
-- [python39-impacket-0.11.0-2grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-impacket-0.11.0-2grindsa.el8.noarch.rpm) for [MS WCCE handler](mswcce.md).
+- [python39-impacket-0.11.0-2grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-impacket-0.11.0-2grindsa.el8.noarch.rpm) for [MS-ICPR handler](msicpr.md).
 - [python39-ntlm-auth-1.5.0-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-ntlm-auth-1.5.0-1grindsa.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
 - [python39-requests_ntlm-1.1.0-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-requests_ntlm-1.1.0-1grindsa.el8.noarch.rpm) for [MS WSE handler](mscertsrv.md).
 - [python39-requests-pkcs12-1.7-1grindsa](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python39/python39-requests-pkcs12-1.7-1grindsa.el8.noarch.rpm) for [EST](est.md) or [EJBCA](ejbca.md) handler.

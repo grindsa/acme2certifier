@@ -6,15 +6,18 @@ from typing import Any, Dict, Optional
 
 from cryptography import x509
 from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.hazmat.primitives.serialization.pkcs7 import (
+    load_der_pkcs7_certificates,
+)
 from impacket.dcerpc.v5 import rpcrt
 from impacket.dcerpc.v5.dtypes import DWORD, LPWSTR, PBYTE, ULONG
 from impacket.dcerpc.v5.ndr import NDRCALL, NDRSTRUCT
 from impacket.dcerpc.v5.nrpc import checkNullString
 from impacket.uuid import uuidtup_to_bin
 
-from acme2certifier.cahandlers.ms_wcce.errors import translate_error_code
-from acme2certifier.cahandlers.ms_wcce.rpc import get_dce_rpc
-from acme2certifier.cahandlers.ms_wcce.target import Target
+from acme2certifier.cahandlers.ms_icpr.errors import translate_error_code
+from acme2certifier.cahandlers.ms_icpr.rpc import get_dce_rpc
+from acme2certifier.cahandlers.ms_icpr.target import Target
 
 NAME = "req"
 MSRPC_UUID_ICPR = uuidtup_to_bin(("91ae6020-9e3c-11cf-8d7c-00aa00c091be", "0.0"))
@@ -30,6 +33,36 @@ def der_to_pem(certificate: bytes) -> bytes:
     """convert der to pem"""
     cert = x509.load_der_x509_certificate(certificate)
     return cert.public_bytes(Encoding.PEM)
+
+
+def ca_chain_pem_from_cms(
+    cms_der: bytes, leaf_der: Optional[bytes] = None
+) -> Optional[bytes]:
+    """Extract CA certificates from a CMS/PKCS#7 blob as concatenated PEM.
+
+    MS-ICPR CertServerRequest returns the issued leaf + chain in pctbCert
+    (mapped to MS-WCCE pctbCertChain). The leaf is stripped when leaf_der is
+    provided so the result can be appended to the issued certificate.
+    """
+    if not cms_der:
+        return None
+
+    try:
+        certificates = load_der_pkcs7_certificates(cms_der)
+    except Exception as err:
+        logging.warning("Failed to parse CMS certificate chain from pctbCert: %s", err)
+        return None
+
+    pem_parts = []
+    for certificate in certificates:
+        cert_der = certificate.public_bytes(Encoding.DER)
+        if leaf_der is not None and cert_der == leaf_der:
+            continue
+        pem_parts.append(certificate.public_bytes(Encoding.PEM))
+
+    if not pem_parts:
+        return None
+    return b"".join(pem_parts)
 
 
 class DCERPCSessionError(rpcrt.DCERPCException):
@@ -112,8 +145,31 @@ class Request:
             do_kerberos=self.do_kerberos,
         )
 
+    def __enter__(self) -> "Request":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        self.close()
+        return False
+
+    def close(self) -> None:
+        """Disconnect DCE/RPC session if connected."""
+        if self.dce is None:
+            return
+        try:
+            self.dce.disconnect()
+        except Exception as err:
+            logging.warning("Failed to disconnect DCE/RPC session: %s", err)
+        finally:
+            self.dce = None
+
     def get_cert(self, csr: bytes) -> Dict[str, Any]:
         """submit certificate request and return structured response"""
+        if self.dce is None:
+            raise ConnectionError(
+                "DCE/RPC connection to CA server is not available"
+            )
+
         csr = csr_pem_to_der(csr)
 
         attributes = ["CertificateTemplate:%s" % self.template]
@@ -153,12 +209,30 @@ class Request:
                 disposition_message = None
 
         cert_pem = None
+        certificate_chain = None
 
         if error_code == 3:
             logging.info("Successfully requested certificate")
             cert_der = b"".join(response["pctbEncodedCert"]["pb"])
             if cert_der:
                 cert_pem = der_to_pem(cert_der)
+                # pctbCert is MS-WCCE pctbCertChain (CMS with leaf + CA chain).
+                cms_der = b"".join(response["pctbCert"]["pb"])
+                if cms_der:
+                    certificate_chain = ca_chain_pem_from_cms(cms_der, cert_der)
+                    if certificate_chain:
+                        logging.info(
+                            "Extracted CA certificate chain from enrollment response"
+                        )
+                    else:
+                        logging.warning(
+                            "Enrollment response contained pctbCert but no CA "
+                            "certificates could be extracted"
+                        )
+                else:
+                    logging.debug(
+                        "Enrollment response did not include pctbCert chain data"
+                    )
             else:
                 logging.error(
                     "Certificate request was issued but no certificate was returned"
@@ -186,4 +260,5 @@ class Request:
             "disposition": error_code,
             "disposition_message": disposition_message,
             "certificate": cert_pem,
+            "certificate_chain": certificate_chain,
         }
