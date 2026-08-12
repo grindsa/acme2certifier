@@ -565,6 +565,8 @@ class CAhandler(object):
 
         ccache_file = self._kerberos_ccache_path(self.krb5_cache)
         if not ccache_file:
+            if self._kerberos_keytab_is_configured():
+                return (None, "Kerberos ccache is not available")
             # Password+GSSAPI without a prepared ccache falls back to in-process
             # acquire_cred_with_password in Certsrv (legacy / system krb5.conf).
             return (None, None)
