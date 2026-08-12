@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 import unittest
-from unittest.mock import patch, mock_open, Mock
+from unittest.mock import patch, mock_open, Mock, MagicMock
 import configparser
 
 sys.path.insert(0, ".")
@@ -2507,6 +2507,219 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("leaf", cert_raw)
         self.assertIsNone(poll_id)
         self.assertFalse(mock_file.called)
+
+    @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
+    def test_117_config_allowed_templates_non_list_json(self, mock_load_cfg):
+        """JSON object for allowed_templates is treated as empty allowlist"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"allowed_templates": '{"WebServer": true}'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+        self.assertEqual([], self.cahandler.allowed_templates)
+        self.assertTrue(
+            any("Failed to parse allowed_templates" in msg for msg in lcm.output)
+        )
+
+    @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
+    def test_118_config_allowed_templates_empty_list_warns(self, mock_load_cfg):
+        """empty JSON list for allowed_templates logs empty-allowlist warning"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"allowed_templates": "[]"}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+        self.assertEqual([], self.cahandler.allowed_templates)
+        self.assertTrue(
+            any("allowed_templates is empty" in msg for msg in lcm.output)
+        )
+
+    def test_119_allowed_templates_check_allow(self):
+        """non-empty allowlist accepts listed template"""
+        self.cahandler.template = "WebServer"
+        self.cahandler.allowed_templates = ["WebServer"]
+        self.assertIsNone(self.cahandler._allowed_templates_check())
+
+    def test_120_kerberos_ccache_path_normalizes_file_prefix(self):
+        """_kerberos_ccache_path strips FILE: prefix and handles empty values"""
+        self.assertEqual(
+            "/tmp/cc",
+            self.cahandler._kerberos_ccache_path("FILE:/tmp/cc"),
+        )
+        self.assertEqual("/tmp/cc", self.cahandler._kerberos_ccache_path("/tmp/cc"))
+        self.assertIsNone(self.cahandler._kerberos_ccache_path(None))
+        self.assertIsNone(self.cahandler._kerberos_ccache_path(""))
+
+    def test_121_kerberos_tgt_from_ccache_noop_without_python_keytab(self):
+        """_kerberos_tgt_from_ccache is a no-op outside python keytab mode"""
+        self.cahandler.use_kerberos = False
+        self.assertEqual((None, None), self.cahandler._kerberos_tgt_from_ccache())
+
+    def test_122_kerberos_tgt_from_ccache_missing_ccache(self):
+        """missing ccache path returns an explicit error"""
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = None
+        creds, error = self.cahandler._kerberos_tgt_from_ccache()
+        self.assertIsNone(creds)
+        self.assertIn("Kerberos ccache is not available", error)
+
+    def test_123_kerberos_tgt_from_ccache_import_error(self):
+        """impacket CCache import failure is reported"""
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        with patch.dict(
+            "sys.modules",
+            {
+                "impacket": None,
+                "impacket.krb5": None,
+                "impacket.krb5.ccache": None,
+            },
+        ):
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                creds, error = self.cahandler._kerberos_tgt_from_ccache()
+        self.assertIsNone(creds)
+        self.assertIn("impacket is required", error)
+        self.assertTrue(
+            any("Failed to import impacket CCache" in msg for msg in lcm.output)
+        )
+
+    def test_124_kerberos_tgt_from_ccache_load_none(self):
+        """CCache.loadFile returning None is reported"""
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        mock_ccache_mod = MagicMock()
+        mock_ccache_mod.CCache.loadFile.return_value = None
+        with patch.dict(
+            "sys.modules",
+            {
+                "impacket": MagicMock(),
+                "impacket.krb5": MagicMock(),
+                "impacket.krb5.ccache": mock_ccache_mod,
+            },
+        ):
+            creds, error = self.cahandler._kerberos_tgt_from_ccache()
+        self.assertIsNone(creds)
+        self.assertIn("Failed to load Kerberos ccache file", error)
+
+    def test_125_kerberos_tgt_from_ccache_missing_tgt(self):
+        """missing TGT credential in ccache is reported"""
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        mock_ccache = MagicMock()
+        mock_ccache.principal.realm = {"data": b"EXAMPLE.COM"}
+        mock_ccache.getCredential.return_value = None
+        mock_ccache_mod = MagicMock()
+        mock_ccache_mod.CCache.loadFile.return_value = mock_ccache
+        with patch.dict(
+            "sys.modules",
+            {
+                "impacket": MagicMock(),
+                "impacket.krb5": MagicMock(),
+                "impacket.krb5.ccache": mock_ccache_mod,
+            },
+        ):
+            creds, error = self.cahandler._kerberos_tgt_from_ccache()
+        self.assertIsNone(creds)
+        self.assertIn("No TGT found in Kerberos ccache", error)
+
+    def test_126_kerberos_tgt_from_ccache_success(self):
+        """successful TGT extraction from ccache"""
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "FILE:/tmp/cc"
+        mock_creds = MagicMock()
+        mock_creds.toTGT.return_value = "fake-tgt"
+        mock_ccache = MagicMock()
+        mock_ccache.principal.realm = {"data": b"EXAMPLE.COM"}
+        mock_ccache.getCredential.return_value = mock_creds
+        mock_ccache_mod = MagicMock()
+        mock_ccache_mod.CCache.loadFile.return_value = mock_ccache
+        with patch.dict(
+            "sys.modules",
+            {
+                "impacket": MagicMock(),
+                "impacket.krb5": MagicMock(),
+                "impacket.krb5.ccache": mock_ccache_mod,
+            },
+        ):
+            tgt, error = self.cahandler._kerberos_tgt_from_ccache()
+        self.assertEqual("fake-tgt", tgt)
+        self.assertIsNone(error)
+        mock_ccache_mod.CCache.loadFile.assert_called_once_with("/tmp/cc")
+
+    def test_127_kerberos_tgt_from_ccache_extract_error(self):
+        """unexpected extraction failures are reported"""
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        mock_ccache_mod = MagicMock()
+        mock_ccache_mod.CCache.loadFile.side_effect = RuntimeError("corrupt")
+        with patch.dict(
+            "sys.modules",
+            {
+                "impacket": MagicMock(),
+                "impacket.krb5": MagicMock(),
+                "impacket.krb5.ccache": mock_ccache_mod,
+            },
+        ):
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                creds, error = self.cahandler._kerberos_tgt_from_ccache()
+        self.assertIsNone(creds)
+        self.assertIn("Failed to extract Kerberos TGT from ccache", error)
+        self.assertTrue(
+            any("Failed to extract TGT from ccache" in msg for msg in lcm.output)
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
+    )
+    @patch(
+        "acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._kerberos_tgt_from_ccache",
+        return_value=(None, "tgt load failed"),
+    )
+    @patch(
+        "acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._kerberos_prepare_python_backend",
+        return_value=None,
+    )
+    @patch(
+        "acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._kerberos_keytab_is_configured",
+        return_value=True,
+    )
+    def test_128_enroll_returns_tgt_error(
+        self, _mock_keytab, _mock_prepare, mock_tgt, mock_cleanup
+    ):
+        """enroll aborts when TGT cannot be loaded from ccache"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, cert_bundle, cert_raw, poll_id = self.cahandler.enroll("csr")
+        self.assertEqual("tgt load failed", error)
+        self.assertIsNone(cert_bundle)
+        self.assertIsNone(cert_raw)
+        self.assertIsNone(poll_id)
+        self.assertTrue(mock_tgt.called)
+        self.assertTrue(mock_cleanup.called)
+        self.assertTrue(any("Kerberos TGT load failed" in msg for msg in lcm.output))
 
 
 if __name__ == "__main__":

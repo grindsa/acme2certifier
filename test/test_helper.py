@@ -7905,6 +7905,16 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_load_config.return_value = cfg
         self.assertFalse(_log_cert_content_enabled())
 
+    def test_604_kerberos_kinit_command_resolve_rejects_null_byte(self):
+        """paths containing a NUL byte are rejected"""
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertIsNone(
+                self.kerberos_kinit_command_resolve(
+                    self.logger, "/usr/bin/kinit\x00evil"
+                )
+            )
+        self.assertTrue(any("null byte in path" in msg for msg in lcm.output))
+
 
 if __name__ == "__main__":
     unittest.main()

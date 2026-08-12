@@ -800,6 +800,10 @@ class TestCertsrv(unittest.TestCase):
         mock_get.assert_called_once_with("https://ca.example/certsrv/certrqxt.asp")
         self.assertEqual(["User"], result)
 
+    def test_057_gssapi_creds_for_spnego_none(self):
+        """_gssapi_creds_for_spnego returns None when no credentials given"""
+        self.assertIsNone(self.mod.Certsrv._gssapi_creds_for_spnego(None))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1553,6 +1553,12 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_timer_load(parser)
         self.assertEqual(2.0, self.cahandler.request_retry_backoff)
 
+    def test_106__templates_enumerate_items_not_list(self):
+        """_templates_enumerate returns early when items is not a list"""
+        self.cahandler.template_info_dic = {"name": "foo"}
+        self.cahandler._templates_enumerate({"items": {"name": "foo", "id": "id"}})
+        self.assertEqual({"name": "foo"}, self.cahandler.template_info_dic)
+
 
 if __name__ == "__main__":
 

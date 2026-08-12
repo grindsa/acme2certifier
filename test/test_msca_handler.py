@@ -1860,6 +1860,204 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(cert_raw)
         self.assertIsNone(poll_id)
 
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_118_config_hostname_load_warns_on_url_like_host(self, mock_load_cfg):
+        """host values containing :// log a URL-shaped warning"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"host": "https://ca.example/certsrv"}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+        self.assertEqual("https://ca.example/certsrv", self.cahandler.host)
+        self.assertTrue(any("looks like a URL" in msg for msg in lcm.output))
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_119_config_allowed_templates_non_list_json(self, mock_load_cfg):
+        """JSON object for allowed_templates is treated as empty allowlist"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"allowed_templates": '{"WebServer": true}'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+        self.assertEqual([], self.cahandler.allowed_templates)
+        self.assertTrue(
+            any("Failed to parse allowed_templates" in msg for msg in lcm.output)
+        )
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_120_config_ca_templates_check_invalid_falls_back_to_warn(
+        self, mock_load_cfg
+    ):
+        """invalid ca_templates_check values fall back to warn"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"ca_templates_check": "strict"}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+        self.assertEqual("warn", self.cahandler.ca_templates_check)
+        self.assertTrue(
+            any("Invalid ca_templates_check" in msg for msg in lcm.output)
+        )
+
+    def test_121_kerberos_gssapi_creds_from_cache_missing_ccache(self):
+        """missing ccache path returns an explicit error"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = None
+        creds, error = self.cahandler._kerberos_gssapi_creds_from_cache()
+        self.assertIsNone(creds)
+        self.assertIn("Kerberos ccache is not available", error)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module")
+    def test_122_kerberos_gssapi_creds_from_cache_import_error(self, mock_import):
+        """gssapi import failure is reported"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        mock_import.side_effect = ImportError("no gssapi")
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            creds, error = self.cahandler._kerberos_gssapi_creds_from_cache()
+        self.assertIsNone(creds)
+        self.assertIn("gssapi module is required", error)
+        self.assertTrue(any("Failed to import gssapi module" in msg for msg in lcm.output))
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module")
+    def test_123_kerberos_gssapi_creds_from_cache_missing_credentials_class(
+        self, mock_import
+    ):
+        """gssapi without Credentials attribute returns an error"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        mock_gssapi = MagicMock()
+        mock_gssapi.Credentials = None
+        mock_import.return_value = mock_gssapi
+        creds, error = self.cahandler._kerberos_gssapi_creds_from_cache()
+        self.assertIsNone(creds)
+        self.assertIn("gssapi.Credentials is required", error)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module")
+    def test_124_kerberos_gssapi_creds_from_cache_load_error(self, mock_import):
+        """Credentials constructor failure is reported"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "/tmp/cc"
+        mock_gssapi = MagicMock()
+        mock_gssapi.Credentials.side_effect = RuntimeError("bad ccache")
+        mock_import.return_value = mock_gssapi
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            creds, error = self.cahandler._kerberos_gssapi_creds_from_cache()
+        self.assertIsNone(creds)
+        self.assertIn("Failed to load GSSAPI credentials from Kerberos ccache", error)
+        self.assertTrue(
+            any("Failed to load GSSAPI credentials from ccache" in msg for msg in lcm.output)
+        )
+
+    def test_125_ca_templates_get_fetch_exception(self):
+        """_ca_templates_get returns [] when get_templates raises"""
+        ca_server = MagicMock()
+        ca_server.get_templates.side_effect = RuntimeError("boom")
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            result = self.cahandler._ca_templates_get(ca_server)
+        self.assertEqual([], result)
+        self.assertTrue(
+            any("Failed to fetch CA templates" in msg for msg in lcm.output)
+        )
+
+    def test_126_ca_templates_membership_check_off(self):
+        """ca_templates_check=off skips membership validation"""
+        self.cahandler.ca_templates_check = "off"
+        self.cahandler.template = "Anything"
+        self.assertIsNone(self.cahandler._ca_templates_membership_check(MagicMock()))
+
+    def test_127_ca_templates_membership_check_present(self):
+        """membership check succeeds when template is reported by CA"""
+        self.cahandler.template = "WebServer"
+        self.cahandler.ca_templates_check = "on"
+        ca_server = MagicMock()
+        ca_server.get_templates.return_value = ["WebServer", "User"]
+        self.assertIsNone(self.cahandler._ca_templates_membership_check(ca_server))
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._ca_templates_membership_check",
+        return_value="template missing on CA",
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials",
+        return_value=True,
+    )
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._gssapi_channel_bindings_resolve",
+        return_value=(None, None),
+    )
+    def test_128_enroll_internal_rejects_ca_template_membership(
+        self, _mock_resolve, _mock_certsrv, _mock_credchk, _mock_membership
+    ):
+        """_enroll returns membership failure when CA check rejects template"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, cert_bundle, cert_raw = self.cahandler._enroll("csr")
+        self.assertEqual("template missing on CA", error)
+        self.assertIsNone(cert_bundle)
+        self.assertIsNone(cert_raw)
+        self.assertTrue(
+            any("CA template membership check failed" in msg for msg in lcm.output)
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_gssapi_creds_from_cache",
+        return_value=(None, "ccache load failed"),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
+        return_value=None,
+    )
+    def test_129_enroll_returns_gssapi_creds_error(
+        self, _mock_prepare, mock_creds_load, mock_cleanup
+    ):
+        """enroll aborts when GSSAPI creds cannot be loaded from ccache"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, cert_bundle, cert_raw, poll_id = self.cahandler.enroll("csr")
+        self.assertEqual("ccache load failed", error)
+        self.assertIsNone(cert_bundle)
+        self.assertIsNone(cert_raw)
+        self.assertIsNone(poll_id)
+        self.assertTrue(mock_creds_load.called)
+        self.assertTrue(mock_cleanup.called)
+        self.assertTrue(
+            any("Kerberos credential load failed" in msg for msg in lcm.output)
+        )
+
+    def test_130_handler_check_rejects_invalid_krb5_kinit_path(self):
+        """handler_check rejects unsafe absolute krb5_kinit_path values"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.krb5_kinit_path = "/tmp/evil.sh"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error = self.cahandler.handler_check()
+        self.assertEqual("krb5_kinit_path is invalid", error)
+        self.assertTrue(any("Rejected krb5_kinit_path" in msg for msg in lcm.output))
+
 
 if __name__ == "__main__":
 
