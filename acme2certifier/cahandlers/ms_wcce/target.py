@@ -109,6 +109,8 @@ class DnsResolver:
 class Target:
     """target class"""
 
+    _REPR_REDACT_KEYS = frozenset({"password", "lmhash", "nthash", "tgt"})
+
     def __init__(
         self,
         domain: str = None,
@@ -158,4 +160,9 @@ class Target:
             self.target_ip = self.resolver.resolve(remote_name)
 
     def __repr__(self) -> str:
-        return "<Target (%s)>" % repr(self.__dict__)
+        """Stringify without leaking credentials or Kerberos material."""
+        safe = {
+            key: ("******" if key in self._REPR_REDACT_KEYS else value)
+            for key, value in self.__dict__.items()
+        }
+        return "<Target (%s)>" % repr(safe)

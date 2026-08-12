@@ -198,6 +198,37 @@ class TestMsWcceTarget(unittest.TestCase):
         self.assertEqual("192.168.1.10", target.target_ip)
         self.assertEqual("DOMAIN", target.domain)
 
+    def test_014_target_repr_redacts_secrets(self):
+        """Target.__repr__ redacts password, hashes, and Kerberos TGT"""
+        from acme2certifier.cahandlers.ms_wcce.target import Target
+
+        with patch(
+            "acme2certifier.cahandlers.ms_wcce.target.DnsResolver.create"
+        ) as mock_create:
+            mock_create.return_value = Mock()
+            target = Target(
+                domain="DOMAIN",
+                username="user",
+                password="super-secret",
+                remote_name="192.168.1.10",
+                no_pass=True,
+                tgt={"ticket": "secret-tgt"},
+            )
+        target.lmhash = "aabbccdd"
+        target.nthash = "11223344"
+        rendered = repr(target)
+        self.assertIn("<Target (", rendered)
+        self.assertIn("'username': 'user'", rendered)
+        self.assertIn("'domain': 'DOMAIN'", rendered)
+        self.assertNotIn("super-secret", rendered)
+        self.assertNotIn("secret-tgt", rendered)
+        self.assertNotIn("aabbccdd", rendered)
+        self.assertNotIn("11223344", rendered)
+        self.assertIn("'password': '******'", rendered)
+        self.assertIn("'lmhash': '******'", rendered)
+        self.assertIn("'nthash': '******'", rendered)
+        self.assertIn("'tgt': '******'", rendered)
+
 
 class TestMsWcceRpc(unittest.TestCase):
     """tests for ms_wcce.rpc"""
