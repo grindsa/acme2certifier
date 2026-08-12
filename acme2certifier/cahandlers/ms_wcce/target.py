@@ -121,6 +121,7 @@ class Target:
         ns_: str = None,
         dns_tcp: bool = False,
         timeout: int = 5,
+        tgt: object = None,
     ):
         if domain is None:
             domain = ""
@@ -141,6 +142,8 @@ class Target:
         self.nthash = nthash
         self.dc_ip = dc_ip
         self.timeout = timeout
+        # Explicit Kerberos TGT from ccache (avoids process-global KRB5CCNAME).
+        self.tgt = tgt
 
         if ns_ is None:
             ns_ = dc_ip

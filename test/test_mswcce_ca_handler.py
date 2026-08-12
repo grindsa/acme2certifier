@@ -1979,6 +1979,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("svc-a2c-enroll", target_kwargs["username"])
         self.assertEqual("", target_kwargs["password"])
         self.assertTrue(target_kwargs["no_pass"])
+        self.assertIsNone(target_kwargs.get("tgt"))
         _, request_kwargs = mock_request.call_args
         self.assertEqual("target_obj", request_kwargs["target"])
         self.assertTrue(request_kwargs["do_kerberos"])
@@ -2154,17 +2155,15 @@ class TestACMEHandler(unittest.TestCase):
         clear=True,
     )
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.os.path.isfile")
-    def test_106_kerberos_runtime_environment_restores_previous_values(
-        self, mock_isfile
-    ):
-        """test kerberos runtime env context restores previous process env values"""
+    def test_106_kerberos_runtime_environment_is_noop(self, mock_isfile):
+        """kerberos runtime env context no longer mutates process env"""
         self.cahandler.krb5_cache = "/tmp/runtime_ccache"
         self.cahandler.krb5_config = "/tmp/runtime_krb5.conf"
         mock_isfile.return_value = True
 
         with self.cahandler._kerberos_runtime_environment():
-            self.assertEqual("/tmp/runtime_ccache", os.environ.get("KRB5CCNAME"))
-            self.assertEqual("/tmp/runtime_krb5.conf", os.environ.get("KRB5_CONFIG"))
+            self.assertEqual("existing_ccache", os.environ.get("KRB5CCNAME"))
+            self.assertEqual("existing_krb5_config", os.environ.get("KRB5_CONFIG"))
 
         self.assertEqual("existing_ccache", os.environ.get("KRB5CCNAME"))
         self.assertEqual("existing_krb5_config", os.environ.get("KRB5_CONFIG"))
@@ -2249,15 +2248,15 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict("os.environ", {}, clear=True)
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.os.path.isfile")
-    def test_110_kerberos_runtime_environment_pops_unset_keys(self, mock_isfile):
-        """runtime env restores by popping keys that were previously unset"""
+    def test_110_kerberos_runtime_environment_leaves_env_unset(self, mock_isfile):
+        """runtime env no-op does not introduce KRB5* vars"""
         self.cahandler.krb5_cache = "/tmp/runtime_ccache"
         self.cahandler.krb5_config = "/tmp/runtime_krb5.conf"
         mock_isfile.return_value = True
 
         with self.cahandler._kerberos_runtime_environment():
-            self.assertEqual("/tmp/runtime_ccache", os.environ.get("KRB5CCNAME"))
-            self.assertEqual("/tmp/runtime_krb5.conf", os.environ.get("KRB5_CONFIG"))
+            self.assertNotIn("KRB5CCNAME", os.environ)
+            self.assertNotIn("KRB5_CONFIG", os.environ)
 
         self.assertNotIn("KRB5CCNAME", os.environ)
         self.assertNotIn("KRB5_CONFIG", os.environ)
@@ -2302,24 +2301,16 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.CAhandler.request_create")
     @patch("acme2certifier.cahandlers.mswcce_ca_handler.convert_string_to_byte")
-    @patch(
-        "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_runtime_environment"
-    )
-    def test_114_certificate_request_send_with_kerberos_scope(
-        self, mock_runtime, mock_s2b, mock_rcr
-    ):
-        """_certificate_request_send uses kerberos runtime scope when requested"""
-        mock_runtime.return_value.__enter__ = Mock(return_value=None)
-        mock_runtime.return_value.__exit__ = Mock(return_value=False)
+    def test_114_certificate_request_send(self, mock_s2b, mock_rcr):
+        """_certificate_request_send submits CSR without process env mutation"""
         mock_request = Mock()
         mock_request.get_cert.return_value = {"disposition": 3}
         mock_rcr.return_value = mock_request
         mock_s2b.return_value = b"csr"
         self.assertEqual(
             {"disposition": 3},
-            self.cahandler._certificate_request_send("csr", True),
+            self.cahandler._certificate_request_send("csr"),
         )
-        mock_runtime.assert_called_once_with()
         mock_request.get_cert.assert_called_once_with(b"csr")
 
     def test_115_certificate_response_process_issued_without_bytes(self):
@@ -2344,6 +2335,10 @@ class TestACMEHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
     )
     @patch(
+        "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_tgt_from_ccache",
+        return_value=("fake-tgt", None),
+    )
+    @patch(
         "acme2certifier.cahandlers.mswcce_ca_handler.CAhandler._kerberos_prepare_python_backend"
     )
     @patch(
@@ -2363,6 +2358,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_send,
         mock_keytab,
         mock_prepare,
+        mock_tgt,
         mock_cleanup,
     ):
         """enroll cleans temporary ccache when python kerberos scope is active"""
@@ -2387,6 +2383,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         error, cert_bundle, cert_raw, poll_id = self.cahandler.enroll("csr")
         self.assertIsNone(error)
+        self.assertTrue(mock_tgt.called)
         self.assertTrue(mock_cleanup.called)
         self.assertEqual(
             "-----BEGIN CERTIFICATE-----\ncert\n-----END CERTIFICATE-----\nca_pem",

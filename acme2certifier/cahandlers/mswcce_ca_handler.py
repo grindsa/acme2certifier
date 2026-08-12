@@ -69,6 +69,7 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self._krb5_cache_is_temporary = False
+        self._kerberos_tgt = None
         self.profile_mapping_field = "template"
 
     def __enter__(self):
@@ -415,27 +416,15 @@ class CAhandler(object):
 
     @contextmanager
     def _kerberos_runtime_environment(self):
-        """scope kerberos env vars to the current enrollment operation"""
-        self.logger.debug("CAhandler._kerberos_runtime_environment()")
-        env_backup = {
-            "KRB5CCNAME": os.environ.get("KRB5CCNAME"),
-            "KRB5_CONFIG": os.environ.get("KRB5_CONFIG"),
-        }
+        """Deprecated no-op; prefer explicit TGT from ccache for python backend.
 
-        if self.krb5_cache:
-            os.environ["KRB5CCNAME"] = self.krb5_cache
-
-        if self.krb5_config and os.path.isfile(self.krb5_config):
-            os.environ["KRB5_CONFIG"] = self.krb5_config
-
-        try:
-            yield
-        finally:
-            for env_key, env_value in env_backup.items():
-                if env_value is None:
-                    os.environ.pop(env_key, None)
-                else:
-                    os.environ[env_key] = env_value
+        Process-wide KRB5CCNAME/KRB5_CONFIG mutation is unsafe under threaded WSGI.
+        """
+        self.logger.debug(
+            "CAhandler._kerberos_runtime_environment() is a no-op; "
+            "using explicit Kerberos TGT from ccache"
+        )
+        yield
         self.logger.debug("CAhandler._kerberos_runtime_environment() ended")
 
     def _kerberos_cleanup_temporary_ccache(self):
@@ -463,6 +452,64 @@ class CAhandler(object):
         finally:
             self._krb5_cache_is_temporary = False
             self.krb5_cache = None
+            self._kerberos_tgt = None
+
+    @staticmethod
+    def _kerberos_ccache_path(ccache_value: Optional[str]) -> Optional[str]:
+        """Normalize FILE:/path and plain path forms."""
+        if not ccache_value:
+            return None
+        if ccache_value.startswith("FILE:"):
+            return ccache_value.split("FILE:", maxsplit=1)[1]
+        return ccache_value
+
+    def _kerberos_tgt_from_ccache(self) -> Tuple[Optional[object], Optional[str]]:
+        """Load Kerberos TGT from ccache file without reading KRB5CCNAME."""
+        self.logger.debug("CAhandler._kerberos_tgt_from_ccache()")
+        if not (
+            self.use_kerberos
+            and self.krb5_auth_backend == "python"
+            and self._kerberos_keytab_is_configured()
+        ):
+            return (None, None)
+
+        ccache_file = self._kerberos_ccache_path(self.krb5_cache)
+        if not ccache_file:
+            return (None, "Kerberos ccache is not available for python keytab backend.")
+
+        try:
+            from impacket.krb5.ccache import CCache
+        except Exception as err:
+            self.logger.error("Failed to import impacket CCache: %s", err)
+            return (None, "impacket is required to load Kerberos TGT from ccache.")
+
+        try:
+            ccache = CCache.loadFile(ccache_file)
+            if ccache is None:
+                return (
+                    None,
+                    f"Failed to load Kerberos ccache file: {ccache_file}",
+                )
+            domain = ccache.principal.realm["data"].decode("utf-8")
+            principal = "krbtgt/%s@%s" % (domain.upper(), domain.upper())
+            creds = ccache.getCredential(principal)
+            if creds is None:
+                return (
+                    None,
+                    "No TGT found in Kerberos ccache for python keytab backend.",
+                )
+            tgt = creds.toTGT()
+            self.logger.debug(
+                "Loaded Kerberos TGT from ccache '%s' for realm '%s'",
+                ccache_file,
+                domain,
+            )
+            return (tgt, None)
+        except Exception as err:
+            self.logger.error(
+                "Failed to extract TGT from ccache '%s': %s", ccache_file, err
+            )
+            return (None, "Failed to extract Kerberos TGT from ccache.")
 
     def _kerberos_acquire_with_gssapi_raw(
         self,
@@ -696,16 +743,9 @@ class CAhandler(object):
             self.logger.error("Could not load file '%s'. Error: %s", bundle, err_)
         return file_
 
-    def _certificate_request_send(
-        self, csr: str, runtime_kerberos_scope: bool
-    ) -> Dict[str, object]:
+    def _certificate_request_send(self, csr: str) -> Dict[str, object]:
         """submit certificate request and return structured CA response"""
         csr_bytes = convert_string_to_byte(csr)
-        if runtime_kerberos_scope:
-            with self._kerberos_runtime_environment():
-                request = self.request_create()
-                return request.get_cert(csr_bytes)
-
         request = self.request_create()
         return request.get_cert(csr_bytes)
 
@@ -748,7 +788,10 @@ class CAhandler(object):
 
         if self.enrollment_config_log:
             enrollment_config_log(
-                self.logger, self, self.enrollment_config_log_skip_list
+                self.logger,
+                self,
+                list(self.enrollment_config_log_skip_list)
+                + ["_kerberos_tgt", "password"],
             )
 
         request_user = self.user
@@ -770,6 +813,7 @@ class CAhandler(object):
             remote_name=self.host,
             dc_ip=self.domain_controller,
             timeout=self.timeout,
+            tgt=self._kerberos_tgt,
         )
         request = Request(
             target=target,
@@ -810,6 +854,7 @@ class CAhandler(object):
         error = None
         cert_raw = None
         cert_bundle = None
+        self._kerberos_tgt = None
 
         # Optional python-only kerberos backend: acquire creds from keytab.
         error = self._kerberos_prepare_python_backend()
@@ -818,6 +863,19 @@ class CAhandler(object):
             self.logger.error("Kerberos backend setup failed: %s", error)
             return error, cert_raw, cert_bundle
 
+        runtime_kerberos_python = (
+            self.use_kerberos
+            and self.krb5_auth_backend == "python"
+            and self._kerberos_keytab_is_configured()
+        )
+        if runtime_kerberos_python:
+            tgt, tgt_error = self._kerberos_tgt_from_ccache()
+            if tgt_error:
+                self.logger.error("Kerberos TGT load failed: %s", tgt_error)
+                self._kerberos_cleanup_temporary_ccache()
+                return tgt_error, cert_raw, cert_bundle
+            self._kerberos_tgt = tgt
+
         # reformat csr
         csr = build_pem_file(self.logger, None, csr, 64, True)
 
@@ -825,21 +883,15 @@ class CAhandler(object):
         # currently getting certificate chain is not supported
         ca_pem = self._file_load(self.ca_bundle)
 
-        runtime_kerberos_scope = (
-            self.use_kerberos
-            and self.krb5_auth_backend == "python"
-            and self._kerberos_keytab_is_configured()
-        )
-
         try:
-            cert_response = self._certificate_request_send(csr, runtime_kerberos_scope)
+            cert_response = self._certificate_request_send(csr)
             error, cert_raw = self._certificate_response_process(cert_response)
         except Exception as err:
             cert_raw = None
             self.logger.error("Enrollment failed with error: %s", err)
             error = self.CERT_FETCH_ERROR
         finally:
-            if runtime_kerberos_scope:
+            if runtime_kerberos_python:
                 self._kerberos_cleanup_temporary_ccache()
 
         if error:

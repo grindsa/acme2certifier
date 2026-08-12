@@ -159,6 +159,8 @@ krb5_kinit_path: </path/to/kinit>
 
 When `auth_method` is set to `gssapi`, the handler supports keytab-based Kerberos authentication.
 If `krb5_principal` and `krb5_keytab` are configured, the handler prepares Kerberos credentials using Python GSSAPI and falls back to `kinit` if needed.
+Prepared credentials are loaded from the ccache and passed explicitly into the certsrv client; the handler does **not** mutate process-wide `KRB5CCNAME` / `KRB5_CONFIG` during enrollment (safe for threaded WSGI).
+If you need a custom Kerberos config for GSSAPI itself, set `KRB5_CONFIG` on the service process (systemd/`Environment=`). The optional `krb5_config` setting is still applied to the `kinit` fallback subprocess only.
 
 Example:
 

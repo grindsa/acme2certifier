@@ -92,7 +92,7 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **user_variable** *(optional)* – Environment variable containing the username (overridden if `user` is set in `acme_srv.cfg`).
 - **password** – Password for authentication.
 - **password_variable** *(optional)* – Environment variable containing the password (overridden if `password` is set in `acme_srv.cfg`).
-- **krb5_auth_backend** *(optional)* – Kerberos backend selection. Supported values are `impacket` and `python`. Default is `impacket`. If `use_kerberos=True` and both `krb5_principal` and `krb5_keytab` are configured, the handler auto-selects `python` when `krb5_auth_backend` is not explicitly set.
+- **krb5_auth_backend** *(optional)* – Kerberos backend selection. Supported values are `impacket` and `python`. Default is `impacket`. If `use_kerberos=True` and both `krb5_principal` and `krb5_keytab` are configured, the handler auto-selects `python` when `krb5_auth_backend` is not explicitly set. For `python`, the handler loads a TGT from the ccache and passes it to impacket explicitly (no process-wide `KRB5CCNAME` mutation during enrollment).
 - **krb5_principal** *(optional, required for keytab mode)* – Kerberos principal, for example `svc-a2c-enroll@EXAMPLE.COM`.
 - **krb5_principal_variable** *(optional)* – Environment variable containing the Kerberos principal (overridden if `krb5_principal` is set in `acme_srv.cfg`).
 - **krb5_keytab** *(optional, required for keytab mode)* – Path to the Kerberos keytab file used by the service account.

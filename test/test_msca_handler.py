@@ -1052,23 +1052,24 @@ class TestACMEHandler(unittest.TestCase):
     @patch.dict(
         "os.environ", {"KRB5CCNAME": "old_cc", "KRB5_CONFIG": "old_cfg"}, clear=False
     )
-    def test_070_kerberos_runtime_environment_sets_and_restores(self):
-        """_kerberos_runtime_environment sets and restores previous values"""
+    def test_070_kerberos_runtime_environment_is_noop(self):
+        """_kerberos_runtime_environment no longer mutates process env"""
         self.cahandler.krb5_cache = "new_cc"
         self.cahandler.krb5_config = "new_cfg"
         with self.cahandler._kerberos_runtime_environment():
-            self.assertEqual("new_cc", os.environ.get("KRB5CCNAME"))
-            self.assertEqual("new_cfg", os.environ.get("KRB5_CONFIG"))
+            self.assertEqual("old_cc", os.environ.get("KRB5CCNAME"))
+            self.assertEqual("old_cfg", os.environ.get("KRB5_CONFIG"))
         self.assertEqual("old_cc", os.environ.get("KRB5CCNAME"))
         self.assertEqual("old_cfg", os.environ.get("KRB5_CONFIG"))
 
     @patch.dict("os.environ", {}, clear=True)
-    def test_071_kerberos_runtime_environment_pops_unset_keys(self):
-        """_kerberos_runtime_environment pops keys that were previously unset"""
+    def test_071_kerberos_runtime_environment_leaves_env_unset(self):
+        """_kerberos_runtime_environment does not introduce KRB5* vars"""
         self.cahandler.krb5_cache = "new_cc"
         self.cahandler.krb5_config = "new_cfg"
         with self.cahandler._kerberos_runtime_environment():
-            self.assertEqual("new_cc", os.environ.get("KRB5CCNAME"))
+            self.assertNotIn("KRB5CCNAME", os.environ)
+            self.assertNotIn("KRB5_CONFIG", os.environ)
         self.assertNotIn("KRB5CCNAME", os.environ)
         self.assertNotIn("KRB5_CONFIG", os.environ)
 
@@ -1605,6 +1606,77 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(
             "tls-server-end-point",
             mock_certsrv.call_args.kwargs.get("channel_bindings"),
+        )
+
+    def test_106_kerberos_ccache_path_normalizes_file_prefix(self):
+        """_kerberos_ccache_path strips FILE: prefix"""
+        self.assertEqual(
+            "/tmp/cc",
+            self.cahandler._kerberos_ccache_path("FILE:/tmp/cc"),
+        )
+        self.assertEqual("/tmp/cc", self.cahandler._kerberos_ccache_path("/tmp/cc"))
+        self.assertIsNone(self.cahandler._kerberos_ccache_path(None))
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.importlib.import_module")
+    def test_107_kerberos_gssapi_creds_from_cache_success(self, mock_import):
+        """_kerberos_gssapi_creds_from_cache loads Credentials from store"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_cache = "FILE:/tmp/cc"
+        mock_creds = MagicMock()
+        mock_gssapi = MagicMock()
+        mock_gssapi.Credentials.return_value = mock_creds
+        mock_import.return_value = mock_gssapi
+        creds, error = self.cahandler._kerberos_gssapi_creds_from_cache()
+        self.assertIs(mock_creds, creds)
+        self.assertIsNone(error)
+        mock_gssapi.Credentials.assert_called_once_with(
+            usage="initiate", store={"ccache": "/tmp/cc"}
+        )
+
+    def test_108_kerberos_gssapi_creds_from_cache_noop_without_keytab(self):
+        """_kerberos_gssapi_creds_from_cache is a no-op without keytab mode"""
+        self.cahandler.auth_method = "gssapi"
+        self.assertEqual((None, None), self.cahandler._kerberos_gssapi_creds_from_cache())
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_gssapi_creds_from_cache",
+        return_value=("explicit-creds", None),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
+        return_value=None,
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._gssapi_channel_bindings_resolve",
+        return_value=(None, None),
+    )
+    def test_109_enroll_passes_explicit_gssapi_creds(
+        self,
+        _mock_resolve,
+        mock_prepare,
+        mock_creds_load,
+        mock_certsrv,
+        mock_credchk,
+    ):
+        """enroll passes explicit gssapi_creds to Certsrv in keytab mode"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        mock_credchk.return_value = False
+        self.cahandler.enroll("csr")
+        self.assertTrue(mock_prepare.called)
+        self.assertTrue(mock_creds_load.called)
+        self.assertEqual(
+            "explicit-creds",
+            mock_certsrv.call_args.kwargs.get("gssapi_creds"),
         )
 
 

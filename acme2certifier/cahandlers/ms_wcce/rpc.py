@@ -38,6 +38,7 @@ def get_dce_rpc_from_string_binding(
         target.domain,
         target.lmhash,
         target.nthash,
+        TGT=getattr(target, "tgt", None),
         TGS=None,
     )
 

@@ -740,5 +740,22 @@ class TestCertsrv(unittest.TestCase):
                 client._http_spnego_auth()
 
 
+    @patch.dict("sys.modules", {"requests_gssapi": MagicMock(), "gssapi": MagicMock()})
+    def test_053_set_credentials_gssapi_with_explicit_creds(self):
+        """_set_credentials gssapi prefers explicit gssapi_creds over default cache"""
+        mock_requests_gssapi = sys.modules["requests_gssapi"]
+        mock_requests_gssapi.HTTPSPNEGOAuth.return_value = "spnego-explicit"
+        explicit = MagicMock()
+        explicit.creds = "raw-creds"
+
+        obj = self._make_certsrv(auth_method="basic")
+        obj.auth_method = "gssapi"
+        obj.gssapi_creds = explicit
+        mock_requests_gssapi.HTTPSPNEGOAuth.reset_mock()
+        obj._set_credentials("user", None)
+        mock_requests_gssapi.HTTPSPNEGOAuth.assert_called_once_with(creds="raw-creds")
+        self.assertEqual(obj.session.auth, "spnego-explicit")
+
+
 if __name__ == "__main__":
     unittest.main()

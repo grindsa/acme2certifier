@@ -28,6 +28,9 @@ from acme2certifier.acme_srv.helper import (
     config_enroll_config_log_load,
     config_profile_load,
     convert_byte_to_string,
+
+
+
     convert_string_to_byte,
     eab_profile_header_info_check,
     enrollment_config_log,
@@ -67,6 +70,7 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self._krb5_cache_is_temporary = False
+        self._gssapi_creds = None
         self.profile_mapping_field = "template"
 
     KINIT_TIMEOUT_SECONDS = 30
@@ -378,27 +382,17 @@ class CAhandler(object):
 
     @contextmanager
     def _kerberos_runtime_environment(self):
-        """scope kerberos env vars to the current enrollment operation"""
-        self.logger.debug("CAhandler._kerberos_runtime_environment()")
-        env_backup = {
-            "KRB5CCNAME": os.environ.get("KRB5CCNAME"),
-            "KRB5_CONFIG": os.environ.get("KRB5_CONFIG"),
-        }
+        """Deprecated no-op kept for callers/tests; prefer explicit GSSAPI creds.
 
-        if self.krb5_cache:
-            os.environ["KRB5CCNAME"] = self.krb5_cache
-
-        if self.krb5_config:
-            os.environ["KRB5_CONFIG"] = self.krb5_config
-
-        try:
-            yield
-        finally:
-            for env_key, env_value in env_backup.items():
-                if env_value is None:
-                    os.environ.pop(env_key, None)
-                else:
-                    os.environ[env_key] = env_value
+        Process-wide KRB5CCNAME/KRB5_CONFIG mutation is unsafe under threaded WSGI.
+        Keytab enroll loads credentials from the ccache store and passes them to
+        Certsrv via gssapi_creds instead.
+        """
+        self.logger.debug(
+            "CAhandler._kerberos_runtime_environment() is a no-op; "
+            "using explicit GSSAPI credentials"
+        )
+        yield
         self.logger.debug("CAhandler._kerberos_runtime_environment() ended")
 
     def _kerberos_cleanup_temporary_ccache(self):
@@ -426,6 +420,60 @@ class CAhandler(object):
         finally:
             self._krb5_cache_is_temporary = False
             self.krb5_cache = None
+            self._gssapi_creds = None
+
+    @staticmethod
+    def _kerberos_ccache_path(ccache_value: Optional[str]) -> Optional[str]:
+        """Normalize FILE:/path and plain path forms for GSSAPI store lookups."""
+        if not ccache_value:
+            return None
+        if ccache_value.startswith("FILE:"):
+            return ccache_value.split("FILE:", maxsplit=1)[1]
+        return ccache_value
+
+    def _kerberos_gssapi_creds_from_cache(
+        self,
+    ) -> Tuple[Optional[object], Optional[str]]:
+        """Load initiate GSSAPI credentials from the prepared ccache (no env)."""
+        self.logger.debug("CAhandler._kerberos_gssapi_creds_from_cache()")
+        if self.auth_method != "gssapi" or not self._kerberos_keytab_is_configured():
+            return (None, None)
+
+        ccache_file = self._kerberos_ccache_path(self.krb5_cache)
+        if not ccache_file:
+            return (
+                None,
+                "Kerberos ccache is not available for GSSAPI keytab authentication.",
+            )
+
+        try:
+            gssapi = importlib.import_module("gssapi")
+        except Exception as err:
+            self.logger.error("Failed to import gssapi module: %s", err)
+            return (None, "gssapi module is required for gssapi keytab authentication.")
+
+        try:
+            credentials_class = getattr(gssapi, "Credentials", None)
+            if credentials_class is None:
+                return (
+                    None,
+                    "gssapi.Credentials is required to load credentials from ccache.",
+                )
+            creds = credentials_class(usage="initiate", store={"ccache": ccache_file})
+            self.logger.debug(
+                "Loaded GSSAPI credentials from ccache store '%s'", ccache_file
+            )
+            return (creds, None)
+        except Exception as err:
+            self.logger.error(
+                "Failed to load GSSAPI credentials from ccache '%s': %s",
+                ccache_file,
+                err,
+            )
+            return (
+                None,
+                "Failed to load GSSAPI credentials from Kerberos ccache.",
+            )
 
     def _kerberos_acquire_with_gssapi_raw(
         self,
@@ -762,6 +810,7 @@ class CAhandler(object):
             verify=self.verify,
             proxies=self.proxy,
             channel_bindings=channel_bindings,
+            gssapi_creds=self._gssapi_creds,
         )
 
         error = None
@@ -773,7 +822,10 @@ class CAhandler(object):
 
         if self.enrollment_config_log:
             enrollment_config_log(
-                self.logger, self, self.enrollment_config_log_skip_list
+                self.logger,
+                self,
+                list(self.enrollment_config_log_skip_list)
+                + ["_gssapi_creds", "password"],
             )
 
         if auth_check:
@@ -792,6 +844,7 @@ class CAhandler(object):
         cert_bundle = None
         error = None
         cert_raw = None
+        self._gssapi_creds = None
 
         self._parameter_overwrite(csr)
 
@@ -811,14 +864,20 @@ class CAhandler(object):
             self._kerberos_cleanup_temporary_ccache()
             return (kerberos_error, None, None, None)
 
+        gssapi_creds, gssapi_creds_error = self._kerberos_gssapi_creds_from_cache()
+        if gssapi_creds_error:
+            self.logger.error("Kerberos credential load failed: %s", gssapi_creds_error)
+            self._kerberos_cleanup_temporary_ccache()
+            return (gssapi_creds_error, None, None, None)
+        self._gssapi_creds = gssapi_creds
+
         # check for eab profiling and header_info
         error = eab_profile_header_info_check(
             self.logger, self, csr, self.profile_mapping_field
         )
         if not error:
-            # enroll certificate
-            with self._kerberos_runtime_environment():
-                error, cert_bundle, cert_raw = self._enroll(csr)
+            # enroll certificate (explicit GSSAPI creds; no process env mutation)
+            error, cert_bundle, cert_raw = self._enroll(csr)
         else:
             self.logger.error("EAB profile check failed: %s", error)
 

@@ -84,6 +84,9 @@ class Certsrv(object):
         channel_bindings: Optional GSSAPI channel bindings value. Use
             'tls-server-end-point' for EPA/CBT (requires requests-gssapi >= 1.4.0).
             None disables channel bindings.
+        gssapi_creds: Optional explicit GSSAPI credentials (gssapi.Credentials or
+            raw creds) for auth_method='gssapi'. Preferred for keytab/ccache flows
+            so callers need not mutate process KRB5CCNAME.
     Note:
         If you use a client certificate for authentication (auth_method=cert),
         the username parameter should be the path to a certificate, and
@@ -103,6 +106,7 @@ class Certsrv(object):
         timeout=TIMEOUT,
         proxies=None,
         channel_bindings=None,
+        gssapi_creds=None,
     ):
 
         self.server = server
@@ -110,6 +114,7 @@ class Certsrv(object):
         self.timeout = timeout
         self.auth_method = auth_method
         self.channel_bindings = channel_bindings
+        self.gssapi_creds = gssapi_creds
         self.session = requests.Session()
         self.proxies = proxies
 
@@ -154,6 +159,14 @@ class Certsrv(object):
             kwargs["channel_bindings"] = self.channel_bindings
         return HTTPSPNEGOAuth(**kwargs)
 
+    @staticmethod
+    def _gssapi_creds_for_spnego(gssapi_creds):
+        """Normalize gssapi.Credentials / raw creds for HTTPSPNEGOAuth."""
+        if gssapi_creds is None:
+            return None
+        # python-gssapi Credentials exposes .creds; raw AcquireCredResult also does.
+        return getattr(gssapi_creds, "creds", gssapi_creds)
+
     def _set_credentials(self, username, password):
         if self.auth_method == "ntlm":
             from requests_ntlm import HttpNtlmAuth
@@ -164,10 +177,13 @@ class Certsrv(object):
         elif self.auth_method == "gssapi":
             import gssapi
 
-            # Support two GSSAPI modes:
-            # 1) username/password (legacy behavior)
-            # 2) default credential cache (for keytab/kinit prepared by caller)
-            if password:
+            # Prefer explicit credentials (keytab/ccache prepared by caller) so
+            # process-global KRB5CCNAME mutation is not required.
+            if self.gssapi_creds is not None:
+                self.session.auth = self._http_spnego_auth(
+                    creds=self._gssapi_creds_for_spnego(self.gssapi_creds)
+                )
+            elif password:
                 oid = "1.3.6.1.5.5.2"  # SPNEGO
                 # pylint: disable=e1101
                 cred = gssapi.raw.acquire_cred_with_password(
@@ -180,6 +196,7 @@ class Certsrv(object):
                     creds=cred.creds, mech=gssapi.OID.from_int_seq(oid)
                 )
             else:
+                # Legacy fallback: default credential cache via process env.
                 self.session.auth = self._http_spnego_auth()
         else:
             self.session.auth = (username, password)
