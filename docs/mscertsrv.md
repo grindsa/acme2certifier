@@ -159,6 +159,8 @@ krb5_kinit_path: </path/to/kinit>
 - **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
 
+Enrollment failures against AD CS return a short handler error (`Could not get certificate from CA server`). Full exception text (HTTP status, Kerberos/GSSAPI details, etc.) is written to the server log only.
+
 ### GSSAPI Keytab Mode
 
 When `auth_method` is set to `gssapi`, the handler supports keytab-based Kerberos authentication.

@@ -48,6 +48,7 @@ class CAhandler(object):
     """EST CA  handler"""
 
     KINIT_TIMEOUT_SECONDS = 30
+    CERT_FETCH_ERROR = "Could not get certificate from CA server"
     _ca_templates_cache: Dict[str, List[str]] = {}
     _ca_templates_lock = threading.Lock()
 
@@ -870,6 +871,7 @@ class CAhandler(object):
 
         # recode csr
         csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + "\n"
+        error = None
 
         # get ca_chain
         try:
@@ -888,7 +890,9 @@ class CAhandler(object):
             cert_raw = cert_raw.replace("\r\n", "\n")
         except Exception as err_:
             cert_raw = None
-            error = str(err_)
+            # Keep ACME/client-visible detail short even when ca_error_details_forward
+            # is enabled; full CA/auth exception text stays in the server log.
+            error = self.CERT_FETCH_ERROR
             self.logger.error("Failed to enroll certificate from CA: %s", err_)
 
         # create bundle

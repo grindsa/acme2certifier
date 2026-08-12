@@ -880,7 +880,13 @@ class TestACMEHandler(unittest.TestCase):
         mock_p2p.return_value = "p2p"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                ("get_cert", None, None, None), self.cahandler.enroll("csr")
+                (
+                    self.cahandler.CERT_FETCH_ERROR,
+                    None,
+                    None,
+                    None,
+                ),
+                self.cahandler.enroll("csr"),
             )
         self.assertIn(
             "ERROR:test_a2c:Failed to enroll certificate from CA: get_cert",
