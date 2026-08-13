@@ -1206,7 +1206,7 @@ class Challenge:
 
         try:
             parsed = json.loads(error_message)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return str(error_message)
 
         if isinstance(parsed, dict):
