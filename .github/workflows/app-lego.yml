@@ -30,9 +30,6 @@ concurrency:
 permissions: {}
 
 jobs:
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
     permissions: {}
     uses: ./.github/workflows/_guard.yml
@@ -60,6 +57,9 @@ jobs:
         dbhandler: ['wsgi', 'django']
 
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup
         with:
@@ -150,6 +150,9 @@ jobs:
         rhversion: [8, 9]
         mode: ['wsgi', 'django']
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
@@ -224,6 +227,9 @@ jobs:
         mode: ['wsgi', 'django']
 
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup
         with:

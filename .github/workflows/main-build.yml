@@ -15,9 +15,6 @@ concurrency:
 permissions: {}
 
 jobs:
-  # ---------------------------------------------------------
-  # Job 1: Build four container images (matrix) and push to GHCR
-  # ---------------------------------------------------------
   build-containers:
     name: Build container (${{ matrix.websrv }} / ${{ matrix.dbhandler }})
     runs-on: ubuntu-latest
@@ -33,6 +30,9 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - uses: actions/checkout@v6
 
       - name: "Download DEB artifact by name from build run"
@@ -62,6 +62,9 @@ jobs:
       actions: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - uses: actions/checkout@v6
       - name: "Build rpm package"
         id: rpm_build
@@ -80,6 +83,9 @@ jobs:
       actions: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - uses: actions/checkout@v6
       - name: "deb build and upload"
         uses: ./.github/actions/deb_build_upload

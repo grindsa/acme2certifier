@@ -30,10 +30,6 @@ concurrency:
 permissions: {}
 
 jobs:
-
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
     permissions: {}
     uses: ./.github/workflows/_guard.yml
@@ -61,6 +57,9 @@ jobs:
         challenge_type: [tlschallenge=true, httpchallenge.entrypoint=web]
 
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup
         with:
@@ -129,6 +128,9 @@ jobs:
         challenge_type: [tlschallenge=true, httpchallenge.entrypoint=web]
 
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
         with:
@@ -197,6 +199,9 @@ jobs:
         challenge_type: [tlschallenge=true, httpchallenge.entrypoint=web]
 
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup
         with:

@@ -30,7 +30,6 @@ concurrency:
 permissions: {}
 
 jobs:
-
   guard:
     permissions: {}
     uses: ./.github/workflows/_guard.yml
@@ -698,6 +697,9 @@ jobs:
         mode: ['wsgi', 'django']
         hop: ${{ fromJSON(needs.resolve-versions.outputs.hops_deb) }}
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup
         with:

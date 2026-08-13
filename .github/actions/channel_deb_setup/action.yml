@@ -1,5 +1,5 @@
 name: "channel_deb_setup"
-description: "Checkout, prepare Ubuntu, and download the DEB artifact"
+description: "Prepare Ubuntu and download the DEB artifact"
 inputs:
   RUN_ID:
     description: "Producer workflow run ID"
@@ -50,9 +50,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v6
-
     - name: "Parse JSON secret"
       if: ${{ inputs.PARSE_GH_CFG == 'true' }}
       uses: ./.github/actions/parse-json-secret

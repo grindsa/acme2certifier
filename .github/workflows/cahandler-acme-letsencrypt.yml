@@ -30,7 +30,6 @@ concurrency:
 permissions: {}
 
 jobs:
-
   guard:
     permissions: {}
     uses: ./.github/workflows/_guard.yml
@@ -58,6 +57,9 @@ jobs:
         dbhandler: ['wsgi', 'django']
         dns_provider: ['cloudflare', 'acmedns']
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - uses: actions/checkout@v6
 
       - name: "Resolve DNS API script"
@@ -194,6 +196,9 @@ jobs:
         mode: ['wsgi', 'django']
         dns_provider: ['cloudflare', 'acmedns']
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - uses: actions/checkout@v6
 
       - name: "Resolve DNS API script"

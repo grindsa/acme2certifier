@@ -1,5 +1,5 @@
 name: "channel_rpm_setup"
-description: "Checkout, prepare Alma, and download the RPM artifact"
+description: "Prepare Alma and download the RPM artifact"
 inputs:
   RUN_ID:
     description: "Producer workflow run ID"
@@ -53,9 +53,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v6
-
     - name: "Parse JSON secret"
       if: ${{ inputs.PARSE_GH_CFG == 'true' }}
       uses: ./.github/actions/parse-json-secret

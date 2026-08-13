@@ -193,6 +193,9 @@ jobs:
         websrv: ['apache2']
         django_db: ['sqlite3', 'mariadb']
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup
         with:
@@ -288,6 +291,9 @@ jobs:
         rhversion: [8, 9]
         django_db: ['sqlite3', 'mariadb']
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
         with:

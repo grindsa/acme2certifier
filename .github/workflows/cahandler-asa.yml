@@ -77,6 +77,9 @@ jobs:
         websrv: ['apache2']
         dbhandler: ['wsgi']
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup

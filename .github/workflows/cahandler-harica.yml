@@ -30,10 +30,6 @@ concurrency:
 permissions: {}
 
 jobs:
-
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
     permissions: {}
     if: ${{ inputs.branch == 'master' || inputs.branch == 'devel' }}
@@ -62,6 +58,9 @@ jobs:
         dbhandler: ['wsgi']
 
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup
         with:
@@ -154,6 +153,9 @@ jobs:
         rhversion: [9]
         mode: ['wsgi', 'django']
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
@@ -245,6 +247,9 @@ jobs:
         mode: ['wsgi', 'django']
 
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup
         with:

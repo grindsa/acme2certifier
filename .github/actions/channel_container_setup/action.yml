@@ -1,5 +1,5 @@
 name: "channel_container_setup"
-description: "Checkout, load a2c image, and prepare the container test environment"
+description: "Load a2c image and prepare the container test environment"
 inputs:
   RUN_ID:
     description: "Producer workflow run ID"
@@ -44,9 +44,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v6
-
     - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> "$GITHUB_ENV"

@@ -37,10 +37,6 @@ concurrency:
 permissions: {}
 
 jobs:
-
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
     permissions: {}
     uses: ./.github/workflows/_guard.yml
@@ -82,6 +78,9 @@ jobs:
             expect_interpreter: /usr/bin/python3
 
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
