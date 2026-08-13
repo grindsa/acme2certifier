@@ -58,16 +58,16 @@ jobs:
     needs: guard
     if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v6
       # Additional steps to generate documentation in "Documentation" directory
       - name: Upload docs to Wiki
-        uses: grindsa/github-wiki-publish-action@customize_wiki_title
+        uses: grindsa/github-wiki-publish-action@6e355541ead79e702378fe369096a3fad386e12b # customize_wiki_title
         with:
           path: "docs"
         env:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
       - name: Upload Docker to Wiki
-        uses: grindsa/github-wiki-publish-action@customize_wiki_title
+        uses: grindsa/github-wiki-publish-action@6e355541ead79e702378fe369096a3fad386e12b # customize_wiki_title
         with:
           path: "examples/Docker"
         env:

@@ -29,7 +29,7 @@ jobs:
 
       - name: Get latest published release tag
         id: latest_release
-        uses: oprypin/find-latest-tag@v1
+        uses: oprypin/find-latest-tag@6957ac556fa6d349727ecabfcaaf9f8e5ee37124 # v1
         with:
           repository: ${{ github.repository }}
           releases-only: true
@@ -87,7 +87,7 @@ jobs:
       - name: Build RPM package
         id: rpm_build
         if: steps.versions.outputs.created_release == 'true'
-        uses: grindsa/rpmbuild@alma9
+        uses: grindsa/rpmbuild@181689c2688c53a25c421d45b343bfcb3a1c043e # alma9
         with:
           spec_file: examples/install_scripts/rpm/acme2certifier.spec
 
@@ -114,7 +114,7 @@ jobs:
 
       - name: Create GitHub release and upload packages
         if: steps.versions.outputs.created_release == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.versions.outputs.tag_n }}
           name: ${{ steps.versions.outputs.app_name }} ${{ steps.versions.outputs.tag_n }}

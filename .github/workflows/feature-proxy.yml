@@ -127,7 +127,7 @@ jobs:
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -209,7 +209,7 @@ jobs:
           NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 5s
 
@@ -257,7 +257,7 @@ jobs:
           docker compose restart
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 5s
 
@@ -289,7 +289,7 @@ jobs:
       #    docker compose logs
 
       #- name: "Sleep for 5s"
-      #  uses: juliangruber/sleep-action@v2.0.4
+      #  uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
       #  with:
       #    time: 5s
 
@@ -358,7 +358,7 @@ jobs:
           WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -491,7 +491,7 @@ jobs:
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -700,7 +700,7 @@ jobs:
           WES_IP: ${{ secrets.WES_IP }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 5s
 

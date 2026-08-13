@@ -278,7 +278,7 @@ jobs:
           docker exec alma9-c2 systemctl enable lsyncd
 
       - name: "Lsync - Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -388,7 +388,7 @@ jobs:
           docker exec alma9-c2 systemctl start lsyncd
 
       - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -414,7 +414,7 @@ jobs:
           docker exec alma9-c2 systemctl restart acme2certifier.service
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 5s
 
@@ -435,7 +435,7 @@ jobs:
           docker run -d --rm --name acme-srv --network acme  grindsa/pen:latest -r 443 alma9-c1.acme:443 alma9-c2.acme:443
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 5s
 
@@ -486,7 +486,7 @@ jobs:
           chmod a+rx data/mass_test.sh
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 5s
 
