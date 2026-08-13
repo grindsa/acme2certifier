@@ -154,6 +154,10 @@ jobs:
           ARTIFACT_NAME: test-container-lesim-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           SIDECAR_LOGS: acme-le-sim
 
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
   # ---------------------------------------------------------
   # Containers — sectigo sim
   # ---------------------------------------------------------
@@ -219,6 +223,10 @@ jobs:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-sectigo-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           SIDECAR_LOGS: acme-le-sim
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # ---------------------------------------------------------
   # Containers — EAB profiling
@@ -351,6 +359,10 @@ jobs:
           SIDECAR_LOGS: acme-le-sim-1,acme-le-sim-2
           COPY_DIRS: acme-le-sim-1,acme-le-sim-2
 
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
   # ---------------------------------------------------------
   # Containers — smallstep
   # ---------------------------------------------------------
@@ -422,6 +434,10 @@ jobs:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-smallstep-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           SIDECAR_LOGS: step-ca
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # ---------------------------------------------------------
   # Containers — live Let's Encrypt staging
@@ -551,6 +567,10 @@ jobs:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-letsencrypt-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.dns_provider }}.tar.gz
 
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
   # ---------------------------------------------------------
   # RPM — le-sim
   # ---------------------------------------------------------
@@ -659,6 +679,10 @@ jobs:
           ARTIFACT_NAME: test-rpm-lesim-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           SIDECAR_LOGS: acme-le-sim
 
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
   # ---------------------------------------------------------
   # RPM — sectigo sim
   # ---------------------------------------------------------
@@ -729,6 +753,10 @@ jobs:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-sectigo-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           SIDECAR_LOGS: acme-le-sim
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # ---------------------------------------------------------
   # RPM — EAB profiling
@@ -861,6 +889,10 @@ jobs:
           SIDECAR_LOGS: acme-le-sim-1,acme-le-sim-2
           COPY_DIRS: acme-le-sim-1,acme-le-sim-2
 
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
   # ---------------------------------------------------------
   # RPM — smallstep
   # ---------------------------------------------------------
@@ -931,6 +963,10 @@ jobs:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-smallstep-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           SIDECAR_LOGS: step-ca
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # ---------------------------------------------------------
   # RPM — live Let's Encrypt staging
@@ -1058,3 +1094,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-letsencrypt-rh${{ matrix.rhversion }}-${{ matrix.mode }}-${{ matrix.dns_provider }}.tar.gz
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup

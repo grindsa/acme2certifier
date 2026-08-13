@@ -53,9 +53,15 @@ runs:
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
+    - name: "Sanitize failure artifacts"
+      uses: ./.github/actions/sanitize_artifact_payload
+      with:
+        ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
     - name: "Upload artifacts"
       uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.ARTIFACT_NAME }}
         path: ${{ github.workspace }}/artifact/upload/
         if-no-files-found: warn
+        retention-days: 1
