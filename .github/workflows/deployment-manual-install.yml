@@ -24,9 +24,14 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
 jobs:
   guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - run: |
@@ -43,6 +48,7 @@ jobs:
   ubuntu-pip-install:
     name: ubuntu-${{ matrix.ubuntu_version }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: guard
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
@@ -124,6 +130,7 @@ jobs:
   alma-pip-install:
     name: alma-${{ matrix.rh_version }}-nginx-${{ matrix.dbhandler }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: guard
     if: github.repository == 'grindsa/acme2certifier'
     strategy:

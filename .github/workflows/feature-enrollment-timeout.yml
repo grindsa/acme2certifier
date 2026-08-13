@@ -23,6 +23,10 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
 jobs:
 
   # ---------------------------------------------------------
@@ -30,6 +34,7 @@ jobs:
   # ---------------------------------------------------------
   guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - run: |
@@ -47,6 +52,7 @@ jobs:
   test-containers-timeout-cert-reusage:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -137,6 +143,7 @@ jobs:
   test-containers-async:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -241,6 +248,7 @@ jobs:
   test-rpm-timeout-cert-reusage:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -339,6 +347,7 @@ jobs:
   test-rpm-async:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false

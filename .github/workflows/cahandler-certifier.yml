@@ -23,9 +23,14 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
 jobs:
   guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - run: |
@@ -40,6 +45,7 @@ jobs:
   instance_start:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Shared NCM AWS host; keep in sync with instance_stop skip logic.
     if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_devel') || contains(inputs.branch, 'certifier')) }}
     outputs:
@@ -155,6 +161,7 @@ jobs:
   test-containers:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -547,6 +554,7 @@ jobs:
   test-rpm:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -928,6 +936,7 @@ jobs:
   test-deb:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1201,6 +1210,7 @@ jobs:
   test-cmpv2-containers:
     needs: [guard, instance_start, test-containers]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1432,6 +1442,7 @@ jobs:
   test-cmpv2-rpm:
     needs: [guard, instance_start, test-rpm]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1652,6 +1663,7 @@ jobs:
   test-cmpv2-deb:
     needs: [guard, instance_start, test-deb]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1878,6 +1890,7 @@ jobs:
   instance_stop:
     needs: [guard, instance_start, test-containers, test-deb, test-rpm, test-cmpv2-containers, test-cmpv2-deb, test-cmpv2-rpm]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: ${{ always() && needs.instance_start.result != 'skipped' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - name: "checkout GIT"

@@ -23,9 +23,14 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
 jobs:
   guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - run: |
@@ -40,6 +45,7 @@ jobs:
   instance_start:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Shared Windows MSCA AWS host; keep in sync with instance_stop skip logic.
     if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_pip') || contains(inputs.branch, 'msca')) }}
     steps:
@@ -90,6 +96,7 @@ jobs:
   mscertserv-test-containers:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -397,6 +404,7 @@ jobs:
   mscertsrv-eabprov-container-tests:
     needs: [guard, instance_start, mscertserv-test-containers]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -589,6 +597,7 @@ jobs:
   mswcce-test-containers:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -866,6 +875,7 @@ jobs:
   mswcce-eab-container-tests:
     needs: [guard, instance_start, mswcce-test-containers]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1066,6 +1076,7 @@ jobs:
   mscertsrv-without-impacket_tests:
     needs: [guard, instance_start, mscertsrv-eabprov-container-tests]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1234,6 +1245,7 @@ jobs:
   mscertsrv-test-rpm:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1501,6 +1513,7 @@ jobs:
   mscertsrv-eabprofile-test-rpm:
     needs: [guard, instance_start, mscertsrv-test-rpm]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1734,6 +1747,7 @@ jobs:
   mswcce-tests-rpm:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1978,6 +1992,7 @@ jobs:
   mswcce-eab-tests-rpm:
     needs: [guard, instance_start, mswcce-tests-rpm]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -2177,6 +2192,7 @@ jobs:
   mscertsrv-test-deb:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -2481,6 +2497,7 @@ jobs:
   mswcce-test-deb:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -2729,6 +2746,7 @@ jobs:
   instance_stop:
     needs: [guard, instance_start, mscertserv-test-containers, mscertsrv-eabprov-container-tests, mswcce-test-containers, mswcce-eab-container-tests, mscertsrv-without-impacket_tests, mscertsrv-test-rpm, mscertsrv-eabprofile-test-rpm, mswcce-tests-rpm, mswcce-eab-tests-rpm, mscertsrv-test-deb, mswcce-test-deb]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: ${{ always() && needs.instance_start.result != 'skipped' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - name: "checkout GIT"
