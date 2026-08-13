@@ -114,7 +114,6 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-        with:
           CONTAINER_NAMES: "acme-srv,acme-sh,certbot,lego,mailserver,proxy,syslog-sink"
 
 
@@ -179,7 +178,6 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
-        with:
           CONTAINER_NAMES: "acme-srv,acme-sh,certbot,lego,mailserver,proxy,syslog-sink"
 
   # ---------------------------------------------------------
@@ -249,5 +247,4 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
-        with:
           CONTAINER_NAMES: "acme-srv,acme-sh,certbot,lego,mailserver,proxy,syslog-sink"

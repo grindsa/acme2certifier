@@ -1,0 +1,453 @@
+name: CA-Handler Tests - ACME (EAB profiling)
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+
+  guard:
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  # ---------------------------------------------------------
+  # Containers — EAB profiling
+  # ---------------------------------------------------------
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+        with:
+          LESIM_NAME: acme-le-sim-1
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+        with:
+          LESIM_NAME: acme-le-sim-2
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/dual_sim_xca_prep
+        with:
+          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+
+      - uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key.json
+            acme_keypath: volume/acme/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: ["HTTP_USER_AGENT"]/g'
+
+      - uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
+
+      - uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key_prof.json
+            acme_keypath: volume/acme/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+            profile: profile_1
+            enrollment_config_log: True
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme_profiles.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nprofiles={"profile_1": "http:\/\/foo.bar\/profile_1", "profile_2": "http:\/\/foo.bar\/profile_2", "profile_3": "http:\/\/foo.bar\/profile_3"}/g'
+
+      - name: "Restart a2c"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "container"
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
+        if: ${{ failure() }}
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-profiling-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SIDECAR_LOGS: acme-le-sim-1,acme-le-sim-2
+          COPY_DIRS: acme-le-sim-1,acme-le-sim-2
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
+
+  # ---------------------------------------------------------
+  # RPM — EAB profiling
+  # ---------------------------------------------------------
+  test-rpm:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
+        mode: ['wsgi', 'django']
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/rpm_bootstrap
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+        with:
+          LESIM_NAME: acme-le-sim-1
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+        with:
+          LESIM_NAME: acme-le-sim-2
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/dual_sim_xca_prep
+        with:
+          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+
+      - uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json
+            acme_keypath: /opt/acme2certifier/volume/acme_ca/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: "acme_ca"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: ["HTTP_USER_AGENT"]/g'
+
+      - name: "Execute install script"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m "$MODE"
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
+
+      - uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key_prof.json
+            acme_keypath: /opt/acme2certifier/volume/acme_ca/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+            profile: profile_1
+            enrollment_config_log: True
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme_profiles.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: "acme_ca"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nprofiles={"profile_1": "http:\/\/foo.bar\/profile_1", "profile_2": "http:\/\/foo.bar\/profile_2", "profile_3": "http:\/\/foo.bar\/profile_3"}/g'
+
+      - name: "Reconfigure a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "rpm"
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
+        if: ${{ failure() }}
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-profiling-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+          SIDECAR_LOGS: acme-le-sim-1,acme-le-sim-2
+          COPY_DIRS: acme-le-sim-1,acme-le-sim-2
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
+
+  # ---------------------------------------------------------
+  # DEB — EAB profiling
+  # ---------------------------------------------------------
+  test-deb:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        mode: ['wsgi', 'django']
+    steps:
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+        with:
+          LESIM_NAME: acme-le-sim-1
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+        with:
+          LESIM_NAME: acme-le-sim-2
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/dual_sim_xca_prep
+        with:
+          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+
+      - uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /var/www/acme2certifier/volume/acme_ca/le_staging_private_key.json
+            acme_keypath: /var/www/acme2certifier/volume/acme_ca/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: "acme_ca"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: ["HTTP_USER_AGENT"]/g'
+
+      - name: "Execute install script"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install "$WEBSRV" -m "$MODE"
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
+
+      - uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /var/www/acme2certifier/volume/acme_ca/le_staging_private_key_prof.json
+            acme_keypath: /var/www/acme2certifier/volume/acme_ca/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+            profile: profile_1
+            enrollment_config_log: True
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme_profiles.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: "acme_ca"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nprofiles={"profile_1": "http:\/\/foo.bar\/profile_1", "profile_2": "http:\/\/foo.bar\/profile_2", "profile_3": "http:\/\/foo.bar\/profile_3"}/g'
+
+      - name: "Reconfigure a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "$WEBSRV"
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "deb"
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
+        if: ${{ failure() }}
+        with:
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-profiling-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}
+          SIDECAR_LOGS: acme-le-sim-1,acme-le-sim-2
+          COPY_DIRS: acme-le-sim-1,acme-le-sim-2
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
