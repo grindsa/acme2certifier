@@ -285,17 +285,9 @@ jobs:
           json_secret: ${{ secrets.GH_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'django'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: psql
 
       - name: "Download DEB artifact by name from build run"
         uses: ./.github/actions/download_artifact

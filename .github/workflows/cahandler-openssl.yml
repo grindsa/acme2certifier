@@ -132,7 +132,7 @@ jobs:
           docker compose restart
 
       - name: "With Template - enrollment"
-        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_template
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -287,7 +287,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "With Template -  enrollment"
-        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_template
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -450,7 +450,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "With Template -  enrollment"
-        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_template
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush

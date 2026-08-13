@@ -64,10 +64,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
-
       - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
@@ -180,10 +176,6 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
 
       - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
         with:
@@ -389,10 +381,6 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
 
       - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
         with:

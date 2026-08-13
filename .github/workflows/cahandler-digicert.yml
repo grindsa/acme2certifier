@@ -566,14 +566,6 @@ jobs:
           json_secret: ${{ secrets.DIGICERT_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'wsgi'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          NAME_SPACE: acme.dynamop.de
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
