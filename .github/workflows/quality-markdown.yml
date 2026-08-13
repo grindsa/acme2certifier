@@ -61,7 +61,7 @@ jobs:
     - uses: actions/checkout@v6
 
     - name: Check markdown links
-      uses: umbrelladocs/action-linkspector@v1
+      uses: umbrelladocs/action-linkspector@568ec8d29fa92b31fd9ea5381e155c51e922af83 # v1
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         config_file: .linkspector.yml
@@ -71,16 +71,16 @@ jobs:
         show_stats: 'true'
 
     - name: Lint markdown root
-      uses: avto-dev/markdown-lint@v1
+      uses: avto-dev/markdown-lint@04d43ee9191307b50935a753da3b775ab695eceb # v1
       with:
         args: '*.md'
 
     - name: Lint markdown docs
-      uses: avto-dev/markdown-lint@v1
+      uses: avto-dev/markdown-lint@04d43ee9191307b50935a753da3b775ab695eceb # v1
       with:
         args: './docs/*.md'
 
     - name: Lint markdown docker
-      uses: avto-dev/markdown-lint@v1
+      uses: avto-dev/markdown-lint@04d43ee9191307b50935a753da3b775ab695eceb # v1
       with:
         args: './examples/Docker/*.md'
