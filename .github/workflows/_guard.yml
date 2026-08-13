@@ -1,0 +1,43 @@
+name: Guard
+on:
+  workflow_call:
+    inputs:
+      sha:
+        description: SHA of the commit to run the workflow on
+        type: string
+        required: true
+      run_id:
+        description: Run ID of the producing workflow
+        type: string
+        required: true
+      branch:
+        description: Branch to run the workflow on
+        type: string
+        required: true
+      called_by:
+        description: Name of the producing workflow
+        type: string
+        required: false
+        default: ""
+
+permissions: {}
+
+jobs:
+  guard:
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+          if [ -n "$CALLED_BY" ]; then
+            echo "Called by:           $CALLED_BY"
+          fi
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+          CALLED_BY: ${{ inputs.called_by }}

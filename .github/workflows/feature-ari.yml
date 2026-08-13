@@ -36,18 +36,11 @@ jobs:
   # ---------------------------------------------------------
   guard:
     permissions: {}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images downloaded from the producer run
@@ -67,24 +60,14 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
 
       - name: "Setup openssl ca_handler"
         uses: ./.github/actions/setup_openssl_cahandler
@@ -113,28 +96,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
+          ARTIFACT_NAME: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
@@ -157,30 +123,14 @@ jobs:
 
     steps:
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
         uses: ./.github/actions/setup_openssl_cahandler
@@ -202,28 +152,11 @@ jobs:
         with:
           CA_PATH: data/volume/acme_ca/
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
 
 
   # ---------------------------------------------------------
@@ -246,30 +179,13 @@ jobs:
         mode: ['wsgi', 'django']
 
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'wsgi'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'django'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: psql
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
 
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
         uses: ./.github/actions/setup_openssl_cahandler
@@ -292,26 +208,9 @@ jobs:
         with:
           CA_PATH: data/volume/acme_ca/
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup

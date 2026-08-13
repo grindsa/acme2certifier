@@ -36,18 +36,11 @@ jobs:
   # ---------------------------------------------------------
   guard:
     permissions: {}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images (matrix from payload)
@@ -67,30 +60,20 @@ jobs:
         dbhandler: ['wsgi', 'django']
 
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
 
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-          NAME_SPACE: acme
 
       - name: "Prepare SOAP server"
         run: |
@@ -165,28 +148,11 @@ jobs:
           mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           (cd examples/Docker && docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log) || true
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: int-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
+          ARTIFACT_NAME: int-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
 
   ext-test-containers:
@@ -204,30 +170,20 @@ jobs:
         dbhandler: ['wsgi', 'django']
 
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
 
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-          NAME_SPACE: acme
 
       - name: "Prepare SOAP server"
         run: |
@@ -305,25 +261,8 @@ jobs:
           mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           (cd examples/Docker && docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log) || true
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: ext-test-containers.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
+          ARTIFACT_NAME: ext-test-containers.tar.gz

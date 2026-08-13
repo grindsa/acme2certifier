@@ -33,18 +33,11 @@ permissions: {}
 jobs:
   guard:
     permissions: {}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   instance_start:
     permissions:
@@ -133,8 +126,15 @@ jobs:
         dbhandler: ['wsgi', 'django']
     name: "mscertsrv_handler_tests"
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: local
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -145,32 +145,6 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse GH_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-          NAME_SPACE: local
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -405,28 +379,11 @@ jobs:
           NAME_SPACE: local
           DEPLOYMENT_TYPE: container
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mscertsrv-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
+          ARTIFACT_NAME: mscertsrv-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   mscertsrv-eabprov-container-tests:
     permissions:
@@ -444,8 +401,15 @@ jobs:
         dbhandler: ['wsgi', 'django']
     name: "mscertsrv-container-eab-profiling-tests"
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: local
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -456,32 +420,6 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse GH_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-          NAME_SPACE: local
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -601,28 +539,11 @@ jobs:
           NAME_SPACE: local
           DEPLOYMENT_TYPE: container
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mscertsrv-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
+          ARTIFACT_NAME: mscertsrv-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   mswcce-test-containers:
     permissions:
@@ -639,8 +560,15 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -651,32 +579,6 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse GH_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-          NAME_SPACE: acme
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup dnsmasq"
         uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
@@ -882,28 +784,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mswcce-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
+          ARTIFACT_NAME: mswcce-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   mswcce-eab-container-tests:
     permissions:
@@ -1086,28 +971,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mswcce-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
+          ARTIFACT_NAME: mswcce-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   mscertsrv-without-impacket_tests:
     permissions:
@@ -1258,28 +1126,11 @@ jobs:
           TEST_ADL: "false"
           NAME_SPACE: local
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mscertsrv_wo_impacket_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
+          ARTIFACT_NAME: mscertsrv_wo_impacket_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   mscertsrv-test-rpm:
     permissions:
@@ -1296,8 +1147,15 @@ jobs:
         rhversion: [8]
         mode: ['wsgi', 'django']
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: 8
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+          NAME_SPACE: local
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -1308,33 +1166,6 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse GH_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: 8
-          RPM_BUILD: "false"
-          NAME_SPACE: local
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -1529,28 +1360,11 @@ jobs:
           DEPLOYMENT_TYPE: rpm
           TAIL_NUMBER: 1900
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mscertsrv_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
+          ARTIFACT_NAME: mscertsrv_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
 
   mscertsrv-eabprofile-test-rpm:
     permissions:
@@ -1567,8 +1381,15 @@ jobs:
         rhversion: [9]
         mode: ['wsgi', 'django']
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: 9
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+          NAME_SPACE: local
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -1579,33 +1400,6 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse GH_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: 9
-          RPM_BUILD: "false"
-          NAME_SPACE: local
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -1766,28 +1560,11 @@ jobs:
           DEPLOYMENT_TYPE: rpm
           TAIL_NUMBER: 1900
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mscertsrv-eabprofile-test-rpm-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
+          ARTIFACT_NAME: mscertsrv-eabprofile-test-rpm-rh${{ matrix.rhversion }}.tar.gz
 
   mswcce-tests-rpm:
     permissions:
@@ -1804,8 +1581,15 @@ jobs:
         rhversion: [8]
         mode: ['wsgi', 'django']
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+          DJANGO_DB: psql
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -1816,33 +1600,6 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse GH_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: "false"
-          DJANGO_DB: psql
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup dnsmasq"
         uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
@@ -2014,28 +1771,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mswcce-test-rpm-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
+          ARTIFACT_NAME: mswcce-test-rpm-rh${{ matrix.rhversion }}.tar.gz
 
   mswcce-eab-tests-rpm:
     permissions:
@@ -2052,8 +1792,15 @@ jobs:
         rhversion: [9]
         mode: ['wsgi', 'django']
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+          DJANGO_DB: psql
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -2064,33 +1811,6 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse GH_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: "false"
-          DJANGO_DB: psql
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup dnsmasq"
         uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
@@ -2217,28 +1937,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mswcce_eabprofiling-tests-rpm-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
+          ARTIFACT_NAME: mswcce_eabprofiling-tests-rpm-rh${{ matrix.rhversion }}.tar.gz
 
   mscertsrv-test-deb:
     permissions:
@@ -2255,8 +1958,16 @@ jobs:
         websrv: ['nginx']
         mode: ['wsgi', 'django']
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
+          PARSE_GH_CFG: "true"
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+          NAME_SPACE: local
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -2267,39 +1978,6 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse GH_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'wsgi'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          NAME_SPACE: local
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'django'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: psql
-          NAME_SPACE: local
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -2524,29 +2202,12 @@ jobs:
           DEPLOYMENT_TYPE: deb
           TAIL_NUMBER: 1900
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: mscertsrv-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mscertsrv-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
 
   mswcce-test-deb:
     permissions:
@@ -2563,8 +2224,15 @@ jobs:
         websrv: ['nginx']
         mode: ['wsgi', 'django']
     steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
+          PARSE_GH_CFG: "true"
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -2575,37 +2243,6 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse GH_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'wsgi'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.mode == 'django'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: psql
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup dnsmasq"
         uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
@@ -2776,29 +2413,12 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "Collect failure logs"
-        if: failure()
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: mswcce-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "Upload failure artifacts"
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mswcce-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
-
 
   instance_stop:
     permissions:

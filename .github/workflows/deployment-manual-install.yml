@@ -33,20 +33,11 @@ permissions: {}
 jobs:
   guard:
     permissions: {}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA: $SHA"
-          echo "From branch:      $BRANCH"
-          echo "Producer run_id:  $RUN_ID"
-          echo "Called by:        $CALLED_BY"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
-          CALLED_BY: ${{ inputs.called_by_workflow }}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   ubuntu-pip-install:
     permissions:

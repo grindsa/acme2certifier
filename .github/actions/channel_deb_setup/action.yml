@@ -1,0 +1,91 @@
+name: "channel_deb_setup"
+description: "Checkout, prepare Ubuntu, and download the DEB artifact"
+inputs:
+  RUN_ID:
+    description: "Producer workflow run ID"
+    required: true
+  TOKEN:
+    description: "GitHub token for artifact download"
+    required: true
+  REPO:
+    description: "owner/repo for artifact download"
+    required: true
+  DJANGO_DB:
+    description: "Django database for deb_prep (psql for django mode, empty for wsgi)"
+    required: false
+    default: ""
+  DEB_BUILD:
+    description: "Build DEB during prep"
+    required: false
+    default: "false"
+  NAME_SPACE:
+    description: "Docker network namespace"
+    required: false
+    default: "acme"
+  IPV6:
+    description: "IPv6 docker network"
+    required: false
+    default: "false"
+  UBUNTU_IMAGE:
+    description: "systemd Ubuntu image"
+    required: false
+    default: "grindsa/systemd-ubuntu:24.04"
+  JSON_SECRET:
+    description: "Optional GH_CFG JSON secret"
+    required: false
+    default: ""
+  PARSE_GH_CFG:
+    description: "Parse JSON_SECRET into env before deb_prep"
+    required: false
+    default: "false"
+  ARTIFACT_NAME:
+    description: "DEB artifact name; empty uses acme2certifier-<run_id>-1_all.deb"
+    required: false
+    default: ""
+  DESTINATION_PATH:
+    description: "Download destination"
+    required: false
+    default: "data/"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v6
+
+    - name: "Parse JSON secret"
+      if: ${{ inputs.PARSE_GH_CFG == 'true' }}
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ inputs.JSON_SECRET }}
+
+    - name: "Get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> "$GITHUB_ENV"
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> "$GITHUB_ENV"
+      shell: bash
+
+    - run: echo "runner IP is $RUNNER_IP"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+      shell: bash
+
+    - name: "Prepare Ubuntu environment"
+      uses: ./.github/actions/deb_prep
+      with:
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+        DEB_BUILD: ${{ inputs.DEB_BUILD }}
+        DJANGO_DB: ${{ inputs.DJANGO_DB }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        IPV6: ${{ inputs.IPV6 }}
+        UBUNTU_IMAGE: ${{ inputs.UBUNTU_IMAGE }}
+
+    - name: "Download DEB artifact by name from build run"
+      uses: ./.github/actions/download_artifact
+      with:
+        RUN_ID: ${{ inputs.RUN_ID }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME != '' && inputs.ARTIFACT_NAME || format('acme2certifier-{0}-1_all.deb', inputs.RUN_ID) }}
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        TOKEN: ${{ inputs.TOKEN }}
+        REPO: ${{ inputs.REPO }}

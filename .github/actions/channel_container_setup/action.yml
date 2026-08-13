@@ -1,0 +1,78 @@
+name: "channel_container_setup"
+description: "Checkout, load a2c image, and prepare the container test environment"
+inputs:
+  RUN_ID:
+    description: "Producer workflow run ID"
+    required: true
+  WEB_SRV:
+    description: "Web server"
+    required: true
+  DB_HANDLER:
+    description: "Database handler"
+    required: true
+  TOKEN:
+    description: "GitHub token for artifact download"
+    required: true
+  REPO:
+    description: "owner/repo for artifact download"
+    required: true
+  NAME_SPACE:
+    description: "Docker network namespace"
+    required: false
+    default: "acme"
+  IPV6:
+    description: "IPv6 docker network"
+    required: false
+    default: "false"
+  DJANGO_DB:
+    description: "Django database for container_prep"
+    required: false
+    default: ""
+  CONTAINER_BUILD:
+    description: "Build container during prep"
+    required: false
+    default: "false"
+  ARTIFACT_NAME:
+    description: "Image artifact name; empty uses a2c-<run_id>.<websrv>.<dbhandler>.tar"
+    required: false
+    default: ""
+  DESTINATION_PATH:
+    description: "Download destination"
+    required: false
+    default: "/tmp"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v6
+
+    - name: "Get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> "$GITHUB_ENV"
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> "$GITHUB_ENV"
+      shell: bash
+
+    - run: echo "runner IP is $RUNNER_IP"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+      shell: bash
+
+    - name: "Download and import container"
+      uses: ./.github/actions/container_load
+      with:
+        RUN_ID: ${{ inputs.RUN_ID }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME != '' && inputs.ARTIFACT_NAME || format('a2c-{0}.{1}.{2}.tar', inputs.RUN_ID, inputs.WEB_SRV, inputs.DB_HANDLER) }}
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        TOKEN: ${{ inputs.TOKEN }}
+        REPO: ${{ inputs.REPO }}
+
+    - name: "Prepare container environment"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DJANGO_DB: ${{ inputs.DJANGO_DB }}
+        CONTAINER_BUILD: ${{ inputs.CONTAINER_BUILD }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        IPV6: ${{ inputs.IPV6 }}
