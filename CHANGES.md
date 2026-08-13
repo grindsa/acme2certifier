@@ -31,6 +31,7 @@ Companions (cryptography, jwcrypto, …) come from AppStream/EPEL or [grindsa/sb
 **Bug Fixes and Improvements**:
 
 - mscertsrv: scope `KRB5_CONFIG` during GSSAPI enrollment so SPNEGO can locate the KDC when a custom `krb5_config` is used (password `kinit` alone was insufficient)
+- mscertsrv: fall back to in-process GSSAPI password auth when `kinit` is missing; Debian systemd unit `PATH` now includes `/usr/bin` so packaged `krb5-user` is visible to uwsgi
 - Soft-rename of the former MS-WCCE CA handler to [MS-ICPR](docs/msicpr.md) (`msicpr_ca_handler` / `ms_icpr`); `mswcce_ca_handler` remains a deprecated alias. Docs clarify RPC high-port requirements ([#358](https://github.com/grindsa/acme2certifier/issues/358))
 - Route CA handler HTTP calls through the shared `request_operation` helper (including retry support)
 - Improve ASA CA handler parsing of error responses from the CA

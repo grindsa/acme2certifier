@@ -837,18 +837,10 @@ class CAhandler(object):
         if self._kerberos_acquire_with_kinit_password(ccache_file):
             return None
 
-        if self.krb5_config:
-            # Custom krb5.conf cannot be applied to in-process GSSAPI without
-            # mutating process-global env; fail closed when kinit cannot use it.
-            self._kerberos_cleanup_temporary_ccache()
-            return (
-                "Failed to acquire kerberos credentials via password kinit "
-                "(required when krb5_config is set)."
-            )
-
-        # No custom krb5_config: allow Certsrv in-process password acquire.
+        # kinit missing/failed (e.g. Debian unit PATH without /usr/bin): Certsrv
+        # acquire_cred_with_password runs inside enroll()'s KRB5_CONFIG scope.
         self._kerberos_cleanup_temporary_ccache()
-        self.logger.debug(
+        self.logger.warning(
             "Password kinit unavailable; falling back to in-process GSSAPI password auth"
         )
         return None

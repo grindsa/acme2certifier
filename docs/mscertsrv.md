@@ -190,8 +190,7 @@ krb5_kinit_path: /usr/bin/kinit
 
 When `auth_method` is `gssapi` and `user` / `password` are configured (without keytab), the handler acquires a TGT via `kinit` in a **subprocess** with `KRB5_CONFIG` / `KRB5CCNAME` set only for that process, then loads GSSAPI credentials from the ccache and passes them explicitly to the certsrv client. Enrollment additionally scopes `KRB5_CONFIG` for SPNEGO/TGS when `krb5_config` is configured.
 Bare usernames (for example `a2c`) work when `krb5_config` defines `default_realm` and KDC settings.
-If `krb5_config` is set and password `kinit` fails, enrollment fails closed (in-process GSSAPI password acquire cannot apply a custom krb5.conf without process-global env mutation).
-If `krb5_config` is unset and password `kinit` is unavailable, the handler falls back to in-process `acquire_cred_with_password` using the system Kerberos configuration.
+If password `kinit` is unavailable (binary missing or not on `PATH`), the handler falls back to in-process `acquire_cred_with_password`. That path also uses the scoped `KRB5_CONFIG` during enrollment when `krb5_config` is set.
 
 Example:
 

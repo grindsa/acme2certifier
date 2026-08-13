@@ -581,7 +581,8 @@ User=www-data
 Group=www-data
 WorkingDirectory=${APP_ROOT}
 RuntimeDirectory=uwsgi
-Environment="PATH=${APP_ROOT}"
+Environment="PYTHONPATH=${APP_ROOT}"
+Environment="PATH=${APP_ROOT}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="ACME_SRV_CONFIGFILE=${CFG}"
 ExecStart=uwsgi --ini ${APP_ROOT}/acme2certifier.ini
 
@@ -593,6 +594,12 @@ EOF
   if [[ -f /etc/systemd/system/acme2certifier.service ]] \
     && ! grep -q '^RuntimeDirectory=' /etc/systemd/system/acme2certifier.service; then
     ${SUDO} sed -i '/^\[Service\]/a RuntimeDirectory=uwsgi' \
+      /etc/systemd/system/acme2certifier.service
+  fi
+  # Older packaged units set PATH=APP_ROOT only, which hides /usr/bin/kinit from uwsgi.
+  if [[ -f /etc/systemd/system/acme2certifier.service ]]; then
+    ${SUDO} sed -i \
+      "s|^Environment=\"PATH=${APP_ROOT}\"$|Environment=\"PATH=${APP_ROOT}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"|" \
       /etc/systemd/system/acme2certifier.service
   fi
   ${SUDO} systemctl daemon-reload

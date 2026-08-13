@@ -1916,10 +1916,10 @@ class TestACMEHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_ccache_prepare",
         return_value="/tmp/cc_pw",
     )
-    def test_109d_kerberos_prepare_gssapi_password_requires_kinit_with_config(
+    def test_109d_kerberos_prepare_gssapi_password_falls_back_without_kinit(
         self, _mock_ccache, _mock_kinit_pw, mock_cleanup
     ):
-        """password+GSSAPI with krb5_config fails closed when kinit fails"""
+        """password+GSSAPI with krb5_config falls back when kinit is unavailable"""
         self.cahandler.auth_method = "gssapi"
         self.cahandler.user = "a2c"
         self.cahandler.password = "secret"
@@ -1928,7 +1928,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler, "_kerberos_config_path_resolve", return_value="/tmp/krb5.conf"
         ):
             error = self.cahandler._kerberos_prepare_gssapi_backend()
-        self.assertIn("password kinit", error)
+        self.assertIsNone(error)
         self.assertTrue(mock_cleanup.called)
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")

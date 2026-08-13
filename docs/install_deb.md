@@ -161,7 +161,8 @@ ______________________________________________________________________
    Group=www-data
    WorkingDirectory=/var/www/acme2certifier
    RuntimeDirectory=uwsgi
-   Environment="PATH=/var/www/acme2certifier"
+   Environment="PYTHONPATH=/var/www/acme2certifier"
+   Environment="PATH=/var/www/acme2certifier:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
    Environment="ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg"
    ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini
 
