@@ -25,6 +25,6 @@ Prefer:
 handler_module: acme2certifier.cahandlers.msicpr_ca_handler
 ```
 
-### Note on RPC Port Requirements
+## Note on RPC Port Requirements
 
 MS-ICPR does not honor static DCOM "CertSrv Request" endpoints. When TCP RPC is used, dynamic high ports from the RPC Endpoint Mapper apply in addition to TCP 445 (and typically TCP 135 for endpoint mapping). Details: [msicpr.md](msicpr.md#note-on-rpc-port-requirements).
