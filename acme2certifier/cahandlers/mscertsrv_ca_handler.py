@@ -471,18 +471,37 @@ class CAhandler(object):
 
     @contextmanager
     def _kerberos_runtime_environment(self):
-        """Deprecated no-op kept for callers/tests; prefer explicit GSSAPI creds.
+        """Scope KRB5_CONFIG for SPNEGO/TGS while using explicit GSSAPI creds.
 
-        Process-wide KRB5CCNAME/KRB5_CONFIG mutation is unsafe under threaded WSGI.
-        Keytab enroll loads credentials from the ccache store and passes them to
-        Certsrv via gssapi_creds instead.
+        Credential caches are passed to Certsrv via ``gssapi_creds`` (no
+        KRB5CCNAME mutation). MIT Kerberos still needs realm→KDC mapping from
+        ``krb5_config`` when obtaining service tickets during SPNEGO; without
+        KRB5_CONFIG the library falls back to the system krb5.conf and fails
+        with "Cannot find KDC for realm ...".
+
+        Concurrent enrollments with different ``krb5_config`` values in one
+        process remain unsupported (libkrb5 process-global config).
         """
-        self.logger.debug(
-            "CAhandler._kerberos_runtime_environment() is a no-op; "
-            "using explicit GSSAPI credentials"
-        )
-        yield
-        self.logger.debug("CAhandler._kerberos_runtime_environment() ended")
+        self.logger.debug("CAhandler._kerberos_runtime_environment()")
+        previous = os.environ.get("KRB5_CONFIG")
+        krb5_config = self._kerberos_config_path_resolve()
+        if krb5_config:
+            os.environ["KRB5_CONFIG"] = krb5_config
+            self.logger.debug("Using KRB5_CONFIG=%s for SPNEGO/TGS", krb5_config)
+        elif self.krb5_config:
+            self.logger.warning(
+                "Configured krb5_config does not exist (%s); SPNEGO may fail "
+                "to locate the KDC",
+                self.krb5_config,
+            )
+        try:
+            yield
+        finally:
+            if previous is None:
+                os.environ.pop("KRB5_CONFIG", None)
+            else:
+                os.environ["KRB5_CONFIG"] = previous
+            self.logger.debug("CAhandler._kerberos_runtime_environment() ended")
 
     def _kerberos_cleanup_temporary_ccache(self):
         """remove temporary kerberos ccache if it was created by this handler"""
@@ -1179,8 +1198,9 @@ class CAhandler(object):
             if error:
                 self.logger.error("Template allowlist check failed: %s", error)
             else:
-                # enroll certificate (explicit GSSAPI creds; no process env mutation)
-                error, cert_bundle, cert_raw = self._enroll(csr)
+                # explicit GSSAPI creds for the TGT; KRB5_CONFIG scoped for TGS/SPNEGO
+                with self._kerberos_runtime_environment():
+                    error, cert_bundle, cert_raw = self._enroll(csr)
 
         self._kerberos_cleanup_temporary_ccache()
         self.logger.debug("Certificate.enroll() ended")
