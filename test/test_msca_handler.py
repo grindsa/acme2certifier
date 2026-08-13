@@ -1186,6 +1186,51 @@ class TestACMEHandler(unittest.TestCase):
             self.assertNotIn("KRB5_CONFIG", os.environ)
         self.assertNotIn("KRB5_CONFIG", os.environ)
 
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=True,
+    )
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_gssapi_creds_from_cache",
+        return_value=(None, None),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
+        return_value=None,
+    )
+    @patch.dict(
+        "os.environ", {"KRB5CCNAME": "old_cc", "KRB5_CONFIG": "old_cfg"}, clear=False
+    )
+    def test_071c_enroll_scopes_krb5_config_during_certsrv(
+        self, _mock_prepare, _mock_creds, mock_certsrv, mock_credchk, _mock_isfile
+    ):
+        """enroll sets KRB5_CONFIG during Certsrv/SPNEGO init, not KRB5CCNAME"""
+        captured = {}
+
+        def _certsrv_side_effect(*_args, **_kwargs):
+            captured["KRB5_CONFIG"] = os.environ.get("KRB5_CONFIG")
+            captured["KRB5CCNAME"] = os.environ.get("KRB5CCNAME")
+            return MagicMock()
+
+        mock_certsrv.side_effect = _certsrv_side_effect
+        mock_credchk.return_value = False
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_config = "/var/www/acme2certifier/volume/krb5.conf"
+        self.cahandler.enroll("csr")
+        self.assertEqual(
+            os.path.abspath("/var/www/acme2certifier/volume/krb5.conf"),
+            captured.get("KRB5_CONFIG"),
+        )
+        self.assertEqual("old_cc", captured.get("KRB5CCNAME"))
+        self.assertEqual("old_cfg", os.environ.get("KRB5_CONFIG"))
+        self.assertEqual("old_cc", os.environ.get("KRB5CCNAME"))
+
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.os.unlink")
     def test_072_kerberos_cleanup_temporary_ccache(self, mock_unlink):
         """cleanup removes temporary ccache and resets state"""
