@@ -7,6 +7,8 @@ on:
       - 'min-devel'
       - 'min'
 
+permissions: {}
+
 jobs:
 
   bandit:
@@ -42,6 +44,8 @@ jobs:
           # ini_path: # optional, default is DEFAULT
 
   codecov:
+    permissions:
+      contents: read
     name: Codecov Analysis
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
@@ -78,6 +82,8 @@ jobs:
           flags: unittests
 
   sonarcloud:
+    permissions:
+      contents: read
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
@@ -120,6 +126,10 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
 

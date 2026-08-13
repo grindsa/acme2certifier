@@ -28,8 +28,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -46,6 +49,9 @@ jobs:
           CALLED_BY: ${{ inputs.called_by_workflow }}
 
   ubuntu-pip-install:
+    permissions:
+      contents: read
+      actions: write
     name: ubuntu-${{ matrix.ubuntu_version }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -128,6 +134,9 @@ jobs:
 
 
   alma-pip-install:
+    permissions:
+      contents: read
+      actions: write
     name: alma-${{ matrix.rh_version }}-nginx-${{ matrix.dbhandler }}
     runs-on: ubuntu-latest
     timeout-minutes: 45

@@ -28,8 +28,11 @@ concurrency:
   group: deployment-arm-${{ github.repository }}-${{ inputs.run_id }}-${{ inputs.sha }}
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
     steps:
@@ -51,6 +54,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
+      actions: write
     timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier'
     strategy:

@@ -27,8 +27,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -43,6 +46,9 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -197,6 +203,9 @@ jobs:
 
 
   test-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -317,6 +326,9 @@ jobs:
 
 
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -445,6 +457,9 @@ jobs:
 
 
   test-pip:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 60

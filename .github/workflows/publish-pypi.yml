@@ -10,12 +10,13 @@ on:
         required: true
         default: ""
 
-permissions:
-  contents: read
-  id-token: write
+permissions: {}
 
 jobs:
   publish:
+    permissions:
+      contents: read
+      id-token: write
     name: Build and publish
     runs-on: ubuntu-latest
     if: >-

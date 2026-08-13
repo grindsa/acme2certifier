@@ -7,8 +7,12 @@ on:
       - ".github/workflows/security-sanitizer-selftest.yml"
   workflow_dispatch: {}
 
+permissions: {}
+
 jobs:
   sanitizer-selftest:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

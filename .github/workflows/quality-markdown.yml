@@ -27,11 +27,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -46,6 +49,8 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
   markdown-link-check:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: guard

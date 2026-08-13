@@ -27,12 +27,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
 
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -50,6 +53,9 @@ jobs:
   # Test container images using http01 challenges
   # ---------------------------------------------------------
   http01-test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -269,6 +275,9 @@ jobs:
   # Test container images using dns01 challenges
   # ---------------------------------------------------------
   dns01-test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -539,6 +548,9 @@ jobs:
   # Test container images with eab
   # ---------------------------------------------------------
   eab-test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45

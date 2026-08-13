@@ -27,9 +27,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
 
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -47,6 +50,8 @@ jobs:
   # Resolve one-hop matrix: latest / N-1 / N-2 / pre045 → build
   # ---------------------------------------------------------
   resolve-versions:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -296,6 +301,9 @@ jobs:
   # Containers (nginx|apache2 × wsgi|django) × hop → build
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, resolve-versions]
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -475,6 +483,9 @@ jobs:
 
 
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, resolve-versions]
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -715,6 +726,9 @@ jobs:
 
 
   test-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, resolve-versions]
     runs-on: ubuntu-latest
     timeout-minutes: 60

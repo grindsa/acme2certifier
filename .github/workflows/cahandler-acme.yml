@@ -27,9 +27,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
 
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -47,6 +50,8 @@ jobs:
   # Containers — le-sim
   # ---------------------------------------------------------
   test-containers-lesim:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -162,6 +167,8 @@ jobs:
   # Containers — sectigo sim
   # ---------------------------------------------------------
   test-containers-sectigo:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -232,6 +239,8 @@ jobs:
   # Containers — EAB profiling
   # ---------------------------------------------------------
   test-containers-profiling:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -367,6 +376,8 @@ jobs:
   # Containers — smallstep
   # ---------------------------------------------------------
   test-containers-smallstep:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -443,6 +454,8 @@ jobs:
   # Containers — live Let's Encrypt staging
   # ---------------------------------------------------------
   test-containers-letsencrypt:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -575,6 +588,8 @@ jobs:
   # RPM — le-sim
   # ---------------------------------------------------------
   test-rpm-lesim:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -687,6 +702,8 @@ jobs:
   # RPM — sectigo sim
   # ---------------------------------------------------------
   test-rpm-sectigo:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -762,6 +779,8 @@ jobs:
   # RPM — EAB profiling
   # ---------------------------------------------------------
   test-rpm-profiling:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -897,6 +916,8 @@ jobs:
   # RPM — smallstep
   # ---------------------------------------------------------
   test-rpm-smallstep:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -972,6 +993,8 @@ jobs:
   # RPM — live Let's Encrypt staging
   # ---------------------------------------------------------
   test-rpm-letsencrypt:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45

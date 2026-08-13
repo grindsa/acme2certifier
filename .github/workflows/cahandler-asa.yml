@@ -27,12 +27,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
 
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -50,6 +53,8 @@ jobs:
   # Fail fast if the shared Insta ASA endpoint is unreachable
   # ---------------------------------------------------------
   asa-preflight:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -77,6 +82,9 @@ jobs:
   # might fail for unknown reasons
   # ---------------------------------------------------------
   test-containers-useragent:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, asa-preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -212,6 +220,9 @@ jobs:
 
 
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, test-containers-useragent]
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -538,6 +549,9 @@ jobs:
 
 
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, test-containers-useragent]
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -882,6 +896,9 @@ jobs:
 
 
   test-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, test-containers-useragent]
     runs-on: ubuntu-latest
     timeout-minutes: 45

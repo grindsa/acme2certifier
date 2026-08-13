@@ -8,6 +8,11 @@ on:
   #schedule:
   #   - cron: '0 01 * * 6'  # Every Saturday morning
 
+concurrency:
+  group: main-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   # ---------------------------------------------------------
@@ -16,10 +21,11 @@ jobs:
   build-containers:
     name: Build container (${{ matrix.websrv }} / ${{ matrix.dbhandler }})
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [ build-deb ]
     permissions:
-      pull-requests: write
-      contents: write
+      contents: read
+      actions: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     strategy:
       fail-fast: false
@@ -50,9 +56,10 @@ jobs:
   build-rpm:
     name: Build RPM package
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
-      pull-requests: write
-      contents: write
+      contents: read
+      actions: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
       - uses: actions/checkout@v6
@@ -67,9 +74,10 @@ jobs:
   build-deb:
     name: Build DEB package
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
-      pull-requests: write
-      contents: write
+      contents: read
+      actions: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
       - uses: actions/checkout@v6
@@ -84,6 +92,7 @@ jobs:
   dispatch:
     name: Dispatch test workflows
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [ build-containers, build-rpm, build-deb ]
     permissions:
       contents: read

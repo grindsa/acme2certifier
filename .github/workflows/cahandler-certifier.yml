@@ -27,8 +27,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -43,6 +46,8 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
   instance_start:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -159,6 +164,9 @@ jobs:
 
   # max-parallel: 1 — single shared NCM AWS instance via SSH tunnel
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -552,6 +560,9 @@ jobs:
 
 
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -934,6 +945,9 @@ jobs:
 
 
   test-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -1208,6 +1222,9 @@ jobs:
 
 
   test-cmpv2-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, instance_start, test-containers]
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -1440,6 +1457,9 @@ jobs:
 
 
   test-cmpv2-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, instance_start, test-rpm]
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -1661,6 +1681,9 @@ jobs:
 
 
   test-cmpv2-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, instance_start, test-deb]
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -1888,6 +1911,8 @@ jobs:
 
 
   instance_stop:
+    permissions:
+      contents: read
     needs: [guard, instance_start, test-containers, test-deb, test-rpm, test-cmpv2-containers, test-cmpv2-deb, test-cmpv2-rpm]
     runs-on: ubuntu-latest
     timeout-minutes: 20

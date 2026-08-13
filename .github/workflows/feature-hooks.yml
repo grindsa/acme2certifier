@@ -27,12 +27,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
 
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
   guard:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -50,6 +53,9 @@ jobs:
   # Test container images - regular hooks
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -175,6 +181,9 @@ jobs:
 
 
   test-containers-exception-handling:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -401,6 +410,9 @@ jobs:
 
 
   test-containers-email-hooks:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -510,6 +522,9 @@ jobs:
 
 
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -638,6 +653,9 @@ jobs:
 
 
   test-rpm-hooks-exception-handling:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -861,6 +879,9 @@ jobs:
 
 
   test-rpm-hooks-email-hooks:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
