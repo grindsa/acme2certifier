@@ -150,7 +150,7 @@ krb5_kinit_path: </path/to/kinit>
 - **krb5_keytab_variable** *(optional)* – Name of the environment variable containing the keytab path (overridden if `krb5_keytab` is set in `acme_srv.cfg`).
 - **krb5_cache** *(optional)* – Path to the Kerberos credential cache (ccache). In keytab mode, a temporary ccache is created if this value is omitted. If you set a shared path used by multiple worker processes or threads, concurrent `kinit`/ticket refresh can race on the same file; prefer a per-process temporary cache, or a dedicated cache with a single writer and clear operational ownership.
 - **krb5_cache_variable** *(optional)* – Name of the environment variable containing the ccache path (overridden if `krb5_cache` is set in `acme_srv.cfg`).
-- **krb5_config** *(optional)* – Path to an individual `krb5.conf` file. Applied to `kinit` subprocesses (keytab fallback and GSSAPI password mode). Relative paths are resolved against the process working directory.
+- **krb5_config** *(optional)* – Path to an individual `krb5.conf` file. Applied to `kinit` subprocesses (keytab fallback and GSSAPI password mode) and scoped as `KRB5_CONFIG` during enrollment so SPNEGO can obtain service tickets (TGS) using the same realm/KDC map. Relative paths are resolved against the process working directory.
 - **krb5_config_variable** *(optional)* – Name of the environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).
 - **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the keytab fallback and GSSAPI password paths. Defaults to `kinit` resolved from `PATH`. If set, the value must be an **absolute** path whose basename is exactly `kinit` (for example `/usr/bin/kinit`). Symlink targets such as Debian/Ubuntu `kinit.mit` / `kinit.heimdal` are accepted after resolution. Other values are rejected and the kinit fallback fails.
 - **krb5_kinit_path_variable** *(optional)* – Name of the environment variable containing the `kinit` binary path (overridden if `krb5_kinit_path` is set in `acme_srv.cfg`).
@@ -167,8 +167,8 @@ Enrollment failures against AD CS return a short handler error (`Could not get c
 
 When `auth_method` is set to `gssapi`, the handler supports keytab-based Kerberos authentication.
 If `krb5_principal` and `krb5_keytab` are configured, the handler prepares Kerberos credentials using Python GSSAPI and falls back to `kinit` if needed.
-Prepared credentials are loaded from the ccache and passed explicitly into the certsrv client; the handler does **not** mutate process-wide `KRB5CCNAME` / `KRB5_CONFIG` during enrollment (safe for threaded WSGI).
-The optional `krb5_config` setting is applied to the `kinit` fallback subprocess only.
+Prepared credentials are loaded from the ccache and passed explicitly into the certsrv client; the handler does **not** mutate process-wide `KRB5CCNAME` (safe for threaded WSGI).
+When `krb5_config` is set, `KRB5_CONFIG` is temporarily scoped around enrollment so MIT Kerberos can resolve the KDC for SPNEGO/TGS (ccache alone is not enough). Concurrent enrollments with different `krb5_config` values in one process are unsupported.
 
 Example:
 
@@ -188,9 +188,9 @@ krb5_kinit_path: /usr/bin/kinit
 
 ### GSSAPI Password Mode
 
-When `auth_method` is `gssapi` and `user` / `password` are configured (without keytab), the handler acquires a TGT via `kinit` in a **subprocess** with `KRB5_CONFIG` / `KRB5CCNAME` set only for that process, then loads GSSAPI credentials from the ccache and passes them explicitly to the certsrv client (same thread-safe pattern as keytab mode).
+When `auth_method` is `gssapi` and `user` / `password` are configured (without keytab), the handler acquires a TGT via `kinit` in a **subprocess** with `KRB5_CONFIG` / `KRB5CCNAME` set only for that process, then loads GSSAPI credentials from the ccache and passes them explicitly to the certsrv client. Enrollment additionally scopes `KRB5_CONFIG` for SPNEGO/TGS when `krb5_config` is configured.
 Bare usernames (for example `a2c`) work when `krb5_config` defines `default_realm` and KDC settings.
-If `krb5_config` is set and password `kinit` fails, enrollment fails closed (in-process GSSAPI cannot apply a custom krb5.conf without process-global env mutation).
+If `krb5_config` is set and password `kinit` fails, enrollment fails closed (in-process GSSAPI password acquire cannot apply a custom krb5.conf without process-global env mutation).
 If `krb5_config` is unset and password `kinit` is unavailable, the handler falls back to in-process `acquire_cred_with_password` using the system Kerberos configuration.
 
 Example:

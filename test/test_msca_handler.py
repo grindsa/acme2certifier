@@ -1144,28 +1144,46 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_kerberos_parameters_load({})
         self.assertFalse(self.cahandler.krb5_principal)
 
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=True,
+    )
     @patch.dict(
         "os.environ", {"KRB5CCNAME": "old_cc", "KRB5_CONFIG": "old_cfg"}, clear=False
     )
-    def test_070_kerberos_runtime_environment_is_noop(self):
-        """_kerberos_runtime_environment no longer mutates process env"""
+    def test_070_kerberos_runtime_environment_sets_krb5_config_only(self, _mock_isfile):
+        """_kerberos_runtime_environment sets KRB5_CONFIG but not KRB5CCNAME"""
         self.cahandler.krb5_cache = "new_cc"
-        self.cahandler.krb5_config = "new_cfg"
+        self.cahandler.krb5_config = "/etc/custom/krb5.conf"
         with self.cahandler._kerberos_runtime_environment():
             self.assertEqual("old_cc", os.environ.get("KRB5CCNAME"))
-            self.assertEqual("old_cfg", os.environ.get("KRB5_CONFIG"))
+            self.assertEqual("/etc/custom/krb5.conf", os.environ.get("KRB5_CONFIG"))
         self.assertEqual("old_cc", os.environ.get("KRB5CCNAME"))
         self.assertEqual("old_cfg", os.environ.get("KRB5_CONFIG"))
 
     @patch.dict("os.environ", {}, clear=True)
-    def test_071_kerberos_runtime_environment_leaves_env_unset(self):
-        """_kerberos_runtime_environment does not introduce KRB5* vars"""
+    def test_071_kerberos_runtime_environment_without_krb5_config(self):
+        """_kerberos_runtime_environment is a no-op without krb5_config"""
         self.cahandler.krb5_cache = "new_cc"
-        self.cahandler.krb5_config = "new_cfg"
+        self.cahandler.krb5_config = None
         with self.cahandler._kerberos_runtime_environment():
             self.assertNotIn("KRB5CCNAME", os.environ)
             self.assertNotIn("KRB5_CONFIG", os.environ)
         self.assertNotIn("KRB5CCNAME", os.environ)
+        self.assertNotIn("KRB5_CONFIG", os.environ)
+
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.os.path.isfile",
+        return_value=False,
+    )
+    @patch.dict("os.environ", {}, clear=True)
+    def test_071b_kerberos_runtime_environment_missing_krb5_config_file(
+        self, _mock_isfile
+    ):
+        """missing krb5_config file does not set KRB5_CONFIG"""
+        self.cahandler.krb5_config = "/missing/krb5.conf"
+        with self.cahandler._kerberos_runtime_environment():
+            self.assertNotIn("KRB5_CONFIG", os.environ)
         self.assertNotIn("KRB5_CONFIG", os.environ)
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.os.unlink")
