@@ -351,6 +351,7 @@ jobs:
 
       - name: "Prepare handler configuration (config)"
         run: |
+          set -euo pipefail
           sudo sed -i "s#volume/acme_ca/#/opt/acme2certifier/volume/acme_ca/#g" data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           if ! grep -qE '^\[DBhandler\]' data/volume/acme_srv.cfg; then
@@ -359,8 +360,20 @@ jobs:
             sudo sed -i 's/^# handler: django$/handler: django/' data/volume/acme_srv.cfg
             grep -qE '^handler: django$' data/volume/acme_srv.cfg || sudo sed -i '/^\[DBhandler\]/a handler: django' data/volume/acme_srv.cfg
           fi
+          grep -qE '^handler_module:' data/volume/acme_srv.cfg
+
+          # Bidirectional lsyncd echoes the peer's older acme_srv.cfg back over a
+          # c1-only copy. Stage the same volume on both nodes with lsyncd stopped.
+          docker exec alma9-c1 systemctl stop lsyncd
+          docker exec alma9-c2 systemctl stop lsyncd
           docker exec alma9-c1 sh -c "cp -r /tmp/acme2certifier/volume/* /opt/acme2certifier/volume/"
+          docker exec alma9-c2 sh -c "cp -r /tmp/acme2certifier/volume/* /opt/acme2certifier/volume/"
           docker exec alma9-c1 chown -R nginx.nginx /opt/acme2certifier/volume/
+          docker exec alma9-c2 chown -R nginx.nginx /opt/acme2certifier/volume/
+          docker exec alma9-c1 grep -qE '^handler_module:' /opt/acme2certifier/volume/acme_srv.cfg
+          docker exec alma9-c2 grep -qE '^handler_module:' /opt/acme2certifier/volume/acme_srv.cfg
+          docker exec alma9-c1 systemctl start lsyncd
+          docker exec alma9-c2 systemctl start lsyncd
 
       - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Sleep for 20s"
         uses: juliangruber/sleep-action@v2.0.4
