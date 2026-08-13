@@ -39,13 +39,19 @@ runs:
 
     - name: "Import container"
       run: |
-        cd $DESTINATION_PATH
-        gunzip -f $ARTIFACT_NAME.gz
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        set -euo pipefail
+        cd "${DESTINATION_PATH}"
+        gunzip -f "${ARTIFACT_NAME}.gz"
+        curl --retry 5 --retry-delay 2 --retry-all-errors --retry-connrefused \
+          -fsSL https://download.docker.com/linux/ubuntu/gpg \
+          -o /tmp/docker-archive-keyring.asc
+        sudo gpg --batch --yes --no-tty --dearmor \
+          -o /usr/share/keyrings/docker-archive-keyring.gpg \
+          /tmp/docker-archive-keyring.asc
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt update
         sudo apt install -y docker-compose-plugin
-        docker load -i $ARTIFACT_NAME
+        docker load -i "${ARTIFACT_NAME}"
         docker images
       shell: bash
       env:

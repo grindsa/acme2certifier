@@ -1,8 +1,49 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title RPM Installation on AlmaLinux 9 -->
+<!-- wiki-title RPM Installation on AlmaLinux / RHEL / Rocky -->
 
-# RPM Installation on AlmaLinux/Red Hat EL/CentOS Stream 9
+# RPM Installation on AlmaLinux / Red Hat EL / Rocky / CentOS Stream
+
+One **noarch** RPM installs on **EL8 (Python 3.6)** and **EL9 (Python 3.9)**. The package tree lives under `/opt/acme2certifier` (not system `site-packages`), with `PYTHONPATH=/opt/acme2certifier`.
+
+> **PyPI / pip installs** (e.g. [`a2c-rel-nginx.sh`](../examples/install_scripts/a2c-rel-nginx.sh)) require Python ≥ 3.7 and are **EL9-only**. Use this RPM path for EL8.
+
+## Automated install script
+
+[`examples/install_scripts/a2c-rpm.sh`](../examples/install_scripts/a2c-rpm.sh) installs a local `.rpm`, configures Nginx + uWSGI, and sets `--mode`:
+
+```bash
+chmod a+rx examples/install_scripts/a2c-rpm.sh
+./examples/install_scripts/a2c-rpm.sh --rpm ./acme2certifier-0.45.dev1-1.0.noarch.rpm
+./examples/install_scripts/a2c-rpm.sh -r ../acme2certifier-*.rpm -m django
+./examples/install_scripts/a2c-rpm.sh -m wsgi --no-ssl
+# Sync volume/cfg and restart nginx + acme2certifier (no reinstall)
+./examples/install_scripts/a2c-rpm.sh restart --volume-dir /path/to/volume
+# Copy volume/acme_ca only (no restart)
+./examples/install_scripts/a2c-rpm.sh --update --volume-dir /path/to/volume
+```
+
+| Option | Meaning |
+| --- | --- |
+| `-r, --rpm PATH` | path to `acme2certifier-*.rpm` (or auto-find in `.` / `..` / data-dir) |
+| `-m, --mode wsgi\|django` | DB handler + matching uWSGI module (default: `wsgi`) |
+| `--restart` / `restart` | sync volume/cfg and restart services (no reinstall) |
+| `--update` / `update` | sync `volume/acme_ca` only (no restart) |
+| `--volume-dir DIR` | sync source (default: `/tmp/acme2certifier/volume` when present) |
+| `--no-ssl` | skip SSL nginx vhost / self-signed cert generation |
+
+Works with `dnf` or `yum` on EL8 and EL9. The remainder of this guide is the manual equivalent.
+
+## Layout
+
+| Path | Purpose |
+| --- | --- |
+| `/opt/acme2certifier/acme2certifier/` | Importable Python package |
+| `/opt/acme2certifier/acme_srv.cfg` | Main config (`noreplace`) |
+| `/opt/acme2certifier/acme2certifier_wsgi.py` | WSGI entry |
+| `/opt/acme2certifier/acme2certifier.ini` | uWSGI (includes `python-path`) |
+| `/opt/acme2certifier/share/{nginx,apache2,skeletons}/` | Example web configs |
+| `/usr/bin/a2c-*` | CLI wrappers (`PYTHONPATH` set) |
 
 ## 1. Download the Latest RPM Package
 
@@ -18,7 +59,13 @@ sudo yum update -y
 ## 3. Install the RPM Package
 
 ```bash
-sudo yum -y localinstall /tmp/acme2certifier/acme2certifier-0.23.1-1.0.noarch.rpm
+sudo yum -y localinstall /tmp/acme2certifier/acme2certifier-<version>-1.0.noarch.rpm
+```
+
+Nginx and uWSGI are **Recommends**, not hard Requires. For the nginx path:
+
+```bash
+sudo yum -y install nginx uwsgi-plugin-python3 python3-uwsgidecorators
 ```
 
 ### Red Hat 8.x: Upgrade Required Packages
@@ -47,24 +94,28 @@ Depending on your CA handler, you may need these additional modules:
 ## 4. Copy the Nginx Configuration File
 
 ```bash
-sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/
+sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/
 ```
 
 ## 5. Copy the Nginx SSL Configuration File (Optional)
 
 ```bash
-sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d/
+sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d/
 ```
 
-## 6. Create and Configure `acme_srv.cfg`
+Apache examples (optional) are under `/opt/acme2certifier/share/apache2/`.
 
-Create the configuration file in `/opt/acme2certifier/acme_srv/` or use the example provided in the `examples` directory.
+## 6. Configure `acme_srv.cfg`
 
-Modify the [configuration file](acme_srv.md) according to your needs.
+The package ships `/opt/acme2certifier/acme_srv.cfg` (`%config(noreplace)`). Edit it in place, or replace it with your own.
+
+Default SQLite path: `/opt/acme2certifier/acme_srv.db`.
+
+Modify options per [acme_srv.cfg](acme_srv.md).
 
 ## 7. Configure the CA Handler
 
-Set up the CA handler as needed. [Example for Insta Certifier](certifier.md).
+Set up the CA handler via `handler_module` in `acme_srv.cfg` (preferred). [Example for Insta Certifier](certifier.md). See [Upgrading](upgrading.md).
 
 ## 8. Enable and Start the Acme2Certifier Service
 
@@ -81,6 +132,12 @@ sudo systemctl start nginx.service
 ```
 
 ## 10. Verify the Server
+
+Smoke-check the import path:
+
+```bash
+PYTHONPATH=/opt/acme2certifier python3 -c "import acme2certifier.acme_srv; print('ok')"
+```
 
 Test the directory resource:
 
@@ -107,4 +164,4 @@ Expected output:
 
 ## 11. Enroll a Certificate
 
-Use your preferred ACME client to enroll a certificate. If an issue occurs, enable debugging in `/opt/acme2certifier/acme_srv/acme_srv.cfg` and check `/var/log/messages` for errors.
+Use your preferred ACME client to enroll a certificate. If an issue occurs, enable debugging in `/opt/acme2certifier/acme_srv.cfg` and check `/var/log/messages` for errors.

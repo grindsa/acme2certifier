@@ -67,14 +67,13 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install --upgrade build
+        pip install ".[test,gssapi]"
         pip install pytest impacket
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: cp
       run: |
-         cp examples/ca_handler/skeleton_ca_handler.py acme_srv/ca_handler.py
-         cp examples/db_handler/wsgi_handler.py acme_srv/db_handler.py
-         cp examples/acme_srv.cfg acme_srv/
+          cp examples/acme_srv.cfg acme2certifier/acme_srv/
     - name: Python test
       run: |
         pytest
@@ -109,34 +108,23 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pylint pylint-exit
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install ".[gssapi]"
 
-      - name: cp
+      - name: "Pylint folder: acme2certifier package"
         run: |
-          cp examples/ca_handler/skeleton_ca_handler.py acme_srv/ca_handler.py
-          cp examples/db_handler/wsgi_handler.py acme_srv/db_handler.py
-          cp examples/acme_srv.cfg acme_srv/
+          pylint --rcfile=".github/pylintrc" acme2certifier/ || pylint-exit $?
 
-      - name: "Pylint folder: acme"
+      - name: "Pylint folder: acme2certifier/dbhandlers"
         run: |
-          pylint --rcfile=".github/pylintrc" acme_srv/ || pylint-exit $?
+          pylint --rcfile=".github/pylintrc" acme2certifier/dbhandlers/*.py || pylint-exit $?
 
-      - name: "Pylint folder: tools"
+      - name: "Pylint folder: examples skeletons"
         run: |
-          pylint --rcfile=".github/pylintrc" tools/*.py || pylint-exit $?
-
-      - name: "Pylint folder: examples/db_handler"
-        run: |
-          pylint --rcfile=".github/pylintrc" examples/db_handler/*.py || pylint-exit $?
-
-      - name: "Pylint folder: examples/ca_handler"
-        run: |
-          pylint --rcfile=".github/pylintrc" examples/ca_handler/*.py || pylint-exit $?
+          pylint --rcfile=".github/pylintrc" acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py acme2certifier/share/skeletons/eab_handler/skeleton_eab_handler.py acme2certifier/share/skeletons/hooks/skeleton_hooks.py || pylint-exit $?
 
       - name: "Linting with pycodestyle"
         run: |
           pip install pycodestyle
           cp .github/pycodestyle ~/.config/pycodestyle
+          pycodestyle --show-source acme2certifier/.
           pycodestyle --show-source examples/.
-          pycodestyle --show-source acme_srv/.
-          pycodestyle --show-source tools/.

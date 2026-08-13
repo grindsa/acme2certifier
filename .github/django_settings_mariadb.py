@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "acme_srv",
+    "acme2certifier.django_app.apps.AcmeSrvConfig",
 ]
 
 MIDDLEWARE = [
@@ -48,7 +48,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "acme2certifier.urls"
+ROOT_URLCONF = "acme2certifier.django_project.urls"
 
 TEMPLATES = [
     {
@@ -66,7 +66,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "acme2certifier.wsgi.application"
+WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
 
 
 # Database

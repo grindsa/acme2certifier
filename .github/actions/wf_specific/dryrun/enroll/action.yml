@@ -32,16 +32,9 @@ runs:
         mkdir -p lego
       shell: bash
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
-      shell: bash
-      env:
-        ACME_SERVER: ${{ inputs.ACME_SERVER }}
-
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://$ACME_SERVER/directory
-      shell: bash
-      env:
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+      with:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Enroll lego"
@@ -78,36 +71,28 @@ runs:
       with:
         time: 10s
 
-    - name: "Check logs"
+    - name: "Check logs dryrun skip"
       if: ${{ inputs.FAIL == 'true' }}
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          echo "container deployment"
-          docker compose logs | grep "Dry run mode enabled - skipping enrollment and certificate issuance"
-          docker compose logs | grep "Helper.config_dryrun_load() ended with: True/None"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Dry run mode enabled - skipping enrollment and certificate issuance"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "Dry run mode enabled - skipping enrollment and certificate issuance"
+        FLUSH: ${{ inputs.DEPLOYMENT_TYPE == 'container' && 'false' || 'true' }}
+
+    - name: "Check logs dryrun config"
+      if: ${{ inputs.FAIL == 'true' && inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "Helper.config_dryrun_load() ended with: True/None"
+        FLUSH: "true"
 
     - name: "Check logs missing profile"
       if: ${{ inputs.FAIL == 'missing_profile' }}
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          echo "container deployment"
-          docker compose logs | grep "Dryrun profile name not set in configuration, please set dryrun_profile parameter"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Dryrun profile name not set in configuration, please set dryrun_profile parameter"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "Dryrun profile name not set in configuration, please set dryrun_profile parameter"
 
     - name: "Enroll lego"
       if: ${{ inputs.FAIL == 'profile' }}
@@ -133,17 +118,9 @@ runs:
       with:
         time: 10s
 
-    - name: "Check logs missing profile"
+    - name: "Check logs dryrun profile"
       if: ${{ inputs.FAIL == 'profile' }}
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          echo "container deployment"
-          docker compose logs | grep "enabling dryrun mode for profile: dry-run"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "enabling dryrun mode for profile: dry-run"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "enabling dryrun mode for profile: dry-run"

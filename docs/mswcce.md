@@ -53,7 +53,8 @@ rm -rf impacket-0.11.0/examples/*
 - Install the package:
 
 ```bash
-python3 setup.py install
+pip install .
+# or: pip install acme2certifier
 ```
 
 ## Configuration
@@ -62,7 +63,7 @@ Modify the server configuration (`acme_srv/acme_srv.cfg`) and add the following 
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/mswcce_ca_handler.py
+handler_module: acme2certifier.cahandlers.mswcce_ca_handler
 host: <hostname>
 user: <username>
 password: <password>
@@ -144,7 +145,7 @@ Notes:
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/mswcce_ca_handler.py
+handler_module: acme2certifier.cahandlers.mswcce_ca_handler
 host: <ca-hostname>
 target_domain: EXAMPLE.COM
 domain_controller: <dc-ip-or-name>
@@ -157,7 +158,8 @@ krb5_keytab: /etc/acme2certifier/svc-a2c-enroll.keytab
 
 # Optional
 krb5_auth_backend: python
-krb5_cache: /var/lib/acme2certifier/krb5cc_a2c
+krb5_cache: /var/www/acme2certifier/volume/krb5cc_a2c
+
 krb5_config: /etc/krb5.conf
 krb5_kinit_path: /usr/bin/kinit
 ```
@@ -224,7 +226,7 @@ This handler supports [EAB profiling](eab_profiling.md), which allows individual
 
 ```ini
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

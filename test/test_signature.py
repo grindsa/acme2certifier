@@ -26,14 +26,13 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from acme_srv.signature import Signature
+        from acme2certifier.acme_srv.signature import Signature
 
         self.signature = Signature(False, "http://tester.local", self.logger)
 
@@ -52,7 +51,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.check("foo", None),
         )
 
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_003_signature_check(self, mock_jwk):
         """test Signature.check() while pubkey lookup failed"""
         mock_jwk.return_value = {}
@@ -61,8 +60,8 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.check("foo", 1),
         )
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_004_signature_check(self, mock_jwk, mock_sig):
         """test successful Signature.check()"""
         mock_jwk.return_value = {"foo": "bar"}
@@ -84,8 +83,8 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.check(None, 1, True, protected),
         )
 
-    @patch("acme_srv.signature.DBstore")
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.DBstore")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_007_signature_check(self, mock_sig, mock_dbstore_class):
         """test successful Signature.check() with account_name and use_emb_key True, sigcheck returns something"""
         # Setup dbstore mock to return a key
@@ -97,13 +96,13 @@ class TestACMEHandler(unittest.TestCase):
         mock_sig.return_value = ("result", "error")
 
         # Create a new signature instance with the mocked dbstore
-        from acme_srv.signature import Signature
+        from acme2certifier.acme_srv.signature import Signature
 
         signature = Signature(False, "http://tester.local", self.logger)
 
         self.assertEqual(("result", "error", None), signature.check("foo", 1, True))
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_008_signature_check(self, mock_sig):
         """test successful Signature.check() without account_name and use_emb_key True, sigcheck returns something"""
         mock_sig.return_value = ("result", "error")
@@ -112,7 +111,7 @@ class TestACMEHandler(unittest.TestCase):
             ("result", "error", None), self.signature.check(None, 1, True, protected)
         )
 
-    @patch("acme_srv.signature.DBstore")
+    @patch("acme2certifier.acme_srv.signature.DBstore")
     def test_009_signature__jwk_load(self, mock_dbstore_class):
         """test jwk load  - dbstore.jwk_load() raises an exception"""
         # Setup mock to raise exception
@@ -121,7 +120,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_dbstore_class.return_value = mock_dbstore_instance
 
         # Create a new signature instance with the mocked dbstore
-        from acme_srv.signature import Signature
+        from acme2certifier.acme_srv.signature import Signature
 
         signature = Signature(False, "http://tester.local", self.logger)
 
@@ -132,7 +131,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_010_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  result and error"""
         content = "content"
@@ -142,7 +141,7 @@ class TestACMEHandler(unittest.TestCase):
             ("result", "error"), self.signature.eab_check(content, mac_key)
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_011_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  result no error"""
         content = "content"
@@ -150,7 +149,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_sigchk.return_value = ("result", None)
         self.assertEqual(("result", None), self.signature.eab_check(content, mac_key))
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_012_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  result false and  error"""
         content = "content"
@@ -158,7 +157,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_sigchk.return_value = (False, "error")
         self.assertEqual((False, "error"), self.signature.eab_check(content, mac_key))
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_013_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  content None"""
         content = None
@@ -169,7 +168,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.eab_check(content, mac_key),
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_014_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  mac_key None"""
         content = "content"
@@ -180,7 +179,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.eab_check(content, mac_key),
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_015_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  mac_key and content None"""
         content = None
@@ -191,7 +190,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.eab_check(content, mac_key),
         )
 
-    @patch("acme_srv.signature.load_config")
+    @patch("acme2certifier.acme_srv.signature.load_config")
     def test_016__init(self, mock_load_cfg):
         """test _config_load account with url prefix without tailing slash configured"""
         parser = configparser.ConfigParser()
@@ -200,7 +199,7 @@ class TestACMEHandler(unittest.TestCase):
         self.signature.__init__(False, "http://tester.local", self.logger)
         self.assertEqual("url_prefix/acme/revokecert", self.signature.revocation_path)
 
-    @patch("acme_srv.signature.load_config")
+    @patch("acme2certifier.acme_srv.signature.load_config")
     def test_017__init(self, mock_load_cfg):
         """test _config_load account with url prefix without tailing slash configured"""
         parser = configparser.ConfigParser()
@@ -209,7 +208,7 @@ class TestACMEHandler(unittest.TestCase):
         self.signature.__init__(False, "http://tester.local", self.logger)
         self.assertEqual("/acme/revokecert", self.signature.revocation_path)
 
-    @patch("acme_srv.signature.load_config")
+    @patch("acme2certifier.acme_srv.signature.load_config")
     def test_016__init_empty(self, mock_load_cfg):
         """test _config_load account with url prefix without tailing slash configured"""
         parser = configparser.ConfigParser()
@@ -232,7 +231,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.cli_check("foo", None),
         )
 
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_020_signature_check(self, mock_jwk):
         """test Signature.check() while pubkey lookup failed"""
         mock_jwk.return_value = {}
@@ -241,16 +240,16 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.cli_check("foo", 1),
         )
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_021_signature_check(self, mock_jwk, mock_sig):
         """test successful Signature.check()"""
         mock_jwk.return_value = {"foo": "bar"}
         mock_sig.return_value = (True, None)
         self.assertEqual((True, None, None), self.signature.cli_check("foo", 1))
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_022_signature_check(self, mock_jwk, mock_sig):
         """test successful Signature.check() without account_name  sigcheck returns something"""
         mock_jwk.return_value = {"foo": "bar"}
@@ -271,7 +270,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.cli_check(None, "content"),
         )
 
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_025_cli_check_pubkey_none(self, mock_jwk):
         """Signature.cli_check() returns accountDoesNotExist error if pubkey is None"""
         mock_jwk.return_value = None
@@ -280,8 +279,8 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.cli_check("foo", "content"),
         )
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_026_cli_check_success(self, mock_jwk, mock_sig):
         """Signature.cli_check() returns result from signature_check"""
         mock_jwk.return_value = {"foo": "bar"}
@@ -295,7 +294,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.check("foo", None),
         )
 
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_028_check_pubkey_none(self, mock_jwk):
         """Signature.check() returns accountDoesNotExist error if pubkey is None"""
         mock_jwk.return_value = None
@@ -304,8 +303,8 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.check("foo", "content"),
         )
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_029_check_success(self, mock_jwk, mock_sig):
         """Signature.check() returns result from signature_check"""
         mock_jwk.return_value = {"foo": "bar"}
@@ -327,7 +326,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.check(None, "content", True, protected),
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_032_check_emb_key_success(self, mock_sig):
         """Signature.check() returns result from signature_check with embedded jwk"""
         protected = {"jwk": {"foo": "bar"}}
@@ -357,13 +356,13 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.eab_check("content", None),
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_036_eab_check_success(self, mock_sig):
         """Signature.eab_check() returns result from signature_check"""
         mock_sig.return_value = (True, None)
         self.assertEqual((True, None), self.signature.eab_check("content", "mac_key"))
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_037_eab_check_error(self, mock_sig):
         """Signature.eab_check() returns error from signature_check"""
         mock_sig.return_value = (False, "error")

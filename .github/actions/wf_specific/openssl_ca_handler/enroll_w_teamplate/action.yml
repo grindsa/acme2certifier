@@ -1,28 +1,11 @@
-name: "enroll_w_headerinfo"
-description: "enroll_w_headerinfo"
-inputs:
-  ASA_CA_NAME1:
-    description: "ASA CA 1"
-    required: true
-  ASA_CA_NAME2:
-    description: "ASA CA 2"
-    required: true
+name: "enroll_w_template"
+description: "Enroll with OpenSSL template and verify certificate extensions"
 
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
-  - name: "Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "Enroll acme.sh"
     run: |

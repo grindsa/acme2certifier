@@ -1,0 +1,81 @@
+name: "asa_preflight"
+description: "Fail fast if Insta ASA API is unreachable"
+inputs:
+  ASA_API_HOST:
+    description: "ASA API base URL (e.g. https://host:port/asa_acme/v5)"
+    required: true
+  ASA_API_USER:
+    description: "ASA API username"
+    required: true
+  ASA_API_PASSWORD:
+    description: "ASA API password"
+    required: true
+  ASA_API_KEY:
+    description: "ASA x-api-key"
+    required: true
+  CONNECT_TIMEOUT:
+    description: "curl connect timeout seconds"
+    required: false
+    default: "15"
+  MAX_TIME:
+    description: "curl max-time seconds"
+    required: false
+    default: "30"
+  RETRIES:
+    description: "number of attempts"
+    required: false
+    default: "3"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Probe ASA list_issuers"
+      shell: bash
+      env:
+        ASA_API_HOST: ${{ inputs.ASA_API_HOST }}
+        ASA_API_USER: ${{ inputs.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ inputs.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ inputs.ASA_API_KEY }}
+        CONNECT_TIMEOUT: ${{ inputs.CONNECT_TIMEOUT }}
+        MAX_TIME: ${{ inputs.MAX_TIME }}
+        RETRIES: ${{ inputs.RETRIES }}
+      run: |
+        set -euo pipefail
+        if [[ -z "${ASA_API_HOST}" || -z "${ASA_API_USER}" || -z "${ASA_API_PASSWORD}" || -z "${ASA_API_KEY}" ]]; then
+          echo "ASA_API_HOST/USER/PASSWORD/KEY are required for ASA preflight" >&2
+          exit 1
+        fi
+
+        url="${ASA_API_HOST%/}/list_issuers"
+        echo "Probing ASA endpoint: ${url}"
+
+        attempt=1
+        max="${RETRIES}"
+        while (( attempt <= max )); do
+          echo "ASA preflight attempt ${attempt}/${max}"
+          http_code="$(
+            curl -k -sS -o /tmp/asa_preflight.json -w '%{http_code}' \
+              --connect-timeout "${CONNECT_TIMEOUT}" \
+              --max-time "${MAX_TIME}" \
+              -u "${ASA_API_USER}:${ASA_API_PASSWORD}" \
+              -H "x-api-key: ${ASA_API_KEY}" \
+              -H 'Accept: application/json' \
+              "${url}" || true
+          )"
+          if [[ "${http_code}" == "200" ]] && grep -q '"issuers"' /tmp/asa_preflight.json 2>/dev/null; then
+            echo "ASA preflight OK (HTTP ${http_code})"
+            exit 0
+          fi
+          echo "ASA preflight attempt ${attempt} failed (HTTP ${http_code})" >&2
+          if [[ -f /tmp/asa_preflight.json ]]; then
+            head -c 500 /tmp/asa_preflight.json >&2 || true
+            echo >&2
+          fi
+          if (( attempt < max )); then
+            sleep $(( 2 ** (attempt - 1) ))
+          fi
+          attempt=$((attempt + 1))
+        done
+
+        echo "ASA API unreachable after ${max} attempts" >&2
+        exit 1

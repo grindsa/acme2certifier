@@ -19,7 +19,7 @@ This handler can be used to enroll certificates from Entrust ECS Enterprise API.
 
 ```config
 [CAhandler]
-handler_file: examples/ca_handler/entrust_ca_handler.py
+handler_module: acme2certifier.cahandlers.entrust_ca_handler
 username: <Username>
 password: <Password>
 cert_type: <certificate type>
@@ -95,7 +95,7 @@ This handler can use the [EAB profiling feature](eab_profiling.md) to allow indi
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 
 [CAhandler]

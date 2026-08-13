@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "acme2certifier"
-version = "0.41.3"
+dynamic = ["version"]
 description = "ACMEv2 server"
 readme = "README.md"
 authors = [
@@ -16,10 +16,9 @@ dependencies = [
     "setuptools",
     "jwcrypto",
     "cryptography",
-    "pyOpenssl",
+    "pyOpenssl==26.1.0",
     "dnspython",
     "pytz",
-    "configparser",
     "python-dateutil",
     "requests",
     "pysocks",
@@ -29,8 +28,6 @@ dependencies = [
     "pyasn1",
     "pyasn1_modules",
     "requests_pkcs12",
-    "requests_gssapi",
-    "gssapi",
     "pyyaml",
     "idna",
     "werkzeug>=3.0.6",
@@ -45,8 +42,65 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
+[project.optional-dependencies]
+gssapi = [
+    "gssapi",
+    "requests_gssapi",
+]
+django = [
+    "Django",
+]
+full = [
+    "gssapi",
+    "requests_gssapi",
+    "Django",
+]
+test = [
+    "pytest",
+    "pytest-cov",
+]
+
+[project.scripts]
+a2c-cli = "acme2certifier.tools.a2c_cli:main"
+a2c-db-update = "acme2certifier.tools.a2c_db_update:main"
+a2c-django-update = "acme2certifier.tools.a2c_django_update:main"
+a2c-django-secret-keygen = "acme2certifier.tools.a2c_django_secret_keygen:main"
+a2c-manage = "acme2certifier.tools.a2c_manage:main"
+a2c-eab-chk = "acme2certifier.tools.a2c_eab_chk:main"
+a2c-cert-poll = "acme2certifier.tools.a2c_cert_poll:main"
+a2c-cliuser-mgmt = "acme2certifier.tools.a2c_cliuser_mgmt:main"
+a2c-invalidator = "acme2certifier.tools.a2c_invalidator:main"
+a2c-report-generator = "acme2certifier.tools.a2c_report_generator:main"
+a2c-mswcce-connection-test = "acme2certifier.tools.a2c_mswcce_connection_test:main"
+
 [project.urls]
 Homepage = "https://github.com/grindsa/acme2certifier"
 
+[tool.setuptools.dynamic]
+version = { attr = "acme2certifier.acme_srv.version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["acme2certifier*"]
+
+[tool.setuptools.package-data]
+acme2certifier = [
+    "share/*",
+    "share/apache2/*",
+    "share/nginx/*",
+    "share/skeletons/ca_handler/*",
+    "share/skeletons/eab_handler/*",
+    "share/skeletons/hooks/*",
+    "django_app/fixture/*",
+    "django_app/fixtures/*",
+    "django_app/migrations/*",
+]
+
 [tool.setuptools]
 include-package-data = true
+
+[tool.pytest.ini_options]
+# Only collect unit tests; skip tools/*_test.py shims (basename clash with package).
+testpaths = ["test"]
+addopts = [
+    "--cov=acme2certifier",
+]

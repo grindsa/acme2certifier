@@ -9,8 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 mock_db_handler = MagicMock()
 mock_dbstore_class = MagicMock()
 mock_db_handler.DBstore = mock_dbstore_class
-sys.modules["acme_srv.db_handler"] = mock_db_handler
-from acme_srv.directory import Directory, DirectoryConfig, DirectoryRepository
+sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
+from acme2certifier.acme_srv.directory import Directory, DirectoryConfig, DirectoryRepository
 
 
 class TestDirectory(unittest.TestCase):
@@ -46,9 +46,9 @@ class TestDirectory(unittest.TestCase):
         # Mock config_dic to behave like configparser.ConfigParser
         config_dic = MagicMock()
         config_dic.getboolean.return_value = False
-        with patch("acme_srv.directory.load_config", return_value=config_dic):
+        with patch("acme2certifier.acme_srv.directory.load_config", return_value=config_dic):
             with patch(
-                "acme_srv.directory.config_async_mode_load", return_value=False
+                "acme2certifier.acme_srv.directory.config_async_mode_load", return_value=False
             ) as mock_async_mode_load:
                 with (
                     patch.object(
@@ -134,7 +134,7 @@ class TestDirectory(unittest.TestCase):
     def test_010_parse_eab_and_profiles(self):
         config_dic = {"EABhandler": {"eab_handler_file": "file"}}
         with patch(
-            "acme_srv.directory.config_profile_load", return_value={"profile": "data"}
+            "acme2certifier.acme_srv.directory.config_profile_load", return_value={"profile": "data"}
         ):
             self.directory._parse_eab_and_profiles(config_dic)
             self.assertTrue(self.directory.config.eab)
@@ -146,7 +146,7 @@ class TestDirectory(unittest.TestCase):
             "EABhandler": {"eab_handler_file": "file", "eab_strict_mode": "false"}
         }
         with patch(
-            "acme_srv.directory.config_profile_load", return_value={"profile": "data"}
+            "acme2certifier.acme_srv.directory.config_profile_load", return_value={"profile": "data"}
         ):
             self.directory._parse_eab_and_profiles(config_dic)
             self.assertTrue(self.directory.config.eab)
@@ -160,7 +160,7 @@ class TestDirectory(unittest.TestCase):
             }
         }
         with patch(
-            "acme_srv.directory.config_profile_load", return_value={"profile": "data"}
+            "acme2certifier.acme_srv.directory.config_profile_load", return_value={"profile": "data"}
         ):
             with patch.object(self.mock_logger, "warning") as mock_warning:
                 self.directory._parse_eab_and_profiles(config_dic)
@@ -210,14 +210,14 @@ class TestDirectory(unittest.TestCase):
         ca_handler_module = MagicMock()
         ca_handler_module.CAhandler = MagicMock()
         with patch(
-            "acme_srv.directory.ca_handler_load", return_value=ca_handler_module
+            "acme2certifier.acme_srv.directory.ca_handler_load", return_value=ca_handler_module
         ):
             self.directory._load_ca_handler(config_dic)
             self.assertEqual(self.directory.cahandler, ca_handler_module.CAhandler)
 
     def test_018_load_ca_handler_failure(self):
         config_dic = {}
-        with patch("acme_srv.directory.ca_handler_load", return_value=None):
+        with patch("acme2certifier.acme_srv.directory.ca_handler_load", return_value=None):
             with patch.object(self.mock_logger, "critical") as mock_critical:
                 self.directory._load_ca_handler(config_dic)
                 mock_critical.assert_called()

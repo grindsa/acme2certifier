@@ -19,6 +19,11 @@ runs:
   using: "composite"
   steps:
 
+  - name: "Pull lego image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: goacme/lego
+
   - name: "Register lego container"
     run: |
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego accounts register --tls-skip-verify -s https://$ACME_SERVER.$NAME_SPACE -a --email "lego@example.com"

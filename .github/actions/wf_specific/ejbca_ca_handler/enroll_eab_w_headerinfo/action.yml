@@ -1,28 +1,11 @@
-name: "enroll_w_headerinfo"
-description: "enroll_w_headerinfo"
-inputs:
-  ASA_CA_NAME1:
-    description: "ASA CA 1"
-    required: true
-  ASA_CA_NAME2:
-    description: "ASA CA 2"
-    required: true
+name: "enroll_eab_w_headerinfo"
+description: "EJBCA EAB enrollment with header info test"
 
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 10s
-
-  - name: "EAB with headerinfo - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "EAB wit headerinfo - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "EAB with headerinfo - 01a - enrollment without header-info field (first value in list)"
     run: |

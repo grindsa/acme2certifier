@@ -17,16 +17,36 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: "Logs"
+    - name: "ACME_SRV_DB_HANDLER matches image variant"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |
-          docker compose logs | grep -i $WEB_SRV
-          if [ "$DB_HANDLER" == "django" ]; then
-              docker compose logs | grep -i migrations
-          else
-            docker compose logs | grep -i $DB_HANDLER
-          fi
+          set -euo pipefail
+          got="$(docker compose exec -T acme-srv printenv ACME_SRV_DB_HANDLER)"
+          echo "ACME_SRV_DB_HANDLER=${got} (expected ${DB_HANDLER})"
+          test "${got}" = "${DB_HANDLER}"
       env:
-        WEB_SRV: ${{ inputs.WEB_SRV }}
         DB_HANDLER: ${{ inputs.DB_HANDLER }}
       shell: bash
+    - name: "Check logs for web server"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: container
+        PATTERN: ${{ inputs.WEB_SRV }}
+        IGNORE_CASE: "true"
+        FLUSH: "false"
+    - name: "Check logs for django migrations"
+      if: ${{ inputs.DB_HANDLER == 'django' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: container
+        PATTERN: "migrations"
+        IGNORE_CASE: "true"
+        FLUSH: "false"
+    - name: "Check logs for db handler"
+      if: ${{ inputs.DB_HANDLER != 'django' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: container
+        PATTERN: ${{ inputs.DB_HANDLER }}
+        IGNORE_CASE: "true"
+        FLUSH: "false"

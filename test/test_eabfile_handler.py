@@ -24,7 +24,7 @@ class TestACMEHandler(unittest.TestCase):
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from examples.eab_handler.file_handler import EABhandler
+        from acme2certifier.eabhandlers.file_handler import EABhandler
 
         self.eabhandler = EABhandler(self.logger)
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -33,14 +33,14 @@ class TestACMEHandler(unittest.TestCase):
         """default test which always passes"""
         self.assertEqual("foo", "foo")
 
-    @patch("examples.eab_handler.file_handler.EABhandler._config_load")
+    @patch("acme2certifier.eabhandlers.file_handler.EABhandler._config_load")
     def test_002__enter__(self, mock_cfg):
         """test enter  called"""
         mock_cfg.return_value = True
         self.eabhandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    @patch("examples.eab_handler.file_handler.load_config")
+    @patch("acme2certifier.eabhandlers.file_handler.load_config")
     def test_003_config_load(self, mock_load_cfg):
         """test _config_load - empty dictionary"""
         parser = configparser.ConfigParser()
@@ -48,7 +48,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("examples.eab_handler.file_handler.load_config")
+    @patch("acme2certifier.eabhandlers.file_handler.load_config")
     def test_004_config_load(self, mock_load_cfg):
         """test _config_load - no values"""
         parser = configparser.ConfigParser()
@@ -57,7 +57,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("examples.eab_handler.file_handler.load_config")
+    @patch("acme2certifier.eabhandlers.file_handler.load_config")
     def test_005_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()
@@ -66,7 +66,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("examples.eab_handler.file_handler.load_config")
+    @patch("acme2certifier.eabhandlers.file_handler.load_config")
     def test_006_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()

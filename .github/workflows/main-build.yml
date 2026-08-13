@@ -1,18 +1,20 @@
-name: build
+name: Build - Packages and Containers
 on:
 
   push:
+    # branches: [ "disabled" ]         # build on any branch
     branches: [ "**" ]       # build on any branch
   workflow_dispatch: {}
-  schedule:
-    - cron: '0 01 * * 6'  # Every Saturday morning
-
+  #schedule:
+  #   - cron: '0 01 * * 6'  # Every Saturday morning
+   
 
 jobs:
   # ---------------------------------------------------------
   # Job 1: Build four container images (matrix) and push to GHCR
   # ---------------------------------------------------------
   build-containers:
+    name: Build container (${{ matrix.websrv }} / ${{ matrix.dbhandler }})
     runs-on: ubuntu-latest
     needs: [ build-deb ]
     permissions:
@@ -46,6 +48,7 @@ jobs:
   # Job 2: Build RPM and upload artifacts
   # ---------------------------------------------------------
   build-rpm:
+    name: Build RPM package
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -62,6 +65,7 @@ jobs:
   # Job 3: Build one DEB and upload artifact
   # ---------------------------------------------------------
   build-deb:
+    name: Build DEB package
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -78,6 +82,7 @@ jobs:
   # Dispatch tests with full payload (branch/ref-safe)
   # ---------------------------------------------------------
   dispatch:
+    name: Dispatch test workflows
     runs-on: ubuntu-latest
     needs: [ build-containers, build-rpm, build-deb ]
     permissions:

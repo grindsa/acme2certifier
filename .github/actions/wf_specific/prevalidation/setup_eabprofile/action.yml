@@ -1,0 +1,57 @@
+name: "setup_eabprofile"
+description: "Configure openssl acme_srv.cfg for EAB prevalidation profiling and stage kid_profiles.json"
+inputs:
+  VOLUME_DIR:
+    description: "Target volume directory (contains acme_ca/ and acme_srv.cfg)"
+    required: false
+    default: "data/volume"
+  KEY_FILE:
+    description: "key_file path written into [EABhandler] (as seen by the server)"
+    required: true
+  KID_PROFILES_DEST:
+    description: "Host path for the staged kid_profiles.json fixture"
+    required: true
+  PATH_REWRITE_FROM:
+    description: "Optional substring to rewrite in acme_srv.cfg after openssl setup"
+    required: false
+    default: ""
+  PATH_REWRITE_TO:
+    description: "Replacement for PATH_REWRITE_FROM"
+    required: false
+    default: ""
+  KID_PROFILES_SOURCE:
+    description: "Source kid_profiles fixture"
+    required: false
+    default: ".github/actions/wf_specific/prevalidation/fixtures/kid_profiles.json"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Setup openssl ca_handler base cfg"
+      uses: ./.github/actions/setup_openssl_cahandler
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
+        PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
+
+    - name: "Configure EABhandler"
+      run: |
+        set -euo pipefail
+        cfg="${VOLUME_DIR}/acme_srv.cfg"
+        {
+          echo
+          echo "[EABhandler]"
+          echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler"
+          echo "key_file: ${KEY_FILE}"
+          echo "eab_profiling: True"
+        } | sudo tee -a "${cfg}" >/dev/null
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        KEY_FILE: ${{ inputs.KEY_FILE }}
+
+    - name: "Stage kid_profiles"
+      uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+      with:
+        SOURCE: ${{ inputs.KID_PROFILES_SOURCE }}
+        DEST: ${{ inputs.KID_PROFILES_DEST }}

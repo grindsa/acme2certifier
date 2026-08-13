@@ -4,11 +4,14 @@
 
 # Hooks
 
-`acme2certifier` allows for the specification of pre- and post-enrollment hooks. Hooks are disabled by default and must be activated in `acme_srv.cfg` by specifying a file containing the required `Hooks` class and methods.
+`acme2certifier` allows for the specification of pre- and post-enrollment hooks. Hooks are disabled by default and must be activated in `acme_srv.cfg` by specifying `hooks_module` (dotted package name or filesystem path to a `.py` file containing the `Hooks` class).
+
+Prefer `hooks_module`. For custom code, a path is enough (no packaging); see [Custom handlers](ca_handler.md#custom-handlers-path-or-package). The older `hooks_file` option is **deprecated** but still supported; see [Upgrading](upgrading.md).
 
 ```config
 [Hooks]
-hooks_file: examples/hooks/skeleton_hooks.py
+hooks_module: acme2certifier.hookhandlers.skeleton_hooks
+# or: hooks_module: /var/www/acme2certifier/volume/hooks.py
 ```
 
 ## How to Create Your Own Hooks
@@ -19,9 +22,9 @@ Creating your own hook handler is straightforward. All you need to do is create 
 - `post_hook` - Executed after certificate enrollment, regardless of the result.
 - `success_hook` - Executed in case of a successful certificate enrollment; this runs *before* the `post_hook`.
 
-The [skeleton_hooks.py](../examples/hooks/skeleton_hooks.py) file contains a template that can be used to create a customized handler.
+The [skeleton_hooks.py](../acme2certifier/share/skeletons/hooks/skeleton_hooks.py) file contains a template that can be used to create a customized handler.
 
-Further there is an [Email Hook](../examples/hooks/email_hooks.py) sending emails in case of successful or failed certificate enrollments.
+There is also a built-in [Email Hook](../acme2certifier/hookhandlers/email_hooks.py) (`acme2certifier.hookhandlers.email_hooks`) that sends emails on successful or failed certificate enrollments.
 
 The following code describes the different input parameters provided by `acme2certifier`, as well as the expected return values:
 

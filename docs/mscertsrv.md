@@ -100,7 +100,7 @@ pip install certsrv[ntlm]
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/mscertsrv_ca_handler.py
+handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler
 host: <hostname>
 user: <username>
 password: <password>
@@ -149,13 +149,14 @@ Example:
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/mscertsrv_ca_handler.py
+handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler
 host: <hostname>
 auth_method: gssapi
 template: <name>
 krb5_principal: svc-a2c-enroll@EXAMPLE.COM
 krb5_keytab: /etc/acme2certifier/svc-a2c-enroll.keytab
-krb5_cache: /var/lib/acme2certifier/krb5cc_a2c
+krb5_cache: /var/www/acme2certifier/volume/krb5cc_a2c
+
 krb5_config: /etc/krb5.conf
 krb5_kinit_path: /usr/bin/kinit
 ```
@@ -204,7 +205,7 @@ This handler supports [EAB profiling](eab_profiling.md) to allow individual enro
 
 ```ini
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

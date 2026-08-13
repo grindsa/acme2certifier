@@ -59,7 +59,7 @@ The FreeIPA CA handler is configured via the main server configuration file, typ
 
 ```ini
 [CAhandler]
-handler_file = examples/ca_handler/freeipa_ca_handler.py
+handler_module = acme2certifier.cahandlers.freeipa_ca_handler
 api_host = https://ipa.example.com
 api_user = <ipa_user>
 api_password = <ipa_password>
@@ -71,7 +71,7 @@ profile_id = <profile_id>  # Optional, see below
 
 ### Parameter Descriptions
 
-- `handler_file`: Path to the FreeIPA CA handler Python file.
+- `handler_module`: Dotted module path of the FreeIPA CA handler (preferred), e.g. `acme2certifier.cahandlers.freeipa_ca_handler`.
 - `api_host`: URL of the FreeIPA server (e.g., `https://ipa.example.com`).
 - `api_user`: FreeIPA user with permissions to manage hosts and certificates.
 - `api_password`: Password for the FreeIPA user.
@@ -110,7 +110,7 @@ This handler can use the [eab profiling feature](eab_profiling.md) to allow indi
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 
@@ -166,4 +166,4 @@ Below is an example key-file used during regression testing:
 
 ______________________________________________________________________
 
-For more details, see the handler source code in `examples/ca_handler/freeipa_ca_handler.py` and the main documentation in `docs`.
+For more details, see the handler source in `acme2certifier/cahandlers/freeipa_ca_handler.py` and the main documentation in `docs`.

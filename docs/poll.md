@@ -12,7 +12,7 @@ Additionally, when a CSR enters the **"pending"** state, it is assumed that the 
 
 ## Polling Implementation
 
-The script [`cert_poll.py`](../tools/cert_poll.py) is located in the **tools** directory and can be scheduled via **cron**. It scans the **`orders`** table for orders with status **"processing" (4)** and passes the `poll_identifier`, along with other necessary information, to the `certificate.poll()` method.
+The script [`a2c_cert_poll.py`](../acme2certifier/tools/a2c_cert_poll.py) is located in the **tools** directory and can be scheduled via **cron**. It scans the **`orders`** table for orders with status **"processing" (4)** and passes the `poll_identifier`, along with other necessary information, to the `certificate.poll()` method.
 
 ### `ca_handler.poll()` Responsibilities
 

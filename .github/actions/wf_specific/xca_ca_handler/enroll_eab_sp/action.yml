@@ -10,18 +10,8 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "EAB - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 10s
-
-  - name: "EAB - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "EAB - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "EAB SP - 01a - SUCC - Enroll acme - 1st list entry"
     run: |
@@ -94,18 +84,10 @@ runs:
       time: 2s
 
   - name: "Check logs for errors"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs > docker-compose.log
-        cat docker-compose.log | grep "organizationalUnitName: value: acme3 expected: \['acme1', 'acme2'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-      #  docker exec acme-srv grep "organizationalUnitName: value: acme3 expected: \['acme1', 'acme2'\]" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "organizationalUnitName: value: acme3 expected: ['acme1', 'acme2']"
 
   - name: "EAB SP - 01C - Fail - Enroll lego - entry not in list"
     id: legofail01
@@ -132,18 +114,10 @@ runs:
       time: 2s
 
   - name: "Check logs for errors"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs > docker-compose.log
-        cat docker-compose.log | grep "organizationalUnitName: value: acme3 expected: \['acme1', 'acme2'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-      #  docker exec acme-srv grep "organizationalUnitName: value: acme3 expected: \['acme1', 'acme2'\]" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "organizationalUnitName: value: acme3 expected: ['acme1', 'acme2']"
 
   - name: "EAB SP - 02 - FAIL - Enroll acme - wildcard entry not present"
     id: acmefail02
@@ -171,18 +145,10 @@ runs:
       time: 2s
 
   - name: "Check logs for errors"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs > docker-compose.log
-        cat docker-compose.log | grep "failed for: \['serialNumber'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-      #  docker exec acme-srv grep "failed for: \['serialNumber'\]" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "failed for: ['serialNumber']"
 
   - name: "EAB SP - 02 - FAIL - Enroll lego - wildcard entry not present"
     id: legofail02
@@ -209,18 +175,10 @@ runs:
       time: 2s
 
   - name: "Check logs for errors"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs > docker-compose.log
-        cat docker-compose.log | grep "failed for: \['serialNumber'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-      #  docker exec acme-srv grep "failed for: \['serialNumber'\]" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "failed for: ['serialNumber']"
 
   - name: "EAB SP - 03 - FAIL - Enroll acme - string check failed"
     id: acmefail03
@@ -248,18 +206,10 @@ runs:
       time: 2s
 
   - name: "Check logs for errors"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs > docker-compose.log
-        cat docker-compose.log | grep "failed for: organizationName: value: noacme corp expected: acme corp"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-      #  docker exec acme-srv grep "failed for: organizationName: value: noacme corp expected: acme corp" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "failed for: organizationName: value: noacme corp expected: acme corp"
 
   - name: "EAB SP - 03 - FAIL - Enroll lego - string check failed"
     id: legofail03
@@ -286,18 +236,10 @@ runs:
       time: 2s
 
   - name: "Check logs for errors"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs > docker-compose.log
-        cat docker-compose.log | grep "failed for: organizationName: value: noacme corp expected: acme corp"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-      #  docker exec acme-srv grep "failed for: organizationName: value: noacme corp expected: acme corp" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "failed for: organizationName: value: noacme corp expected: acme corp"
 
   - name: "EAB SP - 04 - FAIL - Enroll acme - string parameter not present"
     id: acmefail04
@@ -325,18 +267,10 @@ runs:
       time: 2s
 
   - name: "Check logs for errors"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs > docker-compose.log
-        cat docker-compose.log | grep "failed for: \['countryName'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-      #  docker exec acme-srv grep "failed for: \['countryName'\]" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "failed for: ['countryName']"
 
   - name: "EAB SP - 04 - FAIL - Enroll acme - string parameter not present"
     id: legofail04
@@ -363,18 +297,10 @@ runs:
       time: 2s
 
   - name: "Check logs for errors"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs > docker-compose.log
-        cat docker-compose.log | grep "failed for: \['countryName'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-      #  docker exec acme-srv grep "failed for: \['countryName'\]" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "failed for: ['countryName']"
 
   - name: "EAB - 05a - Enroll acme with challenge validation disabled in kid.json"
     run: |

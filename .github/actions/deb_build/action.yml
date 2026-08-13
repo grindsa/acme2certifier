@@ -11,62 +11,61 @@ runs:
 
     - name: Retrieve Version from version.py
       run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-      shell: bash
-
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-      shell: bash
-
-    - name: "Install Firefox from Mozilla"
-      run: |
-        sudo apt-get update
-        sudo install -d -m 0755 /etc/apt/keyrings
-        wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-        echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee -a /etc/apt/sources.list.d/mozilla.list > /dev/null
-        echo '
-        Package: *
-        Pin: origin packages.mozilla.org
-        Pin-Priority: 1000
-        ' | sudo tee /etc/apt/preferences.d/mozilla
-        sudo apt update && sudo apt install -y firefox --allow-downgrades
+        echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       shell: bash
 
     - name: "Prepare environment to build deb package"
       run: |
-        sudo apt-get update && sudo apt-get -y upgrade
-        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper  --allow-downgrades
-        rm setup.py
-        rm -f examples/ngnix/acme2certifier.te
-        rm -f examples/nginx/supervisord.conf
-        rm -f examples/nginx/uwsgi.service
-        sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf
-        sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv_ssl.conf
-        sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" examples/nginx/acme2certifier.ini
-        sed -i "s/nginx/www-data/g" examples/nginx/acme2certifier.ini
-        echo "plugins=python3" >> examples/nginx/acme2certifier.ini
-        cat <<EOT > examples/nginx/acme2certifier.service
-        [Unit]
-        Description=uWSGI instance to serve acme2certifier
-        After=network.target
-
-        [Service]
-        User=www-data
-        Group=www-data
-        WorkingDirectory=/var/www/acme2certifier
-        Environment="PATH=/var/www/acme2certifier"
-        ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini
-
-        [Install]
-        WantedBy=multi-user.target
-        EOT
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get update
+        # Match debian/control Build-Depends (+ dpkg tooling for dpkg-buildpackage).
+        sudo apt-get -y install --no-install-recommends \
+          build-essential dpkg-dev fakeroot debhelper \
+          dh-python pybuild-plugin-pyproject \
+          python3-all python3-setuptools python3-build
         cp -R examples/install_scripts/debian ./
         sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
-        cd ../
-        tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
+        chmod +x debian/rules debian/patch_apache_for_deb.py
       shell: bash
 
     - name: "Build debian package"
       run: |
+        set -euo pipefail
         dpkg-buildpackage -uc -us
-        dpkg -c ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        echo "DEB_FILE=${PWD}/../acme2certifier_${{ env.TAG_NAME }}-1_all.deb" >> "$GITHUB_ENV"
+      shell: bash
+
+    - name: "Smoke-check debian package layout"
+      run: |
+        set -euo pipefail
+        DEB="${DEB_FILE:-../acme2certifier_${{ env.TAG_NAME }}-1_all.deb}"
+        [[ -f "${DEB}" ]] || { echo "ERROR: missing ${DEB}" >&2; exit 1; }
+        CHECK="$(mktemp -d)"
+        trap 'rm -rf "${CHECK}"' EXIT
+        dpkg-deb -x "$DEB" "${CHECK}"
+        echo "Smoke-check package contents for dist-packages + deploy tree"
+        fail() { echo "ERROR: $1" >&2; exit 1; }
+        # Avoid pipefail+head SIGPIPE when collecting dist-packages paths.
+        mapfile -t DIST_DIRS < <(
+          find "${CHECK}/usr/lib" -type d -path '*/dist-packages/acme2certifier' 2>/dev/null || true
+        )
+        [[ ${#DIST_DIRS[@]} -ge 1 ]] || fail "no dist-packages/acme2certifier under usr/lib"
+        WWW="${CHECK}/var/www/acme2certifier"
+        [[ -f "${WWW}/acme2certifier_wsgi.py" ]] || fail "missing acme2certifier_wsgi.py"
+        [[ -d "${WWW}/acme_srv" ]] || fail "missing acme_srv/ deploy dir (debian/dirs)"
+        # Sample cfg only under share/ + examples/ (not as a dpkg conffile at WWW root).
+        [[ -f "${WWW}/share/acme_srv.cfg" ]] || fail "missing share/acme_srv.cfg sample"
+        [[ -f "${WWW}/examples/acme_srv.cfg" ]] || fail "missing examples/acme_srv.cfg sample"
+        [[ ! -e "${WWW}/acme_srv.cfg" ]] || fail "acme_srv.cfg must not be packaged at WWW root (conffile)"
+        [[ -d "${WWW}/share/apache2" ]] || fail "missing share/apache2"
+        [[ -d "${WWW}/share/nginx" ]] || fail "missing share/nginx"
+        [[ -f "${WWW}/share/nginx/acme2certifier.service" ]] || fail "missing nginx unit"
+        [[ -f "${WWW}/share/apache2/apache_wsgi.conf" ]] || fail "missing apache_wsgi.conf"
+        echo "Apache vhosts in .deb must not reference pip venv"
+        if grep -R 'python-home=/var/www/acme2certifier/venv' \
+          "${WWW}/share/apache2/"; then
+          fail "python-home=venv still present in packaged Apache configs"
+        fi
+        echo "Smoke-check OK (dist-packages=${DIST_DIRS[0]#"${CHECK}"})"
       shell: bash

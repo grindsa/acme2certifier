@@ -59,17 +59,11 @@ runs:
       time: 5s
 
   - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
 
   - name: "certbot - Failed registration with wrong credentials"
     continue-on-error: true
@@ -97,17 +91,11 @@ runs:
       time: 5s
 
   - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
 
   - name: "lego - Failed registration with wrong credentials"
     continue-on-error: true
@@ -136,14 +124,8 @@ runs:
       time: 5s
 
   - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"

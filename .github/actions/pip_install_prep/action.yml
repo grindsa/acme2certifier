@@ -1,0 +1,99 @@
+name: "pip_install_prep"
+description: "Spin up a systemd container with the checkout mounted for pip --from-source install scripts"
+inputs:
+  DISTRO:
+    description: "ubuntu or alma"
+    required: true
+  VERSION:
+    description: "OS version (e.g. 24.04, 26.04, 8, 9)"
+    required: true
+  NAME_SPACE:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+  CONTAINER_NAME:
+    description: "Container hostname/name (must match ACME_SERVER for clients)"
+    required: false
+    default: "acme-srv"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
+    - name: "Create docker network"
+      run: |
+        if ! docker network inspect "$NAME_SPACE" >/dev/null 2>&1; then
+          docker network create "$NAME_SPACE"
+        fi
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Pull Ubuntu image"
+      if: inputs.DISTRO == 'ubuntu'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: jrei/systemd-ubuntu:${{ inputs.VERSION }}
+
+    - name: "Start Ubuntu systemd container"
+      if: inputs.DISTRO == 'ubuntu'
+      run: |
+        set -euo pipefail
+        IMAGE="jrei/systemd-ubuntu:${VERSION}"
+        echo "Starting ${IMAGE} as ${CONTAINER_NAME}"
+        docker run -d \
+          --name="${CONTAINER_NAME}" \
+          --hostname="${CONTAINER_NAME}" \
+          --network "${NAME_SPACE}" \
+          --privileged \
+          -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+          --cgroupns=host \
+          -v "$(pwd)":/tmp/acme2certifier \
+          "${IMAGE}"
+        # Wait for systemd (do not use --wait; it can hang in CI images)
+        for i in $(seq 1 30); do
+          if docker exec "${CONTAINER_NAME}" systemctl is-system-running 2>/dev/null | grep -Eq 'running|degraded'; then
+            break
+          fi
+          sleep 2
+        done
+        docker exec "${CONTAINER_NAME}" systemctl is-system-running || true
+      shell: bash
+      env:
+        VERSION: ${{ inputs.VERSION }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CONTAINER_NAME: ${{ inputs.CONTAINER_NAME }}
+
+    - name: "Pull AlmaLinux image"
+      if: inputs.DISTRO == 'alma'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: almalinux/${{ inputs.VERSION }}-init
+
+    - name: "Start AlmaLinux systemd container"
+      if: inputs.DISTRO == 'alma'
+      run: |
+        set -euo pipefail
+        IMAGE="almalinux/${VERSION}-init"
+        echo "Starting ${IMAGE} as ${CONTAINER_NAME}"
+        docker run -d \
+          --name="${CONTAINER_NAME}" \
+          --hostname="${CONTAINER_NAME}" \
+          --network "${NAME_SPACE}" \
+          --privileged \
+          -v "$(pwd)":/tmp/acme2certifier \
+          "${IMAGE}"
+        for i in $(seq 1 30); do
+          if docker exec "${CONTAINER_NAME}" systemctl is-system-running 2>/dev/null | grep -Eq 'running|degraded'; then
+            break
+          fi
+          sleep 2
+        done
+        docker exec "${CONTAINER_NAME}" systemctl is-system-running || true
+      shell: bash
+      env:
+        VERSION: ${{ inputs.VERSION }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CONTAINER_NAME: ${{ inputs.CONTAINER_NAME }}

@@ -102,21 +102,13 @@ ______________________________________________________________________
 
 ## 📦 Installation
 
-**acme2certifier** can be installed as:
+The fastest and most convenient way to install acme2certifier is Docker, then OS packages, then PyPI/pip:
 
-- **WSGI application** (Apache2/Nginx)
-- **Django project** (allows using alternative databases)
+1. **Docker** — ready-made images on [Docker Hub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container); [compose / build](examples/Docker/), [install_docker.md](docs/install_docker.md) (images install from the `.deb`)
+2. **OS packages** — [DEB](docs/install_deb.md) (`/var/www/acme2certifier`) or [RPM](docs/install_rpm.md) (`/opt/acme2certifier`)
+3. **PyPI / pip** — library + venv deploy ([Apache2 Ubuntu](docs/install_apache2_ubuntu.md), [Nginx Ubuntu](docs/install_nginx_ubuntu.md), [Nginx Alma/RHEL9](docs/install_nginx_alma.md))
 
-The fastest and most convenient way to install acme2certifier is to use docker containers. There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/).
-In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 22.04 will be provided with every release.
-
-Installation guides:
-
-- [RPM Installation (AlmaLinux 9)](docs/install_rpm.md)
-- [DEB Installation (Ubuntu 22.04)](docs/install_deb.md)
-- [Docker Build Instructions](examples/Docker/)
-- [Apache2 WSGI Setup (Ubuntu 22.04)](docs/install_apache2_wsgi.md)
-- [Nginx WSGI Setup (Ubuntu 22.04)](docs/install_nginx_wsgi_ub22.md)
+Releases publish `.deb`, `.rpm`, and PyPI (Trusted Publisher).
 
 ## Software Bill Of Material
 

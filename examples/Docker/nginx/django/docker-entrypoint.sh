@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# shellcheck source=/resolve_db_handler.sh
+. /resolve_db_handler.sh
+
+# /run is often tmpfs; ensure uWSGI socket dir exists (DEB uses /run/uwsgi/acme.sock).
+mkdir -p /run/uwsgi
+chown www-data:www-data /run/uwsgi
+
 # create acme-srv.cfg if not existing
 if [[ ! -f /var/www/acme2certifier/volume/acme_srv.cfg ]]
 then
@@ -12,7 +19,7 @@ if  [[ -f /var/www/acme2certifier/volume/acme2certifier_cert.pem ]] && \
     [[ -f /var/www/acme2certifier/volume/acme2certifier_key.pem ]] && \
     [[ ! -f /etc/nginx/sites-available/acme_srv_ssl.conf ]]
 then
-    cp  /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
+    cp  /var/www/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
     ln -s /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
 fi
 
@@ -26,86 +33,91 @@ if ( [[ ! -f /var/www/acme2certifier/volume/ca_handler.py ]] && \
         ))
 then
     echo "no ca_handler.py found! creating from skeleton_ca_handler.py" >> /proc/1/fd/1
-    cp /var/www/acme2certifier/examples/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
+    cp /var/www/acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
 else
     if [[ -f /var/www/acme2certifier/volume/ca_handler.py ]]
     then
-        sed -i "s/from acme.helper import/from acme_srv.helper import/g" /var/www/acme2certifier/volume/ca_handler.py
+        sed -i "s/from acme\.helper import/from acme2certifier.acme_srv.helper import/g; s/from acme_srv\.helper import/from acme2certifier.acme_srv.helper import/g" /var/www/acme2certifier/volume/ca_handler.py
     fi
 fi
 
 # create symlink for the acme_srv.cfg
-if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.cfg ]]
+if [[ ! -L /var/www/acme2certifier/acme_srv.cfg ]]
 then
-    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
+    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
     chown www-data /var/www/acme2certifier/volume/acme_srv.cfg
-fi
-
-# create symlink for the acme_srv.db
-if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.db ]]
-then
-    ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv/acme_srv.db
 fi
 
 # create symlink for the ca_handler
 if [[ ! -L /var/www/acme2certifier/acme_srv/ca_handler.py ]]
 then
+    mkdir -p /var/www/acme2certifier/acme_srv
     ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme_srv/ca_handler.py
 fi
 
-# create settings.py if not existing
-if [[ ! -f /var/www/acme2certifier/volume/settings.py ]]
-then
-    echo "no settings.py found! copy settings.py"
-    egrep -v '(# SECURITY WARNING: keep the secret key used in production secret!|^SECRET_KEY)' /var/www/acme2certifier/examples/django/acme2certifier/settings.py > /var/www/acme2certifier/volume/settings.py
-    ## generate SECRET_KEY
-    echo "generating SECRET_KEY"
-    DJANGO_SECRET_KEY=$(python3 tools/django_secret_keygen.py)
-    cat >>/var/www/acme2certifier/volume/settings.py <<EOF
+DB_HANDLER=$(a2c_resolve_db_handler)
+echo "resolved DB handler: ${DB_HANDLER} (cfg > ACME_SRV_DB_HANDLER=${ACME_SRV_DB_HANDLER:-} > wsgi)" >> /proc/1/fd/1
+
+if [[ "$DB_HANDLER" == "django" ]]; then
+    DJANGO_SETTINGS=/usr/lib/python3/dist-packages/acme2certifier/django_project/settings.py
+    DJANGO_MIGRATIONS=/usr/lib/python3/dist-packages/acme2certifier/django_app/migrations
+
+    # create settings.py if not existing
+    if [[ ! -f /var/www/acme2certifier/volume/settings.py ]]
+    then
+        echo "no settings.py found! copy settings.py"
+        egrep -v '(# SECURITY WARNING: keep the secret key used in production secret!|^SECRET_KEY)' /var/www/acme2certifier/examples/django/settings.py > /var/www/acme2certifier/volume/settings.py
+        ## generate SECRET_KEY
+        echo "generating SECRET_KEY"
+        DJANGO_SECRET_KEY=$(a2c-django-secret-keygen)
+        cat >>/var/www/acme2certifier/volume/settings.py <<EOF
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '${DJANGO_SECRET_KEY}'
 EOF
-    echo "adding '*' wildcard hosts in settings.py" >> /proc/1/fd/1
-    sed -i "s/ALLOWED_HOSTS = \['127.0.0.1'\]/ALLOWED_HOSTS = \['127.0.0.1','*'\]/g" /var/www/acme2certifier/volume/settings.py
-fi
-
-# create migrations if not existing
-if [[ ! -d /var/www/acme2certifier/volume/migrations ]]
-then
-    echo "no acme_srv.cfg found! creating acme_srv.cfg" >> /proc/1/fd/1
-    cp  -R /var/www/acme2certifier/examples/django/acme_srv/migrations /var/www/acme2certifier/volume/
-    # mkdir -p /var/www/acme2certifier/volume/migrations
-fi
-
-# create a symlink for migrations
-if [[ ! -L /var/www/acme2certifier/acme_srv/migrations ]]
-then
-    if [[ -d /var/www/acme2certifier/volume/migrations ]]
-    then
-        echo "delete migration directory" >> /proc/1/fd/1
-        rm -rf /var/www/acme2certifier/acme_srv/migrations
+        echo "adding '*' wildcard hosts in settings.py" >> /proc/1/fd/1
+        sed -i "s/ALLOWED_HOSTS = \['127.0.0.1'\]/ALLOWED_HOSTS = \['127.0.0.1','*'\]/g" /var/www/acme2certifier/volume/settings.py
     fi
-    echo "create symlink for migration directory" >> /proc/1/fd/1
-    ln -s /var/www/acme2certifier/volume/migrations /var/www/acme2certifier/acme_srv/
-fi
 
-# create a symlink for settings.py
-if [[ ! -L /var/www/acme2certifier/acme2certifier/settings.py ]]
-then
-    ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
-fi
+    # create migrations if not existing
+    if [[ ! -d /var/www/acme2certifier/volume/migrations ]]
+    then
+        echo "copying django migrations to volume" >> /proc/1/fd/1
+        cp -R "$DJANGO_MIGRATIONS" /var/www/acme2certifier/volume/
+    fi
 
-# check if we need to remove django_rename app
-if ( grep "    'django_rename_app'," /var/www/acme2certifier/volume/settings.py &> /dev/null)
-then
-    echo "remove django_rename application" >> /proc/1/fd/1
-    sed -i "/    'django_rename_app',/d" /var/www/acme2certifier/volume/settings.py
-fi
+    # create a symlink for migrations
+    if [[ ! -L "$DJANGO_MIGRATIONS" ]]
+    then
+        if [[ -d /var/www/acme2certifier/volume/migrations ]]
+        then
+            echo "replace migration directory with volume symlink" >> /proc/1/fd/1
+            rm -rf "$DJANGO_MIGRATIONS"
+            ln -s /var/www/acme2certifier/volume/migrations "$DJANGO_MIGRATIONS"
+        fi
+    fi
 
-echo "apply migrations"  >> /proc/1/fd/1
-touch /var/www/acme2certifier/acme_srv/migrations/__init__.py
-python3 /var/www/acme2certifier/tools/django_update.py
-python3 manage.py loaddata acme_srv/fixture/status.yaml
+    # create a symlink for settings.py
+    if [[ ! -L "$DJANGO_SETTINGS" ]]
+    then
+        rm -f "$DJANGO_SETTINGS"
+        ln -s /var/www/acme2certifier/volume/settings.py "$DJANGO_SETTINGS"
+    fi
+
+    # check if we need to remove django_rename app
+    if ( grep "    'django_rename_app'," /var/www/acme2certifier/volume/settings.py &> /dev/null)
+    then
+        echo "remove django_rename application" >> /proc/1/fd/1
+        sed -i "/    'django_rename_app',/d" /var/www/acme2certifier/volume/settings.py
+    fi
+
+    echo "apply migrations"  >> /proc/1/fd/1
+    touch /var/www/acme2certifier/volume/migrations/__init__.py
+    a2c-django-update
+    a2c-manage loaddata status
+else
+    echo "DB handler is wsgi; skipping Django settings/migrations bootstrap" >> /proc/1/fd/1
+    a2c-db-update
+fi
 
 chown -R www-data /var/www/acme2certifier/volume
 chmod u+s /var/www/acme2certifier/volume/

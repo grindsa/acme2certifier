@@ -1,0 +1,191 @@
+name: "ms_ca_reconfigure"
+description: "Write MSCA acme_srv.cfg, optional CA/krb5/keytab/django settings, restart by deployment type"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+  VOLUME_DIR:
+    description: "Volume directory containing acme_srv.cfg"
+    required: true
+  HANDLER_MODULE:
+    description: "CAhandler.handler_module"
+    required: true
+  OPTIONS:
+    description: "[CAhandler] options (multiline)"
+    required: false
+    default: ""
+  EXTRA_SECTIONS:
+    description: "Extra cfg sections (multiline)"
+    required: false
+    default: ""
+  CERTIFICATE_OPTIONS:
+    description: "Lines after [Certificate]"
+    required: false
+    default: "enrollment_timeout: 40"
+  ORDER_OPTIONS:
+    description: "Lines after [Order]"
+    required: false
+    default: ""
+  COPY_CA_CERTS:
+    description: "Install CA certs into volume"
+    required: false
+    default: "false"
+  CA_CERTS_SOURCE:
+    description: "Source file when COPY_CA_CERTS=true (ignored if CA_CERTS_CONTENT set)"
+    required: false
+    default: "test/ca/certsrv_ca_certs.pem"
+  CA_CERTS_CONTENT:
+    description: "Inline PEM content for ca_certs (takes precedence over CA_CERTS_SOURCE)"
+    required: false
+    default: ""
+  CA_CERTS_DEST:
+    description: "Destination path for ca certs when COPY_CA_CERTS=true"
+    required: false
+    default: ""
+  KRB5_CONF:
+    description: "Optional krb5.conf content"
+    required: false
+    default: ""
+  KRB5_KEYTAB_B64:
+    description: "Optional base64 keytab"
+    required: false
+    default: ""
+  COPY_DJANGO_SETTINGS:
+    description: "Copy .github/django_settings.py into VOLUME_DIR/settings.py"
+    required: false
+    default: "false"
+  DISABLE_CHALLENGE_VALIDATION:
+    description: "Set challenge_validation_disable: True in acme_srv.cfg"
+    required: false
+    default: "false"
+  RESTART:
+    description: "Restart a2c after writing cfg"
+    required: false
+    default: "true"
+  WEBSRV:
+    description: "Web server for deb restart (apache2|nginx)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Write acme_srv.cfg"
+      uses: ./.github/actions/setup_cahandler_cfg
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        HANDLER_MODULE: ${{ inputs.HANDLER_MODULE }}
+        OPTIONS: ${{ inputs.OPTIONS }}
+        EXTRA_SECTIONS: ${{ inputs.EXTRA_SECTIONS }}
+        CERTIFICATE_OPTIONS: ${{ inputs.CERTIFICATE_OPTIONS }}
+        ORDER_OPTIONS: ${{ inputs.ORDER_OPTIONS }}
+
+    - name: "Copy CA certs"
+      if: ${{ inputs.COPY_CA_CERTS == 'true' }}
+      run: |
+        set -euo pipefail
+        dest="${CA_CERTS_DEST}"
+        if [[ -z "${dest}" ]]; then
+          if [[ "${DEPLOYMENT_TYPE}" == "container" ]]; then
+            dest="${VOLUME_DIR}/ca_certs.pem"
+          else
+            dest="${VOLUME_DIR}/acme_ca/ca_certs.pem"
+          fi
+        fi
+        sudo mkdir -p "$(dirname "${dest}")"
+        if [[ -n "${CA_CERTS_CONTENT}" ]]; then
+          printf '%s\n' "${CA_CERTS_CONTENT}" | sudo tee "${dest}" >/dev/null
+        else
+          sudo cp "${CA_CERTS_SOURCE}" "${dest}"
+        fi
+        sudo chmod 644 "${dest}" || true
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        CA_CERTS_DEST: ${{ inputs.CA_CERTS_DEST }}
+        CA_CERTS_SOURCE: ${{ inputs.CA_CERTS_SOURCE }}
+        CA_CERTS_CONTENT: ${{ inputs.CA_CERTS_CONTENT }}
+
+    - name: "Write krb5.conf"
+      if: ${{ inputs.KRB5_CONF != '' }}
+      run: |
+        set -euo pipefail
+        if [[ "${DEPLOYMENT_TYPE}" == "container" ]]; then
+          dest="${VOLUME_DIR}/krb5.conf"
+        else
+          dest="${VOLUME_DIR}/acme_ca/krb5.conf"
+        fi
+        sudo mkdir -p "$(dirname "${dest}")"
+        printf '%s\n' "${KRB5_CONF}" | sudo tee "${dest}" >/dev/null
+        sudo chmod 644 "${dest}" || true
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        KRB5_CONF: ${{ inputs.KRB5_CONF }}
+
+    - name: "Write krb5.keytab"
+      if: ${{ inputs.KRB5_KEYTAB_B64 != '' }}
+      run: |
+        set -euo pipefail
+        if [[ "${DEPLOYMENT_TYPE}" == "container" ]]; then
+          dest="${VOLUME_DIR}/krb5.keytab"
+        else
+          dest="${VOLUME_DIR}/acme_ca/krb5.keytab"
+        fi
+        sudo mkdir -p "$(dirname "${dest}")"
+        echo "${KRB5_KEYTAB_B64}" | base64 -d | sudo tee "${dest}" >/dev/null
+        sudo chmod 644 "${dest}" || true
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        KRB5_KEYTAB_B64: ${{ inputs.KRB5_KEYTAB_B64 }}
+
+    - name: "Copy django settings"
+      if: ${{ inputs.COPY_DJANGO_SETTINGS == 'true' }}
+      run: |
+        set -euo pipefail
+        sudo cp .github/django_settings.py "${VOLUME_DIR}/settings.py"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+
+    - name: "Disable challenge validation"
+      if: ${{ inputs.DISABLE_CHALLENGE_VALIDATION == 'true' }}
+      run: |
+        set -euo pipefail
+        sudo sed -i 's/challenge_validation_disable: False/challenge_validation_disable: True/g' \
+          "${VOLUME_DIR}/acme_srv.cfg"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+
+    - name: "Restart a2c"
+      if: ${{ inputs.RESTART == 'true' }}
+      run: |
+        set -euo pipefail
+        case "${DEPLOYMENT_TYPE}" in
+          container)
+            (cd examples/Docker && docker compose restart)
+            ;;
+          rpm)
+            docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+            ;;
+          deb)
+            if [[ -z "${WEBSRV}" ]]; then
+              echo "ERROR: WEBSRV is required for deb restart" >&2
+              exit 1
+            fi
+            docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "${WEBSRV}"
+            ;;
+          *)
+            echo "ERROR: unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        WEBSRV: ${{ inputs.WEBSRV }}

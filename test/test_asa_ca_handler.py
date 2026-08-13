@@ -20,7 +20,7 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         import logging
-        from examples.ca_handler.asa_ca_handler import CAhandler
+        from acme2certifier.cahandlers.asa_ca_handler import CAhandler
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
@@ -32,7 +32,7 @@ class TestACMEHandler(unittest.TestCase):
         """default test which always passes"""
         self.assertEqual("foo", "foo")
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._config_load")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._config_load")
     def test_002__enter__(self, mock_cfg):
         """test enter  called"""
         mock_cfg.return_value = True
@@ -52,7 +52,7 @@ class TestACMEHandler(unittest.TestCase):
             ("Method not implemented.", None, None), self.cahandler.trigger("payload")
         )
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_005_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"api_host": "api_host"}}
@@ -80,7 +80,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_006_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"api_user": "api_user"}}
@@ -108,7 +108,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_007_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"api_password": "api_password"}}
@@ -136,7 +136,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_008_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"api_key": "api_key"}}
@@ -164,7 +164,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_009_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {
@@ -185,7 +185,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_010_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"foo": "bar"}
@@ -217,7 +217,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_011_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"request_timeout": 20}}
@@ -249,7 +249,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_012_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"request_timeout": "aa"}}
@@ -285,7 +285,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_013_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"cert_validity_days": 10}}
@@ -318,7 +318,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_014_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"cert_validity_days": "aa"}}
@@ -350,7 +350,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_015_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"ca_bundle": "aa"}}
@@ -382,7 +382,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_016_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"CAhandler": {"ca_bundle": "False"}}
@@ -414,7 +414,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.cert_validity_days)
         self.assertFalse(self.cahandler.header_info_field)
 
-    @patch("examples.ca_handler.asa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_017_config_load(self, mock_config_load):
         """test _config_load"""
         mock_config_load.return_value = {"Order": {"header_info_list": '["foo"]'}}
@@ -488,6 +488,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _api_post(="""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 1
         mock_req.side_effect = Exception("exc_api_post")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -531,6 +532,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _api_get()"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 1
         mock_req.side_effect = Exception("exc_api_get")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((500, "exc_api_get"), self.cahandler._api_get("url"))
@@ -539,27 +541,27 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
     def test_025__issuers_list(self, mock_get):
         """test _issuers_list()"""
         mock_get.return_value = (200, "content")
         self.assertEqual("content", self.cahandler._issuers_list())
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
     def test_026__profiles_list(self, mock_get):
         """test _profiles_list()"""
         self.cahandler.ca_name = "ca_name"
         mock_get.return_value = (200, "content")
         self.assertEqual("content", self.cahandler._profiles_list())
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
     def test_027__certificates_list(self, mock_get):
         """test _profiles_list()"""
         self.cahandler.ca_name = "ca_name"
         mock_get.return_value = (200, "content")
         self.assertEqual("content", self.cahandler._certificates_list())
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
     def test_028_cert_status_get(self, mock_req):
         """test _profiles_list()"""
         self.cahandler.ca_name = "ca_name"
@@ -569,8 +571,8 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._cert_status_get("cert"),
         )
 
-    @patch("examples.ca_handler.asa_ca_handler.csr_san_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_san_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_cn_get")
     def test_029__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = "cn"
@@ -578,8 +580,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("cn", self.cahandler._csr_cn_get("csr"))
         self.assertFalse(mock_san.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.csr_san_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_san_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_cn_get")
     def test_030__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
@@ -593,8 +595,8 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_san.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.csr_san_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_san_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_cn_get")
     def test_031__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
@@ -608,14 +610,14 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_san.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuers_list")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuers_list")
     def test_032_issuer_verify(self, mock_list):
         """_issuer_verify()"""
         self.cahandler.ca_name = "ca_name"
         mock_list.return_value = {"issuers": ["1", "2", "ca_name"]}
         self.assertFalse(self.cahandler._issuer_verify())
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuers_list")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuers_list")
     def test_033_issuer_verify(self, mock_list):
         """_issuer_verify()"""
         self.cahandler.ca_name = "ca_name"
@@ -626,7 +628,7 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:CAhandler.enroll(): CA ca_name not found", lcm.output
         )
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuers_list")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuers_list")
     def test_034_issuer_verify(self, mock_list):
         """_issuer_verify()"""
         self.cahandler.ca_name = "ca_name"
@@ -638,14 +640,14 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._profiles_list")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profiles_list")
     def test_035_profile_verify(self, mock_list):
         """_profile_verify()"""
         self.cahandler.profile_name = "profile_name"
         mock_list.return_value = {"profiles": ["1", "2", "profile_name"]}
         self.assertFalse(self.cahandler._profile_verify())
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._profiles_list")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profiles_list")
     def test_036_profile_verify(self, mock_list):
         """_profile_verify()"""
         self.cahandler.profile_name = "profile_name"
@@ -659,7 +661,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._profiles_list")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profiles_list")
     def test_037_profile_verify(self, mock_list):
         """_profile_verify()"""
         self.cahandler.ca_name = "ca_name"
@@ -671,8 +673,57 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.asa_ca_handler.uts_to_date_utc")
-    @patch("examples.ca_handler.asa_ca_handler.uts_now")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuers_list")
+    def test_037a_issuer_verify_api_error_string(self, mock_list):
+        """_issuer_verify() must not TypeError when API returns error string containing 'issuers'"""
+        self.cahandler.ca_name = "ca_name"
+        mock_list.return_value = (
+            "HTTPSConnectionPool(host='x'): Max retries exceeded with url: "
+            "/asa_acme/v5/list_issuers (ConnectTimeoutError)"
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            error = self.cahandler._issuer_verify()
+        self.assertTrue(error.startswith("ASA API error:"))
+        self.assertIn("list_issuers", error)
+        self.assertTrue(any("ASA API error:" in line for line in lcm.output))
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profiles_list")
+    def test_037b_profile_verify_api_error_string(self, mock_list):
+        """_profile_verify() must not TypeError when API returns error string containing 'profiles'"""
+        self.cahandler.profile_name = "profile_name"
+        mock_list.return_value = (
+            "HTTPSConnectionPool(host='x'): Max retries exceeded with url: "
+            "/asa_acme/v5/list_profiles?issuerName=ca (ConnectTimeoutError)"
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            error = self.cahandler._profile_verify()
+        self.assertTrue(error.startswith("ASA API error:"))
+        self.assertIn("list_profiles", error)
+        self.assertTrue(any("ASA API error:" in line for line in lcm.output))
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
+    def test_037c_issuers_list_cache(self, mock_get):
+        """_issuers_list() caches successful responses"""
+        mock_get.return_value = (200, {"issuers": ["ca_name"]})
+        self.assertEqual({"issuers": ["ca_name"]}, self.cahandler._issuers_list())
+        self.assertEqual({"issuers": ["ca_name"]}, self.cahandler._issuers_list())
+        self.assertEqual(1, mock_get.call_count)
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.time.sleep")
+    @patch("requests.get")
+    def test_037d_api_get_retries(self, mock_req, mock_sleep):
+        """_api_get() retries transport failures then succeeds"""
+        self.cahandler.request_retries = 3
+        mockresponse = Mock()
+        mockresponse.status_code = 200
+        mockresponse.json = lambda: {"issuers": ["ca"]}
+        mock_req.side_effect = [Exception("timeout"), Exception("timeout"), mockresponse]
+        self.assertEqual((200, {"issuers": ["ca"]}), self.cahandler._api_get("url"))
+        self.assertEqual(3, mock_req.call_count)
+        self.assertEqual(2, mock_sleep.call_count)
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.uts_to_date_utc")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.uts_now")
     def test_038__validity_dates_get(self, mock_now, mock_utc):
         """test _validity_dates_get()"""
         mock_now.return_value = 10
@@ -680,9 +731,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(("date1", "date2"), self.cahandler._validity_dates_get())
         self.assertTrue(mock_now.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.asa_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.asa_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.b64_decode")
     def test_039__pem_cert_chain_generate(self, mock_dec, mock_d2p, mock_b2s):
         """test _pem_cert_chain_generate()"""
         mock_b2s.return_value = "cert"
@@ -732,8 +783,8 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 """
         self.assertEqual(result, self.cahandler._pem_cert_chain_generate(cert_list))
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._pem_cert_chain_generate")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
     def test_041___issuer_chain_get(self, mock_req, mock_pem):
         """test _issuer_chain_get()"""
         mock_req.return_value = ("code", {"certs": ["bar", "foo"]})
@@ -742,8 +793,8 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual("issuer_chain", self.cahandler._issuer_chain_get())
         self.assertTrue(mock_pem.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._pem_cert_chain_generate")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
     def test_042___issuer_chain_get(self, mock_req, mock_pem):
         """test _issuer_chain_get()"""
         mock_req.return_value = ("code", {"foobar": ["bar", "foo"]})
@@ -752,17 +803,17 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler._issuer_chain_get())
         self.assertFalse(mock_pem.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.enrollment_config_log")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.asa_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.asa_ca_handler.b64_decode")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_pubkey_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify")
-    @patch("examples.ca_handler.asa_ca_handler.eab_profile_header_info_check")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_pubkey_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.eab_profile_header_info_check")
     def test_043_enroll(
         self,
         mock_pv,
@@ -798,17 +849,17 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_d2p.called)
         self.assertFalse(mock_ecl.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.enrollment_config_log")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.asa_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.asa_ca_handler.b64_decode")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_pubkey_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._profile_verify")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_pubkey_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
     def test_044_enroll(
         self,
         mock_iv,
@@ -847,16 +898,16 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_d2p.called)
         self.assertTrue(mock_ecl.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.asa_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.asa_ca_handler.b64_decode")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_pubkey_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._profile_verify")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_pubkey_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
     def test_045_enroll(
         self,
         mock_iv,
@@ -891,16 +942,16 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_b2s.called)
         self.assertTrue(mock_d2p.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.asa_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.asa_ca_handler.b64_decode")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_pubkey_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._profile_verify")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_pubkey_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
     def test_046_enroll(
         self,
         mock_iv,
@@ -933,16 +984,16 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_b2s.called)
         self.assertFalse(mock_d2p.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.asa_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.asa_ca_handler.b64_decode")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_pubkey_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._profile_verify")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_pubkey_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
     def test_047_enroll(
         self,
         mock_iv,
@@ -975,16 +1026,16 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_b2s.called)
         self.assertFalse(mock_d2p.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.asa_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.asa_ca_handler.b64_decode")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_pubkey_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._profile_verify")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_pubkey_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
     def test_048_enroll(
         self,
         mock_iv,
@@ -1019,16 +1070,16 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_b2s.called)
         self.assertFalse(mock_d2p.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.asa_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.asa_ca_handler.b64_decode")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_pubkey_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._profile_verify")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_pubkey_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_chain_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profile_verify")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuer_verify")
     def test_049_enroll(
         self,
         mock_iv,
@@ -1069,9 +1120,9 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_b2s.called)
         self.assertFalse(mock_d2p.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.eab_profile_revocation_check")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.cert_ski_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.eab_profile_revocation_check")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
     def test_050_revoke(self, mock_ski, mock_post, mock_epr):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
@@ -1082,9 +1133,9 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_post.called)
         self.assertFalse(mock_epr.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.eab_profile_revocation_check")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.cert_ski_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.eab_profile_revocation_check")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
     def test_051_revoke(self, mock_ski, mock_post, mock_epr):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
@@ -1096,8 +1147,8 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_post.called)
         self.assertTrue(mock_epr.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.cert_ski_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
     def test_052_revoke(self, mock_ski, mock_post):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
@@ -1110,8 +1161,8 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_ski.called)
         self.assertTrue(mock_post.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.cert_ski_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
     def test_053_revoke(self, mock_ski, mock_post):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
@@ -1124,8 +1175,8 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_ski.called)
         self.assertTrue(mock_post.called)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
-    @patch("examples.ca_handler.asa_ca_handler.cert_ski_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.cert_ski_get")
     def test_054_revoke(self, mock_ski, mock_post):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
@@ -1265,9 +1316,9 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         # self.assertIn("foo", lcm.output)
         self.assertFalse(self.cahandler.profile_name)
 
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get")
-    @patch("examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.asa_ca_handler.csr_pubkey_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_pubkey_get")
     def test_067_enrollment_dic_create(self, mock_pkg, mock_ccg, mock_vdg):
         """test _enrollment_dic_create()"""
         mock_pkg.return_value = "pubkey"
@@ -1283,7 +1334,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         }
         self.assertEqual(result, self.cahandler._enrollment_dic_create("csr"))
 
-    @patch("examples.ca_handler.asa_ca_handler.handler_config_check")
+    @patch("acme2certifier.cahandlers.asa_ca_handler.handler_config_check")
     def test_068_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"

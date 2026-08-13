@@ -22,10 +22,8 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+
 jobs:
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
     runs-on: ubuntu-latest
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -39,13 +37,11 @@ jobs:
           BRANCH: ${{ inputs.branch }}
           RUN_ID: ${{ inputs.run_id }}
 
-  # ---------------------------------------------------------
-  # start instance
-  # ---------------------------------------------------------
   instance_start:
     needs: guard
     runs-on: ubuntu-latest
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || inputs.branch == 'min' || inputs.branch == 'min-devel' || contains(inputs.branch, 'certifier')) }}
+    # Shared NCM AWS host; keep in sync with instance_stop skip logic.
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_pip') || contains(inputs.branch, 'certifier')) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -70,26 +66,87 @@ jobs:
           ACTION: "start"
           IGNORE_CURRENT_STATUS: "false"
 
-      - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 60s
-
       - name: "Prepare ssh environment in ramdisk"
         run: |
+          set -euo pipefail
           sudo mkdir -p /tmp/rd
-          sudo mount -t tmpfs -o size=5M none /tmp/rd
-          sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+          sudo mount -t tmpfs -o size=5M none /tmp/rd || true
+          printf '%s\n' "$SSH_KEY" | sudo tee /tmp/rd/ak.tmp >/dev/null
+          printf '%s\n' "$SSH_KNOWN_HOSTS" | sudo tee /tmp/rd/known_hosts >/dev/null
           sudo chmod 600 /tmp/rd/ak.tmp
+          # Allow runner user to read the key (avoid sudo ssh).
+          sudo chown "$(id -u):$(id -g)" /tmp/rd/ak.tmp /tmp/rd/known_hosts
+
+      - name: "Wait for instance public IP + SSH"
+        run: |
+          set -euo pipefail
+          # Prefer the live EC2 public IP: DNS (SSH_HOST) can lag after stop/start.
+          INSTANCE_ID="${{ env.AWS_X64-UB-01_INSTANCE_ID }}"
+          REGION="${{ env.AWS_REGION }}"
+          DNS_HOST="${{ env.SSH_HOST }}"
+          DNS_IP="$(getent ahostsv4 "$DNS_HOST" | awk '{print $1; exit}' || true)"
+          echo "SSH_HOST DNS ${DNS_HOST} -> ${DNS_IP:-unresolved}"
+
+          PUBLIC_IP=""
+          for i in $(seq 1 40); do
+            STATE="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+              --query 'Reservations[0].Instances[0].State.Name' --output text)"
+            PUBLIC_IP="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+              --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
+            echo "attempt ${i}/40 state=${STATE} public_ip=${PUBLIC_IP}"
+            if [[ "$STATE" == "running" && -n "$PUBLIC_IP" && "$PUBLIC_IP" != "None" ]]; then
+              break
+            fi
+            sleep 5
+            PUBLIC_IP=""
+          done
+          if [[ -z "$PUBLIC_IP" || "$PUBLIC_IP" == "None" ]]; then
+            echo "ERROR: instance has no public IP yet" >&2
+            exit 1
+          fi
+          if [[ -n "$DNS_IP" && "$DNS_IP" != "$PUBLIC_IP" ]]; then
+            echo "WARNING: DNS ${DNS_IP} != EC2 public IP ${PUBLIC_IP}; using EC2 IP for SSH"
+          fi
+          echo "SSH_CONNECT_HOST=${PUBLIC_IP}" >> "$GITHUB_ENV"
+
+          # System status checks (sshd typically up once these pass).
+          aws ec2 wait instance-status-ok --region "$REGION" --instance-ids "$INSTANCE_ID" || true
+
+          ssh_cmd() {
+            ssh -i /tmp/rd/ak.tmp -p "${{ env.SSH_PORT }}" \
+              -o BatchMode=yes \
+              -o ConnectTimeout=10 \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/tmp/rd/known_hosts \
+              "${{ env.SSH_USER }}@${PUBLIC_IP}" "$@"
+          }
+          for i in $(seq 1 30); do
+            if ssh_cmd true; then
+              echo "SSH ready after ${i} attempt(s) via ${PUBLIC_IP}"
+              exit 0
+            fi
+            echo "SSH attempt ${i}/30 to ${PUBLIC_IP} failed; retrying..."
+            sleep 3
+          done
+          echo "ERROR: SSH not ready on ${PUBLIC_IP} (DNS was ${DNS_IP:-unknown})" >&2
+          ssh -v -i /tmp/rd/ak.tmp -p "${{ env.SSH_PORT }}" \
+            -o BatchMode=yes -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/tmp/rd/known_hosts \
+            "${{ env.SSH_USER }}@${PUBLIC_IP}" true || true
+          exit 1
 
       - name: "start ncm on remote instance"
         run: |
-          ssh -o "StrictHostKeyChecking=no" -i /tmp/rd/ak.tmp ${{ env.SSH_USER }}@${{ env.SSH_HOST }} -p ${{ env.SSH_PORT }} "/usr/local/bin/ncm_mgr.sh start"
+          ssh -i /tmp/rd/ak.tmp -p ${{ env.SSH_PORT }} \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/tmp/rd/known_hosts \
+            ${{ env.SSH_USER }}@${{ env.SSH_CONNECT_HOST }} \
+            "/usr/local/bin/ncm_mgr.sh start"
 
 
-  # ---------------------------------------------------------
-  # Test container images downloaded from the producer run
-  # ---------------------------------------------------------
+  # max-parallel: 1 — single shared NCM AWS instance via SSH tunnel
   test-containers:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
@@ -101,9 +158,13 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse NCM configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -137,23 +198,28 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
-      - name: "No profile - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
+      - name: "No profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -169,21 +235,23 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "Profile 101 - Setup a2c with certifier_ca_handler with profile 101"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_id: 101" >> examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+      - name: "Profile 101 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 101
 
       - name: "Profile 101 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
@@ -193,21 +261,23 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "Profile 102 - Setup a2c with certifier_ca_handler with Profile 102"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_id: 102" >> examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+      - name: "Profile 102 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 102
 
       - name: "Profile 102 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_102_profile
@@ -217,21 +287,24 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "Header-info - Setup a2c with certifier_ca_handler with header-info"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+      - name: "Header-info - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
 
       - name: "Header-info - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_headerinfo
@@ -241,36 +314,37 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "EAB without headerinfo - Setup a2c with certifier_ca_handler"
+      - name: "EAB without headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Restart a2c"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-
           cd examples/Docker/
           docker compose restart
 
@@ -282,38 +356,39 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+      - name: "EAB with headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
 
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: |
           cd examples/Docker/
           docker compose restart
 
@@ -326,10 +401,10 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "EAB with headerinfo - Reconfigure key_file without restarting"
-        run: |
-          sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/      \"prevalidated_domainlist\": \[\"www.example.com\"\]/          \"prevalidated_domainlist\": \[\"www.example1.com\"\]\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '34,35d' examples/Docker/data/kid_profiles.json
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.json
+          DEST: examples/Docker/data/kid_profiles.json
 
       - name: "EAB with headerinfo - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -344,12 +419,9 @@ jobs:
       - name: "kid-file in yaml format - Reconfiguration"
         run: |
           sudo sed -i "s/kid_profiles.json/kid_profiles.yml/g" examples/Docker/data/acme_srv.cfg
-          sudo pip3 install yq
-          sudo pip3 install jq
-          sudo sh -c "cat examples/Docker/data/kid_profiles.json | yq -y '.' > examples/Docker/data/kid_profiles.yml"
-          sudo rm examples/Docker/data/kid_profiles.json
-          sudo sed -i '33,34d' examples/Docker/data/kid_profiles.yml
-          # sudo cat examples/Docker/data/kid_profiles.yml
+          sudo cp .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.yml examples/Docker/data/kid_profiles.yml
+          sudo chmod 777 examples/Docker/data/kid_profiles.yml
+          sudo rm -f examples/Docker/data/kid_profiles.json
 
       - name: "kid-file in yaml format - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -361,22 +433,25 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "ACME Profile - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+      - name: "ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            enrollment_config_log: True
 
       - name: "ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
@@ -386,40 +461,41 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+      - name: "EAB ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+            cert_operations_log: True
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+            enrollment_config_log: True
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
 
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: |
           cd examples/Docker/
           docker compose restart
 
@@ -441,15 +517,9 @@ jobs:
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
@@ -458,9 +528,6 @@ jobs:
           name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test RPMs (EL8 & EL9) downloaded from the producer run
-  # ---------------------------------------------------------
   test-rpm:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
@@ -470,10 +537,8 @@ jobs:
       max-parallel: 1
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
-
+        mode: ['wsgi', 'django']
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
@@ -481,6 +546,11 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse NCM configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -505,30 +575,33 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
-      - name: "No profile - Setup a2c with certifier_ca_handler"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+      - name: "No profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Execute install script"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "No profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
@@ -538,25 +611,23 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "Profile 101 - Setup a2c with certifier_ca_handler with profile 101"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_id: 101" >> data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Profile 101 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 101
 
       - name: "Profile 101 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
@@ -566,25 +637,23 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "Profile 102 - Setup a2c with certifier_ca_handler with profile 101"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_id: 102" >> data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Profile 102 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 102
 
       - name: "Profile 102 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_102_profile
@@ -594,25 +663,24 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "Header-info - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Header-info - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
 
       - name: "Header-info - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_headerinfo
@@ -622,41 +690,37 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "EAB without headerinfo - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_id: 100" >> data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+      - name: "EAB without headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
 
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
       - name: "EAB without headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_wo_headerinfo
@@ -666,42 +730,39 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_id: 100" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+      - name: "EAB with headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
 
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
       - name: "EAB with headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -712,16 +773,15 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "EAB with headerinfo - Reconfigure key_file without restarting"
-        run: |
-          sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/      \"prevalidated_domainlist\": \[\"www.example.com\"\]/          \"prevalidated_domainlist\": \[\"www.example1.com\"\]\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '34,35d' data/volume/acme_ca/kid_profiles.json
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.json
+          DEST: data/volume/acme_ca/kid_profiles.json
 
       - name: "Update configuration"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT update
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE update
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB with headerinfo - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -736,17 +796,12 @@ jobs:
       - name: "kid-file in yaml format - Reconfiguration"
         run: |
           sudo sed -i "s/kid_profiles.json/kid_profiles.yml/g" data/volume/acme_srv.cfg
-          sudo pip3 install yq
-          sudo pip3 install jq
-          sudo sh -c "cat data/volume/acme_ca/kid_profiles.json | yq -y '.' > data/volume/acme_ca/kid_profiles.yml"
-          sudo rm data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '33,34d' data/volume/acme_ca/kid_profiles.yml
+          sudo cp .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.yml data/volume/acme_ca/kid_profiles.yml
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.yml
+          sudo rm -f data/volume/acme_ca/kid_profiles.json
 
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
       - name: "kid-file in yaml format - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -758,25 +813,24 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "ACME Profile - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
 
       - name: "ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
@@ -786,43 +840,40 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_id: 100" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+      - name: "EAB ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+            cert_operations_log: True
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
 
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
       - name: "EAB ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
@@ -836,27 +887,17 @@ jobs:
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test DEB downloaded from the producer run
-  # ---------------------------------------------------------
   test-deb:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
@@ -866,8 +907,7 @@ jobs:
       max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh', 'django_tester.sh']
-
+        mode: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -877,19 +917,24 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
       - name: "Parse NCM configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.NCM_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
+        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -915,31 +960,35 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
-      - name: "No profile - Setup a2c with certifier_ca_handler"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+      - name: "No profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "No profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
@@ -949,26 +998,24 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "Profile 101 - Setup a2c with certifier_ca_handler with profile 101"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_id: 101" >> data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
-        env:
+      - name: "Profile 101 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 101
 
       - name: "Profile 101 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
@@ -978,43 +1025,42 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_id: 100" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+      - name: "EAB with headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
 
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB with headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -1024,26 +1070,25 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "ACME Profile - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
-        env:
+      - name: "ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
 
       - name: "ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
@@ -1053,75 +1098,67 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler"
-        run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_id: 100" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+      - name: "EAB ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+            cert_operations_log: True
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
 
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
         with:
           DEPLOYMENT_TYPE: deb
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier/
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
-
-  # ---------------------------------------------------------
-  # Test container images (matrix from payload)
-  # ---------------------------------------------------------
   test-cmpv2-containers:
     needs: [guard, instance_start, test-containers]
     runs-on: ubuntu-latest
@@ -1133,9 +1170,13 @@ jobs:
         websrv: ['nginx']
         dbhandler: ['wsgi', 'django']
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse NCM configuration"
         uses: ./.github/actions/parse-json-secret
@@ -1146,11 +1187,6 @@ jobs:
       - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
 
       - name: "Download and import container"
         uses: ./.github/actions/container_load
@@ -1179,34 +1215,42 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
-      - name: "Setup a2c with cmp_ca_handler with key-cert authentication"
+      - name: "Setup a2c with cmp_ca_handler (key-cert)"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.cmp_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            cmp_path: pkix/
+            cmp_ignore_keyusage: True
+            cmp_msg_timeout: 3
+            cmp_total_timeout: 5
+            cmp_server: forwarder.acme:8080
+            cmp_cert: volume/ra_cert.pem
+            cmp_key: volume/ra_key.pem
+            cmp_trusted: volume/ca_bundle.pem
+            cmp_recipient: ${{ env.CMP_RECIPIENT }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Stage CMP certificates"
         run: |
-          sudo touch examples/Docker/data/ca_bundle.pem
-          sudo touch examples/Docker/data/ra_cert.pem
-          sudo touch examples/Docker/data/ra_key.pem
+          set -euo pipefail
+          sudo touch examples/Docker/data/ca_bundle.pem examples/Docker/data/ra_cert.pem examples/Docker/data/ra_key.pem
           sudo chmod 777 examples/Docker/data/*.pem
-          sudo echo "$CMP_TRUSTED" > examples/Docker/data/ca_bundle.pem
-          sudo echo "$CMP_RA_CERT" > examples/Docker/data/ra_cert.pem
-          sudo echo "$CMP_RA_KEY" > examples/Docker/data/ra_key.pem
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_path: pkix/" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_total_timeout: 5" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_server: forwarder.acme:8080" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_cert: volume/ra_cert.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_key: volume/ra_key.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_trusted: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
+          printf '%s\n' "$CMP_TRUSTED" | sudo tee examples/Docker/data/ca_bundle.pem >/dev/null
+          printf '%s\n' "$CMP_RA_CERT" | sudo tee examples/Docker/data/ra_cert.pem >/dev/null
+          printf '%s\n' "$CMP_RA_KEY" | sudo tee examples/Docker/data/ra_key.pem >/dev/null
         env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
-          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
           CMP_RA_KEY: ${{ env.CMP_RA_KEY }}
           CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
           CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
@@ -1217,23 +1261,15 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Enroll acme.sh"
         run: |
           docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
           awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
           openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-          sudo rm -rf acme-sh/*
+          sudo rm -rf acme-sh/* || true
 
       - name: "Allowed domainlist feature - Enroll lego (fail)"
         continue-on-error: true
@@ -1241,66 +1277,68 @@ jobs:
         run: |
           docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego run -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls
 
-      - name: "Allowed domainlist feature - check  result "
+      - name: "Allowed domainlist feature - check result"
         if: ${{ steps.legofail01.outcome != 'failure' }}
         run: |
-          echo "legofail outcome is ${{steps.legofail01.outcome }}"
+          echo "legofail outcome is ${{ steps.legofail01.outcome }}"
           exit 1
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
-      - name: "Setup a2c with cmp_ca_handler with PSK refnum authentication"
+      - name: "Setup a2c with cmp_ca_handler (PSK)"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.cmp_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            cmp_path: pkix/
+            cmp_ignore_keyusage: True
+            cmp_msg_timeout: 3
+            cmp_total_timeout: 5
+            cmp_server: forwarder.acme:8080
+            cmp_cert: volume/ra_cert.pem
+            cmp_trusted: volume/ca_bundle.pem
+            cmp_recipient: ${{ env.CMP_RECIPIENT }}
+            cmp_ref: ${{ env.CMP_REF }}
+            cmp_secret: ${{ env.CMP_SECRET }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Stage CMP certificates"
         run: |
-          sudo touch examples/Docker/data/ca_bundle.pem
-          sudo touch examples/Docker/data/ra_cert.pem
+          set -euo pipefail
+          sudo touch examples/Docker/data/ca_bundle.pem examples/Docker/data/ra_cert.pem
           sudo chmod 777 examples/Docker/data/*.pem
-          sudo echo "$CMP_TRUSTED" > examples/Docker/data/ca_bundle.pem
-          sudo echo "$CMP_RA_CERT" > examples/Docker/data/ra_cert.pem
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_path: pkix/" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_total_timeout: 5" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_server: forwarder.acme:8080" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_cert: volume/ra_cert.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_trusted: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_ref: $CMP_REF" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cmp_secret: $CMP_SECRET" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+          printf '%s\n' "$CMP_TRUSTED" | sudo tee examples/Docker/data/ca_bundle.pem >/dev/null
+          printf '%s\n' "$CMP_RA_CERT" | sudo tee examples/Docker/data/ra_cert.pem >/dev/null
         env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
-          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
           CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
           CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
-          CMP_REF: ${{ env.CMP_REF }}
-          CMP_SECRET: ${{ env.CMP_SECRET }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
+      - name: "Restart a2c"
+        run: |
+          cd examples/Docker/
+          docker compose restart
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Enroll acme.sh"
         run: |
           docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
           awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
           openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+          sudo rm -rf acme-sh/* || true
 
       - name: "Allowed domainlist feature - Enroll lego (fail)"
         continue-on-error: true
@@ -1308,16 +1346,19 @@ jobs:
         run: |
           docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego run -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls
 
-      - name: "Allowed domainlist feature - check  result "
+      - name: "Allowed domainlist feature - check result"
         if: ${{ steps.legofail02.outcome != 'failure' }}
         run: |
-          echo "legofail outcome is ${{steps.legofail02.outcome }}"
+          echo "legofail outcome is ${{ steps.legofail02.outcome }}"
           exit 1
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -1327,23 +1368,17 @@ jobs:
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-cmpv2-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
+          name: test-cmpv2-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test RPMs (EL9) downloaded from the producer run
-  # ---------------------------------------------------------
   test-cmpv2-rpm:
     needs: [guard, instance_start, test-rpm]
     runs-on: ubuntu-latest
@@ -1352,12 +1387,9 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        # not possible on RH8 due to OpenSSL 3 dependency
         rhversion: [9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
-
+        mode: ['wsgi', 'django']
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
@@ -1366,20 +1398,16 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
       - name: "Parse NCM configuration"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.NCM_CFG }}
           uppercase: 'true'
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
 
       - name: "Prepare Alma environment"
         uses: ./.github/actions/rpm_prep
@@ -1409,68 +1437,62 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Setup a2c with cmp_ca_handler (key-cert)"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
         with:
-          time: 5s
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.cmp_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            cmp_path: pkix/
+            cmp_ignore_keyusage: True
+            cmp_msg_timeout: 3
+            cmp_total_timeout: 5
+            cmp_server: forwarder.acme:8080
+            cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem
+            cmp_key: /opt/acme2certifier/volume/acme_ca/ra_key.pem
+            cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
+            cmp_recipient: ${{ env.CMP_RECIPIENT }}
+            allowed_domainlist: ["bar.local", "*.acme"]
 
-      - name: "Setup a2c with cmp_ca_handler"
+      - name: "Stage CMP certificates"
         run: |
-          sudo mkdir data/volume/acme_ca
-          sudo cp test/ca/root-ca-cert.pem data/volume/acme_ca
-          sudo cp test/ca/sub-ca-cert.pem data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_bundle.pem
-          sudo touch data/volume/acme_ca/ra_cert.pem
-          sudo touch data/volume/acme_ca/ra_key.pem
+          set -euo pipefail
+          sudo mkdir -p data/volume/acme_ca
+          sudo cp test/ca/root-ca-cert.pem test/ca/sub-ca-cert.pem data/volume/acme_ca/
+          sudo touch data/volume/acme_ca/ca_bundle.pem data/volume/acme_ca/ra_cert.pem data/volume/acme_ca/ra_key.pem
           sudo chmod 777 data/volume/acme_ca/*.pem
-          sudo echo "$CMP_TRUSTED" > data/volume/acme_ca/ca_bundle.pem
-          sudo echo "$CMP_RA_CERT" > data/volume/acme_ca/ra_cert.pem
-          sudo echo "$CMP_RA_KEY" >  data/volume/acme_ca/ra_key.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_server: forwarder.acme:8080" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_key: /opt/acme2certifier/volume/acme_ca/ra_key.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+          printf '%s\n' "$CMP_TRUSTED" | sudo tee data/volume/acme_ca/ca_bundle.pem >/dev/null
+          printf '%s\n' "$CMP_RA_CERT" | sudo tee data/volume/acme_ca/ra_cert.pem >/dev/null
+          printf '%s\n' "$CMP_RA_KEY" | sudo tee data/volume/acme_ca/ra_key.pem >/dev/null
         env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
-          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
           CMP_RA_KEY: ${{ env.CMP_RA_KEY }}
           CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
           CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
 
       - name: "Execute install script"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Enroll acme.sh"
         run: |
           docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
           awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
           openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+          sudo rm -rf acme-sh/* || true
 
       - name: "Allowed domainlist feature - Enroll lego (fail)"
         continue-on-error: true
@@ -1478,77 +1500,68 @@ jobs:
         run: |
           docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego run -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls
 
-      - name: "Allowed domainlist feature - check  result "
+      - name: "Allowed domainlist feature - check result"
         if: ${{ steps.legofail01.outcome != 'failure' }}
         run: |
-          echo "legofail outcome is ${{steps.legofail01.outcome }}"
+          echo "legofail outcome is ${{ steps.legofail01.outcome }}"
           exit 1
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
-      - name: "Setup a2c with cmp_ca_handler"
+      - name: "Setup a2c with cmp_ca_handler (PSK)"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.cmp_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            cmp_path: pkix/
+            cmp_ignore_keyusage: True
+            cmp_msg_timeout: 3
+            cmp_total_timeout: 5
+            cmp_server: forwarder.acme:8080
+            cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem
+            cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
+            cmp_recipient: ${{ env.CMP_RECIPIENT }}
+            cmp_ref: ${{ env.CMP_REF }}
+            cmp_secret: ${{ env.CMP_SECRET }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Stage CMP certificates"
         run: |
+          set -euo pipefail
           sudo mkdir -p data/volume/acme_ca
-          sudo cp test/ca/root-ca-cert.pem data/volume/acme_ca
-          sudo cp test/ca/sub-ca-cert.pem data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_bundle.pem
-          sudo touch data/volume/acme_ca/ra_cert.pem
+          sudo cp test/ca/root-ca-cert.pem test/ca/sub-ca-cert.pem data/volume/acme_ca/
+          sudo touch data/volume/acme_ca/ca_bundle.pem data/volume/acme_ca/ra_cert.pem
           sudo chmod 777 data/volume/acme_ca/*.pem
-          sudo echo "$CMP_TRUSTED" > data/volume/acme_ca/ca_bundle.pem
-          sudo echo "$CMP_RA_CERT" > data/volume/acme_ca/ra_cert.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_server: forwarder.acme:8080" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_ref: $CMP_REF" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_secret: $CMP_SECRET" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+          printf '%s\n' "$CMP_TRUSTED" | sudo tee data/volume/acme_ca/ca_bundle.pem >/dev/null
+          printf '%s\n' "$CMP_RA_CERT" | sudo tee data/volume/acme_ca/ra_cert.pem >/dev/null
         env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
-          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
           CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
           CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
-          CMP_REF: ${{ env.CMP_REF }}
-          CMP_SECRET: ${{ env.CMP_SECRET }}
 
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Enroll acme.sh"
         run: |
           docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
           awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
           openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+          sudo rm -rf acme-sh/* || true
 
       - name: "Allowed domainlist feature - Enroll lego (fail)"
         continue-on-error: true
@@ -1556,32 +1569,25 @@ jobs:
         run: |
           docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego run -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls
 
-      - name: "Allowed domainlist feature - check  result "
+      - name: "Allowed domainlist feature - check result"
         if: ${{ steps.legofail02.outcome != 'failure' }}
         run: |
-          echo "legofail outcome is ${{steps.legofail02.outcome }}"
+          echo "legofail outcome is ${{ steps.legofail02.outcome }}"
           exit 1
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-cmpv2-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-cmpv2-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test DEB downloaded from the producer run
-  # ---------------------------------------------------------
   test-cmpv2-deb:
     needs: [guard, instance_start, test-deb]
     runs-on: ubuntu-latest
@@ -1591,11 +1597,15 @@ jobs:
       max-parallel: 1
       matrix:
         websrv: ['nginx']
-        execscript: ['deb_tester.sh', 'django_tester.sh']
-
+        mode: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse NCM configuration"
         uses: ./.github/actions/parse-json-secret
@@ -1603,23 +1613,14 @@ jobs:
           json_secret: ${{ secrets.NCM_CFG }}
           uppercase: 'true'
 
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
-
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
+        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -1645,69 +1646,64 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Setup a2c with cmp_ca_handler (key-cert)"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
         with:
-          time: 5s
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.cmp_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            cmp_path: pkix/
+            cmp_ignore_keyusage: True
+            cmp_msg_timeout: 3
+            cmp_total_timeout: 5
+            cmp_server: forwarder.acme:8080
+            cmp_cert: /var/www/acme2certifier/volume/acme_ca/ra_cert.pem
+            cmp_key: /var/www/acme2certifier/volume/acme_ca/ra_key.pem
+            cmp_trusted: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
+            cmp_recipient: ${{ env.CMP_RECIPIENT }}
+            allowed_domainlist: ["bar.local", "*.acme"]
 
-      - name: "Setup a2c with cmp_ca_handler"
+      - name: "Stage CMP certificates"
         run: |
-          sudo mkdir data/volume/acme_ca
-          sudo cp test/ca/root-ca-cert.pem data/volume/acme_ca
-          sudo cp test/ca/sub-ca-cert.pem data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_bundle.pem
-          sudo touch data/volume/acme_ca/ra_cert.pem
-          sudo touch data/volume/acme_ca/ra_key.pem
+          set -euo pipefail
+          sudo mkdir -p data/volume/acme_ca
+          sudo cp test/ca/root-ca-cert.pem test/ca/sub-ca-cert.pem data/volume/acme_ca/
+          sudo touch data/volume/acme_ca/ca_bundle.pem data/volume/acme_ca/ra_cert.pem data/volume/acme_ca/ra_key.pem
           sudo chmod 777 data/volume/acme_ca/*.pem
-          sudo echo "$CMP_TRUSTED" > data/volume/acme_ca/ca_bundle.pem
-          sudo echo "$CMP_RA_CERT" > data/volume/acme_ca/ra_cert.pem
-          sudo echo "$CMP_RA_KEY" >  data/volume/acme_ca/ra_key.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_server: forwarder.acme:8080" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_cert: /var/www/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_key: /var/www/acme2certifier/volume/acme_ca/ra_key.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_trusted: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+          printf '%s\n' "$CMP_TRUSTED" | sudo tee data/volume/acme_ca/ca_bundle.pem >/dev/null
+          printf '%s\n' "$CMP_RA_CERT" | sudo tee data/volume/acme_ca/ra_cert.pem >/dev/null
+          printf '%s\n' "$CMP_RA_KEY" | sudo tee data/volume/acme_ca/ra_key.pem >/dev/null
         env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
-          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
           CMP_RA_KEY: ${{ env.CMP_RA_KEY }}
           CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
           CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
 
       - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Enroll acme.sh"
         run: |
           docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
           awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
           openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+          sudo rm -rf acme-sh/* || true
 
       - name: "Allowed domainlist feature - Enroll lego (fail)"
         continue-on-error: true
@@ -1715,69 +1711,71 @@ jobs:
         run: |
           docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego run -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls
 
-      - name: "Allowed domainlist feature - check  result "
+      - name: "Allowed domainlist feature - check result"
         if: ${{ steps.legofail01.outcome != 'failure' }}
         run: |
-          echo "legofail outcome is ${{steps.legofail01.outcome }}"
+          echo "legofail outcome is ${{ steps.legofail01.outcome }}"
           exit 1
 
-      - name: "Setup a2c with cmp_ca_handler"
+      - name: "Verify allowed_domainlist error"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: deb
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
+
+      - name: "Setup a2c with cmp_ca_handler (PSK)"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.cmp_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            cmp_path: pkix/
+            cmp_ignore_keyusage: True
+            cmp_msg_timeout: 3
+            cmp_total_timeout: 5
+            cmp_server: forwarder.acme:8080
+            cmp_cert: /var/www/acme2certifier/volume/acme_ca/ra_cert.pem
+            cmp_trusted: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
+            cmp_recipient: ${{ env.CMP_RECIPIENT }}
+            cmp_ref: ${{ env.CMP_REF }}
+            cmp_secret: ${{ env.CMP_SECRET }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Stage CMP certificates"
         run: |
+          set -euo pipefail
           sudo mkdir -p data/volume/acme_ca
-          sudo cp test/ca/root-ca-cert.pem data/volume/acme_ca
-          sudo cp test/ca/sub-ca-cert.pem data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_bundle.pem
-          sudo touch data/volume/acme_ca/ra_cert.pem
+          sudo cp test/ca/root-ca-cert.pem test/ca/sub-ca-cert.pem data/volume/acme_ca/
+          sudo touch data/volume/acme_ca/ca_bundle.pem data/volume/acme_ca/ra_cert.pem
           sudo chmod 777 data/volume/acme_ca/*.pem
-          sudo echo "$CMP_TRUSTED" > data/volume/acme_ca/ca_bundle.pem
-          sudo echo "$CMP_RA_CERT" > data/volume/acme_ca/ra_cert.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_server: forwarder.acme:8080" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_cert: /var/www/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_trusted: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_ref: $CMP_REF" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_secret: $CMP_SECRET" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+          printf '%s\n' "$CMP_TRUSTED" | sudo tee data/volume/acme_ca/ca_bundle.pem >/dev/null
+          printf '%s\n' "$CMP_RA_CERT" | sudo tee data/volume/acme_ca/ra_cert.pem >/dev/null
         env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
-          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
           CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
           CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
-          CMP_REF: ${{ env.CMP_REF }}
-          CMP_SECRET: ${{ env.CMP_SECRET }}
 
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Enroll acme.sh"
         run: |
           docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
           awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
           openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+          sudo rm -rf acme-sh/* || true
 
       - name: "Allowed domainlist feature - Enroll lego (fail)"
         continue-on-error: true
@@ -1785,46 +1783,30 @@ jobs:
         run: |
           docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego run -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls
 
-      - name: "Allowed domainlist feature - check  result "
+      - name: "Allowed domainlist feature - check result"
         if: ${{ steps.legofail02.outcome != 'failure' }}
         run: |
-          echo "legofail outcome is ${{steps.legofail02.outcome }}"
+          echo "legofail outcome is ${{ steps.legofail02.outcome }}"
           exit 1
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-cmpv2-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: test-cmpv2-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # stop instance
-  # ---------------------------------------------------------
   instance_stop:
     needs: [guard, instance_start, test-containers, test-deb, test-rpm, test-cmpv2-containers, test-cmpv2-deb, test-cmpv2-rpm]
     runs-on: ubuntu-latest
-    if: ${{ always() && github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'certifier')) }}
+    if: ${{ always() && needs.instance_start.result != 'skipped' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -1841,14 +1823,39 @@ jobs:
 
       - name: "Prepare ssh environment in ramdisk"
         run: |
+          set -euo pipefail
           sudo mkdir -p /tmp/rd
-          sudo mount -t tmpfs -o size=5M none /tmp/rd
-          sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+          sudo mount -t tmpfs -o size=5M none /tmp/rd || true
+          printf '%s\n' "$SSH_KEY" | sudo tee /tmp/rd/ak.tmp >/dev/null
+          printf '%s\n' "$SSH_KNOWN_HOSTS" | sudo tee /tmp/rd/known_hosts >/dev/null
           sudo chmod 600 /tmp/rd/ak.tmp
+          sudo chown "$(id -u):$(id -g)" /tmp/rd/ak.tmp /tmp/rd/known_hosts
 
-      - name: "start ncm on remote instance"
+      - name: "Resolve instance public IP"
         run: |
-          ssh -o "StrictHostKeyChecking=no" -i /tmp/rd/ak.tmp ${{ env.SSH_USER }}@${{ env.SSH_HOST }} -p ${{ env.SSH_PORT }} "/usr/local/bin/ncm_mgr.sh stop"
+          set -euo pipefail
+          aws configure set aws_access_key_id "${{ env.AWS_ACCESS_KEY_ID }}"
+          aws configure set aws_secret_access_key "${{ env.AWS_SECRET_ACCESS_KEY }}"
+          aws configure set default.region "${{ env.AWS_REGION }}"
+          INSTANCE_ID="${{ env.AWS_X64-UB-01_INSTANCE_ID }}"
+          REGION="${{ env.AWS_REGION }}"
+          PUBLIC_IP="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
+          if [[ -z "$PUBLIC_IP" || "$PUBLIC_IP" == "None" ]]; then
+            echo "ERROR: instance has no public IP" >&2
+            exit 1
+          fi
+          echo "SSH_CONNECT_HOST=${PUBLIC_IP}" >> "$GITHUB_ENV"
+          echo "Using EC2 public IP ${PUBLIC_IP}"
+
+      - name: "Stop ncm on remote instance"
+        run: |
+          ssh -i /tmp/rd/ak.tmp -p ${{ env.SSH_PORT }} \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/tmp/rd/known_hosts \
+            ${{ env.SSH_USER }}@${{ env.SSH_CONNECT_HOST }} \
+            "/usr/local/bin/ncm_mgr.sh stop"
 
       - name: "Stop AWS instance for testing"
         uses: ./.github/actions/aws_instance_manage

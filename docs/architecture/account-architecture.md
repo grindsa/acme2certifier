@@ -40,7 +40,7 @@ The account subsystem implements a modular, extensible architecture using establ
 
 ## Core Components
 
-### 1. Account Class (`/acme_srv/account.py`)
+### 1. Account Class (`acme2certifier/acme_srv/account.py`)
 
 The `Account` class is the main entry point for account operations and ACME protocol handling. It provides methods for:
 

@@ -1,0 +1,115 @@
+name: "wait_for_directory"
+description: "Retry until ACME /directory is reachable over HTTP and/or HTTPS"
+inputs:
+  NAME_SPACE:
+    description: "Docker network namespace"
+    required: false
+    default: "acme"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+  CHECK_HTTP:
+    description: "Wait for HTTP /directory (true/false)"
+    required: false
+    default: "true"
+  CHECK_HTTPS:
+    description: "Wait for HTTPS /directory (true/false)"
+    required: false
+    default: "true"
+  MAX_ATTEMPTS:
+    description: "Maximum retry attempts per scheme"
+    required: false
+    default: "30"
+  SLEEP_SECONDS:
+    description: "Seconds to sleep between attempts"
+    required: false
+    default: "2"
+  CAPTURE_BODY:
+    description: "Capture successful HTTP directory JSON into outputs.directory_json"
+    required: false
+    default: "false"
+outputs:
+  directory_json:
+    description: "Directory JSON when CAPTURE_BODY is true"
+    value: ${{ steps.wait.outputs.directory_json }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Pull curl image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: curlimages/curl
+
+    - name: "Wait for ACME directory"
+      id: wait
+      run: |
+        set -euo pipefail
+
+        wait_url() {
+          local label="$1"
+          local url="$2"
+          local curl_extra="${3:-}"
+          local capture="${4:-false}"
+          local body=""
+          local attempt
+
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            if [ -n "$curl_extra" ]; then
+              body=$(docker run -i --rm --network "$NAME_SPACE" curlimages/curl \
+                -fsS --connect-timeout 3 --max-time 10 \
+                "$curl_extra" \
+                "$url") && status=0 || status=$?
+            else
+              body=$(docker run -i --rm --network "$NAME_SPACE" curlimages/curl \
+                -fsS --connect-timeout 3 --max-time 10 \
+                "$url") && status=0 || status=$?
+            fi
+
+            if [ "$status" -eq 0 ]; then
+              echo "${label} ready: ${url}"
+              if [ "$capture" = "true" ]; then
+                {
+                  echo "directory_json<<EOF"
+                  echo "$body"
+                  echo "EOF"
+                } >> "$GITHUB_OUTPUT"
+              fi
+              return 0
+            fi
+
+            echo "${label} not ready yet (attempt ${attempt}/${MAX_ATTEMPTS}): ${url}"
+            sleep "$SLEEP_SECONDS"
+          done
+
+          echo "Failed waiting for ${label} after ${MAX_ATTEMPTS} attempts: ${url}"
+          exit 1
+        }
+
+        if [ "$CHECK_HTTP" = "true" ]; then
+          wait_url "HTTP" "http://${ACME_SERVER}:${HTTP_PORT}/directory" "" "$CAPTURE_BODY"
+        fi
+
+        if [ "$CHECK_HTTPS" = "true" ]; then
+          wait_url "HTTPS" "https://${ACME_SERVER}:${HTTPS_PORT}/directory" "--insecure" "false"
+        fi
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        CHECK_HTTP: ${{ inputs.CHECK_HTTP }}
+        CHECK_HTTPS: ${{ inputs.CHECK_HTTPS }}
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}
+        CAPTURE_BODY: ${{ inputs.CAPTURE_BODY }}

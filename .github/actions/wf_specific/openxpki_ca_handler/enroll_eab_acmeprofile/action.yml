@@ -13,27 +13,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
-  - name: "EAB - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "EAB - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "Clear logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_flush
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "EAB - 01 - Enroll lego with a template_name taken from list in kid.json"
@@ -50,23 +35,11 @@ runs:
       sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --cert.name lego.acme
     shell: bash
 
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
   - name: "Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "cert_profile_name: tls-server"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 800 /var/log/messages | grep "cert_profile_name: tls-server"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "cert_profile_name: tls-server"
 
   - name: "EAB - 02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
     id: legofail01
@@ -83,23 +56,11 @@ runs:
       exit 1
     shell: bash
 
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
   - name: "Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "unknown"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep unknown
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "unknown"
 
   - name: "EAB - 02b - Enroll lego with a template_name taken from header_info included in kid.json"
     run: |
@@ -116,23 +77,11 @@ runs:
       sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --cert.name lego.acme
     shell: bash
 
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
   - name: "Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "cert_profile_name: tls-client"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 800 /var/log/messages | grep "cert_profile_name: tls-client"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "cert_profile_name: tls-client"
 
   - name: "EAB - 03 - Enroll lego with a template_name/ca_name taken from kid.json"
     run: |
@@ -147,23 +96,11 @@ runs:
       sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --cert.name lego.acme
     shell: bash
 
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
   - name: "Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "cert_profile_name: tls-client"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 800 /var/log/messages | grep "cert_profile_name: tls-client"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "cert_profile_name: tls-client"
 
   - name: "EAB - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
     id: legofail02

@@ -42,7 +42,7 @@ The certificate subsystem implements a modular, extensible architecture using es
 
 ## Core Components
 
-### 1. Certificate Class (`/acme_srv/certificate.py`)
+### 1. Certificate Class (`acme2certifier/acme_srv/certificate.py`)
 
 The `Certificate` class is the main entry point for certificate operations and ACME protocol handling. It provides methods for:
 
@@ -59,25 +59,25 @@ The `Certificate` class is the main entry point for certificate operations and A
 - Handles protocol-specific logic and error handling
 - Coordinates with CAHandler for backend CA operations
 
-### 2. Certificate Repository (`/acme_srv/db_handler.py`)
+### 2. Certificate Repository (`acme2certifier/dbhandlers/*` via `acme2certifier.acme_srv.db_handler`)
 
 - Encapsulates all database operations related to certificates
 - Provides methods for certificate CRUD, account checks, and order lookups
 - Used by the `Certificate` class for persistent storage
 
-### 3. Business Logic Layer (`/acme_srv/certificate_manager.py`)
+### 3. Business Logic Layer (`acme2certifier/acme_srv/certificate_manager.py`)
 
 - Implements higher-level certificate operations and business rules
 - Handles certificate cleanup, expiry, and renewal logic
 - Coordinates with repository and CAHandler
 
-### 4. CA Handler (`/acme_srv/ca/ca_handler.py`)
+### 4. CA Handler (`acme2certifier/cahandlers/`)
 
 - Abstracts backend CA operations (issuance, revocation, polling)
 - Supports multiple CA backends via plugin architecture
 - Used by the `Certificate` class for all CA interactions
 
-### 5. Configuration and Helpers (`/acme_srv/helpers/`)
+### 5. Configuration and Helpers (`acme2certifier/acme_srv/helpers/`)
 
 - Centralized configuration management (`config.py`)
 - Certificate parsing, encoding, and utility functions

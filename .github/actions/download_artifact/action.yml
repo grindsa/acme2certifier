@@ -19,6 +19,14 @@ inputs:
     description: "The repository in the format owner/repo. Defaults to the current repository."
     required: false
     default: ""
+  MAX_ATTEMPTS:
+    description: "Maximum number of resolve/download attempts"
+    required: false
+    default: "5"
+  RETRY_DELAY_SECONDS:
+    description: "Initial delay between retries in seconds (doubles each attempt)"
+    required: false
+    default: "10"
 
 runs:
   using: "composite"
@@ -26,21 +34,58 @@ runs:
 
     - name: "Get artifact"
       run: |
-        mkdir -p $DESTINATION_PATH && cd $DESTINATION_PATH
-        ART_ID=$(gh api repos/$REPO/actions/runs/$RUN_ID/artifacts --jq '.artifacts[] | select(.name=="'$ARTIFACT_NAME'") | .id')
-        if [ -z "$ART_ID" ]; then
-          echo "Artifact $ARTIFACT_NAME not found in run $RUN_ID" >&2
-          exit 1
-        fi
+        set -euo pipefail
 
-        gh api repos/$REPO/actions/artifacts/$ART_ID/zip > "$ARTIFACT_NAME.zip"
-        unzip -o "$ARTIFACT_NAME.zip"
-        rm -f "$ARTIFACT_NAME.zip"
+        mkdir -p "${DESTINATION_PATH}"
+        cd "${DESTINATION_PATH}"
 
+        ZIP_FILE="${ARTIFACT_NAME}.zip"
+        attempt=1
+        delay="${RETRY_DELAY_SECONDS}"
+
+        while [ "${attempt}" -le "${MAX_ATTEMPTS}" ]; do
+          echo "Attempt ${attempt}/${MAX_ATTEMPTS}: resolve artifact '${ARTIFACT_NAME}' from run ${RUN_ID} in ${REPO}"
+
+          ART_ID="$(
+            gh api --paginate "repos/${REPO}/actions/runs/${RUN_ID}/artifacts" \
+              --jq ".artifacts[] | select(.name==\"${ARTIFACT_NAME}\") | .id" \
+              | head -n1 || true
+          )"
+
+          if [ -z "${ART_ID}" ]; then
+            echo "Artifact '${ARTIFACT_NAME}' not found in run ${RUN_ID}" >&2
+          else
+            echo "Downloading artifact id=${ART_ID}"
+            rm -f "${ZIP_FILE}"
+            if gh api "repos/${REPO}/actions/artifacts/${ART_ID}/zip" > "${ZIP_FILE}" \
+              && unzip -t "${ZIP_FILE}" >/dev/null; then
+              unzip -o "${ZIP_FILE}"
+              rm -f "${ZIP_FILE}"
+              echo "Download succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            echo "Download or zip validation failed for artifact id=${ART_ID}" >&2
+            rm -f "${ZIP_FILE}"
+          fi
+
+          if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
+            break
+          fi
+
+          echo "Retrying in ${delay}s..."
+          sleep "${delay}"
+          delay=$((delay * 2))
+          attempt=$((attempt + 1))
+        done
+
+        echo "Failed to download artifact '${ARTIFACT_NAME}' after ${MAX_ATTEMPTS} attempts" >&2
+        exit 1
       shell: bash
       env:
         DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
-        GH_TOKEN: ${{ inputs.TOKEN }}
-        REPO: ${{ inputs.REPO }}
+        GH_TOKEN: ${{ inputs.TOKEN || github.token }}
+        REPO: ${{ inputs.REPO || github.repository }}
         RUN_ID: ${{ inputs.RUN_ID }}
         ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        RETRY_DELAY_SECONDS: ${{ inputs.RETRY_DELAY_SECONDS }}

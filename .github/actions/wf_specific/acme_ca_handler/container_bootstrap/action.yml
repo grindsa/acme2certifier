@@ -1,0 +1,46 @@
+name: "acme_ca_handler container bootstrap"
+description: "Load artifact image and prepare container environment"
+inputs:
+  RUN_ID:
+    description: "Producer workflow run id"
+    required: true
+  WEB_SRV:
+    description: "Web server"
+    required: true
+  DB_HANDLER:
+    description: "Database handler"
+    required: true
+  TOKEN:
+    description: "GitHub token for artifact download"
+    required: true
+  REPO:
+    description: "Repository (owner/name)"
+    required: true
+  NAME_SPACE:
+    description: "Docker network namespace"
+    required: false
+    default: "acme"
+  DESTINATION_PATH:
+    description: "Where to store the loaded image tar"
+    required: false
+    default: "/tmp"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Download and import container"
+      uses: ./.github/actions/container_load
+      with:
+        RUN_ID: ${{ inputs.RUN_ID }}
+        ARTIFACT_NAME: a2c-${{ inputs.RUN_ID }}.${{ inputs.WEB_SRV }}.${{ inputs.DB_HANDLER }}.tar
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        TOKEN: ${{ inputs.TOKEN }}
+        REPO: ${{ inputs.REPO }}
+
+    - name: "Prepare container environment"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        CONTAINER_BUILD: false
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}

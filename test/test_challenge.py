@@ -14,20 +14,20 @@ class TestChallengeConfiguration(unittest.TestCase):
         mock_db_handler = MagicMock()
         mock_dbstore_class = MagicMock()
         mock_db_handler.DBstore = mock_dbstore_class
-        sys.modules["acme_srv.db_handler"] = mock_db_handler
+        sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 
         # Import after mocking
-        from acme_srv.challenge import ChallengeConfiguration
+        from acme2certifier.acme_srv.challenge import ChallengeConfiguration
 
         cls.ChallengeConfiguration = ChallengeConfiguration
 
     @classmethod
     def tearDownClass(cls):
         """Clean up module mocks"""
-        if "acme_srv.db_handler" in sys.modules:
-            del sys.modules["acme_srv.db_handler"]
-        if "acme_srv.challenge" in sys.modules:
-            del sys.modules["acme_srv.challenge"]
+        if "acme2certifier.acme_srv.db_handler" in sys.modules:
+            del sys.modules["acme2certifier.acme_srv.db_handler"]
+        if "acme2certifier.acme_srv.challenge" in sys.modules:
+            del sys.modules["acme2certifier.acme_srv.challenge"]
 
     def test_001_configuration_defaults(self):
         config = self.ChallengeConfiguration()
@@ -51,16 +51,16 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
         import logging
 
         # Mock the missing db_handler module if not already done
-        if "acme_srv.db_handler" not in sys.modules:
+        if "acme2certifier.acme_srv.db_handler" not in sys.modules:
             mock_db_handler = MagicMock()
             mock_dbstore_class = MagicMock()
             mock_db_handler.DBstore = mock_dbstore_class
-            sys.modules["acme_srv.db_handler"] = mock_db_handler
+            sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 
         # Import after ensuring mocking
-        from acme_srv.challenge import DatabaseChallengeRepository
-        from acme_srv.challenge_error_handling import DatabaseError, ValidationError
-        from acme_srv.challenge_business_logic import (
+        from acme2certifier.acme_srv.challenge import DatabaseChallengeRepository
+        from acme2certifier.acme_srv.challenge_error_handling import DatabaseError, ValidationError
+        from acme2certifier.acme_srv.challenge_business_logic import (
             ChallengeInfo,
             ChallengeCreationRequest,
             ChallengeUpdateRequest,
@@ -139,7 +139,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             "validated": 123456,
         }
         with patch(
-            "acme_srv.challenge.uts_to_date_utc", return_value="2021-01-01T00:00:00Z"
+            "acme2certifier.acme_srv.challenge.uts_to_date_utc", return_value="2021-01-01T00:00:00Z"
         ):
             result = self.repo.get_challenge_by_name("c1")
             self.assertEqual(result.name, "c1")
@@ -163,8 +163,8 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def test_008_create_challenge_success(self):
         self.dbstore.challenge_add.return_value = 1
         with (
-            patch("acme_srv.challenge.generate_random_string", return_value="c1"),
-            patch("acme_srv.challenge.uts_now", return_value=1000),
+            patch("acme2certifier.acme_srv.challenge.generate_random_string", return_value="c1"),
+            patch("acme2certifier.acme_srv.challenge.uts_now", return_value=1000),
         ):
             req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
             name = self.repo.create_challenge(req)
@@ -173,8 +173,8 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def test_009_create_challenge_db_error(self):
         self.dbstore.challenge_add.side_effect = Exception("db fail")
         with (
-            patch("acme_srv.challenge.generate_random_string", return_value="c1"),
-            patch("acme_srv.challenge.uts_now", return_value=1000),
+            patch("acme2certifier.acme_srv.challenge.generate_random_string", return_value="c1"),
+            patch("acme2certifier.acme_srv.challenge.uts_now", return_value=1000),
         ):
             req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
             with self.assertLogs("test_a2c", level="DEBUG") as log_context:
@@ -282,24 +282,24 @@ class TestChallenge(unittest.TestCase):
         import logging
 
         # Mock the missing db_handler module if not already done
-        if "acme_srv.db_handler" not in sys.modules:
+        if "acme2certifier.acme_srv.db_handler" not in sys.modules:
             mock_db_handler = MagicMock()
             mock_dbstore_class = MagicMock()
             mock_db_handler.DBstore = mock_dbstore_class
-            sys.modules["acme_srv.db_handler"] = mock_db_handler
+            sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 
         # Import after ensuring mocking
-        from acme_srv.challenge import (
+        from acme2certifier.acme_srv.challenge import (
             Challenge,
             ChallengeConfiguration,
             DatabaseChallengeRepository,
         )
-        from acme_srv.challenge_error_handling import (
+        from acme2certifier.acme_srv.challenge_error_handling import (
             DatabaseError,
             ValidationError,
             UnsupportedChallengeTypeError,
         )
-        from acme_srv.challenge_business_logic import (
+        from acme2certifier.acme_srv.challenge_business_logic import (
             ChallengeInfo,
             ChallengeCreationRequest,
             ChallengeUpdateRequest,
@@ -358,7 +358,7 @@ class TestChallenge(unittest.TestCase):
 
     def test_021_extract_challenge_name_from_url(self):
         with patch(
-            "acme_srv.challenge.parse_url", return_value={"path": "/acme/chall/c1"}
+            "acme2certifier.acme_srv.challenge.parse_url", return_value={"path": "/acme/chall/c1"}
         ):
             name = self.challenge._extract_challenge_name_from_url("/acme/chall/c1")
             self.assertEqual(name, "c1")
@@ -372,7 +372,7 @@ class TestChallenge(unittest.TestCase):
             "authorization__value": "val",
         }
         self.challenge.repository.get_account_jwk.return_value = {"kty": "RSA"}
-        with patch("acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"):
+        with patch("acme2certifier.acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"):
             details = self.challenge._get_challenge_validation_details("c1")
             self.assertEqual(details["jwk_thumbprint"], "thumb")
 
@@ -393,7 +393,7 @@ class TestChallenge(unittest.TestCase):
             # missing authorization__value and keyauthorization
         }
         self.challenge.repository.get_account_jwk.return_value = {"kty": "RSA"}
-        with patch("acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"):
+        with patch("acme2certifier.acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"):
             self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
 
     def test_026_get_challenge_validation_details_exception(self):
@@ -540,12 +540,12 @@ class TestChallenge(unittest.TestCase):
         config_obj.set("Challenge", "sectigo_sim", "False")
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -786,7 +786,7 @@ class TestChallenge(unittest.TestCase):
         self.assertTrue(result.invalid)
 
     def test_057_start_async_validation(self):
-        with patch("acme_srv.challenge.Thread") as mock_thread:
+        with patch("acme2certifier.acme_srv.challenge.Thread") as mock_thread:
             instance = mock_thread.return_value
             instance.join.return_value = True
             self.challenge._perform_challenge_validation = Mock()
@@ -948,7 +948,7 @@ class TestChallenge(unittest.TestCase):
         request.value = "test_value"
 
         with patch(
-            "acme_srv.challenge.generate_random_string", return_value="random_token"
+            "acme2certifier.acme_srv.challenge.generate_random_string", return_value="random_token"
         ):
             self.challenge.repository.create_challenge = Mock(return_value="chid")
             result = self.challenge.repository.create_challenge(request)
@@ -1046,7 +1046,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.path_dic = {"chall_path": "/acme/chall/"}
 
         with patch(
-            "acme_srv.challenge.parse_url",
+            "acme2certifier.acme_srv.challenge.parse_url",
             return_value={"path": "/acme/chall/test_challenge/authz"},
         ):
             result = self.challenge._extract_challenge_name_from_url(
@@ -1106,12 +1106,12 @@ class TestChallenge(unittest.TestCase):
         config_obj.set("Challenge", "challenge_validation_timeout", "invalid")
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -1130,12 +1130,12 @@ class TestChallenge(unittest.TestCase):
         config_obj.set("Order", "email_identifier_support", "True")
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -1157,12 +1157,12 @@ class TestChallenge(unittest.TestCase):
         original_path_dic = self.challenge.path_dic.copy()
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -1191,7 +1191,7 @@ class TestChallenge(unittest.TestCase):
         request.token = "token1"
 
         with patch(
-            "acme_srv.challenge.generate_random_string",
+            "acme2certifier.acme_srv.challenge.generate_random_string",
             return_value="random_challenge_name",
         ):
             result = self.challenge.repository.create_challenge(request)
@@ -1216,7 +1216,7 @@ class TestChallenge(unittest.TestCase):
         request.authorization_name = "authz1"
         request.token = "token1"
 
-        with patch("acme_srv.challenge.generate_random_string") as mock_gen:
+        with patch("acme2certifier.acme_srv.challenge.generate_random_string") as mock_gen:
             mock_gen.side_effect = [
                 "challenge_name",
                 "random_token",
@@ -1308,12 +1308,12 @@ class TestChallenge(unittest.TestCase):
         ] = "test@example.com"  # Use dict-style access for DEFAULT
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -1327,8 +1327,8 @@ class TestChallenge(unittest.TestCase):
     def test_088_initialize_business_logic_components(self):
         """Test _initialize_business_logic_components method"""
         with (
-            patch("acme_srv.challenge.ChallengeFactory") as mock_factory,
-            patch("acme_srv.challenge.ChallengeService") as mock_service,
+            patch("acme2certifier.acme_srv.challenge.ChallengeFactory") as mock_factory,
+            patch("acme2certifier.acme_srv.challenge.ChallengeService") as mock_service,
         ):
             self.challenge.path_dic = {"chall_path": "/chall/"}
             self.challenge.config.email_address = "test@example.com"
@@ -2886,7 +2886,7 @@ class TestChallenge(unittest.TestCase):
         mock_get_details.assert_called_once_with(url)
         self.assertEqual(result, expected_result)
 
-    @patch("acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.Thread")
     def test_148_start_async_validation_sync_mode(self, mock_thread_class):
         """Test _start_async_validation with sync mode (async_mode=False)"""
         # Setup
@@ -2918,7 +2918,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    @patch("acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.Thread")
     def test_149_start_async_validation_async_mode(self, mock_thread_class):
         """Test _start_async_validation with async mode (async_mode=True)"""
         # Setup
@@ -2952,7 +2952,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    @patch("acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.Thread")
     def test_150_start_async_validation_empty_payload(self, mock_thread_class):
         """Test _start_async_validation with empty payload"""
         # Setup
@@ -2975,7 +2975,7 @@ class TestChallenge(unittest.TestCase):
         mock_thread.start.assert_called_once()
         mock_thread.join.assert_called_once_with(timeout=15)
 
-    @patch("acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.Thread")
     def test_151_start_async_validation_complex_payload(self, mock_thread_class):
         """Test _start_async_validation with complex payload data"""
         # Setup
@@ -3002,7 +3002,7 @@ class TestChallenge(unittest.TestCase):
         mock_thread.start.assert_called_once()
         mock_thread.join.assert_not_called()  # async mode
 
-    @patch("acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.Thread")
     def test_152_start_async_validation_different_timeout_values(
         self, mock_thread_class
     ):
@@ -3029,7 +3029,7 @@ class TestChallenge(unittest.TestCase):
                 # Verify correct timeout is used
                 mock_thread.join.assert_called_once_with(timeout=timeout)
 
-    @patch("acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.Thread")
     def test_153_start_async_validation_thread_target_arguments(
         self, mock_thread_class
     ):
@@ -3064,7 +3064,7 @@ class TestChallenge(unittest.TestCase):
                     args=(challenge_name, payload),
                 )
 
-    @patch("acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.Thread")
     def test_154_start_async_validation_logging_behavior(self, mock_thread_class):
         """Test _start_async_validation logging in both sync and async modes"""
         # Setup

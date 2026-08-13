@@ -5,8 +5,8 @@ import sys
 from unittest.mock import MagicMock
 
 # Patch sys.modules to mock DBstore and db_handler import everywhere
-sys.modules["acme_srv.db_handler"] = MagicMock()
-sys.modules["acme_srv.authorization.DBstore"] = MagicMock()
+sys.modules["acme2certifier.acme_srv.db_handler"] = MagicMock()
+sys.modules["acme2certifier.acme_srv.authorization.DBstore"] = MagicMock()
 
 import sys
 import os
@@ -20,7 +20,7 @@ import types
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import classes to test
-from acme_srv.authorization import (
+from acme2certifier.acme_srv.authorization import (
     Authorization,
     AuthorizationRepository,
     AuthorizationBusinessLogic,
@@ -88,7 +88,7 @@ class TestAuthorizationData(unittest.TestCase):
         self.assertEqual(data.challenges, challenges)
         self.assertTrue(data.wildcard)
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_005_data_to_dict_basic(self, mock_uts_to_date):
         """Test to_dict method with basic fields"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
@@ -102,7 +102,7 @@ class TestAuthorizationData(unittest.TestCase):
         self.assertEqual(result, expected)
         mock_uts_to_date.assert_called_once_with(1234567890)
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_006_data_to_dict_with_identifier(self, mock_uts_to_date):
         """Test to_dict method with identifier"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
@@ -124,7 +124,7 @@ class TestAuthorizationData(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_007_data_to_dict_with_wildcard(self, mock_uts_to_date):
         """Test to_dict method with wildcard flag"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
@@ -145,7 +145,7 @@ class TestAuthorizationData(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_008_data_to_dict_with_challenges(self, mock_uts_to_date):
         """Test to_dict method with challenges"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
@@ -386,7 +386,7 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
         self.assertEqual(self.business_logic.repository, self.mock_repository)
         self.assertEqual(self.business_logic.logger, self.mock_logger)
 
-    @patch("acme_srv.authorization.string_sanitize")
+    @patch("acme2certifier.acme_srv.authorization.string_sanitize")
     def test_026_extract_authorization_name_from_url(self, mock_sanitize):
         """Test authorization name extraction from URL"""
         mock_sanitize.return_value = "test_authz"
@@ -400,7 +400,7 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
         self.assertEqual(result, "test_authz")
         mock_sanitize.assert_called_once_with(self.mock_logger, "test_authz")
 
-    @patch("acme_srv.authorization.string_sanitize")
+    @patch("acme2certifier.acme_srv.authorization.string_sanitize")
     def test_027_extract_authorization_name_from_url_custom_path(self, mock_sanitize):
         """Test authorization name extraction with custom authz path"""
         mock_sanitize.return_value = "test_authz_custom"
@@ -415,8 +415,8 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
         self.assertEqual(result, "test_authz_custom")
         mock_sanitize.assert_called_once_with(self.mock_logger, "test_authz_custom")
 
-    @patch("acme_srv.authorization.generate_random_string")
-    @patch("acme_srv.authorization.uts_now")
+    @patch("acme2certifier.acme_srv.authorization.generate_random_string")
+    @patch("acme2certifier.acme_srv.authorization.uts_now")
     def test_028_generate_authorization_token_and_expiry(
         self, mock_uts_now, mock_generate_string
     ):
@@ -431,8 +431,8 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
         self.assertEqual(expires, 1000003600)  # 1000000000 + 3600
         mock_generate_string.assert_called_once_with(self.mock_logger, 32)
 
-    @patch("acme_srv.authorization.generate_random_string")
-    @patch("acme_srv.authorization.uts_now")
+    @patch("acme2certifier.acme_srv.authorization.generate_random_string")
+    @patch("acme2certifier.acme_srv.authorization.uts_now")
     def test_028b_resolve_authorization_token_and_expiry_reuse(
         self, mock_uts_now, mock_generate_string
     ):
@@ -449,8 +449,8 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
         mock_generate_string.assert_not_called()
         mock_uts_now.assert_not_called()
 
-    @patch("acme_srv.authorization.generate_random_string")
-    @patch("acme_srv.authorization.uts_now")
+    @patch("acme2certifier.acme_srv.authorization.generate_random_string")
+    @patch("acme2certifier.acme_srv.authorization.uts_now")
     def test_028c_resolve_authorization_token_and_expiry_generate(
         self, mock_uts_now, mock_generate_string
     ):
@@ -679,7 +679,7 @@ class TestChallengeSetManager(unittest.TestCase):
         self.assertEqual(self.manager.server_name, "https://example.com")
         self.assertEqual(self.manager.logger, self.mock_logger)
 
-    @patch("acme_srv.authorization.Challenge")
+    @patch("acme2certifier.acme_srv.authorization.Challenge")
     def test_045_get_challenge_set_for_authorization_success(
         self, mock_challenge_class
     ):
@@ -717,7 +717,7 @@ class TestChallengeSetManager(unittest.TestCase):
             False,
         )
 
-    @patch("acme_srv.authorization.Challenge")
+    @patch("acme2certifier.acme_srv.authorization.Challenge")
     def test_046_get_challenge_set_for_authorization_with_none_values(
         self, mock_challenge_class
     ):
@@ -774,8 +774,8 @@ class TestAuthorization(unittest.TestCase):
         self.assertTrue(authorization.debug)
         self.assertEqual(authorization.logger, self.mock_logger)
 
-    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_049_authorization_context_manager_enter(
         self, mock_load_config, mock_eab_profile
     ):
@@ -799,8 +799,8 @@ class TestAuthorization(unittest.TestCase):
         # Should not raise any exceptions
         self.authorization.__exit__(None, None, None)
 
-    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_051_load_configuration_empty(self, mock_load_config, mock_eab_profile):
         """Test configuration loading with empty config"""
         mock_config = ConfigParser()
@@ -816,8 +816,8 @@ class TestAuthorization(unittest.TestCase):
         self.assertTrue(self.authorization.config.expiry_check_disable)
         self.assertEqual(self.authorization.config.authz_path, "/acme/authz/")
 
-    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_052_load_configuration_success(self, mock_load_config, mock_eab_profile):
         """Test successful configuration loading"""
         mock_config = ConfigParser()
@@ -838,8 +838,8 @@ class TestAuthorization(unittest.TestCase):
         self.assertTrue(self.authorization.config.expiry_check_disable)
         self.assertEqual(self.authorization.config.authz_path, "/custom/acme/authz/")
 
-    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_053_load_configuration_caaidentities_csv_fallback(
         self, mock_load_config, mock_eab_profile
     ):
@@ -858,8 +858,8 @@ class TestAuthorization(unittest.TestCase):
             self.authorization.config.caaidentities, ["acme.local", "bar.local"]
         )
 
-    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_054_load_configuration_caaidentities_json_array(
         self, mock_load_config, mock_eab_profile
     ):
@@ -878,8 +878,8 @@ class TestAuthorization(unittest.TestCase):
             self.authorization.config.caaidentities, ["acme.local", "bar.local"]
         )
 
-    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_055_load_configuration_caaidentities_json_non_array_warns(
         self, mock_load_config, mock_eab_profile
     ):
@@ -901,7 +901,7 @@ class TestAuthorization(unittest.TestCase):
             raw_value,
         )
 
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_056_load_configuration_invalid_validity(self, mock_load_config):
         """Test configuration loading with invalid validity"""
         mock_config = Mock()
@@ -918,8 +918,8 @@ class TestAuthorization(unittest.TestCase):
             "Invalid validity parameter: invalid_number", str(context.exception)
         )
 
-    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_057_load_configuration_empty_config(
         self, mock_load_config, mock_eab_profile
     ):
@@ -945,7 +945,7 @@ class TestAuthorization(unittest.TestCase):
 
         self.assertEqual(result, {})
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_059_get_authorization_details_success_minimal(self, mock_uts_to_date):
         """Test get_authorization_details with minimal success case"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
@@ -991,7 +991,7 @@ class TestAuthorization(unittest.TestCase):
             "test_authz", "token", 1234567890
         )
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_059b_get_authorization_details_reuses_existing_token(
         self, mock_uts_to_date
     ):
@@ -1038,7 +1038,7 @@ class TestAuthorization(unittest.TestCase):
             False,
         )
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_060_get_authorization_details_success_with_details(self, mock_uts_to_date):
         """Test get_authorization_details with full details"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
@@ -1134,7 +1134,7 @@ class TestAuthorization(unittest.TestCase):
         )
         self.assertIn("Challenge failed", str(log_args))
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_062_get_authorization_details_jit_validation_success(
         self, mock_uts_to_date
     ):
@@ -1188,9 +1188,9 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.business_logic = mock_business_logic
         self.authorization.challenge_manager = mock_challenge_manager
 
-        with patch("acme_srv.authorization.ChallengeContext") as mock_context:
+        with patch("acme2certifier.acme_srv.authorization.ChallengeContext") as mock_context:
             with patch(
-                "acme_srv.authorization.DnsPersistChallengeValidator"
+                "acme2certifier.acme_srv.authorization.DnsPersistChallengeValidator"
             ) as mock_validator_cls:
                 context_obj = object()
                 mock_context.return_value = context_obj
@@ -1222,7 +1222,7 @@ class TestAuthorization(unittest.TestCase):
             context_kwargs["options"]["issuer_domain_names"], ["acme.local"]
         )
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_063_get_authorization_details_jit_validation_invalid_result_fallback(
         self, mock_uts_to_date
     ):
@@ -1276,9 +1276,9 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.business_logic = mock_business_logic
         self.authorization.challenge_manager = mock_challenge_manager
 
-        with patch("acme_srv.authorization.ChallengeContext") as mock_context:
+        with patch("acme2certifier.acme_srv.authorization.ChallengeContext") as mock_context:
             with patch(
-                "acme_srv.authorization.DnsPersistChallengeValidator"
+                "acme2certifier.acme_srv.authorization.DnsPersistChallengeValidator"
             ) as mock_validator_cls:
                 validation_result = Mock(success=True, invalid=True)
                 mock_validator = Mock()
@@ -1298,7 +1298,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsNone(context_kwargs["options"]["accounturi"])
         self.assertEqual(context_kwargs["options"]["issuer_domain_names"], [])
 
-    @patch("acme_srv.authorization.uts_to_date_utc")
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_064_get_authorization_details_jit_validation_exception_fallback(
         self, mock_uts_to_date
     ):
@@ -1351,9 +1351,9 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.business_logic = mock_business_logic
         self.authorization.challenge_manager = mock_challenge_manager
 
-        with patch("acme_srv.authorization.ChallengeContext"):
+        with patch("acme2certifier.acme_srv.authorization.ChallengeContext"):
             with patch(
-                "acme_srv.authorization.DnsPersistChallengeValidator"
+                "acme2certifier.acme_srv.authorization.DnsPersistChallengeValidator"
             ) as mock_validator_cls:
                 mock_validator = Mock()
                 mock_validator.perform_validation.side_effect = Exception("jit failed")
@@ -1371,7 +1371,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(error_args[0], "JIT dns-persist-01 validation failed: %s")
         self.assertIn("jit failed", str(error_args[1]))
 
-    @patch("acme_srv.authorization.uts_now")
+    @patch("acme2certifier.acme_srv.authorization.uts_now")
     def test_065_expire_invalid_authorizations_default_timestamp(self, mock_uts_now):
         """Test expire_invalid_authorizations with default timestamp"""
         mock_uts_now.return_value = 1234567890
@@ -1920,10 +1920,10 @@ class TestAuthorization(unittest.TestCase):
         mock_expire.assert_called_once_with(1000000000)
 
     @patch(
-        "acme_srv.authorization.config_dns_server_list_load", return_value=(False, None)
+        "acme2certifier.acme_srv.authorization.config_dns_server_list_load", return_value=(False, None)
     )
-    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_086_load_configuration_prevalidated_domainlist_success(
         self, mock_load_config, mock_eab_profile, mock_dns_list
     ):
@@ -1951,7 +1951,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.config.prevalidated_domainlist = ["example.com"]
 
         # Patch is_domain_whitelisted to always return True
-        import acme_srv.helpers.domain_utils as domain_utils
+        import acme2certifier.acme_srv.helpers.domain_utils as domain_utils
 
         orig_is_domain_whitelisted = domain_utils.is_domain_whitelisted
         domain_utils.is_domain_whitelisted = lambda logger, domain, whitelist: True
@@ -2001,7 +2001,11 @@ class TestAuthorization(unittest.TestCase):
         for id_type in ("email", "dns", "ip"):
             authz_info = {"status": "pending"}
             self.authorization._apply_prevalidation_whitelist(
-                f"authz_{id_type}", {"order__name": "order_1"}, id_type, None, authz_info
+                f"authz_{id_type}",
+                {"order__name": "order_1"},
+                id_type,
+                None,
+                authz_info,
             )
             self.assertEqual(authz_info["status"], "pending")
             self.authorization.repository.mark_authorization_as_valid.assert_not_called()
@@ -2112,7 +2116,7 @@ class TestAuthorization(unittest.TestCase):
         authz_info = {"status": "pending", "wildcard": False}
         auth_details = {"order__name": "order_mixed"}
 
-        with patch("acme_srv.authorization.is_domain_whitelisted", return_value=False):
+        with patch("acme2certifier.acme_srv.authorization.is_domain_whitelisted", return_value=False):
             self.authorization._handle_domain_prevalidation(
                 "authz_mixed", auth_details, "unlisted.example.net", authz_info
             )
@@ -2202,10 +2206,10 @@ class TestAuthorization(unittest.TestCase):
             )
 
     @patch(
-        "acme_srv.authorization.config_dns_server_list_load", return_value=(False, None)
+        "acme2certifier.acme_srv.authorization.config_dns_server_list_load", return_value=(False, None)
     )
-    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
-    @patch("acme_srv.authorization.load_config")
+    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_094_load_configuration_prevalidated_domainlist_invalid_json(
         self, mock_load_config, mock_eab_profile, mock_dns_list
     ):
@@ -2285,7 +2289,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.config.prevalidated_domainlist = ["foo.com"]
         self.authorization.repository = Mock()
         authz_info = {"status": "pending"}
-        with patch("acme_srv.authorization.is_domain_whitelisted", return_value=True):
+        with patch("acme2certifier.acme_srv.authorization.is_domain_whitelisted", return_value=True):
             self.authorization._apply_eab_and_prevalidation_whitelist(
                 "authz", {"order__name": "order1"}, "dns", "foo.com", authz_info
             )
@@ -2302,7 +2306,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.config.prevalidated_domainlist = ["foo.com"]
         self.authorization.repository = Mock()
         authz_info = {"status": "pending"}
-        with patch("acme_srv.authorization.is_domain_whitelisted", return_value=False):
+        with patch("acme2certifier.acme_srv.authorization.is_domain_whitelisted", return_value=False):
             self.authorization._apply_eab_and_prevalidation_whitelist(
                 "authz", {"order__name": "order1"}, "dns", "bar.com", authz_info
             )
@@ -2334,7 +2338,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_authorization_as_valid.assert_not_called()
         self.authorization.repository.mark_order_as_ready.assert_not_called()
 
-    @patch("acme_srv.helpers.domain_utils.is_ip_whitelisted", return_value=True)
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.is_ip_whitelisted", return_value=True)
     def test_102_ip_prevalidation_status_set_and_logs(self, mock_ip_whitelisted):
         """If IP is whitelisted, status is set to valid, mark_authorization_as_valid called, logs info"""
         authz_name = "authz_ip"
@@ -2361,7 +2365,7 @@ class TestAuthorization(unittest.TestCase):
             "IP %s is preauthorized, setting authorization status to 'valid'", id_value
         )
 
-    @patch("acme_srv.helpers.domain_utils.is_ip_whitelisted", return_value=True)
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.is_ip_whitelisted", return_value=True)
     def test_103_ip_prevalidation_status_set_no_auth_details_and_logs(
         self, mock_ip_whitelisted
     ):
@@ -2388,7 +2392,7 @@ class TestAuthorization(unittest.TestCase):
             "IP %s is preauthorized, setting authorization status to 'valid'", id_value
         )
 
-    @patch("acme_srv.helpers.domain_utils.is_ip_whitelisted", return_value=False)
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.is_ip_whitelisted", return_value=False)
     def test_104_ip_prevalidation_not_whitelisted(self, mock_ip_whitelisted):
         """If IP is not whitelisted, status remains unchanged, no mark calls, logs debug"""
         authz_name = "authz_ip"
@@ -2500,7 +2504,7 @@ class TestAuthorization(unittest.TestCase):
         auth_details = {"order__name": "order_email"}
         id_value = "user@example.com"
         authz_info = {"status": "pending"}
-        with patch("acme_srv.authorization.is_email_whitelisted", return_value=True):
+        with patch("acme2certifier.acme_srv.authorization.is_email_whitelisted", return_value=True):
             self.authorization._handle_email_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
@@ -2520,7 +2524,7 @@ class TestAuthorization(unittest.TestCase):
         auth_details = {"order__name": "order_email"}
         id_value = "other@example.com"
         authz_info = {"status": "pending"}
-        with patch("acme_srv.authorization.is_email_whitelisted", return_value=False):
+        with patch("acme2certifier.acme_srv.authorization.is_email_whitelisted", return_value=False):
             self.authorization._handle_email_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
@@ -2551,7 +2555,7 @@ class TestAuthorization(unittest.TestCase):
         auth_details = None
         id_value = "user@example.com"
         authz_info = {"status": "pending"}
-        with patch("acme_srv.authorization.is_email_whitelisted", return_value=True):
+        with patch("acme2certifier.acme_srv.authorization.is_email_whitelisted", return_value=True):
             self.authorization._handle_email_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
@@ -2653,7 +2657,7 @@ class TestAuthorizationRepositoryLogging(unittest.TestCase):
     """Test that AuthorizationRepository logs errors/criticals on exception paths."""
 
     def setUp(self):
-        from acme_srv.authorization import AuthorizationRepository
+        from acme2certifier.acme_srv.authorization import AuthorizationRepository
 
         self.mock_dbstore = Mock()
         self.mock_logger = Mock()
