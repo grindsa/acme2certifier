@@ -217,6 +217,60 @@ jobs:
           ghcr_token: ${{ env.GHCR_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+  test_amd64_n1:
+    name: Test amd64 N-1 images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [resolve_versions, build_and_push_n1]
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: [apache2, nginx]
+        dbhandler: [wsgi, django]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Parse software repository secrets
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SWREPO_CFG }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ env.GHCR_USER }}
+          password: ${{ env.GHCR_TOKEN }}
+
+      - name: Enrollment test
+        uses: ./.github/actions/image_enrollment_test
+        with:
+          image: ghcr.io/grindsa/acme2certifier:${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+          hostname_suffix: -${{ matrix.websrv }}-${{ matrix.dbhandler }}-amd64-n1
+          name_space: acme-${{ matrix.websrv }}-${{ matrix.dbhandler }}-n1
+          container_name: acme-srv
+
+      - name: Sanitize failure artifacts
+        if: failure()
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: amd64-n1-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+          path: ${{ github.workspace }}/artifact/upload/
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
   test_amd64:
     name: Test amd64 images
     runs-on: ubuntu-latest
