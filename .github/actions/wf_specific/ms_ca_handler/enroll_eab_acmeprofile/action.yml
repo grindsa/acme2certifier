@@ -1,5 +1,5 @@
-name: "enroll_default_headerinfo"
-description: "enroll_default_headerinfo"
+name: "enroll_eab_acmeprofile"
+description: "MSCA EAB ACME profile enrollment test"
 inputs:
   NAME_SPACE:
     description: "namespace"

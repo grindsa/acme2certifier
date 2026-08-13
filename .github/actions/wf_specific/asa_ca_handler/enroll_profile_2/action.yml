@@ -1,5 +1,5 @@
-name: "enroll_2_profile"
-description: "wf enrollment 2 profile"
+name: "enroll_profile_2"
+description: "ASA profile 2 enrollment test"
 
 runs:
   using: "composite"

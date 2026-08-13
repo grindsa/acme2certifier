@@ -1,5 +1,5 @@
-name: "enroll_eab"
-description: "enroll_eab"
+name: "enroll_eabprofile"
+description: "Prevalidation EAB profile enrollment test"
 
 runs:
   using: "composite"

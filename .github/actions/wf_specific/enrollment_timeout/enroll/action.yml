@@ -1,5 +1,5 @@
 name: "enroll timeout"
-description: test enrollment timeout handling for various ACME clients"
+description: "test enrollment timeout handling for various ACME clients"
 inputs:
   DEPLOYMENT_TYPE:
     description: "Deployment type"

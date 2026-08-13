@@ -1,5 +1,5 @@
-name: "enroll_test"
-description: "enroll_test"
+name: "enroll"
+description: "Disable-challenge-validation enrollment test"
 inputs:
   TO_FAIL:
     description: "Enrollment is expected to fail"

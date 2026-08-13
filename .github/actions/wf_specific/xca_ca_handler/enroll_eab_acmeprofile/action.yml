@@ -1,5 +1,5 @@
-name: "enroll_eab"
-description: "enroll_eab"
+name: "enroll_eab_acmeprofile"
+description: "XCA EAB ACME profile enrollment test"
 
 runs:
   using: "composite"
