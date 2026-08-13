@@ -1,0 +1,308 @@
+name: CA-Handler Tests - Insta ASA CA (containers)
+on:
+  workflow_call:
+    inputs:
+      run_id:
+        description: Producer workflow run ID
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    steps:
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Parse ASA configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.ASA_CFG }}
+          uppercase: 'true'
+
+      - name: "Profile $ASA_PROFILE1 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Profile $ASA_PROFILE1 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1 (post-cfg)"
+        run: |
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "create folders"
+        run: |
+          mkdir lego
+          mkdir acme-sh
+          mkdir certbot
+
+      - name: "$ASA_PROFILE1 - enrollment"
+        uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_1
+
+      - name: "Profile $ASA_PROFILE2 - Reconfiguration of a2c with a new profile"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
+            profile_name: ${{ env.ASA_PROFILE2 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Profile $ASA_PROFILE2 - Reconfiguration of a2c with a new profile (post-cfg)"
+        run: |
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "$ASA_PROFILE2 - enrollment"
+        uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_2
+
+      - name: "Header-info - Setup asa_ca_handler with headerinfo"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Header-info - Setup asa_ca_handler with headerinfo (post-cfg)"
+        run: |
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Hederinfo - enrollment"
+        uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_headerinfo
+        with:
+          ASA_PROFILE1: ${{ env.ASA_PROFILE1 }}
+          ASA_PROFILE2: ${{ env.ASA_PROFILE2 }}
+
+      - name: "EAB without headerinfo - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/asa.json
+          DEST: examples/Docker/data/kid_profiles.json
+          ENVSUBST: "true"
+      - name: "EAB without headerinfo - Setup asa_ca_handler (post-cfg)"
+        run: |
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
+
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB without headerinfo - enrollment"
+        uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_wo_headerinfo
+        with:
+          ASA_CA_NAME1: ${{ env.ASA_CA_NAME1 }}
+          ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
+
+      - name: "EAB with headerinfo - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/asa.json
+          DEST: examples/Docker/data/kid_profiles.json
+          ENVSUBST: "true"
+      - name: "EAB with headerinfo - Setup asa_ca_handler (post-cfg)"
+        run: |
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB with headerinfo - enrollment"
+        uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_w_headerinfo
+        with:
+          ASA_CA_NAME1: ${{ env.ASA_CA_NAME1 }}
+          ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
+
+      - name: "ACME Profile - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "ACME Profile - Setup asa_ca_handler (post-cfg)"
+        run: |
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "ACME Profile - enrollment"
+        uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_acmeprofile
+        with:
+          ASA_PROFILE1: ${{ env.ASA_PROFILE1 }}
+          ASA_PROFILE2: ${{ env.ASA_PROFILE2 }}
+
+      - name: "EAB ACME Profiling - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/asa.json
+          DEST: examples/Docker/data/kid_profiles.json
+          ENVSUBST: "true"
+      - name: "EAB ACME Profiling - Setup asa_ca_handler (post-cfg)"
+        run: |
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB ACME Profiling - enrollment"
+        uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_acmeprofile
+        with:
+          ASA_CA_NAME1: ${{ env.ASA_CA_NAME1 }}
+          ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
+          ASA_PROFILE1: ${{ env.ASA_PROFILE1 }}
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
