@@ -24,8 +24,9 @@ on:
         default: ''
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.branch }}
-  cancel-in-progress: true
+  # Shared NCM EC2: serialize across branches so master+devel cannot start the same box.
+  group: ncm-ec2
+  cancel-in-progress: false
 
 permissions: {}
 

@@ -24,8 +24,9 @@ on:
         default: ''
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.branch }}
-  cancel-in-progress: true
+  # Shared Windows MSCA EC2: serialize across branches so master+devel cannot start the same box.
+  group: msca-ec2
+  cancel-in-progress: false
 
 permissions: {}
 
@@ -53,6 +54,9 @@ jobs:
     timeout-minutes: 20
     # Shared Windows MSCA AWS host; keep in sync with instance_stop skip logic.
     if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_pip') || contains(inputs.branch, 'msca')) }}
+    outputs:
+      # Live EC2 public IP captured after start; prefer over DNS (often stale post stop/start).
+      public_ip: ${{ steps.wait_ip.outputs.public_ip }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -61,6 +65,11 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse MSCA_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.MSCA_CFG }}
 
       - name: "Start AWS instance for testing"
         uses: ./.github/actions/aws_instance_manage
@@ -73,10 +82,16 @@ jobs:
           IGNORE_CURRENT_STATUS: "false"
 
       - name: "Wait for instance public IP + status"
+        id: wait_ip
         run: |
           set -euo pipefail
+          # Prefer the live EC2 public IP: DNS (SSH_HOST) can lag after stop/start.
           INSTANCE_ID="${{ env.AWS_WINDOWS-01_INSTANCE_ID }}"
           REGION="${{ env.AWS_REGION }}"
+          DNS_HOST="${{ env.SSH_HOST }}"
+          DNS_IP="$(getent ahostsv4 "$DNS_HOST" | awk '{print $1; exit}' || true)"
+          echo "SSH_HOST DNS ${DNS_HOST} -> ${DNS_IP:-unresolved}"
+
           PUBLIC_IP=""
           for i in $(seq 1 40); do
             STATE="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
@@ -94,7 +109,11 @@ jobs:
             echo "ERROR: instance has no public IP yet" >&2
             exit 1
           fi
+          if [[ -n "$DNS_IP" && "$DNS_IP" != "$PUBLIC_IP" ]]; then
+            echo "WARNING: DNS ${DNS_IP} != EC2 public IP ${PUBLIC_IP}; using EC2 IP for SSH"
+          fi
           echo "MSCA instance public IP: ${PUBLIC_IP}"
+          echo "public_ip=${PUBLIC_IP}" >> "$GITHUB_OUTPUT"
           aws ec2 wait instance-status-ok --region "$REGION" --instance-ids "$INSTANCE_ID" || true
 
 
@@ -157,7 +176,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -468,7 +487,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -671,7 +690,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -706,7 +725,7 @@ jobs:
             target_domain: ${{ env.MSCA_ADS_DOMAIN }}
             ca_bundle: volume/ca_certs.pem
             timeout: 20
-            ssh_host: ${{ env.SSH_HOST }}:${{ env.SSH_PORT }}
+            ssh_host: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}:${{ env.SSH_PORT }}
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -750,7 +769,7 @@ jobs:
             target_domain: ${{ env.MSCA_ADS_DOMAIN }}
             ca_bundle: volume/ca_certs.pem
             timeout: 20
-            ssh_host: ${{ env.SSH_HOST }}:${{ env.SSH_PORT }}
+            ssh_host: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}:${{ env.SSH_PORT }}
             enrollment_config_log: True
 
       - name: "NTLM ACME Profile - Enrollment"
@@ -951,7 +970,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -1158,7 +1177,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -1321,7 +1340,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -1592,7 +1611,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -1842,7 +1861,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -2090,7 +2109,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -2286,7 +2305,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
@@ -2605,7 +2624,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
         with:
           SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_HOST: ${{ needs.instance_start.outputs.public_ip || env.SSH_HOST }}
           SSH_PORT: ${{ env.SSH_PORT }}
           MSCA_IP: ${{ env.MSCA_IP }}
           MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
