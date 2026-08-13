@@ -41,6 +41,8 @@ class CAhandler(object):
 
     KINIT_TIMEOUT_SECONDS = 30
     CERT_FETCH_ERROR = "Could not get certificate from CA server"
+    KRB5_CONFIG_MISSING_LOG = "Configured krb5_config does not exist: %s"
+
     _ca_templates_cache: Dict[str, List[str]] = {}
     _ca_templates_lock = threading.Lock()
 
@@ -237,7 +239,9 @@ class CAhandler(object):
         ] in ["basic", "ntlm", "gssapi"]:
             self.auth_method = config_dic.get("CAhandler", "auth_method")
         channel_bindings_mode = config_dic.get(
-            "CAhandler", "gssapi_channel_bindings", fallback=self.gssapi_channel_bindings
+            "CAhandler",
+            "gssapi_channel_bindings",
+            fallback=self.gssapi_channel_bindings,
         )
         if isinstance(channel_bindings_mode, str):
             channel_bindings_mode = channel_bindings_mode.lower()
@@ -692,39 +696,48 @@ class CAhandler(object):
             )
             return False
 
-    def _kerberos_acquire_with_kinit(self, ccache_file: str) -> bool:
-        """acquire kerberos credentials using kinit fallback"""
-        self.logger.debug("CAhandler._kerberos_acquire_with_kinit()")
-        kinit_cmd = kerberos_kinit_command_resolve(self.logger, self.krb5_kinit_path)
-        if not kinit_cmd:
-            return False
-        try:
-            kinit_env = dict(os.environ)
-            kinit_env["KRB5CCNAME"] = ccache_file
-            krb5_config = self._kerberos_config_path_resolve()
-            if krb5_config:
-                kinit_env["KRB5_CONFIG"] = krb5_config
-            elif self.krb5_config:
-                self.logger.error(
-                    "Configured krb5_config does not exist: %s", self.krb5_config
-                )
-                return False
+    def _kerberos_kinit_env(self, ccache_file: str) -> Optional[Dict[str, str]]:
+        """Build kinit subprocess env. None if configured krb5_config is missing."""
+        kinit_env = dict(os.environ)
+        kinit_env["KRB5CCNAME"] = ccache_file
+        krb5_config = self._kerberos_config_path_resolve()
+        if krb5_config:
+            kinit_env["KRB5_CONFIG"] = krb5_config
+            return kinit_env
+        if self.krb5_config:
+            self.logger.error(self.KRB5_CONFIG_MISSING_LOG, self.krb5_config)
+            return None
+        return kinit_env
 
+    def _kerberos_kinit_error_text(self, err: Exception) -> Optional[str]:
+        """Return stripped stderr from a kinit subprocess exception."""
+        stderr = getattr(err, "stderr", None)
+        if not stderr:
+            return None
+        if isinstance(stderr, bytes):
+            return stderr.decode("utf-8", errors="replace").strip()
+        return str(stderr).strip()
+
+    def _kerberos_kinit_run(
+        self,
+        args: List[str],
+        kinit_env: Dict[str, str],
+        failure_action: str,
+        stdin_input: Optional[str] = None,
+        text: bool = False,
+    ) -> bool:
+        """Run kinit and log failures. Returns True on success."""
+        try:
             subprocess.run(
-                [
-                    kinit_cmd,
-                    "-k",
-                    "-t",
-                    self.krb5_keytab,
-                    self.krb5_principal,
-                ],
+                args,
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=kinit_env,
                 timeout=self.KINIT_TIMEOUT_SECONDS,
+                input=stdin_input,
+                text=text,
             )
-            self.logger.debug("Kerberos credentials acquired using kinit fallback")
             return True
         except subprocess.TimeoutExpired:
             self.logger.error(
@@ -733,24 +746,34 @@ class CAhandler(object):
             )
             return False
         except FileNotFoundError as err:
-            self.logger.error("%s command not found: %s", kinit_cmd, err)
+            self.logger.error("%s command not found: %s", args[0], err)
             return False
         except Exception as err:
-            stderr = None
-            if hasattr(err, "stderr") and err.stderr:
-                stderr = err.stderr.decode("utf-8", errors="replace").strip()
-
-            if stderr:
-                self.logger.error(
-                    "Failed to acquire kerberos credentials via kinit: %s",
-                    stderr,
-                )
-            else:
-                self.logger.error(
-                    "Failed to acquire kerberos credentials via kinit: %s",
-                    err,
-                )
+            detail = self._kerberos_kinit_error_text(err)
+            self.logger.error(
+                "Failed to acquire kerberos credentials via %s: %s",
+                failure_action,
+                detail if detail else err,
+            )
             return False
+
+    def _kerberos_acquire_with_kinit(self, ccache_file: str) -> bool:
+        """acquire kerberos credentials using kinit fallback"""
+        self.logger.debug("CAhandler._kerberos_acquire_with_kinit()")
+        kinit_cmd = kerberos_kinit_command_resolve(self.logger, self.krb5_kinit_path)
+        if not kinit_cmd:
+            return False
+        kinit_env = self._kerberos_kinit_env(ccache_file)
+        if kinit_env is None:
+            return False
+        if not self._kerberos_kinit_run(
+            [kinit_cmd, "-k", "-t", self.krb5_keytab, self.krb5_principal],
+            kinit_env,
+            "kinit",
+        ):
+            return False
+        self.logger.debug("Kerberos credentials acquired using kinit fallback")
+        return True
 
     def _kerberos_acquire_with_kinit_password(self, ccache_file: str) -> bool:
         """Acquire Kerberos credentials via password kinit (subprocess-local env)."""
@@ -764,62 +787,22 @@ class CAhandler(object):
             )
             return False
 
-        try:
-            kinit_env = dict(os.environ)
-            kinit_env["KRB5CCNAME"] = ccache_file
-            krb5_config = self._kerberos_config_path_resolve()
-            if krb5_config:
-                kinit_env["KRB5_CONFIG"] = krb5_config
-            elif self.krb5_config:
-                self.logger.error(
-                    "Configured krb5_config does not exist: %s", self.krb5_config
-                )
-                return False
-
-            subprocess.run(
-                [kinit_cmd, self.user],
-                input=f"{self.password}\n",
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=kinit_env,
-                timeout=self.KINIT_TIMEOUT_SECONDS,
-                text=True,
-            )
-            self.logger.debug(
-                "Kerberos credentials acquired using password kinit for principal '%s'",
-                self.user,
-            )
-            return True
-        except subprocess.TimeoutExpired:
-            self.logger.error(
-                "kinit timed out after %s seconds while acquiring kerberos credentials",
-                self.KINIT_TIMEOUT_SECONDS,
-            )
+        kinit_env = self._kerberos_kinit_env(ccache_file)
+        if kinit_env is None:
             return False
-        except FileNotFoundError as err:
-            self.logger.error("%s command not found: %s", kinit_cmd, err)
+        if not self._kerberos_kinit_run(
+            [kinit_cmd, self.user],
+            kinit_env,
+            "password kinit",
+            stdin_input=f"{self.password}\n",
+            text=True,
+        ):
             return False
-        except Exception as err:
-            stderr = None
-            if hasattr(err, "stderr") and err.stderr:
-                stderr = (
-                    err.stderr
-                    if isinstance(err.stderr, str)
-                    else err.stderr.decode("utf-8", errors="replace")
-                ).strip()
-
-            if stderr:
-                self.logger.error(
-                    "Failed to acquire kerberos credentials via password kinit: %s",
-                    stderr,
-                )
-            else:
-                self.logger.error(
-                    "Failed to acquire kerberos credentials via password kinit: %s",
-                    err,
-                )
-            return False
+        self.logger.debug(
+            "Kerberos credentials acquired using password kinit for principal '%s'",
+            self.user,
+        )
+        return True
 
     def _kerberos_prepare_gssapi_password_backend(self) -> Optional[str]:
         """Prepare GSSAPI creds for user/password via subprocess kinit + ccache."""
@@ -828,9 +811,7 @@ class CAhandler(object):
             return None
 
         if self.krb5_config and not self._kerberos_config_path_resolve():
-            self.logger.error(
-                "Configured krb5_config does not exist: %s", self.krb5_config
-            )
+            self.logger.error(self.KRB5_CONFIG_MISSING_LOG, self.krb5_config)
             return "Configured krb5_config does not exist."
 
         ccache_file = self._kerberos_ccache_prepare()
@@ -921,9 +902,7 @@ class CAhandler(object):
 
     def _allowed_templates_check(self) -> Optional[str]:
         """Enforce configured allowed_templates allowlist."""
-        self.logger.debug(
-            "CAhandler._allowed_templates_check(%s)", self.template
-        )
+        self.logger.debug("CAhandler._allowed_templates_check(%s)", self.template)
         if not self.allowed_templates:
             return None
         if self.template not in self.allowed_templates:
@@ -965,9 +944,7 @@ class CAhandler(object):
 
         with self._ca_templates_lock:
             self._ca_templates_cache[cache_key] = list(templates)
-        self.logger.debug(
-            "Cached %s CA templates for %s", len(templates), cache_key
-        )
+        self.logger.debug("Cached %s CA templates for %s", len(templates), cache_key)
         return list(templates)
 
     def _ca_templates_membership_check(self, ca_server: object) -> Optional[str]:

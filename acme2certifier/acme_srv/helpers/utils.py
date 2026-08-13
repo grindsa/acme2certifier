@@ -88,9 +88,7 @@ def kerberos_kinit_command_resolve(
         )
         return None
 
-    logger.debug(
-        "Helper.kerberos_kinit_command_resolve() ended with: %s", resolved
-    )
+    logger.debug("Helper.kerberos_kinit_command_resolve() ended with: %s", resolved)
     return resolved
 
 

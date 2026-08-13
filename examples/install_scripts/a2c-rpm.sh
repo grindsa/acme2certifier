@@ -51,6 +51,8 @@ set -euo pipefail
 readonly MODE_DJANGO="django"
 readonly MODE_WSGI="wsgi"
 readonly DJANGO_SETTINGS="acme2certifier.django_project.settings"
+readonly FLAVOR_PYTHON39="acme2certifier-python39"
+readonly FLAVOR_PYTHON3="acme2certifier-python3"
 
 MODE="wsgi"
 MODE_EXPLICIT=0
@@ -81,6 +83,7 @@ pick_main_rpm() {
     case "$(basename "${f}")" in
       acme2certifier-python*) continue ;;
       acme2certifier-*.rpm|acme2certifier-*.RPM) printf '%s\n' "${f}"; return 0 ;;
+      *) continue ;;
     esac
   done
   return 1
@@ -185,7 +188,7 @@ install_uwsgi_python_plugin() {
   local flavor="$1"
   local main_rpm="${2:-}"
   local plugin_pkg plugin_file
-  if [[ "${flavor}" == "acme2certifier-python39" ]]; then
+  if [[ "${flavor}" == "${FLAVOR_PYTHON39}" ]]; then
     plugin_pkg="uwsgi-plugin-python39"
     if plugin_file="$(find_named_rpm "${plugin_pkg}" "${main_rpm}")"; then
       echo "==> Installing ${plugin_pkg} from ${plugin_file}"
@@ -206,8 +209,9 @@ install_uwsgi_python_plugin() {
 }
 
 uwsgi_plugins_value() {
-  case "$1" in
-    acme2certifier-python39) echo "python39" ;;
+  local flavor_name="$1"
+  case "${flavor_name}" in
+    "${FLAVOR_PYTHON39}") echo "python39" ;;
     *) echo "python3" ;;
   esac
 }
@@ -220,16 +224,16 @@ resolve_flavor_name() {
   case "${normalized}" in
     "" )
       if [[ "${el}" == "8" ]]; then
-        echo "acme2certifier-python39"
+        echo "${FLAVOR_PYTHON39}"
       else
-        echo "acme2certifier-python3"
+        echo "${FLAVOR_PYTHON3}"
       fi
       ;;
-    3.9|39|python39|acme2certifier-python39)
-      echo "acme2certifier-python39"
+    3.9|39|python39|"${FLAVOR_PYTHON39}")
+      echo "${FLAVOR_PYTHON39}"
       ;;
-    3.6|3|python3|acme2certifier-python3)
-      echo "acme2certifier-python3"
+    3.6|3|python3|"${FLAVOR_PYTHON3}")
+      echo "${FLAVOR_PYTHON3}"
       ;;
     3.11|311|python3.11|acme2certifier-python3.11)
       echo "acme2certifier-python3.11"
@@ -585,7 +589,7 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   echo "==> Installing Django-related system packages"
   DJANGO_RPM=""
   DJANGO_CANDS=(python3-django4.2 python3-django)
-  if [[ "${FLAVOR_PKG}" == "acme2certifier-python39" ]]; then
+  if [[ "${FLAVOR_PKG}" == "${FLAVOR_PYTHON39}" ]]; then
     DJANGO_CANDS=(python39-django python3-django4.2 python3-django)
   fi
   for cand in "${DJANGO_CANDS[@]}"; do
@@ -609,10 +613,10 @@ fi
 echo "==> Installing ${RPM_FILE} + ${FLAVOR_FILE}"
 if ! ${SUDO} ${PKG} localinstall -y "${RPM_FILE}" "${FLAVOR_FILE}"; then
   if [[ "${EL_MAJOR}" == "8" \
-     && "${FLAVOR_PKG}" == "acme2certifier-python39" \
+     && "${FLAVOR_PKG}" == "${FLAVOR_PYTHON39}" \
      && -z "${PYTHON_OPT}" ]]; then
-    echo "==> WARN: python39 flavor install failed; falling back to acme2certifier-python3 (EL8 legacy 3.6)"
-    FLAVOR_PKG="acme2certifier-python3"
+    echo "==> WARN: python39 flavor install failed; falling back to ${FLAVOR_PYTHON3} (EL8 legacy 3.6)"
+    FLAVOR_PKG="${FLAVOR_PYTHON3}"
     FLAVOR_FILE="$(resolve_flavor_file "${FLAVOR_PKG}")" || {
       echo "ERROR: fallback flavor RPM ${FLAVOR_PKG}-*.rpm not found" >&2
       exit 1
@@ -631,11 +635,10 @@ echo "==> Verifying package import (PYTHONPATH=${APP_ROOT}, python=${PY_BIN})"
 ${SUDO} env PYTHONPATH="${APP_ROOT}" "${PY_BIN}" -c \
   "import acme2certifier.acme_srv; from acme2certifier.acme_srv.version import __version__; print('acme2certifier', __version__)"
 command -v a2c-cli >/dev/null
-if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
-  if ! ${SUDO} "${PY_BIN}" -c "import django; print('${MODE_DJANGO}', django.get_version())"; then
-    echo "ERROR: Django installed but 'import django' failed with ${PY_BIN}" >&2
-    exit 1
-  fi
+if [[ "${MODE}" == "${MODE_DJANGO}" ]] \
+  && ! ${SUDO} "${PY_BIN}" -c "import django; print('${MODE_DJANGO}', django.get_version())"; then
+  echo "ERROR: Django installed but 'import django' failed with ${PY_BIN}" >&2
+  exit 1
 fi
 
 ${SUDO} mkdir -p "${APP_ROOT}/volume" /run/uwsgi
@@ -817,7 +820,7 @@ echo "  Test:     curl -sS http://127.0.0.1/directory | head"
 echo "  Next:     edit ${CFG} (CA handler), see docs/acme_srv.md"
 echo "  Logs:     journalctl -u acme2certifier -n 50 --no-pager"
 echo "            tail -n 50 /var/log/nginx/error.log" >&2
-if [[ "${EL_MAJOR}" == "8" && "${FLAVOR_PKG}" == "acme2certifier-python3" ]]; then
+if [[ "${EL_MAJOR}" == "8" && "${FLAVOR_PKG}" == "${FLAVOR_PYTHON3}" ]]; then
   echo
   echo "  Note (EL8 legacy 3.6): if imports fail on cryptography/jwcrypto/dns, install"
   echo "  backports from https://github.com/grindsa/sbom (docs/install_rpm.md)."

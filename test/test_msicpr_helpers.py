@@ -38,19 +38,19 @@ class TestMsWcceErrors(unittest.TestCase):
 class TestMsWcceTarget(unittest.TestCase):
     """tests for ms_icpr.target"""
 
-    def test_001_is_ip_true(self):
+    def test_003_is_ip_true(self):
         """is_ip returns True for IPv4 addresses"""
         from acme2certifier.cahandlers.ms_icpr.target import is_ip
 
         self.assertTrue(is_ip("127.0.0.1"))
 
-    def test_002_is_ip_false(self):
+    def test_004_is_ip_false(self):
         """is_ip returns False for hostnames"""
         from acme2certifier.cahandlers.ms_icpr.target import is_ip
 
         self.assertFalse(is_ip("example.com"))
 
-    def test_003_dnsresolver_from_options_uses_ns(self):
+    def test_005_dnsresolver_from_options_uses_ns(self):
         """DnsResolver.from_options prefers options.ns"""
         from acme2certifier.cahandlers.ms_icpr.target import DnsResolver
 
@@ -60,7 +60,7 @@ class TestMsWcceTarget(unittest.TestCase):
         self.assertEqual(["8.8.8.8"], resolver.resolver.nameservers)
         self.assertTrue(resolver.use_tcp)
 
-    def test_004_dnsresolver_from_options_falls_back_to_dc_ip(self):
+    def test_006_dnsresolver_from_options_falls_back_to_dc_ip(self):
         """DnsResolver.from_options falls back to target.dc_ip"""
         from acme2certifier.cahandlers.ms_icpr.target import DnsResolver
 
@@ -70,7 +70,7 @@ class TestMsWcceTarget(unittest.TestCase):
         self.assertEqual(["9.9.9.9"], resolver.resolver.nameservers)
         self.assertFalse(resolver.use_tcp)
 
-    def test_005_dnsresolver_create_uses_ns(self):
+    def test_007_dnsresolver_create_uses_ns(self):
         """DnsResolver.create uses explicit nameserver"""
         from acme2certifier.cahandlers.ms_icpr.target import DnsResolver
 
@@ -79,7 +79,7 @@ class TestMsWcceTarget(unittest.TestCase):
         self.assertEqual(["8.8.4.4"], resolver.resolver.nameservers)
         self.assertTrue(resolver.use_tcp)
 
-    def test_006_dnsresolver_create_falls_back_to_dc_ip(self):
+    def test_008_dnsresolver_create_falls_back_to_dc_ip(self):
         """DnsResolver.create falls back to target.dc_ip"""
         from acme2certifier.cahandlers.ms_icpr.target import DnsResolver
 
@@ -87,7 +87,7 @@ class TestMsWcceTarget(unittest.TestCase):
         resolver = DnsResolver.create(target=target, ns_=None, dns_tcp=False)
         self.assertEqual(["1.2.3.4"], resolver.resolver.nameservers)
 
-    def test_007_dnsresolver_resolve_from_cache(self):
+    def test_009_dnsresolver_resolve_from_cache(self):
         """DnsResolver.resolve returns cached mapping"""
         from acme2certifier.cahandlers.ms_icpr.target import DnsResolver
 
@@ -95,14 +95,14 @@ class TestMsWcceTarget(unittest.TestCase):
         resolver.mappings["host.example"] = "10.0.0.1"
         self.assertEqual("10.0.0.1", resolver.resolve("host.example"))
 
-    def test_008_dnsresolver_resolve_ip_passthrough(self):
+    def test_010_dnsresolver_resolve_ip_passthrough(self):
         """DnsResolver.resolve returns IP addresses unchanged"""
         from acme2certifier.cahandlers.ms_icpr.target import DnsResolver
 
         resolver = DnsResolver()
         self.assertEqual("10.0.0.2", resolver.resolve("10.0.0.2"))
 
-    def test_009_dnsresolver_resolve_via_nameserver(self):
+    def test_011_dnsresolver_resolve_via_nameserver(self):
         """DnsResolver.resolve uses resolver answers when available"""
         from acme2certifier.cahandlers.ms_icpr.target import DnsResolver
 
@@ -115,7 +115,7 @@ class TestMsWcceTarget(unittest.TestCase):
             self.assertEqual("10.1.2.3", resolver.resolve("host.example"))
         self.assertEqual("10.1.2.3", resolver.mappings["host.example"])
 
-    def test_010_dnsresolver_resolve_empty_answers_then_gethostbyname(self):
+    def test_012_dnsresolver_resolve_empty_answers_then_gethostbyname(self):
         """DnsResolver.resolve falls back to gethostbyname on empty answers"""
         from acme2certifier.cahandlers.ms_icpr.target import DnsResolver
 
@@ -132,7 +132,7 @@ class TestMsWcceTarget(unittest.TestCase):
             self.assertEqual("10.9.8.7", resolver.resolve("host.example"))
         mock_resolver.resolve.assert_called_once()
 
-    def test_011_dnsresolver_resolve_failure_returns_hostname(self):
+    def test_013_dnsresolver_resolve_failure_returns_hostname(self):
         """DnsResolver.resolve returns hostname when all lookups fail"""
         from acme2certifier.cahandlers.ms_icpr.target import DnsResolver
 
@@ -154,7 +154,7 @@ class TestMsWcceTarget(unittest.TestCase):
             any("Failed to resolve: host.example" in msg for msg in lcm.output)
         )
 
-    def test_012_target_init_defaults_and_warning(self):
+    def test_014_target_init_defaults_and_warning(self):
         """Target warns on empty password and resolves remote_name"""
         from acme2certifier.cahandlers.ms_icpr.target import Target
 
@@ -180,7 +180,7 @@ class TestMsWcceTarget(unittest.TestCase):
         )
         self.assertIn("<Target (", repr(target))
 
-    def test_013_target_init_remote_name_ip(self):
+    def test_015_target_init_remote_name_ip(self):
         """Target uses remote_name as target_ip when remote_name is an IP"""
         from acme2certifier.cahandlers.ms_icpr.target import Target
 
@@ -198,7 +198,7 @@ class TestMsWcceTarget(unittest.TestCase):
         self.assertEqual("192.168.1.10", target.target_ip)
         self.assertEqual("DOMAIN", target.domain)
 
-    def test_014_target_repr_redacts_secrets(self):
+    def test_016_target_repr_redacts_secrets(self):
         """Target.__repr__ redacts password, hashes, and Kerberos TGT"""
         from acme2certifier.cahandlers.ms_icpr.target import Target
 
@@ -252,7 +252,7 @@ class TestMsWcceRpc(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.ms_icpr.rpc.transport.DCERPCTransportFactory")
-    def test_001_get_dce_rpc_from_string_binding(self, mock_factory):
+    def test_017_get_dce_rpc_from_string_binding(self, mock_factory):
         """get_dce_rpc_from_string_binding configures transport and returns dce"""
         from acme2certifier.cahandlers.ms_icpr.rpc import (
             get_dce_rpc_from_string_binding,
@@ -283,7 +283,7 @@ class TestMsWcceRpc(unittest.TestCase):
         self.assertTrue(target.do_kerberos)
 
     @patch("acme2certifier.cahandlers.ms_icpr.rpc.transport.DCERPCTransportFactory")
-    def test_002_get_dce_rpc_from_string_binding_overrides(self, mock_factory):
+    def test_018_get_dce_rpc_from_string_binding_overrides(self, mock_factory):
         """get_dce_rpc_from_string_binding accepts explicit target_ip/remote_name"""
         from acme2certifier.cahandlers.ms_icpr.rpc import (
             get_dce_rpc_from_string_binding,
@@ -307,7 +307,7 @@ class TestMsWcceRpc(unittest.TestCase):
         "acme2certifier.cahandlers.ms_icpr.rpc.epm.hept_map", return_value="endpoint"
     )
     @patch("acme2certifier.cahandlers.ms_icpr.rpc.transport.DCERPCTransportFactory")
-    def test_003_get_dynamic_endpoint_success(self, mock_factory, mock_hept):
+    def test_019_get_dynamic_endpoint_success(self, mock_factory, mock_hept):
         """get_dynamic_endpoint returns mapped endpoint"""
         from acme2certifier.cahandlers.ms_icpr.rpc import get_dynamic_endpoint
 
@@ -320,7 +320,7 @@ class TestMsWcceRpc(unittest.TestCase):
         mock_hept.assert_called_once()
 
     @patch("acme2certifier.cahandlers.ms_icpr.rpc.transport.DCERPCTransportFactory")
-    def test_004_get_dynamic_endpoint_connect_failure(self, mock_factory):
+    def test_020_get_dynamic_endpoint_connect_failure(self, mock_factory):
         """get_dynamic_endpoint returns None when connect fails"""
         from acme2certifier.cahandlers.ms_icpr.rpc import get_dynamic_endpoint
 
@@ -340,7 +340,7 @@ class TestMsWcceRpc(unittest.TestCase):
         side_effect=Exception("map"),
     )
     @patch("acme2certifier.cahandlers.ms_icpr.rpc.transport.DCERPCTransportFactory")
-    def test_005_get_dynamic_endpoint_map_failure(self, mock_factory, _mock_hept):
+    def test_021_get_dynamic_endpoint_map_failure(self, mock_factory, _mock_hept):
         """get_dynamic_endpoint returns None when hept_map fails"""
         from acme2certifier.cahandlers.ms_icpr.rpc import get_dynamic_endpoint
 
@@ -351,7 +351,7 @@ class TestMsWcceRpc(unittest.TestCase):
         self.assertIsNone(get_dynamic_endpoint(self.interface, "10.0.0.1"))
 
     @patch("acme2certifier.cahandlers.ms_icpr.rpc.get_dce_rpc_from_string_binding")
-    def test_006_get_dce_rpc_named_pipe_success(self, mock_from_binding):
+    def test_022_get_dce_rpc_named_pipe_success(self, mock_from_binding):
         """get_dce_rpc returns dce from named pipe binding"""
         from acme2certifier.cahandlers.ms_icpr.rpc import get_dce_rpc
 
@@ -366,7 +366,7 @@ class TestMsWcceRpc(unittest.TestCase):
         "acme2certifier.cahandlers.ms_icpr.rpc.get_dynamic_endpoint", return_value=None
     )
     @patch("acme2certifier.cahandlers.ms_icpr.rpc.get_dce_rpc_from_string_binding")
-    def test_007_get_dce_rpc_falls_back_and_fails(self, mock_from_binding, _mock_dyn):
+    def test_023_get_dce_rpc_falls_back_and_fails(self, mock_from_binding, _mock_dyn):
         """get_dce_rpc returns None when named pipe and dynamic endpoints fail"""
         from acme2certifier.cahandlers.ms_icpr.rpc import get_dce_rpc
 
@@ -389,7 +389,7 @@ class TestMsWcceRpc(unittest.TestCase):
         return_value="dyn-binding",
     )
     @patch("acme2certifier.cahandlers.ms_icpr.rpc.get_dce_rpc_from_string_binding")
-    def test_008_get_dce_rpc_dynamic_success(self, mock_from_binding, _mock_dyn):
+    def test_024_get_dce_rpc_dynamic_success(self, mock_from_binding, _mock_dyn):
         """get_dce_rpc uses dynamic endpoint after named pipe failure"""
         from acme2certifier.cahandlers.ms_icpr.rpc import get_dce_rpc
 
@@ -408,7 +408,7 @@ class TestMsWcceRpc(unittest.TestCase):
 class TestMsWcceRequest(unittest.TestCase):
     """tests for ms_icpr.request"""
 
-    def test_001_csr_pem_to_der(self):
+    def test_025_csr_pem_to_der(self):
         """csr_pem_to_der converts PEM CSR to DER bytes"""
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import rsa
@@ -428,7 +428,7 @@ class TestMsWcceRequest(unittest.TestCase):
         der = csr_pem_to_der(pem)
         self.assertEqual(csr.public_bytes(serialization.Encoding.DER), der)
 
-    def test_002_der_to_pem(self):
+    def test_026_der_to_pem(self):
         """der_to_pem converts DER certificate to PEM bytes"""
         from cryptography import x509
         from cryptography.hazmat.primitives.serialization import Encoding
@@ -444,7 +444,7 @@ class TestMsWcceRequest(unittest.TestCase):
         der = cert.public_bytes(Encoding.DER)
         self.assertEqual(pem.strip(), der_to_pem(der).strip())
 
-    def test_003_dcerpc_session_error_str(self):
+    def test_027_dcerpc_session_error_str(self):
         """DCERPCSessionError.__str__ includes translated error code"""
         from acme2certifier.cahandlers.ms_icpr.request import DCERPCSessionError
         from impacket import hresult_errors
@@ -456,7 +456,7 @@ class TestMsWcceRequest(unittest.TestCase):
         self.assertIn("code: 0x%x" % (error_code & 0xFFFFFFFF), text)
 
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_004_request_init(self, mock_get_dce):
+    def test_028_request_init(self, mock_get_dce):
         """Request.__init__ stores options and opens DCE channel"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
 
@@ -500,7 +500,7 @@ class TestMsWcceRequest(unittest.TestCase):
         "acme2certifier.cahandlers.ms_icpr.request.csr_pem_to_der", return_value=b"DER"
     )
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_005_get_cert_issued(self, mock_get_dce, _mock_csr, mock_der):
+    def test_029_get_cert_issued(self, mock_get_dce, _mock_csr, mock_der):
         """get_cert returns certificate on issued disposition"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
         from cryptography.hazmat.primitives.serialization import Encoding
@@ -543,7 +543,7 @@ class TestMsWcceRequest(unittest.TestCase):
         "acme2certifier.cahandlers.ms_icpr.request.csr_pem_to_der", return_value=b"DER"
     )
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_005b_get_cert_issued_with_cms_chain(self, mock_get_dce, _mock_csr):
+    def test_030_get_cert_issued_with_cms_chain(self, mock_get_dce, _mock_csr):
         """get_cert extracts CA chain from pctbCert CMS blob"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
         from cryptography import x509
@@ -587,14 +587,14 @@ class TestMsWcceRequest(unittest.TestCase):
             any("Extracted CA certificate chain" in msg for msg in lcm.output)
         )
 
-    def test_005c_ca_chain_pem_from_cms_empty(self):
+    def test_031_ca_chain_pem_from_cms_empty(self):
         """ca_chain_pem_from_cms returns None for empty input"""
         from acme2certifier.cahandlers.ms_icpr.request import ca_chain_pem_from_cms
 
         self.assertIsNone(ca_chain_pem_from_cms(b""))
         self.assertIsNone(ca_chain_pem_from_cms(b"not-a-cms"))
 
-    def test_005d_ca_chain_pem_from_cms_strips_leaf(self):
+    def test_032_ca_chain_pem_from_cms_strips_leaf(self):
         """ca_chain_pem_from_cms strips matching leaf certificate"""
         from acme2certifier.cahandlers.ms_icpr.request import ca_chain_pem_from_cms
         from cryptography import x509
@@ -618,7 +618,7 @@ class TestMsWcceRequest(unittest.TestCase):
         "acme2certifier.cahandlers.ms_icpr.request.csr_pem_to_der", return_value=b"DER"
     )
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_006_get_cert_issued_without_bytes(self, mock_get_dce, _mock_csr):
+    def test_033_get_cert_issued_without_bytes(self, mock_get_dce, _mock_csr):
         """get_cert logs error when issued without certificate bytes"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
 
@@ -637,7 +637,7 @@ class TestMsWcceRequest(unittest.TestCase):
         "acme2certifier.cahandlers.ms_icpr.request.csr_pem_to_der", return_value=b"DER"
     )
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_007_get_cert_pending(self, mock_get_dce, _mock_csr):
+    def test_034_get_cert_pending(self, mock_get_dce, _mock_csr):
         """get_cert logs warning for pending disposition"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
 
@@ -655,7 +655,7 @@ class TestMsWcceRequest(unittest.TestCase):
         "acme2certifier.cahandlers.ms_icpr.request.csr_pem_to_der", return_value=b"DER"
     )
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_008_get_cert_known_error(self, mock_get_dce, _mock_csr, mock_translate):
+    def test_035_get_cert_known_error(self, mock_get_dce, _mock_csr, mock_translate):
         """get_cert logs known error codes"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
 
@@ -678,7 +678,7 @@ class TestMsWcceRequest(unittest.TestCase):
         "acme2certifier.cahandlers.ms_icpr.request.csr_pem_to_der", return_value=b"DER"
     )
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_009_get_cert_unknown_error(self, mock_get_dce, _mock_csr, mock_translate):
+    def test_036_get_cert_unknown_error(self, mock_get_dce, _mock_csr, mock_translate):
         """get_cert logs unknown error codes with disposition message"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
 
@@ -701,7 +701,7 @@ class TestMsWcceRequest(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_010_get_cert_raises_when_dce_unavailable(self, mock_get_dce):
+    def test_037_get_cert_raises_when_dce_unavailable(self, mock_get_dce):
         """get_cert raises ConnectionError when DCE bind/connect returned None"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
 
@@ -712,7 +712,7 @@ class TestMsWcceRequest(unittest.TestCase):
         self.assertIn("DCE/RPC connection", str(raised.exception))
 
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_011_request_close_disconnects(self, mock_get_dce):
+    def test_038_request_close_disconnects(self, mock_get_dce):
         """close() disconnects DCE and clears the handle"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
 
@@ -727,7 +727,7 @@ class TestMsWcceRequest(unittest.TestCase):
         mock_dce.disconnect.assert_called_once_with()
 
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_012_request_context_manager_closes(self, mock_get_dce):
+    def test_039_request_context_manager_closes(self, mock_get_dce):
         """Request context manager disconnects on exit"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
 
@@ -739,7 +739,7 @@ class TestMsWcceRequest(unittest.TestCase):
         self.assertIsNone(req.dce)
 
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_013_request_close_logs_disconnect_failure(self, mock_get_dce):
+    def test_040_request_close_logs_disconnect_failure(self, mock_get_dce):
         """close() logs disconnect failures and still clears the handle"""
         from acme2certifier.cahandlers.ms_icpr.request import Request
 
@@ -754,7 +754,7 @@ class TestMsWcceRequest(unittest.TestCase):
             any("Failed to disconnect DCE/RPC session" in msg for msg in lcm.output)
         )
 
-    def test_014_ca_chain_pem_from_cms_leaf_only(self):
+    def test_041_ca_chain_pem_from_cms_leaf_only(self):
         """ca_chain_pem_from_cms returns None when CMS contains only the leaf"""
         from acme2certifier.cahandlers.ms_icpr.request import ca_chain_pem_from_cms
         from cryptography import x509
@@ -781,7 +781,7 @@ class TestMsWcceRequest(unittest.TestCase):
         "acme2certifier.cahandlers.ms_icpr.request.csr_pem_to_der", return_value=b"DER"
     )
     @patch("acme2certifier.cahandlers.ms_icpr.request.get_dce_rpc")
-    def test_015_get_cert_issued_cms_chain_unextractable(
+    def test_042_get_cert_issued_cms_chain_unextractable(
         self, mock_get_dce, _mock_csr, _mock_chain, _mock_der
     ):
         """get_cert warns when pctbCert is present but CA chain cannot be extracted"""
@@ -800,9 +800,7 @@ class TestMsWcceRequest(unittest.TestCase):
             result = req.get_cert(b"CSR")
         self.assertIsNone(result["certificate_chain"])
         self.assertTrue(
-            any(
-                "no CA certificates could be extracted" in msg for msg in lcm.output
-            )
+            any("no CA certificates could be extracted" in msg for msg in lcm.output)
         )
 
 

@@ -41,6 +41,7 @@ class CAhandler(object):
     CERT_DISPOSITION_PENDING = 5
     CERT_FETCH_ERROR = "Could not get certificate from CA server"
     KINIT_TIMEOUT_SECONDS = 30
+    KRB5_CCACHE_FILE_PREFIX = "FILE:"
 
     def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
@@ -417,8 +418,8 @@ class CAhandler(object):
             self.krb5_cache = ccache_file
             self._krb5_cache_is_temporary = True
 
-        if ccache_file.startswith("FILE:"):
-            ccache_file = ccache_file.split("FILE:", maxsplit=1)[1]
+        if ccache_file.startswith(self.KRB5_CCACHE_FILE_PREFIX):
+            ccache_file = self._kerberos_ccache_path(ccache_file)
             self.logger.debug(
                 "Normalized kerberos ccache path from FILE: prefix: %s", ccache_file
             )
@@ -508,8 +509,8 @@ class CAhandler(object):
         """Normalize FILE:/path and plain path forms."""
         if not ccache_value:
             return None
-        if ccache_value.startswith("FILE:"):
-            return ccache_value.split("FILE:", maxsplit=1)[1]
+        if ccache_value.startswith(CAhandler.KRB5_CCACHE_FILE_PREFIX):
+            return ccache_value.split(CAhandler.KRB5_CCACHE_FILE_PREFIX, maxsplit=1)[1]
         return ccache_value
 
     def _kerberos_tgt_from_ccache(self) -> Tuple[Optional[object], Optional[str]]:
@@ -894,9 +895,7 @@ class CAhandler(object):
 
     def _allowed_templates_check(self) -> Optional[str]:
         """Enforce configured allowed_templates allowlist."""
-        self.logger.debug(
-            "CAhandler._allowed_templates_check(%s)", self.template
-        )
+        self.logger.debug("CAhandler._allowed_templates_check(%s)", self.template)
         if not self.allowed_templates:
             return None
         if self.template not in self.allowed_templates:
@@ -909,94 +908,107 @@ class CAhandler(object):
         self.logger.debug("CAhandler._allowed_templates_check() ended")
         return None
 
-    def _enroll(self, csr: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+    def _enroll_kerberos_prepare(self) -> Optional[str]:
+        """Acquire python-backend kerberos creds and TGT. None on success or skip."""
+        error = self._kerberos_prepare_python_backend()
+        if error:
+            self.logger.error("Kerberos backend setup failed: %s", error)
+            return error
+        tgt, tgt_error = self._kerberos_tgt_from_ccache()
+        if tgt_error:
+            self.logger.error("Kerberos TGT load failed: %s", tgt_error)
+            return tgt_error
+        self._kerberos_tgt = tgt
+        return None
+
+    def _certificate_enroll_request(
+        self, csr: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Send CSR and parse the CA response."""
+        try:
+            cert_response = self._certificate_request_send(csr)
+            return self._certificate_response_process(cert_response)
+        except Exception as err:
+            self.logger.error("Enrollment failed with error: %s", err)
+            return self.CERT_FETCH_ERROR, None, None, None
+
+    def _ca_chain_resolve(self, ca_pem_rpc: Optional[str]) -> Optional[str]:
+        """Prefer RPC CA chain; fall back to configured ca_bundle."""
+        if ca_pem_rpc:
+            return ca_pem_rpc
+        if not self.ca_bundle:
+            return None
+        ca_pem = self._file_load(self.ca_bundle)
+        if ca_pem:
+            self.logger.info(
+                "Using local ca_bundle as CA chain fallback for certificate packaging."
+            )
+        return ca_pem
+
+    def _certificate_package(
+        self, cert_raw: Optional[str], ca_pem: Optional[str]
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Build cert_bundle and strip PEM headers from the issued leaf.
+
+        Returns (error, cert_bundle, cert_raw).
+        """
+        if cert_raw and not ca_pem:
+            self.logger.warning(
+                "Enrollment response did not include a CA chain and no "
+                "ca_bundle is configured; returning leaf certificate only."
+            )
+        if not cert_raw:
+            self.logger.error(
+                "Certificate bundling failed: CA certificate or issued certificate is missing."
+            )
+            return (
+                "Certificate bundling failed: CA certificate or issued certificate is missing.",
+                None,
+                None,
+            )
+        cert_bundle = cert_raw + ca_pem if ca_pem else cert_raw
+        cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
+        cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
+        cert_raw = cert_raw.replace("\n", "")
+        return None, cert_bundle, cert_raw
+
+    def _enroll(
+        self, csr: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         """enroll certificate via MS-ICPR
 
         Returns (error, cert_raw, cert_bundle, poll_identifier).
         """
         self.logger.debug("CAhandler._enroll(%s)", self.template)
-        error = None
-        cert_raw = None
-        cert_bundle = None
-        poll_identifier = None
         self._kerberos_tgt = None
-
         try:
-            # Optional python-only kerberos backend: acquire creds from keytab.
-            error = self._kerberos_prepare_python_backend()
-
+            error = self._enroll_kerberos_prepare()
             if error:
-                self.logger.error("Kerberos backend setup failed: %s", error)
-                return error, cert_raw, cert_bundle, poll_identifier
+                return error, None, None, None
 
-            runtime_kerberos_python = (
-                self.use_kerberos
-                and self.krb5_auth_backend == "python"
-                and self._kerberos_keytab_is_configured()
-            )
-            if runtime_kerberos_python:
-                tgt, tgt_error = self._kerberos_tgt_from_ccache()
-                if tgt_error:
-                    self.logger.error("Kerberos TGT load failed: %s", tgt_error)
-                    return tgt_error, cert_raw, cert_bundle, poll_identifier
-                self._kerberos_tgt = tgt
-
-            # reformat csr
             csr = build_pem_file(self.logger, None, csr, 64, True)
-
-            try:
-                cert_response = self._certificate_request_send(csr)
-                error, cert_raw, poll_identifier, ca_pem_rpc = (
-                    self._certificate_response_process(cert_response)
-                )
-            except Exception as err:
-                cert_raw = None
-                poll_identifier = None
-                ca_pem_rpc = None
-                self.logger.error("Enrollment failed with error: %s", err)
-                error = self.CERT_FETCH_ERROR
-
+            error, cert_raw, poll_identifier, ca_pem = self._certificate_enroll_request(
+                csr
+            )
             if error:
                 self.logger.error(
                     "Certificate bundling skipped due to previous error: %s", error
                 )
                 self.logger.debug("CAhandler._enroll() ended with error: %s", error)
-                return error, cert_raw, cert_bundle, poll_identifier
+                return error, cert_raw, None, poll_identifier
 
-            ca_pem = ca_pem_rpc
-            if not ca_pem and self.ca_bundle:
-                ca_pem = self._file_load(self.ca_bundle)
-                if ca_pem:
-                    self.logger.info(
-                        "Using local ca_bundle as CA chain fallback for certificate packaging."
-                    )
-            if cert_raw and not ca_pem:
-                self.logger.warning(
-                    "Enrollment response did not include a CA chain and no "
-                    "ca_bundle is configured; returning leaf certificate only."
-                )
-
-            if cert_raw:
-                if ca_pem:
-                    cert_bundle = cert_raw + ca_pem
-                else:
-                    cert_bundle = cert_raw
-                cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
-                cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
-                cert_raw = cert_raw.replace("\n", "")
-            else:
-                self.logger.error(
-                    "Certificate bundling failed: CA certificate or issued certificate is missing."
-                )
-                error = "Certificate bundling failed: CA certificate or issued certificate is missing."
-
+            error, cert_bundle, cert_raw = self._certificate_package(
+                cert_raw, self._ca_chain_resolve(ca_pem)
+            )
             self.logger.debug("CAhandler._enroll() ended with error: %s", error)
             return error, cert_raw, cert_bundle, poll_identifier
         finally:
             # Always clear temp ccache (including prepare-failure paths that created one).
             self._kerberos_cleanup_temporary_ccache()
 
-    def enroll(self, csr: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+    def enroll(
+        self, csr: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         """enroll certificate via MS-ICPR"""
         self.logger.debug("CAhandler.enroll(%s)", self.template)
         cert_bundle = None

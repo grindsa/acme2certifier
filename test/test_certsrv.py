@@ -701,9 +701,7 @@ class TestCertsrv(unittest.TestCase):
                 client = self.mod.Certsrv.__new__(self.mod.Certsrv)
                 client.channel_bindings = "tls-server-end-point"
                 client._http_spnego_auth()
-                self.assertEqual(
-                    [{"channel_bindings": "tls-server-end-point"}], calls
-                )
+                self.assertEqual([{"channel_bindings": "tls-server-end-point"}], calls)
 
     def test_051_http_spnego_auth_unsupported_raises(self):
         """_http_spnego_auth raises when bindings requested but unsupported"""
@@ -738,7 +736,6 @@ class TestCertsrv(unittest.TestCase):
             client.channel_bindings = "invalid"
             with self.assertRaises(ValueError):
                 client._http_spnego_auth()
-
 
     @patch.dict("sys.modules", {"requests_gssapi": MagicMock(), "gssapi": MagicMock()})
     def test_053_set_credentials_gssapi_with_explicit_creds(self):

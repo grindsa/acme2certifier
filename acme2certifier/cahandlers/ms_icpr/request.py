@@ -2,8 +2,7 @@
 
 # pylint: disable=C0209, C0415, E0401, R0913, W1201
 import logging
-from typing import Any, Dict, Optional
-
+from typing import Any, Dict, Optional, Tuple
 from cryptography import x509
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.hazmat.primitives.serialization.pkcs7 import (
@@ -114,6 +113,72 @@ class CertServerRequestResponse(NDRCALL):
     )
 
 
+def _certtransblob(data: bytes) -> CERTTRANSBLOB:
+    """Wrap raw bytes in a CERTTRANSBLOB."""
+    blob = CERTTRANSBLOB()
+    blob["cb"] = len(data)
+    blob["pb"] = data
+    return blob
+
+
+def _blob_bytes(blob: Any) -> bytes:
+    """Join NDR CERTTRANSBLOB payload bytes."""
+    return b"".join(blob["pb"])
+
+
+def _decode_disposition_message(raw: bytes) -> Optional[str]:
+    """Decode a UTF-16LE disposition message, if present."""
+    if not raw:
+        return None
+    try:
+        return raw.decode("utf-16le").strip()
+    except Exception:
+        return None
+
+
+def _extract_issued_certificate(
+    response: Any,
+) -> Tuple[Optional[bytes], Optional[bytes]]:
+    """Parse issued leaf PEM and optional CA chain from an enrollment response."""
+    cert_der = _blob_bytes(response["pctbEncodedCert"])
+    if not cert_der:
+        logging.error("Certificate request was issued but no certificate was returned")
+        return None, None
+
+    cert_pem = der_to_pem(cert_der)
+    cms_der = _blob_bytes(response["pctbCert"])
+    if not cms_der:
+        logging.debug("Enrollment response did not include pctbCert chain data")
+        return cert_pem, None
+
+    certificate_chain = ca_chain_pem_from_cms(cms_der, cert_der)
+    if certificate_chain:
+        logging.info("Extracted CA certificate chain from enrollment response")
+    else:
+        logging.warning(
+            "Enrollment response contained pctbCert but no CA "
+            "certificates could be extracted"
+        )
+    return cert_pem, certificate_chain
+
+
+def _dce_request(dce: Any, rpc_request: CertServerRequest) -> Any:
+    """Submit a CertServerRequest and return the untyped Impacket response."""
+    return dce.request(rpc_request)
+
+
+def _log_enrollment_error(error_code: int, disposition_message: Optional[str]) -> None:
+    """Log a non-issued, non-pending enrollment disposition."""
+    error_msg = translate_error_code(error_code)
+    if "unknown error code" in error_msg:
+        logging.error(
+            "Got unknown error while trying to request certificate: (%s): %s"
+            % (error_msg, disposition_message)
+        )
+        return
+    logging.error("Got error while trying to request certificate: %s" % error_msg)
+
+
 class Request:
     """request"""
 
@@ -163,96 +228,47 @@ class Request:
         finally:
             self.dce = None
 
-    def get_cert(self, csr: bytes) -> Dict[str, Any]:
-        """submit certificate request and return structured response"""
-        if self.dce is None:
-            raise ConnectionError(
-                "DCE/RPC connection to CA server is not available"
-            )
-
-        csr = csr_pem_to_der(csr)
-
+    def _request_attributes(self) -> bytes:
+        """Build UTF-16LE request attributes for CertServerRequest."""
         attributes = ["CertificateTemplate:%s" % self.template]
-
         if self.alt_name is not None:
             attributes.append("SAN:upn=%s" % self.alt_name)
+        return checkNullString("\n".join(attributes)).encode("utf-16le")
 
-        attributes = checkNullString("\n".join(attributes)).encode("utf-16le")
-        pctb_attribs = CERTTRANSBLOB()
-        pctb_attribs["cb"] = len(attributes)
-        pctb_attribs["pb"] = attributes
-
-        pctb_request = CERTTRANSBLOB()
-        pctb_request["cb"] = len(csr)
-        pctb_request["pb"] = csr
-
+    def _build_cert_request(self, csr_der: bytes) -> CertServerRequest:
+        """Assemble an MS-ICPR CertServerRequest."""
         request = CertServerRequest()
         request["dwFlags"] = 0
         request["pwszAuthority"] = checkNullString(self.ca)
         request["pdwRequestId"] = self.request_id
-        request["pctbAttribs"] = pctb_attribs
-        request["pctbRequest"] = pctb_request
+        request["pctbAttribs"] = _certtransblob(self._request_attributes())
+        request["pctbRequest"] = _certtransblob(csr_der)
+        return request
 
+    def get_cert(self, csr: bytes) -> Dict[str, Any]:
+        """submit certificate request and return structured response"""
+        if self.dce is None:
+            raise ConnectionError("DCE/RPC connection to CA server is not available")
+
+        request = self._build_cert_request(csr_pem_to_der(csr))
         logging.info("Requesting certificate")
-
-        response = self.dce.request(request)
+        response: Any = _dce_request(self.dce, request)
 
         error_code = response["pdwDisposition"]
         request_id = response["pdwRequestId"]
-        disposition_message_raw = b"".join(response["pctbDispositionMessage"]["pb"])
-        disposition_message: Optional[str] = None
-
-        if disposition_message_raw:
-            try:
-                disposition_message = disposition_message_raw.decode("utf-16le").strip()
-            except Exception:
-                disposition_message = None
-
+        disposition_message = _decode_disposition_message(
+            _blob_bytes(response["pctbDispositionMessage"])
+        )
         cert_pem = None
         certificate_chain = None
 
         if error_code == 3:
             logging.info("Successfully requested certificate")
-            cert_der = b"".join(response["pctbEncodedCert"]["pb"])
-            if cert_der:
-                cert_pem = der_to_pem(cert_der)
-                # pctbCert is MS-WCCE pctbCertChain (CMS with leaf + CA chain).
-                cms_der = b"".join(response["pctbCert"]["pb"])
-                if cms_der:
-                    certificate_chain = ca_chain_pem_from_cms(cms_der, cert_der)
-                    if certificate_chain:
-                        logging.info(
-                            "Extracted CA certificate chain from enrollment response"
-                        )
-                    else:
-                        logging.warning(
-                            "Enrollment response contained pctbCert but no CA "
-                            "certificates could be extracted"
-                        )
-                else:
-                    logging.debug(
-                        "Enrollment response did not include pctbCert chain data"
-                    )
-            else:
-                logging.error(
-                    "Certificate request was issued but no certificate was returned"
-                )
+            cert_pem, certificate_chain = _extract_issued_certificate(response)
         elif error_code == 5:
             logging.warning("Certificate request is pending approval")
         else:
-            error_msg = translate_error_code(error_code)
-            if "unknown error code" in error_msg:
-                logging.error(
-                    "Got unknown error while trying to request certificate: (%s): %s"
-                    % (
-                        error_msg,
-                        disposition_message,
-                    )
-                )
-            else:
-                logging.error(
-                    "Got error while trying to request certificate: %s" % error_msg
-                )
+            _log_enrollment_error(error_code, disposition_message)
 
         logging.info("Request ID is %d" % request_id)
         return {

@@ -413,7 +413,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.use_kerberos)
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
-    def test_023_config_load_security_warnings_ntlm(self, mock_load_cfg):
+    def test_022_config_load_security_warnings_ntlm(self, mock_load_cfg):
         """test _config_load emits NTLM and ca_bundle security warnings"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"host": "ca.example"}
@@ -433,9 +433,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
-    def test_023b_config_load_security_warnings_kerberos_skips_ntlm(
-        self, mock_load_cfg
-    ):
+    def test_023_config_load_security_warnings_kerberos_skips_ntlm(self, mock_load_cfg):
         """test _config_load skips NTLM warning when Kerberos is enabled"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"host": "ca.example", "use_kerberos": "True"}
@@ -443,9 +441,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertTrue(self.cahandler.use_kerberos)
-        self.assertFalse(
-            any("authentication uses NTLM" in msg for msg in lcm.output)
-        )
+        self.assertFalse(any("authentication uses NTLM" in msg for msg in lcm.output))
         self.assertTrue(
             any(
                 "Certificate packaging uses the CMS" in msg
@@ -1178,19 +1174,19 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
-    def test_064_config_headerinfo_load(self):
+    def test_061_config_headerinfo_load(self):
         """test config_headerinfo_load()"""
         config_dic = {"Order": {"header_info_list": '["foo", "bar", "foobar"]'}}
         self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual("foo", self.cahandler.header_info_field)
 
-    def test_065_config_headerinfo_load(self):
+    def test_062_config_headerinfo_load(self):
         """test config_headerinfo_load()"""
         config_dic = {"Order": {"header_info_list": '["foo"]'}}
         self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual("foo", self.cahandler.header_info_field)
 
-    def test_066_config_headerinfo_load(self):
+    def test_063_config_headerinfo_load(self):
         """test config_headerinfo_load()"""
         config_dic = {"Order": {"header_info_list": "foo"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1202,13 +1198,13 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.handler_config_check")
-    def test_067_handler_check(self, mock_handler_check):
+    def test_064_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.handler_config_check")
-    def test_067b_handler_check_rejects_invalid_kinit_path(self, mock_handler_check):
+    def test_065_handler_check_rejects_invalid_kinit_path(self, mock_handler_check):
         """handler_check rejects unsafe krb5_kinit_path"""
         mock_handler_check.return_value = None
         self.cahandler.krb5_kinit_path = "/tmp/evil.sh"
@@ -1218,7 +1214,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(any("Rejected krb5_kinit_path" in msg for msg in lcm.output))
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
-    def test_068_config_load_python_kerberos_backend(self, mock_load_cfg):
+    def test_066_config_load_python_kerberos_backend(self, mock_load_cfg):
         """test _config_load with python kerberos backend options"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -1244,7 +1240,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("/usr/local/bin/kinit", self.cahandler.krb5_kinit_path)
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
-    def test_069_config_load_autoselect_python_backend(self, mock_load_cfg):
+    def test_067_config_load_autoselect_python_backend(self, mock_load_cfg):
         """test backend autoselection to python for keytab-based kerberos config"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -1264,7 +1260,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
-    def test_070_config_load_keep_explicit_backend(self, mock_load_cfg):
+    def test_068_config_load_keep_explicit_backend(self, mock_load_cfg):
         """test explicit backend is preserved even in keytab mode"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -1280,7 +1276,7 @@ class TestACMEHandler(unittest.TestCase):
 
         self.assertEqual("impacket", self.cahandler.krb5_auth_backend)
 
-    def test_071_config_is_complete_krb5_keytab(self):
+    def test_069_config_is_complete_krb5_keytab(self):
         """test config completeness in kerberos keytab mode"""
         self.cahandler.host = "host"
         self.cahandler.template = "template"
@@ -1293,7 +1289,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(result)
         self.assertFalse(error)
 
-    def test_072_config_is_complete_kerberos_incomplete(self):
+    def test_070_config_is_complete_kerberos_incomplete(self):
         """test config completeness in incomplete kerberos mode"""
         self.cahandler.host = "host"
         self.cahandler.template = "template"
@@ -1306,7 +1302,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._kerberos_prepare_python_backend"
     )
-    def test_073_enroll_python_backend_error(self, mock_krb_prepare):
+    def test_071_enroll_python_backend_error(self, mock_krb_prepare):
         """test enroll returns python backend setup errors"""
         mock_krb_prepare.return_value = "backend error"
         self.cahandler.host = "host"
@@ -1327,7 +1323,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._kerberos_prepare_python_backend"
     )
-    def test_073b_enroll_cleans_temporary_ccache_on_prepare_failure(
+    def test_072_enroll_cleans_temporary_ccache_on_prepare_failure(
         self, mock_krb_prepare, mock_cleanup
     ):
         """prepare failure after temp ccache creation still runs cleanup"""
@@ -1360,7 +1356,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.importlib.import_module")
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.os.path.isfile")
-    def test_074_kerberos_prepare_python_backend_fallback_kinit(
+    def test_073_kerberos_prepare_python_backend_fallback_kinit(
         self,
         mock_isfile,
         mock_import_module,
@@ -1393,7 +1389,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.subprocess.run")
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.os.path.isfile")
-    def test_075_kerberos_acquire_with_kinit_with_krb5_config(
+    def test_074_kerberos_acquire_with_kinit_with_krb5_config(
         self,
         mock_isfile,
         mock_subprocess_run,
@@ -1419,7 +1415,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(self.cahandler.KINIT_TIMEOUT_SECONDS, run_kwargs["timeout"])
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.subprocess.run")
-    def test_076_kerberos_acquire_with_kinit_custom_binary_path(
+    def test_075_kerberos_acquire_with_kinit_custom_binary_path(
         self,
         mock_subprocess_run,
     ):
@@ -1435,7 +1431,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(os.path.realpath("/usr/local/bin/kinit"), run_args[0][0])
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.subprocess.run")
-    def test_076b_kerberos_acquire_with_kinit_rejects_unsafe_path(
+    def test_076_kerberos_acquire_with_kinit_rejects_unsafe_path(
         self, mock_subprocess_run
     ):
         """unsafe krb5_kinit_path is rejected before subprocess"""
@@ -2312,7 +2308,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.CAhandler.request_create")
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.convert_string_to_byte")
-    def test_114b_certificate_request_send_closes_on_error(self, mock_s2b, mock_rcr):
+    def test_115_certificate_request_send_closes_on_error(self, mock_s2b, mock_rcr):
         """_certificate_request_send closes DCE even when get_cert raises"""
         mock_request = Mock()
         mock_request.get_cert.side_effect = ConnectionError(
@@ -2324,7 +2320,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._certificate_request_send("csr")
         mock_request.close.assert_called_once_with()
 
-    def test_115_certificate_response_process_issued_without_bytes(self):
+    def test_116_certificate_response_process_issued_without_bytes(self):
         """issued disposition without certificate bytes returns fetch error"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             error, cert_raw, poll_identifier, ca_chain = (
@@ -2346,7 +2342,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_115b_certificate_response_process_pending_returns_poll_identifier(self):
+    def test_117_certificate_response_process_pending_returns_poll_identifier(self):
         """pending disposition returns CA request_id as poll identifier"""
         with self.assertLogs("test_a2c", level="INFO"):
             error, cert_raw, poll_identifier, ca_chain = (
@@ -2383,7 +2379,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.convert_byte_to_string")
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._file_load")
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.build_pem_file")
-    def test_116_enroll_cleans_temporary_ccache_on_kerberos_scope(
+    def test_118_enroll_cleans_temporary_ccache_on_kerberos_scope(
         self,
         mock_pem,
         mock_file,
@@ -2427,7 +2423,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(poll_id)
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
-    def test_allowed_templates_config_load(self, mock_load_cfg):
+    def test_119_templates_config_load(self, mock_load_cfg):
         """allowed_templates loads from JSON list"""
         import configparser
 
@@ -2437,7 +2433,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertEqual(["WebServer", "User"], self.cahandler.allowed_templates)
 
-    def test_allowed_templates_check_reject(self):
+    def test_120_templates_check_reject(self):
         """non-empty allowlist rejects unknown template"""
         self.cahandler.template = "Other"
         self.cahandler.allowed_templates = ["WebServer"]
@@ -2454,7 +2450,7 @@ class TestACMEHandler(unittest.TestCase):
         "acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._config_is_complete",
         return_value=(True, None),
     )
-    def test_enroll_rejects_disallowed_template(self, _mock_complete, _mock_eab):
+    def test_121_rejects_disallowed_template(self, _mock_complete, _mock_eab):
         """enroll rejects template not in allowed_templates"""
         self.cahandler.host = "host"
         self.cahandler.user = "user"
@@ -2471,7 +2467,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.convert_string_to_byte")
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._file_load")
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.build_pem_file")
-    def test_enroll_prefers_rpc_certificate_chain(
+    def test_122_prefers_rpc_certificate_chain(
         self, mock_pem, mock_file, mock_s2b, mock_rcr
     ):
         """enrollment prefers CMS chain from response over local ca_bundle"""
@@ -2509,7 +2505,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_file.called)
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
-    def test_117_config_allowed_templates_non_list_json(self, mock_load_cfg):
+    def test_123_config_allowed_templates_non_list_json(self, mock_load_cfg):
         """JSON object for allowed_templates is treated as empty allowlist"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"allowed_templates": '{"WebServer": true}'}
@@ -2522,7 +2518,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.msicpr_ca_handler.load_config")
-    def test_118_config_allowed_templates_empty_list_warns(self, mock_load_cfg):
+    def test_124_config_allowed_templates_empty_list_warns(self, mock_load_cfg):
         """empty JSON list for allowed_templates logs empty-allowlist warning"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"allowed_templates": "[]"}
@@ -2530,17 +2526,15 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.cahandler._config_load()
         self.assertEqual([], self.cahandler.allowed_templates)
-        self.assertTrue(
-            any("allowed_templates is empty" in msg for msg in lcm.output)
-        )
+        self.assertTrue(any("allowed_templates is empty" in msg for msg in lcm.output))
 
-    def test_119_allowed_templates_check_allow(self):
+    def test_125_allowed_templates_check_allow(self):
         """non-empty allowlist accepts listed template"""
         self.cahandler.template = "WebServer"
         self.cahandler.allowed_templates = ["WebServer"]
         self.assertIsNone(self.cahandler._allowed_templates_check())
 
-    def test_120_kerberos_ccache_path_normalizes_file_prefix(self):
+    def test_126_kerberos_ccache_path_normalizes_file_prefix(self):
         """_kerberos_ccache_path strips FILE: prefix and handles empty values"""
         self.assertEqual(
             "/tmp/cc",
@@ -2550,12 +2544,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(self.cahandler._kerberos_ccache_path(None))
         self.assertIsNone(self.cahandler._kerberos_ccache_path(""))
 
-    def test_121_kerberos_tgt_from_ccache_noop_without_python_keytab(self):
+    def test_127_kerberos_tgt_from_ccache_noop_without_python_keytab(self):
         """_kerberos_tgt_from_ccache is a no-op outside python keytab mode"""
         self.cahandler.use_kerberos = False
         self.assertEqual((None, None), self.cahandler._kerberos_tgt_from_ccache())
 
-    def test_122_kerberos_tgt_from_ccache_missing_ccache(self):
+    def test_128_kerberos_tgt_from_ccache_missing_ccache(self):
         """missing ccache path returns an explicit error"""
         self.cahandler.use_kerberos = True
         self.cahandler.krb5_auth_backend = "python"
@@ -2566,7 +2560,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(creds)
         self.assertIn("Kerberos ccache is not available", error)
 
-    def test_123_kerberos_tgt_from_ccache_import_error(self):
+    def test_129_kerberos_tgt_from_ccache_import_error(self):
         """impacket CCache import failure is reported"""
         self.cahandler.use_kerberos = True
         self.cahandler.krb5_auth_backend = "python"
@@ -2589,7 +2583,7 @@ class TestACMEHandler(unittest.TestCase):
             any("Failed to import impacket CCache" in msg for msg in lcm.output)
         )
 
-    def test_124_kerberos_tgt_from_ccache_load_none(self):
+    def test_130_kerberos_tgt_from_ccache_load_none(self):
         """CCache.loadFile returning None is reported"""
         self.cahandler.use_kerberos = True
         self.cahandler.krb5_auth_backend = "python"
@@ -2610,7 +2604,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(creds)
         self.assertIn("Failed to load Kerberos ccache file", error)
 
-    def test_125_kerberos_tgt_from_ccache_missing_tgt(self):
+    def test_131_kerberos_tgt_from_ccache_missing_tgt(self):
         """missing TGT credential in ccache is reported"""
         self.cahandler.use_kerberos = True
         self.cahandler.krb5_auth_backend = "python"
@@ -2634,7 +2628,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(creds)
         self.assertIn("No TGT found in Kerberos ccache", error)
 
-    def test_126_kerberos_tgt_from_ccache_success(self):
+    def test_132_kerberos_tgt_from_ccache_success(self):
         """successful TGT extraction from ccache"""
         self.cahandler.use_kerberos = True
         self.cahandler.krb5_auth_backend = "python"
@@ -2661,7 +2655,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(error)
         mock_ccache_mod.CCache.loadFile.assert_called_once_with("/tmp/cc")
 
-    def test_127_kerberos_tgt_from_ccache_extract_error(self):
+    def test_133_kerberos_tgt_from_ccache_extract_error(self):
         """unexpected extraction failures are reported"""
         self.cahandler.use_kerberos = True
         self.cahandler.krb5_auth_backend = "python"
@@ -2701,7 +2695,7 @@ class TestACMEHandler(unittest.TestCase):
         "acme2certifier.cahandlers.msicpr_ca_handler.CAhandler._kerberos_keytab_is_configured",
         return_value=True,
     )
-    def test_128_enroll_returns_tgt_error(
+    def test_134_enroll_returns_tgt_error(
         self, _mock_keytab, _mock_prepare, mock_tgt, mock_cleanup
     ):
         """enroll aborts when TGT cannot be loaded from ccache"""

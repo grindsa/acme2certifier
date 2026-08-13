@@ -245,7 +245,7 @@ httpd + `python39-mod_wsgi` remains a documented alternate for sites that prefer
 | EL8 | `acme2certifier` + `acme2certifier-python39` | 3.9 |
 | EL9 | `acme2certifier` + `acme2certifier-python3` | 3.9 |
 
-Optional: `acme2certifier-python3.11` on either OS.  
+Optional: `acme2certifier-python3.11` on either OS.
 EL8 fallback: `acme2certifier-python3` (3.6) when parallel 3.9 cannot be installed.
 
 ---
@@ -375,8 +375,8 @@ Assertions:
 
 Ship a **noarch** `acme2certifier` RPM with application code under `/opt` and **no** Python module `Requires`. Pair it with **flavor metapackages** that pull the matching interpreter and `pythonX-*` RPMs, install `/etc/acme2certifier/python.conf`, and conflict with each other.
 
-**Default:** Python **3.9** on both majors — `acme2certifier-python39` on EL8, `acme2certifier-python3` on EL9.  
-**Legacy:** `acme2certifier-python3` on EL8 keeps system **3.6** for hosts that cannot take a parallel Python.  
-**Optional:** `acme2certifier-python3.11` on both.  
+**Default:** Python **3.9** on both majors — `acme2certifier-python39` on EL8, `acme2certifier-python3` on EL9.
+**Legacy:** `acme2certifier-python3` on EL8 keeps system **3.6** for hosts that cannot take a parallel Python.
+**Optional:** `acme2certifier-python3.11` on both.
 
 Do not use pip, wheelhouses, or venvs for this RPM path.
