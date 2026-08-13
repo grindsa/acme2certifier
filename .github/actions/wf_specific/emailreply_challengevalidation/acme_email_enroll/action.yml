@@ -13,13 +13,19 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
-    with:
-      time: 5s
-
-  - name: "Test if http://127.0.0.1:22280/directory is accessible"
-    run: curl --insecure -f http://127.0.0.1:22280/directory
+  - name: "Wait for ACME directory on host port 22280"
+    run: |
+      set -euo pipefail
+      for i in $(seq 1 30); do
+        if curl --insecure -fsS --connect-timeout 3 --max-time 10 -f http://127.0.0.1:22280/directory >/dev/null; then
+          echo "HTTP ready: http://127.0.0.1:22280/directory"
+          exit 0
+        fi
+        echo "not ready yet (attempt ${i}/30): http://127.0.0.1:22280/directory"
+        sleep 2
+      done
+      echo "Failed waiting for directory on 127.0.0.1:22280"
+      exit 1
     shell: bash
 
   - name: "Install acme_email and dependencies"

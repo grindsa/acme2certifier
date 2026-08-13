@@ -148,10 +148,6 @@ jobs:
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
-
-      - name: "Wait for ACME directory (http)"
-        uses: ./.github/actions/wait_for_directory
-        with:
           CHECK_HTTPS: "false"
 
       - name: "Create lego folder"

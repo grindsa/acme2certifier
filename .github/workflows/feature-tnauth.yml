@@ -101,11 +101,6 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
-        with:
-          time: 10s
-
       - name: "Test regular enrollment"
         uses: ./.github/actions/acme_clients
         with:

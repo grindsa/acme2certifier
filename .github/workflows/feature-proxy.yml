@@ -208,10 +208,8 @@ jobs:
           NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
           NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
-        with:
-          time: 5s
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Certifier - Enroll via certifier ca_handler"
         run: |
@@ -256,10 +254,8 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
-        with:
-          time: 5s
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "EST - Enroll via EST using http-basic-auth"
         run: |
@@ -582,6 +578,9 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
           MODE: ${{ matrix.mode }}
+
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Enroll via certifier_ca_handler"
         run: |

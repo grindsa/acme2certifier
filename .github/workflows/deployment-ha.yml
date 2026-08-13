@@ -413,10 +413,17 @@ jobs:
           docker exec alma9-c2 cp /tmp/acme2certifier/alma9-c2-settings.py /opt/acme2certifier/acme2certifier/django_project/settings.py
           docker exec alma9-c2 systemctl restart acme2certifier.service
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
+      - name: "Wait for ACME directory on alma9-c1"
+        uses: ./.github/actions/wait_for_directory
         with:
-          time: 5s
+          ACME_SERVER: alma9-c1.acme
+          CHECK_HTTP: "false"
+
+      - name: "Wait for ACME directory on alma9-c2"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          ACME_SERVER: alma9-c2.acme
+          CHECK_HTTP: "false"
 
       - name: "Test acme2certifier on alma9-c1"
         run: |
@@ -434,10 +441,11 @@ jobs:
         run: |
           docker run -d --rm --name acme-srv --network acme  grindsa/pen:latest -r 443 alma9-c1.acme:443 alma9-c2.acme:443
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
+      - name: "Wait for ACME directory on load-balancer"
+        uses: ./.github/actions/wait_for_directory
         with:
-          time: 5s
+          ACME_SERVER: acme-srv.acme
+          CHECK_HTTP: "false"
 
       - name: "Test acme2certifier on load-balancer"
         run: |
