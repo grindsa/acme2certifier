@@ -37,6 +37,9 @@
         "www.example.local",
         "www.example.org"
       ]
+    },
+    "order": {
+      "profiles_check_disable": "True"
     }
   },
   "keyid_03": {
@@ -45,6 +48,36 @@
       "prevalidated_domainlist": [
         "www.example.local"
       ]
+    }
+  },
+  "keyid_04": {
+    "hmac": "YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5",
+    "cahandler": {
+      "allowed_domainlist": [
+        "www.example.local",
+        "www.example.org",
+        "*.acme"
+      ]
+    },
+    "order": {
+      "profiles_check_disable": "True"
+    }
+  },
+  "keyid_05": {
+    "hmac": "a2V5aWRfMDVfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfZm9yX3Byb2ZpbGVfY2hlY2tfZGlzYWJsZV9jaXh4",
+    "cahandler": {
+      "template_name": [
+        "template",
+        "acme"
+      ],
+      "allowed_domainlist": [
+        "www.example.local",
+        "www.example.org",
+        "*.acme"
+      ]
+    },
+    "order": {
+      "profiles_check_disable": "True"
     }
   }
 }
