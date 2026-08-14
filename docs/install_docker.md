@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Containerized installation -->
+<!-- wiki-title: Containerized installation -->
+<!-- wiki-category: Installation -->
 
 # Containerized installation using apache2/nginx as webserver and wsgi or django
 

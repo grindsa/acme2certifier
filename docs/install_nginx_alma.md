@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
 <!-- wiki-title: Installation on NGINX Running on Alma Linux 9 -->
+<!-- wiki-category: Installation -->
 
 # Installation on NGINX Running on Alma Linux 9
 

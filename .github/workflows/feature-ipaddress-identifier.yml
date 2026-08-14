@@ -81,7 +81,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Enroll HTTP-01 single domain and ip address "
         run: |
@@ -106,7 +106,7 @@ jobs:
           docker compose restart
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Enroll HTTP-01 single domain and ip address with new allowed_iplist"
         uses: ./.github/actions/wf_specific/ipaddress/enroll
@@ -159,7 +159,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Enroll HTTP-01 single domain and ip address "
         run: |
@@ -187,7 +187,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Enroll HTTP-01 single domain and ip address with new allowed_iplist"
         uses: ./.github/actions/wf_specific/ipaddress/enroll
@@ -245,7 +245,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Enroll HTTP-01 single domain and ip address "
         run: |
@@ -274,7 +274,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Enroll HTTP-01 single domain and ip address with new allowed_iplist"
         uses: ./.github/actions/wf_specific/ipaddress/enroll

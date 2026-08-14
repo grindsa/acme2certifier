@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Enrollment profiling via external account binding -->
+<!-- wiki-title: Enrollment profiling via external account binding -->
+<!-- wiki-category: Features -->
 
 # Enrollment profiling via external account binding
 

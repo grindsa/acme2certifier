@@ -82,7 +82,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test regular enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -204,7 +204,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test regular enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Test enrollment with prevalidated identifiers (both domain and ip)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
@@ -328,7 +328,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test regular enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Test enrollment with prevalidated identifiers (both domain and ip)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll

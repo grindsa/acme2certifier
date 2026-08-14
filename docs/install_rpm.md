@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title RPM Installation on AlmaLinux / RHEL / Rocky -->
+<!-- wiki-title: RPM Installation on AlmaLinux / RHEL / Rocky -->
+<!-- wiki-category: Installation -->
 
 # RPM Installation on AlmaLinux / Red Hat EL / Rocky / CentOS Stream
 

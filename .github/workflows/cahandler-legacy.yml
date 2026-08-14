@@ -105,7 +105,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment (handler_file)"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Switch handler_file to handler_module (same path)"
         run: |
@@ -116,7 +116,7 @@ jobs:
           docker compose restart
 
       - name: "Test enrollment (handler_module path)"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -199,7 +199,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment (handler_file)"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Switch handler_file to handler_module (same path)"
         run: |
@@ -209,7 +209,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
       - name: "Test enrollment (handler_module path)"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Channel teardown"
         uses: ./.github/actions/channel_teardown
@@ -285,7 +285,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment (handler_file)"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Switch handler_file to handler_module (same path)"
         run: |
@@ -297,7 +297,7 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment (handler_module path)"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Channel teardown"
         uses: ./.github/actions/channel_teardown

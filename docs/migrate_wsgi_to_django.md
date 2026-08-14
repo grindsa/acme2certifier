@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD029 -->
 
-<!-- wiki-title Migrate WSGI to Django -->
+<!-- wiki-title: Migrate WSGI to Django -->
+<!-- wiki-category: Installation -->
 
 # Migrate WSGI to Django
 

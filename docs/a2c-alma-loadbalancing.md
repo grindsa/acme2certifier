@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title How to build an acme2certifier cluster on Alma Linux 9 -->
+<!-- wiki-title: How to build an acme2certifier cluster on Alma Linux 9 -->
+<!-- wiki-category: High Availability -->
 
 # How to build an acme2certifier cluster on Alma Linux 9
 

@@ -91,7 +91,7 @@ jobs:
 
       - uses: ./.github/actions/wait_for_directory
 
-      - uses: ./.github/actions/acme_clients
+      - uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
 
@@ -215,7 +215,7 @@ jobs:
 
       - uses: ./.github/actions/wait_for_directory
 
-      - uses: ./.github/actions/acme_clients
+      - uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
 
@@ -328,7 +328,7 @@ jobs:
 
       - uses: ./.github/actions/wait_for_directory
 
-      - uses: ./.github/actions/acme_clients
+      - uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
 

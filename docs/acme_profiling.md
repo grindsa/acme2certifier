@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: Support for ACME profiling -->
+<!-- wiki-category: Features -->
 
 # Support for ACME Profiles Extension
 

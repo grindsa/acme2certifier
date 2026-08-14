@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title CA Handler for NetGuard Certificate Lifecycle Manager -->
+<!-- wiki-title: CA Handler for NetGuard Certificate Lifecycle Manager -->
+<!-- wiki-category: CA Handlers -->
 
 # Connecting to NetGuard Certificate Lifecycle Manager
 

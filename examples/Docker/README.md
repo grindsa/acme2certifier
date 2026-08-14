@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django -->
+<!-- wiki-title: Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django -->
+<!-- wiki-category: Installation -->
 
 # Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django
 

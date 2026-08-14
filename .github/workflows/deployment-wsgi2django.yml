@@ -153,7 +153,7 @@ jobs:
           HOSTNAME_SUFFIX: ""
 
       - name: "Fresh enrollment on Django"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Check Django container configuration"
         uses: ./.github/actions/container_check
@@ -263,7 +263,7 @@ jobs:
           HOSTNAME_SUFFIX: ""
 
       - name: "Fresh enrollment on Django"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "[ * ] Collect migration artifacts"
         if: ${{ failure() }}
@@ -363,7 +363,7 @@ jobs:
           HOSTNAME_SUFFIX: ""
 
       - name: "Fresh enrollment on Django"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "[ * ] Collect migration artifacts"
         if: ${{ failure() }}
@@ -474,7 +474,7 @@ jobs:
           HOSTNAME_SUFFIX: ""
 
       - name: Fresh enrollment on Django
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Collect migration artifacts"
         if: ${{ failure() }}

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title Proxy Support in acme2certifier -->
+<!-- wiki-title: Proxy Support in acme2certifier -->
+<!-- wiki-category: Features -->
 
 # Proxy Support in acme2certifier
 

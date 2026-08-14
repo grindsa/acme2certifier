@@ -137,7 +137,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
 
@@ -253,7 +253,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
 

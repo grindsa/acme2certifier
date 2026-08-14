@@ -1,4 +1,4 @@
-name: Deployment Tests - custom db-file and url_prefix
+name: Feature Tests - custom db-file and url_prefix
 on:
   workflow_dispatch:
     inputs:
@@ -95,7 +95,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Smoke: Helper.log_file and syslog_address"
         uses: ./.github/actions/wf_specific/wsgi/logging_smoke_check
@@ -168,7 +168,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Smoke: Helper.log_file and syslog_address"
         uses: ./.github/actions/wf_specific/wsgi/logging_smoke_check
@@ -239,7 +239,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Smoke: Helper.log_file and syslog_address"
         uses: ./.github/actions/wf_specific/wsgi/logging_smoke_check

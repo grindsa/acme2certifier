@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Configuration options for acme2certifier -->
+<!-- wiki-title: Configuration options for acme2certifier -->
+<!-- wiki-category: Configuration -->
 
 # acme_srv.cfg
 

@@ -1,4 +1,4 @@
-name: CA handler tests - Harica
+name: CA-Handler Tests - Harica
 on:
   workflow_dispatch:
     inputs:

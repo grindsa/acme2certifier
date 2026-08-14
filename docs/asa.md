@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title CA handler for Insta -->
+<!-- wiki-title: CA Handler for Insta -->
+<!-- wiki-category: CA Handlers -->
 
 # Connecting to Insta ActiveCMS
 

@@ -98,7 +98,7 @@ runs:
         exit 1
 
     - name: Enrollment tests (acme.sh / certbot / lego)
-      uses: ./.github/actions/acme_clients
+      uses: ./.github/actions/acme_clients_enroll
       with:
         ACME_SERVER: ${{ inputs.container_name }}
         NAME_SPACE: ${{ inputs.name_space }}

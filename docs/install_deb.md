@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
 <!-- wiki-title: DEB Installation on Ubuntu / Debian -->
+<!-- wiki-category: Installation -->
 
 # DEB Installation on Ubuntu / Debian
 

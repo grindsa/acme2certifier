@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title CA handler using EST protocol -->
+<!-- wiki-title: CA Handler using EST protocol -->
+<!-- wiki-category: CA Handlers -->
 
 # Generic EST protocol handler
 

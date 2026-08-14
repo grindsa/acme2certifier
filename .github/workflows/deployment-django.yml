@@ -92,7 +92,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -150,7 +150,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
@@ -206,7 +206,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Channel teardown"
         uses: ./.github/actions/channel_teardown

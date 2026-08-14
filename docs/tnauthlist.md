@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title Support for TNAuthList Identifier and tkauth-01 Challenges -->
+<!-- wiki-title: Support for TNAuthList Identifier and tkauth-01 Challenges -->
+<!-- wiki-category: Features -->
 
 # TNAuthList Support
 

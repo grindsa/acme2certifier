@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: External Account Binding -->
+<!-- wiki-category: Features -->
 
 # External Account Binding
 

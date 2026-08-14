@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: Support for External Databases -->
+<!-- wiki-category: Features -->
 
 # Support for External Databases
 

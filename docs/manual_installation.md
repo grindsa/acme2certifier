@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title Manual Installation Guide for acme2certifier -->
+<!-- wiki-title: Manual Installation Guide for acme2certifier -->
+<!-- wiki-category: Installation -->
 
 # Manual Installation Guide for acme2certifier
 

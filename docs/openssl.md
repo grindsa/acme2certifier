@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title CA Handler for an OpenSSL-based CA Stored on Local File System -->
+<!-- wiki-title: CA Handler for an OpenSSL-based CA Stored on Local File System -->
+<!-- wiki-category: CA Handlers -->
 
 # Support for an OpenSSL-based CA Stored on Local File System
 

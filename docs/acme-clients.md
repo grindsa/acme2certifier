@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Example commands for acme clients -->
+<!-- wiki-title: Example commands for acme clients -->
+<!-- wiki-category: Configuration -->
 
 # Example commands for acme clients
 

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title Asynchronous Mode (`async_mode`) in acme2certifier -->
+<!-- wiki-title: Asynchronous Mode (`async_mode`) in acme2certifier -->
+<!-- wiki-category: Features -->
 
 # Asynchronous Mode (`async_mode`) in acme2certifier
 
