@@ -1,5 +1,5 @@
 name: "order_error_checking"
-description: "EAB enroll with unknown credentials"
+description: "Order error paths: client response + call-site / ACME problem logs"
 inputs:
   NAME_SPACE:
     description: "namespace"
@@ -25,6 +25,10 @@ inputs:
     description: "Start alma container"
     required: true
     default: "true"
+  ACME_CFG:
+    description: "Host path to acme_srv.cfg (CSR-missing scenario toggles challenge_validation_disable)"
+    required: false
+    default: "examples/Docker/data/acme_srv.cfg"
 
 runs:
   using: "composite"
@@ -53,13 +57,22 @@ runs:
         grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for rejectedIdentifier error"
+    - name: "Check a2c logs for identifier limit WARNING"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 403, [''"]type[''"]: [''"]urn:ietf:params:acme:error:rejectedIdentifier[''"], [''"]detail[''"]: [''"]identifier limit exceeded[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Number of identifiers 3 exceeds limit 2 account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (identifier limit)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:rejectedIdentifier detail=identifier limit exceeded"
 
     - name: "Test wrong identifier format for type DNS"
       working-directory: acmeshell
@@ -85,13 +98,22 @@ runs:
         grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for rejectedIdentifier error"
+    - name: "Check a2c logs for DNS identifier value ERROR"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 403, [''"]type[''"]: [''"]urn:ietf:params:acme:error:rejectedIdentifier[''"], [''"]detail[''"]: [''"]identifier value foo@bar.local not allowed[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Identifier value foo@bar.local not allowed for type dns account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (DNS identifier not allowed)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:rejectedIdentifier detail=identifier value foo@bar.local not allowed"
 
     - name: "Test wrong identifier format for type IP"
       working-directory: acmeshell
@@ -117,13 +139,22 @@ runs:
         grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for rejectedIdentifier error"
+    - name: "Check a2c logs for IP identifier value ERROR"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 403, [''"]type[''"]: [''"]urn:ietf:params:acme:error:rejectedIdentifier[''"], [''"]detail[''"]: [''"]identifier value unknown.bar.local not allowed[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Identifier value unknown.bar.local not allowed for type ip account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (IP identifier not allowed)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:rejectedIdentifier detail=identifier value unknown.bar.local not allowed"
 
     - name: "Test unknown identifier type"
       working-directory: acmeshell
@@ -143,19 +174,28 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Check acmeshell log for rejectedIdentifier error"
+    - name: "Check acmeshell log for unsupportedIdentifier error"
       working-directory: acmeshell
       run: |
         grep "urn:ietf:params:acme:error:unsupportedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for unsupportedIdentifier error"
+    - name: "Check a2c logs for unsupported identifier type ERROR"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 400, [''"]type[''"]: [''"]urn:ietf:params:acme:error:unsupportedIdentifier[''"], [''"]detail[''"]: [''"]Could not process order[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Identifier type unknown not supported account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (unsupportedIdentifier)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:unsupportedIdentifier detail=Could not process order"
 
     - name: "Test missing identifier type"
       working-directory: acmeshell
@@ -175,19 +215,28 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Check acmeshell log for malformedIdentifier error"
+    - name: "Check acmeshell log for malformed error"
       working-directory: acmeshell
       run: |
         grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for malformedIdentifier error"
+    - name: "Check a2c logs for missing identifier type ERROR"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 400, [''"]type[''"]: [''"]urn:ietf:params:acme:error:malformed[''"], [''"]detail[''"]: [''"]Identifier type is missing[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Identifier type is missing account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (Identifier type is missing)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Identifier type is missing"
 
     - name: "Test missing identifier value"
       working-directory: acmeshell
@@ -207,19 +256,28 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Check acmeshell log for malformedIdentifier error"
+    - name: "Check acmeshell log for malformed error"
       working-directory: acmeshell
       run: |
         grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for malformedIdentifier error"
+    - name: "Check a2c logs for missing identifier value ERROR"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 400, [''"]type[''"]: [''"]urn:ietf:params:acme:error:malformed[''"], [''"]detail[''"]: [''"]Identifier value is missing[''"])}'
-        REGEX: "true"
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Identifier value is missing account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (Identifier value is missing)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Identifier value is missing"
 
     - name: "Test ADL feature"
       working-directory: acmeshell
@@ -246,10 +304,243 @@ runs:
         grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for rejectedIdentifier error"
+    - name: "Check a2c logs for FQDN not allowed ERROR"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        PATTERN: '\{([''"]status[''"]: 403, [''"]type[''"]: [''"]urn:ietf:params:acme:error:rejectedIdentifier[''"], [''"]detail[''"]: [''"]FQDN/SAN foo-01.bar1.local not allowed by configuration[''"])}'
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "FQDN/SAN foo-01.bar1.local not allowed by configuration account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (FQDN not allowed)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:rejectedIdentifier detail=FQDN/SAN foo-01.bar1.local not allowed by configuration"
+
+    - name: "Test missing identifiers in newOrder payload"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        post -body='{}' newOrder
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell NewOrder command to trigger missing identifiers"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -contact=grindsa@foo.bar -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for unsupportedIdentifier (missing identifiers)"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:unsupportedIdentifier" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for missing identifiers WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Order create failed: missing identifiers account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (missing identifiers)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:unsupportedIdentifier detail=Could not process order"
+
+    - name: "Test finalize orderNotReady (pending order)"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=ordernotready@bar.local,
+        newOrder -identifiers=foo-01.bar.local
+        finalize -order=0
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell finalize on pending order"
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for orderNotReady error"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:orderNotReady" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for orderNotReady WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Order finalize failed: orderNotReady order=.* status=pending"
         REGEX: "true"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (orderNotReady)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:orderNotReady detail=Order is not ready"
+
+    - name: "Test order not found"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        post -noData http://acme-srv/acme/order/doesnotexist99
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell POST to unknown order"
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -contact=grindsa@foo.bar -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for orderNotReady (order not found)"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:orderNotReady" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for order not found WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Order request failed: order not found order=doesnotexist99"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (order not found)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:orderNotReady detail=order not found"
+
+    - name: "Enable challenge_validation_disable for CSR-missing finalize"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      run: |
+        set -euo pipefail
+        sudo sed -i 's/challenge_validation_disable: False/challenge_validation_disable: True/' "${ACME_CFG}"
+        grep -n 'challenge_validation_disable' "${ACME_CFG}"
+        cd examples/Docker/
+        docker compose restart
+      shell: bash
+      env:
+        ACME_CFG: ${{ inputs.ACME_CFG }}
+
+    - name: "Wait for ACME directory after challenge_validation_disable enable"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+
+    - name: "Test finalize CSR missing"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=badcsr@bar.local,
+        newOrder -identifiers=foo-02.bar.local
+        solve -order=0 -identifier=foo-02.bar.local -challengeType=http-01
+        poll -order=0
+        post -body='{}' {{ (order 0).Finalize }}
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell finalize without CSR"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for badCSR error"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        cat acmeshell.enroll.log
+        grep "urn:ietf:params:acme:error:badCSR" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for CSR missing WARNING"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Order finalize failed: csr missing order="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (badCSR missing csr)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:badCSR detail=csr is missing in payload"
+
+    - name: "Restore challenge_validation_disable"
+      if: ${{ always() && inputs.DEPLOYMENT_TYPE == 'container' }}
+      run: |
+        set -euo pipefail
+        if grep -q 'challenge_validation_disable: True' "${ACME_CFG}"; then
+          sudo sed -i 's/challenge_validation_disable: True/challenge_validation_disable: False/' "${ACME_CFG}"
+          grep -n 'challenge_validation_disable' "${ACME_CFG}"
+          cd examples/Docker/
+          docker compose restart
+        fi
+      shell: bash
+      env:
+        ACME_CFG: ${{ inputs.ACME_CFG }}
+
+    - name: "Wait for ACME directory after challenge_validation_disable restore"
+      if: ${{ always() && inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}

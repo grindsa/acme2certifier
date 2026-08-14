@@ -12,6 +12,7 @@ from acme2certifier.acme_srv.helper import (
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_profile_load,
+    eab_profile_as_bool,
     error_dic_get,
     generate_random_string,
     load_config,
@@ -29,6 +30,7 @@ from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.helpers.global_variables import (
     DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
     ENROLLMENT_FAILED_DETAIL,
+    DB_ERROR_MSG,
 )
 from acme2certifier.acme_srv.message import Message
 
@@ -59,7 +61,7 @@ class OrderRepository:
         try:
             return self.dbstore.order_add(data_dic)
         except Exception as err:
-            self.logger.critical("Database error: failed to add order: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err)
             raise OrderDatabaseError(f"Failed to add order: {err}") from err
 
     def add_authorization(self, auth):
@@ -67,7 +69,9 @@ class OrderRepository:
         try:
             return self.dbstore.authorization_add(auth)
         except Exception as err:
-            self.logger.critical("Database error: failed to add authorization: %s", err)
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to add authorization: %s", err
+            )
             raise OrderDatabaseError(f"Failed to add authorization: {err}") from err
 
     def update_authorization(self, auth):
@@ -76,7 +80,7 @@ class OrderRepository:
             return self.dbstore.authorization_update(auth)
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to update authorization: %s", err
+                f"{DB_ERROR_MSG}: failed to update authorization: %s", err
             )
             raise OrderDatabaseError(f"Failed to update authorization: {err}") from err
 
@@ -87,7 +91,7 @@ class OrderRepository:
                 return self.dbstore.order_lookup(key, value, vlist)
             return self.dbstore.order_lookup(key, value)
         except Exception as err:
-            self.logger.critical("Database error: failed to look up order: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to look up order: %s", err)
             raise OrderDatabaseError(f"Failed to look up order: {err}") from err
 
     def order_update(self, data_dic):
@@ -95,7 +99,7 @@ class OrderRepository:
         try:
             return self.dbstore.order_update(data_dic)
         except Exception as err:
-            self.logger.critical("Database error: failed to update order: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to update order: %s", err)
             raise OrderDatabaseError(f"Failed to update order: {err}") from err
 
     def authorization_lookup(self, key, value, fields):
@@ -104,7 +108,7 @@ class OrderRepository:
             return self.dbstore.authorization_lookup(key, value, fields)
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to look up authorization: %s", err
+                f"{DB_ERROR_MSG}: failed to look up authorization: %s", err
             )
             raise OrderDatabaseError(f"Failed to look up authorization: {err}") from err
 
@@ -113,7 +117,7 @@ class OrderRepository:
         try:
             return self.dbstore.account_lookup(key, value)
         except Exception as err:
-            self.logger.critical("Database error: failed to look up account: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to look up account: %s", err)
             raise OrderDatabaseError(f"Failed to look up account: {err}") from err
 
     def certificate_lookup(self, key, value):
@@ -122,7 +126,7 @@ class OrderRepository:
             return self.dbstore.certificate_lookup(key, value)
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to look up certificate: %s", err
+                f"{DB_ERROR_MSG}: failed to look up certificate: %s", err
             )
             raise OrderDatabaseError(f"Failed to look up certificate: {err}") from err
 
@@ -131,7 +135,7 @@ class OrderRepository:
         try:
             return self.dbstore.hkparameter_get(param)
         except Exception as err:
-            self.logger.critical("Database error: failed to get hkparameter: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to get hkparameter: %s", err)
             raise OrderDatabaseError(f"Failed to get hkparameter: {err}") from err
 
     def orders_invalid_search(self, order_field, timestamp, vlist, operant):
@@ -142,7 +146,7 @@ class OrderRepository:
             )
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to search for invalid orders: %s", err
+                f"{DB_ERROR_MSG}: failed to search for invalid orders: %s", err
             )
             raise OrderDatabaseError(
                 f"Failed to search for invalid orders: {err}"
@@ -230,7 +234,7 @@ class Order(object):
                         self.repository.update_authorization(auth)
                 except Exception as err_:
                     self.logger.critical(
-                        "Database error: failed to add authorization: %s", err_
+                        f"{DB_ERROR_MSG}: failed to add authorization: %s", err_
                     )
                     error = self.error_msg_dic["serverinternal"]
                     break
@@ -288,7 +292,7 @@ class Order(object):
         try:
             oid = self.repository.add_order(data_dic)
         except Exception as err_:
-            self.logger.critical("Database error: failed to add order: %s", err_)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err_)
             oid = None
 
         if not error:
@@ -353,7 +357,7 @@ class Order(object):
             account_dic = self.repository.account_lookup("name", account_name)
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to look up account list: %s", err_
+                f"{DB_ERROR_MSG}: failed to look up account list: %s", err_
             )
             account_dic = {}
 
@@ -375,18 +379,24 @@ class Order(object):
                     "allowed_domainlist",
                     self.config.allowed_domainlist,
                 )
-                self.config.wildcard_certificate_disable = self._load_eab_profile_param(
-                    profile_dic,
-                    eab_kid,
-                    "wildcard_certificate_disable",
-                    self.config.wildcard_certificate_disable,
+                self.config.wildcard_certificate_disable = eab_profile_as_bool(
+                    self._load_eab_profile_param(
+                        profile_dic,
+                        eab_kid,
+                        "wildcard_certificate_disable",
+                        self.config.wildcard_certificate_disable,
+                    ),
+                    default=bool(self.config.wildcard_certificate_disable),
                 )
-                self.config.ca_error_details_forward = self._load_eab_profile_param(
-                    profile_dic,
-                    eab_kid,
-                    "ca_error_details_forward",
-                    self.config.ca_error_details_forward,
-                    section="cahandler",
+                self.config.ca_error_details_forward = eab_profile_as_bool(
+                    self._load_eab_profile_param(
+                        profile_dic,
+                        eab_kid,
+                        "ca_error_details_forward",
+                        self.config.ca_error_details_forward,
+                        section="cahandler",
+                    ),
+                    default=bool(self.config.ca_error_details_forward),
                 )
 
                 eab_profile_dic = self._load_eab_profile_mapping(profile_dic, eab_kid)
@@ -455,6 +465,19 @@ class Order(object):
         )
         return {}
 
+    def _corr_suffix(
+        self,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
+    ) -> str:
+        """Build optional account/order correlation suffix for ops log lines."""
+        parts: List[str] = []
+        if account_name:
+            parts.append(f"account={account_name}")
+        if order_name:
+            parts.append(f"order={order_name}")
+        return f" {' '.join(parts)}" if parts else ""
+
     def create_order(
         self, payload: Dict[str, str], account_name: str
     ) -> Tuple[str, str, str, Dict[str, str], str]:
@@ -475,7 +498,11 @@ class Order(object):
             data_dic = {"status": 2, "expires": expires, "account": account_name}
             data_dic["name"] = order_name
             data_dic["identifiers"] = json.dumps(payload["identifiers"])
-            error, detail = self._check_identifiers_validity(payload["identifiers"])
+            error, detail = self._check_identifiers_validity(
+                payload["identifiers"],
+                account_name=account_name,
+                order_name=order_name,
+            )
             if error:
                 data_dic["status"] = 1
             else:
@@ -487,6 +514,10 @@ class Order(object):
                 data_dic, auth_dic, payload, error
             )
         else:
+            self.logger.warning(
+                "Order create failed: missing identifiers account=%s",
+                account_name,
+            )
             error = self.error_msg_dic["unsupportedidentifier"]
 
         self.logger.debug("Order.create_order() ended")
@@ -635,7 +666,7 @@ class Order(object):
                     profiles = self.repository.hkparameter_get("profiles")
                 except Exception as err:
                     self.logger.critical(
-                        "Database error: failed to get profile list: %s", err
+                        f"{DB_ERROR_MSG}: failed to get profile list: %s", err
                     )
                     profiles = None
                 if profiles:
@@ -770,7 +801,12 @@ class Order(object):
         self.logger.debug("Order._name_get() ended")
         return order_name
 
-    def are_identifiers_allowed(self, identifiers_list: List[str]) -> Tuple[str, str]:
+    def are_identifiers_allowed(
+        self,
+        identifiers_list: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
+    ) -> Tuple[str, str]:
         """Check if the provided identifiers are allowed."""
         self.logger.debug("Order.are_identifiers_allowed()")
         error = None
@@ -778,7 +814,10 @@ class Order(object):
         allowed_identifiers = self._get_allowed_identifier_types()
         for identifier in identifiers_list:
             error, detail = self._check_single_identifier(
-                identifier, allowed_identifiers
+                identifier,
+                allowed_identifiers,
+                account_name=account_name,
+                order_name=order_name,
             )
             if error:
                 break
@@ -794,64 +833,100 @@ class Order(object):
         return allowed
 
     def _check_single_identifier(
-        self, identifier: dict, allowed_identifiers: List[str]
+        self,
+        identifier: dict,
+        allowed_identifiers: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Tuple[str, str]:
         """Check if a single identifier is allowed."""
         self.logger.debug("Order._check_single_identifier(%s)", identifier)
 
-        error = self._validate_identifier_structure(identifier)
+        error = self._validate_identifier_structure(
+            identifier, account_name=account_name, order_name=order_name
+        )
         if error:
             return error
 
         id_type = identifier["type"].lower()
 
         error = self._validate_identifier_type_supported(
-            identifier["type"], id_type, allowed_identifiers
+            identifier["type"],
+            id_type,
+            allowed_identifiers,
+            account_name=account_name,
+            order_name=order_name,
         )
         if error:
             return error
 
-        error = self._validate_identifier_value(identifier, id_type)
+        error = self._validate_identifier_value(
+            identifier,
+            id_type,
+            account_name=account_name,
+            order_name=order_name,
+        )
         if error:
             return error
 
         if id_type == "dns":
-            return self._validate_dns_identifier_policy(identifier)
+            return self._validate_dns_identifier_policy(
+                identifier, account_name=account_name, order_name=order_name
+            )
 
         if id_type == "ip":
-            return self._validate_ip_identifier_policy(identifier)
+            return self._validate_ip_identifier_policy(
+                identifier, account_name=account_name, order_name=order_name
+            )
 
         return None, None
 
     def _validate_identifier_structure(
-        self, identifier: dict
+        self,
+        identifier: dict,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Optional[Tuple[str, str]]:
         """Validate mandatory identifier fields are present."""
+        corr = self._corr_suffix(account_name, order_name)
         if "type" not in identifier:
-            self.logger.error("Identifier type is missing")
+            self.logger.error("Identifier type is missing%s", corr)
             return self.error_msg_dic["malformed"], "Identifier type is missing"
 
         if "value" not in identifier:
-            self.logger.error("Identifier value is missing")
+            self.logger.error("Identifier value is missing%s", corr)
             return self.error_msg_dic["malformed"], "Identifier value is missing"
 
         return None
 
     def _validate_identifier_type_supported(
-        self, identifier_type: str, id_type: str, allowed_identifiers: List[str]
+        self,
+        identifier_type: str,
+        id_type: str,
+        allowed_identifiers: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Optional[Tuple[str, str]]:
         """Validate identifier type is supported."""
         if id_type in allowed_identifiers:
             return None
 
-        self.logger.error("Identifier type %s not supported", identifier_type)
+        self.logger.error(
+            "Identifier type %s not supported%s",
+            identifier_type,
+            self._corr_suffix(account_name, order_name),
+        )
         return (
             self.error_msg_dic["unsupportedidentifier"],
             f"Identifier type {identifier_type} not supported",
         )
 
     def _validate_identifier_value(
-        self, identifier: dict, id_type: str
+        self,
+        identifier: dict,
+        id_type: str,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Optional[Tuple[str, str]]:
         """Validate identifier value format."""
         if validate_identifier(
@@ -863,9 +938,10 @@ class Order(object):
             return None
 
         self.logger.error(
-            "Identifier value %s not allowed for type %s",
+            "Identifier value %s not allowed for type %s%s",
             identifier["value"],
             identifier["type"],
+            self._corr_suffix(account_name, order_name),
         )
         return (
             self.error_msg_dic["rejectedidentifier"],
@@ -873,15 +949,20 @@ class Order(object):
         )
 
     def _validate_dns_identifier_policy(
-        self, identifier: dict
+        self,
+        identifier: dict,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Tuple[Optional[str], Optional[str]]:
         """Validate DNS-specific policy constraints."""
+        corr = self._corr_suffix(account_name, order_name)
         if self.config.wildcard_certificate_disable and identifier["value"].startswith(
             "*."
         ):
             self.logger.error(
-                "Wildcard identifier %s not allowed by configuration",
+                "Wildcard identifier %s not allowed by configuration%s",
                 identifier["value"],
+                corr,
             )
             return (
                 self.error_msg_dic["rejectedidentifier"],
@@ -896,8 +977,9 @@ class Order(object):
             return None, None
 
         self.logger.error(
-            "FQDN/SAN %s not allowed by configuration",
+            "FQDN/SAN %s not allowed by configuration%s",
             identifier["value"],
+            corr,
         )
         return (
             self.error_msg_dic["rejectedidentifier"],
@@ -961,7 +1043,10 @@ class Order(object):
         return domain_allowed
 
     def _validate_ip_identifier_policy(
-        self, identifier: dict
+        self,
+        identifier: dict,
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Tuple[Optional[str], Optional[str]]:
         """Validate IP-specific policy constraints."""
         if not self.config.allowed_iplist:
@@ -975,8 +1060,9 @@ class Order(object):
             return None, None
 
         self.logger.error(
-            "IP address %s not allowed by configuration",
+            "IP address %s not allowed by configuration%s",
             identifier["value"],
+            self._corr_suffix(account_name, order_name),
         )
         return (
             self.error_msg_dic["rejectedidentifier"],
@@ -1013,21 +1099,30 @@ class Order(object):
         self.logger.debug("Order._rewrite_email_identifiers() ended")
         return identifiers_modified
 
-    def _check_identifier_limit(self, identifiers_list: List[str]) -> bool:
+    def _check_identifier_limit(
+        self,
+        identifiers_list: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
+    ) -> bool:
         """Check and log if identifier limit is exceeded."""
         self.logger.debug("Order._check_identifier_limit()")
         error = False
         if len(identifiers_list) > self.config.identifier_limit:
             self.logger.warning(
-                "Number of identifiers %d exceeds limit %d",
+                "Number of identifiers %d exceeds limit %d%s",
                 len(identifiers_list),
                 self.config.identifier_limit,
+                self._corr_suffix(account_name, order_name),
             )
             error = True
         return error
 
     def _check_identifiers_validity(
-        self, identifiers_list: List[str]
+        self,
+        identifiers_list: List[str],
+        account_name: Optional[str] = None,
+        order_name: Optional[str] = None,
     ) -> Tuple[str, str]:
         """Check validity of identifiers in the order."""
         self.logger.debug("Order._check_identifiers_validity(%s)", identifiers_list)
@@ -1040,14 +1135,22 @@ class Order(object):
             identifiers_list = self._rewrite_email_identifiers(identifiers_list)
 
             # check identifier limit
-            if self._check_identifier_limit(identifiers_list):
+            if self._check_identifier_limit(
+                identifiers_list,
+                account_name=account_name,
+                order_name=order_name,
+            ):
                 return (
                     self.error_msg_dic["rejectedidentifier"],
                     "identifier limit exceeded",
                 )
 
             # check if identifier types and values are allowed
-            error, detail = self.are_identifiers_allowed(identifiers_list)
+            error, detail = self.are_identifiers_allowed(
+                identifiers_list,
+                account_name=account_name,
+                order_name=order_name,
+            )
             if error:
                 self.logger.debug(
                     "Order._check_identifiers_validity() ended with %s:", error
@@ -1056,6 +1159,10 @@ class Order(object):
 
         else:
             # malformed identifiers list
+            self.logger.warning(
+                "Order create failed: malformed identifiers list%s",
+                self._corr_suffix(account_name, order_name),
+            )
             error = self.error_msg_dic["malformed"]
             detail = "malformed identifiers list"
 
@@ -1068,7 +1175,7 @@ class Order(object):
         try:
             result = self.repository.order_lookup("name", order_name)
         except Exception as err_:
-            self.logger.critical("Database error: failed to look up order: %s", err_)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to look up order: %s", err_)
             result = None
         return result
 
@@ -1081,7 +1188,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to look up order account: %s", err_
+                f"{DB_ERROR_MSG}: failed to look up order account: %s", err_
             )
             return None
         if not order_dic:
@@ -1163,6 +1270,10 @@ class Order(object):
                     order_name, payload, header
                 )
             else:
+                self.logger.warning(
+                    "Order finalize failed: csr missing order=%s",
+                    order_name,
+                )
                 code = 400
                 message = self.error_msg_dic["badcsr"]
                 detail = "csr is missing in payload"
@@ -1179,12 +1290,18 @@ class Order(object):
                 cert_dic = self.repository.certificate_lookup("order__name", order_name)
             except Exception as err_:
                 self.logger.critical(
-                    "Database error: Certificate lookup failed: %s", err_
+                    f"{DB_ERROR_MSG}: Certificate lookup failed: %s", err_
                 )
                 cert_dic = {}
             if cert_dic and "name" in cert_dic:
                 certificate_name = cert_dic["name"]
         else:
+            status = order_dic.get("status") if order_dic else None
+            self.logger.warning(
+                "Order finalize failed: orderNotReady order=%s status=%s",
+                order_name,
+                status if status is not None else "missing",
+            )
             code = 403
             message = self.error_msg_dic["ordernotready"]
             detail = "Order is not ready"
@@ -1220,7 +1337,7 @@ class Order(object):
                     )
                 except Exception as err_:
                     self.logger.critical(
-                        "Database error: Certificate lookup failed: %s", err_
+                        f"{DB_ERROR_MSG}: Certificate lookup failed: %s", err_
                     )
                     cert_dic = {}
                 if cert_dic and "name" in cert_dic:
@@ -1348,7 +1465,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to look up authorization list: %s", err_
+                f"{DB_ERROR_MSG}: failed to look up authorization list: %s", err_
             )
             authz_list = []
         self.logger.debug("Order._get_authorization_list() ended")
@@ -1425,7 +1542,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to search for expired orders: %s", err_
+                f"{DB_ERROR_MSG}: failed to search for expired orders: %s", err_
             )
             order_list = []
         output_list = []
@@ -1443,7 +1560,7 @@ class Order(object):
                     self.repository.order_update(data_dic)
                 except Exception as err_:
                     self.logger.critical(
-                        "Database error: failed to update order status to invalid: %s",
+                        f"{DB_ERROR_MSG}: failed to update order status to invalid: %s",
                         err_,
                     )
 
@@ -1535,14 +1652,20 @@ class Order(object):
                         order_name, protected, payload, header
                     )
                 else:
+                    self.logger.warning(
+                        "Order request failed: order not found order=%s",
+                        order_name,
+                    )
                     code = 403
                     message = self.error_msg_dic["ordernotready"]
                     detail = "order not found"
             else:
+                self.logger.warning("Order request failed: order name missing")
                 code = 400
                 message = self.error_msg_dic["malformed"]
                 detail = "order name is missing"
         else:
+            self.logger.warning("Order request failed: url missing in protected")
             code = 400
             message = self.error_msg_dic["malformed"]
             detail = "url is missing in protected"

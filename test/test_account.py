@@ -203,7 +203,7 @@ class TestExternalAccountBinding(unittest.TestCase):
         """test compare_jwk no jwk in protected"""
         self.assertFalse(self.eab.compare_jwk({}, "payload"))
 
-    def test_005b_compare_jwk_invalid_payload(self):
+    def test_006_compare_jwk_invalid_payload(self):
         """test compare_jwk with invalid base64 or JSON payload"""
         protected = {"jwk": {"kty": "oct", "k": "abc"}}
         with self.assertLogs("test_a2c", level="ERROR") as log_cm:
@@ -213,7 +213,7 @@ class TestExternalAccountBinding(unittest.TestCase):
             log_cm.output[0],
         )
 
-    def test_005c_compare_jwk_non_json_payload(self):
+    def test_007_compare_jwk_non_json_payload(self):
         """test compare_jwk with base64 payload that is not JSON"""
         import base64
 
@@ -226,7 +226,20 @@ class TestExternalAccountBinding(unittest.TestCase):
             log_cm.output[0],
         )
 
-    def test_006_verify_signature_success(self):
+    def test_008_compare_jwk_payload_not_object(self):
+        """test compare_jwk when decoded payload is JSON but not an object"""
+        import base64
+
+        protected = {"jwk": {"kty": "oct", "k": "abc"}}
+        payload = base64.b64encode(b'["not", "an", "object"]').decode()
+        with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+            self.assertFalse(self.eab.compare_jwk(protected, payload))
+        self.assertIn(
+            "ERROR:test_a2c:EAB JWK payload is not a JSON object",
+            log_cm.output,
+        )
+
+    def test_009_verify_signature_success(self):
         """test verify_signature success"""
         content = {"foo": "bar"}
         mac_key = "key"
@@ -236,7 +249,7 @@ class TestExternalAccountBinding(unittest.TestCase):
             self.assertTrue(result)
             self.assertIsNone(error)
 
-    def test_007_verify_signature_failure(self):
+    def test_010_verify_signature_failure(self):
         """test verify_signature failure"""
         content = {"foo": "bar"}
         mac_key = "key"
@@ -247,13 +260,13 @@ class TestExternalAccountBinding(unittest.TestCase):
             self.assertFalse(result)
             self.assertEqual(error, "error")
 
-    def test_008_verify_signature_no_content(self):
+    def test_011_verify_signature_no_content(self):
         """test verify_signature with no content or mac_key"""
         result, error = self.eab.verify_signature(None, None)
         self.assertFalse(result)
         self.assertIsNone(error)
 
-    def test_009_verify_success(self):
+    def test_012_verify_success(self):
         """test verify success"""
         payload = {
             "externalaccountbinding": {"protected": "eyJraWQiOiAidGVzdF9raWQifQ=="}
@@ -269,8 +282,8 @@ class TestExternalAccountBinding(unittest.TestCase):
             self.assertIsNone(message)
             self.assertIsNone(detail)
 
-    def test_010_verify_signature_error(self):
-        """test verify signature error"""
+    def test_013_verify_signature_error(self):
+        """test verify signature error logs ERROR with kid"""
         payload = {
             "externalaccountbinding": {"protected": "eyJraWQiOiAidGVzdF9raWQifQ=="}
         }
@@ -280,29 +293,39 @@ class TestExternalAccountBinding(unittest.TestCase):
         with patch(
             "acme2certifier.acme_srv.signature.Signature.eab_check", return_value=(False, "error")
         ):
-            code, message, detail = self.eab.verify(
-                payload, {"unauthorized": "unauthorized"}
-            )
+            with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+                code, message, detail = self.eab.verify(
+                    payload, {"unauthorized": "unauthorized"}
+                )
             self.assertEqual(code, 403)
             self.assertEqual(message, "unauthorized")
             self.assertEqual(detail, "EAB signature verification failed")
+            self.assertIn(
+                "ERROR:test_a2c:EAB signature verification failed kid=test_kid error=error",
+                log_cm.output,
+            )
 
-    def test_011_verify_no_mac_key(self):
-        """test verify no mac_key found"""
+    def test_014_verify_no_mac_key(self):
+        """test verify no mac_key found logs ERROR with kid"""
         payload = {
             "externalaccountbinding": {"protected": "eyJraWQiOiAidGVzdF9raWQifQ=="}
         }
         self.eabhandler.return_value.__enter__.return_value.mac_key_get.return_value = (
             None
         )
-        code, message, detail = self.eab.verify(
-            payload, {"unauthorized": "unauthorized"}
-        )
+        with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+            code, message, detail = self.eab.verify(
+                payload, {"unauthorized": "unauthorized"}
+            )
         self.assertEqual(code, 403)
         self.assertEqual(message, "unauthorized")
         self.assertEqual(detail, "EAB kid lookup failed")
+        self.assertIn(
+            "ERROR:test_a2c:EAB kid lookup failed kid=test_kid",
+            log_cm.output,
+        )
 
-    def test_012_check_success(self):
+    def test_015_check_success(self):
         """test check success"""
         import base64
 
@@ -330,8 +353,8 @@ class TestExternalAccountBinding(unittest.TestCase):
             self.assertIsNone(message)
             self.assertIsNone(detail)
 
-    def test_013_check_jwk_mismatch(self):
-        """test check jwk mismatch"""
+    def test_016_check_jwk_mismatch(self):
+        """test check jwk mismatch logs WARNING"""
         import base64
 
         protected = {"jwk": {"kty": "oct", "k": "abc"}}
@@ -341,45 +364,88 @@ class TestExternalAccountBinding(unittest.TestCase):
                 "protected": base64.b64encode(b'{"kid": "test_kid"}').decode(),
             }
         }
-        code, message, detail = self.eab.check(
-            protected,
-            payload,
-            {
-                "unauthorized": "unauthorized",
-                "malformed": "malformed",
-                "externalaccountrequired": "externalaccountrequired",
-            },
-        )
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.eab.check(
+                protected,
+                payload,
+                {
+                    "unauthorized": "unauthorized",
+                    "malformed": "malformed",
+                    "externalaccountrequired": "externalaccountrequired",
+                },
+            )
         self.assertEqual(code, 403)
         self.assertEqual(message, "malformed")
         self.assertEqual(detail, "Malformed request")
+        self.assertIn(
+            "WARNING:test_a2c:EAB malformed: outer/inner JWK mismatch",
+            log_cm.output,
+        )
 
-    def test_014_check_no_externalaccountbinding(self):
-        """test check no externalaccountbinding"""
+    def test_017_check_missing_protected(self):
+        """test check missing protected in binding logs WARNING"""
+        import base64
+
+        protected = {"jwk": {"kty": "oct", "k": "abc"}}
+        payload = {
+            "externalaccountbinding": {
+                "payload": base64.b64encode(b'{"kty": "oct", "k": "abc"}').decode(),
+            }
+        }
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.eab.check(
+                protected,
+                payload,
+                {
+                    "unauthorized": "unauthorized",
+                    "malformed": "malformed",
+                    "externalaccountrequired": "externalaccountrequired",
+                },
+            )
+        self.assertEqual(code, 403)
+        self.assertEqual(message, "malformed")
+        self.assertEqual(detail, "Malformed request")
+        self.assertIn(
+            "WARNING:test_a2c:EAB malformed: missing protected header in binding",
+            log_cm.output,
+        )
+
+    def test_018_check_no_externalaccountbinding(self):
+        """test check no externalaccountbinding logs WARNING"""
         protected = {"jwk": {"kty": "oct", "k": "abc"}}
         payload = {}
-        code, message, detail = self.eab.check(
-            protected,
-            payload,
-            {
-                "unauthorized": "unauthorized",
-                "malformed": "malformed",
-                "externalaccountrequired": "externalaccountrequired",
-            },
-        )
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.eab.check(
+                protected,
+                payload,
+                {
+                    "unauthorized": "unauthorized",
+                    "malformed": "malformed",
+                    "externalaccountrequired": "externalaccountrequired",
+                },
+            )
         self.assertEqual(code, 403)
         self.assertEqual(message, "externalaccountrequired")
         self.assertEqual(detail, "External account binding required")
-
-    def test_016_verify_no_kid(self):
-        """test verify branch where eab_kid is None (line 91)"""
-        payload = {"externalaccountbinding": {"protected": "invalid_base64"}}
-        code, message, detail = self.eab.verify(
-            payload, {"unauthorized": "unauthorized"}
+        self.assertIn(
+            "WARNING:test_a2c:EAB required: externalAccountBinding missing or empty",
+            log_cm.output,
         )
+
+    def test_019_verify_no_kid(self):
+        """test verify with no kid logs ERROR kid=None"""
+        payload = {"externalaccountbinding": {"protected": "invalid_base64"}}
+        with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+            code, message, detail = self.eab.verify(
+                payload, {"unauthorized": "unauthorized"}
+            )
         self.assertEqual(code, 403)
         self.assertEqual(message, "unauthorized")
         self.assertEqual(detail, "EAB kid lookup failed")
+        self.assertTrue(
+            any("EAB kid lookup failed kid=None" in line for line in log_cm.output),
+            log_cm.output,
+        )
 
 
 class TestAccount(unittest.TestCase):
@@ -404,15 +470,15 @@ class TestAccount(unittest.TestCase):
         self.message = Message(False, "http://tester.local", self.logger)
         self.signature = Signature(False, "http://tester.local", self.logger)
 
-    def test_017__enter_(self):
+    def test_001__enter_(self):
         """test enter"""
         self.account.__enter__()
 
-    def test_018__enter_(self):
+    def test_002__enter_(self):
         """test enter"""
         self.account.__exit__()
 
-    def test_001_create_account_success(self):
+    def test_003_create_account_success(self):
         """test create_account success"""
         content = {"protected": {}, "payload": {}}
         with patch.object(self.account, "message") as mock_message:
@@ -430,7 +496,7 @@ class TestAccount(unittest.TestCase):
                     )
                     mock_create_account.assert_called_once()
 
-    def test_002_create_account_msg_check_failure(self):
+    def test_004_create_account_msg_check_failure(self):
         """test create_account failure"""
         content = {"protected": {}, "payload": {}}
         with patch.object(self.account, "message") as mock_message:
@@ -448,7 +514,7 @@ class TestAccount(unittest.TestCase):
                     )
                     mock_create_account.assert_not_called()
 
-    def test_003_create_account_onlyreturnexisting(self):
+    def test_005_create_account_onlyreturnexisting(self):
         """test create_account onlyreturnexisting branch"""
         content = {"protected": {}, "payload": {"onlyreturnexisting": True}}
         with patch.object(self.account, "message") as mock_message:
@@ -473,48 +539,76 @@ class TestAccount(unittest.TestCase):
                     )
                     mock_onlyreturnexisting.assert_called_once()
 
-    def test_004__validate_contact_missing(self):
-        """test _validate_contact missing contact"""
-        code, message, detail = self.account._validate_contact([])
+    def test_006__validate_contact_missing(self):
+        """test _validate_contact missing contact logs WARNING"""
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.account._validate_contact([])
         self.assertEqual(code, 400)
         self.assertEqual(message, self.account.err_msg_dic["malformed"])
+        self.assertEqual(detail, "Contact information is missing")
+        self.assertIn(
+            "WARNING:test_a2c:Contact information is missing",
+            log_cm.output,
+        )
 
-    def test_005__validate_contact_invalid(self):
-        """test _validate_contact invalid contact"""
-        with patch("acme2certifier.acme_srv.account.validate_email", return_value=False):
-            code, message, detail = self.account._validate_contact(["invalid@contact"])
+    def test_007__validate_contact_invalid(self):
+        """test _validate_contact invalid contact logs WARNING"""
+        with patch(
+            "acme2certifier.acme_srv.account.validate_email", return_value=False
+        ):
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_contact(
+                    ["invalid@contact"]
+                )
             self.assertEqual(code, 400)
             self.assertEqual(message, self.account.err_msg_dic["invalidcontact"])
+            self.assertEqual(detail, "Invalid contact information")
+            self.assertIn(
+                "WARNING:test_a2c:Invalid contact information",
+                log_cm.output,
+            )
 
-    def test_006__validate_contact_valid(self):
+    def test_008__validate_contact_valid(self):
         """test _validate_contact valid contact"""
         with patch("acme2certifier.acme_srv.account.validate_email", return_value=True):
             code, message, detail = self.account._validate_contact(["valid@contact"])
             self.assertEqual(code, 200)
             self.assertIsNone(message)
 
-    def test_007__check_tos_agreed(self):
+    def test_009__check_tos_agreed(self):
         """test _check_tos agreed"""
         content = {"termsofserviceagreed": True}
         code, message, detail = self.account._check_tos(content)
         self.assertEqual(code, 200)
         self.assertIsNone(message)
 
-    def test_008__check_tos_not_agreed(self):
-        """test _check_tos not agreed"""
+    def test_010__check_tos_not_agreed(self):
+        """test _check_tos not agreed logs WARNING"""
         content = {"termsofserviceagreed": False}
-        code, message, detail = self.account._check_tos(content)
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.account._check_tos(content)
         self.assertEqual(code, 403)
         self.assertEqual(message, self.account.err_msg_dic["useractionrequired"])
+        self.assertEqual(detail, "Terms of service must be agreed")
+        self.assertIn(
+            "WARNING:test_a2c:Terms of service must be agreed",
+            log_cm.output,
+        )
 
-    def test_009__check_tos_missing(self):
-        """test _check_tos missing flag"""
+    def test_011__check_tos_missing(self):
+        """test _check_tos missing flag logs WARNING"""
         content = {}
-        code, message, detail = self.account._check_tos(content)
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.account._check_tos(content)
         self.assertEqual(code, 403)
         self.assertEqual(message, self.account.err_msg_dic["useractionrequired"])
+        self.assertEqual(detail, "termsofserviceagreed flag missing")
+        self.assertIn(
+            "WARNING:test_a2c:termsofserviceagreed flag missing",
+            log_cm.output,
+        )
 
-    def test_010__add_account_to_db_success_new(self):
+    def test_012__add_account_to_db_success_new(self):
         """test _add_account_to_db success"""
         account_data = MagicMock()
         account_data.name = "test_account"
@@ -527,7 +621,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(code, 201)
             self.assertEqual(message, "test_account")
 
-    def test_011__add_account_to_db_success_existing(self):
+    def test_013__add_account_to_db_success_existing(self):
         """test _add_account_to_db success"""
         account_data = MagicMock()
         account_data.name = "test_account"
@@ -540,7 +634,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(code, 200)
             self.assertEqual(message, "test_account")
 
-    def test_011__add_account_to_db_exception(self):
+    def test_014__add_account_to_db_exception(self):
         """test _add_account_to_db exception"""
         account_data = MagicMock()
         account_data.name = "test_account"
@@ -561,7 +655,7 @@ class TestAccount(unittest.TestCase):
                 self.assertIn("DB error", str(context.exception))
                 self.assertIn("Database error while adding account", log_cm.output[0])
 
-    def test_012__parse_query_valid(self):
+    def test_015__parse_query_valid(self):
         """test _parse_query valid account"""
         with patch.object(
             self.account,
@@ -576,13 +670,13 @@ class TestAccount(unittest.TestCase):
             data = self.account._parse_query("test_account")
             self.assertEqual(data["status"], "valid")
 
-    def test_013__parse_query_invalid(self):
+    def test_016__parse_query_invalid(self):
         """test _parse_query invalid account"""
         with patch.object(self.account, "_lookup_account_by_name", return_value=None):
             data = self.account._parse_query("test_account")
             self.assertEqual(data["status"], "invalid")
 
-    def test_014__onlyreturnexisting_acc_lookup_success(self):
+    def test_017__onlyreturnexisting_acc_lookup_success(self):
         """test _onlyreturnexisting success"""
         protected = {"jwk": {}}
         payload = {"onlyreturnexisting": True}
@@ -601,48 +695,71 @@ class TestAccount(unittest.TestCase):
                 self.assertEqual(message, "test_account")
                 self.assertEqual(detail, {"status": "valid"})
 
-    def test_014__onlyreturnexisting_acc_lookup_failed(self):
-        """test _onlyreturnexisting success"""
+    def test_018__onlyreturnexisting_acc_lookup_failed(self):
+        """test _onlyreturnexisting miss logs WARNING"""
         protected = {"jwk": {}}
         payload = {"onlyreturnexisting": True}
         with patch.object(self.account, "_lookup_account_by_field", return_value=None):
             with patch.object(
                 self.account, "_parse_query", return_value={"status": "valid"}
             ):
-                code, message, detail = self.account._onlyreturnexisting(
-                    protected, payload
-                )
+                with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                    code, message, detail = self.account._onlyreturnexisting(
+                        protected, payload
+                    )
                 self.assertEqual(code, 400)
                 self.assertEqual(
                     message, self.account.err_msg_dic["accountdoesnotexist"]
                 )
                 self.assertFalse(detail)
+                self.assertIn(
+                    "WARNING:test_a2c:onlyReturnExisting: account does not exist",
+                    log_cm.output,
+                )
 
-    def test_015__onlyreturnexisting_no_jwk(self):
-        """test _onlyreturnexisting no jwk"""
+    def test_019__onlyreturnexisting_no_jwk(self):
+        """test _onlyreturnexisting no jwk logs WARNING"""
         protected = {}
         payload = {"onlyreturnexisting": True}
-        code, message, detail = self.account._onlyreturnexisting(protected, payload)
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.account._onlyreturnexisting(protected, payload)
         self.assertEqual(code, 400)
         self.assertEqual(message, self.account.err_msg_dic["malformed"])
+        self.assertEqual(detail, "jwk structure missing")
+        self.assertIn(
+            "WARNING:test_a2c:onlyReturnExisting: jwk structure missing",
+            log_cm.output,
+        )
 
-    def test_016__onlyreturnexisting_false(self):
-        """test _onlyreturnexisting onlyreturnexisting false"""
+    def test_020__onlyreturnexisting_false(self):
+        """test _onlyreturnexisting onlyreturnexisting false logs WARNING"""
         protected = {"jwk": {}}
         payload = {"onlyreturnexisting": False}
-        code, message, detail = self.account._onlyreturnexisting(protected, payload)
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.account._onlyreturnexisting(protected, payload)
         self.assertEqual(code, 400)
         self.assertEqual(message, self.account.err_msg_dic["useractionrequired"])
+        self.assertEqual(detail, "onlyReturnExisting must be true")
+        self.assertIn(
+            "WARNING:test_a2c:onlyReturnExisting must be true",
+            log_cm.output,
+        )
 
-    def test_017__onlyreturnexisting_missing(self):
-        """test _onlyreturnexisting missing flag"""
+    def test_021__onlyreturnexisting_missing(self):
+        """test _onlyreturnexisting missing flag logs WARNING"""
         protected = {"jwk": {}}
         payload = {}
-        code, message, detail = self.account._onlyreturnexisting(protected, payload)
-        self.assertEqual(code, 500)
-        self.assertEqual(message, self.account.err_msg_dic["serverinternal"])
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.account._onlyreturnexisting(protected, payload)
+        self.assertEqual(code, 400)
+        self.assertEqual(message, self.account.err_msg_dic["malformed"])
+        self.assertEqual(detail, "onlyReturnExisting without payload")
+        self.assertIn(
+            "WARNING:test_a2c:onlyReturnExisting without payload",
+            log_cm.output,
+        )
 
-    def test_018__handle_deactivation_success(self):
+    def test_022__handle_deactivation_success(self):
         """test _handle_deactivation success"""
         payload = {"status": "deactivated"}
         account_obj = {
@@ -668,7 +785,7 @@ class TestAccount(unittest.TestCase):
                     result["data"]["key"], {"kty": "RSA", "n": "abc", "e": "AQAB"}
                 )
 
-    def test_018__handle_deactivation_fail(self):
+    def test_023__handle_deactivation_fail(self):
         """test _handle_deactivation failure"""
         payload = {"status": "deactivated"}
         account_obj = {
@@ -691,43 +808,59 @@ class TestAccount(unittest.TestCase):
                 self.assertEqual(result["data"]["type"], "deact_message")
                 self.assertEqual(result["data"]["detail"], "deact_detail")
 
-    def test_018b__handle_deactivation_account_not_found(self):
-        """test _handle_deactivation when account lookup fails"""
+    def test_024__handle_deactivation_account_not_found(self):
+        """test _handle_deactivation when account lookup fails logs WARNING"""
         payload = {"status": "deactivated"}
         with patch.object(
             self.account, "_lookup_account_by_name", return_value=None
         ):
             with patch.object(self.account, "_deactivate_account") as mock_deactivate:
-                result = self.account._handle_deactivation("test_account", payload)
+                with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                    result = self.account._handle_deactivation("test_account", payload)
                 mock_deactivate.assert_not_called()
                 self.assertEqual(result["data"]["status"], 400)
                 self.assertEqual(
                     result["data"]["type"],
                     self.account.err_msg_dic["accountdoesnotexist"],
                 )
+                self.assertIn(
+                    "WARNING:test_a2c:Deactivation failed: account does not exist account=test_account",
+                    log_cm.output,
+                )
 
-    def test_019__handle_deactivation_status_invalid(self):
-        """test _handle_deactivation invalid status"""
+    def test_025__handle_deactivation_status_invalid(self):
+        """test _handle_deactivation invalid status logs WARNING"""
         payload = {"status": "active"}
-        with patch.object(self.account, "_build_response", return_value={"data": {}}):
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
             result = self.account._handle_deactivation("test_account", payload)
-            self.assertIn("data", result)
+        self.assertEqual(result["data"]["status"], 400)
+        self.assertEqual(result["data"]["type"], self.account.err_msg_dic["malformed"])
+        self.assertEqual(result["data"]["detail"], "Invalid status for deactivation")
+        self.assertIn(
+            "WARNING:test_a2c:Invalid status for deactivation account=test_account status=active",
+            log_cm.output,
+        )
 
-    def test_020__deactivate_account_success(self):
+    def test_026__deactivate_account_success(self):
         """test _deactivate_account success"""
         with patch.object(self.account.repository, "update_account", return_value=True):
             code, message, detail = self.account._deactivate_account("test_account")
             self.assertEqual(code, 200)
 
-    def test_021__deactivate_account_failure(self):
-        """test _deactivate_account failure"""
+    def test_027__deactivate_account_failure(self):
+        """test _deactivate_account failure logs WARNING"""
         with patch.object(
             self.account.repository, "update_account", return_value=False
         ):
-            code, message, detail = self.account._deactivate_account("test_account")
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._deactivate_account("test_account")
             self.assertEqual(code, 400)
+            self.assertIn(
+                "WARNING:test_a2c:Deactivation failed: account does not exist account=test_account",
+                log_cm.output,
+            )
 
-    def test_022__deactivate_account_exception(self):
+    def test_028__deactivate_account_exception(self):
         """test _deactivate_account exception"""
         with patch.object(
             self.account.repository, "update_account", side_effect=Exception("DB error")
@@ -746,7 +879,7 @@ class TestAccount(unittest.TestCase):
                         "Database error while deactivating account", log_cm.output[0]
                     )
 
-    def test_023__handle_contact_update_success(self):
+    def test_029__handle_contact_update_success(self):
         """test _handle_contact_update success"""
         with patch.object(
             self.account, "_update_account_contacts", return_value=(200, None, None)
@@ -772,7 +905,7 @@ class TestAccount(unittest.TestCase):
                         result = self.account._handle_contact_update("test_account", {})
                         self.assertIn("data", result)
 
-    def test_024__handle_contact_update_failure(self):
+    def test_030__handle_contact_update_failure(self):
         """test _handle_contact_update failure"""
         with patch.object(
             self.account,
@@ -785,7 +918,7 @@ class TestAccount(unittest.TestCase):
                 result = self.account._handle_contact_update("test_account", {})
                 self.assertIn("data", result)
 
-    def test_025__update_account_contacts_validation_failes(self):
+    def test_031__update_account_contacts_validation_failes(self):
         """test _update_account_contacts does not call update_account if validation fails"""
         with patch.object(self.account.repository, "update_account") as mock_update:
             with patch.object(
@@ -799,7 +932,7 @@ class TestAccount(unittest.TestCase):
                 self.assertEqual(detail, "bar")
                 mock_update.assert_not_called()
 
-    def test_025__update_account_contacts_success(self):
+    def test_032__update_account_contacts_success(self):
         """test _update_account_contacts success"""
         self.account.repository.update_account.return_value = True
         with patch.object(
@@ -810,18 +943,23 @@ class TestAccount(unittest.TestCase):
             )
             self.assertEqual(code, 200)
 
-    def test_026__update_account_contacts_failure(self):
-        """test _update_account_contacts failure"""
+    def test_033__update_account_contacts_failure(self):
+        """test _update_account_contacts failure logs WARNING with account="""
         self.account.repository.update_account.return_value = False
         with patch.object(
             self.account, "_validate_contact", return_value=(200, None, None)
         ):
-            code, message, detail = self.account._update_account_contacts(
-                "test_account", {"contact": []}
-            )
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._update_account_contacts(
+                    "test_account", {"contact": []}
+                )
             self.assertEqual(code, 400)
+            self.assertIn(
+                "WARNING:test_a2c:Account does not exist for contact update account=test_account",
+                log_cm.output,
+            )
 
-    def test_027__update_account_contacts_exception(self):
+    def test_034__update_account_contacts_exception(self):
         """test _update_account_contacts exception"""
         self.account.repository.update_account.side_effect = Exception("DB error")
         with patch.object(
@@ -837,7 +975,7 @@ class TestAccount(unittest.TestCase):
                     "Database error while updating account contacts", log_cm.output[0]
                 )
 
-    def test_028__handle_key_change_success(self):
+    def test_035__handle_key_change_success(self):
         """test _handle_key_change success"""
         with patch.object(self.account, "message") as mock_message:
             mock_message.check.return_value = (200, None, None, {}, {}, None)
@@ -850,17 +988,19 @@ class TestAccount(unittest.TestCase):
                     result = self.account._handle_key_change("test_account", {}, {})
                     self.assertIn("data", result)
 
-    def test_029__handle_key_change_failure(self):
-        """test _handle_key_change failure"""
-        with patch.object(self.account, "message") as mock_message:
-            mock_message.check.return_value = (400, "error", "detail", {}, {}, None)
-            with patch.object(
-                self.account, "_build_response", return_value={"data": {}}
-            ):
-                result = self.account._handle_key_change("test_account", {}, {})
-                self.assertIn("data", result)
+    def test_036__handle_key_change_failure(self):
+        """test _handle_key_change without key-change url logs WARNING"""
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            result = self.account._handle_key_change("test_account", {}, {})
+        self.assertEqual(result["data"]["status"], 400)
+        self.assertEqual(result["data"]["type"], self.account.err_msg_dic["malformed"])
+        self.assertEqual(result["data"]["detail"], "Malformed key-change request")
+        self.assertIn(
+            "WARNING:test_a2c:Malformed key-change request account=test_account",
+            log_cm.output,
+        )
 
-    def test_030__rollover_account_key_validation_success(self):
+    def test_037__rollover_account_key_validation_success(self):
         """test _rollover_account_key success"""
         self.account.repository.update_account.return_value = True
         with patch.object(
@@ -871,7 +1011,7 @@ class TestAccount(unittest.TestCase):
             )
             self.assertEqual(code, 200)
 
-    def test_030__rollover_account_key_validation_failure(self):
+    def test_038__rollover_account_key_validation_failure(self):
         """test _rollover_account_key success"""
         self.account.repository.update_account.return_value = True
         with patch.object(
@@ -886,7 +1026,7 @@ class TestAccount(unittest.TestCase):
                 ),
             )
 
-    def test_031__rollover_account_key_failure(self):
+    def test_039__rollover_account_key_failure(self):
         """test _rollover_account_key failure"""
         self.account.repository.update_account.return_value = False
         with patch.object(
@@ -904,7 +1044,7 @@ class TestAccount(unittest.TestCase):
                 log_cm.output[0],
             )
 
-    def test_032__rollover_account_key_exception(self):
+    def test_040__rollover_account_key_exception(self):
         """test _rollover_account_key exception"""
         self.account.repository.update_account.side_effect = Exception("DB error")
         with patch.object(
@@ -920,7 +1060,7 @@ class TestAccount(unittest.TestCase):
                     "Database error while updating account key", log_cm.output[0]
                 )
 
-    def test_033__validate_key_change_success(self):
+    def test_041__validate_key_change_success(self):
         """test _validate_key_change success"""
         protected = {"url": "test", "kid": "kid"}
         inner_protected = {"jwk": {}, "url": "test"}
@@ -931,18 +1071,24 @@ class TestAccount(unittest.TestCase):
             )
             self.assertEqual(code, 200)
 
-    def test_034__validate_key_change_missing_jwk(self):
-        """test _validate_key_change missing jwk"""
+    def test_042__validate_key_change_missing_jwk(self):
+        """test _validate_key_change missing jwk logs WARNING"""
         protected = {"url": "test", "kid": "kid"}
         inner_protected = {"url": "test"}
         inner_payload = {"account": "kid"}
-        code, message, detail = self.account._validate_key_change(
-            "test_account", protected, inner_protected, inner_payload
-        )
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.account._validate_key_change(
+                "test_account", protected, inner_protected, inner_payload
+            )
         self.assertEqual(code, 400)
+        self.assertEqual(detail, "Inner JWS is missing JWK")
+        self.assertIn(
+            "WARNING:test_a2c:Key-change validation failed account=test_account detail=Inner JWS is missing JWK",
+            log_cm.output,
+        )
 
-    def test_035__validate_key_change_key_exists(self):
-        """test _validate_key_change key exists"""
+    def test_043__validate_key_change_key_exists(self):
+        """test _validate_key_change key exists logs WARNING"""
         protected = {"url": "test", "kid": "kid"}
         inner_protected = {"jwk": {}, "url": "test"}
         inner_payload = {"account": "kid"}
@@ -951,56 +1097,86 @@ class TestAccount(unittest.TestCase):
             "_lookup_account_by_field",
             return_value={"name": "test_account"},
         ):
-            code, message, detail = self.account._validate_key_change(
-                "test_account", protected, inner_protected, inner_payload
-            )
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_key_change(
+                    "test_account", protected, inner_protected, inner_payload
+                )
             self.assertEqual(code, 400)
+            self.assertEqual(detail, "Public key already exists")
+            self.assertIn(
+                "WARNING:test_a2c:Key-change validation failed account=test_account detail=Public key already exists",
+                log_cm.output,
+            )
 
-    def test_036__validate_key_change_url_mismatch(self):
-        """test _validate_key_change url mismatch"""
+    def test_044__validate_key_change_url_mismatch(self):
+        """test _validate_key_change url mismatch logs WARNING"""
         protected = {"url": "test", "kid": "kid"}
         inner_protected = {"jwk": {}, "url": "other"}
         inner_payload = {"account": "kid"}
         with patch.object(self.account, "_lookup_account_by_field", return_value=None):
-            code, message, detail = self.account._validate_key_change(
-                "test_account", protected, inner_protected, inner_payload
-            )
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_key_change(
+                    "test_account", protected, inner_protected, inner_payload
+                )
             self.assertEqual(code, 400)
+            self.assertEqual(detail, "URL mismatch in inner and outer JWS")
+            self.assertIn(
+                "WARNING:test_a2c:Key-change validation failed account=test_account detail=URL mismatch in inner and outer JWS",
+                log_cm.output,
+            )
 
-    def test_037__validate_key_change_missing_url(self):
-        """test _validate_key_change missing url"""
+    def test_045__validate_key_change_missing_url(self):
+        """test _validate_key_change missing url logs WARNING"""
         protected = {"kid": "kid"}
         inner_protected = {"jwk": {}}
         inner_payload = {"account": "kid"}
         with patch.object(self.account, "_lookup_account_by_field", return_value=None):
-            code, message, detail = self.account._validate_key_change(
-                "test_account", protected, inner_protected, inner_payload
-            )
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_key_change(
+                    "test_account", protected, inner_protected, inner_payload
+                )
             self.assertEqual(code, 400)
+            self.assertEqual(detail, "Missing URL in inner or outer JWS")
+            self.assertIn(
+                "WARNING:test_a2c:Key-change validation failed account=test_account detail=Missing URL in inner or outer JWS",
+                log_cm.output,
+            )
 
-    def test_038__validate_key_change_kid_account_mismatch(self):
-        """test _validate_key_change kid/account mismatch"""
+    def test_046__validate_key_change_kid_account_mismatch(self):
+        """test _validate_key_change kid/account mismatch logs WARNING"""
         protected = {"url": "test", "kid": "kid"}
         inner_protected = {"jwk": {}, "url": "test"}
         inner_payload = {"account": "other"}
         with patch.object(self.account, "_lookup_account_by_field", return_value=None):
-            code, message, detail = self.account._validate_key_change(
-                "test_account", protected, inner_protected, inner_payload
-            )
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_key_change(
+                    "test_account", protected, inner_protected, inner_payload
+                )
             self.assertEqual(code, 400)
+            self.assertEqual(detail, "KID and account do not match")
+            self.assertIn(
+                "WARNING:test_a2c:Key-change validation failed account=test_account detail=KID and account do not match",
+                log_cm.output,
+            )
 
-    def test_039__validate_key_change_missing_kid_account(self):
-        """test _validate_key_change missing kid/account"""
+    def test_047__validate_key_change_missing_kid_account(self):
+        """test _validate_key_change missing kid/account logs WARNING"""
         protected = {"url": "test"}
         inner_protected = {"jwk": {}, "url": "test"}
         inner_payload = {}
         with patch.object(self.account, "_lookup_account_by_field", return_value=None):
-            code, message, detail = self.account._validate_key_change(
-                "test_account", protected, inner_protected, inner_payload
-            )
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_key_change(
+                    "test_account", protected, inner_protected, inner_payload
+                )
             self.assertEqual(code, 400)
+            self.assertEqual(detail, "Missing KID or account in payload")
+            self.assertIn(
+                "WARNING:test_a2c:Key-change validation failed account=test_account detail=Missing KID or account in payload",
+                log_cm.output,
+            )
 
-    def test_040__load_configuration(self):
+    def test_048__load_configuration(self):
         """test _load_configuration covers all config branches and error handling"""
         from acme2certifier.acme_srv.account import Account
 
@@ -1057,7 +1233,8 @@ class TestAccount(unittest.TestCase):
             with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
                 account._load_configuration()
                 self.assertIn(
-                    "EABHandler configuration incomplete", " ".join(log_cm.output)
+                    "Configuration error: EABHandler incomplete",
+                    " ".join(log_cm.output),
                 )
 
         # Test EABhandler load failure branch
@@ -1079,7 +1256,7 @@ class TestAccount(unittest.TestCase):
                     "EABHandler could not get loaded", " ".join(log_cm.output)
                 )
 
-    def test_041_load_configuration_without_accountsection(self):
+    def test_049_load_configuration_without_accountsection(self):
         from acme2certifier.acme_srv.account import Account
 
         config_mock = MagicMock()
@@ -1108,7 +1285,7 @@ class TestAccount(unittest.TestCase):
             )  # Default value should be used
             self.assertFalse(account.config.eab_check)  # Default value should be used
 
-    def test_041__create_account_success(self):
+    def test_050__create_account_success(self):
         """test _create_account success (all checks pass, EAB off)"""
         self.account.config.tos_url = None
         self.account.config.tos_check_disable = False
@@ -1131,7 +1308,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(message, "test_account")
             mock_add_db.assert_called_once()
 
-    def test_042__create_account_tos_check_fail(self):
+    def test_051__create_account_tos_check_fail(self):
         """test _create_account fails TOS check"""
         self.account.config.tos_url = "http://tos.url"
         self.account.config.tos_check_disable = False
@@ -1145,7 +1322,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(code, 403)
             self.assertEqual(message, "tos_error")
 
-    def test_043__create_account_eab_check_fail(self):
+    def test_052__create_account_eab_check_fail(self):
         """test _create_account fails EAB check"""
         self.account.config.tos_url = None
         self.account.config.tos_check_disable = False
@@ -1159,7 +1336,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(code, 403)
             self.assertEqual(message, "eab_error")
 
-    def test_044__create_account_eab_check_strict_mode_off(self):
+    def test_053__create_account_eab_check_strict_mode_off(self):
         """test _create_account skips EAB check in non-strict mode without EAB payload"""
         self.account.config.tos_url = None
         self.account.config.tos_check_disable = False
@@ -1194,7 +1371,7 @@ class TestAccount(unittest.TestCase):
                 log_cm.output,
             )
 
-    def test_044__create_account_contact_check_fail(self):
+    def test_054__create_account_contact_check_fail(self):
         """test _create_account fails contact validation"""
         self.account.config.tos_url = None
         self.account.config.tos_check_disable = False
@@ -1211,7 +1388,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(code, 400)
             self.assertEqual(message, "contact_error")
 
-    def test_045__create_account_eab_kid_set(self):
+    def test_055__create_account_eab_kid_set(self):
         """test _create_account sets eab_kid if present"""
         self.account.config.tos_url = None
         self.account.config.tos_check_disable = False
@@ -1243,7 +1420,7 @@ class TestAccount(unittest.TestCase):
             args, kwargs = mock_add_db.call_args
             self.assertEqual(args[0].eab_kid, "eabkid123")
 
-    def test_046__handle_key_change_success(self):
+    def test_056__handle_key_change_success(self):
         """test _handle_key_change success path (code==200)"""
         account_name = "test_account"
         payload = {"foo": "bar"}
@@ -1270,64 +1447,100 @@ class TestAccount(unittest.TestCase):
             mock_rollover.assert_called_once()
             mock_build_response.assert_called_once()
 
-    def test_047__handle_key_change_check_fail(self):
-        """test _handle_key_change when message.check returns code!=200"""
+    def test_057__handle_key_change_check_fail(self):
+        """test _handle_key_change when message.check returns code!=200 preserves detail"""
         account_name = "test_account"
         payload = {"foo": "bar"}
         protected = {"url": "key-change/123"}
         with (
-            patch.object(self.account, "message") as mock_message,
+            patch.object(
+                self.account.message,
+                "check",
+                return_value=(
+                    400,
+                    self.account.err_msg_dic["malformed"],
+                    "inner check failed",
+                    {},
+                    {},
+                    None,
+                ),
+            ),
             patch.object(self.account, "_rollover_account_key") as mock_rollover,
-            patch.object(
-                self.account, "_build_response", return_value={"data": {}}
-            ) as mock_build_response,
         ):
-            mock_message.check.return_value = (400, "err", "fail", {}, {}, None)
-            result = self.account._handle_key_change(account_name, payload, protected)
-            self.assertIn("data", result)
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                result = self.account._handle_key_change(
+                    account_name, payload, protected
+                )
             mock_rollover.assert_not_called()
-            mock_build_response.assert_called_once()
+            self.assertEqual(result["data"]["status"], 400)
+            self.assertEqual(
+                result["data"]["type"], self.account.err_msg_dic["malformed"]
+            )
+            self.assertEqual(result["data"]["detail"], "inner check failed")
+            self.assertIn(
+                "WARNING:test_a2c:Key-change inner JWS check failed account=test_account detail=inner check failed",
+                log_cm.output,
+            )
 
-    def test_048__handle_key_change_rollover_fail(self):
-        """test _handle_key_change when rollover returns code!=200"""
+    def test_058__handle_key_change_rollover_fail(self):
+        """test _handle_key_change when rollover returns code!=200 preserves message/detail"""
         account_name = "test_account"
         payload = {"foo": "bar"}
         protected = {"url": "key-change/123"}
         with (
-            patch.object(self.account, "message") as mock_message,
             patch.object(
-                self.account, "_rollover_account_key", return_value=(500, "err", "fail")
+                self.account.message,
+                "check",
+                return_value=(
+                    200,
+                    None,
+                    None,
+                    {"jwk": {}},
+                    {"account": "acc"},
+                    None,
+                ),
+            ),
+            patch.object(
+                self.account,
+                "_rollover_account_key",
+                return_value=(
+                    400,
+                    self.account.err_msg_dic["badpubkey"],
+                    "Public key already exists",
+                ),
             ) as mock_rollover,
-            patch.object(
-                self.account, "_build_response", return_value={"data": {}}
-            ) as mock_build_response,
         ):
-            mock_message.check.return_value = (
-                200,
-                None,
-                None,
-                {"jwk": {}},
-                {"account": "acc"},
-                None,
-            )
-            result = self.account._handle_key_change(account_name, payload, protected)
-            self.assertIn("data", result)
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                result = self.account._handle_key_change(
+                    account_name, payload, protected
+                )
             mock_rollover.assert_called_once()
-            mock_build_response.assert_called_once()
+            self.assertEqual(result["data"]["status"], 400)
+            self.assertEqual(
+                result["data"]["type"], self.account.err_msg_dic["badpubkey"]
+            )
+            self.assertEqual(result["data"]["detail"], "Public key already exists")
+            self.assertIn(
+                "WARNING:test_a2c:Key rollover failed account=test_account detail=Public key already exists",
+                log_cm.output,
+            )
 
-    def test_049__handle_key_change_url_missing(self):
-        """test _handle_key_change with missing url in protected"""
+    def test_059__handle_key_change_url_missing(self):
+        """test _handle_key_change with missing url in protected logs WARNING"""
         account_name = "test_account"
         payload = {"foo": "bar"}
         protected = {"noturl": "nope"}
-        with patch.object(
-            self.account, "_build_response", return_value={"data": {}}
-        ) as mock_build_response:
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
             result = self.account._handle_key_change(account_name, payload, protected)
-            self.assertIn("data", result)
-            mock_build_response.assert_called_once()
+        self.assertEqual(result["data"]["status"], 400)
+        self.assertEqual(result["data"]["type"], self.account.err_msg_dic["malformed"])
+        self.assertEqual(result["data"]["detail"], "Malformed key-change request")
+        self.assertIn(
+            "WARNING:test_a2c:Malformed key-change request account=test_account",
+            log_cm.output,
+        )
 
-    def test_050__handle_account_query_valid(self):
+    def test_060__handle_account_query_valid(self):
         """test _handle_account_query with valid account"""
         account_name = "test_account"
         account_obj = {
@@ -1351,7 +1564,7 @@ class TestAccount(unittest.TestCase):
             self.assertIn("data", result)
             mock_build_response.assert_called_once()
 
-    def test_051__handle_account_query_valid(self):
+    def test_061__handle_account_query_valid(self):
         """test _handle_account_query with valid account"""
         account_name = "test_account"
         account_obj = {
@@ -1374,7 +1587,7 @@ class TestAccount(unittest.TestCase):
                 result["header"]["Location"],
             )
 
-    def test_051__handle_account_query_invalid(self):
+    def test_062__handle_account_query_invalid(self):
         """test _handle_account_query with invalid account (not found)"""
         account_name = "test_account"
         with (
@@ -1391,7 +1604,7 @@ class TestAccount(unittest.TestCase):
             mock_build_response.assert_called_once()
             mock_build_account_info.assert_not_called()
 
-    def test_052__lookup_account_by_name_success(self):
+    def test_063__lookup_account_by_name_success(self):
         """test _lookup_account_by_name returns account on success"""
         with patch.object(
             self.account.repository,
@@ -1402,7 +1615,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(result, {"name": "test_account"})
             mock_lookup.assert_called_once_with("name", "test_account")
 
-    def test_053__lookup_account_by_name_exception(self):
+    def test_064__lookup_account_by_name_exception(self):
         """test _lookup_account_by_name returns None on AccountDatabaseError"""
         with patch.object(
             self.account.repository, "lookup_account", side_effect=Exception("DB error")
@@ -1414,7 +1627,7 @@ class TestAccount(unittest.TestCase):
                     "Database error during account lookup", " ".join(log_cm.output)
                 )
 
-    def test_052__lookup_account_by_field_success(self):
+    def test_065__lookup_account_by_field_success(self):
         """test _lookup_account_by_name returns account on success"""
         with patch.object(
             self.account.repository,
@@ -1425,7 +1638,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(result, {"name": "test_account"})
             mock_lookup.assert_called_once_with("value", "field")
 
-    def test_053__lookup_account_by_field_exception(self):
+    def test_066__lookup_account_by_field_exception(self):
         """test _lookup_account_by_name returns None on AccountDatabaseError"""
         with patch.object(
             self.account.repository, "lookup_account", side_effect=Exception("DB error")
@@ -1437,7 +1650,7 @@ class TestAccount(unittest.TestCase):
                     "Database error during account lookup", " ".join(log_cm.output)
                 )
 
-    def test_056__build_account_info_normal(self):
+    def test_067__build_account_info_normal(self):
         """test _build_account_info with all fields present"""
         account_obj = {
             "status": "valid",
@@ -1452,7 +1665,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(result["contact"], ["mailto:test@example.com"])
             self.assertEqual(result["createdAt"], "date_str")
 
-    def test_056__build_account_info_witheab(self):
+    def test_068__build_account_info_witheab(self):
         """test _build_account_info with all fields present"""
         account_obj = {
             "status": "valid",
@@ -1469,7 +1682,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(result["createdAt"], "date_str")
             self.assertEqual(result["eab_kid"], "kid123")
 
-    def test_057__build_account_info_missing_fields(self):
+    def test_069__build_account_info_missing_fields(self):
         """test _build_account_info with missing optional fields"""
         account_obj = {
             "jwk": "{}",
@@ -1484,7 +1697,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(result["createdAt"], "date_str")
             self.assertNotIn("eab_kid", result)
 
-    def test_058__build_account_info_eab_kid_empty(self):
+    def test_070__build_account_info_eab_kid_empty(self):
         """test _build_account_info with eab_kid present but empty"""
         account_obj = {
             "status": "valid",
@@ -1496,7 +1709,7 @@ class TestAccount(unittest.TestCase):
         result = self.account._build_account_info(account_obj)
         self.assertNotIn("eab_kid", result)
 
-    def test_059__build_response_201(self):
+    def test_071__build_response_201(self):
         """test _build_response for code 201 (account creation)"""
         code = 201
         message = "test_account"
@@ -1514,7 +1727,7 @@ class TestAccount(unittest.TestCase):
             self.assertIn("header", result)
             mock_prepare.assert_called_once()
 
-    def test_060__build_response_200(self):
+    def test_072__build_response_200(self):
         """test _build_response for code 200 (success, detail contains status)"""
         code = 200
         message = "test_account"
@@ -1532,7 +1745,7 @@ class TestAccount(unittest.TestCase):
             self.assertIn("header", result)
             mock_prepare.assert_called_once()
 
-    def test_061__build_response_error(self):
+    def test_073__build_response_error(self):
         """test _build_response for error code (e.g. 400)"""
         code = 400
         message = "error"
@@ -1545,7 +1758,7 @@ class TestAccount(unittest.TestCase):
             self.assertIn("error", result)
             mock_prepare.assert_called_once()
 
-    def test_062__build_response_eab_binding(self):
+    def test_074__build_response_eab_binding(self):
         """test _build_response with eab_check and externalaccountbinding in payload"""
         code = 201
         message = "test_account"
@@ -1570,7 +1783,7 @@ class TestAccount(unittest.TestCase):
             self.assertIn("externalaccountbinding", result["data"])
             mock_prepare.assert_called_once()
 
-    def test_062b__build_response_200_eab_check_no_payload(self):
+    def test_075__build_response_200_eab_check_no_payload(self):
         """test _build_response with eab_check and no payload (e.g. key rollover)"""
         self.account.server_name = "http://tester.local"
         self.account.config.path_dic = {"acct_path": "/acme/acct/"}
@@ -1587,7 +1800,7 @@ class TestAccount(unittest.TestCase):
         )
         self.assertNotIn("externalaccountbinding", result.get("data", {}))
 
-    def test_063_parse_request_error(self):
+    def test_076_parse_request_error(self):
         """test parse_request returns error response when message.check fails"""
         content = {"foo": "bar"}
         with (
@@ -1604,7 +1817,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(result, {"error": "fail"})
             mock_build_response.assert_called_once()
 
-    def test_064_parse_request_deactivation(self):
+    def test_077_parse_request_deactivation(self):
         """test parse_request handles deactivation branch"""
         content = {"foo": "bar"}
         payload = {"status": "deactivated"}
@@ -1624,7 +1837,7 @@ class TestAccount(unittest.TestCase):
             self.assertIn("data", result)
             mock_handle.assert_called_once_with("test_account", payload)
 
-    def test_065_parse_request_contact_update(self):
+    def test_078_parse_request_contact_update(self):
         """test parse_request handles contact update branch"""
         content = {"foo": "bar"}
         payload = {"contact": ["mailto:test@example.com"]}
@@ -1644,7 +1857,7 @@ class TestAccount(unittest.TestCase):
             self.assertIn("data", result)
             mock_handle.assert_called_once_with("test_account", payload)
 
-    def test_066_parse_request_key_change(self):
+    def test_079_parse_request_key_change(self):
         """test parse_request handles key change branch"""
         content = {"foo": "bar"}
         payload = {"payload": {}}
@@ -1665,7 +1878,7 @@ class TestAccount(unittest.TestCase):
             self.assertIn("data", result)
             mock_handle.assert_called_once_with("test_account", payload, protected)
 
-    def test_067_parse_request_account_query(self):
+    def test_080_parse_request_account_query(self):
         """test parse_request handles account query branch (empty payload)"""
         content = {"foo": "bar"}
         with (
@@ -1684,8 +1897,8 @@ class TestAccount(unittest.TestCase):
             self.assertIn("data", result)
             mock_handle.assert_called_once_with("test_account")
 
-    def test_068_parse_request_unknown(self):
-        """test parse_request handles unknown request branch"""
+    def test_081_parse_request_unknown(self):
+        """test parse_request handles unknown request branch and logs WARNING"""
         content = {"foo": "bar"}
         payload = {"unknown": True}
         with (
@@ -1700,13 +1913,22 @@ class TestAccount(unittest.TestCase):
                 return_value={"error": "Unknown request"},
             ) as mock_build_response,
         ):
-            result = self.account.parse_request(content)
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                result = self.account.parse_request(content)
             self.assertEqual(result, {"error": "Unknown request"})
             mock_build_response.assert_called_once_with(
                 400, self.account.err_msg_dic["malformed"], "Unknown request"
             )
+            self.assertIn(
+                "WARNING:test_a2c:Unknown request account=test_account",
+                log_cm.output,
+            )
+            self.assertIn(
+                "WARNING:test_a2c:Unknown request account=test_account",
+                log_cm.output,
+            )
 
-    def test_069_new_calls_create_account(self):
+    def test_082_new_calls_create_account(self):
         """test new() calls create_account and returns its result"""
         content = {"foo": "bar"}
         with patch.object(
@@ -1716,7 +1938,7 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(result, {"data": {"status": "valid"}})
             mock_create.assert_called_once_with(content)
 
-    def test_070_parse_calls_parse_request(self):
+    def test_083_parse_calls_parse_request(self):
         """test parse() calls parse_request and returns its result"""
         content = {"foo": "bar"}
         with patch.object(

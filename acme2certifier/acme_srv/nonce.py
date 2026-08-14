@@ -7,6 +7,7 @@ from typing import Tuple, Dict
 from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.helper import uts_now, load_config
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
 
 # Custom Exceptions
@@ -92,18 +93,21 @@ class Nonce(object):
         try:
             nonce_chk_result = self.repo.check_nonce(nonce)
         except Exception as err_:
-            self.logger.critical("Database error: failed to check nonce: %s", err_)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to check nonce: %s", err_)
             nonce_chk_result = False
 
         if nonce_chk_result:
             try:
                 self.repo.delete_nonce(nonce)
             except Exception as err_:
-                self.logger.critical("Database error: failed to delete nonce: %s", err_)
+                self.logger.critical(
+                    f"{DB_ERROR_MSG}: failed to delete nonce: %s", err_
+                )
             code = 200
             message = None
             detail = None
         else:
+            self.logger.warning("badNonce: unknown or already consumed")
             code = 400
             message = "urn:ietf:params:acme:error:badNonce"
             detail = nonce
@@ -123,6 +127,7 @@ class Nonce(object):
                 protected_decoded["nonce"]
             )
         else:
+            self.logger.warning("badNonce: missing")
             code = 400
             message = "urn:ietf:params:acme:error:badNonce"
             detail = "NONE"
@@ -137,7 +142,7 @@ class Nonce(object):
         try:
             self.repo.add_nonce(nonce)
         except Exception as err_:
-            self.logger.critical("Database error: failed to add new nonce: %s", err_)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to add new nonce: %s", err_)
         self.logger.debug("Nonce.generate_and_add() ended with:%s", nonce)
         return nonce
 
@@ -162,7 +167,7 @@ class Nonce(object):
                 total_deleted = self.repo.delete_nonces(nonce_list)
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to search expired nonces: %s", err_
+                f"{DB_ERROR_MSG}: failed to search expired nonces: %s", err_
             )
         self.logger.debug(
             "Nonce.expire_nonces() ended with: %s entries, %s deleted",

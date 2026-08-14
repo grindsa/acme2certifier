@@ -30,6 +30,7 @@ from acme2certifier.acme_srv.helper import (
     enrollment_config_log,
     handler_config_check,
 )
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 ApiContent = Union[Dict[str, Any], str, None]
 
@@ -322,7 +323,9 @@ class CAhandler(object):
         ]:
             if not getattr(self, ele):
                 self.logger.error(
-                    "Configuration incomplete. Variable %s has not been not set", ele
+                    "%s: variable %s has not been not set",
+                    CONFIGURATION_ERROR_DETAIL,
+                    ele,
                 )
 
         # load profiling

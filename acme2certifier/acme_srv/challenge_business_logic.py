@@ -146,7 +146,7 @@ class ChallengeStateManager:
             )
 
         self.logger.debug(
-            "ChallengeStateManager.transition_to_valid() updated challenge %s to valid/%s",
+            "Challenge state transition: challenge=%s status=valid success=%s",
             challenge_name,
             success,
         )
@@ -176,10 +176,11 @@ class ChallengeStateManager:
                 challenge_name, "invalid"
             )
 
-        self.logger.debug(
-            "ChallengeStateManager.transition_to_invalid() ended: updated challenge %s to invalid/%s",
+        self.logger.warning(
+            "Challenge state transition: challenge=%s status=invalid success=%s reason=%s",
             challenge_name,
             success,
+            validation_error if validation_error else "none",
         )
         return success
 

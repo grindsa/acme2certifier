@@ -92,6 +92,13 @@ class DnsPersistChallengeValidator(ChallengeValidator):
                 return verdict
 
         if malformed_any:
+            self.logger.warning(
+                "dns-persist-01 validation failed: challenge=%s host=%s dns_record=%s reason=malformed_records found_records=%s",
+                context.challenge_name,
+                context.authorization_value,
+                dns_record_name,
+                txt_records,
+            )
             return ValidationResult(
                 success=False,
                 invalid=True,
@@ -99,6 +106,13 @@ class DnsPersistChallengeValidator(ChallengeValidator):
                 details={"dns_record": dns_record_name, "found_records": txt_records},
             )
 
+        self.logger.warning(
+            "dns-persist-01 validation failed: challenge=%s host=%s dns_record=%s reason=no_matching_record found_records=%s",
+            context.challenge_name,
+            context.authorization_value,
+            dns_record_name,
+            txt_records,
+        )
         return ValidationResult(
             success=False,
             invalid=True,
@@ -152,16 +166,16 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         )
         parsed = self._parse_issue_value(record)
         if parsed.get("malformed"):
-            self.logger.debug(
-                "DnsPersistChallengeValidator._evaluate_record(): Record is malformed: %s",
+            self.logger.warning(
+                "dns-persist-01 record malformed: record=%s",
                 record,
             )
             return None, True
 
         issuer = parsed.get("issuer_domain_name", "").lower()
         if issuer not in normalized_issuers:
-            self.logger.debug(
-                "DnsPersistChallengeValidator._evaluate_record(): Issuer '%s' not in normalized issuers: %s",
+            self.logger.warning(
+                "dns-persist-01 issuer not allowed: issuer=%s allowed=%s",
                 issuer,
                 normalized_issuers,
             )
@@ -169,14 +183,14 @@ class DnsPersistChallengeValidator(ChallengeValidator):
 
         params = parsed.get("params", {})
         if "accounturi" not in params:
-            self.logger.debug(
-                "DnsPersistChallengeValidator._evaluate_record(): Missing accounturi parameter in record: %s",
+            self.logger.warning(
+                "dns-persist-01 missing accounturi: record=%s",
                 record,
             )
             return None, True
         if params["accounturi"] != accounturi:
-            self.logger.debug(
-                "DnsPersistChallengeValidator._evaluate_record(): Account URI mismatch. Expected: %s, Found: %s",
+            self.logger.warning(
+                "dns-persist-01 accounturi mismatch: expected=%s found=%s",
                 accounturi,
                 params["accounturi"],
             )
@@ -184,14 +198,14 @@ class DnsPersistChallengeValidator(ChallengeValidator):
 
         persist_until = params.get("persistuntil")
         if persist_until and not re.fullmatch(r"\d+", persist_until):
-            self.logger.debug(
-                "DnsPersistChallengeValidator._evaluate_record(): Invalid persistuntil value (not an integer): %s",
+            self.logger.warning(
+                "dns-persist-01 invalid persistuntil: value=%s",
                 persist_until,
             )
             return None, True
         if persist_until and int(persist_until) < uts_now():
-            self.logger.debug(
-                "DnsPersistChallengeValidator._evaluate_record(): persistuntil timestamp is in the past: %s",
+            self.logger.warning(
+                "dns-persist-01 persistuntil expired: value=%s",
                 persist_until,
             )
             return None, False
@@ -205,8 +219,8 @@ class DnsPersistChallengeValidator(ChallengeValidator):
 
             policy = params.get("policy", "")
             if policy.lower() != "wildcard":
-                self.logger.debug(
-                    "DnsPersistChallengeValidator._evaluate_record(): wildcard authorization requested but policy is not wildcard: %s",
+                self.logger.warning(
+                    "dns-persist-01 wildcard policy mismatch: policy=%s",
                     policy,
                 )
                 return None, False

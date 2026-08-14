@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     uts_now,
     error_dic_get,
 )
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.version import __version__
 
 
@@ -47,7 +48,7 @@ class Housekeeping(object):
             result = self.dbstore.accountlist_get()
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to retrieve account list: %s",
+                f"{DB_ERROR_MSG}: failed to retrieve account list: %s",
                 err_,
             )
             result = None
@@ -60,7 +61,7 @@ class Housekeeping(object):
             result = self.dbstore.certificatelist_get()
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to retrieve certificate list: %s",
+                f"{DB_ERROR_MSG}: failed to retrieve certificate list: %s",
                 err_,
             )
             result = None
@@ -90,7 +91,7 @@ class Housekeeping(object):
             result = self.dbstore.cliaccountlist_get()
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to retrieve CLI account list: %s",
+                f"{DB_ERROR_MSG}: failed to retrieve CLI account list: %s",
                 err_,
             )
             result = None
@@ -705,7 +706,7 @@ class Housekeeping(object):
 
             except Exception as err_:
                 self.logger.critical(
-                    "Database error: failed to manage CLI user: %s",
+                    f"{DB_ERROR_MSG}: failed to manage CLI user: %s",
                     err_,
                 )
 
@@ -761,7 +762,7 @@ class Housekeeping(object):
                 result, script_name = self.dbstore.dbversion_get()
             except Exception as err_:
                 self.logger.critical(
-                    "Database error: failed to check database version: %s",
+                    f"{DB_ERROR_MSG}: failed to check database version: %s",
                     err_,
                 )
                 result = None

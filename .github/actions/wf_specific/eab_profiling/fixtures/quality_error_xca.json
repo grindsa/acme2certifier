@@ -20,8 +20,7 @@
         "www.example.org",
         "*.acme"
       ],
-      "issuing_ca_name": "root-ca",
-      "issuing_ca_key": "root-ca"
+      "unknown_key": "unknown_value"
     },
     "challenge": {
       "challenge_validation_disable": "True"

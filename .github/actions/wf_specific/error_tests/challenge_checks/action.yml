@@ -1,0 +1,86 @@
+name: "challenge_error_checking"
+description: "Challenge soft-invalid: call-site WARNING logs (async validation may leave POST as processing)"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Test http-01 soft-invalid (unreachable host)"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=chal-fail@bar.local,
+        newOrder -identifiers=chal-fail-01.bar.local
+        solve -order=0 -identifier=chal-fail-01.bar.local -challengeType=http-01
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell solve for failing http-01 challenge"
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        # Allow async/join timeout paths to finish writing WARNINGs
+        sleep 5
+        cat acmeshell.enroll.log || true
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check a2c logs for Challenge validation failed WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Challenge validation failed:"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for http-01 challenge type in soft-invalid line"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "type=http-01 host=chal-fail-01.bar.local"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for challenge state transition to invalid"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Challenge state transition: challenge="
+        FLUSH: "false"
+
+    - name: "Check a2c logs contain status=invalid on state transition"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "status=invalid success="
+        FLUSH: "true"

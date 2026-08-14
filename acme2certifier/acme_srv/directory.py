@@ -16,6 +16,7 @@ from .helper import (
     config_async_mode_load,
 )
 from .db_handler import DBstore
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
 GH_HOME = "https://github.com/grindsa/acme2certifier"
 
@@ -54,7 +55,7 @@ class DirectoryRepository:
             return self.dbstore.dbversion_get()
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to check database version: %s", err
+                f"{DB_ERROR_MSG}: failed to check database version: %s", err
             )
             return None, None
 
@@ -63,7 +64,7 @@ class DirectoryRepository:
         try:
             profiles = self.dbstore.hkparameter_get("profiles")
         except Exception as err:
-            self.logger.critical("Database error: failed to get profile list: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to get profile list: %s", err)
             return []
         if profiles:
             try:
@@ -80,7 +81,7 @@ class DirectoryRepository:
         try:
             self.dbstore.hkparameter_add(data_dic)
         except Exception as err:
-            self.logger.critical("Database error: failed to set profile list: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to set profile list: %s", err)
 
 
 class Directory:

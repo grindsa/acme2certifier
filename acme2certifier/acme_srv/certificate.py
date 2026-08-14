@@ -37,6 +37,7 @@ from acme2certifier.acme_srv.certificate_repository import DatabaseCertificateRe
 from acme2certifier.acme_srv.helpers.global_variables import (
     DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
     ENROLLMENT_FAILED_DETAIL,
+    DB_ERROR_MSG,
 )
 
 
@@ -85,8 +86,7 @@ class CertificateLogger:
             )
         except Exception as err:
             self.logger.error(
-                "Database error: failed to get account information for cert issuance log: %s",
-                err,
+                f"{DB_ERROR_MSG}: failed to get account information for cert issuance log: {err}"
             )
             order_dic = {}
 
@@ -150,7 +150,7 @@ class CertificateLogger:
             )
         except Exception as err:
             self.logger.error(
-                "Database error: failed to get account information for cert revocation: %s",
+                f"{DB_ERROR_MSG}: failed to get account information for cert revocation: %s",
                 err,
             )
             cert_dic = {}
@@ -327,7 +327,7 @@ class Certificate(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to check account for certificate: %s", err_
+                f"{DB_ERROR_MSG}: failed to check account for certificate: %s", err_
             )
             result = None
         self.logger.debug(
@@ -400,7 +400,7 @@ class Certificate(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to check authorization for order '%s': %s",
+                f"{DB_ERROR_MSG}: failed to check authorization for order '%s': %s",
                 order_name,
                 err_,
             )
@@ -435,7 +435,7 @@ class Certificate(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to search for certificate reusage: %s", err_
+                f"{DB_ERROR_MSG}: failed to search for certificate reusage: %s", err_
             )
             result_dic = None
 
@@ -697,7 +697,7 @@ class Certificate(object):
                 )
             except Exception as err_:
                 self.logger.critical(
-                    "Database error in Certificate when checking the CSR identifiers: %s",
+                    f"{DB_ERROR_MSG} in Certificate when checking the CSR identifiers: %s",
                     err_,
                 )
                 identifier_dic = {}
@@ -831,7 +831,7 @@ class Certificate(object):
         except Exception as err_:
             result = None
             self.logger.critical(
-                "Database error: failed to store certificate: %s", err_
+                f"{DB_ERROR_MSG}: failed to store certificate: %s", err_
             )
             error = self.err_msg_dic.get(
                 "serverinternal", "Unknown error"
@@ -874,7 +874,7 @@ class Certificate(object):
         except Exception as err_:
             result = None
             self.logger.critical(
-                "Database error: failed to store certificate error: %s", err_
+                f"{DB_ERROR_MSG}: failed to store certificate error: %s", err_
             )
 
         error, detail = self._resolve_client_enrollment_error(error, poll_identifier)
@@ -981,7 +981,12 @@ class Certificate(object):
                     )
 
         else:
-            self.logger.error("Enrollment error: %s", error)
+            self.logger.error(
+                "Enrollment error: %s order=%s certificate=%s",
+                error,
+                order_name,
+                certificate_name,
+            )
             result, error, detail = self._handle_enrollment_error(
                 error, poll_identifier, order_name, certificate_name
             )
@@ -1115,7 +1120,7 @@ class Certificate(object):
             result = self.repository.certificate_lookup("name", certificate_name, flist)
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to get certificate info: %s", err_
+                f"{DB_ERROR_MSG}: failed to get certificate info: %s", err_
             )
             result = None
         return result
@@ -1126,7 +1131,7 @@ class Certificate(object):
         try:
             self.repository.order_update(data_dic)
         except Exception as err_:
-            self.logger.critical("Database error: failed to update order: %s", err_)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to update order: %s", err_)
 
     def _validate_revocation_reason(self, reason: str) -> str:
         """Validate revocation reason code"""
@@ -1165,6 +1170,11 @@ class Certificate(object):
             if not rev_reason:
                 code = 400
                 error = self.err_msg_dic["badrevocationreason"]
+                self.logger.warning(
+                    "Certificate revoke failed: badRevocationReason account=%s reason=%s",
+                    account_name,
+                    payload.get("reason"),
+                )
                 self.logger.debug(
                     log_msg,
                     code,
@@ -1176,8 +1186,9 @@ class Certificate(object):
             rev_reason = "unspecified"
 
         if "certificate" not in payload:
-            self.logger.debug(
-                "Certificate._validate_revocation_request(): Revocation request missing 'certificate' field"
+            self.logger.warning(
+                "Certificate revoke failed: certificate missing in payload account=%s",
+                account_name,
             )
             code = 400
             error = self.err_msg_dic["malformed"]
@@ -1195,6 +1206,10 @@ class Certificate(object):
         if not order_name:
             code = 403
             error = self.err_msg_dic["unauthorized"]
+            self.logger.warning(
+                "Certificate revoke failed: unauthorized (ownership) account=%s",
+                account_name,
+            )
             self.logger.debug(
                 log_msg,
                 code,
@@ -1209,6 +1224,11 @@ class Certificate(object):
         if not auth_chk:
             code = 403
             error = self.err_msg_dic["unauthorized"]
+            self.logger.warning(
+                "Certificate revoke failed: unauthorized (authorization) account=%s order=%s",
+                account_name,
+                order_name,
+            )
             self.logger.debug(
                 log_msg,
                 code,
@@ -1279,7 +1299,7 @@ class Certificate(object):
         except Exception as err_:
             cert_id = None
             self.logger.critical(
-                "Database error: failed to store certificate error: %s", err_
+                f"{DB_ERROR_MSG}: failed to store certificate error: %s", err_
             )
         self.logger.debug("Certificate._store_certificate_error(%s) ended", cert_id)
         return cert_id
@@ -1451,6 +1471,11 @@ class Certificate(object):
                 return self.err_msg_dic["serverinternal"], "CSR validation failed"
 
             if not csr_check_result:
+                self.logger.warning(
+                    "Certificate enrollment failed: CSR vs order mismatch certificate=%s order=%s",
+                    certificate_name,
+                    order_name,
+                )
                 return self.err_msg_dic["badcsr"], "CSR validation failed"
 
             if self.config.dryrun:
@@ -1482,7 +1507,9 @@ class Certificate(object):
                 "Unexpected error during enrollment",
             )
 
-    def _determine_certificate_response(self, cert_info: Dict) -> Dict[str, str]:
+    def _determine_certificate_response(
+        self, cert_info: Dict, certificate_name: Optional[str] = None
+    ) -> Dict[str, str]:
         """Determine appropriate response based on certificate info"""
         self.logger.debug("Certificate._determine_certificate_response()")
 
@@ -1496,6 +1523,11 @@ class Certificate(object):
         elif order_status == self.ORDER_STATUS_PROCESSING:
             return self._handle_processing_certificate()
         else:
+            self.logger.warning(
+                "Certificate request failed: orderNotReady certificate=%s status=%s",
+                certificate_name,
+                order_status,
+            )
             return self._create_error_response(403, self.err_msg_dic["ordernotready"])
 
     def _handle_valid_certificate(self, cert_info: Dict) -> Dict[str, str]:
@@ -1545,7 +1577,9 @@ class Certificate(object):
                     500, self.err_msg_dic["serverinternal"]
                 )
 
-            response_dic = self._determine_certificate_response(cert_info)
+            response_dic = self._determine_certificate_response(
+                cert_info, certificate_name=certificate_name
+            )
             self.logger.debug(
                 "Certificate.get_certificate_details(%s) ended", response_dic["code"]
             )
@@ -1694,6 +1728,15 @@ class Certificate(object):
                     payload["certificate"], error, rev_date
                 )
 
+            if code != 200:
+                self.logger.error(
+                    "Certificate revoke failed: CA returned code=%s type=%s detail=%s account=%s",
+                    code,
+                    message,
+                    detail,
+                    account_name,
+                )
+
             # Log revocation if configured
             if self.config.cert_operations_log:
                 try:
@@ -1749,6 +1792,10 @@ class Certificate(object):
                         account_name, payload
                     )
                 else:
+                    self.logger.warning(
+                        "Certificate revoke failed: certificate missing in payload account=%s",
+                        account_name,
+                    )
                     code = 400
                     message = self.err_msg_dic["malformed"]
                     detail = "certificate not found"
@@ -1793,7 +1840,7 @@ class Certificate(object):
                 self.repository.order_update({"name": order_name, "status": "valid"})
             except Exception as err:
                 self.logger.critical(
-                    "Database error updating order status during polling: %s", err
+                    f"{DB_ERROR_MSG} updating order status during polling: %s", err
                 )
                 # Continue execution as certificate was stored successfully
 
@@ -1813,6 +1860,13 @@ class Certificate(object):
     ) -> None:
         """Handle failed certificate polling result"""
         try:
+            self.logger.warning(
+                "Certificate poll failed: %s certificate=%s order=%s rejected=%s",
+                error,
+                certificate_name,
+                order_name,
+                rejected,
+            )
             # Store error message for later analysis
             self._store_certificate_error(certificate_name, error, poll_identifier)
 
@@ -1824,7 +1878,7 @@ class Certificate(object):
                     )
                 except Exception as err:
                     self.logger.critical(
-                        "Database error updating order status to invalid: %s", err
+                        f"{DB_ERROR_MSG} updating order status to invalid: %s", err
                     )
 
         except Exception as err:

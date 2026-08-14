@@ -20,6 +20,7 @@ from acme2certifier.acme_srv.helper import (
     config_async_mode_load,
     config_dns_server_list_load,
 )
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
 
@@ -121,7 +122,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             return result
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to search for challenges: %s", err
+                f"{DB_ERROR_MSG}: failed to search for challenges: %s", err
             )
             raise DatabaseError(f"Failed to search challenges: {err}") from err
 
@@ -149,7 +150,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
 
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to lookup challenge keyauthorization: %s", err
+                f"{DB_ERROR_MSG}: failed to lookup challenge keyauthorization: %s", err
             )
             raise DatabaseError(
                 f"Failed to lookup challenge keyauthorization: {err}"
@@ -204,7 +205,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 ),
             )
         except Exception as err:
-            self.logger.critical("Database error: failed to lookup challenge: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to lookup challenge: %s", err)
             raise DatabaseError(f"Failed to lookup challenge: {err}") from err
 
     def create_challenge(self, request: ChallengeCreationRequest) -> Optional[str]:
@@ -241,7 +242,9 @@ class DatabaseChallengeRepository(ChallengeRepository):
             return challenge_name if chid else None
 
         except Exception as err:
-            self.logger.critical("Database error: failed to add new challenge: %s", err)
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to add new challenge: %s", err
+            )
             raise DatabaseError(f"Failed to create challenge: {err}") from err
 
     def update_challenge(self, request: ChallengeUpdateRequest) -> bool:
@@ -269,7 +272,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             )
             return True
         except Exception as err:
-            self.logger.critical("Database error: failed to update challenge: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to update challenge: %s", err)
             raise DatabaseError(f"Failed to update challenge: {err}") from err
 
     def update_authorization_status(self, challenge_name: str, status: str) -> bool:
@@ -300,7 +303,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
 
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to update authorization: %s", err
+                f"{DB_ERROR_MSG}: failed to update authorization: %s", err
             )
             raise DatabaseError(f"Failed to update authorization: {err}") from err
 
@@ -325,7 +328,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             )
             return result
         except Exception as err:
-            self.logger.critical("Database error: failed to get account JWK: %s", err)
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to get account JWK: %s", err)
             raise DatabaseError(f"Failed to get account JWK: {err}") from err
 
     def get_authorization_account_name(self, authorization_name: str) -> Optional[str]:
@@ -347,7 +350,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             return None
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to get authorization account name: %s", err
+                f"{DB_ERROR_MSG}: failed to get authorization account name: %s", err
             )
             raise DatabaseError(
                 f"Failed to get authorization account name: {err}"
@@ -1147,12 +1150,85 @@ class Challenge:
         )
         twrv.start()
         if self.config.async_mode:
-            # full async mode - do not wait for result
-            self.logger.info(
-                "asynchronous Challenge validation enabled, not waiting for result"
+            # full async mode - do not wait for result; POST may still show processing
+            self.logger.debug(
+                "Challenge validation started asynchronously: challenge=%s "
+                "(POST response may still be processing)",
+                challenge_name,
             )
         else:
+            self.logger.debug(
+                "Waiting for challenge validation result: challenge=%s timeout=%s",
+                challenge_name,
+                self.config.validation_timeout,
+            )
             twrv.join(timeout=self.config.validation_timeout)
+            if twrv.is_alive():
+                self.logger.warning(
+                    "Challenge validation still processing after timeout: "
+                    "challenge=%s timeout=%s (result will be applied asynchronously)",
+                    challenge_name,
+                    self.config.validation_timeout,
+                )
+            else:
+                self.logger.debug(
+                    "Challenge validation finished: challenge=%s",
+                    challenge_name,
+                )
+
+    def _format_challenge_validation_reason(
+        self, validation_result: ValidationResult
+    ) -> str:
+        """Build a concise operator-facing reason from a ValidationResult."""
+        reason = self._reason_from_error_message(validation_result.error_message)
+        details = validation_result.details or {}
+        extras = self._validation_detail_extras(details)
+        return self._compose_validation_reason(reason, extras)
+
+    def _reason_from_error_message(self, error_message: Optional[str]) -> Optional[str]:
+        """Extract a readable reason from the validator error message payload."""
+        if not error_message:
+            return None
+
+        try:
+            parsed = json.loads(error_message)
+        except (TypeError, ValueError):
+            return str(error_message)
+
+        if isinstance(parsed, dict):
+            return parsed.get("detail") or parsed.get("type") or str(error_message)
+        return str(error_message)
+
+    def _validation_detail_extras(self, details: Dict[str, Any]) -> List[str]:
+        """Extract structured validation metadata fragments for operator logs."""
+        extras: List[str] = []
+
+        if "expected" in details or "received" in details:
+            extras.append(f"expected={details.get('expected')!r}")
+            extras.append(f"received={details.get('received')!r}")
+            return extras
+
+        if "expected_hash" in details:
+            extras.append(f"expected_hash={details.get('expected_hash')}")
+            if details.get("dns_record") is not None:
+                extras.append(f"dns_record={details.get('dns_record')}")
+            if "found_records" in details:
+                extras.append(f"found_records={details.get('found_records')}")
+            return extras
+
+        if details.get("url") is not None:
+            extras.append(f"url={details.get('url')}")
+
+        return extras
+
+    def _compose_validation_reason(
+        self, reason: Optional[str], extras: List[str]
+    ) -> str:
+        """Combine base reason and metadata into the final operator-facing string."""
+        if extras:
+            extra_s = " ".join(extras)
+            reason = f"{reason}; {extra_s}" if reason else extra_s
+        return reason or "validation failed"
 
     def _update_challenge_state_from_validation(
         self, challenge_name: str, validation_result: ValidationResult
@@ -1160,6 +1236,32 @@ class Challenge:
         """Update challenge state based on validation result."""
 
         if validation_result.invalid:
+            challenge_info = self.repository.get_challenge_by_name(challenge_name)
+            challenge_type = (
+                challenge_info.type if challenge_info is not None else "unknown"
+            )
+            host = (
+                challenge_info.authorization_value
+                if challenge_info is not None
+                else "unknown"
+            )
+            reason = self._format_challenge_validation_reason(validation_result)
+            # Soft-invalid path: route through ErrorHandler (WARNING for MEDIUM)
+            self.error_handler.handle_error(
+                ValidationError(
+                    (
+                        "Challenge validation failed: "
+                        f"challenge={challenge_name} type={challenge_type} "
+                        f"host={host} reason={reason}"
+                    ),
+                    details={
+                        "challenge_name": challenge_name,
+                        "type": challenge_type,
+                        "host": host,
+                        "reason": reason,
+                    },
+                )
+            )
             self.state_manager.transition_to_invalid(
                 challenge_name, self.source_address, validation_result.error_message
             )
@@ -1171,6 +1273,10 @@ class Challenge:
             return True
         else:
             # Validation inconclusive - keep in processing state
+            self.logger.info(
+                "Challenge validation inconclusive: challenge=%s (status remains processing)",
+                challenge_name,
+            )
             return False
 
     def _validate_tnauthlist_payload(

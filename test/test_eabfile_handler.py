@@ -76,18 +76,31 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("key_file", self.eabhandler.key_file)
 
     def test_007_mac_key_get(self):
-        """test mac_key_get without file specified"""
-        self.assertFalse(self.eabhandler.mac_key_get(None))
+        """test mac_key_get without file specified and without kid"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get(None))
+        self.assertIn("WARNING:test_a2c:MAC key retrieval failed: kid=None", lcm.output)
+
+    def test_008_mac_key_get_missing_key_file(self):
+        """test mac_key_get with kid but no key_file"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: key_file is None",
+            lcm.output,
+        )
 
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_008_mac_key_get(self):
+    def test_009_mac_key_get(self):
         """test mac_key_get with file but no kid"""
         self.eabhandler.key_file = "file"
-        self.assertFalse(self.eabhandler.mac_key_get(None))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get(None))
+        self.assertIn("WARNING:test_a2c:MAC key retrieval failed: kid=None", lcm.output)
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_009_mac_key_get(self, mock_csv):
+    def test_010_mac_key_get(self, mock_csv):
         """test mac_key_get csv reader return bogus values"""
         self.eabhandler.key_file = "file"
         mock_csv.return_value = ["foo", "bar"]
@@ -95,7 +108,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_010_mac_key_get(self, mock_csv):
+    def test_011_mac_key_get(self, mock_csv):
         """test mac_key_get csv reader return match"""
         self.eabhandler.key_file = "file"
         mock_csv.return_value = [{"eab_kid": "kid", "eab_mac": "mac"}]
@@ -103,7 +116,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_011_mac_key_get(self, mock_csv):
+    def test_012_mac_key_get(self, mock_csv):
         """test mac_key_get csv reader no match"""
         self.eabhandler.key_file = "file"
         mock_csv.return_value = [{"eab_kid": "kid1", "eab_mac": "mac"}]
@@ -111,7 +124,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_012_mac_key_get(self, mock_csv):
+    def test_013_mac_key_get(self, mock_csv):
         """test mac_key_get check break after first match"""
         self.eabhandler.key_file = "file"
         mock_csv.return_value = [
@@ -122,7 +135,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_013_mac_key_get(self, mock_csv):
+    def test_014_mac_key_get(self, mock_csv):
         """test mac_key_get match in the 2nd record"""
         self.eabhandler.key_file = "file"
         mock_csv.return_value = [
@@ -133,7 +146,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_014_mac_key_get(self, mock_csv):
+    def test_015_mac_key_get(self, mock_csv):
         """test mac_key_get csv reader no eab_kid"""
         self.eabhandler.key_file = "file"
         mock_csv.return_value = [{"eab__kid": "kid", "eab_mac": "mac"}]
@@ -141,7 +154,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_015_mac_key_get(self, mock_csv):
+    def test_016_mac_key_get(self, mock_csv):
         """test mac_key_get csv reader no mac but match"""
         self.eabhandler.key_file = "file"
         mock_csv.return_value = [{"eab_kid": "kid", "_eab_mac": "mac"}]
@@ -149,7 +162,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_016_mac_key_get(self, mock_csv):
+    def test_017_mac_key_get(self, mock_csv):
         """test mac_key_get csv reader no mac but match"""
         self.eabhandler.key_file = "file"
         mock_csv.side_effect = Exception("ex_mock_csv")

@@ -93,12 +93,41 @@ jobs:
       - name: "Install acmeshell"
         uses: ./.github/actions/wf_specific/error_tests/acmeshell_install
 
+      - name: "Flush logs before account error checks"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+          CONTAINER_NAME: acme-srv
+
       - name: "Test for Account Resource"
         uses: ./.github/actions/wf_specific/error_tests/account_checks
 
+      - name: "Flush logs before order error checks"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+          CONTAINER_NAME: acme-srv
 
       - name: "Test for Order Resource"
         uses: ./.github/actions/wf_specific/error_tests/order_checks
+
+      - name: "Flush logs before challenge error checks"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+          CONTAINER_NAME: acme-srv
+
+      - name: "Test for Challenge Resource"
+        uses: ./.github/actions/wf_specific/error_tests/challenge_checks
+
+      - name: "Flush logs before certificate error checks"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+          CONTAINER_NAME: acme-srv
+
+      - name: "Test for Certificate Resource"
+        uses: ./.github/actions/wf_specific/error_tests/certificate_checks
 
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -159,6 +188,7 @@ jobs:
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/quality_error_xca.json
           DEST: examples/Docker/data/kid_profiles.json
+
       - name: "Setup a2c with xca_ca_handler"
         run: |
           sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
@@ -181,7 +211,7 @@ jobs:
 
       - name: "Setup a2c with xca_ca_handler with CA_error forwarding"
         run: |
-          sudo echo "ca_error_details_forward: true" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/unknown_key: unknown_value/ca_error_details_forward: true/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -212,6 +242,12 @@ jobs:
         uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: container
+
+      #- name: "Sanitize failure artifacts"
+      #- if: ${{ failure() }}
+      #- uses: ./.github/actions/sanitize_artifact_payload
+      #- with:
+      #-   ARTIFACT_DIR: ${{ github.workspace }}/artifact
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7

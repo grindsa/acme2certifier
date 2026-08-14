@@ -15,6 +15,7 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     ca_handler_load,
 )
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
 
 class Trigger(object):
@@ -112,7 +113,7 @@ class Trigger(object):
                     self.dbstore.certificate_add(data_dic)
                 except Exception as err_:
                     self.logger.critical(
-                        "Database error: failed to add certificate during trigger processing: %s",
+                        f"{DB_ERROR_MSG}: failed to add certificate during trigger processing: %s",
                         err_,
                     )
                 if "order_name" in cert and cert["order_name"]:
@@ -123,7 +124,7 @@ class Trigger(object):
                         )
                     except Exception as err_:
                         self.logger.critical(
-                            "Database error: failed to update order status during trigger processing: %s",
+                            f"{DB_ERROR_MSG}: failed to update order status during trigger processing: %s",
                             err_,
                         )
             code = 200

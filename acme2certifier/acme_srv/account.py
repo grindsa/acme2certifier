@@ -20,8 +20,10 @@ from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
 
 from acme2certifier.acme_srv.signature import Signature
-
-DB_ERROR_MSG = "Database error"
+from acme2certifier.acme_srv.helpers.global_variables import (
+    DB_ERROR_MSG,
+    CONFIGURATION_ERROR_DETAIL,
+)
 
 
 class ExternalAccountBinding:
@@ -113,11 +115,16 @@ class ExternalAccountBinding:
                 code = 403
                 message = err_msg_dic["unauthorized"]
                 detail = "EAB signature verification failed"
-                self.logger.error("EAB verification returned an error: %s", error)
+                self.logger.error(
+                    "EAB signature verification failed kid=%s error=%s",
+                    eab_kid,
+                    error,
+                )
         else:
             code = 403
             message = err_msg_dic["unauthorized"]
             detail = "EAB kid lookup failed"
+            self.logger.error("EAB kid lookup failed kid=%s", eab_kid)
         self.logger.debug("ExternalAccountBinding.verify() ended with: %s", code)
         return (code, message, detail)
 
@@ -137,14 +144,21 @@ class ExternalAccountBinding:
             )
             if jwk_compare and "protected" in payload["externalaccountbinding"]:
                 return self.verify(payload, err_msg_dic)
+
+            code = 403
+            message = err_msg_dic["malformed"]
+            detail = "Malformed request"
+            if not jwk_compare:
+                self.logger.warning("EAB malformed: outer/inner JWK mismatch")
             else:
-                code = 403
-                message = err_msg_dic["malformed"]
-                detail = "Malformed request"
+                self.logger.warning(
+                    "EAB malformed: missing protected header in binding"
+                )
         else:
             code = 403
             message = err_msg_dic["externalaccountrequired"]
             detail = "External account binding required"
+            self.logger.warning("EAB required: externalAccountBinding missing or empty")
         self.logger.debug("ExternalAccountBinding.check() ended with: %s", code)
         return (code, message, detail)
 
@@ -167,7 +181,7 @@ class AccountRepository:
         try:
             return self.dbstore.account_lookup(field, value)
         except Exception as err:
-            self.logger.critical("Database error during account lookup: %s", err)
+            self.logger.critical("%s during account lookup: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to look up account: {err}") from err
 
     def add_account(self, data_dic: Dict[str, str]) -> Tuple[Optional[str], bool]:
@@ -175,7 +189,7 @@ class AccountRepository:
         try:
             return self.dbstore.account_add(data_dic)
         except Exception as err:
-            self.logger.critical("Database error while adding account: %s", err)
+            self.logger.critical("%s while adding account: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to add account: {err}") from err
 
     def update_account(self, data_dic: Dict[str, str], active: bool = True) -> bool:
@@ -183,7 +197,7 @@ class AccountRepository:
         try:
             return self.dbstore.account_update(data_dic, active)
         except Exception as err:
-            self.logger.critical("Database error while updating account: %s", err)
+            self.logger.critical("%s while updating account: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to update account: {err}") from err
 
     def delete_account(self, account_name: str) -> bool:
@@ -191,7 +205,7 @@ class AccountRepository:
         try:
             return self.dbstore.account_delete(account_name)
         except Exception as err:
-            self.logger.critical("Database error while deleting account: %s", err)
+            self.logger.critical("%s while deleting account: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to delete account: {err}") from err
 
     def load_jwk(self, account_name: str) -> Optional[Dict[str, str]]:
@@ -199,7 +213,7 @@ class AccountRepository:
         try:
             return self.dbstore.jwk_load(account_name)
         except Exception as err:
-            self.logger.critical("Database error while loading JWK: %s", err)
+            self.logger.critical("%s while loading JWK: %s", DB_ERROR_MSG, err)
             raise AccountDatabaseError(f"Failed to load JWK: {err}") from err
 
 
@@ -290,7 +304,9 @@ class Account:
                 else:
                     self.logger.critical("EABHandler could not get loaded")
             else:
-                self.logger.critical("EABHandler configuration incomplete")
+                self.logger.critical(
+                    "%s: EABHandler incomplete", CONFIGURATION_ERROR_DETAIL
+                )
 
         self.config.tos_url = config_dic.get("Directory", "tos_url", fallback=None)
         if config_dic.get("Directory", "url_prefix", fallback=None):
@@ -321,15 +337,17 @@ class Account:
             return 200, db_name, None
 
         except Exception as err:
-            self.logger.critical("Database error while adding account: %s", err)
+            self.logger.critical("%s while adding account: %s", DB_ERROR_MSG, err)
             return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
 
     def _validate_contact(self, contact: List[str]) -> Tuple[int, str, str]:
         """Validate contact information."""
         self.logger.debug("Account._validate_contact()")
         if not contact:
+            self.logger.warning("Contact information is missing")
             return 400, self.err_msg_dic["malformed"], "Contact information is missing"
         if not validate_email(self.logger, contact):
+            self.logger.warning("Invalid contact information")
             return (
                 400,
                 self.err_msg_dic["invalidcontact"],
@@ -347,14 +365,15 @@ class Account:
                 message = None
                 detail = None
             else:
+                detail = "Terms of service must be agreed"
+                self.logger.warning("%s", detail)
                 code = 403
                 message = self.err_msg_dic["useractionrequired"]
-                detail = "Terms of service must be agreed"
         else:
-            self.logger.debug("no tos statement found.")
+            detail = "termsofserviceagreed flag missing"
+            self.logger.warning("%s", detail)
             code = 403
             message = self.err_msg_dic["useractionrequired"]
-            detail = "termsofserviceagreed flag missing"
 
         self.logger.debug("Account._check_tos() ended with:%s", code)
         return (code, message, detail)
@@ -474,21 +493,27 @@ class Account:
                         message = result["name"]
                         detail = self._parse_query(message)
                     else:
+                        self.logger.warning(
+                            "onlyReturnExisting: account does not exist"
+                        )
                         code = 400
                         message = self.err_msg_dic["accountdoesnotexist"]
                         detail = None
                 else:
+                    self.logger.warning("onlyReturnExisting: jwk structure missing")
                     code = 400
                     message = self.err_msg_dic["malformed"]
                     detail = "jwk structure missing"
 
             else:
+                self.logger.warning("onlyReturnExisting must be true")
                 code = 400
                 message = self.err_msg_dic["useractionrequired"]
                 detail = "onlyReturnExisting must be true"
         else:
-            code = 500
-            message = self.err_msg_dic["serverinternal"]
+            self.logger.warning("onlyReturnExisting without payload")
+            code = 400
+            message = self.err_msg_dic["malformed"]
             detail = "onlyReturnExisting without payload"
 
         self.logger.debug("Account.onlyreturnexisting() ended with: %s", code)
@@ -502,6 +527,10 @@ class Account:
         if payload.get("status", "").lower() == "deactivated":
             account_obj = self._lookup_account_by_name(account_name)
             if not account_obj:
+                self.logger.warning(
+                    "Deactivation failed: account does not exist account=%s",
+                    account_name,
+                )
                 return self._build_response(
                     400,
                     self.err_msg_dic["accountdoesnotexist"],
@@ -514,6 +543,11 @@ class Account:
                 return self._build_response(code, account_name, data)
             return self._build_response(code, message, detail)
         else:
+            self.logger.warning(
+                "Invalid status for deactivation account=%s status=%s",
+                account_name,
+                payload.get("status"),
+            )
             return self._build_response(
                 400, self.err_msg_dic["malformed"], "Invalid status for deactivation"
             )
@@ -531,13 +565,17 @@ class Account:
             if result:
                 return 200, None, None
             else:
+                self.logger.warning(
+                    "Deactivation failed: account does not exist account=%s",
+                    account_name,
+                )
                 return (
                     400,
                     self.err_msg_dic["accountdoesnotexist"],
                     "Deactivation failed",
                 )
         except Exception as err:
-            self.logger.critical("Database error while deactivating account: %s", err)
+            self.logger.critical("%s while deactivating account: %s", DB_ERROR_MSG, err)
             return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
 
     def _handle_contact_update(
@@ -568,10 +606,14 @@ class Account:
             if result:
                 return 200, None, None
             else:
+                self.logger.warning(
+                    "Account does not exist for contact update account=%s",
+                    account_name,
+                )
                 return 400, self.err_msg_dic["accountdoesnotexist"], "Update failed"
         except Exception as err:
             self.logger.critical(
-                "Database error while updating account contacts: %s", err
+                "%s while updating account contacts: %s", DB_ERROR_MSG, err
             )
             return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
 
@@ -583,20 +625,38 @@ class Account:
         if "url" in protected and "key-change" in protected["url"]:
             (
                 code,
-                _message,
-                _detail,
+                message,
+                detail,
                 inner_protected,
                 inner_payload,
                 _,
             ) = self.message.check(
                 json.dumps(payload), use_emb_key=True, skip_nonce_check=True
             )
-            if code == 200:
-                code, message, _detail = self._rollover_account_key(
-                    account_name, protected, inner_protected, inner_payload
+            if code != 200:
+                self.logger.warning(
+                    "Key-change inner JWS check failed account=%s detail=%s",
+                    account_name,
+                    detail,
                 )
-                if code == 200:
-                    return self._build_response(code, message, None)
+                return self._build_response(
+                    code, message, detail, account_name=account_name
+                )
+
+            code, message, detail = self._rollover_account_key(
+                account_name, protected, inner_protected, inner_payload
+            )
+            if code == 200:
+                return self._build_response(code, account_name, None)
+
+            self.logger.warning(
+                "Key rollover failed account=%s detail=%s", account_name, detail
+            )
+            return self._build_response(
+                code, message, detail, account_name=account_name
+            )
+
+        self.logger.warning("Malformed key-change request account=%s", account_name)
         return self._build_response(
             400, self.err_msg_dic["malformed"], "Malformed key-change request"
         )
@@ -633,7 +693,7 @@ class Account:
                     )
             except Exception as err:
                 self.logger.critical(
-                    "Database error while updating account key: %s", err
+                    "%s while updating account key: %s", DB_ERROR_MSG, err
                 )
                 return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
         return code, message, detail
@@ -647,24 +707,37 @@ class Account:
     ) -> Tuple[int, str, str]:
         """Validate key change request."""
         self.logger.debug("Account._validate_key_change(%s)", account_name)
+
+        def _reject(code: int, message: str, detail: str) -> Tuple[int, str, str]:
+            self.logger.warning(
+                "Key-change validation failed account=%s detail=%s",
+                account_name,
+                detail,
+            )
+            return code, message, detail
+
         if "jwk" not in inner_protected:
-            return 400, self.err_msg_dic["malformed"], "Inner JWS is missing JWK"
+            return _reject(
+                400, self.err_msg_dic["malformed"], "Inner JWS is missing JWK"
+            )
 
         key_exists = self._lookup_account_by_field(
             json.dumps(inner_protected["jwk"]), "jwk"
         )
         if key_exists:
-            return 400, self.err_msg_dic["badpubkey"], "Public key already exists"
+            return _reject(
+                400, self.err_msg_dic["badpubkey"], "Public key already exists"
+            )
 
         if "url" in protected and "url" in inner_protected:
             if protected["url"] != inner_protected["url"]:
-                return (
+                return _reject(
                     400,
                     self.err_msg_dic["malformed"],
                     "URL mismatch in inner and outer JWS",
                 )
         else:
-            return (
+            return _reject(
                 400,
                 self.err_msg_dic["malformed"],
                 "Missing URL in inner or outer JWS",
@@ -672,13 +745,13 @@ class Account:
 
         if "kid" in protected and "account" in inner_payload:
             if protected["kid"] != inner_payload["account"]:
-                return (
+                return _reject(
                     400,
                     self.err_msg_dic["malformed"],
                     "KID and account do not match",
                 )
         else:
-            return (
+            return _reject(
                 400,
                 self.err_msg_dic["malformed"],
                 "Missing KID or account in payload",
@@ -704,7 +777,7 @@ class Account:
             return self.repository.lookup_account("name", value)
         except Exception as err:
             self.logger.critical(
-                "Database error during account lookup by name: %s", err
+                "%s during account lookup by name: %s", DB_ERROR_MSG, err
             )
             return None
 
@@ -717,7 +790,7 @@ class Account:
             return self.repository.lookup_account(field, value)
         except Exception as err:
             self.logger.critical(
-                "Database error during account lookup by %s: %s", field, err
+                "%s during account lookup by %s: %s", DB_ERROR_MSG, field, err
             )
             return None
 
@@ -819,6 +892,7 @@ class Account:
         elif not payload:
             return self._handle_account_query(account_name)
         else:
+            self.logger.warning("Unknown request account=%s", account_name)
             return self._build_response(
                 400, self.err_msg_dic["malformed"], "Unknown request"
             )

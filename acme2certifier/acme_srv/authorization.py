@@ -28,6 +28,7 @@ from acme2certifier.acme_srv.helpers.domain_utils import (
     is_ip_whitelisted,
     is_email_whitelisted,
 )
+from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.message import Message
 from acme2certifier.acme_srv.nonce import Nonce
 
@@ -146,7 +147,7 @@ class AuthorizationRepository:
 
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to lookup authorization '%s': %s",
+                f"{DB_ERROR_MSG}: failed to lookup authorization '%s': %s",
                 authz_name,
                 err,
             )
@@ -168,7 +169,7 @@ class AuthorizationRepository:
             )
         except Exception as err:
             self.logger.error(
-                "Database error during authorization update (%s): %s", authz_name, err
+                f"{DB_ERROR_MSG} during authorization update ({authz_name}): {err}",
             )
             raise AuthorizationError(
                 f"Failed to update authorization '{authz_name}': {err}"
@@ -188,7 +189,8 @@ class AuthorizationRepository:
             )
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to search for expired authorizations: %s", err
+                f"{DB_ERROR_MSG}: failed to search for expired authorizations: %s",
+                err,
             )
             raise AuthorizationError(
                 f"Failed to search expired authorizations: {err}"
@@ -204,7 +206,7 @@ class AuthorizationRepository:
             self.dbstore.authorization_update({"name": authz_name, "status": "expired"})
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to update authorization '%s' as expired: %s",
+                f"{DB_ERROR_MSG}: failed to update authorization '%s' as expired: %s",
                 authz_name,
                 err,
             )
@@ -222,7 +224,7 @@ class AuthorizationRepository:
             self.dbstore.authorization_update({"name": authz_name, "status": "valid"})
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to update authorization '%s' as valid: %s",
+                f"{DB_ERROR_MSG}: failed to update authorization '%s' as valid: %s",
                 authz_name,
                 err,
             )
@@ -238,7 +240,7 @@ class AuthorizationRepository:
             self.dbstore.order_update({"name": order_name, "status": "ready"})
         except Exception as err:
             self.logger.critical(
-                "Database error: failed to update order '%s' as valid: %s",
+                f"{DB_ERROR_MSG}: failed to update order '%s' as valid: %s",
                 order_name,
                 err,
             )
@@ -638,6 +640,14 @@ class Authorization(object):
                     result,
                 )
                 return True
+
+            reason = result.error_message or "validation failed"
+            self.logger.warning(
+                "JIT dns-persist-01 validation failed: authz=%s host=%s reason=%s",
+                authz_name,
+                id_value,
+                reason,
+            )
 
         except Exception as err:
             self.logger.error("JIT dns-persist-01 validation failed: %s", err)
