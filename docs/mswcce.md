@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title CA Handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) -->
+<!-- wiki-title: CA Handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) -->
+<!-- wiki-category: CA Handlers -->
 
 # CA Handler formerly named MS-WCCE
 

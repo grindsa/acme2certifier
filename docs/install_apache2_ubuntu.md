@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title Installation from PyPI on Apache2 (Ubuntu) -->
+<!-- wiki-title: Installation from PyPI on Apache2 (Ubuntu) -->
+<!-- wiki-category: Installation -->
 
 # Installation from PyPI on Apache2 (Ubuntu)
 

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title ACME CA handler -->
+<!-- wiki-title: ACME CA Handler -->
+<!-- wiki-category: CA Handlers -->
 
 # ACME CA Handler
 

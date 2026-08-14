@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title CA Trigger -->
+<!-- wiki-title: CA Trigger -->
+<!-- wiki-category: Operations -->
 
 # `ca_handler.trigger()`
 

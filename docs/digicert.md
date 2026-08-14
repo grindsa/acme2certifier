@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title CA handler for Digicert CertCentral -->
+<!-- wiki-title: CA Handler for Digicert CertCentral -->
+<!-- wiki-category: CA Handlers -->
 
 # Connecting to DigiCert CertCentral
 

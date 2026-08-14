@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD029 -->
 
-<!-- wiki-title Upgrading acme2certifier -->
+<!-- wiki-title: Upgrading acme2certifier -->
+<!-- wiki-category: Installation -->
 
 # Upgrading acme2certifier
 

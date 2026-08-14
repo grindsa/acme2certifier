@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title CA Polling to Check Pending Enrollment Requests -->
+<!-- wiki-title: CA Polling to Check Pending Enrollment Requests -->
+<!-- wiki-category: Operations -->
 
 # `Ca_handler.poll()`
 

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title How to contribute to this project -->
+<!-- wiki-title: How to contribute to this project -->
+<!-- wiki-category: Development -->
 
 # Contributing
 

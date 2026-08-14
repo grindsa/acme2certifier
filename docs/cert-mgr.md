@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Using cert manager to enroll certificate in Kubernetes environments -->
+<!-- wiki-title: Using cert manager to enroll certificate in Kubernetes environments -->
+<!-- wiki-category: Installation -->
 
 # Using cert-manager to enroll certificate in Kubernetes environments
 

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title How to Create Your Own CA Handler -->
+<!-- wiki-title: How to Create Your Own CA Handler -->
+<!-- wiki-category: CA Handlers -->
 
 # How to Create Your Own CA Handler
 

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title Installation on Nginx Running on Ubuntu 24.04 -->
+<!-- wiki-title: Installation on Nginx Running on Ubuntu 24.04 -->
+<!-- wiki-category: Installation -->
 
 # Installation on Nginx Running on Ubuntu 24.04
 

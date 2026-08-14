@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title CA handler for NetGuard Certificate Manager and Insta Certifier -->
+<!-- wiki-title: CA Handler for NetGuard Certificate Manager and Insta Certifier -->
+<!-- wiki-category: CA Handlers -->
 
 # Connecting to Insta Certifier
 

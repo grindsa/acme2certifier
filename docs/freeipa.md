@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title FreeIPA CA Handler User Documentation -->
+<!-- wiki-title: FreeIPA CA Handler User Documentation -->
+<!-- wiki-category: CA Handlers -->
 
 # FreeIPA CA Handler User Documentation
 

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: Reporting and Housekeeping -->
+<!-- wiki-category: Operations -->
 
 # Reporting and Housekeeping
 

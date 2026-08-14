@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title CA Handler for OpenXPKI -->
+<!-- wiki-title: CA Handler for OpenXPKI -->
+<!-- wiki-category: CA Handlers -->
 
 # Connecting to OpenXPKI
 

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title Logging in acme2certifier -->
+<!-- wiki-title: Logging in acme2certifier -->
+<!-- wiki-category: Configuration -->
 
 # Logging in acme2certifier
 
