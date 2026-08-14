@@ -81,7 +81,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -98,7 +98,7 @@ jobs:
           head -n 13 data/ca_handler.py
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           VERIFY_CERT: false
           REVOCATION: false

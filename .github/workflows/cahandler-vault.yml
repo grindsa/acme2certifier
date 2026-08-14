@@ -105,7 +105,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           USE_CERTBOT: "true"
           TEST_ADL: "true"
@@ -234,7 +234,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           USE_CERTBOT: "true"
           TEST_ADL: "true"
@@ -361,7 +361,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           USE_CERTBOT: "true"
           TEST_ADL: "true"

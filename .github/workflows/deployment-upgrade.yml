@@ -394,7 +394,7 @@ jobs:
           HOSTNAME_SUFFIX: ""
 
       - name: "Fresh enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "EAB profiling (final)"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -641,7 +641,7 @@ jobs:
           HOSTNAME_SUFFIX: ""
 
       - name: "Fresh enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "EAB profiling (final)"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -777,7 +777,7 @@ jobs:
           HOSTNAME_SUFFIX: ""
 
       - name: "Fresh enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "EAB profiling (final)"
         uses: ./.github/actions/setup_cahandler_cfg

@@ -92,7 +92,7 @@ jobs:
 
       - uses: ./.github/actions/wait_for_directory
 
-      - uses: ./.github/actions/acme_clients
+      - uses: ./.github/actions/acme_clients_enroll
 
       - uses: ./.github/actions/container_check
         with:
@@ -171,7 +171,7 @@ jobs:
 
       - uses: ./.github/actions/wait_for_directory
 
-      - uses: ./.github/actions/acme_clients
+      - uses: ./.github/actions/acme_clients_enroll
 
       - name: "Check acme account found in keyfile"
         uses: ./.github/actions/logs_assert

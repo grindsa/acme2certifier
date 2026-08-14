@@ -1,4 +1,4 @@
-name: CA handler tests - DogTag
+name: CA-Handler Tests - DogTag
 on:
   workflow_dispatch:
     inputs:
@@ -123,7 +123,7 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
           USE_RSA: "true"
@@ -263,7 +263,7 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
           USE_RSA: "true"
@@ -420,7 +420,7 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
           USE_RSA: "true"

@@ -109,7 +109,7 @@ jobs:
           NAME_SPACE: acme.dynamop.de
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           NAME_SPACE: acme.dynamop.de
           USE_CERTBOT: false
@@ -323,7 +323,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           NAME_SPACE: acme.dynamop.de
           USE_CERTBOT: false
@@ -542,7 +542,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           NAME_SPACE: acme.dynamop.de
           USE_CERTBOT: false

@@ -152,7 +152,7 @@ jobs:
         uses: ./.github/actions/wait_for_directory
 
       - name: "Test enrollment / renewal / revocation"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Assert enrollment activity in logs"
         uses: ./.github/actions/logs_assert

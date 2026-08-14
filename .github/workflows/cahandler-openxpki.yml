@@ -95,7 +95,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
@@ -134,7 +134,7 @@ jobs:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
@@ -177,7 +177,7 @@ jobs:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
           # REVOCATION: "false"
@@ -234,7 +234,7 @@ jobs:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
           # REVOCATION: "false"
@@ -408,7 +408,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
@@ -445,7 +445,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
@@ -486,7 +486,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
           # REVOCATION: "false"
@@ -526,7 +526,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
           # REVOCATION: "false"
@@ -701,7 +701,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
@@ -739,7 +739,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
@@ -781,7 +781,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
           # REVOCATION: "false"
@@ -822,7 +822,7 @@ jobs:
           MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
           # REVOCATION: "false"

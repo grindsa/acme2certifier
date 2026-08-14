@@ -80,7 +80,7 @@ jobs:
           DBHANDLER: ${{ matrix.dbhandler }}
 
       - name: Test enrollment
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           ACME_SERVER: acme-srv
           HTTP_PORT: '80'
@@ -159,7 +159,7 @@ jobs:
           DBHANDLER: ${{ matrix.dbhandler }}
 
       - name: Test enrollment
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           ACME_SERVER: acme-srv
           HTTP_PORT: '80'

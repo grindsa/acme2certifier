@@ -2,7 +2,7 @@
 """Minimal UDP syslog sink for CI smoke tests.
 
 Listens for classic UDP syslog datagrams and appends each payload as a line
-to an output file. Used by .github/workflows/deployment-wsgi.yml to verify
+to an output file. Used by .github/workflows/feature-prefix.yml to verify
 Helper.syslog_address remote forwarding.
 """
 
