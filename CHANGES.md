@@ -15,6 +15,7 @@ and pick the appropriate release branch.
 - [DB handler selection](docs/acme_srv.md) via `[DBhandler] handler` or `ACME_SRV_DB_HANDLER` environment variable
 - [`a2c-wsgi2django`](docs/migrate_wsgi_to_django.md) CLI to migrate ACME runtime data from WSGI SQLite to Django ORM via a portable JSON dump (`export`, `import`, `check`, `wipe`)
 - Digicert CA handler options `request_retries` and `request_retry_backoff` for HTTP transport retries
+- [EAB profiling](docs/eab_profiling.md): skip ACME profile-name validation per account via `order.profiles_check_disable`
 
 **RPM packaging (quick reference)** — install: [install_rpm.md](docs/install_rpm.md); upgrade: [upgrading.md](docs/upgrading.md#rpm-pre-045--045)
 
@@ -32,7 +33,8 @@ Companions (cryptography, jwcrypto, …) come from AppStream/EPEL or [grindsa/sb
 
 - mscertsrv: scope `KRB5_CONFIG` during GSSAPI enrollment so SPNEGO can locate the KDC when a custom `krb5_config` is used (password `kinit` alone was insufficient)
 - mscertsrv: fall back to in-process GSSAPI password auth when `kinit` is missing; Debian systemd unit `PATH` now includes `/usr/bin` so packaged `krb5-user` is visible to uwsgi
-- Soft-rename of the former MS-WCCE CA handler to [MS-ICPR](docs/msicpr.md) (`msicpr_ca_handler` / `ms_icpr`); `mswcce_ca_handler` remains a deprecated alias. Docs clarify RPC high-port requirements ([#358](https://github.com/grindsa/acme2certifier/issues/358))
+- Rename MS-WCCE CA handler to [MS-ICPR](docs/msicpr.md) (`msicpr_ca_handler`); `mswcce_ca_handler` remains a deprecated alias ([#358](https://github.com/grindsa/acme2certifier/issues/358))
+- Parse boolean [EAB profiling](docs/eab_profiling.md) parameters (`True`/`False` strings) correctly
 - Route CA handler HTTP calls through the shared `request_operation` helper (including retry support)
 - Improve ASA CA handler parsing of error responses from the CA
 - Improve OpenSSL CA handler handling of absolute certificate/key paths
