@@ -1,0 +1,315 @@
+name: CA-Handler Tests - ACME (Let's Encrypt staging)
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  guard:
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  # ---------------------------------------------------------
+  # Containers — live Let's Encrypt staging
+  # ---------------------------------------------------------
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+        dns_provider: ['cloudflare', 'acmedns']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - uses: actions/checkout@v6
+
+      - name: "Resolve DNS API script"
+        run: |
+          if [ "${DNS_PROVIDER}" = "cloudflare" ]; then
+            echo "DNS_API=dns_cf.sh" >> "$GITHUB_ENV"
+          else
+            echo "DNS_API=dns_acmedns.sh" >> "$GITHUB_ENV"
+          fi
+        env:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.ACMEDNS_CFG }}
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.CF_CFG }}
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme.dynamop.de
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_preflight
+        with:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+          ACMEDNS_BASE_URL: ${{ env.ACMEDNS_BASE_URL }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_prep
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+          ACME_KEYFILE: volume/acme/le_staging_private_key.json
+          ACME_SH_SCRIPT: volume/acme/acme.sh
+          DNS_UPDATE_SCRIPT: volume/acme/${{ env.DNS_API }}
+          ACME_ACCOUNT_EMAIL: ${{ env.EMAIL }}
+          DEST_DIR: examples/Docker/data/acme
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+          ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
+          ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
+          ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
+          DNS_VALIDATION_TIMEOUT: "120"
+          ENROLLMENT_TIMEOUT: "600"
+
+      - uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: acme.dynamop.de
+
+      - uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: acme.dynamop.de
+
+      - name: "Compare profile information"
+        if: matrix.dns_provider == 'cloudflare'
+        uses: ./.github/actions/wf_specific/acme_ca_handler/compare_profile_info
+        with:
+          NAME_SPACE: acme.dynamop.de
+
+      - name: "Generate UUID"
+        if: matrix.dns_provider == 'cloudflare'
+        run: echo "UUID=$(uuidgen | cut -d '-' -f1)" >> "$GITHUB_ENV"
+
+      - name: "Compare renewal information between A2C and LE"
+        if: matrix.dns_provider == 'cloudflare'
+        uses: ./.github/actions/wf_specific/acme_ca_handler/compare_renewal_info
+        with:
+          NAME_SPACE: acme.dynamop.de
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
+          CERT_TIMEOUT: "360"
+
+      - name: "ACMEDNS wildcard enrollment"
+        if: matrix.dns_provider == 'acmedns'
+        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns_wc
+        with:
+          NAME_SPACE: acme.dynamop.de
+          CERT_TIMEOUT: "360"
+
+      - name: "Check acme account found in keyfile"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
+
+      - uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
+        if: ${{ failure() }}
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-letsencrypt-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.dns_provider }}.tar.gz
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
+
+
+  # ---------------------------------------------------------
+  # RPM — live Let's Encrypt staging
+  # ---------------------------------------------------------
+  test-rpm:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        rhversion: [8, 9]
+        mode: ['wsgi', 'django']
+        dns_provider: ['cloudflare', 'acmedns']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - uses: actions/checkout@v6
+
+      - name: "Resolve DNS API script"
+        run: |
+          if [ "${DNS_PROVIDER}" = "cloudflare" ]; then
+            echo "DNS_API=dns_cf.sh" >> "$GITHUB_ENV"
+          else
+            echo "DNS_API=dns_acmedns.sh" >> "$GITHUB_ENV"
+          fi
+        env:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.ACMEDNS_CFG }}
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.CF_CFG }}
+
+      - uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/rpm_bootstrap
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          NAME_SPACE: acme.dynamop.de
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_preflight
+        with:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+          ACMEDNS_BASE_URL: ${{ env.ACMEDNS_BASE_URL }}
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_prep
+        with:
+          VOLUME_DIR: "data/volume"
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+          ACME_KEYFILE: /opt/acme2certifier/volume/le_staging_private_key.json
+          ACME_SH_SCRIPT: /opt/acme2certifier/volume/acme_ca/acme.sh
+          DNS_UPDATE_SCRIPT: /opt/acme2certifier/volume/acme_ca/${{ env.DNS_API }}
+          ACME_ACCOUNT_EMAIL: ${{ env.EMAIL }}
+          DEST_DIR: data/volume/acme_ca
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+          ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
+          ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
+          ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
+          DNS_VALIDATION_TIMEOUT: "120"
+          ENROLLMENT_TIMEOUT: "600"
+
+      - name: "Execute install script"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m "$MODE"
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: acme.dynamop.de
+
+      - name: "Compare profile information"
+        if: matrix.dns_provider == 'cloudflare'
+        uses: ./.github/actions/wf_specific/acme_ca_handler/compare_profile_info
+        with:
+          NAME_SPACE: acme.dynamop.de
+
+      - name: "Generate UUID"
+        if: matrix.dns_provider == 'cloudflare'
+        run: echo "UUID=$(uuidgen | cut -d '-' -f1)" >> "$GITHUB_ENV"
+
+      - name: "Compare renewal information between A2C and LE"
+        if: matrix.dns_provider == 'cloudflare'
+        uses: ./.github/actions/wf_specific/acme_ca_handler/compare_renewal_info
+        with:
+          NAME_SPACE: acme.dynamop.de
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
+          CERT_TIMEOUT: "360"
+
+      - name: "ACMEDNS wildcard enrollment"
+        if: matrix.dns_provider == 'acmedns'
+        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns_wc
+        with:
+          NAME_SPACE: acme.dynamop.de
+          CERT_TIMEOUT: "360"
+
+      - name: "Check acme account found in keyfile"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
+        if: ${{ failure() }}
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-letsencrypt-rh${{ matrix.rhversion }}-${{ matrix.mode }}-${{ matrix.dns_provider }}.tar.gz
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup

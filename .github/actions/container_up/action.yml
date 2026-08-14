@@ -17,6 +17,14 @@ inputs:
     description: "namespace"
     required: true
     default: "acme"
+  CHECK_HTTP:
+    description: "Wait for HTTP /directory after spin-up (true/false)"
+    required: false
+    default: "true"
+  CHECK_HTTPS:
+    description: "Wait for HTTPS /directory after spin-up (true/false)"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -29,3 +37,10 @@ runs:
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
       shell: bash
+
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CHECK_HTTP: ${{ inputs.CHECK_HTTP }}
+        CHECK_HTTPS: ${{ inputs.CHECK_HTTPS }}

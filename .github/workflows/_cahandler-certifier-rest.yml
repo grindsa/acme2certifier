@@ -1,0 +1,996 @@
+name: CA-Handler Tests - Insta Certifier (REST)
+on:
+  workflow_call:
+    inputs:
+      run_id:
+        description: Producer workflow run ID
+        type: string
+        required: true
+      public_ip:
+        description: Live EC2 public IP from instance_start
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse NCM configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.NCM_CFG }}
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ inputs.public_ip || env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          NCM_API_HOST: ${{ env.NCM_API_HOST }}
+          NCM_API_USER: ${{ env.NCM_API_USER }}
+          NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
+
+      - name: "No profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "No profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Profile 101 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 101
+
+      - name: "Profile 101 - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Profile 102 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 102
+
+      - name: "Profile 102 - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_102_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Header-info - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+
+      - name: "Header-info - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "EAB without headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB without headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_wo_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "EAB with headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB with headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "EAB with headerinfo - Reconfigure key_file without restarting"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "EAB with headerinfo - Enrollment after reconfiguration"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+        with:
+          RECONFIGURE: true
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "kid-file in yaml format - Reconfiguration"
+        run: |
+          sudo sed -i "s/kid_profiles.json/kid_profiles.yml/g" examples/Docker/data/acme_srv.cfg
+          sudo cp .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.yml examples/Docker/data/kid_profiles.yml
+          sudo chmod 777 examples/Docker/data/kid_profiles.yml
+          sudo rm -f examples/Docker/data/kid_profiles.json
+
+      - name: "kid-file in yaml format - Enrollment after reconfiguration"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+        with:
+          RECONFIGURE: true
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            enrollment_config_log: True
+
+      - name: "ACME Profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "EAB ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+            cert_operations_log: True
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+            enrollment_config_log: True
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB ACME Profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+
+
+  test-rpm:
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        rhversion: [8, 9]
+        mode: ['wsgi', 'django']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: Parse GitHub secrets from JSON
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse NCM configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.NCM_CFG }}
+
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ inputs.public_ip || env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          NCM_API_HOST: ${{ env.NCM_API_HOST }}
+          NCM_API_USER: ${{ env.NCM_API_USER }}
+          NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
+
+      - name: "No profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Execute install script"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "No profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Profile 101 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 101
+
+      - name: "Profile 101 - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Profile 102 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 102
+
+      - name: "Profile 102 - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_102_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Header-info - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+
+      - name: "Header-info - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "EAB without headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+
+      - name: "EAB without headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_wo_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "EAB with headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+
+      - name: "EAB with headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "EAB with headerinfo - Reconfigure key_file without restarting"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Update configuration"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE update
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB with headerinfo - Enrollment after reconfiguration"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+        with:
+          RECONFIGURE: true
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "kid-file in yaml format - Reconfiguration"
+        run: |
+          sudo sed -i "s/kid_profiles.json/kid_profiles.yml/g" data/volume/acme_srv.cfg
+          sudo cp .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.yml data/volume/acme_ca/kid_profiles.yml
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.yml
+          sudo rm -f data/volume/acme_ca/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+
+      - name: "kid-file in yaml format - Enrollment after reconfiguration"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+        with:
+          RECONFIGURE: true
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+
+      - name: "ACME Profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "EAB ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+            cert_operations_log: True
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+
+      - name: "EAB ACME Profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+
+
+  test-deb:
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        mode: ['wsgi', 'django']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
+          PARSE_GH_CFG: "true"
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse NCM configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.NCM_CFG }}
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ inputs.public_ip || env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          NCM_API_HOST: ${{ env.NCM_API_HOST }}
+          NCM_API_USER: ${{ env.NCM_API_USER }}
+          NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
+
+      - name: "No profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Execute install script"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "No profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Profile 101 - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 101
+
+      - name: "Profile 101 - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "EAB with headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+
+      - name: "EAB with headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+
+      - name: "ACME Profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "EAB ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 15
+            cert_operations_log: True
+          ORDER_OPTIONS: |
+            profiles={"101": "http://foo.bar/profile1", "102": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            api_host: https://forwarder.acme:8084
+            ca_bundle: False
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            profile_id: 100
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+
+      - name: "EAB ACME Profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}
+
+

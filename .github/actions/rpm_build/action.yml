@@ -39,7 +39,7 @@ runs:
 
     - name: "Build RPM package"
       id: rpm
-      uses: grindsa/rpmbuild@alma9
+      uses: grindsa/rpmbuild@181689c2688c53a25c421d45b343bfcb3a1c043e # alma9
       with:
         spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 

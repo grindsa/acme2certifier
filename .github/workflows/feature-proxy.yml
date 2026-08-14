@@ -25,30 +25,31 @@ on:
 #        required: false
 #        default: ''
 
-jobs:
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
 
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
+permissions: {}
+
+jobs:
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images downloaded from the producer run
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -56,33 +57,18 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
 
       - name: "Install dnsmasq"
         run: |
@@ -115,7 +101,7 @@ jobs:
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -196,10 +182,8 @@ jobs:
           NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
           NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 5s
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Certifier - Enroll via certifier ca_handler"
         run: |
@@ -244,10 +228,8 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 5s
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "EST - Enroll via EST using http-basic-auth"
         run: |
@@ -277,7 +259,7 @@ jobs:
       #    docker compose logs
 
       #- name: "Sleep for 5s"
-      #  uses: juliangruber/sleep-action@v2.0.4
+      #  uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
       #  with:
       #    time: 5s
 
@@ -346,7 +328,7 @@ jobs:
           WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -371,28 +353,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
@@ -400,8 +365,12 @@ jobs:
 
 
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -409,40 +378,18 @@ jobs:
         rhversion: [8, 9]
         mode: ['wsgi', 'django']
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "Install dnsmasq"
         run: |
@@ -475,7 +422,7 @@ jobs:
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -566,6 +513,9 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
           MODE: ${{ matrix.mode }}
+
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Enroll via certifier_ca_handler"
         run: |
@@ -684,7 +634,7 @@ jobs:
           WES_IP: ${{ secrets.WES_IP }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 5s
 
@@ -743,25 +693,8 @@ jobs:
           mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           docker logs proxy > ${{ github.workspace }}/artifact/proxy.log
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz

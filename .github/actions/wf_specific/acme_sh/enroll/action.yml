@@ -1,5 +1,5 @@
-name: "acme_clients - enroll, renew and revoke certificates"
-description: "Test if acme.sh, certbot and lego can enroll, renew and certificates"
+name: "enroll"
+description: "acme.sh enrollment tests"
 inputs:
   ACME_SERVER:
     description: "ACME server URL"
@@ -21,11 +21,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 10s
 
     - name: "Create folders"
       run: |

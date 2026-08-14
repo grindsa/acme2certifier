@@ -22,40 +22,45 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
 
   wiki-update:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Prevent workflows from running in forks
     needs: guard
     if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v6
       # Additional steps to generate documentation in "Documentation" directory
       - name: Upload docs to Wiki
-        uses: grindsa/github-wiki-publish-action@customize_wiki_title
+        uses: grindsa/github-wiki-publish-action@6e355541ead79e702378fe369096a3fad386e12b # customize_wiki_title
         with:
           path: "docs"
         env:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
       - name: Upload Docker to Wiki
-        uses: grindsa/github-wiki-publish-action@customize_wiki_title
+        uses: grindsa/github-wiki-publish-action@6e355541ead79e702378fe369096a3fad386e12b # customize_wiki_title
         with:
           path: "examples/Docker"
         env:

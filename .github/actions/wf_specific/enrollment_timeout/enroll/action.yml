@@ -1,5 +1,5 @@
 name: "enroll timeout"
-description: test enrollment timeout handling for various ACME clients"
+description: "test enrollment timeout handling for various ACME clients"
 inputs:
   DEPLOYMENT_TYPE:
     description: "Deployment type"
@@ -25,7 +25,7 @@ runs:
       PATTERN: "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
 
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 10s
 
@@ -35,7 +35,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 10s
 

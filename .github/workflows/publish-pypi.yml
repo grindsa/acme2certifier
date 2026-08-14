@@ -10,12 +10,13 @@ on:
         required: true
         default: ""
 
-permissions:
-  contents: read
-  id-token: write
+permissions: {}
 
 jobs:
   publish:
+    permissions:
+      contents: read
+      id-token: write
     name: Build and publish
     runs-on: ubuntu-latest
     if: >-
@@ -42,4 +43,4 @@ jobs:
         run: python -m build
 
       - name: Publish to PyPI (Trusted Publisher)
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1

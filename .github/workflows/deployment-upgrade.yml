@@ -23,27 +23,30 @@ on:
         required: false
         default: ''
 
-jobs:
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
 
+permissions: {}
+
+jobs:
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Resolve one-hop matrix: latest / N-1 / N-2 / pre045 → build
   # ---------------------------------------------------------
   resolve-versions:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier'
     outputs:
       app_version: ${{ steps.resolve.outputs.app_version }}
@@ -290,8 +293,12 @@ jobs:
   # Containers (nginx|apache2 × wsgi|django) × hop → build
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, resolve-versions]
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier' && needs.resolve-versions.outputs.has_docker_hops == 'true'
     strategy:
       fail-fast: false
@@ -439,28 +446,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.hop.id }}-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.hop.id }}-upgrade.tar.gz
 
   # ---------------------------------------------------------
   # RPM (EL8/EL9 × wsgi|django) × hop → build
@@ -468,8 +458,12 @@ jobs:
 
 
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, resolve-versions]
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier' && needs.resolve-versions.outputs.has_rpm_hops == 'true'
     strategy:
       fail-fast: false
@@ -678,28 +672,11 @@ jobs:
       - name: "EAB enrollment"
         uses: ./.github/actions/wf_specific/upgrade/enroll_eab
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}-${{ matrix.hop.id }}-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}-${{ matrix.hop.id }}-upgrade.tar.gz
 
   # ---------------------------------------------------------
   # DEB (nginx × wsgi|django) × hop → build
@@ -707,8 +684,12 @@ jobs:
 
 
   test-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, resolve-versions]
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier' && needs.resolve-versions.outputs.has_deb_hops == 'true'
     strategy:
       fail-fast: false
@@ -719,16 +700,18 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'mariadb' || '' }}
+
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Prepare Ubuntu environment"
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: ${{ matrix.mode == 'django' && 'mariadb' || '' }}
 
       - name: "Stage xca materials + legacy cfg"
         uses: ./.github/actions/wf_specific/upgrade/setup_legacy_xca
@@ -774,15 +757,6 @@ jobs:
           DEPLOYMENT_TYPE: deb
           XDB_FILE: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
           DJANGO: ${{ matrix.mode == 'django' && 'true' || 'false' }}
-
-      - name: "Download build DEB artifact"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
 
       - name: "Upgrade to build artifact"
         uses: ./.github/actions/wf_specific/upgrade/deb_install
@@ -834,26 +808,10 @@ jobs:
       - name: "EAB enrollment"
         uses: ./.github/actions/wf_specific/upgrade/enroll_eab
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-nginx-${{ matrix.mode }}-${{ matrix.hop.id }}-upgrade.tar.gz
           WEBSRV: nginx
 
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-deb-nginx-${{ matrix.mode }}-${{ matrix.hop.id }}-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup

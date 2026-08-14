@@ -23,31 +23,32 @@ on:
         required: false
         default: ''
 
-jobs:
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
 
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
+permissions: {}
+
+jobs:
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
 
   # ---------------------------------------------------------
   # Test container images (matrix from payload)
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -60,21 +61,14 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler"
@@ -137,25 +131,8 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "Sanitize failure artifacts"
-        if: ${{ failure() }}
-        uses: ./.github/actions/sanitize_artifact_payload
-        with:
-          ARTIFACT_DIR: ${{ github.workspace }}/artifact
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-containers-${{ matrix.keylength }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-          retention-days: 1
-
-      - name: "Secure cleanup"
-        if: ${{ always() }}
-        uses: ./.github/actions/secure_cleanup
+          ARTIFACT_NAME: test-containers-${{ matrix.keylength }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz

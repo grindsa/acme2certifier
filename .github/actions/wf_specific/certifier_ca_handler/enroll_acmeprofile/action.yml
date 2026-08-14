@@ -1,5 +1,5 @@
-name: "enroll_102_profile"
-description: "wf enrollment 102 profile"
+name: "enroll_acmeprofile"
+description: "Certifier ACME profile enrollment test"
 
 runs:
   using: "composite"

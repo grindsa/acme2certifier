@@ -1,5 +1,5 @@
-name: "acme_email_enroll"
-description: "acme_email_enroll"
+name: "enroll"
+description: "Hook enrollment tests"
 inputs:
   NAME_SPACE:
     description: "namespace"
@@ -39,7 +39,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 15s to allow email to be sent"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 15s
 
@@ -74,7 +74,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 5s
 

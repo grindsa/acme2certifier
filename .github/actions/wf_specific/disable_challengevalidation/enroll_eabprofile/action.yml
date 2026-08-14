@@ -1,5 +1,5 @@
-name: "enroll_test"
-description: "enroll_test"
+name: "enroll_eabprofile"
+description: "Disable-challenge-validation EAB profile enrollment test"
 inputs:
   TO_FAIL:
     description: "Enrollment is expected to fail"

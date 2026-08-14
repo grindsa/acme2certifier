@@ -1,0 +1,1317 @@
+name: CA-Handler Tests - Microsoft CA (mscertsrv)
+on:
+  workflow_call:
+    inputs:
+      run_id:
+        description: Producer workflow run ID
+        type: string
+        required: true
+      public_ip:
+        description: Live EC2 public IP from instance_start
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  mscertserv-test-containers:
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    name: "mscertsrv_handler_tests"
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: local
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse MSCA_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.MSCA_CFG }}
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ inputs.public_ip || env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          MSCA_IP: ${{ env.MSCA_IP }}
+          MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
+          NAME_SPACE: local
+
+      - name: "KRB Headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            krb5_config: /var/www/acme2certifier/volume/krb5.conf
+            verify: False
+            request_timeout: 30
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: local
+
+      - name: "KRB Headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
+        with:
+          NAME_SPACE: local
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "KRB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            krb5_config: /var/www/acme2certifier/volume/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "KRB ACME Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "KRB ACME Profiling keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            krb5_principal: ${{ env.KRB5_PRINCIPAL }}
+            krb5_keytab: volume/krb5.keytab
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            krb5_config: /var/www/acme2certifier/volume/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "KRB ACME Profiling - Enrollment with keytab"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "NTLM Headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            verify: False
+            request_timeout: 30
+
+      - name: "NTLM Headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
+        with:
+          NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "NTLM allowed_domainlist - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          DISABLE_CHALLENGE_VALIDATION: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "foo1.bar", "*.bar.local"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            verify: False
+            request_timeout: 30
+
+      - name: "NTLM allowed_domainlist - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
+        with:
+          NAME_SPACE: local
+
+      - name: "Verify allowed_domainlist error"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+
+      - name: "NTLM ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "NTLM ACME Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: container
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: mscertsrv-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+
+  mscertsrv-eabprov-container-tests:
+    permissions:
+      contents: read
+      actions: write
+    needs: [mscertserv-test-containers]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    name: "mscertsrv-container-eab-profiling-tests"
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: local
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse MSCA_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.MSCA_CFG }}
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ inputs.public_ip || env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          MSCA_IP: ${{ env.MSCA_IP }}
+          MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
+          NAME_SPACE: local
+
+      - name: "EAB headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            krb5_principal: ${{ env.KRB5_PRINCIPAL }}
+            krb5_keytab: volume/krb5.keytab
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            krb5_config: /var/www/acme2certifier/volume/krb5.conf
+            verify: False
+            request_timeout: 30
+
+      - name: "Stage kid profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: local
+
+      - name: "EAB headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
+        with:
+          NAME_SPACE: local
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "EAB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/profile1", "WebServer-07-S": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            krb5_config: /var/www/acme2certifier/volume/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "Stage kid profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "EAB ACME Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: container
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: mscertsrv-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+
+  mscertsrv-without-impacket_tests:
+    permissions:
+      contents: read
+      actions: write
+    needs: [mscertsrv-eabprov-container-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    name: "mscertsrv-without-impacket_tests"
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse MSCA_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.MSCA_CFG }}
+
+      - name: "Parse GH_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: ./
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Strip python3-impacket from Dockerfile"
+        run: |
+          set -euo pipefail
+          DF="examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile"
+          sudo sed -i '/python3-impacket/d' "$DF"
+          sudo sed -i '/rm -rf \/usr\/lib\/python3\/dist-packages\/impacket\/examples/d' "$DF"
+          sudo sed -i '/rm -rf \/usr\/share\/doc\/python3-impacke\/examples/d' "$DF"
+          sudo sed -i '/rm -rf \/usr\/share\/impacket\/script/d' "$DF"
+          sudo sed -i '/rm -rf \/usr\/bin\/impacket/d' "$DF"
+
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: local
+
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ inputs.public_ip || env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          MSCA_IP: ${{ env.MSCA_IP }}
+          MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
+          NAME_SPACE: local
+
+      - name: "KRB - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            krb5_config: /var/www/acme2certifier/volume/krb5.conf
+            verify: False
+            request_timeout: 30
+
+      - name: "KRB - Enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          REVOCATION: "false"
+          VERIFY_CERT: "false"
+          USE_CERTBOT: "false"
+          TEST_ADL: "false"
+          NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "KRB keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            krb5_principal: ${{ env.KRB5_PRINCIPAL }}
+            krb5_keytab: volume/krb5.keytab
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            krb5_config: /var/www/acme2certifier/volume/krb5.conf
+            verify: False
+            request_timeout: 30
+
+      - name: "KRB keytab - Enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          REVOCATION: "false"
+          VERIFY_CERT: "false"
+          USE_CERTBOT: "false"
+          TEST_ADL: "false"
+          NAME_SPACE: local
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: mscertsrv_wo_impacket_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+
+  mscertsrv-test-rpm:
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        rhversion: [8]
+        mode: ['wsgi', 'django']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: 8
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+          NAME_SPACE: local
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse MSCA_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.MSCA_CFG }}
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ inputs.public_ip || env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          MSCA_IP: ${{ env.MSCA_IP }}
+          MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
+          NAME_SPACE: local
+
+      - name: "KRB - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+
+      - name: "Install a2c RPM"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m ${{ matrix.mode }}
+          docker exec acme-srv yum install -y krb5-libs
+
+      - name: "KRB - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
+        with:
+          NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "NTLM - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            verify: False
+            request_timeout: 30
+
+      - name: "NTLM - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
+        with:
+          NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "NTLM allowed_domainlist - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          DISABLE_CHALLENGE_VALIDATION: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "foo1.bar", "*.bar.local"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            verify: False
+            request_timeout: 30
+
+      - name: "NTLM allowed_domainlist - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
+        with:
+          NAME_SPACE: local
+
+      - name: "Verify allowed_domainlist error"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+
+      - name: "KRB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "KRB ACME Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: rpm
+          TAIL_NUMBER: 1900
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "KRB ACME Profiling keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            krb5_principal: ${{ env.KRB5_PRINCIPAL }}
+            krb5_keytab: /opt/acme2certifier/volume/acme_ca/krb5.keytab
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "KRB ACME Profiling keytab - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: rpm
+          TAIL_NUMBER: 1900
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: mscertsrv_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
+
+  mscertsrv-eabprofile-test-rpm:
+    permissions:
+      contents: read
+      actions: write
+    needs: [mscertsrv-test-rpm]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        rhversion: [9]
+        mode: ['wsgi', 'django']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: 9
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+          NAME_SPACE: local
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse MSCA_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.MSCA_CFG }}
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ inputs.public_ip || env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          MSCA_IP: ${{ env.MSCA_IP }}
+          MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
+          NAME_SPACE: local
+
+      - name: "EAB headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+
+      - name: "Stage kid profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Install a2c RPM"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m ${{ matrix.mode }}
+          docker exec acme-srv yum install -y krb5-libs
+
+      - name: "EAB headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
+        with:
+          NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "EAB ACME Profiling keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            krb5_principal: ${{ env.KRB5_PRINCIPAL }}
+            krb5_keytab: /opt/acme2certifier/volume/acme_ca/krb5.keytab
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "Stage kid profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "EAB ACME Profiling keytab - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: rpm
+          TAIL_NUMBER: 1900
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "EAB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "Stage kid profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "EAB ACME Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: rpm
+          TAIL_NUMBER: 1900
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: mscertsrv-eabprofile-test-rpm-rh${{ matrix.rhversion }}.tar.gz
+
+  mscertsrv-test-deb:
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['nginx']
+        mode: ['wsgi', 'django']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
+          PARSE_GH_CFG: "true"
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+          NAME_SPACE: local
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse MSCA_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.MSCA_CFG }}
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ inputs.public_ip || env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          MSCA_IP: ${{ env.MSCA_IP }}
+          MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
+          NAME_SPACE: local
+
+      - name: "KRB - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          WEBSRV: ${{ matrix.websrv }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+
+      - name: "Install a2c DEB"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install ${{ matrix.websrv }} -m ${{ matrix.mode }}
+          docker exec acme-srv rm -rf /etc/krb5.conf
+          docker exec acme-srv ln -s /var/www/acme2certifier/volume/acme_ca/krb5.conf /etc/krb5.conf
+
+      - name: "KRB - Restart a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          WEBSRV: ${{ matrix.websrv }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+
+      - name: "KRB - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
+        with:
+          NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "NTLM - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            verify: False
+            request_timeout: 30
+
+      - name: "NTLM - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
+        with:
+          NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "NTLM allowed_domainlist - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          DISABLE_CHALLENGE_VALIDATION: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "foo1.bar", "*.bar.local"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            verify: False
+            request_timeout: 30
+
+      - name: "NTLM allowed_domainlist - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
+        with:
+          NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "KRB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          WEBSRV: ${{ matrix.websrv }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "KRB ACME Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: deb
+          TAIL_NUMBER: 1900
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "KRB ACME Profiling keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          WEBSRV: ${{ matrix.websrv }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            krb5_principal: ${{ env.KRB5_PRINCIPAL }}
+            krb5_keytab: /var/www/acme2certifier/volume/acme_ca/krb5.keytab
+            krb5_kinit_path: /usr/bin/kinit
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "KRB ACME Profiling keytab - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: deb
+          TAIL_NUMBER: 1900
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: mscertsrv-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}

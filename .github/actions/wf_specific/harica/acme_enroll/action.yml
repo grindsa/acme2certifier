@@ -30,7 +30,7 @@ runs:
       CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
 
   - name: "Sleep for 15s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 15s
 

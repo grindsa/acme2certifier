@@ -23,26 +23,31 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   win_acme:
+    permissions:
+      contents: read
+      actions: write
     name: "win_acme"
     runs-on: windows-latest
+    timeout-minutes: 45
     needs: guard
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'

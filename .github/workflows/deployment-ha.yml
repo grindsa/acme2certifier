@@ -23,29 +23,34 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
 
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     needs: guard
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
@@ -266,7 +271,7 @@ jobs:
           docker exec alma9-c2 systemctl enable lsyncd
 
       - name: "Lsync - Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -376,7 +381,7 @@ jobs:
           docker exec alma9-c2 systemctl start lsyncd
 
       - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -401,10 +406,17 @@ jobs:
           docker exec alma9-c2 cp /tmp/acme2certifier/alma9-c2-settings.py /opt/acme2certifier/acme2certifier/django_project/settings.py
           docker exec alma9-c2 systemctl restart acme2certifier.service
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Wait for ACME directory on alma9-c1"
+        uses: ./.github/actions/wait_for_directory
         with:
-          time: 5s
+          ACME_SERVER: alma9-c1.acme
+          CHECK_HTTP: "false"
+
+      - name: "Wait for ACME directory on alma9-c2"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          ACME_SERVER: alma9-c2.acme
+          CHECK_HTTP: "false"
 
       - name: "Test acme2certifier on alma9-c1"
         run: |
@@ -422,10 +434,11 @@ jobs:
         run: |
           docker run -d --rm --name acme-srv --network acme  grindsa/pen:latest -r 443 alma9-c1.acme:443 alma9-c2.acme:443
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Wait for ACME directory on load-balancer"
+        uses: ./.github/actions/wait_for_directory
         with:
-          time: 5s
+          ACME_SERVER: acme-srv.acme
+          CHECK_HTTP: "false"
 
       - name: "Test acme2certifier on load-balancer"
         run: |
@@ -474,7 +487,7 @@ jobs:
           chmod a+rx data/mass_test.sh
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 5s
 

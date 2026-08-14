@@ -1,5 +1,5 @@
-name: "enroll_wo_headerinfo"
-description: "enroll_wo_headerinfo"
+name: "enroll_eab_wo_headerinfo"
+description: "EJBCA EAB enrollment without header info"
 
 
 runs:

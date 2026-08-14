@@ -26,11 +26,6 @@ runs:
   using: "composite"
   steps:
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 10s
-
     - name: "Create lego folder"
       run: |
         mkdir -p lego
@@ -59,7 +54,7 @@ runs:
 
     - name: "Sleep for 20s"
       if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
-      uses: juliangruber/sleep-action@v2.0.4
+      uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
       with:
         time: 20s
 
@@ -93,7 +88,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.4
+      uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
       if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
       with:
         time: 10s
@@ -117,7 +112,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.4
+      uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
       if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
       with:
         time: 10s
@@ -141,7 +136,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.4
+      uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
       if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
       with:
         time: 10s
@@ -185,7 +180,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.4
+      uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
       with:
         time: 10s
 

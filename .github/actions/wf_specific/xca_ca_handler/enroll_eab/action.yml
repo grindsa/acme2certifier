@@ -4,11 +4,6 @@ description: "enroll_eab"
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
   - name: "Wait for ACME directory"
     uses: ./.github/actions/wait_for_directory
 

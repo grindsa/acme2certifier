@@ -1,5 +1,5 @@
-name: "enroll_headerinfo"
-description: "enroll_headerinfo"
+name: "enroll_acmeprofile"
+description: "XCA ACME profile enrollment test"
 
 runs:
   using: "composite"

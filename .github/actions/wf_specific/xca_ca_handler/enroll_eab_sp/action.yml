@@ -1,5 +1,5 @@
-name: "enroll_eab"
-description: "enroll_eab"
+name: "enroll_eab_sp"
+description: "XCA EAB subject-profiling enrollment test"
 inputs:
   DEPLOYMENT_TYPE:
     description: "Deployment type"
@@ -79,7 +79,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 2s
 
@@ -109,7 +109,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 2s
 
@@ -140,7 +140,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 2s
 
@@ -170,7 +170,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 2s
 
@@ -201,7 +201,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 2s
 
@@ -231,7 +231,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 2s
 
@@ -262,7 +262,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 2s
 
@@ -292,7 +292,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 2s
 

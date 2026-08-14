@@ -1,5 +1,5 @@
-name: "enroll_102_profile"
-description: "wf enrollment 102 profile"
+name: "enroll_eab_w_headerinfo"
+description: "Certifier EAB enrollment with header info"
 inputs:
   RECONFIGURE:
     description: "Reconfigure the workflow"

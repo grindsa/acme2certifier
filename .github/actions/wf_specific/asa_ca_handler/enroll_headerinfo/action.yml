@@ -1,5 +1,5 @@
-name: "enroll_102_profile"
-description: "wf enrollment 102 profile"
+name: "enroll_headerinfo"
+description: "ASA header-info enrollment test"
 inputs:
   ASA_PROFILE1:
     description: "ASA Profile 1"

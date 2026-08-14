@@ -1,5 +1,5 @@
-name: "enroll_acme_profile"
-description: "wf enrollment acme profile"
+name: "enroll_eab_w_acmeprofile"
+description: "Certifier EAB ACME profile enrollment test"
 inputs:
   RECONFIGURE:
     description: "Reconfigure the workflow"
