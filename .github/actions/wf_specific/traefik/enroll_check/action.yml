@@ -1,0 +1,113 @@
+name: "traefik_enroll_check"
+description: "Start Traefik against ACME and verify issued certificate chain"
+inputs:
+  CHALLENGE_TYPE:
+    description: "Traefik ACME challenge flag (e.g. tlschallenge=true)"
+    required: true
+  RUNNER_HOSTNAME:
+    description: "Hostname used in Traefik whoami Host() rule"
+    required: true
+  INSTALL_COMPOSE_PLUGIN:
+    description: "Install docker-compose-plugin if missing (true/false)"
+    required: false
+    default: "false"
+  WORKING_DIRECTORY:
+    description: "Directory for Traefik compose and ACME storage"
+    required: false
+    default: "traefik"
+  COMPOSE_TEMPLATE:
+    description: "Path to Traefik docker-compose template"
+    required: false
+    default: ".github/traefik-matrix.yml"
+  CA_BUNDLE:
+    description: "CA bundle Traefik/LEGO uses to trust ACME HTTPS"
+    required: false
+    default: ".github/acme2certifier_cabundle.pem"
+  MAX_ATTEMPTS:
+    description: "Max attempts waiting for acme.json certificate"
+    required: false
+    default: "30"
+  SLEEP_SECONDS:
+    description: "Seconds between certificate wait attempts"
+    required: false
+    default: "2"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install docker compose plugin"
+      if: ${{ inputs.INSTALL_COMPOSE_PLUGIN == 'true' }}
+      run: |
+        set -euo pipefail
+        if docker compose version >/dev/null 2>&1; then
+          echo "docker compose already available"
+          exit 0
+        fi
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+          | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+          | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
+      shell: bash
+
+    - name: "Setup and start Traefik"
+      run: |
+        set -euo pipefail
+        mkdir -p "${WORKING_DIRECTORY}/certs"
+        sudo cp "${CA_BUNDLE}" "${WORKING_DIRECTORY}/certs/"
+        sudo cp "${COMPOSE_TEMPLATE}" "${WORKING_DIRECTORY}/docker-compose.yml"
+        sudo sed -i "s/whoami.acme/${RUNNER_HOSTNAME}/g" "${WORKING_DIRECTORY}/docker-compose.yml"
+        sudo sed -i "s/CHALLENGE_TYPE/${CHALLENGE_TYPE}/g" "${WORKING_DIRECTORY}/docker-compose.yml"
+        docker compose -f "${WORKING_DIRECTORY}/docker-compose.yml" up -d
+      shell: bash
+      env:
+        WORKING_DIRECTORY: ${{ inputs.WORKING_DIRECTORY }}
+        CA_BUNDLE: ${{ inputs.CA_BUNDLE }}
+        COMPOSE_TEMPLATE: ${{ inputs.COMPOSE_TEMPLATE }}
+        RUNNER_HOSTNAME: ${{ inputs.RUNNER_HOSTNAME }}
+        CHALLENGE_TYPE: ${{ inputs.CHALLENGE_TYPE }}
+
+    - name: "Wait for Traefik certificate and verify chain"
+      working-directory: ${{ inputs.WORKING_DIRECTORY }}
+      run: |
+        set -euo pipefail
+
+        ACME_JSON="letsencrypt/acme.json"
+        CERT_B64=""
+
+        for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+          if [ -f "$ACME_JSON" ]; then
+            CERT_B64="$(sudo cat "$ACME_JSON" | jq -r '.a2c.Certificates[0].certificate // empty')"
+            if [ -n "$CERT_B64" ] && [ "$CERT_B64" != "null" ]; then
+              echo "Certificate present in acme.json (attempt ${attempt}/${MAX_ATTEMPTS})"
+              break
+            fi
+          fi
+
+          echo "Traefik certificate not ready yet (attempt ${attempt}/${MAX_ATTEMPTS}), retrying..."
+          sleep "$SLEEP_SECONDS"
+          CERT_B64=""
+        done
+
+        if [ -z "$CERT_B64" ] || [ "$CERT_B64" = "null" ]; then
+          echo "No certificate in acme.json after ${MAX_ATTEMPTS} attempts"
+          if [ -f "$ACME_JSON" ]; then
+            sudo cat "$ACME_JSON" | jq . || sudo cat "$ACME_JSON" || true
+          else
+            echo "acme.json missing — Traefik did not create ACME storage"
+          fi
+          docker logs traefik || true
+          exit 1
+        fi
+
+        echo "$CERT_B64" | base64 -d | awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+        ls -la cert-*.pem
+        test -f cert-1.pem
+        test -f cert-2.pem
+        test -f cert-3.pem
+        openssl verify -CAfile cert-3.pem -untrusted cert-2.pem cert-1.pem
+      shell: bash
+      env:
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}

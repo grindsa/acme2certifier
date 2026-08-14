@@ -1,5 +1,5 @@
 name: "container_check"
-description: "Check container configuration"
+description: "Verify running container matches expected web server / DB handler (runtime inspect, not log grep)"
 inputs:
   DB_HANDLER:
     description: "Database handler"
@@ -13,20 +13,107 @@ inputs:
     description: "Path to the docker compose file"
     required: false
     default: "examples/Docker/"
+  COMPOSE_SERVICE:
+    description: "Compose service / container name"
+    required: false
+    default: "acme-srv"
 
 runs:
   using: "composite"
   steps:
-    - name: "Logs"
+    - name: "Verify ${{ inputs.WEB_SRV }}/${{ inputs.DB_HANDLER }} runtime"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |
-          docker compose logs | grep -i $WEB_SRV
-          if [ "$DB_HANDLER" == "django" ]; then
-              docker compose logs | grep -i migrations
-          else
-            docker compose logs | grep -i $DB_HANDLER
+        set -euo pipefail
+
+        svc="${COMPOSE_SERVICE}"
+        exec_in() { docker compose exec -T "${svc}" "$@"; }
+
+        # --- DB handler (baked into image ENV) ---
+        got_db="$(exec_in printenv ACME_SRV_DB_HANDLER)"
+        echo "ACME_SRV_DB_HANDLER=${got_db} (expected ${DB_HANDLER})"
+        test "${got_db}" = "${DB_HANDLER}"
+
+        image="$(docker inspect --format='{{.Config.Image}}' "${svc}")"
+        echo "Image=${image}"
+        # Compose local tags: acme2certifier/wsgi — Hub tags: grindsa/acme2certifier:X-apache2-wsgi
+        case "${image}" in
+          */"${DB_HANDLER}"|*/"${DB_HANDLER}":*|*-"${DB_HANDLER}"|*-"${DB_HANDLER}":*) ;;
+          *)
+            echo "ERROR: image '${image}' does not look like a ${DB_HANDLER} variant" >&2
+            exit 1
+            ;;
+        esac
+
+        # --- Web server: installed binary + running process ---
+        # Use in-container ps output; docker top formatting varies by daemon.
+        has_comm() {
+          exec_in sh -c '
+            name="$1"
+            i=0
+            while [ "$i" -lt 8 ]; do
+              if ps -eo comm= 2>/dev/null | awk -v n="$name" '"'"'$0 == n { found = 1 } END { exit !found }'"'"'; then
+                exit 0
+              fi
+              i=$((i + 1))
+              sleep 1
+            done
+            exit 1
+          ' sh "$1"
+        }
+        list_comms() {
+          exec_in sh -c 'ps -eo comm= 2>/dev/null || true' | sort -u
+        }
+
+        case "${WEB_SRV}" in
+          apache2)
+            exec_in sh -c 'command -v apache2ctl >/dev/null'
+            if ! has_comm apache2; then
+              echo "ERROR: no apache2 process running" >&2
+              list_comms >&2 || true
+              exit 1
+            fi
+            if exec_in sh -c 'command -v nginx >/dev/null'; then
+              echo "ERROR: nginx binary present in expected apache2 image" >&2
+              exit 1
+            fi
+            echo "Web server=apache2 (apache2ctl + apache2 process)"
+            ;;
+          nginx)
+            exec_in sh -c 'command -v nginx >/dev/null'
+            if ! has_comm nginx; then
+              echo "ERROR: no nginx process running" >&2
+              list_comms >&2 || true
+              exit 1
+            fi
+            if exec_in sh -c 'command -v apache2ctl >/dev/null'; then
+              echo "ERROR: apache2ctl present in expected nginx image" >&2
+              exit 1
+            fi
+            echo "Web server=nginx (nginx binary + nginx process)"
+            ;;
+          *)
+            echo "ERROR: unsupported WEB_SRV=${WEB_SRV}" >&2
+            exit 1
+            ;;
+        esac
+
+        # --- Handler-specific filesystem markers (survive log flushes) ---
+        if [[ "${DB_HANDLER}" == "django" ]]; then
+          exec_in test -f /var/www/acme2certifier/volume/settings.py
+          exec_in test -d /var/www/acme2certifier/volume/migrations
+          exec_in python3 -c "import django"
+          if exec_in test -f /var/www/acme2certifier/acme2certifier_wsgi.py; then
+            echo "ERROR: wsgi entrypoint file present in expected django image" >&2
+            exit 1
           fi
+          echo "Django markers OK (settings.py, migrations/, import django)"
+        else
+          exec_in test -f /var/www/acme2certifier/acme2certifier_wsgi.py
+          echo "WSGI markers OK (acme2certifier_wsgi.py present)"
+        fi
       env:
-        WEB_SRV: ${{ inputs.WEB_SRV }}
         DB_HANDLER: ${{ inputs.DB_HANDLER }}
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        COMPOSE_SERVICE: ${{ inputs.COMPOSE_SERVICE }}
       shell: bash

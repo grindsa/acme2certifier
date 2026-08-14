@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title CA handler for EJBCA -->
+<!-- wiki-title: CA Handler for EJBCA -->
+<!-- wiki-category: CA Handlers -->
 
 # Connecting to Keyfactor's EJBCA
 
@@ -24,7 +25,7 @@ The handler requires the installation of the python [requests_pkcs12](https://gi
 
 ```config
 [CAhandler]
-handler_file: examples/ca_handler/ejbca_ca_handler.py
+handler_module: acme2certifier.cahandlers.ejbca_ca_handler
 api_host: https://<fqdn or ip>:8443
 cert_file: <filename>
 cert_passphrase: <passphrase>
@@ -119,7 +120,7 @@ This handler can use the [eab profiling feature](eab_profiling.md) to allow indi
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

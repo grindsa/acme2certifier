@@ -1,0 +1,157 @@
+name: Security - Artifact and Cleanup Policy
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+  push:
+    branches: ["master", "refactor_handler"]
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+  workflow_dispatch:
+    inputs:
+      enforce:
+        description: "Fail job on policy violations"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions: {}
+
+jobs:
+  policy-check:
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Evaluate policy
+        id: policy
+        shell: bash
+        env:
+          ENFORCE: ${{ github.event.inputs.enforce || 'false' }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import os
+
+          workflow_root = Path(".github/workflows")
+          action_root = Path(".github/actions")
+          violations = []
+
+          # 1) Failure artifact uploads must have retention-days and sanitizer before upload.
+          for wf in sorted(workflow_root.glob("*.yml")):
+            lines = wf.read_text().splitlines()
+            for i, line in enumerate(lines):
+              if "uses: actions/upload-artifact@v7" not in line:
+                continue
+              span = "\n".join(lines[max(0, i - 15): min(len(lines), i + 25)])
+              if not re.search(r"if:\s*\$?\{?\{?\s*failure\(", span):
+                continue
+              if "path: ${{ github.workspace }}/artifact/upload/" not in span:
+                continue
+              if "retention-days:" not in span:
+                violations.append(f"{wf}: missing retention-days on failure artifact upload near line {i+1}")
+              prior = "\n".join(lines[max(0, i - 25): i])
+              if "uses: ./.github/actions/sanitize_artifact_payload" not in prior:
+                violations.append(f"{wf}: missing sanitizer step before failure artifact upload near line {i+1}")
+              # Remainder of this job (until next top-level job key).
+              job_rest_end = len(lines)
+              for k in range(i + 1, len(lines)):
+                if re.match(r"^  [A-Za-z0-9_-]+:\s*$", lines[k]):
+                  job_rest_end = k
+                  break
+              job_rest = "\n".join(lines[max(0, i - 30): job_rest_end])
+              if "uses: ./.github/actions/secure_cleanup" not in job_rest:
+                violations.append(f"{wf}: missing secure cleanup around failure artifact upload near line {i+1}")
+
+          # 2) Secret dump workflow must remain opt-in for artifact upload.
+          dump_wf = workflow_root / "helper-dump-secrets.yml"
+          if dump_wf.exists():
+            t = dump_wf.read_text()
+            if "upload_artifact:" not in t:
+              violations.append(f"{dump_wf}: missing upload_artifact input guard")
+            if "github.event.inputs.upload_artifact == 'true'" not in t:
+              violations.append(f"{dump_wf}: missing opt-in artifact upload condition")
+
+          # 3) Cleanup steps in actions should use always() when explicitly named cleanup/delete.
+          for act in sorted(action_root.rglob("action.yml")):
+            if act.as_posix().endswith("/secure_cleanup/action.yml"):
+              continue
+            lines = act.read_text().splitlines()
+            for i, line in enumerate(lines):
+              if not re.match(r"^\s*-\s+name:\s*\"?.*(cleanup|delete).*\"?\s*$", line, re.I):
+                continue
+              j = i + 1
+              while j < len(lines) and not re.match(r"^\s*-\s+name:\s+", lines[j]):
+                j += 1
+              block = "\n".join(lines[i:j])
+              if re.search(r"(rm\s+-rf|docker\s+rm|network\s+rm|shred|unlink)", block, re.I):
+                if not re.search(r"^\s+if:\s*\$\{\{[^\\n]*always\(\)", block, re.M):
+                  violations.append(f"{act}: cleanup-like step without if: always() near line {i+1}")
+
+          # 4) Third-party actions must be pinned to a 40-char commit SHA.
+          #    First-party (actions/*, github/*, docker/*) may use version tags,
+          #    but not floating refs (master/main/latest).
+          uses_re = re.compile(r"""^\s*uses:\s*['\"]?([^'\"\s#]+)['\"]?""")
+          sha_re = re.compile(r"^[0-9a-f]{40}$", re.I)
+          first_party = {"actions", "github", "docker"}
+          floating = {"master", "main", "latest", "head"}
+          for path in sorted(list(workflow_root.glob("*.yml")) + list(action_root.rglob("action.yml"))):
+            for i, line in enumerate(path.read_text().splitlines()):
+              if re.match(r"^\s*#", line):
+                continue
+              m = uses_re.match(line)
+              if not m:
+                continue
+              spec = m.group(1)
+              if spec.startswith("./") or spec.startswith(".github/"):
+                continue
+              if "@" not in spec:
+                violations.append(f"{path}: action ref missing near line {i+1}: {spec}")
+                continue
+              owner = spec.split("/", 1)[0]
+              ref = spec.rsplit("@", 1)[1]
+              if sha_re.fullmatch(ref):
+                continue
+              if owner in first_party:
+                if ref.lower() in floating:
+                  violations.append(f"{path}: first-party action uses floating ref near line {i+1}: {spec}")
+                continue
+              violations.append(f"{path}: unpinned third-party action near line {i+1}: {spec}")
+
+          report = Path("artifact-policy-report.txt")
+          report.write_text("\n".join(violations) + ("\n" if violations else "No policy violations found.\n"))
+          print(report.read_text())
+          if violations:
+            for v in violations[:200]:
+              print(f"::warning::{v}")
+          PY
+
+      - name: Upload policy report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: policy-report
+          path: artifact-policy-report.txt
+          retention-days: 1
+
+      - name: Enforce policy
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.enforce == 'true') }}
+        shell: bash
+        run: |
+          if [[ -s artifact-policy-report.txt ]] && ! grep -q "No policy violations found." artifact-policy-report.txt; then
+            echo "Policy violations found and enforce=true." >&2
+            exit 1
+          fi

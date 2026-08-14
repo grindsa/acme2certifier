@@ -4,9 +4,12 @@ LABEL maintainer="grindelsack@gmail.com"
 ENV APACHE_RUN_USER=www-data
 ENV APACHE_RUN_GROUP=www-data
 ENV APACHE_LOG_DIR=/var/log/apache2
+ENV ACME_SRV_DB_HANDLER=django
+ENV ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier
 
 COPY ./*.deb /tmp/
 COPY ./examples/Docker/apache2/django/docker-entrypoint.sh /docker-entrypoint.sh
+COPY ./examples/Docker/resolve_db_handler.sh /resolve_db_handler.sh
 
 RUN apt-get update  && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends -y tzdata && \
@@ -44,24 +47,19 @@ RUN apt-get update  && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
-    cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
-    cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
-    cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
+    cp /var/www/acme2certifier/share/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
-    rm -rf /var/www/acme2certifier/examples/db_handler && \
-    rm -rf /var/www/acme2certifier/examples/nginx && \
+    rm -rf /var/www/acme2certifier/share/nginx && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
-    rm -rf /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \
     rm -rf /var/www/acme2certifier/acme2certifier_wsgi.py  && \
-    rm /var/www/acme2certifier/acme2certifier/settings.py && \
-    rm -f /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
+    rm -f /var/www/acme2certifier/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
     chown -R www-data:www-data /var/www/acme2certifier/ && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
     sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \
     sed -i "s/\${APACHE_LOG_DIR}\/error.log/\/dev\/stderr/g" /etc/apache2/apache2.conf && \
     a2enmod ssl && \
     rm /etc/apache2/sites-enabled/000-default.conf && \
-    chmod a+rx /docker-entrypoint.sh  # NOSONAR
+    chmod a+rx /docker-entrypoint.sh /resolve_db_handler.sh  # NOSONAR
 
 WORKDIR /var/www/acme2certifier/
 

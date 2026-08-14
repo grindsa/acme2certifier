@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title How to build an acme2certifier cluster on Alma Linux 9 -->
+<!-- wiki-title: How to build an acme2certifier cluster on Alma Linux 9 -->
+<!-- wiki-category: High Availability -->
 
 # How to build an acme2certifier cluster on Alma Linux 9
 
@@ -481,27 +482,29 @@ sudo yum localinstall -y ./acme2certifier_<version>-1.0.noarch.rpm
 - Copy and activate nginx configuration file
 
 ```bash
-sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
+sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
 ```
 
 - Copy and activate nginx ssl configuration file (optional)
 
 ```bash
-sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
+sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
 ```
 
-- copy the django handler and the django directory structure
+- configure the Django DB handler and copy the django directory structure
 
 ```bash
-sudo cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
-sudo cp -r /opt/acme2certifier/examples/django/* /opt/acme2certifier/
+# in acme_srv.cfg under [DBhandler]:
+#   handler: django
+sudo cp /opt/acme2certifier/examples/django/settings.py \
+  /opt/acme2certifier/acme2certifier/django_project/settings.py
 ```
 
 - move the acme2certifier configuration file `acme_srv.cfg` into the mirrored directory and create a symbolic link
 
 ```bash
-sudo mv /opt/acme2certifier/acme_srv/acme_srv.cfg /opt/acme2certifier/volume/
-sudo ln -s /opt/acme2certifier/volume/acme_srv.cfg  /opt/acme2certifier/acme_srv/
+sudo mv /opt/acme2certifier/acme_srv.cfg /opt/acme2certifier/volume/
+sudo ln -s /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
 ```
 
 - Enable and start the apache2 service
@@ -532,11 +535,11 @@ FLUSH PRIVILEGES;
 - generate a new django secret-key and note it down
 
 ```bash
-python3 /opt/acme2certifier/tools/django_secret_keygen.py
+python3 -m acme2certifier.tools.a2c_django_secret_keygen
 +%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e
 ```
 
-- modify `/opt/acme2certifier/acme2certifier/settings.py` and
+- modify `/opt/acme2certifier/acme2certifier/django_project/settings.py` and
   - insert the secret-key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both ip-address and fqdn of the node
   - configure a connection to mariadb as shown below
@@ -567,7 +570,7 @@ DATABASES = {
 
 ```cfg
 [CAhandler]
-handler_file: /opt/acme2certifier/examples/ca_handler/openssl_ca_handler.py
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
 ca_cert_chain_list: ["/opt/acme2certifier/volume/root-ca-cert.pem"]
 issuing_ca_key: /opt/acme2certifier/volume/ca/sub-ca-key.pk8
 issuing_ca_key_passphrase_variable: OPENSSL_PASSPHRASE
@@ -584,15 +587,14 @@ cn_enforce: True
 
 ```bash
 cd /opt/acme2certifier
-sudo python3 manage.py makemigrations
-sudo python3 manage.py migrate
-sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
+sudo a2c-manage migrate
+sudo a2c-manage loaddata status
 ```
 
 - run the django_update script
 
 ```bash
-sudo python3 /opt/acme2certifier/tools/django_update.py
+sudo python3 -m acme2certifier.tools.a2c_django_update
 ```
 
 - restart the acme2certifier service
@@ -616,11 +618,11 @@ curl http://alma9-c1.bar.local/directory
 - generate a new django secret and note it down
 
 ```bash
-python3 /opt/acme2certifier/tools/django_secret_keygen.py
+python3 -m acme2certifier.tools.a2c_django_secret_keygen
 5@@wlvvi!hb(6qc%*77j55@jt8ib4^f1o&+pz-^z*#v3e7u3o!
 ```
 
-- modify `/opt/acme2certifier/acme2certifier/settings.py` and
+- modify `/opt/acme2certifier/acme2certifier/django_project/settings.py` and
   - insert a secret key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both IP-Adress and fqdn of the node
   - configure a connection to mariadb as shown below

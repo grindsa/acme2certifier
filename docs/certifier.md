@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title CA handler for NetGuard Certificate Manager and Insta Certifier -->
+<!-- wiki-title: CA Handler for NetGuard Certificate Manager and Insta Certifier -->
+<!-- wiki-category: CA Handlers -->
 
 # Connecting to Insta Certifier
 
@@ -15,7 +16,7 @@
 
 ```config
 [CAhandler]
-handler_file: examples/ca_handler/certifier_ca_handler.py
+handler_module: acme2certifier.cahandlers.certifier_ca_handler
 api_host: http://<ip>:<port>
 api_user: <user>
 api_password: <password>
@@ -116,13 +117,13 @@ Example for lego:
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent profile_id=101 -d <fqdn> --http
 ```
 
-# eab profiling
+## EAB profiling
 
 This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

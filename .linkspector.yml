@@ -1,0 +1,19 @@
+dirs:
+  - .
+excludedDirs:
+  - ./.git
+  - ./node_modules
+fileExtensions:
+  - md
+useGitIgnore: true
+followRedirects: true
+timeout: 30000
+retryCount: 3
+aliveStatusCodes:
+  - 200
+  - 206
+ignorePatterns:
+  - pattern: '^https?://localhost'
+  - pattern: '^https?://127\.0\.0\.1'
+  - pattern: '^https://www\.howtoforge\.com/'
+  - pattern: '^https://techcommunity\.microsoft\.com/'

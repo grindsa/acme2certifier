@@ -1,12 +1,13 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: Support for External Databases -->
+<!-- wiki-category: Features -->
 
 # Support for External Databases
 
 Acme2certifier supports external databases by using the [Django Python framework](https://www.djangoproject.com/). The default SQLite backend is not designed to handle concurrent write access, which can easily occur in an environment with a high transaction frequency.
 
-All [databases supported by Django](https://docs.djangoproject.com/en/5.0/ref/databases/) should work in principle; MariaDB and PostgreSQL will be tested during [release regression](https://github.com/grindsa/acme2certifier/blob/master/.github/workflows/django_tests.yml).
+All [databases supported by Django](https://docs.djangoproject.com/en/5.0/ref/databases/) should work in principle; MariaDB and PostgreSQL will be tested during [release regression](https://github.com/grindsa/acme2certifier/blob/master/.github/workflows/deployment-django.yml).
 
 The following documentation explains how to configure Django-based database access depending on your installation method.
 
@@ -111,14 +112,14 @@ sudo apt-get install -y ./acme2certifier_<version>-1_all.deb
 - Copy and activate the Apache2 configuration file:
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
+sudo cp /var/www/acme2certifier/share/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
 sudo a2ensite acme2certifier
 ```
 
 - Copy and activate the Apache2 SSL configuration file (optional):
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+sudo cp /var/www/acme2certifier/share/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
 sudo a2ensite acme2certifier_ssl
 ```
 
@@ -129,11 +130,13 @@ sudo a2dissite 000-default.conf
 sudo a2dissite default-ssl
 ```
 
-- Copy the Django handler and the Django directory structure:
+- Configure the Django DB handler (Django app ships in the package):
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
-sudo cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
+# in acme_srv.cfg under [DBhandler]:
+#   handler: django
+# optional MySQL/Postgres settings template:
+#   cp examples/django/settings.py /var/www/acme2certifier/acme2certifier/django_project/settings.py
 ```
 
 - Enable and start the Apache2 service:
@@ -146,10 +149,10 @@ sudo systemctl start apache2.service
 - Generate a new Django secret key and note it down:
 
 ```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+a2c-django-secret-keygen
 ```
 
-- Modify `/var/www/acme2certifier/acme2certifier/settings.py` and:
+- Modify `/var/www/acme2certifier/acme2certifier/django_project/settings.py` and:
   - Insert the secret key created in the previous step
   - Update the `ALLOWED_HOSTS` section with both the IP address and FQDN of the node
   - Configure a connection to MariaDB as shown below
@@ -164,11 +167,13 @@ ALLOWED_HOSTS = ["192.168.14.132", "ub2204-c1.bar.local"]
 
 **No manual file copying is required.**
 
-The official Docker images already contain:
+The official Django Docker images already contain:
 
-- the Django project under `/var/www/acme2certifier/acme2certifier/`
-- a ready-made Django settings file (`/var/www/acme2certifier/acme2certifier/settings.py`) to be updated
-- the Django database handler at `/var/www/acme2certifier/acme_srv/db_handler.py`
+- the Django app under `acme2certifier.django_app` and project under `acme2certifier.django_project`
+- a volume-backed settings file (`django_project/settings.py` → `/var/www/acme2certifier/volume/settings.py`)
+- baked `ENV ACME_SRV_DB_HANDLER=django` (default when cfg has no `handler` / `handler_module`)
+
+Set `handler: django` (or `handler_module: …django_handler`) in `acme_srv.cfg` only when overriding the image default. The entrypoint does not write the handler into cfg.
 
 Mount a volume or directory from the Docker host into `/var/www/acme2certifier/volume`. When this volume is present, acme2certifier automatically writes `settings.py`, `acme_srv.cfg`, and all Django migration sets into it and maps them back to the appropriate internal locations during container startup.
 
@@ -236,7 +241,7 @@ DATABASES = {
 
 ```cfg
 [CAhandler]
-handler_file: /var/www/acme2certifier/examples/ca_handler/openssl_ca_handler.py
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
 ca_cert_chain_list: ["/var/www/acme2certifier/volume/root-ca-cert.pem"]
 issuing_ca_key: /var/www/acme2certifier/volume/ca/sub-ca-key.pk8
 issuing_ca_key_passphrase_variable: OPENSSL_PASSPHRASE
@@ -255,15 +260,14 @@ cn_enforce: True
 
 ```bash
 cd /var/www/acme2certifier
-sudo python3 manage.py makemigrations
-sudo python3 manage.py migrate
-sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
+sudo a2c-manage migrate
+sudo a2c-manage loaddata status
 ```
 
 - Run the Django update script:
 
 ```bash
-sudo python3 /var/www/acme2certifier/tools/django_update.py
+sudo python3 -m acme2certifier.tools.a2c_django_update
 ```
 
 - Restart the Apache2 service:

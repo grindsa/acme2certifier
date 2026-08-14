@@ -1,0 +1,120 @@
+name: "logs_assert"
+description: "Assert PATTERN appears in acme-srv logs (full file), then flush"
+inputs:
+  PATTERN:
+    description: "Substring/regex that must appear in the logs"
+    required: true
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+    default: "rpm"
+  ACME_SERVER:
+    description: "Container name for rpm/deb exec"
+    required: false
+    default: "acme-srv"
+  COMPOSE_SERVICE:
+    description: "Container name for docker inspect log flush (container deployments)"
+    required: false
+    default: "acme-srv"
+  REGEX:
+    description: "If true, use grep -E; otherwise grep -F"
+    required: false
+    default: "false"
+  IGNORE_CASE:
+    description: "If true, use grep -i"
+    required: false
+    default: "false"
+  FLUSH:
+    description: "If true, flush logs after a successful match"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Assert log pattern (${{ inputs.DEPLOYMENT_TYPE }})"
+      working-directory: examples/Docker/
+      run: |
+        set -euo pipefail
+        GREP_OPTS=()
+        if [[ "${REGEX}" == "true" ]]; then
+          GREP_OPTS+=(-E)
+        else
+          GREP_OPTS+=(-F)
+        fi
+        if [[ "${IGNORE_CASE}" == "true" ]]; then
+          GREP_OPTS+=(-i)
+        fi
+        case "${DEPLOYMENT_TYPE}" in
+          container)
+            docker compose logs | grep "${GREP_OPTS[@]}" -- "${PATTERN}"
+            if [[ "${FLUSH}" == "true" ]]; then
+              sudo truncate -s 0 "$(docker inspect --format='{{.LogPath}}' "${COMPOSE_SERVICE}")"
+            fi
+            ;;
+          rpm)
+            matched=0
+            for i in {1..10}; do
+              if docker exec "${ACME_SERVER}" sh -c '
+                pattern=$1; shift
+                files=""
+                for f in /var/log/messages /var/log/httpd/error_log /var/log/apache2/error.log /var/log/nginx/error.log /var/log/syslog; do
+                  if [ -f "$f" ]; then
+                    files="$files $f"
+                  fi
+                done
+                if [ -n "$files" ]; then
+                  grep "$@" -- "$pattern" $files && exit 0
+                fi
+                exit 1
+              ' sh "${PATTERN}" "${GREP_OPTS[@]}" || docker logs "${ACME_SERVER}" 2>&1 | grep "${GREP_OPTS[@]}" -- "${PATTERN}"; then
+                matched=1
+                break
+              fi
+              sleep 1
+            done
+            if [[ "${matched}" -ne 1 ]]; then
+              echo "ERROR: pattern not found after retries in rpm logs: ${PATTERN}" >&2
+              exit 1
+            fi
+            if [[ "${FLUSH}" == "true" ]]; then
+              docker exec "${ACME_SERVER}" sh -c '
+                for f in /var/log/messages /var/log/httpd/error_log /var/log/apache2/error.log /var/log/nginx/error.log /var/log/syslog; do
+                  if [ -f "$f" ]; then truncate -s 0 "$f"; fi
+                done
+              '
+            fi
+            ;;
+          deb)
+            docker exec "${ACME_SERVER}" sh -c '
+              pattern=$1; shift
+              if [ -f /var/log/apache2/error.log ]; then
+                grep "$@" -- "$pattern" /var/log/apache2/error.log /var/log/syslog
+              elif [ -f /var/log/nginx/error.log ]; then
+                grep "$@" -- "$pattern" /var/log/nginx/error.log /var/log/syslog
+              else
+                grep "$@" -- "$pattern" /var/log/syslog
+              fi
+            ' sh "${PATTERN}" "${GREP_OPTS[@]}"
+            if [[ "${FLUSH}" == "true" ]]; then
+              docker exec "${ACME_SERVER}" sh -c '
+                if [ -f /var/log/apache2/error.log ]; then truncate -s 0 /var/log/apache2/error.log; fi
+                if [ -f /var/log/nginx/error.log ]; then truncate -s 0 /var/log/nginx/error.log; fi
+                if [ -f /var/log/syslog ]; then truncate -s 0 /var/log/syslog; fi
+              '
+            fi
+            ;;
+          *)
+            echo "ERROR: unsupported DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+      shell: bash
+      env:
+        PATTERN: ${{ inputs.PATTERN }}
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.COMPOSE_SERVICE }}
+        REGEX: ${{ inputs.REGEX }}
+        IGNORE_CASE: ${{ inputs.IGNORE_CASE }}
+        FLUSH: ${{ inputs.FLUSH }}

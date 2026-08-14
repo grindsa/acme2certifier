@@ -54,22 +54,25 @@ runs:
     shell: bash
 
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 5s
 
-  - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-      fi
-    shell: bash
-    env:
+  - name: "Check logs for EAB signature ERROR"
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "EAB signature verification failed kid=${{ inputs.EAB_KEY_ID }}"
+      FLUSH: "false"
+
+  - name: "Check logs for ACME problem (EAB signature)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB signature verification failed"
+      FLUSH: "false"
 
   - name: "certbot - Failed registration with wrong credentials"
     continue-on-error: true
@@ -92,22 +95,25 @@ runs:
     shell: bash
 
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 5s
 
-  - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-      fi
-    shell: bash
-    env:
+  - name: "Check logs for EAB signature ERROR"
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "EAB signature verification failed kid=${{ inputs.EAB_KEY_ID }}"
+      FLUSH: "false"
+
+  - name: "Check logs for ACME problem (EAB signature)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB signature verification failed"
+      FLUSH: "false"
 
   - name: "lego - Failed registration with wrong credentials"
     continue-on-error: true
@@ -131,19 +137,22 @@ runs:
     shell: bash
 
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 5s
 
-  - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}"
-      fi
-    shell: bash
-    env:
+  - name: "Check logs for EAB signature ERROR"
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "EAB signature verification failed kid=${{ inputs.EAB_KEY_ID }}"
+      FLUSH: "false"
+
+  - name: "Check logs for ACME problem (EAB signature)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB signature verification failed"
+      FLUSH: "false"

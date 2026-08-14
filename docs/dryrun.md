@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Dry Run Mode -->
+<!-- wiki-title: Dry Run Mode -->
+<!-- wiki-category: Features -->
 
 # Dry Run Mode
 

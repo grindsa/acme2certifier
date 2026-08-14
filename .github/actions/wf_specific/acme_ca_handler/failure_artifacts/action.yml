@@ -1,0 +1,72 @@
+name: "acme_ca_handler failure artifacts"
+description: "Collect sidecar logs, package failure logs, upload artifact"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+  ARTIFACT_NAME:
+    description: "upload-artifact name"
+    required: true
+  WEBSRV:
+    description: "Web server (deb collect_failure_logs)"
+    required: false
+    default: ""
+  SIDECAR_LOGS:
+    description: "Comma-separated docker container names to dump logs for"
+    required: false
+    default: ""
+  COPY_DIRS:
+    description: "Comma-separated host dirs to copy into artifact/data/"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    # Do not gate on failure() here: when this composite is invoked under
+    # `if: failure()` in the caller, inner failure() is false (no prior step
+    # inside the composite failed) and all steps would be skipped.
+    - name: "Collect sidecar logs and dirs"
+      run: |
+        set -euo pipefail
+        mkdir -p "${GITHUB_WORKSPACE}/artifact/data"
+        if [ -n "${SIDECAR_LOGS}" ]; then
+          IFS=',' read -ra names <<< "${SIDECAR_LOGS}"
+          for name in "${names[@]}"; do
+            name="$(echo "${name}" | xargs)"
+            [ -z "${name}" ] && continue
+            docker logs "${name}" > "${GITHUB_WORKSPACE}/artifact/${name}.log" 2>&1 || true
+          done
+        fi
+        if [ -n "${COPY_DIRS}" ]; then
+          IFS=',' read -ra dirs <<< "${COPY_DIRS}"
+          for dir in "${dirs[@]}"; do
+            dir="$(echo "${dir}" | xargs)"
+            [ -z "${dir}" ] && continue
+            [ -d "${dir}" ] || continue
+            sudo cp -rp "${dir}" "${GITHUB_WORKSPACE}/artifact/data/" || true
+          done
+        fi
+      shell: bash
+      env:
+        SIDECAR_LOGS: ${{ inputs.SIDECAR_LOGS }}
+        COPY_DIRS: ${{ inputs.COPY_DIRS }}
+
+    - name: "Collect failure logs"
+      uses: ./.github/actions/collect_failure_logs
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        WEBSRV: ${{ inputs.WEBSRV }}
+
+    - name: "Sanitize failure artifacts"
+      uses: ./.github/actions/sanitize_artifact_payload
+      with:
+        ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
+    - name: "Upload artifacts"
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.ARTIFACT_NAME }}
+        path: ${{ github.workspace }}/artifact/upload/
+        if-no-files-found: warn
+        retention-days: 1

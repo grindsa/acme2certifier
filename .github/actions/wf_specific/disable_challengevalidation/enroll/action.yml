@@ -1,5 +1,5 @@
-name: "enroll_test"
-description: "enroll_test"
+name: "enroll"
+description: "Disable-challenge-validation enrollment test"
 inputs:
   TO_FAIL:
     description: "Enrollment is expected to fail"
@@ -9,14 +9,10 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory (https)"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 5s
-
-  - name: "Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+      CHECK_HTTP: "false"
 
   - name: "Enroll lego with correct SAN"
     run: |
@@ -77,6 +73,7 @@ runs:
     shell: bash
 
   - name: "Delete acme-sh, letsencypt and lego folders"
+    if: ${{ always() }}
     run: |
       sudo rm -rf  lego/*
     shell: bash

@@ -1,5 +1,6 @@
 services:
   acme-srv:
+    container_name: acme-srv
     build:
       context: ../../.
       dockerfile: examples/Docker/$WEBSERVER/$CONTEXT/Dockerfile

@@ -23,30 +23,31 @@ on:
         required: false
         default: ''
 
-jobs:
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
 
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
+permissions: {}
+
+jobs:
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images - regular hooks
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -58,37 +59,31 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
+
+      - name: "Configure openssl ca_handler"
         run: |
           sudo mkdir -p examples/Docker/data/hooks
           sudo chmod -R 777 examples/Docker/data/hooks
-          sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo cp acme2certifier/cahandlers/openssl_ca_handler.py examples/Docker/data/ca_handler.py
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "hooks_file: /var/www/acme2certifier/examples/hooks/cn_dump_hooks.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.cn_dump_hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "save_path: volume/hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "$HOOKS_CHECKSUM" > examples/Docker/data/hooks/checksums.sha256
-          # sudo cat examples/Docker/data/acme_srv.cfg
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
@@ -98,16 +93,8 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Register certbot"
         run: |
@@ -147,28 +134,24 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: container-tests-hooks-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: container-tests-hooks-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
   # Test container images - hooks exception handling
   # ---------------------------------------------------------
+
+
   test-containers-exception-handling:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -180,38 +163,32 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
+
+      - name: "Configure openssl ca_handler"
         run: |
           sudo mkdir -p examples/Docker/data/hooks
           sudo chmod -R 777 examples/Docker/data/hooks
-          sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo cp acme2certifier/cahandlers/openssl_ca_handler.py examples/Docker/data/ca_handler.py
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "hooks_file: /var/www/acme2certifier/examples/hooks/exception_test_hooks.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.exception_test_hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "raise_pre_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
           sudo echo "raise_post_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
           sudo echo "raise_success_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
-          # sudo cat examples/Docker/data/acme_srv.cfg
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
@@ -221,16 +198,8 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Rrepare acme.sh container"
         run: |
@@ -245,11 +214,15 @@ jobs:
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
           openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure hook handler to trigger pre hook exception "
         run: |
           sudo sed -i "s/raise_pre_hook_exception: False/raise_pre_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "acme.sh enrollment fails due to pre-hook exception (default behaviour)"
@@ -264,11 +237,15 @@ jobs:
           echo "prehookfailure outcome is ${{steps.prehookfailure.outcome }}"
           exit 1
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure a2c to ignore pre-hook failures "
         run: |
           sudo echo "ignore_pre_hook_failure: True" >> examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "Enroll acme.sh - ignore pre_hook_failures "
@@ -276,12 +253,16 @@ jobs:
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
           openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure hook handler to trigger success hook exception "
         run: |
           sudo sed -i "s/raise_pre_hook_exception: True/raise_pre_hook_exception: False/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/raise_success_hook_exception: False/raise_success_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "acme.sh enrollment fails due to success-hook exception (default behaviour) "
@@ -296,24 +277,32 @@ jobs:
           echo "successhookfailure outcome is ${{steps.successhookfailure.outcome }}"
           exit 1
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure a2c to ignore success-hook failures "
         run: |
           sudo sed -i "s/ignore_pre_hook_failure: True/ignore_success_hook_failure: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
-      - name: "Enroll acme.sh - ignore sucess_hook_failures "
+      - name: "Enroll acme.sh - ignore success_hook_failures"
         run: |
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
           openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Reconfigure hook handler to trigger post hook exception "
         run: |
           sudo sed -i "s/raise_success_hook_exception: True/raise_success_hook_exception: False/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/raise_post_hook_exception: False/raise_post_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "Enroll acme.sh - ignore post_hook_failures (default behaviour) "
@@ -321,11 +310,15 @@ jobs:
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
           openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure a2c to detect success-hook failures "
         run: |
           sudo sed -i "s/ignore_success_hook_failure: True/ignore_post_hook_failure: False/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "acme.sh enrollment fails due to post-hook exception "
@@ -346,28 +339,24 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-containers-exception-handling-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-exception-handling-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
   # Test container images - email hooks
   # ---------------------------------------------------------
+
+
   test-containers-email-hooks:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -379,21 +368,14 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
           NAME_SPACE: acme
 
       - name: "Parse EMAIL configuration from JSON secret"
@@ -407,16 +389,18 @@ jobs:
           MAILSERVER_CERT: ${{ secrets.MAILSERVER_CERT }}
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler"
         run: |
           sudo mkdir -p examples/Docker/data/hooks
           sudo chmod -R 777 examples/Docker/data/hooks
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "hooks_file: /var/www/acme2certifier/examples/hooks/email_hooks.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.email_hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "report_failures: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo "report_successes: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo "subject_prefix: [ACME]" >> examples/Docker/data/acme_srv.cfg
@@ -443,60 +427,43 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: container-tests-email-hooks-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: container-tests-email-hooks-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "create letsencrypt and lego folder"
         run: |
@@ -504,28 +471,30 @@ jobs:
           mkdir lego
 
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Prepare acme_srv.cfg with openssl_ca_handler (config)"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
           sudo mkdir -p data/volume/acme_ca/hooks
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
-          sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/cn_dump_hooks.py" >> data/volume/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.cn_dump_hooks" >> data/volume/acme_srv.cfg
           sudo echo "save_path: /tmp/acme2certifier/volume/acme_ca/hooks" >> data/volume/acme_srv.cfg
           sudo echo "$HOOKS_CHECKSUM" > data/volume/acme_ca/hooks/checksums.sha256
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Wait for ACME directory (http)"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          CHECK_HTTPS: "false"
 
       - name: "Register certbot"
         run: |
@@ -559,64 +528,43 @@ jobs:
         run: |
           sha256sum -c checksums.sha256
 
-      - name: "Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-      - name: "Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) hooks exception handling
   # ---------------------------------------------------------
+
+
   test-rpm-hooks-exception-handling:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "create letsencrypt and lego folder"
         run: |
@@ -624,29 +572,31 @@ jobs:
           mkdir lego
 
       - name: "prepare acme_srv.cfg with openssl_ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "prepare acme_srv.cfg with openssl_ca_handler"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
           sudo mkdir -p data/volume/acme_ca/hooks
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
-          sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/exception_test_hooks.py" >> data/volume/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.exception_test_hooks" >> data/volume/acme_srv.cfg
           sudo echo "raise_pre_hook_exception: False" >> data/volume/acme_srv.cfg
           sudo echo "raise_post_hook_exception: False" >> data/volume/acme_srv.cfg
           sudo echo "raise_success_hook_exception: False" >> data/volume/acme_srv.cfg
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Wait for ACME directory (http)"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          CHECK_HTTPS: "false"
 
       - name: "Prepare acme.sh container"
         run: |
@@ -667,9 +617,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "acme.sh enrollment fails due to pre-hook exception (default behaviour)"
         id: prehookfailure
@@ -689,9 +639,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll acme.sh - ignore pre_hook_failures "
         run: |
@@ -705,9 +655,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "acme.sh enrollment fails due to success-hook exception (default behaviour) "
         id: successhookfailure
@@ -727,11 +677,11 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
-      - name: "Enroll acme.sh - ignore sucess_hook_failures "
+      - name: "Enroll acme.sh - ignore success_hook_failures"
         run: |
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
           openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
@@ -743,9 +693,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll acme.sh - ignore post_hook_failures (default behaviour) "
         run: |
@@ -758,9 +708,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Fail acme.sh enrollment fails due to post-hook exception "
         id: posthookfailure
@@ -774,69 +724,48 @@ jobs:
           echo "posthookfailure outcome is ${{steps.posthookfailure.outcome }}"
           exit 1
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-rpm-hooks-exception-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-hooks-exception-rh${{ matrix.rhversion }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) email hooks
   # ---------------------------------------------------------
+
+
   test-rpm-hooks-email-hooks:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
         with:
-          json_secret: ${{ secrets.GH_CFG }}
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "Parse EMAIL configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
 
       - name: "Install mailserver"
         uses: ./.github/actions/mailserver_install
@@ -845,16 +774,16 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "prepare acme_srv.cfg with openssl_ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "prepare acme_srv.cfg with openssl_ca_handler"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
           sudo mkdir -p data/volume/acme_ca/hooks
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
-          sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/email_hooks.py" >> data/volume/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.email_hooks" >> data/volume/acme_srv.cfg
           sudo echo "report_failures: True" >> data/volume/acme_srv.cfg
           sudo echo "report_successes: True" >> data/volume/acme_srv.cfg
           sudo echo "subject_prefix: [ACME]" >> data/volume/acme_srv.cfg
@@ -864,30 +793,17 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enrollment tests"
         uses: ./.github/actions/wf_specific/hooks/enroll
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-rpm-email-hooks-rh${{ matrix.rhversion }}-{{ matrix.execscript }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-email-hooks-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz

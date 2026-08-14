@@ -23,29 +23,31 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images (matrix from payload)
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -57,32 +59,21 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler with domain and ip prevalidation support"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n\n[Authorization]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "prevalidated_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]" >> examples/Docker/data/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          PREVALIDATED: both
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -91,7 +82,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test regular enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -105,8 +96,13 @@ jobs:
           DEPLOYMENT_TYPE: "container"
 
       - name: "Setup openssl ca_handler with domain prevalidation support"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          PREVALIDATED: domain
+
+      - name: "Restart a2c container"
         run: |
-          sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" examples/Docker/data/ca_handler.py
           cd examples/Docker/
           docker compose restart
 
@@ -122,9 +118,13 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          PREVALIDATED: ip
+
+      - name: "Restart a2c container"
         run: |
-          sudo sed -i "s/# prevalidated_iplist/prevalidated_iplist/g" examples/Docker/data/ca_handler.py
-          sudo sed -i "s/prevalidated_domainlist/# prevalidated_domainlist/g" examples/Docker/data/ca_handler.py
           cd examples/Docker/
           docker compose restart
 
@@ -140,109 +140,71 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "Setup openssl ca_handler with eab-profiling support"
+        uses: ./.github/actions/wf_specific/prevalidation/setup_eabprofile
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          KEY_FILE: volume/kid_profiles.json
+          KID_PROFILES_DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Restart a2c container"
         run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_iplist\": [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]#g" examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"],#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": *\["www.example.com", "www.example.org"\]#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"]\n    }#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i '30,35d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '17,18d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '15,15d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-
           cd examples/Docker/
           docker compose restart
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/prevalidation/enroll_eabprofile
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "Setup openssl ca_handler with domain and ip prevalidation support"
-        run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[Authorization]" >> data/volume/acme_srv.cfg
-          sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> data/volume/acme_srv.cfg
-          sudo echo "prevalidated_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]" >> data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: both
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test regular enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Test enrollment with prevalidated identifiers (both domain and ip)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
@@ -256,14 +218,15 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler with domain prevalidation support"
-        run: |
-          sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: domain
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment with prevalidated identifiers (domain only)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
@@ -277,15 +240,15 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
-        run: |
-          sudo sed -i "s/# prevalidated_iplist/prevalidated_iplist/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/prevalidated_domainlist/# prevalidated_domainlist/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: ip
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment with prevalidated identifiers (ip only)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
@@ -299,124 +262,73 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler with eab-profiling support"
-        run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_iplist\": [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]#g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"],#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": *\["www.example.com", "www.example.org"\]#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"]\n    }#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+        uses: ./.github/actions/wf_specific/prevalidation/setup_eabprofile
+        with:
+          KEY_FILE: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+          KID_PROFILES_DEST: data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/prevalidation/enroll_eabprofile
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          # sudo cp -rp /tmp/acme_sh/ ${{ github.workspace }}/artifact/acme_sh/
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}.tar.gz
 
   # ---------------------------------------------------------
   # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: psql
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
+          PARSE_GH_CFG: "true"
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "Setup openssl ca_handler with domain and ip prevalidation support"
-        run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[Authorization]" >> data/volume/acme_srv.cfg
-          sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> data/volume/acme_srv.cfg
-          sudo echo "prevalidated_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_file: \/var\/www\/acme2certifier\/examples\/ca_handler\/openssl_ca_handler.py/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: both
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test regular enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
 
       - name: "Test enrollment with prevalidated identifiers (both domain and ip)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
@@ -430,15 +342,16 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler with domain prevalidation support"
-        run: |
-          sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: domain
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment with prevalidated identifiers (domain only)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
@@ -452,16 +365,16 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
-        run: |
-          sudo sed -i "s/# prevalidated_iplist/prevalidated_iplist/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/prevalidated_domainlist/# prevalidated_domainlist/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: ip
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment with prevalidated identifiers (ip only)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
@@ -475,60 +388,26 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler with eab-profiling support"
-        run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_file: \/var\/www\/acme2certifier\/examples\/ca_handler\/openssl_ca_handler.py/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_iplist\": [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]#g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"],#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": *\["www.example.com", "www.example.org"\]#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"]\n    }#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+        uses: ./.github/actions/wf_specific/prevalidation/setup_eabprofile
+        with:
+          KEY_FILE: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+          KID_PROFILES_DEST: data/volume/acme_ca/kid_profiles.json
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/prevalidation/enroll_eabprofile
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}

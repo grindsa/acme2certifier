@@ -10,6 +10,13 @@ inputs:
   RH_VERSION:
     description: "RHEL version"
     required: true
+  PYTHON_STACK:
+    description: >-
+      SBOM leaf under rpm-repo/RPMs/rhelN/: python39 (EL8 default),
+      python36 (EL8 legacy), python3 (EL9 default). Empty = auto from RH_VERSION.
+      Space-separated list allowed (e.g. "python36 python39" for EL8 upgrades).
+    required: false
+    default: ""
   DJANGO_DB:
     description: "Django database"
   RPM_BUILD:
@@ -51,29 +58,33 @@ runs:
         sudo mkdir -p data/acme2certifier
         sudo mkdir -p data/nginx
         sudo chmod -R 777 data
-        sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+        sudo cp examples/install_scripts/a2c-rpm.sh data/a2c-rpm.sh
+        sudo chmod a+rx data/a2c-rpm.sh
+        sudo touch data/.a2c_ci
+        # Nginx SSL vhost uses ${APP_ROOT}/volume/acme2certifier_{cert,key}.pem
+        # (see a2c-rpm.sh). Stage CI TLS material there so Traefik/LEGO_CA_CERTIFICATES
+        # can verify https://acme-srv.acme — data/nginx/ alone is not enough.
+        sudo cp .github/acme2certifier_cert.pem data/volume/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem data/volume/acme2certifier_key.pem
         sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
         if [ -f ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
           echo "RPM exists"
-          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+          # Main payload + python flavor subpackages
+          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-*.noarch.rpm data/
+          ls -la data/acme2certifier-*.rpm
         else
           echo "RPM does not exist"
         fi
         if [ -z "$DJANGO_DB" ] || [ "$DJANGO_DB" == "sqlite3" ]; then
             sudo cp .github/django_settings.py data/acme2certifier/settings.py
         else
-            #if [ "$RH_VERSION" == '8' ] && [ "$DJANGO_DB" == 'mariadb' ]; then
-            #  echo "Using psql as django database on RHEL8"
-            #  sudo cp .github/django_settings_psql.py data/acme2certifier/settings.py
-            #else
             sudo cp .github/django_settings_$DJANGO_DB.py data/acme2certifier/settings.py
-            #fi
-
         fi
         sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
         sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
+        # Also stage under volume/ for a2c-rpm --volume-dir sync
+        sudo cp data/acme2certifier/settings.py data/volume/settings.py
       env:
         DJANGO_DB: ${{ inputs.DJANGO_DB }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
@@ -89,13 +100,71 @@ runs:
 
     - name: "Retrieve rpm from SBOM repo"
       run: |
-        git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/rhel$RH_VERSION/*.rpm  data
+        set -euo pipefail
+        # Map OS + flavor → SBOM leaf (see grindsa/sbom rpm-repo/README.md)
+        STACKS="${PYTHON_STACK:-}"
+        if [[ -z "${STACKS}" ]]; then
+          case "${RH_VERSION}" in
+            8) STACKS=python39 ;;
+            9) STACKS=python3 ;;
+            *)
+              echo "ERROR: unsupported RH_VERSION=${RH_VERSION} (expected 8 or 9)" >&2
+              exit 1
+              ;;
+          esac
+        fi
+
+        rm -rf /tmp/sbom
+        # Partial clone + sparse checkout: only the needed RPM leaf/leaves
+        git clone --filter=blob:none --sparse --depth 1 \
+          "https://${GH_USER}:${GH_SBOM_REPO_TOKEN}@github.com/${GH_USER}/sbom" /tmp/sbom
+
+        ARCH="$(uname -m)"
+        shopt -s nullglob
+        copied=0
+        leaves=()
+        for STACK in ${STACKS}; do
+          case "${STACK}" in
+            python36|python39|python3) ;;
+            *)
+              echo "ERROR: PYTHON_STACK entries must be python36|python39|python3 (got: ${STACK})" >&2
+              exit 1
+              ;;
+          esac
+          LEAF="rpm-repo/RPMs/rhel${RH_VERSION}/${STACK}"
+          leaves+=("${LEAF}")
+        done
+        git -C /tmp/sbom sparse-checkout set "${leaves[@]}"
+
+        for STACK in ${STACKS}; do
+          LEAF="rpm-repo/RPMs/rhel${RH_VERSION}/${STACK}"
+          SRC="/tmp/sbom/${LEAF}"
+          if [[ ! -d "${SRC}" ]]; then
+            echo "ERROR: missing SBOM path ${SRC}" >&2
+            ls -la /tmp/sbom/rpm-repo/RPMs/rhel${RH_VERSION}/ 2>/dev/null || true
+            exit 1
+          fi
+          echo "SBOM leaf: ${LEAF}"
+          # Stage only noarch + runner arch (skip foreign-arch RPMs in the leaf)
+          for r in "${SRC}"/*.noarch.rpm "${SRC}"/*."${ARCH}".rpm; do
+            [[ -f "${r}" ]] || continue
+            sudo cp -v "${r}" data/
+            copied=$((copied + 1))
+          done
+        done
+        echo "Staged ${copied} companion RPM(s) for arch=${ARCH} from: ${STACKS}"
+        ls -la data/*.rpm 2>/dev/null | head -80 || true
       env:
         GH_USER: ${{ inputs.GH_USER }}
         GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
+        PYTHON_STACK: ${{ inputs.PYTHON_STACK }}
       shell: bash
+
+    - name: "Pull AlmaLinux image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: almalinux/${{ inputs.RH_VERSION }}-init
 
     - name: "Spin-up alma instance"
       run: |
@@ -103,6 +172,50 @@ runs:
       env:
         RH_VERSION: ${{ inputs.RH_VERSION }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      shell: bash
+
+    - name: "CI host packages (former rpm_tester bits)"
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 30); do
+          if docker exec acme-srv systemctl is-system-running 2>/dev/null | grep -Eq 'running|degraded'; then
+            break
+          fi
+          sleep 2
+        done
+        docker exec acme-srv yum -y install epel-release || true
+        docker exec acme-srv yum install -y procps syslog-ng krb5-workstation krb5-libs || \
+          docker exec acme-srv dnf install -y procps syslog-ng krb5-workstation krb5-libs
+        docker exec acme-srv systemctl start syslog-ng.service || true
+      shell: bash
+
+    - name: "Install SBOM companion RPMs into Alma container"
+      run: |
+        set -euo pipefail
+        docker exec acme-srv bash -c '
+          set -euo pipefail
+          shopt -s nullglob
+          filtered=()
+          for r in /tmp/acme2certifier/*.rpm; do
+            b=$(basename "$r")
+            case "$b" in
+              acme2certifier-*) continue ;;
+              packages-microsoft-prod.rpm) continue ;;
+            esac
+            filtered+=("$r")
+          done
+          if ((${#filtered[@]} == 0)); then
+            echo "No SBOM companion RPMs to install"
+            exit 0
+          fi
+          echo "Installing companion RPMs:"
+          printf "  %s\n" "${filtered[@]}"
+          if command -v dnf >/dev/null 2>&1; then
+            dnf localinstall -y "${filtered[@]}"
+          else
+            yum localinstall -y "${filtered[@]}"
+          fi
+        '
       shell: bash
 
     - name: "Instanciate Mariadb"
@@ -118,11 +231,23 @@ runs:
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Prepare addditional environment for MSSQL"
+    - name: "Prepare and install MSSQL client stack"
       if: inputs.DJANGO_DB == 'mssql'
       run: |
+        set -euo pipefail
         echo "Download Microsoft repository configuration package"
-        curl https://packages.microsoft.com/config/rhel/$VERSION/packages-microsoft-prod.rpm --output data/packages-microsoft-prod.rpm
+        curl -fsSL "https://packages.microsoft.com/config/rhel/${VERSION}/packages-microsoft-prod.rpm" \
+          --output data/packages-microsoft-prod.rpm
+        docker exec acme-srv bash -c '
+          set -euo pipefail
+          PKG=yum
+          command -v dnf >/dev/null 2>&1 && PKG=dnf
+          echo "Installing Microsoft ODBC / mssql-django"
+          ${PKG} localinstall -y /tmp/acme2certifier/packages-microsoft-prod.rpm
+          ACCEPT_EULA=Y ${PKG} install -y msodbcsql18 python3-pip python3-pyodbc
+          ${PKG} install -y gcc gcc-c++ python3-devel unixODBC-devel
+          pip3 install mssql-django==1.3 || pip3 install mssql-django
+        '
       env:
         DJANGO_DB: ${{ inputs.DJANGO_DB }}
         VERSION: ${{ inputs.RH_VERSION }}

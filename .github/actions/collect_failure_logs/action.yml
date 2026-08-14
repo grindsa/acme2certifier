@@ -1,0 +1,115 @@
+name: "collect_failure_logs"
+description: "Collect deployment logs into artifact/upload/artifact.tar.gz on failure"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb | pip"
+    required: true
+  WEBSRV:
+    description: "Web server (deb only: apache2|nginx)"
+    required: false
+    default: ""
+  CONTAINER_NAME:
+    description: "Compose service/container name to collect logs from in container mode"
+    required: false
+    default: "acme-srv"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Collect logs"
+      run: |
+        set -euo pipefail
+        mkdir -p "${GITHUB_WORKSPACE}/artifact/data" "${GITHUB_WORKSPACE}/artifact/upload"
+
+        # Trailing slash on src copies contents into dest (mkdir -p dest first).
+        copy_dir_contents_if_present() {
+          local src="$1"
+          local dest="$2"
+          if [ -d "${src}" ]; then
+            mkdir -p "${dest}"
+            sudo cp -rp "${src}/." "${dest}/" || true
+          else
+            echo "skip missing dir: ${src}"
+          fi
+        }
+
+        case "${DEPLOYMENT_TYPE}" in
+          container)
+            copy_dir_contents_if_present "examples/Docker/data" "${GITHUB_WORKSPACE}/artifact/data"
+            copy_dir_contents_if_present "acme-sh" "${GITHUB_WORKSPACE}/artifact/acme-sh"
+            copy_dir_contents_if_present "certbot" "${GITHUB_WORKSPACE}/artifact/certbot"
+            copy_dir_contents_if_present "lego" "${GITHUB_WORKSPACE}/artifact/lego"
+            # Prefer compose logs/container id; fall back to bare container name
+            (cd examples/Docker && docker compose logs --no-color > "${GITHUB_WORKSPACE}/artifact/docker-compose.log") 2>/dev/null || true
+            cid="$(cd examples/Docker && docker compose ps -q "${CONTAINER_NAME}" 2>/dev/null | head -n 1 || true)"
+            if [[ -n "${cid}" ]]; then
+              docker logs "${cid}" > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" 2>&1 || true
+            else
+              docker logs "${CONTAINER_NAME}" > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" 2>&1 || true
+            fi
+            ;;
+          rpm)
+            docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier || true
+            copy_dir_contents_if_present "data" "${GITHUB_WORKSPACE}/artifact/data"
+            sudo rm -f "${GITHUB_WORKSPACE}"/artifact/data/*.rpm || true
+            copy_dir_contents_if_present "acme-sh" "${GITHUB_WORKSPACE}/artifact/acme-sh"
+            docker exec acme-srv cat /etc/nginx/nginx.conf.orig > "${GITHUB_WORKSPACE}/artifact/data/nginx.conf.orig" 2>/dev/null || true
+            docker exec acme-srv cat /etc/nginx/nginx.conf > "${GITHUB_WORKSPACE}/artifact/data/nginx.conf" 2>/dev/null || true
+            docker exec acme-srv cat /var/log/messages > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
+            ;;
+          deb)
+            docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier/ || true
+            copy_dir_contents_if_present "data" "${GITHUB_WORKSPACE}/artifact/data"
+            sudo rm -f "${GITHUB_WORKSPACE}"/artifact/data/*.deb || true
+            if [[ "${WEBSRV}" == "apache2" ]]; then
+              docker exec acme-srv cat /var/log/apache2/error.log > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
+            else
+              docker exec acme-srv cat /var/log/nginx/error.log > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
+            fi
+            docker exec acme-srv cat /var/log/syslog > "${GITHUB_WORKSPACE}/artifact/syslog" || true
+            ;;
+          pip)
+            # Pip/from-source jobs run in systemd containers and may use /var/www (Ubuntu)
+            # or /opt (Alma). Collect both when present.
+            docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c-var-www.tgz /var/www/acme2certifier/ || true
+            docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c-opt.tgz /opt/acme2certifier/ || true
+            copy_dir_contents_if_present "data" "${GITHUB_WORKSPACE}/artifact/data"
+            copy_dir_contents_if_present "acme-sh" "${GITHUB_WORKSPACE}/artifact/acme-sh"
+            copy_dir_contents_if_present "certbot" "${GITHUB_WORKSPACE}/artifact/certbot"
+            copy_dir_contents_if_present "lego" "${GITHUB_WORKSPACE}/artifact/lego"
+            if [[ "${WEBSRV}" == "apache2" ]]; then
+              docker exec acme-srv cat /var/log/apache2/error.log > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
+            else
+              docker exec acme-srv cat /var/log/nginx/error.log > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
+            fi
+            docker exec acme-srv journalctl -u apache2 -u nginx -u acme2certifier --no-pager > "${GITHUB_WORKSPACE}/artifact/journal.log" 2>/dev/null || true
+            docker exec acme-srv cat /var/log/messages > "${GITHUB_WORKSPACE}/artifact/messages.log" 2>/dev/null || true
+            docker exec acme-srv cat /var/log/syslog > "${GITHUB_WORKSPACE}/artifact/syslog" 2>/dev/null || true
+            ;;
+          *)
+            echo "ERROR: unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        WEBSRV: ${{ inputs.WEBSRV }}
+        CONTAINER_NAME: ${{ inputs.CONTAINER_NAME }}
+
+    - name: "Sanitize artifact payload"
+      uses: ./.github/actions/sanitize_artifact_payload
+      with:
+        ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
+    - name: "Archive failure logs"
+      run: |
+        set -euo pipefail
+        mkdir -p "${GITHUB_WORKSPACE}/artifact/upload"
+        # Always produce an archive (even if mostly empty) so upload-artifact has a path.
+        # Include any pre-collected extras under artifact/ (exclude upload/).
+        sudo tar -C "${GITHUB_WORKSPACE}/artifact/" -cvzf "${GITHUB_WORKSPACE}/artifact/upload/artifact.tar.gz" \
+          --exclude=upload \
+          .
+      shell: bash

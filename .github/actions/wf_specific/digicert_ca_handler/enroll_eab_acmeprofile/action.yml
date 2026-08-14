@@ -1,5 +1,5 @@
-name: "enroll_eab"
-description: "enroll_eab"
+name: "enroll_eab_acmeprofile"
+description: "DigiCert EAB ACME profile enrollment test"
 inputs:
   DEPLOYMENT_TYPE:
     description: "Deployment type"
@@ -9,27 +9,14 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 5s
-
-  - name: "EAB - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme.dynamop.de curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "EAB - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme.dynamop.de curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+      NAME_SPACE: "acme.dynamop.de"
 
   - name: "Clear logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_flush
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "EAB - 01 - Enroll lego with a template_name taken from list in kid.json"
@@ -42,17 +29,10 @@ runs:
     shell: bash
 
   - name: "Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "cert_type: ssl_basic"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_basic"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "cert_type: ssl_basic"
 
   - name: "EAB - 02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
     id: legofail01
@@ -70,18 +50,10 @@ runs:
     shell: bash
 
   - name: "Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "unknown"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        sleep 5
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "unknown"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "unknown"
 
   - name: "EAB - 02b - Enroll lego with a template_name taken from header_info included in kid.json"
     run: |
@@ -94,17 +66,10 @@ runs:
     shell: bash
 
   - name: "Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "cert_type: ssl_securesite_pro"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_securesite_pro"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "cert_type: ssl_securesite_pro"
 
   - name: "EAB - 03 - Enroll lego with a template_name/ca_name taken from kid.json"
     run: |
@@ -115,17 +80,10 @@ runs:
     shell: bash
 
   - name: "Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "cert_type: ssl_securesite_pro"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_securesite_pro"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "cert_type: ssl_securesite_pro"
 
   - name: "EAB - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
     id: legofail02

@@ -17,20 +17,16 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory (https)"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 10s
-
-  - name: "Test https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network "$NAME_SPACE" curlimages/curl --insecure -f "https://$ACME_SERVER:$HTTPS_PORT/directory"
-    shell: bash
-    env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      CHECK_HTTP: "false"
       HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
   - name: "Cleanup lego workspace (no EAB)"
+    if: ${{ always() }}
     run: |
       sudo rm -rf "$PWD/lego"
       mkdir -p "$PWD/lego"
@@ -89,6 +85,7 @@ runs:
     shell: bash
 
   - name: "Cleanup lego workspace for keyid_00"
+    if: ${{ always() }}
     run: |
       sudo rm -rf "$PWD/lego"
       mkdir -p "$PWD/lego"
@@ -156,6 +153,7 @@ runs:
       HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
   - name: "Cleanup lego workspace for keyid_01"
+    if: ${{ always() }}
     run: |
       sudo rm -rf "$PWD/lego"
       mkdir -p "$PWD/lego"
@@ -208,6 +206,7 @@ runs:
       HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
   - name: "Cleanup lego workspace for keyid_02"
+    if: ${{ always() }}
     run: |
       sudo rm -rf "$PWD/lego"
       mkdir -p "$PWD/lego"

@@ -27,31 +27,31 @@ on:
 #        required: false
 #        default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
-
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
-
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images (matrix from payload)
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -64,35 +64,31 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
           NAME_SPACE: acme
 
       - name: "Setup esthandler using http-basic-auth"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.est_ca_handler
+          OPTIONS: |
+            est_host: https://testrfc7030.com:8443
+            est_user: estuser
+            est_password: estpwd
+            ca_bundle: False
+            request_timeout: 45
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Setup esthandler using http-basic-auth (post-cfg)"
         run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/est_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "est_host: https://testrfc7030.com:8443" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "est_user: estuser" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "est_password: estpwd" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "request_timeout: 45" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
@@ -101,9 +97,8 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
           VERIFY_CERT: "false"
@@ -111,9 +106,12 @@ jobs:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -121,83 +119,70 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, test-containers]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "setup esthandler using http-basic-auth"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.est_ca_handler
+          OPTIONS: |
+            est_host: https://testrfc7030.com:8443
+            est_user: estuser
+            est_password: estpwd
+            ca_bundle: False
+            request_timeout: 30
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "setup esthandler using http-basic-auth (post-cfg)"
         run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "est_host: https://testrfc7030.com:8443" >> data/volume/acme_srv.cfg
-          sudo echo "est_user: estuser" >> data/volume/acme_srv.cfg
-          sudo echo "est_password: estpwd" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "request_timeout: 30" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
           VERIFY_CERT: "false"
@@ -205,115 +190,85 @@ jobs:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+        uses: ./.github/actions/logs_assert
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
 
   # ---------------------------------------------------------
   # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: [guard, test-rpm]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: psql
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
 
       - name: "setup esthandler using http-basic-auth"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.est_ca_handler
+          OPTIONS: |
+            est_host: https://testrfc7030.com:8443
+            est_user: estuser
+            est_password: estpwd
+            ca_bundle: False
+            request_timeout: 30
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "setup esthandler using http-basic-auth (post-cfg)"
         run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "est_host: https://testrfc7030.com:8443" >> data/volume/acme_srv.cfg
-          sudo echo "est_user: estuser" >> data/volume/acme_srv.cfg
-          sudo echo "est_password: estpwd" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "request_timeout: 30" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
           VERIFY_CERT: "false"
           USE_CERTBOT: "false"
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}

@@ -23,30 +23,30 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
-
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
   # ---------------------------------------------------------
   # Test container images (matrix from payload)
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -58,45 +58,41 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-          NAME_SPACE: acme
-
       - name: "No template - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "No template - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -105,39 +101,40 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "No Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_no_template
 
       - name: "Template - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Template - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -150,21 +147,24 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "Header-info - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Header-info - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
@@ -178,39 +178,36 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "EAB - Setup a2c with xca_ca_handler - profiling"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: examples/Docker/data/kid_profiles.json
+      - name: "EAB - Setup a2c with xca_ca_handler - profiling (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '22,24d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -224,41 +221,37 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "EAB subject profiling - Setup a2c with xca_ca_handler "
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca_subject.json
+          DEST: examples/Docker/data/kid_profiles.json
+      - name: "EAB subject profiling - Setup a2c with xca_ca_handler  (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \"acme\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\",/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '22,24d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '9d' examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"api_user\"\: \"api_user\",/\"subject\"\: \{\n        \"serialNumber\"\: \"*\",\n        \"organizationName\"\: \"acme corp\",\n        \"organizationalUnitName\"\: \[\"acme1\", \"acme2\"\],\n        \"countryName\"\: \"AC\"\n       \}/g" examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -272,21 +265,24 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "ACME Profile - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "ACME Profile - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
@@ -300,40 +296,37 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profile - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: examples/Docker/data/kid_profiles.json
+      - name: "EAB ACME Profile - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '22,24d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -341,99 +334,87 @@ jobs:
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh lego
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
         with:
-          json_secret: ${{ secrets.GH_CFG }}
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
       - name: "No template - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "No template - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
           # sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "No Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_no_template
@@ -444,26 +425,29 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Template - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Template - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_template
@@ -474,29 +458,30 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Header-info - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Header-info - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Header-info - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_headerinfo
@@ -507,45 +492,42 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "EAB - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
@@ -556,47 +538,43 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "EAB subject profiling - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca_subject.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB subject profiling - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\",/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '9d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"api_user\"\: \"api_user\",/\"subject\"\: \{\n        \"serialNumber\"\: \"*\",\n        \"organizationName\"\: \"acme corp\",\n        \"organizationalUnitName\"\: \[\"acme1\", \"acme2\"\],\n        \"countryName\"\: \"AC\"\n       \}/g" data/volume/acme_ca/kid_profiles.json
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB subject profiling - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
@@ -609,27 +587,30 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "ACME Profile - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "ACME Profile - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_acmeprofile
@@ -640,137 +621,117 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profile - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB ACME Profile - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}.tar.gz
 
   # ---------------------------------------------------------
   # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
 
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: psql
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
       - name: "No template - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "No template - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
           # sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
 
@@ -783,27 +744,30 @@ jobs:
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_no_template
 
       - name: "Template - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Template - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_template
@@ -814,30 +778,31 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Header-info - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Header-info - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Header-info - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_headerinfo
@@ -848,46 +813,43 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "EAB - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
@@ -898,52 +860,48 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "EAB subject profiling - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca_subject.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB subject profiling - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\",/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '9d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"api_user\"\: \"api_user\",/\"subject\"\: \{\n        \"serialNumber\"\: \"*\",\n        \"organizationName\"\: \"acme corp\",\n        \"organizationalUnitName\"\: \[\"acme1\", \"acme2\"\],\n        \"countryName\"\: \"AC\"\n       \}/g" data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB subject profiling - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
         with:
-          DEPLOYMENT_TYPE: "rpm"
+          DEPLOYMENT_TYPE: "deb"
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -951,28 +909,31 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "ACME Profile - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "ACME Profile - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_acmeprofile
@@ -983,66 +944,50 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "EAB ACME Profile - Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB ACME Profile - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}

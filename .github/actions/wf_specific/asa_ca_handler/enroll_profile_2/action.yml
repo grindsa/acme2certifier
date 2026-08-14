@@ -1,13 +1,11 @@
-name: "enroll_2_profile"
-description: "wf enrollment 2 profile"
+name: "enroll_profile_2"
+description: "ASA profile 2 enrollment test"
 
 runs:
   using: "composite"
   steps:
-  - name: "Profile 2 - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 10s
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "Profile 2 -  create letsencrypt and lego folder"
     run: |

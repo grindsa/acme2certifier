@@ -17,6 +17,14 @@ inputs:
     description: "namespace"
     required: true
     default: "acme"
+  CHECK_HTTP:
+    description: "Wait for HTTP /directory after spin-up (true/false)"
+    required: false
+    default: "true"
+  CHECK_HTTPS:
+    description: "Wait for HTTPS /directory after spin-up (true/false)"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -24,8 +32,15 @@ runs:
     - name: "Spin-up a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |
-          sed -i "s/name: acme/name: $NAME_SPACE/g" docker-compose.yml
+          sed -i "s/^    name: acme\$/    name: $NAME_SPACE/" docker-compose.yml
           docker compose up -d --no-build
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
       shell: bash
+
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CHECK_HTTP: ${{ inputs.CHECK_HTTP }}
+        CHECK_HTTPS: ${{ inputs.CHECK_HTTPS }}

@@ -1,5 +1,5 @@
 #! /bin/sh
-# postinst script for erddcd
+# postinst script for acme2certifier
 #
 # see: dh_installdeb(1)
 
@@ -13,29 +13,30 @@ set -e
 #        * <deconfigured's-postinst> 'abort-deconfigure' 'in-favour'
 #          <failed-install-package> <version> 'removing'
 #          <conflicting-package> <version>
-# for details, see /usr/share/doc/packaging-manual/
-#
-# quoting from the policy:
-#     Any necessary prompting should almost always be confined to the
-#     post-installation script, and should be protected with a conditional
-#     so that unnecessary prompting doesn't happen if a package's
-#     installation fails and the 'postinst' is called with 'abort-upgrade',
-#     'abort-remove' or 'abort-deconfigure'.
 
 case "$1" in
     configure)
-
-    if [ -d /var/www/acme2certifier/acme2certifier ]; then
-        echo "django environment detected"
-        cp -R /var/www/acme2certifier/examples/django/acme_srv/* /var/www/acme2certifier/acme_srv/
-        cp -f /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
-    fi
-
-	chown -R www-data.www-data /var/www/acme2certifier
+	# Match pip layout: Apache django vhosts expect
+	# /var/www/acme2certifier/acme2certifier/... (symlink into site-/dist-packages).
+	if command -v python3 >/dev/null 2>&1; then
+		A2C_PKG=$(python3 -c "import acme2certifier, pathlib; print(pathlib.Path(acme2certifier.__file__).parent)" 2>/dev/null || true)
+		if [ -n "$A2C_PKG" ] && [ -d "$A2C_PKG" ]; then
+			# Replace a real directory left by ≤0.44 django layout; ln -sfn alone
+			# would nest the symlink inside the old tree.
+			if [ -e /var/www/acme2certifier/acme2certifier ] && [ ! -L /var/www/acme2certifier/acme2certifier ]; then
+				rm -rf /var/www/acme2certifier/acme2certifier
+			fi
+			ln -sfn "$A2C_PKG" /var/www/acme2certifier/acme2certifier
+		fi
+	fi
+	mkdir -p /var/www/acme2certifier/acme_srv
+	# Core lives in dist-packages; deploy tree (incl. default SQLite dbfile) owned by web user.
+	if id www-data >/dev/null 2>&1; then
+		chown -R www-data:www-data /var/www/acme2certifier
+	fi
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
-
     ;;
 
     *)

@@ -16,7 +16,7 @@ sys.path.insert(1, "..")
 class TestCAhandler(unittest.TestCase):
     def setUp(self):
         import logging
-        from examples.ca_handler.vault_ca_handler import CAhandler
+        from acme2certifier.cahandlers.vault_ca_handler import CAhandler
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
@@ -44,7 +44,7 @@ class TestCAhandler(unittest.TestCase):
                 self.cahandler._config_check(),
             )
         self.assertIn(
-            "ERROR:test_a2c:Configuration check ended with error: vault_url parameter is missing in config file",
+            "ERROR:test_a2c:Configuration error: vault_url parameter is missing in config file",
             lcm.output,
         )
 
@@ -56,14 +56,14 @@ class TestCAhandler(unittest.TestCase):
         error = self.cahandler._config_check()
         self.assertIsNone(error)
 
-    @patch("examples.ca_handler.vault_ca_handler.CAhandler._config_load")
+    @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_load")
     def test_005__enter__(self, mock_cfg):
         """test enter  called"""
         mock_cfg.return_value = True
         self.cahandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    @patch("examples.ca_handler.vault_ca_handler.CAhandler._config_load")
+    @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_load")
     def test_006__enter__(self, mock_cfg):
         """test enter api hosts defined"""
         mock_cfg.return_value = True
@@ -113,6 +113,7 @@ class TestCAhandler(unittest.TestCase):
         """test _api_post()"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 0
         mock_req.side_effect = Exception("exc_api_post")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -155,6 +156,7 @@ class TestCAhandler(unittest.TestCase):
         """test _api_get()"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 0
         mock_req.side_effect = Exception("exc_api_get")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((500, "exc_api_get"), self.cahandler._api_get("url"))
@@ -204,6 +206,7 @@ class TestCAhandler(unittest.TestCase):
         """test _api_put()"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 0
         mock_req.side_effect = Exception("exc_api_put")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -213,24 +216,25 @@ class TestCAhandler(unittest.TestCase):
             "ERROR:test_a2c:Request_operation returned error: exc_api_put", lcm.output
         )
 
-    @patch("examples.ca_handler.vault_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.vault_ca_handler.load_config")
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_eab_profile_load",
+        "acme2certifier.cahandlers.vault_ca_handler.config_eab_profile_load",
         return_value=(True, "handler"),
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_proxy_load",
+        "acme2certifier.cahandlers.vault_ca_handler.config_proxy_load",
         return_value={"http": "proxy"},
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_profile_load",
+        "acme2certifier.cahandlers.vault_ca_handler.config_profile_load",
         return_value={"profile": "data"},
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_headerinfo_load", return_value=True
+        "acme2certifier.cahandlers.vault_ca_handler.config_headerinfo_load",
+        return_value=True,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_enroll_config_log_load",
+        "acme2certifier.cahandlers.vault_ca_handler.config_enroll_config_log_load",
         return_value=(True, ["skip1", "skip2"]),
     )
     def test_018_config_load_sets_attributes(
@@ -275,24 +279,25 @@ class TestCAhandler(unittest.TestCase):
             self.cahandler.enrollment_config_log_skip_list, ["skip1", "skip2"]
         )
 
-    @patch("examples.ca_handler.vault_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.vault_ca_handler.load_config")
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_eab_profile_load",
+        "acme2certifier.cahandlers.vault_ca_handler.config_eab_profile_load",
         return_value=(True, "handler"),
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_proxy_load",
+        "acme2certifier.cahandlers.vault_ca_handler.config_proxy_load",
         return_value={"http": "proxy"},
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_profile_load",
+        "acme2certifier.cahandlers.vault_ca_handler.config_profile_load",
         return_value={"profile": "data"},
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_headerinfo_load", return_value=True
+        "acme2certifier.cahandlers.vault_ca_handler.config_headerinfo_load",
+        return_value=True,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_enroll_config_log_load",
+        "acme2certifier.cahandlers.vault_ca_handler.config_enroll_config_log_load",
         return_value=(True, ["skip1", "skip2"]),
     )
     def test_019_config_load_sets_attributes(
@@ -326,27 +331,38 @@ class TestCAhandler(unittest.TestCase):
         )
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.enrollment_config_log", return_value=None
-    )
-    @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._config_check",
+        "acme2certifier.cahandlers.vault_ca_handler.enrollment_config_log",
         return_value=None,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._csr_check", return_value=None
-    )
-    @patch("examples.ca_handler.vault_ca_handler.csr_cn_lookup", return_value="test-cn")
-    @patch(
-        "examples.ca_handler.vault_ca_handler.build_pem_file", return_value="pem-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_check",
+        return_value=None,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.b64_url_recode", return_value="recode-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check",
+        return_value=None,
     )
-    @patch("examples.ca_handler.vault_ca_handler.CAhandler._api_post")
     @patch(
-        "examples.ca_handler.vault_ca_handler.b64_encode", return_value="encoded-cert"
+        "acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup",
+        return_value="test-cn",
     )
-    @patch("examples.ca_handler.vault_ca_handler.cert_pem2der", return_value="der-cert")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file",
+        return_value="pem-csr",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode",
+        return_value="recode-csr",
+    )
+    @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._api_post")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_encode",
+        return_value="encoded-cert",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.cert_pem2der",
+        return_value="der-cert",
+    )
     def test_020_enroll_success(
         self,
         mock_cert_pem2der,
@@ -380,27 +396,38 @@ class TestCAhandler(unittest.TestCase):
         self.assertFalse(mock_log.called)
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.enrollment_config_log", return_value=None
-    )
-    @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._config_check",
+        "acme2certifier.cahandlers.vault_ca_handler.enrollment_config_log",
         return_value=None,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._csr_check", return_value=None
-    )
-    @patch("examples.ca_handler.vault_ca_handler.csr_cn_lookup", return_value="test-cn")
-    @patch(
-        "examples.ca_handler.vault_ca_handler.build_pem_file", return_value="pem-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_check",
+        return_value=None,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.b64_url_recode", return_value="recode-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check",
+        return_value=None,
     )
-    @patch("examples.ca_handler.vault_ca_handler.CAhandler._api_post")
     @patch(
-        "examples.ca_handler.vault_ca_handler.b64_encode", return_value="encoded-cert"
+        "acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup",
+        return_value="test-cn",
     )
-    @patch("examples.ca_handler.vault_ca_handler.cert_pem2der", return_value="der-cert")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file",
+        return_value="pem-csr",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode",
+        return_value="recode-csr",
+    )
+    @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._api_post")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_encode",
+        return_value="encoded-cert",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.cert_pem2der",
+        return_value="der-cert",
+    )
     def test_021_enroll_success(
         self,
         mock_cert_pem2der,
@@ -434,24 +461,34 @@ class TestCAhandler(unittest.TestCase):
         self.assertTrue(mock_log.called)
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._config_check",
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_check",
         return_value=None,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._csr_check", return_value=None
-    )
-    @patch("examples.ca_handler.vault_ca_handler.csr_cn_lookup", return_value="test-cn")
-    @patch(
-        "examples.ca_handler.vault_ca_handler.build_pem_file", return_value="pem-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check",
+        return_value=None,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.b64_url_recode", return_value="recode-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup",
+        return_value="test-cn",
     )
-    @patch("examples.ca_handler.vault_ca_handler.CAhandler._api_post")
     @patch(
-        "examples.ca_handler.vault_ca_handler.b64_encode", return_value="encoded-cert"
+        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file",
+        return_value="pem-csr",
     )
-    @patch("examples.ca_handler.vault_ca_handler.cert_pem2der", return_value="der-cert")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode",
+        return_value="recode-csr",
+    )
+    @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._api_post")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_encode",
+        return_value="encoded-cert",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.cert_pem2der",
+        return_value="der-cert",
+    )
     def test_022_enroll_success(
         self,
         mock_cert_pem2der,
@@ -486,7 +523,7 @@ class TestCAhandler(unittest.TestCase):
         )
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._config_check",
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_check",
         return_value="config error",
     )
     def test_023_enroll_config_error(self, mock_config_check):
@@ -499,11 +536,11 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsNone(poll_identifier)
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._config_check",
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_check",
         return_value=None,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._csr_check",
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check",
         return_value="csr error",
     )
     def test_024_enroll_csr_error(self, mock_csr_check, mock_config_check):
@@ -516,20 +553,26 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsNone(poll_identifier)
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._config_check",
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_check",
         return_value=None,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.CAhandler._csr_check", return_value=None
-    )
-    @patch("examples.ca_handler.vault_ca_handler.csr_cn_lookup", return_value="test-cn")
-    @patch(
-        "examples.ca_handler.vault_ca_handler.build_pem_file", return_value="pem-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.CAhandler._csr_check",
+        return_value=None,
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.b64_url_recode", return_value="recode-csr"
+        "acme2certifier.cahandlers.vault_ca_handler.csr_cn_lookup",
+        return_value="test-cn",
     )
-    @patch("examples.ca_handler.vault_ca_handler.CAhandler._api_post")
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.build_pem_file",
+        return_value="pem-csr",
+    )
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.b64_url_recode",
+        return_value="recode-csr",
+    )
+    @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._api_post")
     def test_025_enroll_api_error(
         self,
         mock_api_post,
@@ -552,13 +595,13 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsNone(poll_identifier)
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.enrollment_config_log",
+        "acme2certifier.cahandlers.vault_ca_handler.enrollment_config_log",
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.eab_profile_revocation_check",
+        "acme2certifier.cahandlers.vault_ca_handler.eab_profile_revocation_check",
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.cert_serial_get",
+        "acme2certifier.cahandlers.vault_ca_handler.cert_serial_get",
         return_value="abcdef1234",
     )
     def test_026_revoke_success(self, mock_cert_serial_get, mock_eab, mock_log):
@@ -573,13 +616,13 @@ class TestCAhandler(unittest.TestCase):
         self.assertFalse(mock_log.called)
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.enrollment_config_log",
+        "acme2certifier.cahandlers.vault_ca_handler.enrollment_config_log",
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.eab_profile_revocation_check",
+        "acme2certifier.cahandlers.vault_ca_handler.eab_profile_revocation_check",
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.cert_serial_get",
+        "acme2certifier.cahandlers.vault_ca_handler.cert_serial_get",
         return_value="abcdef1234",
     )
     def test_027_revoke_success(self, mock_cert_serial_get, mock_eab, mock_log):
@@ -595,13 +638,13 @@ class TestCAhandler(unittest.TestCase):
         self.assertFalse(mock_log.called)
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.enrollment_config_log",
+        "acme2certifier.cahandlers.vault_ca_handler.enrollment_config_log",
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.eab_profile_revocation_check",
+        "acme2certifier.cahandlers.vault_ca_handler.eab_profile_revocation_check",
     )
     @patch(
-        "examples.ca_handler.vault_ca_handler.cert_serial_get",
+        "acme2certifier.cahandlers.vault_ca_handler.cert_serial_get",
         return_value="abcdef1234",
     )
     def test_028_revoke_success(self, mock_cert_serial_get, mock_eab, mock_log):
@@ -617,7 +660,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertTrue(mock_log.called)
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.cert_serial_get",
+        "acme2certifier.cahandlers.vault_ca_handler.cert_serial_get",
         return_value="abcdef1234",
     )
     def test_029_revoke_api_error(self, mock_cert_serial_get):
@@ -629,7 +672,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(detail, '["fail"]')
 
     @patch(
-        "examples.ca_handler.vault_ca_handler.cert_serial_get",
+        "acme2certifier.cahandlers.vault_ca_handler.cert_serial_get",
         return_value="abcdef1234",
     )
     def test_030_revoke_api_error(self, mock_cert_serial_get):
@@ -640,7 +683,9 @@ class TestCAhandler(unittest.TestCase):
         self.assertFalse(message)
         self.assertEqual('{"foo": ["fail"]}', detail)
 
-    @patch("examples.ca_handler.vault_ca_handler.cert_serial_get", return_value=None)
+    @patch(
+        "acme2certifier.cahandlers.vault_ca_handler.cert_serial_get", return_value=None
+    )
     def test_031_revoke_no_serial(self, mock_cert_serial_get):
         self.cahandler._api_post = MagicMock()
         code, message, detail = self.cahandler.revoke("dummy_cert")
@@ -649,16 +694,48 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsNone(message)
         self.assertEqual(detail, "Failed to parse certificate serial")
 
-    @patch("examples.ca_handler.vault_ca_handler.CAhandler._config_check")
+    @patch("acme2certifier.cahandlers.vault_ca_handler.CAhandler._config_check")
     def test_032_handler_check(self, mock_config_check):
         mock_config_check.return_value = "foo"
         self.assertEqual("foo", self.cahandler.handler_check())
 
-    @patch("examples.ca_handler.vault_ca_handler.eab_profile_header_info_check")
+    @patch("acme2certifier.cahandlers.vault_ca_handler.eab_profile_header_info_check")
     def test_033_csr_check(self, mock_hic):
         mock_hic.return_value = "mock_hlc"
         self.assertEqual("mock_hlc", self.cahandler._csr_check("dummy-csr"))
         self.assertTrue(mock_hic.called)
+
+    @patch("acme2certifier.cahandlers.vault_ca_handler.load_config")
+    def test_034_config_load_invalid_request_retries(self, mock_load_cfg):
+        """test _config_load with invalid request_retries"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_url": "api_url",
+            "request_retries": "invalid",
+        }
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "ERROR:test_a2c:Failed to parse request_retries parameter: invalid literal for int() with base 10: 'invalid'",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.vault_ca_handler.load_config")
+    def test_035_config_load_invalid_request_retry_backoff(self, mock_load_cfg):
+        """test _config_load with invalid request_retry_backoff"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_url": "api_url",
+            "request_retry_backoff": "invalid",
+        }
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "ERROR:test_a2c:Failed to parse request_retry_backoff parameter: could not convert string to float: 'invalid'",
+            lcm.output,
+        )
 
 
 if __name__ == "__main__":

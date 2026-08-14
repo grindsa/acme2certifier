@@ -21,6 +21,10 @@ inputs:
     description: "IPv6"
     required: true
     default: "false"
+  UBUNTU_IMAGE:
+    description: "systemd Ubuntu image for DEB install tests"
+    required: false
+    default: "grindsa/systemd-ubuntu:24.04"
 
 runs:
   using: "composite"
@@ -47,8 +51,9 @@ runs:
         sudo mkdir -p data/volume/acme2certifier
         sudo mkdir -p data/nginx
         sudo chmod -R 777 data
-        sudo cp examples/Docker/ubuntu-systemd/deb_tester.sh data
-        sudo cp examples/Docker/ubuntu-systemd/django_tester.sh data
+        sudo cp examples/install_scripts/a2c-deb.sh data/a2c-deb.sh
+        sudo chmod a+rx data/a2c-deb.sh
+        sudo touch data/.a2c_ci
         sudo cp .github/acme2certifier_cert.pem data/volume/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem data/volume/acme2certifier_key.pem
         sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
@@ -109,10 +114,38 @@ runs:
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Instanciate Ubuntu 24.04"
+    - name: "Pull Ubuntu image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: ${{ inputs.UBUNTU_IMAGE }}
+
+    - name: "Instanciate Ubuntu"
       run: |
-        # docker run -d --name acme-srv --network $NAME_SPACE -p 22280:80 --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
-        docker run -d --name acme-srv --network $NAME_SPACE -p 22280:80 --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
+        echo "Using image ${{ inputs.UBUNTU_IMAGE }}"
+        docker run -d --name acme-srv --network $NAME_SPACE -p 22280:80 --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier ${{ inputs.UBUNTU_IMAGE }}
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "CI host packages + openssl legacy (former deb_tester bits)"
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 30); do
+          if docker exec acme-srv systemctl is-system-running 2>/dev/null | grep -Eq 'running|degraded'; then
+            break
+          fi
+          sleep 2
+        done
+        docker exec acme-srv apt-get update
+        docker exec acme-srv apt-get install -y rsyslog krb5-user
+        docker exec acme-srv systemctl enable rsyslog || true
+        docker exec acme-srv systemctl start rsyslog || docker exec acme-srv systemctl start syslog || true
+        # Enable OpenSSL legacy provider (some CA handlers / tests need it)
+        docker exec acme-srv bash -c '
+          set -e
+          if ! grep -q "legacy = legacy_sect" /etc/ssl/openssl.cnf; then
+            sed -i "s/default = default_sect/default = default_sect\nlegacy = legacy_sect\n\n[legacy_sect]\nactivate = 1/g" /etc/ssl/openssl.cnf
+          fi
+          sed -i "s/# activate = 1/activate = 1/g" /etc/ssl/openssl.cnf
+        '
+      shell: bash

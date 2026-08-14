@@ -1,5 +1,5 @@
-name: "acme_email_enroll"
-description: "acme_email_enroll"
+name: "enroll"
+description: "Hook enrollment tests"
 inputs:
   NAME_SPACE:
     description: "namespace"
@@ -25,28 +25,13 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 5s
-
-  - name: "Test if http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
-    shell: bash
-    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
       HTTP_PORT: ${{ inputs.HTTP_PORT }}
       HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-  - name: "Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
-    shell: bash
-    env:
-      ACME_SERVER: ${{ inputs.ACME_SERVER }}
-      HTTP_PORT: ${{ inputs.HTTP_PORT }}
-      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "Successful Enrollment triggering email success hook"
     run: |
@@ -54,22 +39,24 @@ runs:
     shell: bash
 
   - name: "Sleep for 15s to allow email to be sent"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 15s
 
-  - name: "Check logs for success hook"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Email notification sent successfully to"
-        docker compose logs | grep "\[ACME\] acme2certifier success"
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "acme2certifier success"
-      fi
-    shell: bash
-    env:
+  - name: "Check logs for email sent"
+    if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "Email notification sent successfully to"
+      FLUSH: "false"
+
+  - name: "Check logs for success hook"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "acme2certifier success"
+      FLUSH: "false"
 
   - name: "Failed Enrollment triggering email post_hook hook"
     continue-on-error: true
@@ -87,18 +74,13 @@ runs:
     shell: bash
 
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 5s
 
   - name: "Check logs for post_hook (failed)"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "urn:ietf:params:acme:error:rejectedIdentifier"
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "urn:ietf:params:acme:error:rejectedIdentifier"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "urn:ietf:params:acme:error:rejectedIdentifier"
+      FLUSH: "false"

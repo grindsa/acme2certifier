@@ -30,32 +30,18 @@ runs:
   using: "composite"
   steps:
 
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.4
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
       with:
-        time: 5s
-
-    - name: "Test if http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
-      shell: bash
-      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-        NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
-      shell: bash
-      env:
-        ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
-        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-        NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Enroll certificate without error forwarding - to fail"
       continue-on-error: true
       run: |
+        sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER --accountemail 'acme-sh@example.com' -d acme-sh.$NAME_SPACE --alpn --standalone --debug 1 --output-insecure --insecure
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
@@ -64,31 +50,39 @@ runs:
       shell: bash
 
     - name: "Check a2c logs"
-      working-directory: examples/Docker/
       if: ${{ inputs.CA_ERROR_FORWARDING == 'false'}}
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "enrollment failed"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "enrollment failed"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "enrollment failed"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (enrollment failed)"
+      if: ${{ inputs.CA_ERROR_FORWARDING == 'false'}}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=500 type=urn:ietf:params:acme:error:serverInternal detail=enrollment failed"
 
     - name: "Check a2c logs"
-      working-directory: examples/Docker/
       if: ${{ inputs.CA_ERROR_FORWARDING == 'true'}}
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "ca lookup failed"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "ca lookup failed"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ca lookup failed"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (ca lookup failed)"
+      if: ${{ inputs.CA_ERROR_FORWARDING == 'true'}}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=500 type=urn:ietf:params:acme:error:serverInternal detail=ca lookup failed"

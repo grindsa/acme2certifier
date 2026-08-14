@@ -1,0 +1,62 @@
+name: "secure_cleanup"
+description: "Best-effort cleanup of sensitive files, containers and networks"
+inputs:
+  TARGET_DIRS:
+    description: "Comma-separated workspace directories to clean recursively"
+    required: false
+    default: "acme-sh,certbot,lego,data,examples/Docker/data,artifact,/tmp/openxpki,mailserver"
+  EXTRA_FILES:
+    description: "Comma-separated file globs to remove under workspace"
+    required: false
+    default: "*.key,*.pem,*.p12,*.pfx,*.keytab,id_rsa,id_rsa.pub"
+  NETWORK_PREFIX:
+    description: "Optional docker network prefix to remove (exact and prefix-*)"
+    required: false
+    default: "acme"
+  CONTAINER_NAMES:
+    description: "Comma-separated explicit containers to remove"
+    required: false
+    default: "acme-srv,acme-sh,certbot,lego,mailserver,proxy,syslog-sink"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Run secure cleanup"
+      shell: bash
+      env:
+        TARGET_DIRS: ${{ inputs.TARGET_DIRS }}
+        EXTRA_FILES: ${{ inputs.EXTRA_FILES }}
+        NETWORK_PREFIX: ${{ inputs.NETWORK_PREFIX }}
+        CONTAINER_NAMES: ${{ inputs.CONTAINER_NAMES }}
+      run: |
+        set +e
+        ws="${GITHUB_WORKSPACE}"
+
+        IFS=',' read -ra dirs <<< "${TARGET_DIRS}"
+        for d in "${dirs[@]}"; do
+          d="$(echo "${d}" | xargs)"
+          [[ -z "${d}" ]] && continue
+          sudo rm -rf "${ws}/${d}" >/dev/null 2>&1 || true
+        done
+
+        IFS=',' read -ra globs <<< "${EXTRA_FILES}"
+        for g in "${globs[@]}"; do
+          g="$(echo "${g}" | xargs)"
+          [[ -z "${g}" ]] && continue
+          find "${ws}" -type f -name "${g}" -print0 2>/dev/null | xargs -0 sudo rm -f >/dev/null 2>&1 || true
+        done
+
+        IFS=',' read -ra names <<< "${CONTAINER_NAMES}"
+        for name in "${names[@]}"; do
+          name="$(echo "${name}" | xargs)"
+          [[ -z "${name}" ]] && continue
+          docker rm -f "${name}" >/dev/null 2>&1 || true
+        done
+
+        if [[ -n "${NETWORK_PREFIX}" ]]; then
+          docker network rm "${NETWORK_PREFIX}" >/dev/null 2>&1 || true
+          docker network ls --format '{{.Name}}' | awk "/^${NETWORK_PREFIX}-/" | xargs -r docker network rm >/dev/null 2>&1 || true
+        fi
+
+        docker container prune -f >/dev/null 2>&1 || true
+        echo "secure cleanup finished"

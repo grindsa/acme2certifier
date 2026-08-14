@@ -23,30 +23,31 @@ on:
         required: false
         default: ''
 
-jobs:
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
 
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
+permissions: {}
+
+jobs:
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images (matrix from payload)
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -58,21 +59,14 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
           NAME_SPACE: acme
 
       - name: "Parse XCA configuration from JSON secret"
@@ -91,22 +85,25 @@ jobs:
           MAILSERVER_CERT: ${{ secrets.MAILSERVER_CERT }}
 
       - name: "Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" examples/Docker/data/acme_srv.cfg
@@ -118,7 +115,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       #- name: "Test enrollment"
-      #  uses: ./.github/actions/acme_clients
+      #  uses: ./.github/actions/acme_clients_enroll
       #  with:
       #    TEST_ADL: "true"
 
@@ -139,30 +136,20 @@ jobs:
       #  with:
       #    TO_FAIL: "false"
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/emailreply.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB profile - setup handler with EAB support"
         run: |
           sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" examples/Docker/data/kid_profiles.json
-          # sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_emaillist\": [\"key_id01_1\@mailserver.acme\", \"key_id01_2\@mailserver.acme\", \"key_id01_2\@mailserver.acme\"]#g" examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#\"prevalidated_emaillist\": [\"key_id00_1\@mailserver.acme\", \"key_id00_2\@mailserver.acme\", \"key_id00_2\@mailserver.acme\"],#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"allowed_domainlist": *\["www.example.com", "www.example.org"\]#\"prevalidated_emaillist\": [\"key_id02_1\@mailserver.acme\", \"key_id02_2\@mailserver.acme\", \"key_id02_3\@mailserver.acme\"]\n    }#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i '30,35d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '17,18d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '15,15d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -170,204 +157,47 @@ jobs:
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/enroll_eabprofile
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           sudo cp -rp mailserver/ ${{ github.workspace }}/artifact/mailserver/
           sudo mkdir -p ${{ github.workspace }}/artifact/acme_email
           sudo cp acme_email/lets* ${{ github.workspace }}/artifact/acme_email/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
           docker logs mailserver 2>&1 > ${{ github.workspace }}/artifact/mailserver.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log mailserver.log data acme_email mailserver
 
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
-  # ---------------------------------------------------------
-  # Test RPMs (EL8 & EL9) downloaded from the producer run
-  # ---------------------------------------------------------
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Parse EMAIL configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
           RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Install mailserver"
-        uses: ./.github/actions/mailserver_install
-        with:
-          MAILSERVER_CERT: ${{ secrets.MAILSERVER_CERT }}
-
-      - name: "Setup acme_srv.cfg with xca_ca_handler"
-        run: |
-          mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
-
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
-
-      - name: "Execute install scipt"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
-          docker ps -a
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
-
-      #- name: "Test enrollment"
-      #  uses: ./.github/actions/acme_clients
-      #  with:
-      #    TEST_ADL: "true"
-
-      - name: "Install and enroll via acme-email"
-        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
-        with:
-          INSTALL: "true"
-          TO_FAIL: "true"
-
-      - name: "Disable challenge validation"
-        run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
-
-      - name: "Enroll via acme-email"
-        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
-        with:
-          TO_FAIL: "false"
-
-      - name: "EAB profile - setup handler with EAB support"
-        run: |
-          sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
-          # sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_emaillist\": [\"key_id01_1\@mailserver.acme\", \"key_id01_2\@mailserver.acme\", \"key_id01_2\@mailserver.acme\"]#g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#\"prevalidated_emaillist\": [\"key_id00_1\@mailserver.acme\", \"key_id00_2\@mailserver.acme\", \"key_id00_2\@mailserver.acme\"],#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"allowed_domainlist": *\["www.example.com", "www.example.org"\]#\"prevalidated_emaillist\": [\"key_id02_1\@mailserver.acme\", \"key_id02_2\@mailserver.acme\", \"key_id02_3\@mailserver.acme\"]\n    }#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
-
-      - name: "Reconfigure a2c"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
-
-      - name: "EAB Profiling - Test enrollment"
-        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/enroll_eabprofile
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          sudo cp -rp mailserver/ ${{ github.workspace }}/artifact/mailserver/
-          sudo mkdir -p ${{ github.workspace }}/artifact/acme_email
-          # sudo cp acme_email/lets* ${{ github.workspace }}/artifact/acme_email/
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log data acme_email mailserver
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-
-  # ---------------------------------------------------------
-  # Test DEB downloaded from the producer run
-  # ---------------------------------------------------------
-  test-deb:
-    needs: guard
-    runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
-    strategy:
-      fail-fast: false
-      matrix:
-        websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
-
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+          JSON_SECRET: ${{ secrets.GH_CFG }}
 
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -379,61 +209,175 @@ jobs:
         with:
           json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
 
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: psql
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
       - name: "Install mailserver"
         uses: ./.github/actions/mailserver_install
         with:
           MAILSERVER_CERT: ${{ secrets.MAILSERVER_CERT }}
 
       - name: "Setup acme_srv.cfg with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+          docker ps -a
         env:
-          WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       #- name: "Test enrollment"
-      #  uses: ./.github/actions/acme_clients
+      #  uses: ./.github/actions/acme_clients_enroll
+      #  with:
+      #    TEST_ADL: "true"
+
+      - name: "Install and enroll via acme-email"
+        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
+        with:
+          INSTALL: "true"
+          TO_FAIL: "true"
+
+      - name: "Disable challenge validation"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Enroll via acme-email"
+        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
+        with:
+          TO_FAIL: "false"
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/emailreply.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB profile - setup handler with EAB support"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB Profiling - Test enrollment"
+        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/enroll_eabprofile
+
+      - name: "[ * ] Collecting extra failure logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
+          sudo cp -rp mailserver/ ${{ github.workspace }}/artifact/mailserver/
+          sudo mkdir -p ${{ github.workspace }}/artifact/acme_email
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+
+  test-deb:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        mode: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
+      - name: "Install mailserver"
+        uses: ./.github/actions/mailserver_install
+        with:
+          MAILSERVER_CERT: ${{ secrets.MAILSERVER_CERT }}
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler (post-cfg)"
+        run: |
+          mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      #- name: "Test enrollment"
+      #  uses: ./.github/actions/acme_clients_enroll
       #  with:
       #    TEST_ADL: "true"
 
@@ -449,69 +393,45 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll via acme-email"
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
         with:
           TO_FAIL: "false"
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/emailreply.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB profile - setup handler with EAB support"
         run: |
           sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
-          # sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_emaillist\": [\"key_id01_1\@mailserver.acme\", \"key_id01_2\@mailserver.acme\", \"key_id01_2\@mailserver.acme\"]#g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#\"prevalidated_emaillist\": [\"key_id00_1\@mailserver.acme\", \"key_id00_2\@mailserver.acme\", \"key_id00_2\@mailserver.acme\"],#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"allowed_domainlist": *\["www.example.com", "www.example.org"\]#\"prevalidated_emaillist\": [\"key_id02_1\@mailserver.acme\", \"key_id02_2\@mailserver.acme\", \"key_id02_3\@mailserver.acme\"]\n    }#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/enroll_eabprofile
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}
+

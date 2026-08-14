@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title ACME CA handler -->
+<!-- wiki-title: ACME CA Handler -->
+<!-- wiki-category: CA Handlers -->
 
 # ACME CA Handler
 
@@ -19,11 +20,13 @@ Your `acme2certifier` server must be able to reach the CA and needs to have acce
 I’ve decided to implement a script-based mechanism for DNS challenge provisioning, providing flexibility in how DNS challenges are handled. This implementation will be compatible with [acme.sh dns plugins](https://github.com/acmesh-official/acme.sh/wiki/dnsapi) allowing a reuse of the acme-dns plugin library.
 Therefore, you’ll need to download acme.sh (it won’t be executed directly) as well as the DNS API plugin for your DNS provider.
 
+**Security note:** DNS challenge provisioning runs the configured scripts via a shell (`source` is required for acme.sh plugins). Dynamic values are escaped with `shlex.quote()`, and script paths must exist at startup. Treat `acme_sh_script`, `dns_update_script`, `acme_sh_shell`, and `dns_update_script_variables` as trusted operator configuration: write access to `acme_srv.cfg` or those script files is equivalent to code execution as the service user.
+
 The configuration will be managed through the acme_srv.cfg file. The below example configuration refers to the [CloudFlare DNS plugin](https://github.com/acmesh-official/acme.sh/wiki/dnsapi#dns_cf)
 
 ```cfg
 [CAhandler]
-handler_file: /opt/acme2certifier/examples/ca_handler/acme_ca_handler.py
+handler_module: acme2certifier.cahandlers.acme_ca_handler
 acme_sh_script: /opt/acme2certifier/volume/acme.sh
 acme_sh_shell: /bin/bash
 # setting the dns_update_script parameter will force a2c to use dns-challenges for validation only
@@ -67,7 +70,8 @@ The handler must be configured via `acme_srv`.
 
 | Option                          | Description                                                                                                                                                    | Mandatory | Default      |
 | :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------: | :----------- |
-| handler_file                    | Path to CA handler file                                                                                                                                        |    Yes    | None         |
+| handler_module                  | Dotted module path of the CA handler (preferred), e.g. `acme2certifier.cahandlers.acme_ca_handler`                                                          |    Yes    | None         |
+| handler_file                    | **Deprecated.** Path to CA handler file. Prefer `handler_module`.                                                                                          |    No     | None         |
 | account_path                    | Path to account resource on CA server                                                                                                                          |    No     | `/acme/acct` |
 | acme_url                        | URL of the ACME endpoint                                                                                                                                       |    Yes    | None         |
 | acme_account                    | ACME account name. If not specified, `acme2certifier` will try to look up the account name based on the key file                                               |    No     | None         |
@@ -93,7 +97,7 @@ Modify the server configuration (`acme_srv/acme_srv.cfg`) and add at least the f
 ```cfg
 [CAhandler]
 # CA specific options
-handler_file: examples/ca_handler/acme_ca_handler.py
+handler_module: acme2certifier.cahandlers.acme_ca_handler
 acme_url: https://some.acme/endpoint
 acme_keyfile: /path/to/privkey.json
 ```
@@ -167,13 +171,13 @@ Example for `lego`:
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent acme_url=<acme-server url> -d <fqdn> --http
 ```
 
-# EAB Profiling
+## EAB Profiling
 
 To enable EAB profiling:
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 acme_key_path: <path>
 eab_profiling: True
 

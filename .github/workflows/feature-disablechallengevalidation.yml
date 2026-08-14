@@ -1,0 +1,700 @@
+name: Feature Tests - Disable challengevalidation
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  guard:
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  # ---------------------------------------------------------
+  # Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Setup a2c with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup a2c with xca_ca_handler (post-cfg)"
+        run: |
+          sudo mkdir -p examples/Docker/data/xca
+          sudo chmod -R 777 examples/Docker/data/xca
+          sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Install dehydrated"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/dehydrated_install
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Disable challenge validation"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+
+      - name: "Enable forward address check"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nforward_address_check: True/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Check logs for forward check errors (ip-match)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Forward check failed for www.dynamop.de"
+          FLUSH: "false"
+
+      - name: "Check logs for forward check errors (source address)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs"
+          FLUSH: "false"
+
+      - name: "Check logs for forward check errors (dns resolution)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
+          FLUSH: "false"
+
+      - name: "Enable reverse address check"
+        run: |
+          sudo sed -i "s/forward_address_check: True/reverse_address_check: True/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Check logs for reverse check errors (failed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Reverse address check failed"
+          FLUSH: "false"
+
+      - name: "Check logs for reverse check errors (passed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Reverse check passed for lego.acme"
+          FLUSH: "true"
+
+      - name: "EAB - Setup a2c with xca_ca_handler - profiling"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/disablechallenge_xca.json
+          DEST: examples/Docker/data/kid_profiles.json
+      - name: "EAB - Setup a2c with xca_ca_handler - profiling (post-cfg)"
+        run: |
+          sudo mkdir -p examples/Docker/data/xca
+          sudo chmod -R 777 examples/Docker/data/xca
+          sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB - forward address check enabled"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "true"
+          EAB_KID: "keyid_00"
+          EAB_HMAC_KEY: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
+
+      - name: "Check logs for forward check errors"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
+          FLUSH: "true"
+
+      - name: "EAB - reverse address check enabled"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "true"
+          EAB_KID: "keyid_01"
+          EAB_HMAC_KEY: "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
+
+      - name: "Check logs for reverse check errors (failed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Reverse address check failed"
+          FLUSH: "false"
+
+      - name: "Check logs for reverse check errors (passed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Reverse check passed for lego.acme"
+          FLUSH: "true"
+
+      - name: "EAB - Chellenge validation disabled"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "false"
+          EAB_KID: "keyid_02"
+          EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
+      - name: "Check logs for challenge validation disabled message"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Source address checks are disabled. Setting challenge status to valid."
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+
+  # ---------------------------------------------------------
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
+  # ---------------------------------------------------------
+
+
+  test-rpm:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
+        mode: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler (post-cfg)"
+        run: |
+          mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Install dehydrated"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/dehydrated_install
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Disable challenge validation"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+
+      - name: "Enable forward address check"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nforward_address_check: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Sleep for 15s"
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
+        with:
+          time: 15s
+
+      - name: "Check logs for forward check errors (ip-match)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Forward check failed for www.dynamop.de"
+          FLUSH: "false"
+
+      - name: "Check logs for forward check errors (source address)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs"
+          FLUSH: "false"
+
+      - name: "Check logs for forward check errors (dns resolution)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
+          FLUSH: "false"
+
+      - name: "Enable reverse address check"
+        run: |
+          sudo sed -i "s/forward_address_check: True/reverse_address_check: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Sleep for 15s"
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
+        with:
+          time: 15s
+
+      - name: "Check logs for reverse check errors (failed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Reverse address check failed"
+          FLUSH: "false"
+
+      - name: "Check logs for reverse check errors (passed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Reverse check passed for lego.acme"
+          FLUSH: "true"
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /opt/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/disablechallenge_xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "Setup acme_srv.cfg with xca_ca_handler (post-cfg)"
+        run: |
+          mkdir -p data/volume/acme_ca
+          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB - forward address check enabled"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "true"
+          EAB_KID: "keyid_00"
+          EAB_HMAC_KEY: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
+
+      - name: "Check logs for forward check errors"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
+          FLUSH: "true"
+
+      - name: "EAB - reverse address check enabled"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "true"
+          EAB_KID: "keyid_01"
+          EAB_HMAC_KEY: "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
+
+      - name: "Check logs for reverse check errors (failed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Reverse address check failed"
+          FLUSH: "false"
+
+      - name: "Check logs for reverse check errors (passed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Reverse check passed for lego.acme"
+          FLUSH: "true"
+
+      - name: "EAB - Chellenge validation disabled"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "false"
+          EAB_KID: "keyid_02"
+          EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
+      - name: "Check logs for challenge validation disabled message"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Source address checks are disabled. Setting challenge status to valid."
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+
+  # ---------------------------------------------------------
+  # Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+
+
+  test-deb:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        mode: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler (post-cfg)"
+        run: |
+          mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Install dehydrated"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/dehydrated_install
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Disable challenge validation"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+
+      - name: "Enable forward address check"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nforward_address_check: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Sleep for 15s"
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
+        with:
+          time: 15s
+
+      - name: "Enable reverse address check"
+        run: |
+          sudo sed -i "s/forward_address_check: True/reverse_address_check: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Sleep for 15s"
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
+        with:
+          time: 15s
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/disablechallenge_xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "Setup acme_srv.cfg with xca_ca_handler (post-cfg)"
+        run: |
+          mkdir -p data/volume/acme_ca
+          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB - forward address check enabled"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "true"
+          EAB_KID: "keyid_00"
+          EAB_HMAC_KEY: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
+
+      - name: "EAB - reverse address check enabled"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "true"
+          EAB_KID: "keyid_01"
+          EAB_HMAC_KEY: "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
+
+      - name: "EAB - Chellenge validation disabled"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "false"
+          EAB_KID: "keyid_02"
+          EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}

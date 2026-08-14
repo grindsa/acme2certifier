@@ -1,39 +1,56 @@
 Source: acme2certifier
-Section: Network
+Section: net
 Priority: optional
 Maintainer: GrindSa <grindelsack@gmail.com>
-Build-Depends: debhelper-compat (= 13)
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-python,
+ dh-sequence-python3,
+ pybuild-plugin-pyproject,
+ python3-all,
+ python3-setuptools,
+ python3-build,
 Standards-Version: 4.6.0
 Homepage: https://github.com/grindsa/acme2certifier
-#Vcs-Browser: https://salsa.debian.org/debian/acme2certifier
-#Vcs-Git: https://salsa.debian.org/debian/acme2certifier.git
 Rules-Requires-Root: no
 
 Package: acme2certifier
 Architecture: all
-Depends: ${misc:Depends}, tzdata, python3-setuptools, python3-jwcrypto, python3-cryptography, python3-openssl, python3-dnspython, python3-configargparse, python3-dateutil, python3-requests, python3-requests-ntlm, python3-socks, python3-josepy, python3-acme, python3-xmltodict, python3-pyasn1, python3-pyasn1-modules, python3-django, python3-mysqldb, python3-pymysql, python3-psycopg2, python3-yaml
+Depends:
+ ${misc:Depends},
+ ${python3:Depends},
+ tzdata,
+ python3,
+ python3-setuptools,
+ python3-jwcrypto,
+ python3-cryptography,
+ python3-openssl,
+ python3-dnspython,
+ python3-tz,
+ python3-dateutil,
+ python3-requests,
+ python3-requests-ntlm,
+ python3-socks,
+ python3-josepy,
+ python3-acme,
+ python3-xmltodict,
+ python3-pyasn1,
+ python3-pyasn1-modules,
+ python3-yaml,
+ python3-idna,
+ python3-werkzeug,
+ python3-django,
+ python3-mysqldb,
+ python3-pymysql,
+ python3-psycopg2,
 Recommends: python3-requests-gssapi, krb5-user
-Description: Library implementing ACME server functionality
- acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet.
- As of today the following handlers are available:
- - DigiCert® CertCentral
- - Dogtag Certificate System
- - Entrust ECS Enterprise
- - Keyfactor EJBCA
- - Generic ACME protocol handler supporting Letsencrypt, ZeroSSL and others
- - Generic EST protocol handler
- - Generic CMPv2 protocol handler
- - FreeIPA
- - Hashicorp Vault
- - Insta ActiveCMS
- - Insta Certifier
- - Microsoft Certificate Enrollment Web Services
- - Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)
- - NetGuard Certificate Manager
- - NetGuard Certificate Lifecycle Manager
- - Microsoft Certificate Enrollment Web Services
- - Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM
- - OpenSSL
- - OpenXPKI
- - XCA
- After installation remember to install either NGINX or apache2!
+Suggests: apache2 | nginx, libapache2-mod-wsgi-py3 | uwsgi-plugin-python3
+Description: ACME protocol proxy / server
+ acme2certifier is an ACME protocol proxy. Main intention is to provide ACME
+ services on CA servers which do not support this protocol yet.
+ .
+ After installation install either Apache2 or Nginx (and a WSGI stack) and
+ follow the examples under /var/www/acme2certifier/share/.
+ .
+ Optional CA handlers (EST, EJBCA, Vault) need requests-pkcs12; there is no
+ Debian package — install via pip (a2c-deb.sh does this unless --skip-pkcs12).

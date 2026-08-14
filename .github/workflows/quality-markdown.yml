@@ -23,45 +23,57 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   markdown-link-check:
-    # runs-on: ubuntu-latest
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: guard
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     steps:
-    - uses: actions/checkout@master
-    - uses: umbrelladocs/action-linkspector@v1
-    - name: Lint changelog file root
-      uses: avto-dev/markdown-lint@v1
+
+    - uses: actions/checkout@v6
+
+    - name: Check markdown links
+      uses: umbrelladocs/action-linkspector@568ec8d29fa92b31fd9ea5381e155c51e922af83 # v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        config_file: .linkspector.yml
+        reporter: github-check
+        filter_mode: nofilter
+        fail_level: any
+        show_stats: 'true'
+
+    - name: Lint markdown root
+      uses: avto-dev/markdown-lint@04d43ee9191307b50935a753da3b775ab695eceb # v1
       with:
         args: '*.md'
-    - name: Lint changelog file root
-      uses: avto-dev/markdown-lint@v1
-      with:
-        args: '*.md'
-    - name: Lint changelog file docs
-      uses: avto-dev/markdown-lint@v1
+
+    - name: Lint markdown docs
+      uses: avto-dev/markdown-lint@04d43ee9191307b50935a753da3b775ab695eceb # v1
       with:
         args: './docs/*.md'
-    - name: Lint changelog file docker
-      uses: avto-dev/markdown-lint@v1
+
+    - name: Lint markdown docker
+      uses: avto-dev/markdown-lint@04d43ee9191307b50935a753da3b775ab695eceb # v1
       with:
         args: './examples/Docker/*.md'

@@ -1,5 +1,5 @@
-name: "enroll_default_headerinfo"
-description: "enroll_default_headerinfo"
+name: "enroll_eab"
+description: "MSCA EAB enrollment test"
 inputs:
   NAME_SPACE:
     description: "namespace"
@@ -9,21 +9,9 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 10s
-
-  - name: "EAB with headerinfo - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory
-    shell: bash
-    env:
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-  - name: "EAB with headerinfo - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
-    env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "EAB with headerinfo - 01a - enrollment without header-info field (first value in list)"

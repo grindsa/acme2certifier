@@ -31,10 +31,10 @@ runs:
         set -euo pipefail
 
         APP_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
-        TAG_N=$(grep -i '__version__' acme_srv/version.py | head -n 1 | sed 's/__version__ = //g' | sed 's/"//g' | tr -d "[:space:]")
+        TAG_N=$(grep -i '__version__' acme2certifier/acme_srv/version.py | head -n 1 | sed 's/__version__ = //g' | sed 's/"//g' | tr -d "[:space:]")
 
         if [[ -z "${TAG_N}" ]]; then
-          echo "Could not read __version__ from acme_srv/version.py" >&2
+          echo "Could not read __version__ from acme2certifier/acme_srv/version.py" >&2
           exit 1
         fi
 

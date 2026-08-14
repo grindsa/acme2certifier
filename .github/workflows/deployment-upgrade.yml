@@ -23,91 +23,297 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
-
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
-  # Test container images downloaded from the producer run
+  # Resolve one-hop matrix: latest / N-1 / N-2 / pre045 → build
   # ---------------------------------------------------------
-  test-containers:
+  resolve-versions:
+    permissions:
+      contents: read
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier'
-    strategy:
-      fail-fast: false
-      matrix:
-        websrv: ['apache2', 'nginx']
-        dbhandler: ['wsgi', 'django']
-        django_db: ['mariadb', 'psql', 'sqlite3']
+    outputs:
+      app_version: ${{ steps.resolve.outputs.app_version }}
+      n_tag: ${{ steps.resolve.outputs.n_tag }}
+      hops_docker: ${{ steps.resolve.outputs.hops_docker }}
+      hops_rpm: ${{ steps.resolve.outputs.hops_rpm }}
+      hops_deb: ${{ steps.resolve.outputs.hops_deb }}
+      has_docker_hops: ${{ steps.resolve.outputs.has_docker_hops }}
+      has_rpm_hops: ${{ steps.resolve.outputs.has_rpm_hops }}
+      has_deb_hops: ${{ steps.resolve.outputs.has_deb_hops }}
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Get current version"
-        uses: oprypin/find-latest-tag@v1
-        with:
-          repository: ${{ github.repository }}  # The repository to scan.
-          releases-only: true  # We know that all relevant tags have a GitHub release for them.
-        id: acme2certifier_ver  # The step ID to refer to later.
-
-      - name: "Retrieve version from version.py"
-        run: |
-          echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-          echo BUILD_NAME=${{ matrix.websrv }}-${{ matrix.dbhandler }} >> $GITHUB_ENV
-
-      - name: "Retrieve 2nd last release tag"
+      - name: "Resolve one-hop upgrade matrix"
+        id: resolve
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          VERSION=$(echo "${TAG_NAME}" | awk -F. '{print $2}')
-          PRE_VERSION=$((VERSION - 1))
-          echo "Expected previous minor version: ${PRE_VERSION}"
+          is_modern() {
+            python3 - "$1" <<'PY'
+          import re, sys
+          m = re.match(r"(\d+)\.(\d+)", sys.argv[1])
+          if not m:
+              sys.exit(1)
+          sys.exit(0 if (int(m.group(1)), int(m.group(2))) > (0, 44) else 1)
+          PY
+          }
 
-          RESP=$(curl -fsSL \
+          # Prefer GitHub Releases API (token already set). Avoid curl HEAD on
+          # release-asset URLs (302→CDN) and jq test("\\.rpm$") (\r / invalid escapes).
+          release_asset_names() {
+            local tag="$1"
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" \
+              --jq '.assets[].name' 2>/dev/null || true
+          }
+
+          tag_has_docker() {
+            local tag="$1"
+            local code websrv
+            for websrv in nginx apache2; do
+              code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-wsgi" \
+                || echo 000)
+              if [[ "${code}" == "200" ]]; then
+                return 0
+              fi
+              code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-django" \
+                || echo 000)
+              if [[ "${code}" == "200" ]]; then
+                return 0
+              fi
+              # Hub miss: still OK if Dockerfiles exist on the tag (ensure_container_image builds).
+              code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/wsgi/Dockerfile" \
+                || echo 000)
+              if [[ "${code}" == "200" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          docker_tag_exists() {
+            local tag="$1"
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" \
+              --jq '.assets[].name' 2>/dev/null || true
+          }
+
+          tag_has_docker() {
+            local tag="$1"
+            local code websrv
+            for websrv in nginx apache2; do
+              code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-wsgi" \
+                || echo 000)
+              if [[ "${code}" == "200" ]]; then
+                return 0
+              fi
+              code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-django" \
+                || echo 000)
+              if [[ "${code}" == "200" ]]; then
+                return 0
+              fi
+              # Hub miss: still OK if Dockerfiles exist on the tag (ensure_container_image builds).
+              code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/wsgi/Dockerfile" \
+                || echo 000)
+              if [[ "${code}" == "200" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          tag_has_rpm() {
+            local tag="$1"
+            release_asset_names "${tag}" | grep -Eq '\.noarch\.rpm$'
+          }
+
+          tag_has_deb() {
+            local tag="$1"
+            release_asset_names "${tag}" | grep -Eq '\.deb$'
+          }
+
+          APP_VERSION=$(grep -i __version__ acme2certifier/acme_srv/version.py | head -n1 \
+            | sed 's/__version__ = //g' | sed 's/"//g' | tr -d "[:space:]")
+
+          N_TAG=$(curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" \
+            | jq -r '.tag_name')
+
+          TAGS_JSON=$(curl -fsSL \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/tags")
+          echo "${TAGS_JSON}" | jq -e 'type=="array"' >/dev/null
 
-          echo "$RESP" | jq -e 'type=="array"' >/dev/null || {
-            echo "Unexpected GitHub API response while listing tags:" >&2
-            echo "$RESP" | jq . >&2
-            exit 1
+          # Latest tag matching minor series MM (e.g. 43 → 0.43.x)
+          latest_in_minor() {
+            local minor="$1"
+            echo "${TAGS_JSON}" | jq -r '.[].name' \
+              | grep -E "^0\.${minor}(\.|$)" | head -n1 || true
           }
 
-          OLD_TAG_NAME=$(echo "$RESP" | jq -r '.[].name' | grep -E "(^|[^0-9])${PRE_VERSION}(\.|$)" | head -n 1 || true)
-          if [[ -z "$OLD_TAG_NAME" ]]; then
-            echo "Could not determine OLD_TAG_NAME for previous minor version ${PRE_VERSION}" >&2
-            exit 1
+          N_MINOR=$(echo "${N_TAG}" | awk -F. '{print $2}')
+          N1_TAG=$(latest_in_minor "$((N_MINOR - 1))")
+          N2_TAG=$(latest_in_minor "$((N_MINOR - 2))")
+
+          # Highest tag with version ≤ 0.44
+          PRE045_TAG=$(echo "${TAGS_JSON}" | jq -r '.[].name' | python3 -c '
+          import re, sys
+          best = None
+          best_t = None
+          for line in sys.stdin:
+              tag = line.strip()
+              m = re.match(r"(\d+)\.(\d+)(?:\.(\d+))?", tag)
+              if not m:
+                  continue
+              t = (int(m.group(1)), int(m.group(2)), int(m.group(3) or 0))
+              if t > (0, 44, 999999):
+                  continue
+              if best_t is None or t > best_t:
+                  best_t = t
+                  best = tag
+          print(best or "")
+          ')
+
+          BUILD_MODERN=false
+          is_modern "${APP_VERSION}" && BUILD_MODERN=true || true
+
+          # candidates: id|tag|require_modern_from
+          # latest: skip when N ≤ 0.44 (covered by pre045)
+          # n1/n2: only if tag > 0.44
+          # pre045: always when tag exists
+          CANDIDATES=()
+          if [[ -n "${N_TAG}" ]] && is_modern "${N_TAG}"; then
+            CANDIDATES+=("latest|${N_TAG}|true")
+          fi
+          if [[ -n "${N1_TAG}" ]] && is_modern "${N1_TAG}"; then
+            CANDIDATES+=("n1|${N1_TAG}|true")
+          fi
+          if [[ -n "${N2_TAG}" ]] && is_modern "${N2_TAG}"; then
+            CANDIDATES+=("n2|${N2_TAG}|true")
+          fi
+          if [[ -n "${PRE045_TAG}" ]]; then
+            CANDIDATES+=("pre045|${PRE045_TAG}|false")
           fi
 
-          echo "OLD_TAG_NAME=$OLD_TAG_NAME" >> "$GITHUB_ENV"
-          echo "Selected OLD_TAG_NAME=$OLD_TAG_NAME"
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ env.TAG_NAME }}
+          HOPS_DOCKER='[]'
+          HOPS_RPM='[]'
+          HOPS_DEB='[]'
 
-      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
-      - run: echo "APP tag is ${{ env.APP_NAME }}"
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-      - run: echo "Old tag is ${{ env.OLD_TAG_NAME }}"
+          for cand in "${CANDIDATES[@]}"; do
+            IFS='|' read -r HID HTAG HREQ <<< "${cand}"
+            FROM_MODERN=false
+            is_modern "${HTAG}" && FROM_MODERN=true || true
+            if [[ "${HREQ}" == "true" && "${FROM_MODERN}" != "true" ]]; then
+              continue
+            fi
+
+            MIGRATE=false
+            if [[ "${FROM_MODERN}" != "true" && "${BUILD_MODERN}" == "true" ]]; then
+              MIGRATE=true
+            fi
+            # pre045 always migrates when build is modern
+            if [[ "${HID}" == "pre045" && "${BUILD_MODERN}" == "true" ]]; then
+              MIGRATE=true
+            fi
+
+            hop_json=$(jq -nc \
+              --arg id "${HID}" \
+              --arg from_tag "${HTAG}" \
+              --arg from_modern "${FROM_MODERN}" \
+              --arg migrate "${MIGRATE}" \
+              '{id:$id, from_tag:$from_tag, from_modern:$from_modern, migrate:$migrate}')
+
+            if tag_has_docker "${HTAG}"; then
+              HOPS_DOCKER=$(echo "${HOPS_DOCKER}" | jq -c --argjson h "${hop_json}" '. + [$h]')
+            fi
+            if tag_has_rpm "${HTAG}"; then
+              HOPS_RPM=$(echo "${HOPS_RPM}" | jq -c --argjson h "${hop_json}" '. + [$h]')
+            fi
+            if tag_has_deb "${HTAG}"; then
+              HOPS_DEB=$(echo "${HOPS_DEB}" | jq -c --argjson h "${hop_json}" '. + [$h]')
+            fi
+          done
+
+          HAS_DOCKER=false
+          HAS_RPM=false
+          HAS_DEB=false
+          [[ "$(echo "${HOPS_DOCKER}" | jq 'length')" -gt 0 ]] && HAS_DOCKER=true
+          [[ "$(echo "${HOPS_RPM}" | jq 'length')" -gt 0 ]] && HAS_RPM=true
+          [[ "$(echo "${HOPS_DEB}" | jq 'length')" -gt 0 ]] && HAS_DEB=true
+
+          {
+            echo "app_version=${APP_VERSION}"
+            echo "n_tag=${N_TAG}"
+            echo "hops_docker=${HOPS_DOCKER}"
+            echo "hops_rpm=${HOPS_RPM}"
+            echo "hops_deb=${HOPS_DEB}"
+            echo "has_docker_hops=${HAS_DOCKER}"
+            echo "has_rpm_hops=${HAS_RPM}"
+            echo "has_deb_hops=${HAS_DEB}"
+          } >> "${GITHUB_OUTPUT}"
+
+          echo "N=${N_TAG} N-1=${N1_TAG:-none} N-2=${N2_TAG:-none} pre045=${PRE045_TAG:-none} build=${APP_VERSION}"
+          if [[ -n "${PRE045_TAG}" ]]; then
+            echo "pre045 probes: docker=$(tag_has_docker "${PRE045_TAG}" && echo yes || echo no) rpm=$(tag_has_rpm "${PRE045_TAG}" && echo yes || echo no) deb=$(tag_has_deb "${PRE045_TAG}" && echo yes || echo no)"
+            echo "pre045 assets:"; release_asset_names "${PRE045_TAG}" | sed 's/^/  /' || true
+          fi
+          echo "docker hops: ${HOPS_DOCKER}"
+          echo "rpm hops:    ${HOPS_RPM}"
+          echo "deb hops:    ${HOPS_DEB}"
+
+  # ---------------------------------------------------------
+  # Containers (nginx|apache2 × wsgi|django) × hop → build
+  # ---------------------------------------------------------
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: [guard, resolve-versions]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier' && needs.resolve-versions.outputs.has_docker_hops == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['nginx', 'apache2']
+        dbhandler: ['wsgi', 'django']
+        hop: ${{ fromJSON(needs.resolve-versions.outputs.hops_docker) }}
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
 
       - name: "Prepare container environment"
         uses: ./.github/actions/container_prep
@@ -115,18 +321,58 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
           CONTAINER_BUILD: false
-          DJANGO_DB: ${{ matrix.django_db }}
+          DJANGO_DB: ${{ matrix.dbhandler == 'django' && 'mariadb' || '' }}
+          NAME_SPACE: acme
 
-      - name: "Configure acme2certifier"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          echo "" >> examples/Docker/data/acme_srv.cfg
-          echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+      - name: "Stage xca materials + legacy cfg"
+        uses: ./.github/actions/wf_specific/upgrade/setup_legacy_xca
+        with:
+          VOLUME_DIR: examples/Docker/data
+          DEPLOYMENT_TYPE: container
+          DJANGO: ${{ matrix.dbhandler == 'django' && 'true' || 'false' }}
+          DJANGO_SETTINGS_TAG: ${{ matrix.hop.from_tag }}
 
-      - name: "Download and import container"
+      - name: "Modernize cfg for from_tag"
+        if: matrix.hop.from_modern == 'true'
+        uses: ./.github/actions/wf_specific/upgrade/migrate_cfg
+        with:
+          VOLUME_DIR: examples/Docker/data
+          DEPLOYMENT_TYPE: container
+          XDB_FILE: volume/xca/${{ env.XCA_DB_NAME }}
+          DJANGO: ${{ matrix.dbhandler == 'django' && 'true' || 'false' }}
+
+      - name: "Ensure from image ${{ matrix.hop.from_tag }}"
+        uses: ./.github/actions/wf_specific/upgrade/ensure_container_image
+        with:
+          VERSION: ${{ matrix.hop.from_tag }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+
+      - name: "Spin-up ${{ matrix.hop.id }} (${{ matrix.hop.from_tag }})"
+        uses: ./.github/actions/container_run
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          VERSION: ${{ matrix.hop.from_tag }}
+
+      - name: "Enroll + renew (from)"
+        uses: ./.github/actions/wf_specific/upgrade/enroll
+        with:
+          RENEWAL: true
+
+      - name: "Stop container"
+        run: docker stop acme-srv
+
+      - name: "Migrate cfg before build"
+        if: matrix.hop.migrate == 'true'
+        uses: ./.github/actions/wf_specific/upgrade/migrate_cfg
+        with:
+          VOLUME_DIR: examples/Docker/data
+          DEPLOYMENT_TYPE: container
+          XDB_FILE: volume/xca/${{ env.XCA_DB_NAME }}
+          DJANGO: ${{ matrix.dbhandler == 'django' && 'true' || 'false' }}
+
+      - name: "Download and import build container"
         uses: ./.github/actions/container_load
         with:
           RUN_ID: ${{ inputs.run_id }}
@@ -135,46 +381,58 @@ jobs:
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Build acme2certifier image at v0.19.3"
-        run: |
-          git clone https://github.com/grindsa/acme2certifier.git /tmp/acme2certifier
-          cd /tmp/acme2certifier
-          git checkout 0.19.3
-          sudo sed -i "s/pyOpenssl/pyOpenssl==26.1.0/g" requirements.txt
-          docker build -f examples/Docker/$WEBSRV/$DB_HANDLER/Dockerfile -t grindsa/acme2certifier:$VERSION-$WEBSRV-$DB_HANDLER .
-        env:
-          VERSION: "0.19.3"
-          WEBSRV: ${{ matrix.websrv }}
-          DB_HANDLER: ${{ matrix.dbhandler }}
-
-      - name: "Spin-up a2c 0.19.3 instance"
-        uses: ./.github/actions/container_run
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          VERSION: "0.19.3"
-
-      - name: "Enroll and renew certificates"
-        uses: ./.github/actions/wf_specific/upgrade/enroll
-        with:
-          RENEWAL: true
-
-      - name : "Stop and remove a2c instance"
-        run: docker stop acme-srv
-
-      - name: "Spin-up latest a2c instance"
+      - name: "Spin-up build artifact"
         uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Renew certificates"
-        uses: ./.github/actions/wf_specific/upgrade/renew
+      - name: "Renew after build"
+        uses: ./.github/actions/acme_clients_renew
         with:
           CLEANUP: true
+          HOSTNAME_SUFFIX: ""
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+      - name: "Fresh enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+
+      - name: "EAB profiling (final)"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: examples/Docker/data
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Restart for EAB cfg"
+        uses: ./.github/actions/container_down
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Bring up for EAB"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "EAB enrollment"
+        uses: ./.github/actions/wf_specific/upgrade/enroll_eab
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -188,133 +446,31 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Cleanup environment"
-        uses: ./.github/actions/wf_specific/upgrade/cleanup
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          DJANGO_DB: ${{ matrix.django_db }}
-
-      - name: "Spin-up a2c ${{ env.OLD_TAG_NAME }} instance"
-        uses: ./.github/actions/container_run
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          VERSION: ${{ env.OLD_TAG_NAME }}
-
-      - name: "Enroll and renew certificates"
-        uses: ./.github/actions/wf_specific/upgrade/enroll
-        with:
-          RENEWAL: true
-
-      - name : "Stop and remove a2c instance"
-        run: docker stop acme-srv
-
-      - name: "Spin-up latest a2c instance"
-        uses: ./.github/actions/container_up
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-
-      - name: "Renew certificates"
-        uses: ./.github/actions/wf_specific/upgrade/renew
-        with:
-          CLEANUP: true
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-
-      - name: "Stop a2c instance"
-        uses: ./.github/actions/container_down
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-
-      - name: "Cleanup environment"
-        uses: ./.github/actions/wf_specific/upgrade/cleanup
-        with:
-          DJANGO_DB: ${{ matrix.django_db }}
-
-      - name: "Spin-up a2c ${{ env.TAG_NAME }} instance"
-        if: github.ref != 'refs/heads/master'
-        uses: ./.github/actions/container_run
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          VERSION: ${{ env.TAG_NAME }}
-
-      - name: "Enroll and renew certificates"
-        if: github.ref != 'refs/heads/master'
-        uses: ./.github/actions/wf_specific/upgrade/enroll
-        with:
-          RENEWAL: true
-
-      - name : "Stop and remove a2c instance"
-        if: github.ref != 'refs/heads/master'
-        run: docker stop acme-srv
-
-      - name: "Spin-up latest a2c instance"
-        uses: ./.github/actions/container_up
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-
-      - name: "Renew certificates"
-        if: github.ref != 'refs/heads/master'
-        uses: ./.github/actions/wf_specific/upgrade/renew
-        with:
-          CLEANUP: true
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-
-      - name: "Stop a2c instance"
-        uses: ./.github/actions/container_down
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-
-      - name: "Cleanup environment"
-        uses: ./.github/actions/wf_specific/upgrade/cleanup
-        with:
-          DJANGO_DB: ${{ matrix.django_db }}
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker logs acme-srv > ${{ github.workspace }}/artifact/acme-srv.log
-          # docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme-srv.log data
-          # sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.django_db }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.hop.id }}-upgrade.tar.gz
 
   # ---------------------------------------------------------
-  # Test RPMs (EL8 & EL9) upgrade for wsgi and django handlers
+  # RPM (EL8/EL9 × wsgi|django) × hop → build
   # ---------------------------------------------------------
-  test-rpm-wsgi-upgrade:
+
+
+  test-rpm:
+    permissions:
+      contents: read
+      actions: write
+    needs: [guard, resolve-versions]
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier' && needs.resolve-versions.outputs.has_rpm_hops == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
+        mode: ['wsgi', 'django']
+        hop: ${{ fromJSON(needs.resolve-versions.outputs.hops_rpm) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -329,1384 +485,333 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: Retrieve Version from version.py
-        run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
         with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: /tmp/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          # EL8: pre045 needs python36 (python3-*); modern from-tags need python39.
+          # Do not stage both at once — python3-django and python39-django both
+          # own /usr/bin/django-admin.
+          # EL9: system python3 leaf.
+          PYTHON_STACK: >-
+            ${{ matrix.rhversion == 9 && 'python3'
+                || (matrix.hop.from_modern == 'true' && 'python39' || 'python36') }}
+          RPM_BUILD: false
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'mariadb' || '' }}
 
-      - name: "Setup environment for alma installation"
-        run: |
-          docker network create acme
-          sudo mkdir -p data/volume
-          sudo mkdir -p data/acme2certifier
-          sudo mkdir -p data/nginx/conf.d
-          sudo chmod -R 777 data
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier-0.23.2-1.0.noarch.rpm
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
-          sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
-          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
-
-      - name: "Retrieve rpms from SBOM repo"
-        run: |
-          git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
-          cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
-
-      - name: "Prepare acme_srv.cfg with xca_ca_handler"
-        run: |
-          sudo mkdir acme-sh
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-
-      - name: "Almalinux instance"
-        run: |
-          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
-      - name: "Execute install scipt"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
-          sudo docker cp data/nginx acme-srv:/etc
-          sudo docker cp data/volume/ acme-srv:/opt/acme2certifier/
-          docker exec acme-srv chmod -R 777 /opt/acme2certifier/volume
-
-      - name: "Test enrollment"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
-
-      - name: "Test renewal"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-
-      - name: "Update acme2certifier"
-        run: |
-          docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
-          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
-          docker exec -w /opt/acme2certifier acme-srv python3 tools/db_update.py
-          docker restart acme-srv
-        env:
-          RUN_ID: ${{ inputs.run_id }}
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Stage xca materials + legacy cfg"
+        uses: ./.github/actions/wf_specific/upgrade/setup_legacy_xca
         with:
-          time: 10s
+          VOLUME_DIR: data/volume
+          DEPLOYMENT_TYPE: rpm
+          DJANGO: ${{ matrix.mode == 'django' && 'true' || 'false' }}
+          DJANGO_SETTINGS_TAG: ${{ matrix.hop.from_tag }}
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Get hashes of django_handler.py and db_handler.py"
-        run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/wsgi_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
-
-      - name: "Test renewal again"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-          sudo rm -rf $(pwd)/lego
-          sudo rm -rf $(pwd)/certbot
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Modernize cfg for from_tag"
+        if: matrix.hop.from_modern == 'true'
+        uses: ./.github/actions/wf_specific/upgrade/migrate_cfg
         with:
-          name: rpm_wsgi_upgrade_nginx.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          VOLUME_DIR: data/volume
+          DEPLOYMENT_TYPE: rpm
+          XDB_FILE: volume/acme_ca/${{ env.XCA_DB_NAME }}
+          DJANGO: ${{ matrix.mode == 'django' && 'true' || 'false' }}
 
-  test-rpm-mariadb-upgrade:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - name: "Download from RPM ${{ matrix.hop.from_tag }}"
+        uses: ./.github/actions/wf_specific/upgrade/download_release_pkg
         with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Parse EMAIL configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
-
-      - name: Retrieve Version from version.py
-        run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - name: update version number in spec file and path in nginx ssl config
-        run: |
-          sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "$EMAIL"
-          git config --global user.name "rpm update"
-          git add examples/nginx
-          git commit -a -m "rpm update"
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: /tmp/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Setup environment for alma installation"
-        run: |
-          sudo mkdir acme-sh
-          docker network create acme
-          sudo mkdir -p data/volume
-          sudo mkdir -p data/acme2certifier
-          sudo mkdir -p data/nginx/conf.d
-          sudo chmod -R 777 data
-          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier-0.23.2-1.0.noarch.rpm
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
-          sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
-          sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          sudo cp .github/django_settings_mariadb.py data/acme2certifier/settings.py
-          # sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
-          sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
-          sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
-          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
-
-      - name: "Instanciate mariadb"
-        uses: ./.github/actions/mariadb_prep
-
-      - name: "Retrieve rpms from SBOM repo"
-        run: |
-          git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
-          cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
-
-      - name: "Configure acme2certifier"
-        run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-
-      - name: "Almalinux instance"
-        run: |
-          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
-      - name: "Execute install scipt"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
-
-      - name: "Test enrollment"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
-
-      - name: "Test renewal"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-
-      - name: "Update acme2certifier"
-        run: |
-          docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
-          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
-          docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
-          docker restart acme-srv
-        env:
-          RUN_ID: ${{ inputs.run_id }}
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Get hashes of django_handler.py and db_handler.py"
-        run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
-
-      - name: "Test renewal again"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-          sudo rm -rf $(pwd)/lego
-          sudo rm -rf $(pwd)/certbot
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-mariadb-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-
-  test-rpm-sqlite-upgrade:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Parse EMAIL configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
-
-      - name: Retrieve Version from version.py
-        run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - name: update version number in spec file and path in nginx ssl config
-        run: |
-          sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "$EMAIL"
-          git config --global user.name "rpm update"
-          git add examples/nginx
-          git commit -a -m "rpm update"
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: /tmp/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Setup environment for alma installation"
-        run: |
-          sudo mkdir acme-sh
-          docker network create acme
-          sudo mkdir -p data/volume
-          sudo mkdir -p data/acme2certifier
-          sudo mkdir -p data/nginx/conf.d
-          sudo chmod -R 777 data
-          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier-0.23.2-1.0.noarch.rpm
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
-          sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
-          sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          sudo cp .github/django_settings.py data/acme2certifier/settings.py
-          sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
-          sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
-          sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
-          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
-
-      - name: "Retrieve rpms from SBOM repo"
-        run: |
-          git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
-          cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
-
-      - name: "Configure acme2certifier"
-        run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-
-      - name: "Almalinux instance"
-        run: |
-          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
-      - name: "Execute install scipt"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
-
-      - name: "Test enrollment"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
-
-      - name: "Test renewal"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-
-      - name: "Update acme2certifier"
-        run: |
-          docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
-          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
-          docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
-          docker restart acme-srv
-        env:
-          RUN_ID: ${{ inputs.run_id }}
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Get hashes of django_handler.py and db_handler.py"
-        run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
-
-      - name: "Test renewal again"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-          sudo rm -rf $(pwd)/lego
-          sudo rm -rf $(pwd)/certbot
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-sqlite-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-
-  test-rpm-psql-upgrade:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Parse EMAIL configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
-
-      - name: Retrieve Version from version.py
-        run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - name: update version number in spec file and path in nginx ssl config
-        run: |
-          sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "$EMAIL"
-          git config --global user.name "rpm update"
-          git add examples/nginx
-          git commit -a -m "rpm update"
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: /tmp/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Setup environment for alma installation"
-        run: |
-          sudo mkdir acme-sh
-          docker network create acme
-          sudo mkdir -p data/volume
-          sudo mkdir -p data/acme2certifier
-          sudo mkdir -p data/nginx/conf.d
-          sudo chmod -R 777 data
-          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier-0.23.2-1.0.noarch.rpm
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
-          sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
-          sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          sudo cp .github/django_settings_psql.py data/acme2certifier/settings.py
-          # sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
-          sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
-          sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
-          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
-
-      - name: "Instanciate postgres"
-        uses: ./.github/actions/psql_prep
-
-      - name: "Retrieve rpms from SBOM repo"
-        run: |
-          git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
-          cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
-
-      - name: "Configure acme2certifier"
-        run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-
-      - name: "Almalinux instance"
-        run: |
-          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
-      - name: "Execute install scipt"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
-
-      - name: "Test enrollment"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
-
-      - name: "Test renewal"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-
-
-      - name: "Update acme2certifier"
-        run: |
-          docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
-          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
-          docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
-          docker restart acme-srv
-        env:
-          RUN_ID: ${{ inputs.run_id }}
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Get hashes of django_handler.py and db_handler.py"
-        run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
-
-      - name: "Test renewal again"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-          sudo rm -rf $(pwd)/lego
-          sudo rm -rf $(pwd)/certbot
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-psql-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-
-  # ---------------------------------------------------------
-  # Test DEB upgrade for wsgi and django
-  # ---------------------------------------------------------
-  deb_wsgi-upgrade:
-    needs: guard
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Prepare environment"
-        run: |
-          docker network create acme
-          mkdir acme-sh
-          mkdir certbot
-          mkdir -p data/volume
-
-      - name: "Download a2c 0.23 deb package"
-        run: |
-          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier_0.23.2-1_all.deb
-
-      - name: Retrieve Version from version.py
-        run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          TAG: ${{ matrix.hop.from_tag }}
+          PKG_TYPE: rpm
           DESTINATION_PATH: data
+
+      - name: "Install from RPM"
+        uses: ./.github/actions/wf_specific/upgrade/rpm_install
+        with:
+          RPM_PATH: ${{ env.PKG_FILE }}
+          MODE: ${{ matrix.mode }}
+          MODERN: ${{ matrix.hop.from_modern }}
+
+      - name: "Enroll + renew (from)"
+        uses: ./.github/actions/wf_specific/upgrade/enroll
+        with:
+          RENEWAL: true
+
+      - name: "Migrate cfg before build"
+        if: matrix.hop.migrate == 'true'
+        uses: ./.github/actions/wf_specific/upgrade/migrate_cfg
+        with:
+          VOLUME_DIR: data/volume
+          DEPLOYMENT_TYPE: rpm
+          XDB_FILE: volume/acme_ca/${{ env.XCA_DB_NAME }}
+          DJANGO: ${{ matrix.mode == 'django' && 'true' || 'false' }}
+
+      - name: "Download build RPM artifact"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: List files
-        run: ls -la data/
-
-      - name: "Instanciate Ubuntu 24.04"
+      - name: "EL8: swap SBOM to python39 before modern upgrade"
+        if: matrix.rhversion == 8 && matrix.hop.from_modern == 'false'
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
+          set -euo pipefail
+          # Legacy from-tag used python36 / system python3-*. Modern a2c needs
+          # python39-*. Unversioned /usr/bin helpers collide (django-admin, jws, …).
+          rm -rf /tmp/sbom-py39
+          git clone --filter=blob:none --sparse --depth 1 \
+            "https://${GH_USER}:${GH_SBOM_REPO_TOKEN}@github.com/${GH_USER}/sbom" /tmp/sbom-py39
+          git -C /tmp/sbom-py39 sparse-checkout set rpm-repo/RPMs/rhel8/python39
+          ARCH="$(uname -m)"
+          shopt -s nullglob
+          src=/tmp/sbom-py39/rpm-repo/RPMs/rhel8/python39
+          copied=0
+          for r in "${src}"/*.noarch.rpm "${src}"/*."${ARCH}".rpm; do
+            [[ -f "${r}" ]] || continue
+            sudo cp -v "${r}" data/
+            copied=$((copied + 1))
+          done
+          if [[ "${copied}" -eq 0 ]]; then
+            echo "ERROR: no python39 SBOM RPMs staged" >&2
+            exit 1
+          fi
+          docker exec acme-srv bash -c '
+            set -euo pipefail
+            PKG=yum
+            command -v dnf >/dev/null 2>&1 && PKG=dnf
+            shopt -s nullglob
+            filtered=()
+            for r in /tmp/acme2certifier/python39-*.rpm /tmp/acme2certifier/uwsgi-plugin-python39-*.rpm; do
+              [[ -f "${r}" ]] || continue
+              filtered+=("${r}")
+            done
+            if ((${#filtered[@]} == 0)); then
+              echo "ERROR: no python39 RPMs under /tmp/acme2certifier" >&2
+              exit 1
+            fi
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 5s
+            # Drop whatever currently owns /usr/bin paths the new RPMs ship.
+            # Use rpm --nodeps so we do not cascade-remove acme2certifier-0.44
+            # (it Requires python3-josepy etc. until the modern upgrade step).
+            mapfile -t bins < <(
+              for r in "${filtered[@]}"; do
+                rpm -qpl "${r}" 2>/dev/null | grep -E "^/usr/bin/" || true
+              done | sort -u
+            )
+            owners=()
+            for b in "${bins[@]+"${bins[@]}"}"; do
+              [[ -e "${b}" ]] || continue
+              # NOTE: bash -c is single-quoted; do not nest '%{NAME}\n' or the
+              # closing quote truncates the format to "%{NAME}n".
+              if own="$(rpm -qf --qf %{NAME} "${b}" 2>/dev/null)"; then
+                owners+=("${own}")
+              fi
+            done
+            if ((${#owners[@]} > 0)); then
+              mapfile -t owners < <(printf "%s\n" "${owners[@]}" | sort -u)
+              echo "Removing conflicting owners of /usr/bin helpers (--nodeps):"
+              printf "  %s\n" "${owners[@]}"
+              rpm -e --nodeps "${owners[@]}"
+            fi
 
-      - name: "Install a2c"
-        run: |
-          docker exec acme-srv apt-get update
-          docker exec acme-srv apt-get -y upgrade
-          docker exec acme-srv apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
-          docker exec acme-srv ls -la /tmp/acme2certifier/
-          docker exec acme-srv apt-get install -y /tmp/acme2certifier/acme2certifier_0.23.2-1_all.deb
-
-      - name: "Configure a2c"
-        run: |
-          sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
-          docker exec acme-srv a2enmod ssl
-          docker exec acme-srv a2ensite acme2certifier
-          docker exec acme-srv a2ensite acme2certifier_ssl
-          docker exec acme-srv rm /etc/apache2/sites-enabled/000-default.conf
-          docker exec acme-srv mkdir -p /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme2certifier.pem /var/www/acme2certifier/volume/
-          docker exec acme-srv systemctl start apache2
-
-      - name: "Setup xca-handler"
-        run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-          sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
-
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
-          docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
-          docker exec acme-srv systemctl restart apache2
-          docker exec acme-srv systemctl status apache2
-
-      - name: "Test enrollment"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
-
-      - name: "Test renewal"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-
-      - name: "Upgrade a2c"
-        run: |
-          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
-          docker exec -w /var/www/acme2certifier acme-srv python3 tools/db_update.py
-          docker exec acme-srv systemctl restart apache2
+            echo "Installing ${#filtered[@]} python39 companion RPM(s)"
+            ${PKG} localinstall -y "${filtered[@]}"
+          '
         env:
-          RUN_ID: ${{ inputs.run_id }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Upgrade to build artifact"
+        uses: ./.github/actions/wf_specific/upgrade/rpm_install
         with:
-          time: 5s
+          RPM_PATH: data/acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          MODE: ${{ matrix.mode }}
+          MODERN: "true"
 
-      - name: "Test http://acme-srv/directory is accessible after upgrade"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "DB update after build"
+        uses: ./.github/actions/wf_specific/upgrade/db_update
 
-      - name: "Get hashes of wsgi_handler.py and db_handler.py"
-        run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /var/www/acme2certifier/examples/db_handler/wsgi_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /var/www/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
-
-      - name: "Test renewal again"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-          sudo rm -rf $(pwd)/lego
-          sudo rm -rf $(pwd)/certbot
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-sh certbot acme-srv.log
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Renew after build"
+        uses: ./.github/actions/acme_clients_renew
         with:
-          name: test-deb-wsgi-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          CLEANUP: true
+          HOSTNAME_SUFFIX: ""
 
-  test-deb_sqlite-upgrade:
+      - name: "Fresh enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+
+      - name: "EAB profiling (final)"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: data/volume
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Restart for EAB"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+
+      - name: "EAB enrollment"
+        uses: ./.github/actions/wf_specific/upgrade/enroll_eab
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}-${{ matrix.hop.id }}-upgrade.tar.gz
+
+  # ---------------------------------------------------------
+  # DEB (nginx × wsgi|django) × hop → build
+  # ---------------------------------------------------------
+
+
+  test-deb:
+    permissions:
+      contents: read
+      actions: write
+    needs: [guard, resolve-versions]
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier' && needs.resolve-versions.outputs.has_deb_hops == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: ['wsgi', 'django']
+        hop: ${{ fromJSON(needs.resolve-versions.outputs.hops_deb) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'mariadb' || '' }}
 
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Prepare environment"
-        run: |
-          docker network create acme
-          mkdir acme-sh
-          mkdir certbot
-          mkdir -p data/volume
-
-      - name: "Download a2c 0.23 deb package"
-        run: |
-          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier_0.23.2-1_all.deb
-
-      - name: Retrieve Version from version.py
-        run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Stage xca materials + legacy cfg"
+        uses: ./.github/actions/wf_specific/upgrade/setup_legacy_xca
         with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
+          VOLUME_DIR: data/volume
+          DEPLOYMENT_TYPE: deb
+          DJANGO: ${{ matrix.mode == 'django' && 'true' || 'false' }}
+          DJANGO_SETTINGS_TAG: ${{ matrix.hop.from_tag }}
 
-      - name: List files
-        run: ls -la data/
-
-      - name: "Instanciate Ubuntu 24.04"
-        run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
-
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Modernize cfg for from_tag"
+        if: matrix.hop.from_modern == 'true'
+        uses: ./.github/actions/wf_specific/upgrade/migrate_cfg
         with:
-          time: 5s
+          VOLUME_DIR: data/volume
+          DEPLOYMENT_TYPE: deb
+          XDB_FILE: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+          DJANGO: ${{ matrix.mode == 'django' && 'true' || 'false' }}
 
-      - name: "Install a2c"
-        run: |
-          docker exec acme-srv apt-get update
-          docker exec acme-srv apt-get -y upgrade
-          docker exec acme-srv apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
-          docker exec acme-srv ls -la /tmp/acme2certifier/
-          docker exec acme-srv apt-get install -y /tmp/acme2certifier/acme2certifier_0.23.2-1_all.deb
-
-      - name: "Configure a2c"
-        run: |
-          sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
-          docker exec acme-srv a2enmod ssl
-          docker exec acme-srv a2ensite acme2certifier
-          docker exec acme-srv a2ensite acme2certifier_ssl
-          docker exec acme-srv rm /etc/apache2/sites-enabled/000-default.conf
-          docker exec acme-srv mkdir -p /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme2certifier.pem /var/www/acme2certifier/volume/
-          docker exec acme-srv systemctl start apache2
-
-      - name: "Setup xca-handler"
-        run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-          sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
-          sudo cp .github/django_settings.py data/volume/settings.py
-          docker exec acme-srv bash -c "cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/"
-          docker exec acme-srv cp -r /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
-          docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
-          docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
-
-          # fix for django 4.0 upgrade
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
-          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
-          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
-
-          docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
-          docker exec acme-srv systemctl restart apache2
-
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Download from DEB ${{ matrix.hop.from_tag }}"
+        uses: ./.github/actions/wf_specific/upgrade/download_release_pkg
         with:
-          time: 5s
+          TAG: ${{ matrix.hop.from_tag }}
+          PKG_TYPE: deb
+          DESTINATION_PATH: data
 
-      - name: "Test enrollment"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
-
-      - name: "Test renewal"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-
-      - name: "Upgrade a2c"
-        run: |
-          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
-          docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
-          docker exec acme-srv systemctl restart apache2
-        env:
-          RUN_ID: ${{ inputs.run_id }}
-
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Install from DEB"
+        uses: ./.github/actions/wf_specific/upgrade/deb_install
         with:
-          time: 5s
+          DEB_PATH: ${{ env.PKG_FILE }}
+          MODE: ${{ matrix.mode }}
+          MODERN: ${{ matrix.hop.from_modern }}
 
-      - name: "Test http://acme-srv/directory is accessible after upgrade"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Get hashes of django_handler.py and db_handler.py"
-        run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /var/www/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /var/www/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
-
-      - name: "Test renewal again"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-          sudo rm -rf $(pwd)/lego
-          sudo rm -rf $(pwd)/certbot
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-sh certbot acme-srv.log
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Enroll + renew (from)"
+        uses: ./.github/actions/wf_specific/upgrade/enroll
         with:
-          name: test-deb-sqlite-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          RENEWAL: true
 
-  test-deb-mariadb-upgrade:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - name: "Migrate cfg before build"
+        if: matrix.hop.migrate == 'true'
+        uses: ./.github/actions/wf_specific/upgrade/migrate_cfg
         with:
-          json_secret: ${{ secrets.XCA_CFG }}
+          VOLUME_DIR: data/volume
+          DEPLOYMENT_TYPE: deb
+          XDB_FILE: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+          DJANGO: ${{ matrix.mode == 'django' && 'true' || 'false' }}
 
-      - name: "Prepare environment"
-        run: |
-          docker network create acme
-          mkdir acme-sh
-          mkdir certbot
-          mkdir -p data/volume
-
-      - name: "Install mariadb"
-        working-directory: examples/Docker/
-        run: |
-          # docker run --name mariadbsrv --network acme -v $PWD/data/mysql:/var/lib/mysql -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
-          docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Upgrade to build artifact"
+        uses: ./.github/actions/wf_specific/upgrade/deb_install
         with:
-          time: 10s
+          DEB_PATH: data/acme2certifier-${{ inputs.run_id }}-1_all.deb
+          MODE: ${{ matrix.mode }}
+          MODERN: "true"
 
-      - name: "Configure mariadb"
-        working-directory: examples/Docker/
-        run: |
-          docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
-          docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
-          docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
-
-      - name: "Download a2c 0.23 deb package"
-        run: |
-          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier_0.23.2-1_all.deb
-
-      - name: Retrieve Version from version.py
-        run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "DB update after build"
+        uses: ./.github/actions/wf_specific/upgrade/db_update
         with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
+          APP_ROOT: /var/www/acme2certifier
 
-      - name: List files
-        run: ls -la data/
-
-      - name: "Instanciate Ubuntu 24.04"
-        run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
-
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Renew after build"
+        uses: ./.github/actions/acme_clients_renew
         with:
-          time: 5s
+          CLEANUP: true
+          HOSTNAME_SUFFIX: ""
 
-      - name: "Install a2c"
-        run: |
-          docker exec acme-srv apt-get update
-          docker exec acme-srv apt-get -y upgrade
-          docker exec acme-srv apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
-          docker exec acme-srv ls -la /tmp/acme2certifier/
-          docker exec acme-srv apt-get install -y /tmp/acme2certifier/acme2certifier_0.23.2-1_all.deb
+      - name: "Fresh enrollment"
+        uses: ./.github/actions/acme_clients_enroll
 
-      - name: "Configure a2c"
-        run: |
-          sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
-          docker exec acme-srv a2enmod ssl
-          docker exec acme-srv a2ensite acme2certifier
-          docker exec acme-srv a2ensite acme2certifier_ssl
-          docker exec acme-srv rm /etc/apache2/sites-enabled/000-default.conf
-          docker exec acme-srv mkdir -p /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme2certifier.pem /var/www/acme2certifier/volume/
-          docker exec acme-srv systemctl start apache2
-
-      - name: "Setup xca-handler"
-        run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-          sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
-
-          sudo cp .github/django_settings_mariadb.py data/volume/settings.py
-          docker exec acme-srv bash -c "cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/"
-          docker exec acme-srv cp -r /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
-          docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
-          docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
-
-          # fix for django 4.0 upgrade
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
-          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
-          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
-
-          docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
-          docker exec acme-srv systemctl restart apache2
-
-      - name: "Test enrollment"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
-
-      - name: "Test renewal"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-
-      - name: "Upgrade a2c"
-        run: |
-          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
-          docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
-          docker exec acme-srv systemctl restart apache2
-        env:
-          RUN_ID: ${{ inputs.run_id }}
-
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "EAB profiling (final)"
+        uses: ./.github/actions/setup_cahandler_cfg
         with:
-          time: 5s
+          VOLUME_DIR: data/volume
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
 
-      - name: "Test http://acme-srv/directory is accessible after upgrade"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Get hashes of django_handler.py and db_handler.py"
-        run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /var/www/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /var/www/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
-
-      - name: "Test renewal again"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-          sudo rm -rf $(pwd)/lego
-          sudo rm -rf $(pwd)/certbot
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          docker exec mariadbsrv mysqldump -u root --password=foobar acme2certifier > /tmp/acme2certifier.sql
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp /tmp/acme2certifier.sql ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-sh certbot acme-srv.log
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
-          name: test-deb-mariadb-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
 
-  test-deb-psql-upgrade:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Restart for EAB"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart nginx
 
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - name: "EAB enrollment"
+        uses: ./.github/actions/wf_specific/upgrade/enroll_eab
+
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          json_secret: ${{ secrets.XCA_CFG }}
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-nginx-${{ matrix.mode }}-${{ matrix.hop.id }}-upgrade.tar.gz
+          WEBSRV: nginx
 
-      - name: "Prepare environment"
-        run: |
-          docker network create acme
-          mkdir acme-sh
-          mkdir certbot
-          mkdir -p data/volume
-
-      - name: "Prepare Postgres environment"
-        run: |
-          sudo mkdir -p /tmp/data/pgsql
-          sudo cp .github/a2c.psql /tmp/data/pgsql/a2c.psql
-          sudo cp .github/pgpass /tmp//data/pgsql/pgpass
-          sudo chmod 600 /tmp/data/pgsql/pgpass
-
-      - name: "Install postgres"
-        working-directory: /tmp
-        run: |
-          docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Configure postgres"
-        working-directory: /tmp
-        run: |
-          docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "Download a2c 0.23 deb package"
-        run: |
-          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier_0.23.2-1_all.deb
-
-      - name: Retrieve Version from version.py
-        run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: List files
-        run: ls -la data/
-
-      - name: "Instanciate Ubuntu 24.04"
-        run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
-
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 5s
-
-      - name: "Install a2c"
-        run: |
-          docker exec acme-srv apt-get update
-          docker exec acme-srv apt-get -y upgrade
-          docker exec acme-srv apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
-          docker exec acme-srv ls -la /tmp/acme2certifier/
-          docker exec acme-srv apt-get install -y /tmp/acme2certifier/acme2certifier_0.23.2-1_all.deb
-
-      - name: "Configure a2c"
-        run: |
-          sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
-          docker exec acme-srv a2enmod ssl
-          docker exec acme-srv a2ensite acme2certifier
-          docker exec acme-srv a2ensite acme2certifier_ssl
-          docker exec acme-srv rm /etc/apache2/sites-enabled/000-default.conf
-          docker exec acme-srv mkdir -p /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme2certifier.pem /var/www/acme2certifier/volume/
-          docker exec acme-srv systemctl start apache2
-
-      - name: "Setup xca-handler"
-        run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-          sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
-
-          sudo cp .github/django_settings_psql.py data/volume/settings.py
-          docker exec acme-srv bash -c "cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/"
-          docker exec acme-srv cp -r /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
-          docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
-          docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
-
-          # fix for django 4.0 upgrade
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
-          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
-          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
-
-          docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
-          docker exec acme-srv systemctl restart apache2
-
-      - name: "Test enrollment"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
-
-      - name: "Test renewal"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-
-      - name: "Upgrade a2c"
-        run: |
-          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
-          docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
-          docker exec acme-srv systemctl restart apache2
-        env:
-          RUN_ID: ${{ inputs.run_id }}
-
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 5s
-
-      - name: "Test http://acme-srv/directory is accessible after upgrade"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Get hashes of django_handler.py and db_handler.py"
-        run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /var/www/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /var/www/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
-
-      - name: "Test renewal again"
-        run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
-          docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-          sudo rm -rf $(pwd)/lego
-          sudo rm -rf $(pwd)/certbot
-
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-sh certbot acme-srv.log
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-deb-psql-upgrade.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/

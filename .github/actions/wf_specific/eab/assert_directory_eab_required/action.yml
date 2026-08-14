@@ -23,30 +23,13 @@ runs:
   steps:
     - name: "Fetch directory JSON"
       id: fetch_directory
-      run: |
-        DIRECTORY_JSON=""
-        for attempt in $(seq 1 30); do
-          if DIRECTORY_JSON=$(docker run -i --rm --network "$NAME_SPACE" curlimages/curl -fsS --connect-timeout 3 --max-time 10 "http://$ACME_SERVER:$HTTP_PORT/directory"); then
-            break
-          fi
-
-          echo "Directory endpoint not ready yet (attempt ${attempt}/30), retrying..."
-          sleep 2
-        done
-
-        if [ -z "$DIRECTORY_JSON" ]; then
-          echo "Failed to fetch directory endpoint after retries"
-          exit 1
-        fi
-
-        echo "directory_json<<EOF" >> "$GITHUB_OUTPUT"
-        echo "$DIRECTORY_JSON" >> "$GITHUB_OUTPUT"
-        echo "EOF" >> "$GITHUB_OUTPUT"
-      shell: bash
-      env:
+      uses: ./.github/actions/wait_for_directory
+      with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        CHECK_HTTPS: "false"
+        CAPTURE_BODY: "true"
 
     - name: "Assert externalAccountRequired"
       run: |

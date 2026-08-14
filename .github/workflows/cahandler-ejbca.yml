@@ -23,30 +23,31 @@ on:
         required: false
         default: ''
 
-jobs:
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
 
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
+permissions: {}
+
+jobs:
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images (matrix from payload)
   # ---------------------------------------------------------
   test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -91,22 +92,21 @@ jobs:
           NAME_SPACE: acme
 
       - name: "Default - setup a2c with ejbca_ca_handler"
-        run: |
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/ejbca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+            allowed_domainlist: ["bar.local", "*.acme"]
         env:
           SAEC: ${{ env.SAEC }}
 
@@ -117,50 +117,48 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: examples/Docker/data/kid_profiles.json
+      - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/ejbca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
-
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
-
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
           docker compose logs
@@ -176,36 +174,37 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: examples/Docker/data/kid_profiles.json
+      - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/ejbca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
           docker compose logs
@@ -221,18 +220,25 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "ACME Profiling - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/ejbca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
@@ -248,36 +254,37 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: examples/Docker/data/kid_profiles.json
+      - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/ejbca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
 
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
         env:
@@ -292,38 +299,36 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           docker logs ejbca > ${{ github.workspace }}/artifact/ejbca.log
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/a2c.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz ejbca.log a2c.log data acme-sh certbot lego
 
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-rpm:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
     steps:
 
       - name: "checkout GIT"
@@ -366,83 +371,87 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Default - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+            allowed_domainlist: ["bar.local", "*.acme"]
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Default - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
-
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB without headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_wo_headerinfo
@@ -453,44 +462,45 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_w_headerinfo
@@ -501,27 +511,34 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "ACME Profiling - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_acmeprofile
@@ -532,115 +549,91 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_acmeprofile
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           docker logs ejbca > ${{ github.workspace }}/artifact/ejbca.log
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data ejbca.log acme-srv.log acme-sh
 
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
 
   # ---------------------------------------------------------
   # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
+
+
   test-deb:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-
-      - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-          DJANGO_DB: psql
-
-      - name: "Download DEB artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
 
       - name: "Instanciate ejbca"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/ejbca_prep
@@ -649,34 +642,39 @@ jobs:
           WORKING_DIR: ${{ github.workspace }}
 
       - name: "Default - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+            allowed_domainlist: ["bar.local", "*.acme"]
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Default - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           TEST_ADL: "true"
 
@@ -686,44 +684,44 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
-
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB without headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_wo_headerinfo
@@ -734,45 +732,46 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_w_headerinfo
@@ -783,28 +782,35 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "ACME Profiling - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_acmeprofile
@@ -815,45 +821,46 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
+          OPTIONS: |
+            api_host: https://ejbca
+            cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
+            cert_passphrase: ${{ env.SAEC }}
+            ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
+            ca_name: acmesubca
+            cert_profile_name: acmeca1
+            ee_profile_name: acmeca
+            username: acme_srv
+            enrollment_code: acme_srv
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+      - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
-          sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
-          sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
-          sudo echo "username: acme_srv" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_acmeprofile
@@ -863,24 +870,9 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}

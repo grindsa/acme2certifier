@@ -1,10 +1,11 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django -->
+<!-- wiki-title: Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django -->
+<!-- wiki-category: Installation -->
 
 # Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django
 
-This is the **fastest and most convenient** way to deploy **acme2certifier**. After installation, **acme2certifier** will run inside a **minimal Ubuntu 24.04 container**, using either **Apache2** or **Nginx** as the web server.
+This is the **fastest and most convenient** way to deploy **acme2certifier**. After installation, **acme2certifier** will run inside a **minimal Ubuntu 26.04 container**, using either **Apache2** or **Nginx** as the web server.
 
 ## Persistent Storage
 
@@ -22,6 +23,23 @@ By default, these files are stored in the **`data/`** folder and mounted inside 
 ```
 
 The **data folder path** can be modified in [`docker-compose.yml`](https://github.com/grindsa/acme2certifier/blob/master/examples/Docker/docker-compose.yml) to match your setup.
+
+## Database handler selection
+
+Images ship with a baked default:
+
+| Image tag / `CONTEXT` | `ACME_SRV_DB_HANDLER` |
+| --- | --- |
+| `*-wsgi` | `wsgi` |
+| `*-django` | `django` |
+
+Precedence matches the application:
+
+1. `[DBhandler] handler_module` or `handler` in `acme_srv.cfg` (wins)
+1. `ACME_SRV_DB_HANDLER` (image default, or override with `docker run -e`)
+1. default `wsgi`
+
+You can switch the **DB backend** via cfg without rebuilding the image. That does **not** retarget the web stack: Apache/nginx config and the WSGI/Django app entry stay image-specific. Use a `django` image for a full Django deployment (settings, migrations, Django app entry).
 
 ## Ports
 
@@ -56,7 +74,7 @@ ports:
 The `.env` file allows customization, including:
 
 - **Branch Selection:** `master` or `devel`
-- **Context:** `wsgi` or `django`
+- **Context:** `wsgi` or `django` (selects image variant and baked `ACME_SRV_DB_HANDLER`)
 - **Web Server:** `apache2` or `nginx`
 
 Example `.env` file:
@@ -72,6 +90,8 @@ ______________________________________________________________________
 
 ## Building the Docker Image
 
+A prebuilt `.deb` must exist at the repository root (`*.deb`) before `docker compose build` (CI builds it first; locally run the Debian package build).
+
 ```bash
 cd ~/acme2certifier/examples/Docker
 docker-compose build --no-cache
@@ -81,7 +101,7 @@ Expected output:
 
 ```bash
 Building srv
-Step 1/17 : FROM ubuntu:24.04
+Step 1/17 : FROM ubuntu:26.04
  ---> 1d622ef86b13
 Step 2/17 : LABEL maintainer="grindelsack@gmail.com"
  ---> Running in 03f043052bc9
@@ -159,9 +179,9 @@ docker-compose build --no-cache
 During startup, the **entry-point script** checks for missing configuration files in `data/`:
 
 - **Configuration file:** [`acme_srv.cfg`](../../examples/acme_srv.cfg)
-- **Stub handler:** [`skeleton_ca_handler.py`](../../examples/ca_handler/skeleton_ca_handler.py)
+- **Stub handler:** [`skeleton_ca_handler.py`](../../acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py)
 
-For **Django-based deployments**, a **project-specific `settings.py`** will also be created in `data/`.
+For **Django images** (when the resolved DB handler is `django`), a **project-specific `settings.py`** and migrations are also created/linked under `data/`. The entrypoint does **not** write `handler: django` into `acme_srv.cfg`; the image default comes from `ACME_SRV_DB_HANDLER`.
 
 ______________________________________________________________________
 
@@ -231,9 +251,9 @@ ______________________________________________________________________
 
 To enable **TLS support**, place `acme2certifier.pem` in the volume. It must contain:
 
-- **Private key**
-- **End-entity certificate**
-- **Intermediate CA certificates** (from **leaf to root**; do **not** include the root CA)
+- Private key
+- End-entity certificate
+- Intermediate CA certificates (from **leaf to root**; do **not** include the root CA)
 
 Example:
 
@@ -278,4 +298,4 @@ This will:
 
 ______________________________________________________________________
 
-### 🎉 Congratulations! acme2certifier is now running in a containerized environment! 🚀
+**Congratulations! acme2certifier is now running in a containerized environment.**

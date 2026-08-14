@@ -1,12 +1,28 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title CA Trigger -->
+<!-- wiki-title: CA Trigger -->
+<!-- wiki-category: Operations -->
 
 # `ca_handler.trigger()`
 
 The `trigger` method allows a **CA server** to invoke specific actions on **acme2certifier**. These actions are defined by the respective **CA handler**.
 
 This method is particularly useful in scenarios where a **CSR enters a pending state**, and the **CA server has the ability to trigger scripts** after CSR approval.
+
+## Enable the endpoint
+
+The `/trigger` HTTP route is **disabled by default**. Both of the following are required:
+
+- Opt-in in `acme_srv.cfg`:
+
+```ini
+[Trigger]
+enabled: True
+```
+
+- The loaded CA handler must set class attribute `supports_trigger = True`. If the attribute is missing, it defaults to off. Built-in handlers leave this unset except **Certifier**, which sets `supports_trigger = True`.
+
+At process start, acme2certifier evaluates both conditions. If config is on but the handler does not support trigger, a warning is logged and the route stays disabled. When disabled, the route is not registered (Django/WSGI) and `Trigger.parse()` rejects requests with HTTP 403.
 
 ## Triggering a Request
 

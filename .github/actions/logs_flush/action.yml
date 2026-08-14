@@ -1,10 +1,14 @@
 name: "flow-logs-flush"
-description: "flush logs for acme-srv container"
+description: "flush logs for acme-srv deployment"
 inputs:
   DEPLOYMENT_TYPE:
     description: "Deployment type"
     required: true
     default: "rpm"
+  CONTAINER_NAME:
+    description: "Container name for docker inspect log flush (container deployments)"
+    required: false
+    default: "acme-srv"
 
 runs:
   using: "composite"
@@ -15,7 +19,7 @@ runs:
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         echo "container deployment"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        sudo truncate -s 0 "$(docker inspect --format='{{.LogPath}}' "${CONTAINER_NAME}")"
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         echo "rpm deployment"
         docker exec -i acme-srv truncate -s 0 /var/log/messages
@@ -27,3 +31,4 @@ runs:
     shell: bash
     env:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      CONTAINER_NAME: ${{ inputs.CONTAINER_NAME }}

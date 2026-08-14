@@ -1,0 +1,74 @@
+name: "logging_smoke_check"
+description: "Assert Helper.log_file and remote syslog_address received enrollment traffic"
+inputs:
+  LOG_FILE_HOST:
+    description: "Host-visible path to log_file (bind-mounted volume). Leave empty to use docker exec."
+    required: false
+    default: ""
+  LOG_FILE_CONTAINER:
+    description: "Path inside ACME_CONTAINER used when LOG_FILE_HOST is empty"
+    required: false
+    default: ""
+  ACME_CONTAINER:
+    description: "a2c container name for docker exec checks"
+    required: false
+    default: "acme-srv"
+  SINK_OUT_DIR:
+    description: "Host directory with sink output"
+    required: false
+    default: "/tmp/syslog-sink"
+  GREP_PATTERN:
+    description: "Regex that must appear in both log destinations"
+    required: false
+    default: "acme2certifier|/directory|/neworder|/newacct|/acct|Order\\.|Account\\.|Challenge\\."
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Smoke: Helper.log_file"
+      shell: bash
+      env:
+        LOG_FILE_HOST: ${{ inputs.LOG_FILE_HOST }}
+        LOG_FILE_CONTAINER: ${{ inputs.LOG_FILE_CONTAINER }}
+        ACME_CONTAINER: ${{ inputs.ACME_CONTAINER }}
+        GREP_PATTERN: ${{ inputs.GREP_PATTERN }}
+      run: |
+        set -euo pipefail
+        tmp="$(mktemp)"
+        if [[ -n "${LOG_FILE_HOST}" ]]; then
+          echo "Checking host log file: ${LOG_FILE_HOST}"
+          test -s "${LOG_FILE_HOST}"
+          sudo cp "${LOG_FILE_HOST}" "${tmp}"
+        else
+          echo "Checking container log file: ${ACME_CONTAINER}:${LOG_FILE_CONTAINER}"
+          test -n "${LOG_FILE_CONTAINER}"
+          docker exec "${ACME_CONTAINER}" test -s "${LOG_FILE_CONTAINER}"
+          docker exec "${ACME_CONTAINER}" cat "${LOG_FILE_CONTAINER}" > "${tmp}"
+        fi
+        echo "---- log_file (tail) ----"
+        tail -n 30 "${tmp}" || true
+        grep -E "${GREP_PATTERN}" "${tmp}"
+        echo "log_file smoke OK"
+
+    - name: "Smoke: Helper.syslog_address (UDP remote)"
+      shell: bash
+      env:
+        SINK_OUT_DIR: ${{ inputs.SINK_OUT_DIR }}
+        GREP_PATTERN: ${{ inputs.GREP_PATTERN }}
+      run: |
+        set -euo pipefail
+        received="${SINK_OUT_DIR}/received.log"
+        echo "Checking syslog sink: ${received}"
+        # Allow a short drain window for late datagrams
+        for _ in $(seq 1 20); do
+          if [[ -s "${received}" ]]; then
+            break
+          fi
+          sleep 0.25
+        done
+        test -s "${received}"
+        echo "---- syslog received (tail) ----"
+        tail -n 30 "${received}" || true
+        # SysLogHandler may prefix <pri>; still contains message text
+        grep -E "${GREP_PATTERN}" "${received}"
+        echo "syslog_address smoke OK"

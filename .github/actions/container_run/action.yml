@@ -25,6 +25,11 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Pull a2c image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: grindsa/acme2certifier:${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}
+
     - name: "Spin-up a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |

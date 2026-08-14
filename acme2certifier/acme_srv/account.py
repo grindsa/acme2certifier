@@ -1,0 +1,958 @@
+# -*- coding: utf-8 -*-
+"""Refactored Account class with improved design and maintainability"""
+
+from __future__ import print_function
+import json
+from typing import List, Tuple, Dict, Optional
+from dataclasses import dataclass, field
+from acme2certifier.acme_srv.helper import (
+    generate_random_string,
+    validate_email,
+    date_to_datestr,
+    load_config,
+    eab_handler_load,
+    b64decode_pad,
+    error_dic_get,
+    uts_to_date_utc,
+    uts_now,
+)
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.message import Message
+
+from acme2certifier.acme_srv.signature import Signature
+from acme2certifier.acme_srv.helpers.global_variables import (
+    DB_ERROR_MSG,
+    CONFIGURATION_ERROR_DETAIL,
+)
+
+
+class ExternalAccountBinding:
+    """Encapsulates EAB validation and signature verification logic."""
+
+    def __init__(self, logger, eab_handler, server_name=None):
+        self.logger = logger
+        self.eab_handler = eab_handler
+        self.server_name = server_name
+
+    def get_kid(self, protected: str) -> str:
+        """Extract key identifier (kid) from protected header."""
+        self.logger.debug("ExternalAccountBinding.get_kid()")
+        try:
+            protected_dic = json.loads(b64decode_pad(self.logger, protected))
+        except Exception as err:
+            self.logger.error("Failed to decode protected header: %s", err)
+            protected_dic = None
+
+        if isinstance(protected_dic, dict):
+            eab_key_id = protected_dic.get("kid", None)
+        else:
+            eab_key_id = None
+        self.logger.debug("ExternalAccountBinding.get_kid() ended with: %s", eab_key_id)
+        return eab_key_id
+
+    def compare_jwk(self, protected: dict, payload: str) -> bool:
+        """Compare JWK from outer header with JWK in EAB payload."""
+        self.logger.debug("ExternalAccountBinding.compare_jwk()")
+        result = False
+        if "jwk" in protected:
+            jwk_outer = protected["jwk"]
+            try:
+                jwk_inner = json.loads(b64decode_pad(self.logger, payload))
+            except Exception as err:
+                self.logger.error("Failed to decode EAB JWK payload: %s", err)
+            else:
+                if isinstance(jwk_inner, dict):
+                    if json.dumps(jwk_outer, sort_keys=True) == json.dumps(
+                        jwk_inner, sort_keys=True
+                    ):
+                        result = True
+                    else:
+                        self.logger.error("JWK from outer and inner JWS do not match")
+                        self.logger.debug("outer: %s", jwk_outer)
+                        self.logger.debug("inner: %s", jwk_inner)
+                else:
+                    self.logger.error("EAB JWK payload is not a JSON object")
+        else:
+            self.logger.error("No JWK in protected header")
+        self.logger.debug("ExternalAccountBinding.compare_jwk() ended with: %s", result)
+        return result
+
+    def verify_signature(self, content: dict, mac_key: str) -> tuple:
+        """Verify EAB signature."""
+        self.logger.debug("ExternalAccountBinding.verify_signature()")
+        if content and mac_key:
+            signature = Signature(None, self.server_name, self.logger)
+            jwk_ = json.dumps({"k": mac_key, "kty": "oct"})
+            sig_check, error = signature.eab_check(json.dumps(content), jwk_)
+        else:
+            sig_check = False
+            error = None
+        self.logger.debug(
+            "ExternalAccountBinding.verify_signature() ended with: %s: %s",
+            sig_check,
+            error,
+        )
+        return (sig_check, error)
+
+    def verify(self, payload: dict, err_msg_dic: dict) -> tuple:
+        """Check for external account binding and verify signature."""
+        self.logger.debug("ExternalAccountBinding.verify()")
+        eab_kid = self.get_kid(payload["externalaccountbinding"]["protected"])
+        if eab_kid:
+            with self.eab_handler(self.logger) as eab_handler:
+                eab_mac_key = eab_handler.mac_key_get(eab_kid)
+        else:
+            eab_mac_key = None
+        if eab_mac_key:
+            result, error = self.verify_signature(
+                payload["externalaccountbinding"], eab_mac_key
+            )
+            if result:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 403
+                message = err_msg_dic["unauthorized"]
+                detail = "EAB signature verification failed"
+                self.logger.error(
+                    "EAB signature verification failed kid=%s error=%s",
+                    eab_kid,
+                    error,
+                )
+        else:
+            code = 403
+            message = err_msg_dic["unauthorized"]
+            detail = "EAB kid lookup failed"
+            self.logger.error("EAB kid lookup failed kid=%s", eab_kid)
+        self.logger.debug("ExternalAccountBinding.verify() ended with: %s", code)
+        return (code, message, detail)
+
+    def check(self, protected: dict, payload: dict, err_msg_dic: dict) -> tuple:
+        """Check for external account binding, compare JWK, and verify signature."""
+        self.logger.debug("ExternalAccountBinding.check()")
+
+        if (
+            self.eab_handler
+            and protected
+            and payload
+            and "externalaccountbinding" in payload
+            and payload["externalaccountbinding"]
+        ):
+            jwk_compare = self.compare_jwk(
+                protected, payload["externalaccountbinding"]["payload"]
+            )
+            if jwk_compare and "protected" in payload["externalaccountbinding"]:
+                return self.verify(payload, err_msg_dic)
+
+            code = 403
+            message = err_msg_dic["malformed"]
+            detail = "Malformed request"
+            if not jwk_compare:
+                self.logger.warning("EAB malformed: outer/inner JWK mismatch")
+            else:
+                self.logger.warning(
+                    "EAB malformed: missing protected header in binding"
+                )
+        else:
+            code = 403
+            message = err_msg_dic["externalaccountrequired"]
+            detail = "External account binding required"
+            self.logger.warning("EAB required: externalAccountBinding missing or empty")
+        self.logger.debug("ExternalAccountBinding.check() ended with: %s", code)
+        return (code, message, detail)
+
+
+class AccountDatabaseError(Exception):
+    """Exception raised for database-related errors in Account operations."""
+
+    pass
+
+
+class AccountRepository:
+    """Repository for all Account-related database operations."""
+
+    def __init__(self, dbstore, logger=None):
+        self.dbstore = dbstore
+        self.logger = logger
+
+    def lookup_account(self, field: str, value: str) -> Optional[Dict[str, str]]:
+        """Look up an account in the database."""
+        try:
+            return self.dbstore.account_lookup(field, value)
+        except Exception as err:
+            self.logger.critical("%s during account lookup: %s", DB_ERROR_MSG, err)
+            raise AccountDatabaseError(f"Failed to look up account: {err}") from err
+
+    def add_account(self, data_dic: Dict[str, str]) -> Tuple[Optional[str], bool]:
+        """Add a new account to the database."""
+        try:
+            return self.dbstore.account_add(data_dic)
+        except Exception as err:
+            self.logger.critical("%s while adding account: %s", DB_ERROR_MSG, err)
+            raise AccountDatabaseError(f"Failed to add account: {err}") from err
+
+    def update_account(self, data_dic: Dict[str, str], active: bool = True) -> bool:
+        """Update an account in the database."""
+        try:
+            return self.dbstore.account_update(data_dic, active)
+        except Exception as err:
+            self.logger.critical("%s while updating account: %s", DB_ERROR_MSG, err)
+            raise AccountDatabaseError(f"Failed to update account: {err}") from err
+
+    def delete_account(self, account_name: str) -> bool:
+        """Delete an account from the database."""
+        try:
+            return self.dbstore.account_delete(account_name)
+        except Exception as err:
+            self.logger.critical("%s while deleting account: %s", DB_ERROR_MSG, err)
+            raise AccountDatabaseError(f"Failed to delete account: {err}") from err
+
+    def load_jwk(self, account_name: str) -> Optional[Dict[str, str]]:
+        """Load the JWK for a given account."""
+        try:
+            return self.dbstore.jwk_load(account_name)
+        except Exception as err:
+            self.logger.critical("%s while loading JWK: %s", DB_ERROR_MSG, err)
+            raise AccountDatabaseError(f"Failed to load JWK: {err}") from err
+
+
+@dataclass
+class AccountConfiguration:
+    """Configuration for the Account class."""
+
+    ecc_only: bool = False
+    contact_check_disable: bool = False
+    tos_check_disable: bool = False
+    inner_header_nonce_allow: bool = False
+    tos_url: Optional[str] = None
+    eab_check: bool = False
+    eab_strict_mode: bool = True
+    eab_handler: Optional[object] = None
+    path_dic: Dict[str, str] = field(
+        default_factory=lambda: {"acct_path": "/acme/acct/"}
+    )
+
+
+@dataclass
+class AccountData:
+    """Data structure for account information."""
+
+    name: str
+    alg: str
+    jwk: Dict[str, str]
+    contact: List[str]
+    eab_kid: Optional[str] = None
+    status: str = "valid"
+    created_at: Optional[str] = None
+
+
+class Account:
+    """Refactored ACME server class."""
+
+    def __init__(self, debug: bool = False, srv_name: str = None, logger=None):
+        self.server_name = srv_name
+        self.logger = logger
+        self.dbstore = DBstore(debug, self.logger)
+        self.repository = AccountRepository(self.dbstore, self.logger)
+        self.message = Message(debug, self.server_name, self.logger)
+        self.config = AccountConfiguration()
+        self.err_msg_dic = error_dic_get(self.logger)
+
+    def __enter__(self):
+        """Enter the context manager, loading configuration."""
+        self._load_configuration()
+        return self
+
+    def __exit__(self, *args) -> None:
+        """
+        Exit the context manager. (No-op, placeholder for cleanup.)
+        """
+
+    def _load_configuration(self):
+        """Load configuration into the AccountConfiguration dataclass."""
+        self.logger.debug("Account._load_configuration()")
+        config_dic = load_config()
+
+        self.config.inner_header_nonce_allow = config_dic.getboolean(
+            "Account", "inner_header_nonce_allow", fallback=False
+        )
+        self.config.ecc_only = config_dic.getboolean(
+            "Account", "ecc_only", fallback=False
+        )
+        self.config.tos_check_disable = config_dic.getboolean(
+            "Account", "tos_check_disable", fallback=False
+        )
+        self.config.contact_check_disable = config_dic.getboolean(
+            "Account", "contact_check_disable", fallback=False
+        )
+
+        if "EABhandler" in config_dic:
+            self.logger.debug("Account._load_configuration(): loading eab_handler")
+            self.config.eab_check = True
+
+            self.config.eab_strict_mode = config_dic.getboolean(
+                "EABhandler", "eab_strict_mode", fallback=True
+            )
+            if (
+                "eab_handler_file" in config_dic["EABhandler"]
+                or "eab_handler_module" in config_dic["EABhandler"]
+            ):
+                eab_handler_module = eab_handler_load(self.logger, config_dic)
+                if eab_handler_module:
+                    self.config.eab_handler = eab_handler_module.EABhandler
+                else:
+                    self.logger.critical("EABHandler could not get loaded")
+            else:
+                self.logger.critical(
+                    "%s: EABHandler incomplete", CONFIGURATION_ERROR_DETAIL
+                )
+
+        self.config.tos_url = config_dic.get("Directory", "tos_url", fallback=None)
+        if config_dic.get("Directory", "url_prefix", fallback=None):
+            self.config.path_dic = {
+                k: config_dic.get("Directory", "url_prefix") + v
+                for k, v in self.config.path_dic.items()
+            }
+        self.logger.debug("Account._load_configuration() ended")
+
+    def _add_account_to_db(
+        self, account_data: AccountData
+    ) -> Tuple[int, str, Optional[Dict[str, str]]]:
+        """Add a new account to the database."""
+        self.logger.debug("Account._add_account_to_db(%s)", account_data.name)
+        try:
+            # convert dict and list to string
+            account_data.jwk = json.dumps(account_data.jwk)
+            account_data.contact = json.dumps(account_data.contact)
+            db_name, is_new = self.repository.add_account(account_data.__dict__)
+            if is_new:
+                self.logger.debug(
+                    "Account._add_account_to_db() ended with: 201, %s", db_name
+                )
+                return 201, db_name, None
+            self.logger.debug(
+                "Account._add_account_to_db() ended with: 200, %s", db_name
+            )
+            return 200, db_name, None
+
+        except Exception as err:
+            self.logger.critical("%s while adding account: %s", DB_ERROR_MSG, err)
+            return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
+
+    def _validate_contact(self, contact: List[str]) -> Tuple[int, str, str]:
+        """Validate contact information."""
+        self.logger.debug("Account._validate_contact()")
+        if not contact:
+            self.logger.warning("Contact information is missing")
+            return 400, self.err_msg_dic["malformed"], "Contact information is missing"
+        if not validate_email(self.logger, contact):
+            self.logger.warning("Invalid contact information")
+            return (
+                400,
+                self.err_msg_dic["invalidcontact"],
+                "Invalid contact information",
+            )
+        return 200, None, None
+
+    def _check_tos(self, content: Dict[str, str]) -> Tuple[int, str, str]:
+        """check terms of service"""
+        self.logger.debug("Account._check_tos()")
+        if "termsofserviceagreed" in content:
+            self.logger.debug("tos:%s", content["termsofserviceagreed"])
+            if content["termsofserviceagreed"]:
+                code = 200
+                message = None
+                detail = None
+            else:
+                detail = "Terms of service must be agreed"
+                self.logger.warning("%s", detail)
+                code = 403
+                message = self.err_msg_dic["useractionrequired"]
+        else:
+            detail = "termsofserviceagreed flag missing"
+            self.logger.warning("%s", detail)
+            code = 403
+            message = self.err_msg_dic["useractionrequired"]
+
+        self.logger.debug("Account._check_tos() ended with:%s", code)
+        return (code, message, detail)
+
+    def _skip_eab_for_non_strict_mode(self, payload: Dict[str, str]) -> bool:
+        """Return True if EAB checks should be skipped in non-strict mode."""
+        return not self.config.eab_strict_mode and not payload.get(
+            "externalaccountbinding"
+        )
+
+    def _run_eab_check(
+        self, protected: Dict[str, str], payload: Dict[str, str]
+    ) -> Tuple[int, Optional[str], Optional[str]]:
+        """Run EAB validation when required by current configuration."""
+        if not self.config.eab_check:
+            return 200, None, None
+
+        if self._skip_eab_for_non_strict_mode(payload):
+            self.logger.debug(
+                "Account._create_account() EAB check skipped due to non-strict mode and missing EAB payload"
+            )
+            return 200, None, None
+
+        eab_handler = ExternalAccountBinding(
+            self.logger, self.config.eab_handler, self.server_name
+        )
+        return eab_handler.check(protected, payload, self.err_msg_dic)
+
+    def _get_eab_kid_for_account(
+        self, account_name: str, payload: Dict[str, str]
+    ) -> Optional[str]:
+        """Extract EAB kid for account data when EAB data is provided/required."""
+        if not self.config.eab_check:
+            return None
+
+        if self._skip_eab_for_non_strict_mode(payload):
+            self.logger.debug(
+                "Account._create_account() EAB binding skipped for account %s due to non-strict mode and missing EAB payload",
+                account_name,
+            )
+            return None
+
+        eab_handler = ExternalAccountBinding(
+            self.logger, self.config.eab_handler, self.server_name
+        )
+        return eab_handler.get_kid(payload["externalaccountbinding"]["protected"])
+
+    def _create_account(
+        self, payload: Dict[str, str], protected: Dict[str, str]
+    ) -> Tuple[int, str, str]:
+        """Create a new account."""
+        self.logger.debug("Account._create_account()")
+        account_name = generate_random_string(self.logger, 12)
+        contact_list = payload.get("contact", [])
+
+        # tos check
+        if self.config.tos_url and not self.config.tos_check_disable:
+            code, message, detail = self._check_tos(payload)
+            if code != 200:
+                return code, message, detail
+
+        code, message, detail = self._run_eab_check(protected, payload)
+        if code != 200:
+            return code, message, detail
+
+        # Validate contact information
+        if not self.config.contact_check_disable:
+            code, message, detail = self._validate_contact(contact_list)
+            if code != 200:
+                return code, message, detail
+
+        # Prepare account data
+        account_data = AccountData(
+            name=account_name,
+            alg=protected["alg"],
+            jwk=protected["jwk"],
+            contact=contact_list,
+            created_at=date_to_datestr(uts_now()),
+        )
+        eab_kid = self._get_eab_kid_for_account(account_name, payload)
+        if eab_kid:
+            account_data.eab_kid = eab_kid
+
+        # Add account to database
+        return self._add_account_to_db(account_data)
+
+    def _parse_query(self, account_name: str) -> Dict[str, str]:
+        """update contacts"""
+        self.logger.debug("Account._parse_query(%s)", account_name)
+
+        # this is a query for account information
+        account_obj = self._lookup_account_by_name(account_name)
+        if account_obj:
+            data = self._build_account_info(account_obj)
+            data["status"] = "valid"
+        else:
+            data = {"status": "invalid"}
+
+        self.logger.debug("Account._parse_query() ended")
+        return data
+
+    def _onlyreturnexisting(
+        self, protected: Dict[str, str], payload: Dict[str, str]
+    ) -> Tuple[int, str, str]:
+        """check onlyreturnexisting"""
+        self.logger.debug("Account._onlyreturnexisting()")
+
+        if "onlyreturnexisting" in payload:
+            if payload["onlyreturnexisting"]:
+
+                if "jwk" in protected:
+                    result = self._lookup_account_by_field(
+                        json.dumps(protected["jwk"]), "jwk"
+                    )
+                    if result:
+                        code = 200
+                        message = result["name"]
+                        detail = self._parse_query(message)
+                    else:
+                        self.logger.warning(
+                            "onlyReturnExisting: account does not exist"
+                        )
+                        code = 400
+                        message = self.err_msg_dic["accountdoesnotexist"]
+                        detail = None
+                else:
+                    self.logger.warning("onlyReturnExisting: jwk structure missing")
+                    code = 400
+                    message = self.err_msg_dic["malformed"]
+                    detail = "jwk structure missing"
+
+            else:
+                self.logger.warning("onlyReturnExisting must be true")
+                code = 400
+                message = self.err_msg_dic["useractionrequired"]
+                detail = "onlyReturnExisting must be true"
+        else:
+            self.logger.warning("onlyReturnExisting without payload")
+            code = 400
+            message = self.err_msg_dic["malformed"]
+            detail = "onlyReturnExisting without payload"
+
+        self.logger.debug("Account.onlyreturnexisting() ended with: %s", code)
+        return (code, message, detail)
+
+    def _handle_deactivation(
+        self, account_name: str, payload: Dict[str, str]
+    ) -> Dict[str, str]:
+        """Handle account deactivation."""
+        self.logger.debug("Account._handle_deactivation(%s)", account_name)
+        if payload.get("status", "").lower() == "deactivated":
+            account_obj = self._lookup_account_by_name(account_name)
+            if not account_obj:
+                self.logger.warning(
+                    "Deactivation failed: account does not exist account=%s",
+                    account_name,
+                )
+                return self._build_response(
+                    400,
+                    self.err_msg_dic["accountdoesnotexist"],
+                    "Deactivation failed",
+                    account_name=account_name,
+                )
+            code, message, detail = self._deactivate_account(account_name)
+            if code == 200:
+                data = self._build_account_info(account_obj)
+                data["status"] = "deactivated"
+                return self._build_response(code, account_name, data)
+            return self._build_response(
+                code, message, detail, account_name=account_name
+            )
+        else:
+            self.logger.warning(
+                "Invalid status for deactivation account=%s status=%s",
+                account_name,
+                payload.get("status"),
+            )
+            return self._build_response(
+                400,
+                self.err_msg_dic["malformed"],
+                "Invalid status for deactivation",
+                account_name=account_name,
+            )
+
+    def _deactivate_account(self, account_name: str) -> Tuple[int, str, str]:
+        """Deactivate an account."""
+        self.logger.debug("Account._deactivate_account(%s)", account_name)
+        try:
+            data_dic = {
+                "name": account_name,
+                "status_id": 7,
+                "jwk": f"DEACTIVATED {uts_to_date_utc(uts_now())}",
+            }
+            result = self.repository.update_account(data_dic, active=False)
+            if result:
+                return 200, None, None
+            else:
+                self.logger.warning(
+                    "Deactivation failed: account does not exist account=%s",
+                    account_name,
+                )
+                return (
+                    400,
+                    self.err_msg_dic["accountdoesnotexist"],
+                    "Deactivation failed",
+                )
+        except Exception as err:
+            self.logger.critical("%s while deactivating account: %s", DB_ERROR_MSG, err)
+            return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
+
+    def _handle_contact_update(
+        self, account_name: str, payload: Dict[str, str]
+    ) -> Dict[str, str]:
+        """Handle contact update for an account."""
+        self.logger.debug("Account._handle_contact_update(%s)", account_name)
+        code, message, detail = self._update_account_contacts(account_name, payload)
+        if code == 200:
+            account_obj = self._lookup_account_by_name(account_name)
+            if account_obj:
+                data = self._build_account_info(account_obj)
+                return self._build_response(code, account_name, data)
+        return self._build_response(code, message, detail, account_name=account_name)
+
+    def _update_account_contacts(
+        self, account_name: str, payload: Dict[str, str]
+    ) -> Tuple[int, str, str]:
+        """Update account contacts in the database."""
+        self.logger.debug("Account._update_account_contacts(%s)", account_name)
+        code, message, detail = self._validate_contact(payload.get("contact", []))
+        if code != 200:
+            return code, message, detail
+
+        try:
+            data_dic = {"name": account_name, "contact": json.dumps(payload["contact"])}
+            result = self.repository.update_account(data_dic)
+            if result:
+                return 200, None, None
+            else:
+                self.logger.warning(
+                    "Account does not exist for contact update account=%s",
+                    account_name,
+                )
+                return 400, self.err_msg_dic["accountdoesnotexist"], "Update failed"
+        except Exception as err:
+            self.logger.critical(
+                "%s while updating account contacts: %s", DB_ERROR_MSG, err
+            )
+            return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
+
+    def _handle_key_change(
+        self, account_name: str, payload: Dict[str, str], protected: Dict[str, str]
+    ) -> Dict[str, str]:
+        """Handle key change for an account."""
+        self.logger.debug("Account._handle_key_change(%s)", account_name)
+        if "url" in protected and "key-change" in protected["url"]:
+            (
+                code,
+                message,
+                detail,
+                inner_protected,
+                inner_payload,
+                _,
+            ) = self.message.check(
+                json.dumps(payload), use_emb_key=True, skip_nonce_check=True
+            )
+            if code != 200:
+                self.logger.warning(
+                    "Key-change inner JWS check failed account=%s detail=%s",
+                    account_name,
+                    detail,
+                )
+                return self._build_response(
+                    code, message, detail, account_name=account_name
+                )
+
+            code, message, detail = self._rollover_account_key(
+                account_name, protected, inner_protected, inner_payload
+            )
+            if code == 200:
+                return self._build_response(code, account_name, None)
+
+            self.logger.warning(
+                "Key rollover failed account=%s detail=%s", account_name, detail
+            )
+            return self._build_response(
+                code, message, detail, account_name=account_name
+            )
+
+        self.logger.warning("Malformed key-change request account=%s", account_name)
+        return self._build_response(
+            400,
+            self.err_msg_dic["malformed"],
+            "Malformed key-change request",
+            account_name=account_name,
+        )
+
+    def _rollover_account_key(
+        self,
+        account_name: str,
+        protected: Dict[str, str],
+        inner_protected: Dict[str, str],
+        inner_payload: Dict[str, str],
+    ) -> Tuple[int, str, str]:
+        """Perform key rollover for an account."""
+        self.logger.debug("Account._rollover_account_key(%s)", account_name)
+        code, message, detail = self._validate_key_change(
+            account_name, protected, inner_protected, inner_payload
+        )
+        if code == 200:
+            try:
+                data_dic = {
+                    "name": account_name,
+                    "jwk": json.dumps(inner_protected["jwk"]),
+                }
+                result = self.repository.update_account(data_dic)
+                if result:
+                    return 200, None, None
+                else:
+                    self.logger.error(
+                        "Key rollover failed for account: %s", account_name
+                    )
+                    return (
+                        500,
+                        self.err_msg_dic["serverinternal"],
+                        "Key rollover failed",
+                    )
+            except Exception as err:
+                self.logger.critical(
+                    "%s while updating account key: %s", DB_ERROR_MSG, err
+                )
+                return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
+        return code, message, detail
+
+    def _validate_key_change(
+        self,
+        account_name: str,
+        protected: Dict[str, str],
+        inner_protected: Dict[str, str],
+        inner_payload: Dict[str, str],
+    ) -> Tuple[int, str, str]:
+        """Validate key change request."""
+        self.logger.debug("Account._validate_key_change(%s)", account_name)
+
+        def _reject(code: int, message: str, detail: str) -> Tuple[int, str, str]:
+            self.logger.warning(
+                "Key-change validation failed account=%s detail=%s",
+                account_name,
+                detail,
+            )
+            return code, message, detail
+
+        if "jwk" not in inner_protected:
+            return _reject(
+                400, self.err_msg_dic["malformed"], "Inner JWS is missing JWK"
+            )
+
+        key_exists = self._lookup_account_by_field(
+            json.dumps(inner_protected["jwk"]), "jwk"
+        )
+        if key_exists:
+            return _reject(
+                400, self.err_msg_dic["badpubkey"], "Public key already exists"
+            )
+
+        if "url" in protected and "url" in inner_protected:
+            if protected["url"] != inner_protected["url"]:
+                return _reject(
+                    400,
+                    self.err_msg_dic["malformed"],
+                    "URL mismatch in inner and outer JWS",
+                )
+        else:
+            return _reject(
+                400,
+                self.err_msg_dic["malformed"],
+                "Missing URL in inner or outer JWS",
+            )
+
+        if "kid" in protected and "account" in inner_payload:
+            if protected["kid"] != inner_payload["account"]:
+                return _reject(
+                    400,
+                    self.err_msg_dic["malformed"],
+                    "KID and account do not match",
+                )
+        else:
+            return _reject(
+                400,
+                self.err_msg_dic["malformed"],
+                "Missing KID or account in payload",
+            )
+
+        return 200, None, None
+
+    def _handle_account_query(self, account_name: str) -> Dict[str, str]:
+        """Handle account query."""
+        self.logger.debug("Account._handle_account_query(%s)", account_name)
+        account_obj = self._lookup_account_by_name(account_name)
+        if account_obj:
+            data = self._build_account_info(account_obj)
+            return self._build_response(200, account_name, data)
+        return self._build_response(
+            400,
+            self.err_msg_dic["accountdoesnotexist"],
+            "Account not found",
+            account_name=account_name,
+        )
+
+    def _lookup_account_by_name(self, value: str) -> Optional[Dict[str, str]]:
+        """Lookup an account in the database."""
+        self.logger.debug("Account._lookup_account_by_name(name: %s)", value)
+        try:
+            return self.repository.lookup_account("name", value)
+        except Exception as err:
+            self.logger.critical(
+                "%s during account lookup by name: %s", DB_ERROR_MSG, err
+            )
+            return None
+
+    def _lookup_account_by_field(
+        self, value: str, field: str
+    ) -> Optional[Dict[str, str]]:
+        """Lookup account by a specific field."""
+        self.logger.debug("Account._lookup_account_by_field(%s: %s)", field, value)
+        try:
+            return self.repository.lookup_account(field, value)
+        except Exception as err:
+            self.logger.critical(
+                "%s during account lookup by %s: %s", DB_ERROR_MSG, field, err
+            )
+            return None
+
+    def _build_account_info(self, account_obj: Dict[str, str]) -> Dict[str, str]:
+        """Build account information for response."""
+        self.logger.debug("Account._build_account_info()")
+        account_info = {
+            "status": account_obj.get("status", "valid"),
+            "key": json.loads(account_obj["jwk"]),
+            "contact": json.loads(account_obj["contact"]),
+            "createdAt": date_to_datestr(account_obj["created_at"]),
+        }
+        if "eab_kid" in account_obj and account_obj["eab_kid"]:
+            account_info["eab_kid"] = account_obj["eab_kid"]
+
+        self.logger.debug(
+            "Account._build_account_info() ended with: %s", bool(account_info)
+        )
+        return account_info
+
+    def _build_success_data(
+        self,
+        code: int,
+        message: Optional[str],
+        detail: Optional[str],
+        payload: Optional[Dict],
+    ) -> Dict[str, str]:
+        """Build response data payload for successful account operations."""
+        if code == 201:
+            data = {
+                "status": "valid",
+                "orders": f'{self.server_name}{self.config.path_dic["acct_path"]}{message}/orders',
+            }
+            if payload and "contact" in payload:
+                data["contact"] = payload["contact"]
+            return data
+
+        if code == 200 and detail and "status" in detail:
+            return detail
+
+        return {}
+
+    def _build_location_header(self, account_name: Optional[str]) -> Dict[str, str]:
+        """Build location header for successful account operations."""
+        return {
+            "Location": f'{self.server_name}{self.config.path_dic["acct_path"]}{account_name}'
+        }
+
+    def _add_eab_binding_to_response(
+        self, response_data: Dict[str, str], payload: Optional[Dict]
+    ) -> None:
+        """Append external account binding to response data when configured."""
+        if self.config.eab_check and payload and "externalaccountbinding" in payload:
+            response_data["externalaccountbinding"] = payload["externalaccountbinding"]
+
+    def _normalize_error_detail(self, detail: Optional[str]) -> Optional[str]:
+        """Normalize legacy error details for response payload."""
+        if detail == "tosfalse":
+            return "Terms of service must be accepted"
+        return detail
+
+    def _resolve_log_account(
+        self, code: int, message: Optional[str], account_name: Optional[str]
+    ) -> Optional[str]:
+        """Resolve account name used for response logging."""
+        if account_name is not None:
+            return account_name
+        if code in (200, 201):
+            return message
+        return None
+
+    def _build_response(
+        self,
+        code: int,
+        message: Optional[str],
+        detail: Optional[str],
+        payload: Optional[Dict] = None,
+        account_name: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """Build a response dictionary."""
+        self.logger.debug("Account._build_response()")
+        response_dic = {}
+
+        if code in (200, 201):
+            response_dic["data"] = self._build_success_data(
+                code, message, detail, payload
+            )
+            response_dic["header"] = self._build_location_header(message)
+            self._add_eab_binding_to_response(response_dic["data"], payload)
+        else:
+            detail = self._normalize_error_detail(detail)
+
+        log_account = self._resolve_log_account(code, message, account_name)
+
+        status_dic = {"code": code, "type": message, "detail": detail}
+        response_dic = self.message.prepare_response(
+            response_dic, status_dic, account_name=log_account
+        )
+
+        return response_dic
+
+    def create_account(self, content: Dict[str, str]) -> Dict[str, str]:
+        """Public method to create a new account."""
+        self.logger.debug("Account.create_account()")
+        code, message, detail, protected, payload, _ = self.message.check(content, True)
+        if code != 200:
+            return self._build_response(code, message, detail, payload)
+
+        # onlyReturnExisting check
+        if "onlyreturnexisting" in payload:
+            code, message, detail = self._onlyreturnexisting(protected, payload)
+        else:
+            code, message, detail = self._create_account(payload, protected)
+
+        self.logger.debug("Account.create_account() ended with: %s, %s", code, message)
+        return self._build_response(code, message, detail, payload)
+
+    def parse_request(self, content: Dict[str, str]) -> Dict[str, str]:
+        """Public method to parse an account-related request."""
+        self.logger.debug("Account.parse_request()")
+        code, message, detail, protected, payload, account_name = self.message.check(
+            content
+        )
+        if code != 200:
+            return self._build_response(
+                code, message, detail, account_name=account_name
+            )
+
+        if "status" in payload:
+            return self._handle_deactivation(account_name, payload)
+        elif "contact" in payload:
+            return self._handle_contact_update(account_name, payload)
+        elif "payload" in payload:
+            return self._handle_key_change(account_name, payload, protected)
+        elif not payload:
+            return self._handle_account_query(account_name)
+        else:
+            self.logger.warning("Unknown request account=%s", account_name)
+            return self._build_response(
+                400,
+                self.err_msg_dic["malformed"],
+                "Unknown request",
+                account_name=account_name,
+            )
+
+    # Compatibility layer for external methods
+    def new(self, content: Dict[str, str]) -> Dict[str, str]:
+        """Compatibility layer for the new method."""
+        return self.create_account(content)
+
+    def parse(self, content: Dict[str, str]) -> Dict[str, str]:
+        """Compatibility layer for the parse method."""
+        return self.parse_request(content)

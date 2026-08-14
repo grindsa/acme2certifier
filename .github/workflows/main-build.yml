@@ -1,23 +1,28 @@
-name: build
+name: Build - Packages and Containers
 on:
 
   push:
+    # branches: [ "disabled" ]         # build on any branch
     branches: [ "**" ]       # build on any branch
   workflow_dispatch: {}
-  schedule:
-    - cron: '0 01 * * 6'  # Every Saturday morning
+  #schedule:
+  #   - cron: '0 01 * * 6'  # Every Saturday morning
 
+concurrency:
+  group: main-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
-  # ---------------------------------------------------------
-  # Job 1: Build four container images (matrix) and push to GHCR
-  # ---------------------------------------------------------
   build-containers:
+    name: Build container (${{ matrix.websrv }} / ${{ matrix.dbhandler }})
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [ build-deb ]
     permissions:
-      pull-requests: write
-      contents: write
+      contents: read
+      actions: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     strategy:
       fail-fast: false
@@ -25,6 +30,9 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - uses: actions/checkout@v6
 
       - name: "Download DEB artifact by name from build run"
@@ -46,12 +54,17 @@ jobs:
   # Job 2: Build RPM and upload artifacts
   # ---------------------------------------------------------
   build-rpm:
+    name: Build RPM package
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
-      pull-requests: write
-      contents: write
+      contents: read
+      actions: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - uses: actions/checkout@v6
       - name: "Build rpm package"
         id: rpm_build
@@ -62,12 +75,17 @@ jobs:
   # Job 3: Build one DEB and upload artifact
   # ---------------------------------------------------------
   build-deb:
+    name: Build DEB package
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
-      pull-requests: write
-      contents: write
+      contents: read
+      actions: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
       - uses: actions/checkout@v6
       - name: "deb build and upload"
         uses: ./.github/actions/deb_build_upload
@@ -78,7 +96,9 @@ jobs:
   # Dispatch tests with full payload (branch/ref-safe)
   # ---------------------------------------------------------
   dispatch:
+    name: Dispatch test workflows
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [ build-containers, build-rpm, build-deb ]
     permissions:
       contents: read
@@ -87,7 +107,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
       - name: Dispatch repository event
-        uses: peter-evans/repository-dispatch@v4
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4
         with:
           token: ${{ secrets.GH_WF_TOKEN }}
           event-type: artifacts_ready

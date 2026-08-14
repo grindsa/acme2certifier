@@ -28,7 +28,7 @@ The project consists of two main libraries:
 | Feature Support                                                                                                                                | Enrollment (E) | Revocation (R) | [EAB Profiling (P)](docs/eab_profiling.md) |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------- | ------------------------------------------ |
 | [DigiCert® CertCentral](docs/digicert.md)                                                                                                      | ✅             | ✅             | ✅                                         |
-| [Dogtag Certificate System](docs/dogtag.md)                                                                                                    | ✅             | ✅             | ✅                                         |
+| [Dogtag Certificate System](docs/dogtag_ca_handler.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [Entrust ECS Enterprise](docs/entrust.md)                                                                                                      | ✅             | ✅             | ✅                                         |
 | [EJBCA](docs/ejbca.md)                                                                                                                         | ✅             | ✅             | ✅                                         |
 | [Generic ACME Handler](docs/acme_ca.md) (LetsEncrypt, ZeroSSL)                                                                    | ✅              | ✅              | ✅                                         |
@@ -38,7 +38,7 @@ The project consists of two main libraries:
 | [Hashicorp Vault](docs/vault.md)                                                                                                               | ✅             | ✅             | ✅                                         |
 | [Insta ActiveCMS](docs/asa.md)                                                                                                                 | ✅             | ✅             | ✅                                         |
 | [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)                                                                             | ✅             | ❌             | ✅                                         |
-| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](docs/mswcce.md)                                                           | ✅             | ❌             | ✅                                         |
+| [Microsoft ICertPassage Remote Protocol (MS-ICPR)](docs/msicpr.md)                                                                             | ✅             | ❌             | ✅                                         |
 | [NetGuard Certificate Lifecycle Manager](docs/nclm.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)                                                                              | ✅             | ✅             | ✅                                         |
 | [OpenSSL](docs/openssl.md)                                                                                                                     | ✅             | ✅             | ❌                                         |
@@ -105,21 +105,14 @@ ______________________________________________________________________
 
 ## 📦 Installation
 
-**acme2certifier** can be installed as:
+The fastest and most convenient way to install acme2certifier is Docker, then OS packages, then PyPI/pip:
 
-- **WSGI application** (Apache2/Nginx)
-- **Django project** (allows using alternative databases)
+1. **Docker** — ready-made images on [Docker Hub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container); [compose / build](examples/Docker/), [install_docker.md](docs/install_docker.md) (images install from the `.deb`)
+1. **OS packages** — [DEB](docs/install_deb.md) (`/var/www/acme2certifier`) or [RPM](docs/install_rpm.md) (`/opt/acme2certifier`)
+1. **PyPI / pip** — library + venv deploy ([Apache2 Ubuntu](docs/install_apache2_ubuntu.md), [Nginx Ubuntu](docs/install_nginx_ubuntu.md), [Nginx Alma/RHEL9](docs/install_nginx_alma.md))
+1. **Local development** — editable checkout + Django `runserver`: [development.md](docs/development.md)
 
-The fastest and most convenient way to install acme2certifier is to use docker containers. There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/).
-In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 24.04 will be provided with every release.
-
-Installation guides:
-
-- [RPM Installation (AlmaLinux 9)](docs/install_rpm.md)
-- [DEB Installation (Ubuntu 24.04)](docs/install_deb.md)
-- [Docker Build Instructions](examples/Docker/)
-- [Apache2 WSGI Setup (Ubuntu 24.04)](docs/install_apache2_wsgi.md)
-- [Nginx WSGI Setup (Ubuntu 24.04)](docs/install_nginx_wsgi_ub24.md)
+Releases publish `.deb`, `.rpm`, and PyPI (Trusted Publisher).
 
 ## Software Bill Of Material
 

@@ -1,5 +1,5 @@
-name: "enroll_102_profile"
-description: "wf enrollment 102 profile"
+name: "enroll_acmeprofile"
+description: "ASA ACME profile enrollment test"
 inputs:
   ASA_PROFILE1:
     description: "ASA Profile 1"
@@ -11,18 +11,8 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 10s
-
-  - name: "ACME Profiling - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "ACME Profiling - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "ACME Profiling - 01 - Enroll lego with Profile 1"
     run: |

@@ -18,16 +18,15 @@ RUN apt-get update  && \
 
 # install python requirements
 COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements.txt &&\
-    mkdir -p /usr/local/soap-srv/acme_srv && \
-	mkdir -p /usr/local/soap-srv/examples/ca_handler
+RUN pip3 install -r /tmp/requirements.txt && \
+    mkdir -p /usr/local/soap-srv
 
 COPY examples/soap/mock_soap_srv.py /usr/local/soap-srv/
-COPY acme_srv/helper.py acme_srv/version.py /usr/local/soap-srv/acme_srv/
-COPY acme_srv/helpers /usr/local/soap-srv/acme_srv/helpers
-COPY examples/ca_handler/xca_ca_handler.py /usr/local/soap-srv/examples/ca_handler/xca_ca_handler.py
+COPY acme2certifier /usr/local/soap-srv/acme2certifier
 COPY examples/Docker/soap-srv/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod a+rx /docker-entrypoint.sh
+
+ENV PYTHONPATH=/usr/local/soap-srv
 
 WORKDIR /tmp
 

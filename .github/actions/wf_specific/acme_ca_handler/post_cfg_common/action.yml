@@ -1,0 +1,44 @@
+name: "acme_ca_handler post-cfg common"
+description: "Create acme volume dir and disable challenge validation"
+inputs:
+  VOLUME_DIR:
+    description: "Volume directory containing acme_srv.cfg"
+    required: true
+  ACME_SUBDIR:
+    description: "Subdirectory under VOLUME_DIR for acme key material"
+    required: false
+    default: "acme"
+  EXTRA_SED:
+    description: "Optional extra sed expression applied to acme_srv.cfg (single -e)"
+    required: false
+    default: ""
+  CHMOD_777:
+    description: "chmod -R 777 the acme subdir (true/false)"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Post-cfg common"
+      run: |
+        set -euo pipefail
+        cfg="${VOLUME_DIR}/acme_srv.cfg"
+        sudo mkdir -p "${VOLUME_DIR}"
+        if [ -n "${ACME_SUBDIR}" ]; then
+          acme_dir="${VOLUME_DIR}/${ACME_SUBDIR}"
+          sudo mkdir -p "${acme_dir}"
+          if [ "${CHMOD_777}" = "true" ]; then
+            sudo chmod -R 777 "${acme_dir}"
+          fi
+        fi
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" "${cfg}"
+        if [ -n "${EXTRA_SED}" ]; then
+          sudo sed -i "${EXTRA_SED}" "${cfg}"
+        fi
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        ACME_SUBDIR: ${{ inputs.ACME_SUBDIR }}
+        EXTRA_SED: ${{ inputs.EXTRA_SED }}
+        CHMOD_777: ${{ inputs.CHMOD_777 }}

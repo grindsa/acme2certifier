@@ -22,41 +22,53 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
-
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   wiki-update:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+    timeout-minutes: 15
     needs: guard
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier' && inputs.branch == 'master'
     steps:
-      - uses: actions/checkout@v1
-      # Additional steps to generate documentation in "Documentation" directory
-      - name: Upload docs to Wiki
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sha }}
+
+      # Pin to a commit SHA after pushing the categorized-index changes
+      # in grindsa/github-wiki-publish-action@customize_wiki_title
+      - name: Publish documentation to Wiki
         uses: grindsa/github-wiki-publish-action@customize_wiki_title
         with:
-          path: "docs"
+          path: |
+            docs
+            examples/Docker
+          exclude: architecture/**
+          generate-home: true
+          generate-sidebar: true
+          sync: true
+          home-title: acme2certifier
+          home-intro: |
+            Welcome to the acme2certifier wiki. Pages are published from
+            `docs/` and `examples/Docker/` whenever `master` is updated.
         env:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-      - name: Upload Docker to Wiki
-        uses: grindsa/github-wiki-publish-action@customize_wiki_title
-        with:
-          path: "examples/Docker"
-        env:
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          WIKI_COMMIT_MESSAGE: "Publish wiki from ${{ inputs.sha }}"

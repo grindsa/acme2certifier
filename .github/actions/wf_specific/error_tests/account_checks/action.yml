@@ -54,19 +54,22 @@ runs:
         grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for malformed error"
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Contact information is missing'}"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Contact information is missing'}"
-        fi
-      shell: bash
-      env:
+    - name: "Check a2c logs for contact missing WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Contact information is missing"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (contact missing)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Contact information is missing"
 
     - name: "Test Registration with wrong email format"
       working-directory: acmeshell
@@ -92,19 +95,22 @@ runs:
         grep "urn:ietf:params:acme:error:invalidContact" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for invalidContact error"
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:invalidContact', 'detail': 'The provided contact URI was invalid: Invalid contact information'}"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:invalidContact', 'detail': 'The provided contact URI was invalid: Invalid contact information'}"
-        fi
-      shell: bash
-      env:
+    - name: "Check a2c logs for invalid contact WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Invalid contact information"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (invalidContact)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:invalidContact detail=The provided contact URI was invalid: Invalid contact information"
 
     - name: "Test Registration with correct email format"
       working-directory: acmeshell
@@ -135,21 +141,23 @@ runs:
         grep "\"status\": \"deactivated\"" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs"
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "Account.onlyreturnexisting() ended with: 200"
-          docker compose logs | grep "Account._deactivate_account("
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Account.onlyreturnexisting() ended with: 200"
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Account._deactivate_account("
-        fi
-      shell: bash
-      env:
+    - name: "Check a2c logs - onlyreturnexisting"
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Account.onlyreturnexisting() ended with: 200"
+        FLUSH: "false"
+
+    - name: "Check a2c logs - deactivate_account"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Account._deactivate_account("
+        FLUSH: "true"
 
     - name: "Test registration without TOC agreement using a modifed acme.sh"
       continue-on-error: true
@@ -170,21 +178,23 @@ runs:
         exit 1
       shell: bash
 
-    - name: "Check a2c logs"
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "no tos statement found."
-          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'termsofserviceagreed flag missing'}"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "no tos statement found."
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'termsofserviceagreed flag missing'}"
-        fi
-      shell: bash
-      env:
+    - name: "Check a2c logs for TOS missing WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "termsofserviceagreed flag missing"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (TOS missing)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:userActionRequired detail=termsofserviceagreed flag missing"
+        FLUSH: "true"
 
     - name: "Test registration with TOC agreement false using a modifed acme.sh"
       id: acmeshfail02
@@ -206,22 +216,23 @@ runs:
         exit 1
       shell: bash
 
-    - name: "Check a2c logs"
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "tos:False"
-          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'Terms of service must be agreed'}"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "tos:False"
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'Terms of service must be agreed'}"
-        fi
-      shell: bash
-      env:
+    - name: "Check a2c logs for TOS not agreed WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Terms of service must be agreed"
+        FLUSH: "false"
 
+    - name: "Check a2c logs for ACME problem (TOS not agreed)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:userActionRequired detail=Terms of service must be agreed"
+        FLUSH: "true"
 
     - name: "Update account information"
       working-directory: acmeshell
@@ -252,21 +263,23 @@ runs:
         grep "mailto:new@example.com" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs"
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "validate: new@example.com result: True"
-          docker compose logs | grep "DBStore.account_update("
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "validate: new@example.com result: True"
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "DBStore.account_update("
-        fi
-      shell: bash
-      env:
+    - name: "Check a2c logs - validate email"
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "validate: new@example.com result: True"
+        FLUSH: "false"
+
+    - name: "Check a2c logs - account_update"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "DBStore.account_update("
+        FLUSH: "true"
 
     - name: "Unknown account request"
       working-directory: acmeshell
@@ -296,19 +309,23 @@ runs:
         grep "\"detail\": \"Unknown request\"" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs"
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
-        fi
-      shell: bash
-      env:
+    - name: "Check a2c logs for Unknown request WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Unknown request account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (Unknown request)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Unknown request"
+        FLUSH: "true"
 
     - name: "wrong status update"
       working-directory: acmeshell
@@ -338,19 +355,23 @@ runs:
         grep "\"detail\": \"Invalid status for deactivation\"" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs"
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
-        fi
-      shell: bash
-      env:
+    - name: "Check a2c logs for invalid deactivation status WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Invalid status for deactivation account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (invalid deactivation status)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=Invalid status for deactivation"
+        FLUSH: "true"
 
     - name: "Key Rollover"
       working-directory: acmeshell
@@ -379,21 +400,23 @@ runs:
         grep "Rollover for" acmeshell.enroll.log | grep "completed"
       shell: bash
 
-    - name: "Check a2c logs"
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "Account._rollover_account_key("
-          docker compose logs | grep "Account._validate_key_change("
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Account._rollover_account_key("
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Account._validate_key_change("
-        fi
-      shell: bash
-      env:
+    - name: "Check a2c logs - rollover_account_key"
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Account._rollover_account_key("
+        FLUSH: "false"
+
+    - name: "Check a2c logs - validate_key_change"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Account._validate_key_change("
+        FLUSH: "true"
 
     - name: "Account query"
       working-directory: acmeshell

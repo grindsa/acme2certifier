@@ -22,7 +22,7 @@ class TestACMEHandler(unittest.TestCase):
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from examples.ca_handler.ejbca_ca_handler import CAhandler
+        from acme2certifier.cahandlers.ejbca_ca_handler import CAhandler
 
         self.cahandler = CAhandler(False, self.logger)
 
@@ -126,7 +126,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
@@ -141,7 +141,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
@@ -156,7 +156,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
@@ -203,7 +203,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
@@ -218,11 +218,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.session)
         self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
 
-    @patch("examples.ca_handler.ejbca_ca_handler.requests.Session")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.requests.Session")
     def test_019__config_auth_load(self, mock_sess):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
@@ -275,10 +275,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.cert_profile_name)
         self.assertEqual("ee_profile_name", self.cahandler.ee_profile_name)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_auth_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_cainfo_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.load_config")
     def test_024_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
@@ -292,34 +292,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_auth_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_cainfo_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.load_config")
     def test_025_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
@@ -334,30 +334,30 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_auth_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_cainfo_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.load_config")
     def test_026_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
@@ -372,30 +372,30 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_auth_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_cainfo_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.load_config")
     def test_027_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
@@ -410,30 +410,30 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_auth_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_cainfo_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.load_config")
     def test_028_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
@@ -448,30 +448,30 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "enrollment_code" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_auth_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_cainfo_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.load_config")
     def test_029_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
@@ -486,10 +486,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
-    @patch("examples.ca_handler.ejbca_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_auth_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_cainfo_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.load_config")
     def test_030_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
@@ -504,23 +504,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "api_host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "api_host" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "cert_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ee_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ee_profile_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "ca_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "ca_name" is missing in configuration file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: parameter "username" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
             lcm.output,
         )
 
@@ -654,7 +654,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.cert_passphrase)
 
     @patch("requests.Session")
-    @patch("examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.Pkcs12Adapter")
     def test_043_config_session_load(self, mock_pkcs12, mock_session):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
@@ -669,7 +669,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_session.called)
 
     @patch("requests.Session")
-    @patch("examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.Pkcs12Adapter")
     def test_044_config_session_load(self, mock_pkcs12, mock_session):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
@@ -678,7 +678,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_session_load(parser)
         self.assertIn(
-            'ERROR:test_a2c:Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
             lcm.output,
         )
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)
@@ -696,13 +696,14 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_046__api_post(self):
         """CAhandler._api_post() returns an http error"""
+        self.cahandler.request_retries = 0
         mockresponse = Mock()
         mockresponse.post.side_effect = [Exception("exc_api_post")]
         self.cahandler.session = mockresponse
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("exc_api_post", self.cahandler._api_post("url", "data"))
         self.assertIn(
-            "ERROR:test_a2c:API post() returned error: exc_api_post",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_post",
             lcm.output,
         )
 
@@ -717,23 +718,24 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_048__api_put(self):
         """CAhandler._api_put() returns an http error"""
+        self.cahandler.request_retries = 0
         mockresponse = Mock()
         mockresponse.put.side_effect = [Exception("exc_api_put")]
         self.cahandler.session = mockresponse
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("exc_api_put", self.cahandler._api_put("url"))
         self.assertIn(
-            "ERROR:test_a2c:API put() returned error: exc_api_put",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_put",
             lcm.output,
         )
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_load")
     def test_049__enter(self, mock_cfgload):
         """CAhandler._enter() with config load"""
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_load")
     def test_050__enter(self, mock_cfgload):
         """CAhandler._enter() with config load"""
         self.cahandler.api_host = "api_host"
@@ -767,6 +769,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_053__cert_status_check(self):
         """test _cert_status_check exception"""
+        self.cahandler.request_retries = 0
         mockresponse = Mock()
         mockresponse.get.side_effect = [Exception("exc_cert_chk")]
         self.cahandler.session = mockresponse
@@ -777,7 +780,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._cert_status_check("issuer_dn", "cert_serial"),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate status check returned error: exc_cert_chk",
+            "ERROR:test_a2c:Request_operation returned error: exc_cert_chk",
             lcm.output,
         )
 
@@ -799,12 +802,13 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._status_get()
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete: api_host parameter is missing in configuration",
+            "ERROR:test_a2c:Configuration error: api_host parameter is missing in configuration",
             lcm.output,
         )
 
     def test_056__status_get(self):
         """test _cert_status_check exception"""
+        self.cahandler.request_retries = 0
         mockresponse = Mock()
         mockresponse.get.side_effect = [Exception("exc_status_chk")]
         self.cahandler.session = mockresponse
@@ -815,12 +819,12 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._status_get(),
             )
         self.assertIn(
-            "ERROR:test_a2c:Could not get certificate status. Error: exc_status_chk",
+            "ERROR:test_a2c:Request_operation returned error: exc_status_chk",
             lcm.output,
         )
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
     def test_057__sign(self, mock_post, mock_cn):
         """test _sign"""
         self.cahandler.api_host = "foo"
@@ -828,8 +832,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("foo", self.cahandler._sign("csr"))
         self.assertFalse(mock_cn.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._csr_cn_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
     def test_058__sign(self, mock_post, mock_cn):
         """test _sign"""
         self.cahandler.api_host = "foo"
@@ -838,14 +842,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("foo", self.cahandler._sign("csr"))
         self.assertTrue(mock_cn.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_post")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
     def test_059__sign(self, mock_post):
         """test _sign"""
         mock_post.return_value = "foo"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._sign("csr"))
         self.assertIn(
-            "ERROR:test_a2c:Configuration incomplete: api_host is missing in configuration",
+            "ERROR:test_a2c:Configuration error: api_host is missing in configuration",
             lcm.output,
         )
 
@@ -862,7 +866,7 @@ class TestACMEHandler(unittest.TestCase):
             ("Method not implemented.", None, None), self.cahandler.trigger("payload")
         )
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_062_enroll(self, mock_status):
         """test enrollment"""
         mock_status.return_value = {"foo": "bar"}
@@ -872,7 +876,7 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertIn("ERROR:test_a2c:Enrollment failed: Unknown error", lcm.output)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_063_enroll(self, mock_status):
         """test enrollment"""
         mock_status.return_value = {"status": "nok"}
@@ -882,17 +886,17 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertIn("ERROR:test_a2c:Enrollment failed: Unknown error", lcm.output)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_064_enroll(self, mock_status):
         """test enrollment"""
         mock_status.return_value = {"status": "nok", "error": "error_msg"}
         self.assertEqual(("error_msg", None, None, None), self.cahandler.enroll("csr"))
 
-    @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_065_enroll(
         self,
         mock_status,
@@ -916,11 +920,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_d2p.called)
         self.assertFalse(mock_b2s.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_066_enroll(
         self,
         mock_status,
@@ -945,12 +949,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_d2p.called)
         self.assertFalse(mock_b2s.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.enrollment_config_log")
-    @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_067_enroll(
         self,
         mock_status,
@@ -977,12 +981,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_b2s.called)
         self.assertFalse(mock_ecl.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.enrollment_config_log")
-    @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_068_enroll(
         self,
         mock_status,
@@ -1010,12 +1014,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_b2s.called)
         self.assertTrue(mock_ecl.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.eab_profile_header_info_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_069_enroll(
         self,
         mock_status,
@@ -1044,12 +1048,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_d2p.called)
         self.assertTrue(mock_b2s.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.eab_profile_header_info_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_070_enroll(
         self,
         mock_status,
@@ -1076,11 +1080,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_d2p.called)
         self.assertFalse(mock_b2s.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_der2pem")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
     def test_071_enroll(
         self,
         mock_status,
@@ -1104,11 +1108,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_d2p.called)
         self.assertTrue(mock_b2s.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_put")
-    @patch("examples.ca_handler.ejbca_ca_handler.encode_url")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_put")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.encode_url")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
     def test_072_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
@@ -1121,11 +1125,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_serial.called)
         self.assertTrue(mock_issuer.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_put")
-    @patch("examples.ca_handler.ejbca_ca_handler.encode_url")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_put")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.encode_url")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
     def test_073_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
@@ -1142,11 +1146,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_serial.called)
         self.assertTrue(mock_issuer.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_put")
-    @patch("examples.ca_handler.ejbca_ca_handler.encode_url")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_put")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.encode_url")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
     def test_074_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
@@ -1163,11 +1167,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_encode.called)
         self.assertTrue(mock_put.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_put")
-    @patch("examples.ca_handler.ejbca_ca_handler.encode_url")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_put")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.encode_url")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
     def test_075_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
@@ -1184,12 +1188,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_encode.called)
         self.assertTrue(mock_put.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_revocation_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_put")
-    @patch("examples.ca_handler.ejbca_ca_handler.encode_url")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.eab_profile_revocation_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_put")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.encode_url")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
     def test_076_revoke(
         self,
         mock_serial,
@@ -1210,12 +1214,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_put.called)
         self.assertFalse(mock_revcheck.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_revocation_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_put")
-    @patch("examples.ca_handler.ejbca_ca_handler.encode_url")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.eab_profile_revocation_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_put")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.encode_url")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
     def test_077_revoke(
         self,
         mock_serial,
@@ -1237,8 +1241,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_put.called)
         self.assertTrue(mock_revcheck.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.csr_san_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.csr_cn_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.csr_san_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.csr_cn_get")
     def test_078__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = "cn"
@@ -1246,8 +1250,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("cn", self.cahandler._csr_cn_get("csr"))
         self.assertFalse(mock_san.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.csr_san_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.csr_cn_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.csr_san_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.csr_cn_get")
     def test_079__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
@@ -1261,8 +1265,8 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_san.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.csr_san_get")
-    @patch("examples.ca_handler.ejbca_ca_handler.csr_cn_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.csr_san_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.csr_cn_get")
     def test_080__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
@@ -1276,11 +1280,38 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_san.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.handler_config_check")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.handler_config_check")
     def test_081_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
+
+    def test_082__config_server_load_invalid_request_retries(self):
+        """test _config_server_load() with invalid request_retries"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"api_host": "api_host", "request_retries": "invalid"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_server_load(parser)
+        self.assertIn(
+            "ERROR:test_a2c:Could not load request_retries parameter:invalid literal for int() with base 10: 'invalid'",
+            lcm.output,
+        )
+        self.assertEqual(3, self.cahandler.request_retries)
+
+    def test_083__config_server_load_invalid_request_retry_backoff(self):
+        """test _config_server_load() with invalid request_retry_backoff"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_host": "api_host",
+            "request_retry_backoff": "invalid",
+        }
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_server_load(parser)
+        self.assertIn(
+            "ERROR:test_a2c:Could not load request_retry_backoff parameter:could not convert string to float: 'invalid'",
+            lcm.output,
+        )
+        self.assertEqual(2.0, self.cahandler.request_retry_backoff)
 
 
 if __name__ == "__main__":

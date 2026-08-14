@@ -1,49 +1,132 @@
 name: "smallstep_prep"
-description: "smallstep_prep"
+description: "Bring up step-ca with ACME provisioner and verify directory"
+inputs:
+  NAME_SPACE:
+    description: "Docker network"
+    required: false
+    default: "acme"
+  MAX_ATTEMPTS:
+    description: "Readiness poll attempts"
+    required: false
+    default: "30"
+  SLEEP_SECONDS:
+    description: "Seconds between readiness polls"
+    required: false
+    default: "2"
 
 runs:
   using: "composite"
   steps:
+    - name: "Pull smallstep image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: smallstep/step-ca
 
-  - name: "Setup smallstep"
-    run: |
-      sudo mkdir -p step
-      sudo chmod -R 777 step
-      docker run -d -v "$(pwd)/step":/home/step \
-          -p 9000:9000 -p 443:443 \
-          --network acme \
-          --name step-ca \
-          -e "DOCKER_STEPCA_INIT_NAME=Smallstep" \
-          -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,$(hostname -f)" \
-          smallstep/step-ca
-    shell: bash
+    - name: "Pull curl image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: curlimages/curl
 
-  - name: "Sleep for 20s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 20s
+    - name: "Pull acme.sh image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: neilpang/acme.sh:latest
 
-  - name: "Configure smallstep"
-    run: |
-      docker ps
-      docker exec -i step-ca step ca provisioner add acme --type ACME
-      docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
-      docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
-      docker restart step-ca
-    shell: bash
+    - name: "Setup smallstep"
+      run: |
+        set -euo pipefail
+        sudo mkdir -p step
+        sudo chmod -R 777 step
+        docker run -d -v "$(pwd)/step":/home/step \
+            -p 9000:9000 -p 443:443 \
+            --network "${NAME_SPACE}" \
+            --name step-ca \
+            -e "DOCKER_STEPCA_INIT_NAME=Smallstep" \
+            -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,step-ca,127.0.0.1,$(hostname -f)" \
+            smallstep/step-ca
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-  - name: "Sleep for 20s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 20s
+    - name: "Wait for step-ca container ready"
+      run: |
+        set -euo pipefail
+        # step version works during `step ca init`; wait for PKI files + health.
+        # Use https://localhost (matches cert SAN); https://127.0.0.1 fails TLS name check.
+        for i in $(seq 1 "${MAX_ATTEMPTS}"); do
+          if docker exec step-ca test -f /home/step/certs/root_ca.crt \
+            && docker exec step-ca test -f /home/step/config/ca.json \
+            && docker exec -u step step-ca step ca health \
+                 --ca-url https://localhost:9000 \
+                 --root /home/step/certs/root_ca.crt >/dev/null 2>&1; then
+            echo "step-ca ready after ${i} attempts"
+            exit 0
+          fi
+          echo "step-ca not ready (${i}/${MAX_ATTEMPTS})"
+          sleep "${SLEEP_SECONDS}"
+        done
+        echo "step-ca did not become ready" >&2
+        docker logs step-ca || true
+        docker exec step-ca ls -la /home/step /home/step/certs /home/step/config || true
+        exit 1
+      shell: bash
+      env:
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}
 
-  - name: "Test https://step-ca.acme/acme/acme/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f https://step-ca:9000/acme/acme/directory --insecure
-    shell: bash
+    - name: "Configure smallstep"
+      run: |
+        set -euo pipefail
+        # Newer step probes the admin API first and needs --ca-url/--root;
+        # without admin API it then falls back to editing ca.json.
+        # Run as step so STEPPATH is /home/step (root would use /root/.step).
+        docker exec -u step -i step-ca sh -ec '
+          CA_URL=https://localhost:9000
+          CA_ROOT="$(step path)/certs/root_ca.crt"
+          CA_CONFIG="$(step path)/config/ca.json"
+          step ca provisioner add acme --type ACME \
+            --ca-url "$CA_URL" --root "$CA_ROOT" --ca-config "$CA_CONFIG"
+          step ca provisioner update acme \
+            --ca-url "$CA_URL" --root "$CA_ROOT" --ca-config "$CA_CONFIG" \
+            --remove-challenge=tls-alpn-01
+          step ca provisioner update acme \
+            --ca-url "$CA_URL" --root "$CA_ROOT" --ca-config "$CA_CONFIG" \
+            --remove-challenge=dns-01
+        '
+        docker restart step-ca
+      shell: bash
 
-  - name: "Enroll from smallstep using acme-sh"
-    run: |
-      mkdir -p acme-sh
-      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://step-ca:9000/acme/acme/directory --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --insecure --output-insecure --force
-      sudo rm -rf acme-sh/*
-    shell: bash
+    - name: "Wait for step-ca ACME directory"
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 "${MAX_ATTEMPTS}"); do
+          if docker run -i --rm --network "${NAME_SPACE}" curlimages/curl \
+            -fsS --connect-timeout 3 --max-time 10 --insecure \
+            https://step-ca:9000/acme/acme/directory >/dev/null; then
+            echo "step-ca ACME directory ready"
+            exit 0
+          fi
+          echo "step-ca directory not ready (${i}/${MAX_ATTEMPTS})"
+          sleep "${SLEEP_SECONDS}"
+        done
+        echo "step-ca ACME directory not reachable" >&2
+        docker logs step-ca || true
+        exit 1
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}
+
+    - name: "Enroll from smallstep using acme-sh"
+      run: |
+        set -euo pipefail
+        mkdir -p acme-sh
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network "${NAME_SPACE}" --name=acme-sh \
+          neilpang/acme.sh:latest --issue --server https://step-ca:9000/acme/acme/directory \
+          --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone \
+          --debug 3 --insecure --output-insecure --force
+        sudo rm -rf acme-sh/*
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}

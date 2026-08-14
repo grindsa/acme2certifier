@@ -1,25 +1,43 @@
 #!/usr/bin/make -f
-# See debhelper(7) (uncomment to enable)
-# output every command that modifies files on the build system.
 export DH_VERBOSE = 1
-
-
-# see FEATURE AREAS in dpkg-buildflags(1)
-#export DEB_BUILD_MAINT_OPTIONS = hardening=+all
-
-# see ENVIRONMENT in dpkg-buildflags(1)
-# package maintainers to append CFLAGS
-#export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
-# package maintainers to append LDFLAGS
-#export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+export PYBUILD_NAME = acme2certifier
+export PYBUILD_SYSTEM = pyproject
 
 %:
-	dh $@
+	dh $@ --with python3 --buildsystem=pybuild
 
-build:
-	cp examples/db_handler/wsgi_handler.py acme_srv/db_handler.py
-# dh_make generated override targets
-# This is example for Cmake (See https://bugs.debian.org/641051 )
-#override_dh_auto_configure:
-#	dh_auto_configure -- \
-#	-DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH)
+# Upstream tests need pytest extras not in Build-Depends.
+override_dh_auto_test:
+	:
+
+# Adapt pip-oriented share/ templates for Debian system packages + www-data.
+# Keep /run/uwsgi/acme.sock (same as upstream/RPM); DocumentRoot sockets are
+# only for a2c-ubuntu-nginx.sh / pip installs.
+# Source tree under acme2certifier/share/ stays pip/venv friendly.
+execute_after_dh_install:
+	SHARE=debian/acme2certifier/var/www/acme2certifier/share; \
+	rm -f $$SHARE/nginx/supervisord.conf \
+	      $$SHARE/nginx/uwsgi.service \
+	      $$SHARE/nginx/acme2certifier.te; \
+	sed -i 's/nginx/www-data/g' $$SHARE/nginx/acme2certifier.ini; \
+	grep -q '^plugins=python3$$' $$SHARE/nginx/acme2certifier.ini \
+	  || echo 'plugins=python3' >> $$SHARE/nginx/acme2certifier.ini; \
+	python3 debian/patch_apache_for_deb.py $$SHARE/apache2; \
+	printf '%s\n' \
+	  '[Unit]' \
+	  'Description=uWSGI instance to serve acme2certifier' \
+	  'After=network.target' \
+	  '' \
+	  '[Service]' \
+	  'User=www-data' \
+	  'Group=www-data' \
+	  'WorkingDirectory=/var/www/acme2certifier' \
+	  'RuntimeDirectory=uwsgi' \
+	  'Environment="PYTHONPATH=/var/www/acme2certifier"' \
+	  'Environment="PATH=/var/www/acme2certifier:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' \
+	  'Environment="ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg"' \
+	  'ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini' \
+	  '' \
+	  '[Install]' \
+	  'WantedBy=multi-user.target' \
+	  > $$SHARE/nginx/acme2certifier.service

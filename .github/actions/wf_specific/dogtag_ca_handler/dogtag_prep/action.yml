@@ -39,6 +39,11 @@ runs:
       sudo chmod -R 777 dogtag
     shell: bash
 
+  - name: "Pull AlmaLinux image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: almalinux/9-init
+
   - name: "Instanciate dogtag server"
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |
@@ -49,7 +54,7 @@ runs:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 5s
 

@@ -1,10 +1,19 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: Reporting and Housekeeping -->
+<!-- wiki-category: Operations -->
 
 # Reporting and Housekeeping
 
 The `Housekeeping` class contains several methods for internal reporting and database maintenance.
+
+## HTTP CLI endpoint
+
+The `/housekeeping` HTTP route used by `a2c-cli` is **disabled for security reasons**. Remote-CLI will be re-developed from scratch an re-introduced in a later release.
+
+Local scripts that import `Housekeeping` and call maintenance/report methods in-process (see below) are unaffected.
+
+## In-process usage
 
 To use it, you need to import the class into your script:
 

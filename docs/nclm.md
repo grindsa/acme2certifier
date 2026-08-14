@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title CA Handler for NetGuard Certificate Lifecycle Manager -->
+<!-- wiki-title: CA Handler for NetGuard Certificate Lifecycle Manager -->
+<!-- wiki-category: CA Handlers -->
 
 # Connecting to NetGuard Certificate Lifecycle Manager
 
@@ -19,7 +20,7 @@ Modify the server configuration file (`/acme_srv/acme_srv.cfg`) and add the foll
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/nclm_ca_handler.py
+handler_module: acme2certifier.cahandlers.nclm_ca_handler
 api_host: http://<ip>:<port>
 api_user: <user>
 api_password: <password>

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title FreeIPA CA Handler User Documentation -->
+<!-- wiki-title: FreeIPA CA Handler User Documentation -->
+<!-- wiki-category: CA Handlers -->
 
 # FreeIPA CA Handler User Documentation
 
@@ -59,7 +60,7 @@ The FreeIPA CA handler is configured via the main server configuration file, typ
 
 ```ini
 [CAhandler]
-handler_file = examples/ca_handler/freeipa_ca_handler.py
+handler_module = acme2certifier.cahandlers.freeipa_ca_handler
 api_host = https://ipa.example.com
 api_user = <ipa_user>
 api_password = <ipa_password>
@@ -71,7 +72,7 @@ profile_id = <profile_id>  # Optional, see below
 
 ### Parameter Descriptions
 
-- `handler_file`: Path to the FreeIPA CA handler Python file.
+- `handler_module`: Dotted module path of the FreeIPA CA handler (preferred), e.g. `acme2certifier.cahandlers.freeipa_ca_handler`.
 - `api_host`: URL of the FreeIPA server (e.g., `https://ipa.example.com`).
 - `api_user`: FreeIPA user with permissions to manage hosts and certificates.
 - `api_password`: Password for the FreeIPA user.
@@ -104,13 +105,13 @@ Once enabled, a client can specify the profile_id to be used as part of an order
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile IECUserRoles
 ```
 
-# EAB Profiling
+## EAB Profiling
 
 This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 
@@ -166,4 +167,4 @@ Below is an example key-file used during regression testing:
 
 ______________________________________________________________________
 
-For more details, see the handler source code in `examples/ca_handler/freeipa_ca_handler.py` and the main documentation in `docs`.
+For more details, see the handler source in `acme2certifier/cahandlers/freeipa_ca_handler.py` and the main documentation in `docs`.

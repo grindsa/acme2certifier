@@ -1,0 +1,263 @@
+name: "upgrade install or upgrade rpm"
+description: "Install/upgrade an RPM inside acme-srv and restart services"
+inputs:
+  RPM_PATH:
+    description: "Path on host (mounted under /tmp/acme2certifier or absolute in container)"
+    required: true
+  MODE:
+    description: "wsgi | django"
+    required: true
+  MODERN:
+    description: "If true, use a2c-rpm.sh (post-0.44). If false, dedicated legacy yum/dnf + nginx/uwsgi bring-up"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install/upgrade RPM (${{ inputs.MODERN }})"
+      shell: bash
+      env:
+        RPM_PATH: ${{ inputs.RPM_PATH }}
+        MODE: ${{ inputs.MODE }}
+        MODERN: ${{ inputs.MODERN }}
+      run: |
+        set -euo pipefail
+        base="$(basename "${RPM_PATH}")"
+        if [[ "${RPM_PATH}" != data/* && "${RPM_PATH}" != /tmp/* ]]; then
+          sudo cp "${RPM_PATH}" "data/${base}"
+          cont_rpm="/tmp/acme2certifier/${base}"
+        elif [[ "${RPM_PATH}" == data/* ]]; then
+          cont_rpm="/tmp/acme2certifier/$(basename "${RPM_PATH}")"
+        else
+          docker cp "${RPM_PATH}" "acme-srv:/tmp/${base}"
+          cont_rpm="/tmp/${base}"
+        fi
+
+        if [[ "${MODERN}" == "true" ]]; then
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh \
+            --rpm "${cont_rpm}" install -m "${MODE}"
+          # a2c-rpm.sh retargets dbfile to ${APP_ROOT}/acme_srv.db; ≤0.44 wsgi
+          # stored SQLite under acme_srv/acme_srv.db — copy so renew/ARI keep data.
+          if [[ "${MODE}" == "wsgi" ]]; then
+            docker exec acme-srv bash -c '
+              set -euo pipefail
+              APP_ROOT=/opt/acme2certifier
+              legacy="${APP_ROOT}/acme_srv/acme_srv.db"
+              modern="${APP_ROOT}/acme_srv.db"
+              if [[ -f "${legacy}" && ! -L "${legacy}" ]]; then
+                echo "==> Moving WSGI SQLite ${legacy} -> ${modern} (symlink old path)"
+                systemctl stop acme2certifier.service || true
+                rm -f "${modern}"
+                mv "${legacy}" "${modern}"
+                ln -sfn "${modern}" "${legacy}"
+              fi
+              if [[ -f "${modern}" ]]; then
+                chown nginx:nginx "${modern}"
+                chmod 660 "${modern}"
+              fi
+              [[ -L "${legacy}" ]] && chown -h nginx:nginx "${legacy}" || true
+              systemctl restart acme2certifier.service
+            '
+          fi
+          exit 0
+        fi
+
+        # Dedicated legacy install (≤0.44): no a2c-rpm.sh.
+        docker exec -i -e MODE="${MODE}" -e CONT_RPM="${cont_rpm}" acme-srv bash <<'EOS'
+        set -euo pipefail
+        APP_ROOT=/opt/acme2certifier
+        NGINX_SRC="${APP_ROOT}/examples/nginx"
+        NGINX_USER=nginx
+
+        if command -v dnf >/dev/null 2>&1; then
+          dnf localinstall -y "${CONT_RPM}"
+        else
+          yum localinstall -y "${CONT_RPM}"
+        fi
+
+        mkdir -p "${APP_ROOT}/volume" /run/uwsgi
+        chown "${NGINX_USER}:${NGINX_USER}" /run/uwsgi || true
+
+        if [[ -d /tmp/acme2certifier/volume ]]; then
+          cp -a /tmp/acme2certifier/volume/. "${APP_ROOT}/volume/" || true
+        fi
+        if [[ -f "${APP_ROOT}/volume/acme_srv.cfg" ]]; then
+          mkdir -p "${APP_ROOT}/acme_srv"
+          rm -f "${APP_ROOT}/acme_srv.cfg"
+          ln -sfn "${APP_ROOT}/volume/acme_srv.cfg" "${APP_ROOT}/acme_srv.cfg"
+          ln -sfn "${APP_ROOT}/volume/acme_srv.cfg" "${APP_ROOT}/acme_srv/acme_srv.cfg" || true
+        fi
+
+        # Legacy django (≤0.44): same as almalinux-systemd/django_tester.sh.
+        if [[ "${MODE}" == "django" ]]; then
+          PKG=dnf
+          command -v dnf >/dev/null 2>&1 || PKG=yum
+
+          DJANGO_RPM=""
+          for cand in python3-django4.2 python3-django; do
+            if ${PKG} install -y "${cand}" 2>/dev/null; then
+              DJANGO_RPM="${cand}"
+              break
+            fi
+          done
+          if [[ -z "${DJANGO_RPM}" ]]; then
+            echo "ERROR: could not install Django (tried python3-django4.2, python3-django)." >&2
+            exit 1
+          fi
+          echo "Installed Django package: ${DJANGO_RPM}"
+
+          for cand in python3-mysqlclient python3-PyMySQL python3-pyyaml python3-sqlparse python3-psycopg2; do
+            ${PKG} install -y "${cand}" 2>/dev/null || true
+          done
+          python3 -c "import django" || { echo "ERROR: Django installed but import failed" >&2; exit 1; }
+          if [[ ! -d "${APP_ROOT}/examples/django/acme2certifier" ]]; then
+            echo "ERROR: legacy package missing examples/django" >&2
+            exit 1
+          fi
+          cp -a "${APP_ROOT}/examples/django/." "${APP_ROOT}/"
+          cp -f "${APP_ROOT}/examples/db_handler/django_handler.py" \
+            "${APP_ROOT}/acme_srv/db_handler.py"
+          # examples/django wsgi hardcodes /var/www; fix for /opt layout.
+          if [[ -f "${APP_ROOT}/acme2certifier/wsgi.py" ]]; then
+            sed -i "s|/var/www/acme2certifier|${APP_ROOT}|g" \
+              "${APP_ROOT}/acme2certifier/wsgi.py" || true
+          fi
+          rm -f "${APP_ROOT}/acme2certifier/settings.py"
+          if [[ -f "${APP_ROOT}/volume/settings.py" ]]; then
+            ln -sfn "${APP_ROOT}/volume/settings.py" \
+              "${APP_ROOT}/acme2certifier/settings.py"
+          elif [[ -f "${APP_ROOT}/volume/acme2certifier/settings.py" ]]; then
+            ln -sfn "${APP_ROOT}/volume/acme2certifier/settings.py" \
+              "${APP_ROOT}/acme2certifier/settings.py"
+          elif [[ -d /tmp/acme2certifier/acme2certifier ]]; then
+            mkdir -p "${APP_ROOT}/acme2certifier"
+            cp -a /tmp/acme2certifier/acme2certifier/. "${APP_ROOT}/acme2certifier/"
+          else
+            echo "ERROR: django settings.py missing under volume/" >&2
+            exit 1
+          fi
+          # Ensure CI MariaDB password + non-empty SECRET_KEY (legacy tag settings omit both).
+          for sf in "${APP_ROOT}/volume/settings.py" "${APP_ROOT}/volume/acme2certifier/settings.py"; do
+            [[ -f "${sf}" ]] || continue
+            sed -i 's/"XXX": "XXX"/"PASSWORD": "1mmSvDFl"/g' "${sf}"
+            sed -i '/^SECRET_KEY[[:space:]]*=/d' "${sf}"
+            printf '\nSECRET_KEY = "ci-upgrade-django-secret-key-not-for-production"\n' >> "${sf}"
+          done
+          (
+            cd "${APP_ROOT}"
+            export DJANGO_SETTINGS_MODULE=acme2certifier.settings
+            python3 manage.py makemigrations || true
+            python3 manage.py migrate || true
+            python3 tools/django_update.py
+            python3 manage.py loaddata acme_srv/fixture/status.yaml || true
+          )
+        fi
+
+        # Alma nginx.conf ships a stock :80 server that fights conf.d vhosts
+        # (EL8: duplicate default_server; EL9: conflicting server_name → 502 to
+        # wrong vhost). Truncate after conf.d include — same idea as a2c-rpm.sh.
+        if [[ -f /etc/nginx/nginx.conf ]]; then
+          cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+          awk '
+            { print }
+            /include[[:space:]]+\/etc\/nginx\/conf\.d\/\*\.conf;/ { print "}"; exit }
+          ' /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf
+        fi
+
+        # SSL material: prefer volume paths; fall back to rpm_prep overlay.
+        mkdir -p "${APP_ROOT}/volume"
+        if [[ -d /tmp/acme2certifier/nginx ]]; then
+          cp -n /tmp/acme2certifier/nginx/acme2certifier_cert.pem "${APP_ROOT}/volume/" 2>/dev/null || true
+          cp -n /tmp/acme2certifier/nginx/acme2certifier_key.pem "${APP_ROOT}/volume/" 2>/dev/null || true
+        fi
+
+        if [[ -d "${NGINX_SRC}" ]]; then
+          cp "${NGINX_SRC}/nginx_acme_srv.conf" /etc/nginx/conf.d/nginx_acme_srv.conf
+          if [[ -f "${NGINX_SRC}/nginx_acme_srv_ssl.conf" ]]; then
+            cp "${NGINX_SRC}/nginx_acme_srv_ssl.conf" /etc/nginx/conf.d/nginx_acme_srv_ssl.conf
+            # ≤0.44 ssl conf hardcodes /etc/nginx/acme2certifier_{cert,key}.pem
+            # (and some tags use /var/www/...). Stage CI certs + rewrite to volume/.
+            if [[ -f "${APP_ROOT}/volume/acme2certifier_cert.pem" ]]; then
+              cp -f "${APP_ROOT}/volume/acme2certifier_cert.pem" /etc/nginx/acme2certifier_cert.pem
+              cp -f "${APP_ROOT}/volume/acme2certifier_key.pem" /etc/nginx/acme2certifier_key.pem
+            fi
+          fi
+          sed -i \
+            -e "s|/var/www/acme2certifier|${APP_ROOT}|g" \
+            -e "s|/etc/nginx/acme2certifier_|${APP_ROOT}/volume/acme2certifier_|g" \
+            /etc/nginx/conf.d/nginx_acme_srv*.conf || true
+          rm -f /etc/nginx/conf.d/default.conf || true
+        elif [[ -d /tmp/acme2certifier/nginx ]]; then
+          cp -a /tmp/acme2certifier/nginx/. /etc/nginx/ || true
+        fi
+
+        if [[ -f "${NGINX_SRC}/acme2certifier.ini" ]]; then
+          cp "${NGINX_SRC}/acme2certifier.ini" "${APP_ROOT}/acme2certifier.ini"
+          if [[ "${MODE}" == "django" ]]; then
+            sed -i 's/acme2certifier_wsgi/acme2certifier.wsgi/g' \
+              "${APP_ROOT}/acme2certifier.ini" || true
+          fi
+          # Required on RHEL/Alma: without this uwsgi starts with "no app loaded"
+          # and nginx returns 502 (-- unavailable modifier requested: 0 --).
+          grep -q '^plugins' "${APP_ROOT}/acme2certifier.ini" \
+            || echo 'plugins = python3' >> "${APP_ROOT}/acme2certifier.ini"
+          if ! grep -q '^python-path' "${APP_ROOT}/acme2certifier.ini"; then
+            echo "python-path = ${APP_ROOT}" >> "${APP_ROOT}/acme2certifier.ini"
+          else
+            sed -i "s|^python-path = .*|python-path = ${APP_ROOT}|" "${APP_ROOT}/acme2certifier.ini"
+          fi
+          if ! grep -q 'ACME_SRV_CONFIGFILE' "${APP_ROOT}/acme2certifier.ini"; then
+            {
+              echo "env = ACME_SRV_CONFIGFILE=${APP_ROOT}/acme_srv.cfg"
+              echo "env = ACME2CERTIFIER_BASE_DIR=${APP_ROOT}"
+            } >> "${APP_ROOT}/acme2certifier.ini"
+          fi
+        fi
+
+        # Prefer package unit; otherwise install a minimal one for /run/uwsgi/acme.sock.
+        if [[ ! -f /etc/systemd/system/acme2certifier.service && ! -f /usr/lib/systemd/system/acme2certifier.service ]]; then
+          if [[ -f "${NGINX_SRC}/uwsgi.service" ]]; then
+            cp "${NGINX_SRC}/uwsgi.service" /etc/systemd/system/acme2certifier.service
+            sed -i "s|/opt/acme2certifier|${APP_ROOT}|g" /etc/systemd/system/acme2certifier.service || true
+          else
+            printf '%s\n' \
+              '[Unit]' \
+              'Description=uWSGI instance to serve acme2certifier' \
+              'After=network.target' \
+              '' \
+              '[Service]' \
+              "User=${NGINX_USER}" \
+              "Group=${NGINX_USER}" \
+              "WorkingDirectory=${APP_ROOT}" \
+              'RuntimeDirectory=uwsgi' \
+              "Environment=ACME_SRV_CONFIGFILE=${APP_ROOT}/acme_srv.cfg" \
+              "ExecStart=/usr/sbin/uwsgi --ini ${APP_ROOT}/acme2certifier.ini" \
+              'Restart=on-failure' \
+              '' \
+              '[Install]' \
+              'WantedBy=multi-user.target' \
+              > /etc/systemd/system/acme2certifier.service
+            if [[ ! -x /usr/sbin/uwsgi && -x /usr/bin/uwsgi ]]; then
+              sed -i 's|/usr/sbin/uwsgi|/usr/bin/uwsgi|' /etc/systemd/system/acme2certifier.service
+            fi
+          fi
+        fi
+
+        chown -R "${NGINX_USER}:${NGINX_USER}" "${APP_ROOT}" || true
+        if ! nginx -t; then
+          echo "ERROR: nginx -t failed" >&2
+          ls -la /etc/nginx/conf.d/ || true
+          cat /etc/nginx/conf.d/nginx_acme_srv_ssl.conf 2>/dev/null || true
+          ls -la "${APP_ROOT}/volume"/acme2certifier_*.pem /etc/nginx/acme2certifier_*.pem 2>/dev/null || true
+          exit 1
+        fi
+        systemctl daemon-reload
+        systemctl enable acme2certifier.service nginx.service || true
+        systemctl restart acme2certifier.service
+        systemctl restart nginx.service \
+          || { journalctl -u nginx -n 80 --no-pager || true; cat /var/log/nginx/error.log 2>/dev/null || true; exit 1; }
+        systemctl --no-pager --full status acme2certifier.service || true
+        test -S /run/uwsgi/acme.sock || test -S "${APP_ROOT}/acme.sock" \
+          || { echo "ERROR: uWSGI socket missing after restart" >&2; journalctl -u acme2certifier -n 80 --no-pager || true; exit 1; }
+        EOS

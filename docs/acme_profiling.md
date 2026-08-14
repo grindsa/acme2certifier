@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: Support for ACME profiling -->
+<!-- wiki-category: Features -->
 
 # Support for ACME Profiles Extension
 
@@ -38,7 +39,7 @@ Depending on the CA-handler the profile value replaces a certain value in the CA
 | [EJBCA](ejbca.md)                                                               | cert_profile_name       |
 | [Insta ActiveCMS](asa.md)                                                       | profile_name            |
 | [Microsoft Certificate Enrollment Web Services](mscertsrv.md)                   | template                |
-| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](mswcce.md) | template                |
+| [Microsoft ICertPassage Remote Protocol (MS-ICPR)](msicpr.md)                   | template                |
 | [NetGuard Certificate Manager/Insta Certifier](certifier.md)                    | profile_id              |
 | [OpenXPKI](openxpki.md)                                                         | cert_profile_name       |
 | [XCA](xca.md)                                                                   | template_name           |
@@ -46,7 +47,7 @@ Depending on the CA-handler the profile value replaces a certain value in the CA
 The profile value will be added to the `profile` column of the orders table. A CA handler can obtail the value using the `eab_profile_header_info_check()` function from `helper.py`.
 
 ```python
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     eab_profile_header_info_check,
     ...
 )  # pylint: disable=e0401

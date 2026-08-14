@@ -23,30 +23,31 @@ on:
         required: false
         default: ''
 
-jobs:
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
 
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
+permissions: {}
+
+jobs:
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images (matrix from payload)
   # ---------------------------------------------------------
   int-test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -58,27 +59,20 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-          NAME_SPACE: acme
 
       - name: "Prepare SOAP server"
         run: |
@@ -111,26 +105,29 @@ jobs:
         uses: ./.github/actions/cert_gen
 
       - name: "Setup a2c with pkcs7_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.pkcs7_soap_ca_handler
+          OPTIONS: |
+            soap_srv: http://soap-srv.acme:8888
+            signing_cert: /var/www/acme2certifier/volume/cert.pem
+            signing_key: /var/www/acme2certifier/volume/key.pem
+            password: Test1234
+            ca_bundle: /var/www/acme2certifier/volume/ca_bundle.pem
+            profilename: foo
+            email: grindsa@foo.bar
+
+      - name: "Setup a2c with pkcs7_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
           sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
           sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/sub-ca-key.pem examples/Docker/data/key.pem
           sudo cp test/ca/sub-ca-cert.pem examples/Docker/data/cert.pem
           sudo cp test/ca/certs.pem examples/Docker/data/ca_bundle.pem
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/pkcs7_soap_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "soap_srv: http://soap-srv.acme:8888" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "signing_cert: /var/www/acme2certifier/volume/cert.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "signing_key: /var/www/acme2certifier/volume/key.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "password: Test1234" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profilename: foo" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
           cat examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
@@ -140,33 +137,30 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-          cd examples/Docker
-          docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log
-          docker compose logs > ${{ github.workspace }}/artifact/a2c.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
+          (cd examples/Docker && docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log) || true
 
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: int-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: int-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+
 
   ext-test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -178,27 +172,20 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
-
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-          NAME_SPACE: acme
 
       - name: "Prepare SOAP server"
         run: |
@@ -227,34 +214,36 @@ jobs:
           docker compose -f soap_srv.yml up -d
           docker compose -f soap_srv.yml logs
 
-
       - name: "Generate keys and certificates"
         uses: ./.github/actions/cert_gen
 
       - name: "Setup a2c with pkcs7_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.pkcs7_soap_ca_handler
+          OPTIONS: |
+            soap_srv: http://soap-srv.acme:8888
+            signing_script: /var/www/acme2certifier/volume/mock_signer.py
+            signing_alias: /var/www/acme2certifier/volume/cert.pem
+            signing_config_variant: /var/www/acme2certifier/volume/key.pem
+            signing_csr_path: /var/www/acme2certifier/volume
+            ca_bundle: /var/www/acme2certifier/volume/ca_bundle.pem
+            profilename: foo
+            email: grindsa@foo.bar
+
+      - name: "Setup a2c with pkcs7_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
           sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
           sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp examples/soap/mock_signer.py examples/Docker/data/
           sudo chmod 755 examples/Docker/data/mock_signer.py
           sudo cp test/ca/sub-ca-key.pem examples/Docker/data/key.pem
           sudo cp test/ca/sub-ca-cert.pem examples/Docker/data/cert.pem
           sudo cp test/ca/certs.pem examples/Docker/data/ca_bundle.pem
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/pkcs7_soap_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "soap_srv: http://soap-srv.acme:8888" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "signing_script: /var/www/acme2certifier/volume/mock_signer.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "signing_alias: /var/www/acme2certifier/volume/cert.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "signing_config_variant: /var/www/acme2certifier/volume/key.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "signing_csr_path: /var/www/acme2certifier/volume" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profilename: foo" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
           cat examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
@@ -264,26 +253,18 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+        uses: ./.github/actions/acme_clients_enroll
         with:
           REVOCATION: "false"
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-          cd examples/Docker
-          docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log
-          docker compose logs > ${{ github.workspace }}/artifact/a2c.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
+          (cd examples/Docker && docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log) || true
 
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
+      - name: "Channel teardown"
+        uses: ./.github/actions/channel_teardown
         with:
-          name: ext-test-containers.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: ext-test-containers.tar.gz

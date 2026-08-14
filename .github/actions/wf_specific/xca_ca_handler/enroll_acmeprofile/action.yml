@@ -1,21 +1,11 @@
-name: "enroll_headerinfo"
-description: "enroll_headerinfo"
+name: "enroll_acmeprofile"
+description: "XCA ACME profile enrollment test"
 
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
-  - name: "ACME-profile - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "ACME-profile - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "ACME-profile - 01 - Enroll lego without template_name"
     run: |
@@ -57,6 +47,7 @@ runs:
     shell: bash
 
   - name: "Delete acme-sh, letsencypt and lego folders"
+    if: ${{ always() }}
     run: |
       sudo rm -rf  lego/*
       sudo rm -rf  acme-sh/*

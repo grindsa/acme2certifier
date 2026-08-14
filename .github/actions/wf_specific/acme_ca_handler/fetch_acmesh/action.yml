@@ -1,0 +1,64 @@
+name: "fetch acme.sh dns plugins"
+description: "Download pinned acme.sh and a dnsapi script with retries"
+inputs:
+  DEST_DIR:
+    description: "Destination directory for scripts"
+    required: true
+  DNS_API:
+    description: "dnsapi script basename (e.g. dns_cf.sh, dns_acmedns.sh)"
+    required: true
+  ACMESH_REF:
+    description: "Git ref/tag for acmesh-official/acme.sh"
+    required: false
+    default: "3.1.4"
+  MAX_ATTEMPTS:
+    description: "Download retry attempts"
+    required: false
+    default: "5"
+  RETRY_DELAY_SECONDS:
+    description: "Initial retry delay (doubles each attempt)"
+    required: false
+    default: "5"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Fetch acme.sh and ${{ inputs.DNS_API }}"
+      run: |
+        set -euo pipefail
+        sudo mkdir -p "${DEST_DIR}"
+        sudo chmod -R 777 "${DEST_DIR}"
+
+        base="https://raw.githubusercontent.com/acmesh-official/acme.sh/${ACMESH_REF}"
+        fetch() {
+          local url="$1"
+          local out="$2"
+          local attempt=1
+          local delay="${RETRY_DELAY_SECONDS}"
+          while [ "${attempt}" -le "${MAX_ATTEMPTS}" ]; do
+            echo "Fetching ${url} (attempt ${attempt}/${MAX_ATTEMPTS})"
+            if sudo curl -fsSL --connect-timeout 10 --max-time 60 "${url}" --output "${out}"; then
+              return 0
+            fi
+            if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
+              break
+            fi
+            echo "Fetch failed; retrying in ${delay}s..."
+            sleep "${delay}"
+            delay=$((delay * 2))
+            attempt=$((attempt + 1))
+          done
+          echo "Failed to fetch ${url}" >&2
+          return 1
+        }
+
+        fetch "${base}/acme.sh" "${DEST_DIR}/acme.sh"
+        fetch "${base}/dnsapi/${DNS_API}" "${DEST_DIR}/${DNS_API}"
+        sudo chmod a+x "${DEST_DIR}/acme.sh" "${DEST_DIR}/${DNS_API}"
+      shell: bash
+      env:
+        DEST_DIR: ${{ inputs.DEST_DIR }}
+        DNS_API: ${{ inputs.DNS_API }}
+        ACMESH_REF: ${{ inputs.ACMESH_REF }}
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        RETRY_DELAY_SECONDS: ${{ inputs.RETRY_DELAY_SECONDS }}

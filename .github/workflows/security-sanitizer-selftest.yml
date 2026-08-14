@@ -1,0 +1,49 @@
+name: Security - Sanitizer Selftest
+
+on:
+  pull_request:
+    paths:
+      - ".github/actions/sanitize_artifact_payload/**"
+      - ".github/workflows/security-sanitizer-selftest.yml"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  sanitizer-selftest:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Create mock artifact payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifact/data artifact/upload artifact/acme-sh/accounts
+          echo "safe-log" > artifact/data/service.log
+          echo "secret" > artifact/data/private.key
+          echo "secret" > artifact/data/cert.pem
+          echo "secret" > artifact/data/krb5.keytab
+          echo "secret" > artifact/data/acme_srv.cfg
+          echo "secret" > artifact/data/settings.py
+          echo "secret" > artifact/acme-sh/accounts/account.json
+
+      - name: Run sanitizer
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
+      - name: Assert sanitized output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f artifact/data/service.log
+          test ! -f artifact/data/private.key
+          test ! -f artifact/data/cert.pem
+          test ! -f artifact/data/krb5.keytab
+          test ! -f artifact/data/acme_srv.cfg
+          test ! -f artifact/data/settings.py
+          test ! -d artifact/acme-sh/accounts

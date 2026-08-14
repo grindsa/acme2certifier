@@ -23,30 +23,31 @@ on:
         required: false
         default: ''
 
-jobs:
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
 
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
+permissions: {}
+
+jobs:
   guard:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
-    steps:
-      - run: |
-          echo "Triggered by SHA:    $SHA"
-          echo "From branch:         $BRANCH"
-          echo "Producer run_id:     $RUN_ID"
-        env:
-          SHA: ${{ inputs.sha }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_ID: ${{ inputs.run_id }}
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
   # Test container images using http01 challenges
   # ---------------------------------------------------------
   http01-test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -55,38 +56,18 @@ jobs:
         dbhandler: ['wsgi', 'django']
 
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
 
       - name: "Install microk8s"
         run: |
@@ -116,7 +97,7 @@ jobs:
           sudo microk8s.kubectl apply -f data/dnsmasq.yml
 
       - name: "[ WAIT ] Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -158,6 +139,11 @@ jobs:
       - name: "Generate keys and certificates"
         uses: ./.github/actions/cert_gen
 
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: data
+
       - name: "Create a2c configuration"
         run: |
           sudo mkdir -p data
@@ -165,10 +151,7 @@ jobs:
           sudo cp .github/acme2certifier_cert.pem data/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/acme2certifier_key.pem
           sudo cp .github/django_settings.py data/settings.py
-          sudo cp examples/ca_handler/openssl_ca_handler.py data/ca_handler.py
-          sudo mkdir -p data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
+          sudo cp acme2certifier/cahandlers/openssl_ca_handler.py data/ca_handler.py
           sudo chmod 777 data/acme_srv.cfg
 
       - name: "Deploy a2c pod"
@@ -180,7 +163,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -202,7 +185,7 @@ jobs:
           sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
 
       - name: "Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -212,7 +195,7 @@ jobs:
           sudo microk8s.kubectl describe challenge
 
       - name: "Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -221,7 +204,7 @@ jobs:
           sudo microk8s.kubectl describe ClusterIssuer acme2certifier
           sudo microk8s.kubectl describe challenge
       - name: "[ WAIT ] Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -240,19 +223,33 @@ jobs:
           sudo microk8s.kubectl logs acme2certifier -n cert-manager-acme > ${{ github.workspace }}/artifact/acme2certifier.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: http01-test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # ---------------------------------------------------------
   # Test container images using dns01 challenges
   # ---------------------------------------------------------
   dns01-test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -261,38 +258,23 @@ jobs:
         websrv: ['nginx']
         dbhandler: ['wsgi', 'django']
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
       - name: "Parse JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.CF_CFG }}
-
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
 
       - name: "Change dns"
         run: |
@@ -338,6 +320,11 @@ jobs:
       - name: "Generate keys and certificates"
         uses: ./.github/actions/cert_gen
 
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: data
+
       - name: "Create a2c configuration"
         run: |
           sudo mkdir -p data
@@ -345,10 +332,7 @@ jobs:
           sudo cp .github/acme2certifier_cert.pem data/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/acme2certifier_key.pem
           sudo cp .github/django_settings.py data/settings.py
-          sudo cp examples/ca_handler/openssl_ca_handler.py data/ca_handler.py
-          sudo mkdir -p data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
+          sudo cp acme2certifier/cahandlers/openssl_ca_handler.py data/ca_handler.py
           sudo chmod 777 data/acme_srv.cfg
 
       - name: "Deploy a2c pod"
@@ -361,7 +345,7 @@ jobs:
 
 
       - name: "[ WAIT ] Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -396,7 +380,7 @@ jobs:
           sudo microk8s.kubectl apply -f data/k8s-cert-mgr-dns-01.yml
 
       - name: "Sleep for 45s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 45s
 
@@ -406,7 +390,7 @@ jobs:
           sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
       - name: "Sleep for 30s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 60s
 
@@ -416,7 +400,7 @@ jobs:
           sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
       - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 60s
 
@@ -426,7 +410,7 @@ jobs:
           sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
       - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 60s
 
@@ -450,7 +434,7 @@ jobs:
           sudo microk8s.kubectl apply -f data/k8s-cert-mgr-dns-01.yml
 
       - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 60s
 
@@ -459,7 +443,7 @@ jobs:
           sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
           sudo microk8s.kubectl describe challenge -n cert-manager-acme
       - name: "[ WAIT ] Sleep for 30s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 60s
 
@@ -469,7 +453,7 @@ jobs:
           sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
       - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 60s
 
@@ -479,7 +463,7 @@ jobs:
           sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
       - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 60s
 
@@ -497,19 +481,33 @@ jobs:
           sudo microk8s.kubectl logs acme2certifier -n cert-manager-acme > ${{ github.workspace }}/artifact/acme2certifier.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: dns01-test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
 
   # ---------------------------------------------------------
   # Test container images with eab
   # ---------------------------------------------------------
   eab-test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -517,38 +515,18 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
 
       - name: "Install microk8s"
         run: |
@@ -578,7 +556,7 @@ jobs:
           sudo microk8s.kubectl apply -f data/dnsmasq.yml
 
       - name: "[ WAIT ] Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -620,6 +598,11 @@ jobs:
       - name: "Generate keys and certificates"
         uses: ./.github/actions/cert_gen
 
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: data
+
       - name: "Create a2c configuration"
         run: |
           sudo mkdir -p data
@@ -627,15 +610,12 @@ jobs:
           sudo cp .github/acme2certifier_cert.pem data/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/acme2certifier_key.pem
           sudo cp .github/django_settings.py data/settings.py
-          sudo cp examples/ca_handler/openssl_ca_handler.py data/ca_handler.py
-          sudo mkdir -p data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
+          sudo cp acme2certifier/cahandlers/openssl_ca_handler.py data/ca_handler.py
           sudo chmod 777 data/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/json_handler.py" >> data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.json_handler" >> data/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/key_file.json" >> data/acme_srv.cfg
-          sudo cp examples/eab_handler/key_file.json data/acme_ca/
+          sudo cp acme2certifier/share/skeletons/eab_handler/key_file.json data/acme_ca/
 
       - name: "Deploy a2c pod"
         run: |
@@ -646,7 +626,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 10s
 
@@ -666,7 +646,7 @@ jobs:
           sudo microk8s.kubectl -n cert-manager describe secret eab-secret
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 5s
 
@@ -681,7 +661,7 @@ jobs:
           sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
 
       - name: "Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -691,7 +671,7 @@ jobs:
           sudo microk8s.kubectl describe challenge
 
       - name: "Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -700,7 +680,7 @@ jobs:
           sudo microk8s.kubectl describe ClusterIssuer acme2certifier
           sudo microk8s.kubectl describe challenge
       - name: "[ WAIT ] Sleep for 20s"
-        uses: juliangruber/sleep-action@v2.0.4
+        uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:
           time: 20s
 
@@ -719,9 +699,20 @@ jobs:
           sudo microk8s.kubectl logs acme2certifier -n cert-manager-acme > ${{ github.workspace }}/artifact/acme2certifier.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
 
+      - name: "Sanitize failure artifacts"
+        if: ${{ failure() }}
+        uses: ./.github/actions/sanitize_artifact_payload
+        with:
+          ARTIFACT_DIR: ${{ github.workspace }}/artifact
+
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: eab-test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+          retention-days: 1
+
+      - name: "Secure cleanup"
+        if: ${{ always() }}
+        uses: ./.github/actions/secure_cleanup
