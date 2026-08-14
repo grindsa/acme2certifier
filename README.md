@@ -110,6 +110,7 @@ The fastest and most convenient way to install acme2certifier is Docker, then OS
 1. **Docker** — ready-made images on [Docker Hub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container); [compose / build](examples/Docker/), [install_docker.md](docs/install_docker.md) (images install from the `.deb`)
 1. **OS packages** — [DEB](docs/install_deb.md) (`/var/www/acme2certifier`) or [RPM](docs/install_rpm.md) (`/opt/acme2certifier`)
 1. **PyPI / pip** — library + venv deploy ([Apache2 Ubuntu](docs/install_apache2_ubuntu.md), [Nginx Ubuntu](docs/install_nginx_ubuntu.md), [Nginx Alma/RHEL9](docs/install_nginx_alma.md))
+1. **Local development** — editable checkout + Django `runserver`: [development.md](docs/development.md)
 
 Releases publish `.deb`, `.rpm`, and PyPI (Trusted Publisher).
 
