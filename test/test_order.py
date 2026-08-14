@@ -3298,6 +3298,79 @@ class TestOrderClass(unittest.TestCase):
                     self.assertEqual(result.get("code"), 403)
                     mock_warning.assert_not_called()
 
+    def _setup_eab_kid_profile(self, kid: str, profile_entry: dict) -> None:
+        self.order.config.eab_profiling = True
+        self.order.repository.account_lookup.return_value = {"eab_kid": kid}
+        mock_eab_handler = MagicMock()
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = {
+            kid: profile_entry
+        }
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+    def test_204_apply_eab_profile_mapping_enables_profile_check(self):
+        self.order.config.profiles_check_disable = True
+        self.order._apply_eab_profile_mapping("acct1", {"web": True})
+        self.assertFalse(self.order.config.profiles_check_disable)
+
+    def test_205_apply_eab_profile_profiles_check_disable_true_string(self):
+        self.order.config.profiles_check_disable = False
+        self._setup_eab_kid_profile(
+            "kid_disable",
+            {"order": {"profiles_check_disable": "True"}},
+        )
+        self.order._apply_eab_profile("acct")
+        self.assertTrue(self.order.config.profiles_check_disable)
+        self.assertIsInstance(self.order.config.profiles_check_disable, bool)
+
+    def test_206_apply_eab_profile_profiles_check_disable_false_against_global_true(
+        self,
+    ):
+        self.order.config.profiles_check_disable = True
+        self._setup_eab_kid_profile(
+            "kid_enable",
+            {"order": {"profiles_check_disable": "False"}},
+        )
+        self.order._apply_eab_profile("acct")
+        self.assertFalse(self.order.config.profiles_check_disable)
+        self.assertIsInstance(self.order.config.profiles_check_disable, bool)
+
+    def test_207_apply_eab_profile_profiles_check_disable_missing_keeps_global(self):
+        self.order.config.profiles_check_disable = False
+        self._setup_eab_kid_profile("kid_missing", {"order": {}})
+        self.order._apply_eab_profile("acct")
+        self.assertFalse(self.order.config.profiles_check_disable)
+
+    def test_208_apply_eab_profile_mapping_then_profiles_check_disable_true(self):
+        self.order.config.profiles_check_disable = False
+        self.order.config.profile_mapping_field = "template_name"
+        self._setup_eab_kid_profile(
+            "kid_both",
+            {
+                "order": {
+                    "template_name": ["web", "code"],
+                    "profiles_check_disable": "True",
+                }
+            },
+        )
+        self.order._apply_eab_profile("acct")
+        self.assertEqual(self.order.config.profiles, {"web": True, "code": True})
+        self.assertTrue(self.order.config.profiles_check_disable)
+
+    def test_209_apply_eab_profile_profiles_check_disable_ignored_when_profiling_off(
+        self,
+    ):
+        self.order.config.eab_profiling = False
+        self.order.config.profiles_check_disable = False
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_disable"}
+        mock_eab_handler = MagicMock()
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = {
+            "kid_disable": {"order": {"profiles_check_disable": "True"}}
+        }
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+        self.order._apply_eab_profile("acct")
+        self.assertFalse(self.order.config.profiles_check_disable)
+        mock_eab_handler.__enter__.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
