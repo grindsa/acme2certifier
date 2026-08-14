@@ -58,7 +58,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup
@@ -151,7 +151,7 @@ jobs:
         mode: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
 
       - name: "Channel setup"
@@ -228,7 +228,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup

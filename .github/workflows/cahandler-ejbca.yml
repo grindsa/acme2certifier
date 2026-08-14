@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Get runner ip"
         run: |
@@ -332,7 +332,7 @@ jobs:
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Parse JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -625,7 +625,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup

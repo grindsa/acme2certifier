@@ -29,7 +29,7 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup
@@ -277,7 +277,7 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -463,7 +463,7 @@ jobs:
         mode: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
@@ -677,7 +677,7 @@ jobs:
         mode: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
@@ -845,7 +845,7 @@ jobs:
         mode: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup
