@@ -399,8 +399,20 @@ class Order(object):
                     default=bool(self.config.ca_error_details_forward),
                 )
 
+                # load amd apply profiles from eab profile if specified
                 eab_profile_dic = self._load_eab_profile_mapping(profile_dic, eab_kid)
                 self._apply_eab_profile_mapping(account_name, eab_profile_dic)
+
+                # load profiles_check_disable from eab profile if specified
+                self.config.profiles_check_disable = eab_profile_as_bool(
+                    self._load_eab_profile_param(
+                        profile_dic,
+                        eab_kid,
+                        "profiles_check_disable",
+                        self.config.profiles_check_disable,
+                    ),
+                    default=bool(self.config.profiles_check_disable),
+                )
 
         except Exception as err:
             self.logger.error(
