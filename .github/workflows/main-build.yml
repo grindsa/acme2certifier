@@ -31,9 +31,9 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: "Download DEB artifact by name from build run"
         uses: ./.github/actions/download_artifact
@@ -63,9 +63,9 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: "Build rpm package"
         id: rpm_build
         uses: ./.github/actions/rpm_build_upload
@@ -84,9 +84,9 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: "deb build and upload"
         uses: ./.github/actions/deb_build_upload
         with:

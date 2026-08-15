@@ -56,9 +56,9 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
         with:
@@ -135,9 +135,9 @@ jobs:
         mode: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/parse-json-secret
         with:

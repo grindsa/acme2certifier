@@ -58,9 +58,9 @@ jobs:
         dns_provider: ['cloudflare', 'acmedns']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: "Resolve DNS API script"
         run: |
@@ -197,9 +197,9 @@ jobs:
         dns_provider: ['cloudflare', 'acmedns']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: "Resolve DNS API script"
         run: |

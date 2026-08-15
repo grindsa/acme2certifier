@@ -52,7 +52,7 @@ jobs:
       public_ip: ${{ steps.wait_ip.outputs.public_ip }}
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -145,7 +145,7 @@ jobs:
     if: ${{ always() && needs.instance_start.result != 'skipped' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Parse AWS_CFG JSON secret"
         uses: ./.github/actions/parse-json-secret

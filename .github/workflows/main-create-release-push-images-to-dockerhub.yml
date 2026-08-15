@@ -26,7 +26,7 @@ jobs:
       created_release: ${{ steps.versions.outputs.created_release }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Get latest published release tag
         id: latest_release
@@ -115,7 +115,7 @@ jobs:
 
       - name: Create GitHub release and upload packages
         if: steps.versions.outputs.created_release == 'true'
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           tag_name: ${{ steps.versions.outputs.tag_n }}
           name: ${{ steps.versions.outputs.app_name }} ${{ steps.versions.outputs.tag_n }}
@@ -144,7 +144,7 @@ jobs:
       app_name: ${{ steps.resolve.outputs.app_name }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Resolve N and N-1 tags
         id: resolve
@@ -165,7 +165,7 @@ jobs:
         dbhandler: [wsgi, django]
     steps:
       - name: Checkout workflow sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
@@ -198,7 +198,7 @@ jobs:
         dbhandler: [wsgi, django]
     steps:
       - name: Checkout workflow sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
@@ -231,7 +231,7 @@ jobs:
         dbhandler: [wsgi, django]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
@@ -285,7 +285,7 @@ jobs:
         dbhandler: [wsgi, django]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
@@ -340,7 +340,7 @@ jobs:
         dbhandler: [wsgi, django]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
@@ -396,7 +396,7 @@ jobs:
         dbhandler: [wsgi, django]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Parse GitHub secrets
         uses: ./.github/actions/parse-json-secret

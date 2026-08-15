@@ -53,7 +53,7 @@ jobs:
         django_db: ['sqlite3', 'mariadb']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Prepare container environment (WSGI first)"
         uses: ./.github/actions/container_prep
@@ -194,7 +194,7 @@ jobs:
         django_db: ['sqlite3', 'mariadb']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup
@@ -292,7 +292,7 @@ jobs:
         django_db: ['sqlite3', 'mariadb']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
@@ -393,7 +393,7 @@ jobs:
         websrv: [apache2, nginx]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Migration-specific deviation from deployment-manual-install:
       # keep matrix lean for migration sequencing and rely on package jobs
