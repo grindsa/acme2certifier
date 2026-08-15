@@ -5491,7 +5491,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.allowed_domainlist_check(self.logger, csr, allowed_domainlist)
         )
 
-    @patch("random.randint")
+    @patch("acme2certifier.acme_srv.helpers.utils.secrets.randbelow")
     def test_474_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
 
@@ -5504,7 +5504,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("foo2", myclass.foo)
         self.assertEqual("bar2", myclass.bar)
 
-    @patch("random.randint")
+    @patch("acme2certifier.acme_srv.helpers.utils.secrets.randbelow")
     def test_475_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
 
@@ -5517,7 +5517,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("foo1, foo2, foo2", myclass.foo)
         self.assertEqual("bar2", myclass.bar)
 
-    @patch("random.randint")
+    @patch("acme2certifier.acme_srv.helpers.utils.secrets.randbelow")
     def test_476_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
 

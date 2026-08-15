@@ -53,10 +53,8 @@ jobs:
         with:
           ref: ${{ inputs.sha }}
 
-      # Pin to a commit SHA after pushing the categorized-index changes
-      # in grindsa/github-wiki-publish-action@customize_wiki_title
       - name: Publish documentation to Wiki
-        uses: grindsa/github-wiki-publish-action@customize_wiki_title
+        uses: grindsa/github-wiki-publish-action@d6117ce124c26a0558eca1347112243438ca6620 # customize_wiki_title
         with:
           path: |
             docs
@@ -64,11 +62,9 @@ jobs:
           exclude: architecture/**
           generate-home: true
           generate-sidebar: true
+          inject-nav: true
           sync: true
-          home-title: acme2certifier
-          home-intro: |
-            Welcome to the acme2certifier wiki. Pages are published from
-            `docs/` and `examples/Docker/` whenever `master` is updated.
+          home-title: Welcome to the acme2certifier wiki
         env:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
           WIKI_COMMIT_MESSAGE: "Publish wiki from ${{ inputs.sha }}"

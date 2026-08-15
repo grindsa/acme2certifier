@@ -342,7 +342,7 @@ Companions (cryptography, jwcrypto, …) come from AppStream/EPEL or [grindsa/sb
 **Bugfixes**:
 
 - [#147](https://github.com/grindsa/acme2certifier/pull/147) correct content-type for problem+json message
-- updated [eab-example files](https://github.com/grindsa/acme2certifier/tree/master/examples/eab_handler) as hmac must be longer than 256bits
+- updated [eab-example files](https://github.com/grindsa/acme2certifier/tree/master/acme2certifier/share/skeletons/eab_handler) as hmac must be longer than 256bits
 - identifier sanitizing
 
 ## Changes in 0.33.3

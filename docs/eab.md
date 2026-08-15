@@ -232,7 +232,7 @@ keyid_03: bWFjXz...Az
 
 Creating a custom EAB handler is straightforward. You need to create a `handler.py` file containing an `EABhandler` class with a `mac_key_get` method to look up the `mac_key` based on a given `kid`.
 
-The `allowed_domains_check` method is optional and can be used to customize the [`allowed_domainlist_check()` function](https://github.com/grindsa/acme2certifier/blob/master/acme_srv/helper.py#L1641).
+The `allowed_domains_check` method is optional and can be used to customize the [`allowed_domainlist_check()` function](../acme2certifier/acme_srv/helpers/domain_utils.py).
 
 The [skeleton_eab_handler.py](../acme2certifier/share/skeletons/eab_handler/skeleton_eab_handler.py) provides a template for creating a custom handler.
 

@@ -32,9 +32,27 @@ runs:
         mkdir -p "${DESTINATION_PATH}"
         case "${PKG_TYPE}" in
           rpm)
+            # Main payload plus flavor metapackages (acme2certifier-python3 /
+            # python39 from 0.45+). a2c-rpm.sh requires the flavor next to the
+            # main RPM. Pre-0.45 releases only publish the payload.
+            assets="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
+              --jq '.assets[].name | select(test("\\.noarch\\.rpm$"))')"
+            if [[ -z "${assets}" ]]; then
+              echo "No noarch RPM assets for ${TAG}" >&2
+              exit 1
+            fi
+            while IFS= read -r asset; do
+              [[ -n "${asset}" ]] || continue
+              echo "Downloading ${asset}"
+              curl -fsSL -o "${DESTINATION_PATH}/${asset}" \
+                "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${asset}"
+            done <<< "${assets}"
             name="acme2certifier-${TAG}-1.0.noarch.rpm"
-            url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${name}"
-            curl -fsSL -o "${DESTINATION_PATH}/${name}" "${url}"
+            if [[ ! -f "${DESTINATION_PATH}/${name}" ]]; then
+              echo "Missing main payload ${name}" >&2
+              ls -la "${DESTINATION_PATH}" >&2 || true
+              exit 1
+            fi
             echo "PKG_FILE=${DESTINATION_PATH}/${name}" >> "${GITHUB_ENV}"
             ;;
           deb)

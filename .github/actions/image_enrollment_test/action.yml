@@ -41,11 +41,20 @@ runs:
       uses: ./.github/actions/cert_gen
 
     - name: Setup openssl ca_handler volume
+      uses: ./.github/actions/setup_openssl_cahandler
+      with:
+        VOLUME_DIR: examples/Docker/data
+
+    - name: Stage TLS material and N-1 handler_file fallback
       shell: bash
       run: |
         set -euo pipefail
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+        # 0.44 ignores handler_module; keep handler_file for N-1 images that
+        # still ship examples/ca_handler/openssl_ca_handler.py. 0.45 prefers
+        # handler_module and ignores handler_file when both are set.
+        if ! grep -qE '^handler_file:' examples/Docker/data/acme_srv.cfg; then
+          sudo sed -i '/^handler_module:/a handler_file: examples/ca_handler/openssl_ca_handler.py' examples/Docker/data/acme_srv.cfg
+        fi
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem

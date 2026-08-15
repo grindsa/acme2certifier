@@ -2,7 +2,7 @@
 """General utilities for acme2certifier"""
 
 import os
-import random
+import secrets
 import logging
 from typing import Dict, List, Optional
 from .global_variables import PARSING_ERR_MSG, CONFIGURATION_ERROR_DETAIL
@@ -151,7 +151,7 @@ def radomize_parameter_list(
         min_len = len(min_length_list)
 
         # Calculate random number as index for the parameter list
-        index = random.randint(0, min_len - 1)
+        index = secrets.randbelow(min_len)
         # set parameter values
         for parameter, value_list in tmp_dic.items():
             setattr(ca_handler, parameter, value_list[index])
