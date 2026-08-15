@@ -16,9 +16,11 @@ RUN apt-get update  && \
     && rm -rf /var/lib/apt/lists/*
 
 
-# install python requirements
-COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements.txt && \
+# install python requirements from pyproject.toml
+COPY pyproject.toml README.md LICENSE /tmp/a2c/
+COPY acme2certifier /tmp/a2c/acme2certifier
+RUN pip3 install /tmp/a2c && \
+    rm -rf /tmp/a2c && \
     mkdir -p /usr/local/soap-srv
 
 COPY examples/soap/mock_soap_srv.py /usr/local/soap-srv/

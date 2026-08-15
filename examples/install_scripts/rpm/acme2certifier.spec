@@ -249,7 +249,7 @@ install_wrapper a2c-wsgi2django acme2certifier.tools.a2c_wsgi2django
 %attr(0644,nginx,nginx) %{app_root}/acme2certifier_wsgi.py
 %attr(0644,nginx,nginx) %{app_root}/acme2certifier.ini
 %license LICENSE
-%doc *.md requirements.txt docs/*.md
+%doc *.md docs/*.md
 %{_unitdir}/acme2certifier.service
 %attr(0755,root,root) %{_bindir}/a2c-cli
 %attr(0755,root,root) %{_bindir}/a2c-db-update

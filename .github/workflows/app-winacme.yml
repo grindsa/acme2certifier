@@ -266,11 +266,9 @@ jobs:
           python -m pip install --upgrade pip
           if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed with exit code $LASTEXITCODE" }
 
-          # Runtime deps only; use the git checkout via PYTHONPATH (no pip install of the package).
-          $deps = Get-Content requirements.txt |
-            ForEach-Object { ($_ -split '#', 2)[0].Trim() } |
-            Where-Object { $_ -and ($_ -notmatch 'gssapi') }
-          pip install @deps Django django-sslserver-v2
+          # Install core+django deps from pyproject.toml. PYTHONPATH below still
+          # prefers the git checkout (gssapi extra omitted — not usable on Windows).
+          pip install ".[django]" django-sslserver-v2
           if ($LASTEXITCODE -ne 0) { throw "dependency install failed with exit code $LASTEXITCODE" }
 
           $repoRoot = if ($env:GITHUB_WORKSPACE) { $env:GITHUB_WORKSPACE } else { (Get-Location).Path }
