@@ -163,6 +163,7 @@ jobs:
           sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container

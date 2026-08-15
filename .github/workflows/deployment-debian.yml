@@ -90,6 +90,7 @@ jobs:
         uses: ./.github/actions/acme_clients_enroll
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

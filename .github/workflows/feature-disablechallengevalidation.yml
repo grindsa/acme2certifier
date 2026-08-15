@@ -257,6 +257,7 @@ jobs:
           PATTERN: "Source address checks are disabled. Setting challenge status to valid."
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -504,6 +505,7 @@ jobs:
           PATTERN: "Source address checks are disabled. Setting challenge status to valid."
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -693,6 +695,7 @@ jobs:
           EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

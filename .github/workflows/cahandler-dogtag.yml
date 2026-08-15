@@ -177,6 +177,7 @@ jobs:
         uses: ./.github/actions/wf_specific/dogtag_ca_handler/enroll_eabprofile
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -321,6 +322,7 @@ jobs:
         uses: ./.github/actions/wf_specific/dogtag_ca_handler/enroll_eabprofile
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -477,6 +479,7 @@ jobs:
         uses: ./.github/actions/wf_specific/dogtag_ca_handler/enroll_eabprofile
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

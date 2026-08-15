@@ -16,6 +16,10 @@ inputs:
     description: "Build container"
     required: true
     default: "true"
+  CONTAINER_UP:
+    description: "Spin up after build (ignored when CONTAINER_BUILD is false)"
+    required: false
+    default: "true"
   NAME_SPACE:
     description: "namespace"
     required: true
@@ -82,7 +86,7 @@ runs:
       shell: bash
 
     - name: "Spin-up a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
-      if: inputs.CONTAINER_BUILD == 'true'
+      if: inputs.CONTAINER_BUILD == 'true' && inputs.CONTAINER_UP == 'true'
       uses: ./.github/actions/container_up
       with:
         WEB_SRV: ${{ inputs.WEB_SRV }}

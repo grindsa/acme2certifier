@@ -345,6 +345,7 @@ jobs:
           docker exec  OpenXPKI_Client cat /var/log/openxpki-client/rpc.log >> ${{ github.workspace }}/artifact/openxpki_client_rpc.log
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -637,6 +638,7 @@ jobs:
           docker exec acme-srv rpm -qa > ${{ github.workspace }}/artifact/data/packages.txt
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -934,6 +936,7 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

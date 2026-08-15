@@ -321,6 +321,7 @@ jobs:
           ASA_PROFILE1: ${{ env.ASA_PROFILE1 }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

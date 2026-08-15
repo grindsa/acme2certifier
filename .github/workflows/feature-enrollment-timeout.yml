@@ -101,6 +101,7 @@ jobs:
         uses: ./.github/actions/wf_specific/enrollment_timeout/enroll
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -180,6 +181,7 @@ jobs:
           PATTERN: "asynchronous enrollment started"
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -247,6 +249,7 @@ jobs:
           docker exec acme-srv rpm -qa > ${{ github.workspace }}/artifact/data/packages.txt
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -332,6 +335,7 @@ jobs:
           docker exec acme-srv rpm -qa > ${{ github.workspace }}/artifact/data/packages.txt
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm

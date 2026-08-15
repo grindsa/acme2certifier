@@ -137,6 +137,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -224,6 +225,7 @@ jobs:
           docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -311,6 +313,7 @@ jobs:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

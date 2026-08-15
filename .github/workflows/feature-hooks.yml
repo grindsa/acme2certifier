@@ -135,6 +135,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -340,6 +341,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -428,6 +430,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -529,6 +532,7 @@ jobs:
           sha256sum -c checksums.sha256
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -725,6 +729,7 @@ jobs:
           exit 1
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -803,6 +808,7 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm

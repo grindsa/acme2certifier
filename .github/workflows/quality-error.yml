@@ -234,6 +234,7 @@ jobs:
         uses: ./.github/actions/wf_specific/error_tests/eab_ca_error_forwarding
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container

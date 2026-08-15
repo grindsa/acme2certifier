@@ -148,6 +148,7 @@ jobs:
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -269,6 +270,7 @@ jobs:
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -397,6 +399,7 @@ jobs:
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

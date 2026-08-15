@@ -286,6 +286,7 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -449,6 +450,7 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -513,6 +515,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
           NAME_SPACE: local
+          CONTAINER_UP: "false"
 
       - name: "Get runner ip"
         run: |
@@ -541,7 +544,7 @@ jobs:
           DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
-          RESTART: "true"
+          RESTART: "false"
           COPY_CA_CERTS: "true"
           KRB5_CONF: ${{ env.KRB5_CONF }}
           CERTIFICATE_OPTIONS: |
@@ -556,6 +559,13 @@ jobs:
             krb5_config: /var/www/acme2certifier/volume/krb5.conf
             verify: False
             request_timeout: 30
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: local
 
       - name: "KRB - Enrollment"
         uses: ./.github/actions/acme_clients_enroll
@@ -604,6 +614,7 @@ jobs:
           NAME_SPACE: local
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -840,6 +851,7 @@ jobs:
           TAIL_NUMBER: 1900
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -1043,6 +1055,7 @@ jobs:
           TAIL_NUMBER: 1900
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -1310,6 +1323,7 @@ jobs:
           TAIL_NUMBER: 1900
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

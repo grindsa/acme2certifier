@@ -531,8 +531,20 @@ else
   if [[ "${ENABLE_SSL}" -eq 1 ]]; then
     ${SUDO} cp "${SHARE}/nginx/nginx_acme_srv_ssl.conf" /etc/nginx/sites-available/acme_srv_ssl.conf
     ${SUDO} ln -sfn /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
+    # 0.45 DEB still ships /etc/nginx/acme2certifier_{cert,key}.pem; git share uses volume/.
+    ${SUDO} sed -i \
+      -e "s|/etc/nginx/acme2certifier_cert.pem|${APP_ROOT}/volume/acme2certifier_cert.pem|g" \
+      -e "s|/etc/nginx/acme2certifier_key.pem|${APP_ROOT}/volume/acme2certifier_key.pem|g" \
+      /etc/nginx/sites-available/acme_srv_ssl.conf
     CERT="${APP_ROOT}/volume/acme2certifier_cert.pem"
     KEY="${APP_ROOT}/volume/acme2certifier_key.pem"
+    if [[ ! -f "${CERT}" || ! -f "${KEY}" ]]; then
+      if [[ -f /etc/nginx/acme2certifier_cert.pem && -f /etc/nginx/acme2certifier_key.pem ]]; then
+        echo "==> Seeding TLS cert/key from /etc/nginx"
+        ${SUDO} cp -f /etc/nginx/acme2certifier_cert.pem "${CERT}"
+        ${SUDO} cp -f /etc/nginx/acme2certifier_key.pem "${KEY}"
+      fi
+    fi
     if [[ ! -f "${CERT}" || ! -f "${KEY}" ]]; then
       echo "==> Generating self-signed TLS cert/key"
       ${SUDO} openssl req -x509 -nodes -newkey rsa:2048 \

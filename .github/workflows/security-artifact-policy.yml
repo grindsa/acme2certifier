@@ -85,7 +85,34 @@ jobs:
             if "github.event.inputs.upload_artifact == 'true'" not in t:
               violations.append(f"{dump_wf}: missing opt-in artifact upload condition")
 
-          # 3) Cleanup steps in actions should use always() when explicitly named cleanup/delete.
+          # 3) channel_teardown callers must use if: always(); otherwise the
+          #    composite is skipped on job failure and logs are never uploaded.
+          teardown_re = re.compile(r"uses:\s*\./\.github/actions/channel_teardown")
+          step_start_re = re.compile(r"^(\s+)-\s+(name:|uses:)")
+          for wf in sorted(workflow_root.glob("*.yml")):
+            lines = wf.read_text().splitlines()
+            for i, line in enumerate(lines):
+              if not teardown_re.search(line):
+                continue
+              start = i
+              for k in range(i, -1, -1):
+                if step_start_re.match(lines[k]):
+                  start = k
+                  break
+              end = len(lines)
+              indent = len(lines[start]) - len(lines[start].lstrip(" "))
+              for k in range(i + 1, len(lines)):
+                m = step_start_re.match(lines[k])
+                if m and (len(m.group(1)) <= indent):
+                  end = k
+                  break
+              block = "\n".join(lines[start:end])
+              if not re.search(r"if:\s*\$\{\{\s*always\(\)\s*\}\}", block):
+                violations.append(
+                    f"{wf}: channel_teardown without if: always() near line {i+1}"
+                )
+
+          # 4) Cleanup steps in actions should use always() when explicitly named cleanup/delete.
           for act in sorted(action_root.rglob("action.yml")):
             if act.as_posix().endswith("/secure_cleanup/action.yml"):
               continue
@@ -101,7 +128,7 @@ jobs:
                 if not re.search(r"^\s+if:\s*\$\{\{[^\\n]*always\(\)", block, re.M):
                   violations.append(f"{act}: cleanup-like step without if: always() near line {i+1}")
 
-          # 4) Third-party actions must be pinned to a 40-char commit SHA.
+          # 5) Third-party actions must be pinned to a 40-char commit SHA.
           #    First-party (actions/*, github/*, docker/*) may use version tags,
           #    but not floating refs (master/main/latest).
           uses_re = re.compile(r"""^\s*uses:\s*['\"]?([^'\"\s#]+)['\"]?""")

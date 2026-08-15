@@ -111,6 +111,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -182,6 +183,7 @@ jobs:
           /tmp/acme_sh/acme.sh --server http://127.0.0.1:22280 --accountemail grindsa@tnauth.acme --issue -d cert.acme.local --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -255,6 +257,7 @@ jobs:
           /tmp/acme_sh/acme.sh --server http://127.0.0.1:22280 --accountemail grindsa@tnauth.acme --issue -d cert.acme.local --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

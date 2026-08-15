@@ -104,6 +104,7 @@ jobs:
           REVOCATION: false
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container

@@ -52,6 +52,7 @@ Companions (cryptography, jwcrypto, …) come from AppStream/EPEL or [grindsa/sb
 - Log which config file and DB/CA handler are active at startup
 - Operator [logging](docs/logging.md): optional syslog (`syslog_address`) and `log_file` destinations, ACME problem WARNING/ERROR lines with `account=`, HTTP edge dump redaction (nonce/tokens/cert PEM; `log_cert_content` restores legacy cert logging)
 - Drop `requirements.txt`; install via `pyproject.toml` (`pip install .` / extras)
+- `a2c-deb.sh`: rewrite 0.45 nginx SSL vhost cert paths from `/etc/nginx/` to `volume/`
 
 ## Changes in 0.44
 

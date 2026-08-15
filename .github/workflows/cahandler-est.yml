@@ -120,6 +120,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -198,6 +199,7 @@ jobs:
           IGNORE_CASE: "true"
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -267,6 +269,7 @@ jobs:
           USE_CERTBOT: "false"
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

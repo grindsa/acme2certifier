@@ -167,6 +167,7 @@ jobs:
           docker logs mailserver 2>&1 > ${{ github.workspace }}/artifact/mailserver.log
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -301,6 +302,7 @@ jobs:
           sudo mkdir -p ${{ github.workspace }}/artifact/acme_email
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -429,6 +431,7 @@ jobs:
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/enroll_eabprofile
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

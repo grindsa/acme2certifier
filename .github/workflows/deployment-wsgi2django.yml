@@ -172,6 +172,7 @@ jobs:
         uses: ./.github/actions/wf_specific/wsgi2django/collect_failure_artifacts
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -270,6 +271,7 @@ jobs:
         uses: ./.github/actions/wf_specific/wsgi2django/collect_failure_artifacts
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb
@@ -372,6 +374,7 @@ jobs:
           APP_ROOT: /opt/acme2certifier
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -481,6 +484,7 @@ jobs:
         uses: ./.github/actions/wf_specific/wsgi2django/collect_failure_artifacts
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: pip

@@ -125,6 +125,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -212,6 +213,7 @@ jobs:
         uses: ./.github/actions/acme_clients_enroll
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -300,6 +302,7 @@ jobs:
         uses: ./.github/actions/acme_clients_enroll
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

@@ -1,5 +1,5 @@
 name: "channel_teardown"
-description: "Collect, sanitize, and upload failure logs; always run secure cleanup"
+description: "Collect, sanitize, and upload failure logs; always run secure cleanup. Callers MUST use if: always()."
 inputs:
   DEPLOYMENT_TYPE:
     description: "container | rpm | deb | pip"
@@ -19,8 +19,12 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # Callers must use `if: always()`. Without it the composite is skipped on
+    # job failure (default if: success()) and no logs are uploaded.
+    # `failure()` alone is not enough if a caller used `if: failure()` (inner
+    # failure() is then false because no prior composite step failed).
     - name: "[ * ] Collecting test logs"
-      if: ${{ failure() }}
+      if: ${{ failure() || job.status == 'failure' }}
       continue-on-error: true
       uses: ./.github/actions/collect_failure_logs
       with:
@@ -28,13 +32,13 @@ runs:
         WEBSRV: ${{ inputs.WEBSRV }}
 
     - name: "Sanitize failure artifacts"
-      if: ${{ failure() }}
+      if: ${{ failure() || job.status == 'failure' }}
       uses: ./.github/actions/sanitize_artifact_payload
       with:
         ARTIFACT_DIR: ${{ github.workspace }}/artifact
 
     - name: "[ * ] Uploading artifacts"
-      if: ${{ failure() }}
+      if: ${{ failure() || job.status == 'failure' }}
       uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.ARTIFACT_NAME }}

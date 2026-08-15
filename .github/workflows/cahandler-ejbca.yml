@@ -306,6 +306,7 @@ jobs:
           docker logs ejbca > ${{ github.workspace }}/artifact/ejbca.log
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -599,6 +600,7 @@ jobs:
           docker logs ejbca > ${{ github.workspace }}/artifact/ejbca.log
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -871,6 +873,7 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

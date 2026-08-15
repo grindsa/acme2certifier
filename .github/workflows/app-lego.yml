@@ -124,6 +124,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -201,6 +202,7 @@ jobs:
           docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv --key-type ${{ matrix.keylength }} --email "lego@example.com" --cert.name lego.acme
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -277,6 +279,7 @@ jobs:
           docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv --key-type ${{ matrix.keylength }} --email "lego@example.com" --cert.name lego.acme
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

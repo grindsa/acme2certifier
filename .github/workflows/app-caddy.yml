@@ -124,6 +124,7 @@ jobs:
           docker logs caddy 2> ${{ github.workspace }}/artifact/caddy.log
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container

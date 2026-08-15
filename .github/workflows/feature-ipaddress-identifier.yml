@@ -112,6 +112,7 @@ jobs:
         uses: ./.github/actions/wf_specific/ipaddress/enroll
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -195,6 +196,7 @@ jobs:
           DEPLOYMENT_TYPE: "rpm"
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -282,6 +284,7 @@ jobs:
           DEPLOYMENT_TYPE: "deb"
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb

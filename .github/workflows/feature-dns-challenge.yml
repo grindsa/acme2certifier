@@ -220,6 +220,7 @@ jobs:
           CHECK_JIT: 'true'
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
@@ -415,6 +416,7 @@ jobs:
           CHECK_JIT: 'true'
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: rpm
@@ -622,6 +624,7 @@ jobs:
           CHECK_JIT: 'true'
 
       - name: "Channel teardown"
+        if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: deb
