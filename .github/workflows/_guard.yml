@@ -1,4 +1,4 @@
-name: Guard
+name: Security - Guard
 on:
   workflow_call:
     inputs:

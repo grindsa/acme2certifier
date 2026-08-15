@@ -1,4 +1,4 @@
-name: Release and push images to Docker Hub / GHCR
+name: Deployment - Release and push images to Docker Hub / GHCR
 
 on:
   push:
