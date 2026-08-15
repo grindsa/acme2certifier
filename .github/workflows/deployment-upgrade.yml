@@ -59,7 +59,7 @@ jobs:
       has_deb_hops: ${{ steps.resolve.outputs.has_deb_hops }}
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Resolve one-hop upgrade matrix"
         id: resolve
@@ -308,7 +308,7 @@ jobs:
         hop: ${{ fromJSON(needs.resolve-versions.outputs.hops_docker) }}
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -473,7 +473,7 @@ jobs:
         hop: ${{ fromJSON(needs.resolve-versions.outputs.hops_rpm) }}
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Parse JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -698,7 +698,7 @@ jobs:
         hop: ${{ fromJSON(needs.resolve-versions.outputs.hops_deb) }}
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup
