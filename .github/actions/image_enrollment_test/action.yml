@@ -23,6 +23,10 @@ inputs:
     description: "Seconds between /directory polls"
     required: false
     default: "2"
+  legacy_django:
+    description: "Use pre-0.45 Django module paths (acme_srv / acme2certifier.urls) for N-1 images"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -47,6 +51,8 @@ runs:
 
     - name: Stage TLS material and N-1 handler_file fallback
       shell: bash
+      env:
+        LEGACY_DJANGO: ${{ inputs.legacy_django }}
       run: |
         set -euo pipefail
         # 0.44 ignores handler_module; keep handler_file for N-1 images that
@@ -57,6 +63,14 @@ runs:
         fi
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        # 0.44 Django layout: acme_srv app, not acme2certifier.django_app.
+        if [[ "${LEGACY_DJANGO}" == "true" ]]; then
+          sudo sed -i \
+            -e 's/"acme2certifier.django_app.apps.AcmeSrvConfig"/"acme_srv"/' \
+            -e 's/"acme2certifier.django_project.urls"/"acme2certifier.urls"/' \
+            -e 's/"acme2certifier.django_project.wsgi.application"/"acme2certifier.wsgi.application"/' \
+            examples/Docker/data/settings.py
+        fi
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
 

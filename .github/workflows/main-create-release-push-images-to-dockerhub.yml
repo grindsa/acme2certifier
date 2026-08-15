@@ -252,6 +252,7 @@ jobs:
           hostname_suffix: -${{ matrix.websrv }}-${{ matrix.dbhandler }}-amd64-n1
           name_space: acme-${{ matrix.websrv }}-${{ matrix.dbhandler }}-n1
           container_name: acme-srv
+          legacy_django: ${{ matrix.dbhandler == 'django' }}
 
       - name: Sanitize failure artifacts
         if: failure()

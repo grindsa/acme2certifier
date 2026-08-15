@@ -50,11 +50,9 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier' && inputs.branch == 'master'
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.sha }}
 
       - name: Publish documentation to Wiki
-        uses: grindsa/github-wiki-publish-action@d6117ce124c26a0558eca1347112243438ca6620 # customize_wiki_title
+        uses: grindsa/github-wiki-publish-action@cf8c4f0d09b44102375d6151bf12885b51dd79ee # customize_wiki_title
         with:
           path: |
             docs
