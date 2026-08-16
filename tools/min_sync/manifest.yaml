@@ -1,0 +1,78 @@
+# min <-> full branch sync manifest
+# See tools/min_sync/README.md
+
+source_default: master
+target_default: min-devel
+
+min_targets:
+  - min-devel
+  - min
+
+full_targets:
+  - master
+  - devel
+
+# Shared product paths. Direction semantics differ (see sync.py / README).
+sync_paths:
+  - acme2certifier/__init__.py
+  - acme2certifier/compat.py
+  - acme2certifier/acme_srv/
+  - acme2certifier/dbhandlers/
+  - acme2certifier/eabhandlers/
+  - acme2certifier/hookhandlers/
+  - acme2certifier/django_app/
+  - acme2certifier/django_project/
+  - acme2certifier/share/
+  - acme2certifier/tools/
+  - acme2certifier/cahandlers/
+  - test/
+  - docs/
+  - examples/
+  - pyproject.toml
+  - MANIFEST.in
+  - .pre-commit-config.yaml
+  - README.md
+  - CHANGES.md
+  - SECURITY.md
+
+# CA handlers kept on min lines (relative to acme2certifier/cahandlers/)
+keep_handlers:
+  - __init__.py
+  - asa_ca_handler.py
+  - certifier_ca_handler.py
+  - nclm_ca_handler.py
+  - ms_wcce/
+
+# Never port these from full -> min or min -> full
+min_owned:
+  - .github/workflows/main-push-rpm.yml
+  - examples/install_scripts/rpm/packages/
+
+# Removed after a port into a min target (in addition to non-kept handlers)
+strip_into_min:
+  - acme2certifier/tools/a2c_msicpr_connection_test.py
+  - acme2certifier/tools/a2c_wsgi2django.py
+  - acme2certifier/tools/a2c_mswcce_connection_test.py
+  - test/test_a2c_msicpr_connection_test.py
+  - test/test_acme_ca_handler.py
+  - test/test_certsrv.py
+  - test/test_cmp_ca_handler.py
+  - test/test_digicert.py
+  - test/test_dogtag_ca_handler.py
+  - test/test_ejbca_handler.py
+  - test/test_entrust.py
+  - test/test_est_ca_handler.py
+  - test/test_freeipa_ca_handler.py
+  - test/test_msca_handler.py
+  - test/test_msicpr_ca_handler.py
+  - test/test_msicpr_helpers.py
+  - test/test_mswcce_ca_handler.py
+  - test/test_openssl_ca_handler.py
+  - test/test_openxpki_ca_handler.py
+  - test/test_pkcs7_soap_ca_handler.py
+  - test/test_skeleton_ca_handler.py
+  - test/test_vault_handler.py
+  - test/test_xca_ca_handler.py
+
+# Optional: do not open promote PRs; min-devel -> min stays manual
+promote: false
