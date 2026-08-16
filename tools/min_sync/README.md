@@ -5,7 +5,9 @@ Sync shared product code between **full** branches (`master`, `devel`) and
 
 ## Rules
 
-- Always prepare a **review PR** into the target branch (no direct merge).
+- Default: prepare a **sync branch** for a review PR into the target.
+- `--local`: apply the allowlist sync **on the local target branch** (files
+  only — no commit, no PR, no push).
 - **Never** promote `min-devel` → `min` (manual merge when you want an RPM).
 - `main-push-rpm.yml` stays min-owned; push-to-`min` RPM workflow is untouched.
 - Either side can be upstream for a given change.
@@ -16,6 +18,9 @@ Sync shared product code between **full** branches (`master`, `devel`) and
 # Preview master → min-devel
 python3 tools/min_sync/sync.py --from master --into min-devel --dry-run
 
+# Local sync: update files on min-devel, leave uncommitted
+python3 tools/min_sync/sync.py --from master --into min-devel --local
+
 # Create sync branch + commit (push/PR yourself)
 python3 tools/min_sync/sync.py --from master --into min-devel
 
@@ -24,9 +29,15 @@ python3 tools/min_sync/sync.py --from master --into min-devel --create-pr
 
 # Min-first fix → master
 python3 tools/min_sync/sync.py --from min-devel --into master --dry-run
+python3 tools/min_sync/sync.py --from min-devel --into master --local
 ```
 
+`--local` and `--create-pr` are mutually exclusive.
+
 Working tree must be clean. Script fetches `origin/<from>` and `origin/<into>`.
+With `--local`, the local target branch is checked out (created from
+`origin/<into>` if missing) and allowlisted files are staged. Nothing is
+committed.
 
 ## Direction behaviour
 

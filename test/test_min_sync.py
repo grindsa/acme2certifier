@@ -22,3 +22,19 @@ def test_target_classification() -> None:
     assert min_sync._is_min_target("min-devel", manifest)
     assert min_sync._is_full_target("master", manifest)
     assert not min_sync._is_min_target("master", manifest)
+
+
+def test_local_and_create_pr_are_exclusive() -> None:
+    parser = min_sync.build_parser()
+    try:
+        parser.parse_args(["--local", "--create-pr"])
+        raised = False
+    except SystemExit:
+        raised = True
+    assert raised
+
+
+def test_local_flag_parses() -> None:
+    args = min_sync.build_parser().parse_args(["--local"])
+    assert args.local is True
+    assert args.create_pr is False
