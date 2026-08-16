@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -119,13 +120,24 @@ def _checkout_paths(repo: Path, source_ref: str, paths: Iterable[str]) -> list[s
     return checked
 
 
+def _rm_fs(path: Path) -> None:
+    """Remove leftover files/dirs git rm leaves behind (empty directories)."""
+    if not path.exists() and not path.is_symlink():
+        return
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+        return
+    path.unlink()
+
+
 def _rm_paths(repo: Path, paths: Iterable[str]) -> list[str]:
     removed: list[str] = []
     for path in paths:
         p = repo / path
-        if not p.exists():
+        if not p.exists() and not p.is_symlink():
             continue
         _run(["git", "rm", "-rf", "--ignore-unmatch", "--", path], cwd=repo)
+        _rm_fs(p)
         removed.append(path)
     return removed
 
