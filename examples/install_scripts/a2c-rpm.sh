@@ -10,9 +10,12 @@
 #   ./examples/install_scripts/a2c-rpm.sh install|restart|update [options]
 #
 # Options:
-#   -r, --rpm PATH              path to main acme2certifier-*.noarch.rpm (required unless
+#   -r, --rpm PATH              path to main acme2certifier[-min]-*.noarch.rpm (required unless
 #                               a matching .rpm is found in . / .. / data-dir). Flavor
 #                               RPMs are taken from the same directory.
+#       --name-suffix SUFFIX    package suffix after acme2certifier (empty on full
+#                               branches, -min on min-*). Also A2C_NAME_SUFFIX.
+#                               Inferred from the RPM filename when omitted.
 #   -m, --mode wsgi|django      application mode (default: wsgi)
 #       --python VER|NAME       flavor: 3.9|39|python39 (EL8 default),
 #                               3|python3 (EL9 default / EL8 legacy 3.6),
@@ -28,18 +31,19 @@
 #
 # Examples:
 #   ./examples/install_scripts/a2c-rpm.sh --rpm ./acme2certifier-0.45.dev1-1.0.noarch.rpm
+#   ./examples/install_scripts/a2c-rpm.sh --rpm ./acme2certifier-min-0.45-1.0.noarch.rpm
 #   ./examples/install_scripts/a2c-rpm.sh -r ../acme2certifier-*.rpm -m django
-#   ./examples/install_scripts/a2c-rpm.sh install -m wsgi --no-ssl
+#   ./examples/install_scripts/a2c-rpm.sh install --name-suffix -min -m wsgi --no-ssl
 #   ./examples/install_scripts/a2c-rpm.sh install --python 3.6   # EL8 legacy
 #   ./examples/install_scripts/a2c-rpm.sh restart
 #   ./examples/install_scripts/a2c-rpm.sh --update --volume-dir /tmp/acme2certifier/volume
 #
 # Notes:
 #   - Works on AlmaLinux / RHEL / Rocky / CentOS Stream 8 and 9 (dnf or yum).
-#   - Default app Python is 3.9 (EL8: acme2certifier-python39, EL9: acme2certifier-python3).
+#   - Default app Python is 3.9 (EL8: <pkg>-python39, EL9: <pkg>-python3).
 #   - EL8 python39 uses uwsgi-plugin-python39 (project RPM beside the main RPM, or repos).
 #   - If EL8 python39 flavor localinstall fails (missing modules), falls back to
-#     acme2certifier-python3 (3.6) unless --python was set explicitly.
+#     <pkg>-python3 (3.6) unless --python was set explicitly.
 #   - Installs EPEL + nginx + uWSGI stack (soft Recommends of the RPM).
 #   - EL8 legacy 3.6 may need cryptography/dns/jwcrypto backports; see docs/install_rpm.md.
 #   - MSSQL (msodbcsql18 / mssql-django) is also installed by rpm_prep when
@@ -47,6 +51,10 @@
 #   - CI-only host tweaks (syslog-ng/krb5, nginx.conf trim) stay in rpm_prep, not here.
 
 set -euo pipefail
+
+readonly MODE_DJANGO="django"
+readonly MODE_WSGI="wsgi"
+readonly DJANGO_SETTINGS="acme2certifier.django_project.settings"
 
 MODE="wsgi"
 MODE_EXPLICIT=0
@@ -58,6 +66,9 @@ VOLUME_DIR=""
 DATA_DIR=""
 PYTHON_OPT=""
 FLAVOR_PKG=""
+# "" on full branches, "-min" on min-*. Explicit via --name-suffix / A2C_NAME_SUFFIX.
+NAME_SUFFIX=""
+NAME_SUFFIX_EXPLICIT=0
 APP_ROOT="/opt/acme2certifier"
 CFG="${APP_ROOT}/acme_srv.cfg"
 SHARE="${APP_ROOT}/share"
@@ -66,20 +77,72 @@ PYTHON_CONF="/etc/acme2certifier/python.conf"
 NGINX_USER="nginx"
 
 usage() {
-  sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,51p' "$0" | sed 's/^# \{0,1\}//'
 }
 
-# Prefer the main payload RPM; skip flavor packages (acme2certifier-python*).
+pkg_name() {
+  printf '%s' "acme2certifier${NAME_SUFFIX}"
+}
+
+normalize_name_suffix() {
+  local raw="${1-}"
+  case "${raw}" in
+    ""|none|full) printf '' ;;
+    min|-min) printf '%s' '-min' ;;
+    -*) printf '%s' "${raw}" ;;
+    *) printf '%s' "-${raw}" ;;
+  esac
+}
+
+# Main payload is <pkg>-<ver|run_id>*.rpm; flavors are <pkg>-python*.
+is_main_rpm_basename() {
+  local base="$1"
+  local pkg="${2:-}"
+  case "${base}" in
+    *-python*.rpm|*-python*.RPM) return 1 ;;
+  esac
+  if [[ -n "${pkg}" ]]; then
+    case "${base}" in
+      "${pkg}"-[0-9]*.rpm|"${pkg}"-[0-9]*.RPM) return 0 ;;
+      *) return 1 ;;
+    esac
+  fi
+  case "${base}" in
+    acme2certifier-min-[0-9]*.rpm|acme2certifier-min-[0-9]*.RPM) return 0 ;;
+    acme2certifier-[0-9]*.rpm|acme2certifier-[0-9]*.RPM) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+infer_suffix_from_basename() {
+  local base="$1"
+  case "${base}" in
+    acme2certifier-min-[0-9]*) printf '%s' '-min' ;;
+    *) printf '' ;;
+  esac
+}
+
 pick_main_rpm() {
-  local f
+  local f base pkg=""
+  if [[ "${NAME_SUFFIX_EXPLICIT}" -eq 1 ]]; then
+    pkg="$(pkg_name)"
+  fi
   for f in "$@"; do
     [[ -f "${f}" ]] || continue
-    case "$(basename "${f}")" in
-      acme2certifier-python*) continue ;;
-      acme2certifier-*.rpm|acme2certifier-*.RPM) printf '%s\n' "${f}"; return 0 ;;
-    esac
+    base="$(basename "${f}")"
+    if is_main_rpm_basename "${base}" "${pkg}"; then
+      printf '%s\n' "${f}"
+      return 0
+    fi
   done
   return 1
+}
+
+append_pkg_globs() {
+  local -n _candidates="$1"
+  local dir="$2"
+  local pkg="$3"
+  _candidates+=("${dir}/${pkg}-[0-9]*.noarch.rpm" "${dir}/${pkg}-[0-9]*.rpm")
 }
 
 find_rpm() {
@@ -106,12 +169,25 @@ find_rpm() {
   elif [[ -n "${RPM_PATH}" ]]; then
     candidates+=("${RPM_PATH}")
   fi
-  if [[ -n "${DATA_DIR}" ]]; then
-    candidates+=("${DATA_DIR}/acme2certifier-*.noarch.rpm" "${DATA_DIR}/acme2certifier-*.rpm")
+  if [[ "${NAME_SUFFIX_EXPLICIT}" -eq 1 ]]; then
+    if [[ -n "${DATA_DIR}" ]]; then
+      append_pkg_globs candidates "${DATA_DIR}" "$(pkg_name)"
+    fi
+    append_pkg_globs candidates "." "$(pkg_name)"
+    append_pkg_globs candidates ".." "$(pkg_name)"
+    append_pkg_globs candidates "/tmp/acme2certifier" "$(pkg_name)"
+  else
+    if [[ -n "${DATA_DIR}" ]]; then
+      append_pkg_globs candidates "${DATA_DIR}" "acme2certifier-min"
+      append_pkg_globs candidates "${DATA_DIR}" "acme2certifier"
+    fi
+    append_pkg_globs candidates "." "acme2certifier-min"
+    append_pkg_globs candidates "." "acme2certifier"
+    append_pkg_globs candidates ".." "acme2certifier-min"
+    append_pkg_globs candidates ".." "acme2certifier"
+    append_pkg_globs candidates "/tmp/acme2certifier" "acme2certifier-min"
+    append_pkg_globs candidates "/tmp/acme2certifier" "acme2certifier"
   fi
-  candidates+=("./acme2certifier-*.noarch.rpm" "./acme2certifier-*.rpm")
-  candidates+=("../acme2certifier-*.noarch.rpm" "../acme2certifier-*.rpm")
-  candidates+=("/tmp/acme2certifier/acme2certifier-*.noarch.rpm" "/tmp/acme2certifier/acme2certifier-*.rpm")
   for candidate in "${candidates[@]}"; do
     # shellcheck disable=SC2086
     if compgen -G "${candidate}" >/dev/null 2>&1; then
@@ -181,7 +257,7 @@ install_uwsgi_python_plugin() {
   local flavor="$1"
   local main_rpm="${2:-}"
   local plugin_pkg plugin_file
-  if [[ "${flavor}" == "acme2certifier-python39" ]]; then
+  if [[ "${flavor}" == *"-python39" ]]; then
     plugin_pkg="uwsgi-plugin-python39"
     if plugin_file="$(find_named_rpm "${plugin_pkg}" "${main_rpm}")"; then
       echo "==> Installing ${plugin_pkg} from ${plugin_file}"
@@ -203,7 +279,7 @@ install_uwsgi_python_plugin() {
 
 uwsgi_plugins_value() {
   case "$1" in
-    acme2certifier-python39) echo "python39" ;;
+    *-python39) echo "python39" ;;
     *) echo "python3" ;;
   esac
 }
@@ -212,23 +288,25 @@ resolve_flavor_name() {
   local el="$1"
   local opt="${2:-}"
   local normalized
+  local prefix
+  prefix="$(pkg_name)"
   normalized="$(echo "${opt}" | tr '[:upper:]' '[:lower:]')"
   case "${normalized}" in
     "" )
       if [[ "${el}" == "8" ]]; then
-        echo "acme2certifier-python39"
+        echo "${prefix}-python39"
       else
-        echo "acme2certifier-python3"
+        echo "${prefix}-python3"
       fi
       ;;
-    3.9|39|python39|acme2certifier-python39)
-      echo "acme2certifier-python39"
+    3.9|39|python39|acme2certifier-python39|acme2certifier-min-python39)
+      echo "${prefix}-python39"
       ;;
-    3.6|3|python3|acme2certifier-python3)
-      echo "acme2certifier-python3"
+    3.6|3|python3|acme2certifier-python3|acme2certifier-min-python3)
+      echo "${prefix}-python3"
       ;;
-    3.11|311|python3.11|acme2certifier-python3.11)
-      echo "acme2certifier-python3.11"
+    3.11|311|python3.11|acme2certifier-python3.11|acme2certifier-min-python3.11)
+      echo "${prefix}-python3.11"
       ;;
     *)
       echo "ERROR: unsupported --python value: ${opt}" >&2
@@ -339,8 +417,8 @@ link_django_settings_from_volume() {
 normalize_dbhandler_mode() {
   local value="${1:-}"
   case "${value}" in
-    django|*django_handler*) echo "django" ;;
-    wsgi|*wsgi_handler*) echo "wsgi" ;;
+    django|*django_handler*) echo "${MODE_DJANGO}" ;;
+    wsgi|*wsgi_handler*) echo "${MODE_WSGI}" ;;
     *) echo "${value}" ;;
   esac
 }
@@ -472,6 +550,15 @@ while [[ $# -gt 0 ]]; do
       MODE_EXPLICIT=1
       shift 2
       ;;
+    --name-suffix)
+      if [[ $# -lt 2 || "$2" == --* ]]; then
+        echo "ERROR: --name-suffix requires a value (empty, min, or -min)" >&2
+        exit 1
+      fi
+      NAME_SUFFIX="$(normalize_name_suffix "$2")"
+      NAME_SUFFIX_EXPLICIT=1
+      shift 2
+      ;;
     --python)
       PYTHON_OPT="${2:-}"
       if [[ -z "${PYTHON_OPT}" ]]; then
@@ -509,7 +596,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "${MODE}" != "wsgi" && "${MODE}" != "django" ]]; then
+if [[ "${NAME_SUFFIX_EXPLICIT}" -eq 0 && -n "${A2C_NAME_SUFFIX+x}" ]]; then
+  NAME_SUFFIX="$(normalize_name_suffix "${A2C_NAME_SUFFIX}")"
+  NAME_SUFFIX_EXPLICIT=1
+fi
+
+if [[ "${MODE}" != "${MODE_WSGI}" && "${MODE}" != "${MODE_DJANGO}" ]]; then
   echo "ERROR: --mode must be 'wsgi' or 'django' (got: ${MODE})" >&2
   exit 1
 fi
@@ -540,15 +632,19 @@ fi
 EL_MAJOR="$(el_major)"
 echo "==> Detected package manager: ${PKG} (EL major: ${EL_MAJOR})"
 
-FLAVOR_PKG="$(resolve_flavor_name "${EL_MAJOR}" "${PYTHON_OPT}")" || exit 1
-echo "==> Python flavor (requested): ${FLAVOR_PKG}"
-
 RPM_FILE="$(find_rpm)" || {
-  echo "ERROR: no main .rpm found. Pass --rpm /path/to/acme2certifier-<ver>-*.noarch.rpm" >&2
+  echo "ERROR: no main .rpm found. Pass --rpm /path/to/$(pkg_name)-<ver>-*.noarch.rpm" >&2
+  echo "       or set --name-suffix / A2C_NAME_SUFFIX (empty or -min)." >&2
   exit 1
 }
 RPM_FILE="$(readlink -f "${RPM_FILE}")"
-echo "==> Using package: ${RPM_FILE}"
+if [[ "${NAME_SUFFIX_EXPLICIT}" -eq 0 ]]; then
+  NAME_SUFFIX="$(infer_suffix_from_basename "$(basename "${RPM_FILE}")")"
+fi
+echo "==> Using package: ${RPM_FILE} (name=$(pkg_name))"
+
+FLAVOR_PKG="$(resolve_flavor_name "${EL_MAJOR}" "${PYTHON_OPT}")" || exit 1
+echo "==> Python flavor (requested): ${FLAVOR_PKG}"
 
 resolve_flavor_file() {
   local flavor="$1"
@@ -577,11 +673,11 @@ ${SUDO} ${PKG} install -y \
   procps-ng
 # Matching Python plugin is installed after flavor resolve (incl. fallback).
 
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   echo "==> Installing Django-related system packages"
   DJANGO_RPM=""
   DJANGO_CANDS=(python3-django4.2 python3-django)
-  if [[ "${FLAVOR_PKG}" == "acme2certifier-python39" ]]; then
+  if [[ "${FLAVOR_PKG}" == *"-python39" ]]; then
     DJANGO_CANDS=(python39-django python3-django4.2 python3-django)
   fi
   for cand in "${DJANGO_CANDS[@]}"; do
@@ -605,10 +701,10 @@ fi
 echo "==> Installing ${RPM_FILE} + ${FLAVOR_FILE}"
 if ! ${SUDO} ${PKG} localinstall -y "${RPM_FILE}" "${FLAVOR_FILE}"; then
   if [[ "${EL_MAJOR}" == "8" \
-     && "${FLAVOR_PKG}" == "acme2certifier-python39" \
+     && "${FLAVOR_PKG}" == *"-python39" \
      && -z "${PYTHON_OPT}" ]]; then
-    echo "==> WARN: python39 flavor install failed; falling back to acme2certifier-python3 (EL8 legacy 3.6)"
-    FLAVOR_PKG="acme2certifier-python3"
+    echo "==> WARN: python39 flavor install failed; falling back to $(pkg_name)-python3 (EL8 legacy 3.6)"
+    FLAVOR_PKG="$(pkg_name)-python3"
     FLAVOR_FILE="$(resolve_flavor_file "${FLAVOR_PKG}")" || {
       echo "ERROR: fallback flavor RPM ${FLAVOR_PKG}-*.rpm not found" >&2
       exit 1
@@ -627,11 +723,10 @@ echo "==> Verifying package import (PYTHONPATH=${APP_ROOT}, python=${PY_BIN})"
 ${SUDO} env PYTHONPATH="${APP_ROOT}" "${PY_BIN}" -c \
   "import acme2certifier.acme_srv; from acme2certifier.acme_srv.version import __version__; print('acme2certifier', __version__)"
 command -v a2c-cli >/dev/null
-if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
-  if ! ${SUDO} "${PY_BIN}" -c "import django; print('${MODE_DJANGO}', django.get_version())"; then
-    echo "ERROR: Django installed but 'import django' failed with ${PY_BIN}" >&2
-    exit 1
-  fi
+if [[ "${MODE}" == "${MODE_DJANGO}" ]] \
+  && ! ${SUDO} "${PY_BIN}" -c "import django; print('${MODE_DJANGO}', django.get_version())"; then
+  echo "ERROR: Django installed but 'import django' failed with ${PY_BIN}" >&2
+  exit 1
 fi
 
 ${SUDO} mkdir -p "${APP_ROOT}/volume" /run/uwsgi
@@ -678,6 +773,17 @@ if [[ "${ENABLE_SSL}" -eq 1 ]]; then
   CERT="${APP_ROOT}/volume/acme2certifier_cert.pem"
   KEY="${APP_ROOT}/volume/acme2certifier_key.pem"
   if [[ ! -f "${CERT}" || ! -f "${KEY}" ]]; then
+    # Prefer CI-provided material from DATA_DIR (volume/ or nginx/) over self-signed.
+    for src_dir in "${VOLUME_DIR}" "${DATA_DIR}/volume" "${DATA_DIR}/nginx"; do
+      if [[ -n "${src_dir}" && -f "${src_dir}/acme2certifier_cert.pem" && -f "${src_dir}/acme2certifier_key.pem" ]]; then
+        echo "==> Seeding TLS cert/key from ${src_dir}"
+        ${SUDO} cp -f "${src_dir}/acme2certifier_cert.pem" "${CERT}"
+        ${SUDO} cp -f "${src_dir}/acme2certifier_key.pem" "${KEY}"
+        break
+      fi
+    done
+  fi
+  if [[ ! -f "${CERT}" || ! -f "${KEY}" ]]; then
     echo "==> Generating self-signed TLS cert/key"
     ${SUDO} openssl req -x509 -nodes -newkey rsa:2048 \
       -keyout "${KEY}" \
@@ -709,7 +815,7 @@ fi
 if [[ ! -f "${UWSGI_INI}" ]]; then
   ${SUDO} cp "${SHARE}/nginx/acme2certifier.ini" "${UWSGI_INI}"
 fi
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   ${SUDO} sed -i \
     -e 's/module = acme2certifier_wsgi.*/module = acme2certifier.django_project.wsgi:application/' \
     -e 's/acme2certifier_wsgi:application/acme2certifier.django_project.wsgi:application/' \
@@ -746,7 +852,7 @@ if [[ -f /usr/lib/systemd/system/acme2certifier.service ]]; then
   fi
 fi
 
-if [[ "${MODE}" == "django" ]]; then
+if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   link_django_settings_from_volume "${VOLUME_DIR}"
   echo "==> Django migrate + fixtures"
   SETTINGS_PY="${APP_ROOT}/acme2certifier/django_project/settings.py"
@@ -758,7 +864,7 @@ if [[ "${MODE}" == "django" ]]; then
   fi
   export ACME_SRV_CONFIGFILE="${CFG}"
   export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
-  export DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}"
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$(a2c-django-secret-keygen)"
   fi
@@ -771,14 +877,14 @@ if [[ "${MODE}" == "django" ]]; then
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-django-update
   ${SUDO} env \
     PYTHONPATH="${APP_ROOT}" \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
-    DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings" \
+    DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-manage loaddata status
 fi
 
@@ -802,7 +908,7 @@ echo "  Test:     curl -sS http://127.0.0.1/directory | head"
 echo "  Next:     edit ${CFG} (CA handler), see docs/acme_srv.md"
 echo "  Logs:     journalctl -u acme2certifier -n 50 --no-pager"
 echo "            tail -n 50 /var/log/nginx/error.log" >&2
-if [[ "${EL_MAJOR}" == "8" && "${FLAVOR_PKG}" == "acme2certifier-python3" ]]; then
+if [[ "${EL_MAJOR}" == "8" && "${FLAVOR_PKG}" == *"-python3" && "${FLAVOR_PKG}" != *python39* ]]; then
   echo
   echo "  Note (EL8 legacy 3.6): if imports fail on cryptography/jwcrypto/dns, install"
   echo "  backports from https://github.com/grindsa/sbom (docs/install_rpm.md)."

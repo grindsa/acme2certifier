@@ -7,7 +7,7 @@ on:
   workflow_dispatch: {}
   #schedule:
   #   - cron: '0 01 * * 6'  # Every Saturday morning
-   
+
 
 jobs:
   # ---------------------------------------------------------
@@ -20,7 +20,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
-    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
+    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_') && !startsWith(github.ref_name, 'min')
     strategy:
       fail-fast: false
       matrix:
@@ -53,7 +53,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
-    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
+    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_') && !startsWith(github.ref_name, 'min')
     steps:
       - uses: actions/checkout@v6
       - name: "Build rpm package"
@@ -70,7 +70,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
-    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
+    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_') && !startsWith(github.ref_name, 'min')
     steps:
       - uses: actions/checkout@v6
       - name: "deb build and upload"
@@ -89,9 +89,36 @@ jobs:
       contents: read
       actions: read
       deployments: write
-    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
+    if: >
+      always() &&
+      !cancelled() &&
+      github.repository == 'grindsa/acme2certifier' &&
+      !startsWith(github.ref_name, 'wf_') &&
+      (
+        startsWith(github.ref_name, 'min') ||
+        (
+          needs.build-containers.result == 'success' &&
+          needs.build-rpm.result == 'success' &&
+          needs.build-deb.result == 'success'
+        )
+      )
     steps:
+      - name: Dispatch quality-python
+        if: startsWith(github.ref_name, 'min')
+        env:
+          GH_TOKEN: ${{ secrets.GH_WF_TOKEN }}
+        run: |
+          gh workflow run quality-python.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref_name }}" \
+            -f sha="${{ github.sha }}" \
+            -f branch="${{ github.ref_name }}" \
+            -f full_ref="${{ github.ref }}" \
+            -f run_id="${{ github.run_id }}" \
+            -f called_by_workflow="${{ github.workflow }}"
+
       - name: Dispatch repository event
+        if: ${{ !startsWith(github.ref_name, 'min') }}
         uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.GH_WF_TOKEN }}

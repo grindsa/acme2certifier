@@ -67,6 +67,7 @@ jobs:
           exclude_workflows: >-
             main-build.yml,
             main-dispatch-broker.yml,
+            main-push-rpm.yml,
             main-create-release-push-images-to-dockerhub.yml,
             publish-pypi.yml,
             helper-dump-secrets.yml,

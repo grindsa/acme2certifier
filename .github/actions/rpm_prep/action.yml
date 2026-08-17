@@ -31,6 +31,10 @@ inputs:
     description: "IPv6"
     required: true
     default: "false"
+  NAME_SUFFIX:
+    description: "Package name suffix after acme2certifier (empty on full branches, -min on min-*)"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -40,6 +44,8 @@ runs:
       if: inputs.RPM_BUILD == 'true'
       id: rpm_build
       uses: ./.github/actions/rpm_build
+      with:
+        NAME_SUFFIX: ${{ inputs.NAME_SUFFIX }}
 
     - name: "Generate keys and certificates"
       uses: ./.github/actions/cert_gen
@@ -63,11 +69,12 @@ runs:
         sudo touch data/.a2c_ci
         sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-        if [ -f ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
+        PKG="acme2certifier${NAME_SUFFIX}"
+        if [ -f ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/${PKG}-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
           echo "RPM exists"
           # Main payload + python flavor subpackages
-          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-*.noarch.rpm data/
-          ls -la data/acme2certifier-*.rpm
+          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/${PKG}-*.noarch.rpm data/
+          ls -la data/${PKG}-*.rpm
         else
           echo "RPM does not exist"
         fi
@@ -85,6 +92,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         IPV6: ${{ inputs.IPV6 }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
+        NAME_SUFFIX: ${{ inputs.NAME_SUFFIX }}
 
       shell: bash
 

@@ -1,0 +1,71 @@
+name: "sanitize_artifact_payload"
+description: "Remove sensitive files from artifact payload before upload"
+inputs:
+  ARTIFACT_DIR:
+    description: "Artifact root directory"
+    required: false
+    default: "${{ github.workspace }}/artifact"
+  EXTRA_PATTERNS:
+    description: "Optional newline-separated extra glob patterns to delete"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Sanitize artifact payload"
+      shell: bash
+      env:
+        ARTIFACT_DIR: ${{ inputs.ARTIFACT_DIR }}
+        EXTRA_PATTERNS: ${{ inputs.EXTRA_PATTERNS }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! -d "${ARTIFACT_DIR}" ]]; then
+          echo "skip: artifact dir does not exist (${ARTIFACT_DIR})"
+          exit 0
+        fi
+
+        # Keep this list conservative to avoid leaking credentials and key material.
+        patterns=(
+          "*.key"
+          "*.pem"
+          "*.p12"
+          "*.pfx"
+          "*.jks"
+          "*.kdbx"
+          "*.keytab"
+          "id_rsa"
+          "id_rsa.pub"
+          ".env"
+          "settings.py"
+          "acme_srv.cfg"
+          "kid_profiles.json"
+          "accounts.json"
+          "account.json"
+        )
+
+        if [[ -n "${EXTRA_PATTERNS}" ]]; then
+          while IFS= read -r p; do
+            [[ -z "${p}" ]] && continue
+            patterns+=("${p}")
+          done <<< "${EXTRA_PATTERNS}"
+        fi
+
+        deleted=0
+        for p in "${patterns[@]}"; do
+          while IFS= read -r match; do
+            [[ -z "${match}" ]] && continue
+            sudo rm -f "${match}" || true
+            deleted=$((deleted + 1))
+          done < <(sudo find "${ARTIFACT_DIR}" -type f -name "${p}" 2>/dev/null || true)
+        done
+
+        # Remove known account/key dirs recursively if they were copied.
+        while IFS= read -r keydir; do
+          [[ -z "${keydir}" ]] && continue
+          sudo rm -rf "${keydir}" || true
+          deleted=$((deleted + 1))
+        done < <(sudo find "${ARTIFACT_DIR}" -type d \( -name accounts -o -name account \) 2>/dev/null || true)
+
+        echo "Sanitization complete. Removed ${deleted} sensitive path(s)."
