@@ -1,7 +1,7 @@
 # Dual-EL noarch packaging (see docs/architecture/rpm-el-packaging.md):
-#   acme2certifier           — /opt payload (no python*-* module Requires)
-#   acme2certifier-python3   — system python3-* (EL9 default 3.9 / EL8 legacy 3.6)
-#   acme2certifier-python39  — parallel Python 3.9 (EL8 default)
+#   acme2certifier-min           — /opt payload (no python*-* module Requires)
+#   acme2certifier-min-python3   — system python3-* (EL9 default 3.9 / EL8 legacy 3.6)
+#   acme2certifier-min-python39  — parallel Python 3.9 (EL8 default)
 #
 # Disable automatic requires/provides processing
 AutoReqProv: no
@@ -13,8 +13,8 @@ AutoReqProv: no
 %global         python_confdir  %{_sysconfdir}/%{projname}
 %{!?_unitdir: %global _unitdir /usr/lib/systemd/system}
 
-Summary:        library implementing ACME server functionality
-Name:           acme2certifier
+Summary:        library implementing ACME server functionality (min edition)
+Name:           acme2certifier-min
 
 %define         ghowner   		grindsa
 
@@ -27,6 +27,7 @@ URL:            https://github.com/grindsa/acme2certifier
 Requires:       tar
 Requires(post): policycoreutils
 Requires:       policycoreutils-python-utils
+Conflicts:      acme2certifier
 
 # Web stack is operator-chosen (nginx+uWSGI or httpd+mod_wsgi).
 # Matching uWSGI Python plugin is Recommended on each flavor.
@@ -39,18 +40,21 @@ BuildArch:		noarch
 Source0:        %{name}-%{version}.tar.gz
 
 %description
-acme2certifier is an ACME protocol proxy for CA servers that do not speak ACME natively.
+acme2certifier-min is the reduced ACME protocol proxy for CA servers that do
+not speak ACME natively. It installs under %{app_root} (PYTHONPATH=%{app_root}).
 
-This RPM installs the application under %{app_root} (PYTHONPATH=%{app_root}).
+Included CA handlers: ASA, Insta Certifier, NCLM, MS-WCCE.
+
 Install a Python flavor metapackage for module dependencies:
 
-  - acme2certifier-python39  — EL8 default (parallel Python 3.9)
-  - acme2certifier-python3   — EL9 default (system 3.9) / EL8 legacy (system 3.6)
+  - acme2certifier-min-python39  — EL8 default (parallel Python 3.9)
+  - acme2certifier-min-python3   — EL9 default (system 3.9) / EL8 legacy (system 3.6)
 
+Conflicts with the full acme2certifier RPM (shared /opt/acme2certifier layout).
 See docs/architecture/rpm-el-packaging.md and docs/install_rpm.md.
 
 %package python3
-Summary:        acme2certifier runtime for system Python 3 (python3-*)
+Summary:        acme2certifier-min runtime for system Python 3 (python3-*)
 Requires:       %{name} = %{version}-%{release}
 Requires:       python3
 Requires:       python3-dateutil
@@ -72,11 +76,14 @@ Requires:       python3-pyyaml
 Recommends:      uwsgi-plugin-python3
 Recommends:      python3-uwsgidecorators
 Recommends:      python3-dataclasses
+Conflicts:      acme2certifier-min-python39
+Conflicts:      acme2certifier-min-python3.11
+Conflicts:      acme2certifier-python3
 Conflicts:      acme2certifier-python39
 Conflicts:      acme2certifier-python3.11
 
 %description python3
-Python flavor for acme2certifier using system python3-* modules.
+Python flavor for acme2certifier-min using system python3-* modules.
 
   - EL9: default (system Python 3.9)
   - EL8: legacy/fallback (system Python 3.6)
@@ -84,8 +91,8 @@ Python flavor for acme2certifier using system python3-* modules.
 Writes %{python_confdir}/python.conf, sets uWSGI plugins = python3,
 and conflicts with other flavors.
 
-%package -n acme2certifier-python39
-Summary:        acme2certifier runtime for Python 3.9 (python39-*)
+%package python39
+Summary:        acme2certifier-min runtime for Python 3.9 (python39-*)
 Requires:       %{name} = %{version}-%{release}
 Requires:       python39
 Requires:       python39-dateutil
@@ -105,11 +112,14 @@ Requires:       python39-pyasn1
 Requires:       python39-pyasn1-modules
 Requires:       python39-pyyaml
 Recommends:      uwsgi-plugin-python39
+Conflicts:      acme2certifier-min-python3
+Conflicts:      acme2certifier-min-python3.11
 Conflicts:      acme2certifier-python3
+Conflicts:      acme2certifier-python39
 Conflicts:      acme2certifier-python3.11
 
-%description -n acme2certifier-python39
-Python flavor for acme2certifier using python39-* modules (EL8 default app runtime).
+%description python39
+Python flavor for acme2certifier-min using python39-* modules (EL8 default app runtime).
 
 Writes %{python_confdir}/python.conf, sets uWSGI plugins = python39,
 and conflicts with other flavors.
@@ -186,14 +196,14 @@ UNIT
 
 # Flavor python.conf files (only one flavor installed at a time)
 cat > %{buildroot}%{python_confdir}/python.conf.python3 <<'EOF'
-# Managed by acme2certifier-python3 (%config(noreplace)).
+# Managed by acme2certifier-min-python3 (%config(noreplace)).
 # Absolute path preferred.
 python_interpreter=/usr/bin/python3
 python_min=3.6
 EOF
 
 cat > %{buildroot}%{python_confdir}/python.conf.python39 <<'EOF'
-# Managed by acme2certifier-python39 (%config(noreplace)).
+# Managed by acme2certifier-min-python39 (%config(noreplace)).
 # Absolute path preferred.
 python_interpreter=/usr/bin/python3.9
 python_min=3.9
@@ -232,7 +242,6 @@ install_wrapper a2c-cert-poll acme2certifier.tools.a2c_cert_poll
 install_wrapper a2c-cliuser-mgmt acme2certifier.tools.a2c_cliuser_mgmt
 install_wrapper a2c-invalidator acme2certifier.tools.a2c_invalidator
 install_wrapper a2c-report-generator acme2certifier.tools.a2c_report_generator
-install_wrapper a2c-mswcce-connection-test acme2certifier.tools.a2c_mswcce_connection_test
 
 %clean
 %{__chmod} -R 777 $RPM_BUILD_ROOT
@@ -248,7 +257,7 @@ install_wrapper a2c-mswcce-connection-test acme2certifier.tools.a2c_mswcce_conne
 %attr(0644,nginx,nginx) %{app_root}/acme2certifier_wsgi.py
 %attr(0644,nginx,nginx) %{app_root}/acme2certifier.ini
 %license LICENSE
-%doc *.md requirements.txt docs/*.md
+%doc *.md docs/*.md
 %{_unitdir}/acme2certifier.service
 %attr(0755,root,root) %{_bindir}/a2c-cli
 %attr(0755,root,root) %{_bindir}/a2c-db-update
@@ -260,15 +269,13 @@ install_wrapper a2c-mswcce-connection-test acme2certifier.tools.a2c_mswcce_conne
 %attr(0755,root,root) %{_bindir}/a2c-cliuser-mgmt
 %attr(0755,root,root) %{_bindir}/a2c-invalidator
 %attr(0755,root,root) %{_bindir}/a2c-report-generator
-%attr(0755,root,root) %{_bindir}/a2c-mswcce-connection-test
-%attr(0755,root,root) %{_bindir}/a2c-wsgi2django
 %dir %{python_confdir}
 
 %files python3
 %dir %{python_confdir}
 %attr(0644,root,root) %{python_confdir}/python.conf.python3
 
-%files -n acme2certifier-python39
+%files python39
 %dir %{python_confdir}
 %attr(0644,root,root) %{python_confdir}/python.conf.python39
 
@@ -322,7 +329,7 @@ if [ -f "${INI}" ]; then
     fi
 fi
 
-%post -n acme2certifier-python39
+%post python39
 CONFDIR=%{python_confdir}
 SRC="${CONFDIR}/python.conf.python39"
 DST="${CONFDIR}/python.conf"
@@ -344,7 +351,7 @@ if [ "$1" -eq 0 ]; then
     rm -f %{python_confdir}/python.conf
 fi
 
-%postun -n acme2certifier-python39
+%postun python39
 if [ "$1" -eq 0 ]; then
     rm -f %{python_confdir}/python.conf
 fi
