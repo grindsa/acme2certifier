@@ -20,10 +20,16 @@ urlpatterns = [
     re_path(r"^$", RedirectView.as_view(url="/directory")),
     re_path(r"^directory$", views.directory, name="directory"),
     re_path(rf"^{PREFIX}get_servername$", views.servername_get, name="servername_get"),
-    re_path(rf"^{PREFIX}trigger$", views.trigger, name="trigger"),
-    re_path(rf"^{PREFIX}housekeeping$", views.housekeeping, name="housekeeping"),
     re_path(rf"^{PREFIX}acme/", include("acme2certifier.django_app.urls")),
 ]
+
+if getattr(views, "HOUSEKEEPING_CLI_ENABLED", False) is True:
+    urlpatterns.append(
+        re_path(rf"^{PREFIX}housekeeping$", views.housekeeping, name="housekeeping")
+    )
+
+if getattr(views, "TRIGGER_ENDPOINT_ENABLED", False) is True:
+    urlpatterns.append(re_path(rf"^{PREFIX}trigger$", views.trigger, name="trigger"))
 
 if "CAhandler" in CONFIG and "acme_url" in CONFIG["CAhandler"]:
     urlpatterns.append(

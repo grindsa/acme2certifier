@@ -4,7 +4,9 @@
 
 from __future__ import print_function
 import json
-from typing import Tuple, Dict, Optional
+import logging
+import os
+from typing import Tuple, Dict, List, Optional
 from dataclasses import dataclass
 from acme2certifier.acme_srv.helper import (
     decode_message,
@@ -22,6 +24,10 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     CONFIGURATION_ERROR_DETAIL,
 )
 
+# Break-glass acknowledgment for disabling nonce/signature checks (testing only).
+SECURITY_DISABLE_ACK_ENV = "ACME2CERTIFIER_I_KNOW_THE_RISK"
+_SECURITY_DISABLE_ACK_VALUES = frozenset({"1", "true", "yes", "on"})
+
 
 @dataclass
 class MessageConfiguration:
@@ -35,6 +41,14 @@ class MessageConfiguration:
     eab_strict_mode: bool = True
     invalid_eabkid_deactivate: bool = False
     eab_handler: Optional[object] = None
+
+
+def security_disable_acknowledged() -> bool:
+    """Return True when the break-glass env var acknowledges security-disable flags."""
+    return (
+        os.environ.get(SECURITY_DISABLE_ACK_ENV, "").strip().lower()
+        in _SECURITY_DISABLE_ACK_VALUES
+    )
 
 
 class AccountRepository:
@@ -77,17 +91,53 @@ class Message(object):
     def __exit__(self, *args):
         """Close the connection at the end of the context"""
 
+    def _apply_security_disable_gate(
+        self, nonce_check_disable: bool, signature_check_disable: bool
+    ) -> Tuple[bool, bool]:
+        """Keep checks on unless break-glass env acknowledges insecure disable flags."""
+        if not (nonce_check_disable or signature_check_disable):
+            return False, False
+
+        enabled: List[str] = []
+        if nonce_check_disable:
+            enabled.append("nonce_check_disable")
+        if signature_check_disable:
+            enabled.append("signature_check_disable")
+        enabled_csv = ", ".join(enabled)
+
+        if not security_disable_acknowledged():
+            self.logger.warning(
+                "Ignoring %s in [Nonce]; nonce/signature checks remain enabled. "
+                "Set %s=1 only for testing if you intentionally need these options.",
+                enabled_csv,
+                SECURITY_DISABLE_ACK_ENV,
+            )
+            return False, False
+
+        self.logger.critical(
+            "**** SECURITY DISABLE ACKNOWLEDGED via %s: %s ****",
+            SECURITY_DISABLE_ACK_ENV,
+            enabled_csv,
+        )
+        return nonce_check_disable, signature_check_disable
+
     def _load_configuration(self) -> MessageConfiguration:
         """Load and parse config from file and return MessageConfiguration dataclass."""
         self.logger.debug("Message._load_configuration()")
         config_dic = load_config()
         msg_config = MessageConfiguration()
         if "Nonce" in config_dic:
-            msg_config.nonce_check_disable = config_dic.getboolean(
+            nonce_check_disable = config_dic.getboolean(
                 "Nonce", "nonce_check_disable", fallback=False
             )
-            msg_config.signature_check_disable = config_dic.getboolean(
+            signature_check_disable = config_dic.getboolean(
                 "Nonce", "signature_check_disable", fallback=False
+            )
+            (
+                msg_config.nonce_check_disable,
+                msg_config.signature_check_disable,
+            ) = self._apply_security_disable_gate(
+                nonce_check_disable, signature_check_disable
             )
         if "EABhandler" in config_dic:
             if config_dic.getboolean(
@@ -431,8 +481,9 @@ class Message(object):
         response_dic: Dict[str, str],
         status_dic: Dict[str, str],
         add_nonce: bool = True,
+        account_name: Optional[str] = None,
     ) -> Dict[str, str]:
-        """prepare response_dic"""
+        """prepare response_dic; log ACME problems at WARNING/ERROR"""
         self.logger.debug("Message.prepare_response()")
         if "code" not in status_dic:
             status_dic["code"] = 500
@@ -469,6 +520,16 @@ class Message(object):
                     "status": status_dic["code"],
                     "type": status_dic["type"],
                 }
+
+            log_level = logging.ERROR if status_dic["code"] >= 500 else logging.WARNING
+            self.logger.log(
+                log_level,
+                "ACME problem code=%s type=%s detail=%s account=%s",
+                status_dic["code"],
+                status_dic.get("type"),
+                response_dic["data"].get("detail"),
+                account_name,
+            )
 
         # always add nonce to header
         if add_nonce:

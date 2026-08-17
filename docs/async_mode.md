@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title Asynchronous Mode (`async_mode`) in acme2certifier -->
+<!-- wiki-title: Asynchronous Mode (`async_mode`) in acme2certifier -->
+<!-- wiki-category: Features -->
 
 # Asynchronous Mode (`async_mode`) in acme2certifier
 
@@ -31,7 +32,7 @@ The Django backend is required for `async_mode` because it provides:
 - More robust transaction management
 - Connection pooling
 - Thread safety
-- **Concurrent write access**
+- Concurrent write access
 
 These features are essential for reliable asynchronous operations. MariaDB and PostgreSQL, when used with Django's ORM, support concurrent access and atomic transactions, ensuring that background threads can safely read and write to the database without risking data corruption or race conditions. The default WSGI backend unfortunately lacks these guarantees, which can lead to unpredictable behavior or data loss in asynchronous workflows.
 

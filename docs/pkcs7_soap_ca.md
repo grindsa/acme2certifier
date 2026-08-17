@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title SOAP CA Handler Prototype -->
+<!-- wiki-title: SOAP CA Handler Prototype -->
+<!-- wiki-category: CA Handlers -->
 
 # SOAP CA Handler
 

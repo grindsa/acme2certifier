@@ -120,7 +120,9 @@ class TestChallengeCreationRequest(unittest.TestCase):
 
     def setUp(self):
         """Setup for tests"""
-        from acme2certifier.acme_srv.challenge_business_logic import ChallengeCreationRequest
+        from acme2certifier.acme_srv.challenge_business_logic import (
+            ChallengeCreationRequest,
+        )
 
         self.ChallengeCreationRequest = ChallengeCreationRequest
 
@@ -178,7 +180,9 @@ class TestChallengeUpdateRequest(unittest.TestCase):
 
     def setUp(self):
         """Setup for tests"""
-        from acme2certifier.acme_srv.challenge_business_logic import ChallengeUpdateRequest
+        from acme2certifier.acme_srv.challenge_business_logic import (
+            ChallengeUpdateRequest,
+        )
 
         self.ChallengeUpdateRequest = ChallengeUpdateRequest
 
@@ -287,7 +291,9 @@ class TestChallengeStateManager(unittest.TestCase):
 
     def setUp(self):
         """Setup for tests"""
-        from acme2certifier.acme_srv.challenge_business_logic import ChallengeStateManager
+        from acme2certifier.acme_srv.challenge_business_logic import (
+            ChallengeStateManager,
+        )
 
         self.logger = Mock(spec=logging.Logger)
         self.repository = MockChallengeRepository()
@@ -766,7 +772,9 @@ class TestChallengeFactory(unittest.TestCase):
         # Mock the email_handler module
         import sys
 
-        sys.modules["acme2certifier.acme_srv.email_handler"].EmailHandler = mock_email_handler_class
+        sys.modules["acme2certifier.acme_srv.email_handler"].EmailHandler = (
+            mock_email_handler_class
+        )
 
         challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",

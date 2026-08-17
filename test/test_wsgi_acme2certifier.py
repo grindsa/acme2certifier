@@ -282,6 +282,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual([b'"data"'], self.authz(environ, Mock()))
         self.assertTrue(mock_get.called)
         self.assertFalse(mock_post.called)
+        wsgi_mod.LEGACY_ACME_GET = False
 
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
@@ -464,7 +465,9 @@ class TestACMEHandler(unittest.TestCase):
 
         for exc_type, should_call_excepthook in test_cases:
             with self.subTest(exc_type=exc_type):
-                with patch("acme2certifier.share.acme2certifier_wsgi.LOGGER") as mock_logger:
+                with patch(
+                    "acme2certifier.share.acme2certifier_wsgi.LOGGER"
+                ) as mock_logger:
                     with patch("sys.__excepthook__") as mock_excepthook:
                         exc_value = exc_type("Test exception")
                         exc_traceback = Mock()
@@ -700,6 +703,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_url.called)
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
+        wsgi_mod.LEGACY_ACME_GET = False
 
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
@@ -919,6 +923,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", True)
     @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
     def test_054_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """trigger POST request"""
@@ -938,6 +943,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", True)
     @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
     def test_055_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """trigger POST request"""
@@ -957,6 +963,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", True)
     @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
     def test_056_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """trigger unknown request type"""
@@ -1004,7 +1011,9 @@ class TestACMEHandler(unittest.TestCase):
             "PATH_INFO": "PATH_INFO",
         }
         self.assertEqual(
-            [b'{\n  "status": 404,\n  "message": "Not Found",\n  "detail": "Not Found"\n}'],
+            [
+                b'{\n  "status": 404,\n  "message": "Not Found",\n  "detail": "Not Found"\n}'
+            ],
             self.not_found(environ, Mock()),
         )
 
@@ -1027,7 +1036,10 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(response, [])
 
-    @patch("acme2certifier.share.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
     @patch(
         "acme2certifier.acme_srv.directory.DirectoryRepository.get_db_version",
         return_value=("1.0", "script_name"),
@@ -1075,7 +1087,9 @@ class TestACMEHandler(unittest.TestCase):
             "REMOTE_ADDR": "127.0.0.1",
             "PATH_INFO": "/acme/newaccount",
         }
-        with patch("acme2certifier.share.acme2certifier_wsgi.newaccount", self.newaccount):
+        with patch(
+            "acme2certifier.share.acme2certifier_wsgi.newaccount", self.newaccount
+        ):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called()
             self.assertIsInstance(response, list)
@@ -1092,13 +1106,16 @@ class TestACMEHandler(unittest.TestCase):
             "REMOTE_ADDR": "127.0.0.1",
             "PATH_INFO": "/unknown/path",
         }
-        with patch("acme2certifier.share.acme2certifier_wsgi.not_found", self.not_found):
+        with patch(
+            "acme2certifier.share.acme2certifier_wsgi.not_found", self.not_found
+        ):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called_with(
                 "404 NOT FOUND", [("Content-Type", "text/plain")]
             )
             self.assertIsInstance(response, list)
 
+    @patch("acme2certifier.share.acme2certifier_wsgi.HOUSEKEEPING_CLI_ENABLED", True)
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")
@@ -1138,6 +1155,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
+    @patch("acme2certifier.share.acme2certifier_wsgi.HOUSEKEEPING_CLI_ENABLED", True)
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")

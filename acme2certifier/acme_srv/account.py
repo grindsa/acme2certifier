@@ -535,13 +535,16 @@ class Account:
                     400,
                     self.err_msg_dic["accountdoesnotexist"],
                     "Deactivation failed",
+                    account_name=account_name,
                 )
             code, message, detail = self._deactivate_account(account_name)
             if code == 200:
                 data = self._build_account_info(account_obj)
                 data["status"] = "deactivated"
                 return self._build_response(code, account_name, data)
-            return self._build_response(code, message, detail)
+            return self._build_response(
+                code, message, detail, account_name=account_name
+            )
         else:
             self.logger.warning(
                 "Invalid status for deactivation account=%s status=%s",
@@ -549,7 +552,10 @@ class Account:
                 payload.get("status"),
             )
             return self._build_response(
-                400, self.err_msg_dic["malformed"], "Invalid status for deactivation"
+                400,
+                self.err_msg_dic["malformed"],
+                "Invalid status for deactivation",
+                account_name=account_name,
             )
 
     def _deactivate_account(self, account_name: str) -> Tuple[int, str, str]:
@@ -588,8 +594,8 @@ class Account:
             account_obj = self._lookup_account_by_name(account_name)
             if account_obj:
                 data = self._build_account_info(account_obj)
-                return self._build_response(code, message, data)
-        return self._build_response(code, message, detail)
+                return self._build_response(code, account_name, data)
+        return self._build_response(code, message, detail, account_name=account_name)
 
     def _update_account_contacts(
         self, account_name: str, payload: Dict[str, str]
@@ -658,7 +664,10 @@ class Account:
 
         self.logger.warning("Malformed key-change request account=%s", account_name)
         return self._build_response(
-            400, self.err_msg_dic["malformed"], "Malformed key-change request"
+            400,
+            self.err_msg_dic["malformed"],
+            "Malformed key-change request",
+            account_name=account_name,
         )
 
     def _rollover_account_key(
@@ -767,7 +776,10 @@ class Account:
             data = self._build_account_info(account_obj)
             return self._build_response(200, account_name, data)
         return self._build_response(
-            400, self.err_msg_dic["accountdoesnotexist"], "Account not found"
+            400,
+            self.err_msg_dic["accountdoesnotexist"],
+            "Account not found",
+            account_name=account_name,
         )
 
     def _lookup_account_by_name(self, value: str) -> Optional[Dict[str, str]]:
@@ -811,50 +823,84 @@ class Account:
         )
         return account_info
 
+    def _build_success_data(
+        self,
+        code: int,
+        message: Optional[str],
+        detail: Optional[str],
+        payload: Optional[Dict],
+    ) -> Dict[str, str]:
+        """Build response data payload for successful account operations."""
+        if code == 201:
+            data = {
+                "status": "valid",
+                "orders": f'{self.server_name}{self.config.path_dic["acct_path"]}{message}/orders',
+            }
+            if payload and "contact" in payload:
+                data["contact"] = payload["contact"]
+            return data
+
+        if code == 200 and detail and "status" in detail:
+            return detail
+
+        return {}
+
+    def _build_location_header(self, account_name: Optional[str]) -> Dict[str, str]:
+        """Build location header for successful account operations."""
+        return {
+            "Location": f'{self.server_name}{self.config.path_dic["acct_path"]}{account_name}'
+        }
+
+    def _add_eab_binding_to_response(
+        self, response_data: Dict[str, str], payload: Optional[Dict]
+    ) -> None:
+        """Append external account binding to response data when configured."""
+        if self.config.eab_check and payload and "externalaccountbinding" in payload:
+            response_data["externalaccountbinding"] = payload["externalaccountbinding"]
+
+    def _normalize_error_detail(self, detail: Optional[str]) -> Optional[str]:
+        """Normalize legacy error details for response payload."""
+        if detail == "tosfalse":
+            return "Terms of service must be accepted"
+        return detail
+
+    def _resolve_log_account(
+        self, code: int, message: Optional[str], account_name: Optional[str]
+    ) -> Optional[str]:
+        """Resolve account name used for response logging."""
+        if account_name is not None:
+            return account_name
+        if code in (200, 201):
+            return message
+        return None
+
     def _build_response(
         self,
         code: int,
         message: Optional[str],
         detail: Optional[str],
         payload: Optional[Dict] = None,
+        account_name: Optional[str] = None,
     ) -> Dict[str, str]:
         """Build a response dictionary."""
         self.logger.debug("Account._build_response()")
         response_dic = {}
+
         if code in (200, 201):
-            response_dic["data"] = {}
-            if code == 201:
-                response_dic["data"] = {
-                    "status": "valid",
-                    "orders": f'{self.server_name}{self.config.path_dic["acct_path"]}{message}/orders',
-                }
-                if payload and "contact" in payload:
-                    response_dic["data"]["contact"] = payload["contact"]
-            elif code == 200 and detail and "status" in detail:
-                response_dic["data"] = detail
-
-            response_dic["header"] = {}
-            response_dic["header"][
-                "Location"
-            ] = f'{self.server_name}{self.config.path_dic["acct_path"]}{message}'
-
-            # add exernal account binding
-            if (
-                self.config.eab_check
-                and payload
-                and "externalaccountbinding" in payload
-            ):
-                response_dic["data"]["externalaccountbinding"] = payload[
-                    "externalaccountbinding"
-                ]
-
+            response_dic["data"] = self._build_success_data(
+                code, message, detail, payload
+            )
+            response_dic["header"] = self._build_location_header(message)
+            self._add_eab_binding_to_response(response_dic["data"], payload)
         else:
-            if detail == "tosfalse":
-                detail = "Terms of service must be accepted"
+            detail = self._normalize_error_detail(detail)
 
-        # prepare/enrich response
+        log_account = self._resolve_log_account(code, message, account_name)
+
         status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
+        response_dic = self.message.prepare_response(
+            response_dic, status_dic, account_name=log_account
+        )
 
         return response_dic
 
@@ -881,7 +927,9 @@ class Account:
             content
         )
         if code != 200:
-            return self._build_response(code, message, detail)
+            return self._build_response(
+                code, message, detail, account_name=account_name
+            )
 
         if "status" in payload:
             return self._handle_deactivation(account_name, payload)
@@ -894,7 +942,10 @@ class Account:
         else:
             self.logger.warning("Unknown request account=%s", account_name)
             return self._build_response(
-                400, self.err_msg_dic["malformed"], "Unknown request"
+                400,
+                self.err_msg_dic["malformed"],
+                "Unknown request",
+                account_name=account_name,
             )
 
     # Compatibility layer for external methods

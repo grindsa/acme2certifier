@@ -4,8 +4,8 @@
 import hashlib
 import json
 import logging
-import random
 import re
+import secrets
 from string import digits, ascii_letters
 from typing import Dict, Tuple
 from jwcrypto import jwk, jws
@@ -58,10 +58,10 @@ def decode_message(
 
 
 def generate_random_string(logger: logging.Logger, length: int) -> str:
-    """generate random string to be used as name"""
+    """generate cryptographically secure random string to be used as name"""
     logger.debug("Helper.generate_random_string()")
     char_set = digits + ascii_letters
-    return "".join(random.choice(char_set) for _ in range(length))
+    return "".join(secrets.choice(char_set) for _ in range(length))
 
 
 def jwk_thumbprint_get(logger: logging.Logger, pub_key: Dict[str, str]) -> str:

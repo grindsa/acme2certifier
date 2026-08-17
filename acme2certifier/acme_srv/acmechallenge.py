@@ -28,10 +28,13 @@ class Acmechallenge(object):
         key_authorization = None
         if path_info:
             token = path_info.replace("/.well-known/acme-challenge/", "")
-            self.logger.info("Lookup token: %s", token)
+            self.logger.debug("Acmechallenge.lookup(): looking up challenge")
             challenge_dic = self.dbstore.cahandler_lookup("name", token)
             if challenge_dic and "value1" in challenge_dic:
                 key_authorization = challenge_dic["value1"]
 
-        self.logger.debug("Acmechallenge.lookup() ended with: %s", key_authorization)
+        self.logger.debug(
+            "Acmechallenge.lookup() ended with: %s",
+            "found" if key_authorization else "not found",
+        )
         return key_authorization

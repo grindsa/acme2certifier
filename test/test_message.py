@@ -82,7 +82,9 @@ class TestACMEHandler(unittest.TestCase):
             self.message.check(message),
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -102,7 +104,9 @@ class TestACMEHandler(unittest.TestCase):
             self.message.check(message),
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -130,7 +134,9 @@ class TestACMEHandler(unittest.TestCase):
             self.message.check(message),
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -150,7 +156,9 @@ class TestACMEHandler(unittest.TestCase):
             self.message.check(message),
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -177,7 +185,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -210,7 +220,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_eabchk.called)
 
-    @patch("acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials")
+    @patch(
+        "acme2certifier.acme_srv.message.Message._check_and_handle_invalid_eab_credentials"
+    )
     @patch("acme2certifier.acme_srv.signature.Signature.check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.nonce.Nonce.check")
@@ -527,13 +539,20 @@ class TestACMEHandler(unittest.TestCase):
             "signature_check_disable": False,
         }
         mock_load_cfg.return_value = parser
-        from acme2certifier.acme_srv.message import Message
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        self.message = Message(False, "http://tester.local", self.logger)
-        self.assertTrue(self.message.config.nonce_check_disable)
-        self.assertFalse(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
-        self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                message = Message(False, "http://tester.local", self.logger)
+        self.assertFalse(message.config.nonce_check_disable)
+        self.assertFalse(message.config.signature_check_disable)
+        self.assertTrue(
+            any(
+                "Ignoring nonce_check_disable" in line
+                and SECURITY_DISABLE_ACK_ENV in line
+                for line in lcm.output
+            )
+        )
 
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_033_config_load(self, mock_load_cfg):
@@ -544,7 +563,7 @@ class TestACMEHandler(unittest.TestCase):
             "signature_check_disable": True,
         }
         mock_load_cfg.return_value = parser
-        from acme2certifier.acme_srv.message import Message
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
         with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
             with self.assertLogs("test_a2c", level="WARNING") as lcm:
@@ -1022,9 +1041,9 @@ class TestAccountRepository(unittest.TestCase):
 
     def setUp(self):
         self.mock_dbstore = MagicMock()
-        self.repo = importlib.import_module("acme2certifier.acme_srv.message").AccountRepository(
-            self.mock_dbstore
-        )
+        self.repo = importlib.import_module(
+            "acme2certifier.acme_srv.message"
+        ).AccountRepository(self.mock_dbstore)
 
     def test_001_account_lookup_calls_dbstore(self):
         self.mock_dbstore.account_lookup.return_value = "result"

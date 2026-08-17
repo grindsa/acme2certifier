@@ -59,7 +59,10 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
 
         # Import after ensuring mocking
         from acme2certifier.acme_srv.challenge import DatabaseChallengeRepository
-        from acme2certifier.acme_srv.challenge_error_handling import DatabaseError, ValidationError
+        from acme2certifier.acme_srv.challenge_error_handling import (
+            DatabaseError,
+            ValidationError,
+        )
         from acme2certifier.acme_srv.challenge_business_logic import (
             ChallengeInfo,
             ChallengeCreationRequest,
@@ -139,7 +142,8 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             "validated": 123456,
         }
         with patch(
-            "acme2certifier.acme_srv.challenge.uts_to_date_utc", return_value="2021-01-01T00:00:00Z"
+            "acme2certifier.acme_srv.challenge.uts_to_date_utc",
+            return_value="2021-01-01T00:00:00Z",
         ):
             result = self.repo.get_challenge_by_name("c1")
             self.assertEqual(result.name, "c1")
@@ -163,7 +167,10 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def test_007_create_challenge_success(self):
         self.dbstore.challenge_add.return_value = 1
         with (
-            patch("acme2certifier.acme_srv.challenge.generate_random_string", return_value="c1"),
+            patch(
+                "acme2certifier.acme_srv.challenge.generate_random_string",
+                return_value="c1",
+            ),
             patch("acme2certifier.acme_srv.challenge.uts_now", return_value=1000),
         ):
             req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
@@ -173,7 +180,10 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def test_008_create_challenge_db_error(self):
         self.dbstore.challenge_add.side_effect = Exception("db fail")
         with (
-            patch("acme2certifier.acme_srv.challenge.generate_random_string", return_value="c1"),
+            patch(
+                "acme2certifier.acme_srv.challenge.generate_random_string",
+                return_value="c1",
+            ),
             patch("acme2certifier.acme_srv.challenge.uts_now", return_value=1000),
         ):
             req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
@@ -358,7 +368,8 @@ class TestChallenge(unittest.TestCase):
 
     def test_003_extract_challenge_name_from_url(self):
         with patch(
-            "acme2certifier.acme_srv.challenge.parse_url", return_value={"path": "/acme/chall/c1"}
+            "acme2certifier.acme_srv.challenge.parse_url",
+            return_value={"path": "/acme/chall/c1"},
         ):
             name = self.challenge._extract_challenge_name_from_url("/acme/chall/c1")
             self.assertEqual(name, "c1")
@@ -372,7 +383,9 @@ class TestChallenge(unittest.TestCase):
             "authorization__value": "val",
         }
         self.challenge.repository.get_account_jwk.return_value = {"kty": "RSA"}
-        with patch("acme2certifier.acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"):
+        with patch(
+            "acme2certifier.acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"
+        ):
             details = self.challenge._get_challenge_validation_details("c1")
             self.assertEqual(details["jwk_thumbprint"], "thumb")
 
@@ -393,7 +406,9 @@ class TestChallenge(unittest.TestCase):
             # missing authorization__value and keyauthorization
         }
         self.challenge.repository.get_account_jwk.return_value = {"kty": "RSA"}
-        with patch("acme2certifier.acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"):
+        with patch(
+            "acme2certifier.acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"
+        ):
             self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
 
     def test_008_get_challenge_validation_details_exception(self):
@@ -540,7 +555,9 @@ class TestChallenge(unittest.TestCase):
         config_obj.set("Challenge", "sectigo_sim", "False")
 
         with (
-            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
@@ -1039,7 +1056,8 @@ class TestChallenge(unittest.TestCase):
         request.value = "test_value"
 
         with patch(
-            "acme2certifier.acme_srv.challenge.generate_random_string", return_value="random_token"
+            "acme2certifier.acme_srv.challenge.generate_random_string",
+            return_value="random_token",
         ):
             self.challenge.repository.create_challenge = Mock(return_value="chid")
             result = self.challenge.repository.create_challenge(request)
@@ -1197,7 +1215,9 @@ class TestChallenge(unittest.TestCase):
         config_obj.set("Challenge", "challenge_validation_timeout", "invalid")
 
         with (
-            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
@@ -1221,7 +1241,9 @@ class TestChallenge(unittest.TestCase):
         config_obj.set("Order", "email_identifier_support", "True")
 
         with (
-            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
@@ -1248,7 +1270,9 @@ class TestChallenge(unittest.TestCase):
         original_path_dic = self.challenge.path_dic.copy()
 
         with (
-            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
@@ -1307,7 +1331,9 @@ class TestChallenge(unittest.TestCase):
         request.authorization_name = "authz1"
         request.token = "token1"
 
-        with patch("acme2certifier.acme_srv.challenge.generate_random_string") as mock_gen:
+        with patch(
+            "acme2certifier.acme_srv.challenge.generate_random_string"
+        ) as mock_gen:
             mock_gen.side_effect = [
                 "challenge_name",
                 "random_token",
@@ -1399,7 +1425,9 @@ class TestChallenge(unittest.TestCase):
         ] = "test@example.com"  # Use dict-style access for DEFAULT
 
         with (
-            patch("acme2certifier.acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
@@ -1460,7 +1488,7 @@ class TestChallenge(unittest.TestCase):
             }
             self.challenge.process_challenge_request("invalid_content")
             mock_error_response.assert_called_once_with(
-                400, "bad request", "invalid format"
+                400, "bad request", "invalid format", account_name=""
             )
 
     def test_074_process_challenge_request_url_missing_in_protected(self):
@@ -1491,7 +1519,10 @@ class TestChallenge(unittest.TestCase):
             }
             self.challenge.process_challenge_request("content_without_url")
             mock_error_response.assert_called_once_with(
-                400, "malformed", "url missing in protected header"
+                400,
+                "malformed",
+                "url missing in protected header",
+                account_name="account",
             )
 
     def test_075_process_challenge_request_empty_challenge_name_extraction(self):
@@ -1527,7 +1558,7 @@ class TestChallenge(unittest.TestCase):
             }
             self.challenge.process_challenge_request("content_with_invalid_url")
             mock_error_response.assert_called_once_with(
-                400, "malformed", "could not get challenge"
+                400, "malformed", "could not get challenge", account_name="account"
             )
 
     def test_076_process_challenge_request_nonexistent_challenge_name(self):
@@ -1571,7 +1602,10 @@ class TestChallenge(unittest.TestCase):
                 "content_with_nonexistent_challenge"
             )
             mock_error_response.assert_called_once_with(
-                400, "malformed", "invalid challenge: nonexistent_challenge"
+                400,
+                "malformed",
+                "invalid challenge: nonexistent_challenge",
+                account_name="account",
             )
 
     # Tests for the final remaining uncovered lines (389-402, 508, 515)

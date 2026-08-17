@@ -71,6 +71,7 @@ class ChallengeConfiguration:
     caaidentities: Optional[List[str]] = None
     forward_address_check: bool = False
     reverse_address_check: bool = False
+    http01_block_private_ips: bool = False
     source_address: Optional[str] = None
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
@@ -414,12 +415,16 @@ class Challenge:
         pass
 
     def _create_error_response(
-        self, code: int, message: str, detail: str
+        self,
+        code: int,
+        message: str,
+        detail: str,
+        account_name: Optional[str] = None,
     ) -> Dict[str, str]:
         """Create standardized error response."""
         self.logger.debug("Challenge._create_error_response() called")
         status_dic = {"code": code, "type": message, "detail": detail}
-        return self.message.prepare_response({}, status_dic)
+        return self.message.prepare_response({}, status_dic, account_name=account_name)
 
     def _create_success_response(self, response_dic: Dict[str, Any]) -> Dict[str, str]:
         """Create standardized success response."""
@@ -459,6 +464,7 @@ class Challenge:
                 "accounturi": challenge_details.get("accounturi"),
                 "issuer_domain_names": self.config.caaidentities or [],
                 "allow_policy_wildcard": self.config.dns_persist_allow_policy_wildcard,
+                "http01_block_private_ips": self.config.http01_block_private_ips,
             },
         )
 
@@ -707,6 +713,14 @@ class Challenge:
         self.config.reverse_address_check = config_dic.getboolean(
             "Challenge", "reverse_address_check", fallback=False
         )
+        self.config.http01_block_private_ips = config_dic.getboolean(
+            "Challenge", "http01_block_private_ips", fallback=False
+        )
+        if self.config.http01_block_private_ips:
+            self.logger.info(
+                "HTTP-01 private/non-global IP blocking is enabled "
+                "(http01_block_private_ips=True)."
+            )
         self.logger.debug("Challenge._load_address_check_configuration() ended")
 
     def _load_dns_configuration(self, config_dic: ConfigParser):
@@ -1341,23 +1355,29 @@ class Challenge:
                 detail,
                 protected,
                 payload,
-                _account_name,
+                account_name,
             ) = self.message.check(content)
 
             if code != 200:
-                return self._create_error_response(code, message, detail)
+                return self._create_error_response(
+                    code, message, detail, account_name=account_name
+                )
 
             if "url" not in protected:
                 return self._create_error_response(
                     400,
                     self.err_msg_dic["malformed"],
                     "url missing in protected header",
+                    account_name=account_name,
                 )
 
             challenge_name = self._extract_challenge_name_from_url(protected["url"])
             if not challenge_name:
                 return self._create_error_response(
-                    400, self.err_msg_dic["malformed"], "could not get challenge"
+                    400,
+                    self.err_msg_dic["malformed"],
+                    "could not get challenge",
+                    account_name=account_name,
                 )
 
             challenge_info = self.repository.get_challenge_by_name(challenge_name)
@@ -1366,6 +1386,7 @@ class Challenge:
                     400,
                     self.err_msg_dic["malformed"],
                     f"invalid challenge: {challenge_name}",
+                    account_name=account_name,
                 )
 
             return self._handle_challenge_validation_request(

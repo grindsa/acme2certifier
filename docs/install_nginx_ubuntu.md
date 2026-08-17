@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title Installation on Nginx Running on Ubuntu 24.04 -->
+<!-- wiki-title: Installation on Nginx Running on Ubuntu 24.04 -->
+<!-- wiki-category: Installation -->
 
 # Installation on Nginx Running on Ubuntu 24.04
 
@@ -24,7 +25,7 @@ chmod a+rx examples/install_scripts/a2c-ubuntu-nginx.sh
 | `--mode wsgi\|django` | DB backend + matching uWSGI `module` (default: `wsgi`) |
 | `--version VERSION` | `pip` pin |
 | `--pre` | allow pre-releases |
-| `--from-source` | editable install from the current checkout |
+| `--from-source` | `pip install .` from the current checkout (into the venv) |
 
 The remainder of this guide is the manual equivalent of that script.
 

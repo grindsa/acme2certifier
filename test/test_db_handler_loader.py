@@ -30,8 +30,10 @@ def test_001_normalize_short_names(db_handler_mod: object) -> None:
         db_handler_mod._normalize_handler("DJANGO")
         == "acme2certifier.dbhandlers.django_handler"
     )
+    assert db_handler_mod._normalize_handler("my.custom.handler") == "my.custom.handler"
     assert (
-        db_handler_mod._normalize_handler("my.custom.handler") == "my.custom.handler"
+        db_handler_mod._normalize_handler("   ")
+        == "acme2certifier.dbhandlers.wsgi_handler"
     )
 
 
@@ -120,8 +122,7 @@ def test_009_warn_dbhandler_missing_section_with_env(
     with caplog.at_level(logging.WARNING, logger="test.db_handler_warn_env"):
         db_handler_mod.warn_dbhandler_cfg_missing(logger, {"DEFAULT": {}})
     assert any(
-        "section missing" in rec.message
-        and "ACME_SRV_DB_HANDLER=django" in rec.message
+        "section missing" in rec.message and "ACME_SRV_DB_HANDLER=django" in rec.message
         for rec in caplog.records
     )
 

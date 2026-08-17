@@ -794,7 +794,10 @@ class TestAuthorization(unittest.TestCase):
         self.assertTrue(authorization.debug)
         self.assertEqual(authorization.logger, self.mock_logger)
 
-    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
     @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_003_authorization_context_manager_enter(
         self, mock_load_config, mock_eab_profile
@@ -819,7 +822,10 @@ class TestAuthorization(unittest.TestCase):
         # Should not raise any exceptions
         self.authorization.__exit__(None, None, None)
 
-    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
     @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_005_load_configuration_empty(self, mock_load_config, mock_eab_profile):
         """Test configuration loading with empty config"""
@@ -836,7 +842,10 @@ class TestAuthorization(unittest.TestCase):
         self.assertTrue(self.authorization.config.expiry_check_disable)
         self.assertEqual(self.authorization.config.authz_path, "/acme/authz/")
 
-    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
     @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_006_load_configuration_success(self, mock_load_config, mock_eab_profile):
         """Test successful configuration loading"""
@@ -858,7 +867,10 @@ class TestAuthorization(unittest.TestCase):
         self.assertTrue(self.authorization.config.expiry_check_disable)
         self.assertEqual(self.authorization.config.authz_path, "/custom/acme/authz/")
 
-    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
     @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_007_load_configuration_caaidentities_csv_fallback(
         self, mock_load_config, mock_eab_profile
@@ -878,7 +890,10 @@ class TestAuthorization(unittest.TestCase):
             self.authorization.config.caaidentities, ["acme.local", "bar.local"]
         )
 
-    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
     @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_008_load_configuration_caaidentities_json_array(
         self, mock_load_config, mock_eab_profile
@@ -898,7 +913,10 @@ class TestAuthorization(unittest.TestCase):
             self.authorization.config.caaidentities, ["acme.local", "bar.local"]
         )
 
-    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
     @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_009_load_configuration_caaidentities_json_non_array_warns(
         self, mock_load_config, mock_eab_profile
@@ -938,7 +956,10 @@ class TestAuthorization(unittest.TestCase):
             "Invalid validity parameter: invalid_number", str(context.exception)
         )
 
-    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
     @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_011_load_configuration_empty_config(
         self, mock_load_config, mock_eab_profile
@@ -1208,7 +1229,9 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.business_logic = mock_business_logic
         self.authorization.challenge_manager = mock_challenge_manager
 
-        with patch("acme2certifier.acme_srv.authorization.ChallengeContext") as mock_context:
+        with patch(
+            "acme2certifier.acme_srv.authorization.ChallengeContext"
+        ) as mock_context:
             with patch(
                 "acme2certifier.acme_srv.authorization.DnsPersistChallengeValidator"
             ) as mock_validator_cls:
@@ -1296,7 +1319,9 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.business_logic = mock_business_logic
         self.authorization.challenge_manager = mock_challenge_manager
 
-        with patch("acme2certifier.acme_srv.authorization.ChallengeContext") as mock_context:
+        with patch(
+            "acme2certifier.acme_srv.authorization.ChallengeContext"
+        ) as mock_context:
             with patch(
                 "acme2certifier.acme_srv.authorization.DnsPersistChallengeValidator"
             ) as mock_validator_cls:
@@ -1953,9 +1978,13 @@ class TestAuthorization(unittest.TestCase):
         mock_expire.assert_called_once_with(1000000000)
 
     @patch(
-        "acme2certifier.acme_srv.authorization.config_dns_server_list_load", return_value=(False, None)
+        "acme2certifier.acme_srv.authorization.config_dns_server_list_load",
+        return_value=(False, None),
     )
-    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
     @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_041_load_configuration_prevalidated_domainlist_success(
         self, mock_load_config, mock_eab_profile, mock_dns_list
@@ -2149,7 +2178,10 @@ class TestAuthorization(unittest.TestCase):
         authz_info = {"status": "pending", "wildcard": False}
         auth_details = {"order__name": "order_mixed"}
 
-        with patch("acme2certifier.acme_srv.authorization.is_domain_whitelisted", return_value=False):
+        with patch(
+            "acme2certifier.acme_srv.authorization.is_domain_whitelisted",
+            return_value=False,
+        ):
             self.authorization._handle_domain_prevalidation(
                 "authz_mixed", auth_details, "unlisted.example.net", authz_info
             )
@@ -2239,9 +2271,13 @@ class TestAuthorization(unittest.TestCase):
             )
 
     @patch(
-        "acme2certifier.acme_srv.authorization.config_dns_server_list_load", return_value=(False, None)
+        "acme2certifier.acme_srv.authorization.config_dns_server_list_load",
+        return_value=(False, None),
     )
-    @patch("acme2certifier.acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
     @patch("acme2certifier.acme_srv.authorization.load_config")
     def test_050_load_configuration_prevalidated_domainlist_invalid_json(
         self, mock_load_config, mock_eab_profile, mock_dns_list
@@ -2322,7 +2358,10 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.config.prevalidated_domainlist = ["foo.com"]
         self.authorization.repository = Mock()
         authz_info = {"status": "pending"}
-        with patch("acme2certifier.acme_srv.authorization.is_domain_whitelisted", return_value=True):
+        with patch(
+            "acme2certifier.acme_srv.authorization.is_domain_whitelisted",
+            return_value=True,
+        ):
             self.authorization._apply_eab_and_prevalidation_whitelist(
                 "authz", {"order__name": "order1"}, "dns", "foo.com", authz_info
             )
@@ -2339,7 +2378,10 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.config.prevalidated_domainlist = ["foo.com"]
         self.authorization.repository = Mock()
         authz_info = {"status": "pending"}
-        with patch("acme2certifier.acme_srv.authorization.is_domain_whitelisted", return_value=False):
+        with patch(
+            "acme2certifier.acme_srv.authorization.is_domain_whitelisted",
+            return_value=False,
+        ):
             self.authorization._apply_eab_and_prevalidation_whitelist(
                 "authz", {"order__name": "order1"}, "dns", "bar.com", authz_info
             )
@@ -2546,7 +2588,10 @@ class TestAuthorization(unittest.TestCase):
         auth_details = {"order__name": "order_email"}
         id_value = "user@example.com"
         authz_info = {"status": "pending"}
-        with patch("acme2certifier.acme_srv.authorization.is_email_whitelisted", return_value=True):
+        with patch(
+            "acme2certifier.acme_srv.authorization.is_email_whitelisted",
+            return_value=True,
+        ):
             self.authorization._handle_email_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
@@ -2566,7 +2611,10 @@ class TestAuthorization(unittest.TestCase):
         auth_details = {"order__name": "order_email"}
         id_value = "other@example.com"
         authz_info = {"status": "pending"}
-        with patch("acme2certifier.acme_srv.authorization.is_email_whitelisted", return_value=False):
+        with patch(
+            "acme2certifier.acme_srv.authorization.is_email_whitelisted",
+            return_value=False,
+        ):
             self.authorization._handle_email_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
@@ -2597,7 +2645,10 @@ class TestAuthorization(unittest.TestCase):
         auth_details = None
         id_value = "user@example.com"
         authz_info = {"status": "pending"}
-        with patch("acme2certifier.acme_srv.authorization.is_email_whitelisted", return_value=True):
+        with patch(
+            "acme2certifier.acme_srv.authorization.is_email_whitelisted",
+            return_value=True,
+        ):
             self.authorization._handle_email_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )

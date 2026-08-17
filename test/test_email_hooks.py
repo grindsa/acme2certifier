@@ -83,7 +83,8 @@ class TestHooks(unittest.TestCase):
             }
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             self.assertEqual(h.appname, "acme2certifier")
@@ -94,7 +95,9 @@ class TestHooks(unittest.TestCase):
         """validate_configuration raises on None/empty config"""
         from acme2certifier.hookhandlers.email_hooks import Hooks
 
-        with patch("acme2certifier.hookhandlers.email_hooks.load_config", return_value=None):
+        with patch(
+            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=None
+        ):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
             self.assertIn(
@@ -106,7 +109,9 @@ class TestHooks(unittest.TestCase):
         from acme2certifier.hookhandlers.email_hooks import Hooks
 
         config = DummyConfig({"SomeOther": {"key": "value"}})
-        with patch("acme2certifier.hookhandlers.email_hooks.load_config", return_value=config):
+        with patch(
+            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=config
+        ):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
             self.assertIn(
@@ -125,7 +130,8 @@ class TestHooks(unittest.TestCase):
             }
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
@@ -156,7 +162,9 @@ class TestHooks(unittest.TestCase):
                 }
             }
         )
-        with patch("acme2certifier.hookhandlers.email_hooks.load_config", return_value=config):
+        with patch(
+            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=config
+        ):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
             msg = str(ctx.exception)
@@ -363,7 +371,8 @@ class TestHooks(unittest.TestCase):
             "Hooks": {},
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             self.assertEqual(h.appname, "default-app")
@@ -391,7 +400,8 @@ class TestHooks(unittest.TestCase):
             },
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             self.assertEqual(h.appname, "hooks-app")  # From Hooks section
@@ -405,7 +415,8 @@ class TestHooks(unittest.TestCase):
 
         cfg = {"SomeOther": {"key": "value"}}
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
@@ -427,7 +438,8 @@ class TestHooks(unittest.TestCase):
             },
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             self.assertEqual(h.appname, "hooks-app")  # From Hooks
@@ -450,7 +462,8 @@ class TestHooks(unittest.TestCase):
             },
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # Test values from Hooks section
@@ -473,7 +486,8 @@ class TestHooks(unittest.TestCase):
             },
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # Values should come from DEFAULT section
@@ -492,7 +506,8 @@ class TestHooks(unittest.TestCase):
             }
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # Should return fallback value
@@ -513,7 +528,8 @@ class TestHooks(unittest.TestCase):
             }
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # Should return fallback for invalid values
@@ -536,7 +552,8 @@ class TestHooks(unittest.TestCase):
             },
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # Valid conversions
@@ -561,7 +578,8 @@ class TestHooks(unittest.TestCase):
             },
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # Test values from Hooks section
@@ -584,7 +602,8 @@ class TestHooks(unittest.TestCase):
             },
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # Values should come from DEFAULT section
@@ -612,7 +631,8 @@ class TestHooks(unittest.TestCase):
             }
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # All should evaluate to True
@@ -648,7 +668,8 @@ class TestHooks(unittest.TestCase):
             }
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # All should evaluate to False
@@ -675,7 +696,8 @@ class TestHooks(unittest.TestCase):
             }
         }
         with patch(
-            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=DummyConfig(cfg)
+            "acme2certifier.hookhandlers.email_hooks.load_config",
+            return_value=DummyConfig(cfg),
         ):
             h = Hooks(self.logger)
             # Should return fallback value
@@ -700,7 +722,9 @@ class TestHooks(unittest.TestCase):
         # Extend DummyConfig to handle boolean types
         config = DummyConfig(cfg)
 
-        with patch("acme2certifier.hookhandlers.email_hooks.load_config", return_value=config):
+        with patch(
+            "acme2certifier.hookhandlers.email_hooks.load_config", return_value=config
+        ):
             h = Hooks(self.logger)
             # Should handle actual boolean values correctly
             self.assertTrue(h._get_config_boolean("bool_true"))
@@ -768,7 +792,10 @@ class TestHooks(unittest.TestCase):
         self.assertEqual(result, "unknown")
         self.assertTrue(any("Invalid SAN format" in msg for msg in cm.output))
 
-    @patch("acme2certifier.hookhandlers.email_hooks.build_pem_file", return_value="PEM DATA")
+    @patch(
+        "acme2certifier.hookhandlers.email_hooks.build_pem_file",
+        return_value="PEM DATA",
+    )
     @patch("acme2certifier.hookhandlers.email_hooks.MIMEApplication")
     def test_042_attach_csr_success(self, mock_mimeapp, mock_build_pem):
         """_attach_csr attaches CSR as expected when PEM is built"""
@@ -805,7 +832,10 @@ class TestHooks(unittest.TestCase):
             any("Failed to build PEM file from CSR" in msg for msg in cm.output)
         )
 
-    @patch("acme2certifier.hookhandlers.email_hooks.build_pem_file", side_effect=Exception("fail"))
+    @patch(
+        "acme2certifier.hookhandlers.email_hooks.build_pem_file",
+        side_effect=Exception("fail"),
+    )
     @patch("acme2certifier.hookhandlers.email_hooks.MIMEApplication")
     def test_044_attach_csr_exception(self, mock_mimeapp, mock_build_pem):
         """_attach_csr logs warning and appends message if exception occurs"""
@@ -853,7 +883,9 @@ class TestHooks(unittest.TestCase):
         "acme2certifier.hookhandlers.email_hooks.x509.load_pem_x509_certificates",
         side_effect=Exception("parsefail"),
     )
-    @patch("acme2certifier.hookhandlers.email_hooks.pkcs12.serialize_key_and_certificates")
+    @patch(
+        "acme2certifier.hookhandlers.email_hooks.pkcs12.serialize_key_and_certificates"
+    )
     @patch("acme2certifier.hookhandlers.email_hooks.MIMEApplication")
     def test_046_attach_cert_parse_error(
         self, mock_mimeapp, mock_serialize, mock_load_x509
@@ -1119,7 +1151,10 @@ class TestHooks(unittest.TestCase):
         self.hooks._attach_cert.assert_called_with("reqkey", certificate)
         self.hooks._done.assert_called()
 
-    @patch("acme2certifier.hookhandlers.email_hooks.cert_san_get", return_value=["DNS:example.com"])
+    @patch(
+        "acme2certifier.hookhandlers.email_hooks.cert_san_get",
+        return_value=["DNS:example.com"],
+    )
     @patch("acme2certifier.hookhandlers.email_hooks.x509.load_pem_x509_certificates")
     def test_059_success_hook_cert_not_valid_before_utc_exception(
         self, mock_load_x509, mock_cert_san_get

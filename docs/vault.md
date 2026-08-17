@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- Hashicorp Vault PKI CA-handler -->
+<!-- wiki-title: Hashicorp Vault PKI CA Handler -->
+<!-- wiki-category: CA Handlers -->
 
 # Hashicorp Vault PKI CA-handler
 
@@ -54,7 +55,7 @@ Once enabled, a client can specify the cert_profile_name to be used as part of a
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http --profile vault-role1
 ```
 
-## eab profiling
+## EAB Profiling
 
 This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
 

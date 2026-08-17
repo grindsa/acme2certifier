@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Containerized installation -->
+<!-- wiki-title: Containerized installation -->
+<!-- wiki-category: Installation -->
 
 # Containerized installation using apache2/nginx as webserver and wsgi or django
 
@@ -8,7 +9,7 @@ See [acme2certifier in Docker](../examples/Docker/README.md).
 
 Images are Ubuntu **26.04**-based and install from a prebuilt `.deb`. Variants differ by web stack (`*-wsgi` vs `*-django`, apache2/nginx). Upgrading or rolling back tags: see [Upgrading — Docker WSGI vs Django](upgrading.md#docker-wsgi-vs-django-and-rollback).
 
-### Image tag vs `[DBhandler] handler:`
+## Image tag vs `[DBhandler] handler:`
 
 Docker images are tagged by web stack (`*-wsgi` vs `*-django`). Each image also sets `ACME_SRV_DB_HANDLER`. That can look like the same choice twice.
 

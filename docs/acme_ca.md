@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title ACME CA handler -->
+<!-- wiki-title: ACME CA Handler -->
+<!-- wiki-category: CA Handlers -->
 
 # ACME CA Handler
 
@@ -18,6 +19,8 @@ If you are planning to use DNS Challenge validation please note:
 Your `acme2certifier` server must be able to reach the CA and needs to have access to your DNS server to provision the [key-authorization record](https://datatracker.ietf.org/doc/html/rfc8555/#section-8.4).
 I’ve decided to implement a script-based mechanism for DNS challenge provisioning, providing flexibility in how DNS challenges are handled. This implementation will be compatible with [acme.sh dns plugins](https://github.com/acmesh-official/acme.sh/wiki/dnsapi) allowing a reuse of the acme-dns plugin library.
 Therefore, you’ll need to download acme.sh (it won’t be executed directly) as well as the DNS API plugin for your DNS provider.
+
+**Security note:** DNS challenge provisioning runs the configured scripts via a shell (`source` is required for acme.sh plugins). Dynamic values are escaped with `shlex.quote()`, and script paths must exist at startup. Treat `acme_sh_script`, `dns_update_script`, `acme_sh_shell`, and `dns_update_script_variables` as trusted operator configuration: write access to `acme_srv.cfg` or those script files is equivalent to code execution as the service user.
 
 The configuration will be managed through the acme_srv.cfg file. The below example configuration refers to the [CloudFlare DNS plugin](https://github.com/acmesh-official/acme.sh/wiki/dnsapi#dns_cf)
 
@@ -168,7 +171,7 @@ Example for `lego`:
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent acme_url=<acme-server url> -d <fqdn> --http
 ```
 
-# EAB Profiling
+## EAB Profiling
 
 To enable EAB profiling:
 

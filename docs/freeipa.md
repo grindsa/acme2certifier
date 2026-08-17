@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title FreeIPA CA Handler User Documentation -->
+<!-- wiki-title: FreeIPA CA Handler User Documentation -->
+<!-- wiki-category: CA Handlers -->
 
 # FreeIPA CA Handler User Documentation
 
@@ -9,7 +10,7 @@
 - A running [FreeIPA](https://www.freeipa.org/) server with RPC-XML API access enabled.
 - A user account with sufficient privileges to add hosts and manage certificates.
 - The `acme2certifier` application installed and configured.
-- Python 3.7+ and required dependencies (see `requirements.txt`).
+- Python 3.7+ and required dependencies (see `pyproject.toml`).
 
 ## FreeIPA limitation
 
@@ -104,7 +105,7 @@ Once enabled, a client can specify the profile_id to be used as part of an order
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile IECUserRoles
 ```
 
-# EAB Profiling
+## EAB Profiling
 
 This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
 

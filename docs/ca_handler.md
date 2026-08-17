@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title How to Create Your Own CA Handler -->
+<!-- wiki-title: How to Create Your Own CA Handler -->
+<!-- wiki-category: CA Handlers -->
 
 # How to Create Your Own CA Handler
 
@@ -48,6 +49,8 @@ The following skeleton outlines the input parameters received by `acme2certifier
 ```python
 class CAhandler:
     """CA handler"""
+
+    supports_trigger = False
 
     def __init__(self, debug=None, logger=None):
         """
@@ -126,6 +129,11 @@ class CAhandler:
         #     error - Error message (if something went wrong)
         #     cert_bundle - Certificate chain in PEM format
         #     cert_raw - Certificate in ASN.1 (binary) format, base64 encoded
+
+        # Handlers that implement a real trigger must also set:
+        #     supports_trigger = True
+        # on the CAhandler class. Otherwise /trigger stays disabled even when
+        # [Trigger] enabled = True in acme_srv.cfg.
 
         self.logger.debug("CAhandler.trigger()")
         ...

@@ -38,6 +38,8 @@ class TestACMEHandler(unittest.TestCase):
 
         self.challenge = Challenge(False, "http://tester.local", self.logger)
         self.housekeeping = Housekeeping(False, self.logger)
+        # Unit tests exercise parse when HTTP CLI endpoint is enabled
+        self.housekeeping.cli_enabled = True
 
     def test_001_housekeeping__certificatelist_get(self):
         """test Housekeeping._certificatelist_get()"""
@@ -892,16 +894,17 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.housekeeping.load_config")
     def test_057_config_load(self, mock_load_cfg):
-        """test _config_load empty config"""
+        """test _config_load empty config defaults cli_enabled off"""
         parser = configparser.ConfigParser()
         # parser['Account'] = {'foo': 'bar'}
         mock_load_cfg.return_value = parser
         self.housekeeping._config_load()
         self.assertTrue(mock_load_cfg.called)
+        self.assertFalse(self.housekeeping.cli_enabled)
 
     @patch("acme2certifier.acme_srv.housekeeping.load_config")
     def test_058_config_load(self, mock_load_cfg):
-        """test _config_load empty config"""
+        """test _config_load with Housekeeping section but no cli_enabled"""
         parser = configparser.ConfigParser()
         parser["Housekeeping"] = {"foo": "bar"}
         mock_load_cfg.return_value = parser

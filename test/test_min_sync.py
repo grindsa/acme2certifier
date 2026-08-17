@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from tools.min_sync import sync as min_sync
+import sys
+from pathlib import Path
+
+# `tools` is acme2certifier.tools once other tests put the inner package on
+# sys.path (regular package wins over repo-root tools/ namespace).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "min_sync"))
+import sync as min_sync  # noqa: E402
 
 
 def test_is_min_owned_prefix() -> None:

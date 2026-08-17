@@ -244,7 +244,10 @@ class TestExternalAccountBinding(unittest.TestCase):
         content = {"foo": "bar"}
         mac_key = "key"
         # Patch Signature.eab_check to return (True, None)
-        with patch("acme2certifier.acme_srv.signature.Signature.eab_check", return_value=(True, None)):
+        with patch(
+            "acme2certifier.acme_srv.signature.Signature.eab_check",
+            return_value=(True, None),
+        ):
             result, error = self.eab.verify_signature(content, mac_key)
             self.assertTrue(result)
             self.assertIsNone(error)
@@ -254,7 +257,8 @@ class TestExternalAccountBinding(unittest.TestCase):
         content = {"foo": "bar"}
         mac_key = "key"
         with patch(
-            "acme2certifier.acme_srv.signature.Signature.eab_check", return_value=(False, "error")
+            "acme2certifier.acme_srv.signature.Signature.eab_check",
+            return_value=(False, "error"),
         ):
             result, error = self.eab.verify_signature(content, mac_key)
             self.assertFalse(result)
@@ -274,7 +278,10 @@ class TestExternalAccountBinding(unittest.TestCase):
         self.eabhandler.return_value.__enter__.return_value.mac_key_get.return_value = (
             "key"
         )
-        with patch("acme2certifier.acme_srv.signature.Signature.eab_check", return_value=(True, None)):
+        with patch(
+            "acme2certifier.acme_srv.signature.Signature.eab_check",
+            return_value=(True, None),
+        ):
             code, message, detail = self.eab.verify(
                 payload, {"unauthorized": "unauthorized"}
             )
@@ -291,7 +298,8 @@ class TestExternalAccountBinding(unittest.TestCase):
             "key"
         )
         with patch(
-            "acme2certifier.acme_srv.signature.Signature.eab_check", return_value=(False, "error")
+            "acme2certifier.acme_srv.signature.Signature.eab_check",
+            return_value=(False, "error"),
         ):
             with self.assertLogs("test_a2c", level="ERROR") as log_cm:
                 code, message, detail = self.eab.verify(
@@ -339,7 +347,10 @@ class TestExternalAccountBinding(unittest.TestCase):
         self.eabhandler.return_value.__enter__.return_value.mac_key_get.return_value = (
             "key"
         )
-        with patch("acme2certifier.acme_srv.signature.Signature.eab_check", return_value=(True, None)):
+        with patch(
+            "acme2certifier.acme_srv.signature.Signature.eab_check",
+            return_value=(True, None),
+        ):
             code, message, detail = self.eab.check(
                 protected,
                 payload,
@@ -778,9 +789,7 @@ class TestAccount(unittest.TestCase):
                 self.assertIn("data", result)
                 self.assertEqual(result["code"], 200)
                 self.assertEqual(result["data"]["status"], "deactivated")
-                self.assertEqual(
-                    result["data"]["contact"], ["mailto:test@example.com"]
-                )
+                self.assertEqual(result["data"]["contact"], ["mailto:test@example.com"])
                 self.assertEqual(
                     result["data"]["key"], {"kty": "RSA", "n": "abc", "e": "AQAB"}
                 )
@@ -811,9 +820,7 @@ class TestAccount(unittest.TestCase):
     def test_024__handle_deactivation_account_not_found(self):
         """test _handle_deactivation when account lookup fails logs WARNING"""
         payload = {"status": "deactivated"}
-        with patch.object(
-            self.account, "_lookup_account_by_name", return_value=None
-        ):
+        with patch.object(self.account, "_lookup_account_by_name", return_value=None):
             with patch.object(self.account, "_deactivate_account") as mock_deactivate:
                 with self.assertLogs("test_a2c", level="WARNING") as log_cm:
                     result = self.account._handle_deactivation("test_account", payload)
@@ -1204,8 +1211,13 @@ class TestAccount(unittest.TestCase):
         eab_handler_module.EABhandler = "EABhandlerClass"
 
         with (
-            patch("acme2certifier.acme_srv.account.load_config", return_value=config_mock),
-            patch("acme2certifier.acme_srv.account.eab_handler_load", return_value=eab_handler_module),
+            patch(
+                "acme2certifier.acme_srv.account.load_config", return_value=config_mock
+            ),
+            patch(
+                "acme2certifier.acme_srv.account.eab_handler_load",
+                return_value=eab_handler_module,
+            ),
         ):
             account = Account(False, "http://tester.local", self.logger)
             account._load_configuration()
@@ -1226,8 +1238,12 @@ class TestAccount(unittest.TestCase):
         config_mock2.__contains__.side_effect = lambda k: k in ["EABhandler"]
         config_mock2.__getitem__.side_effect = lambda k: {} if k == "EABhandler" else {}
         with (
-            patch("acme2certifier.acme_srv.account.load_config", return_value=config_mock2),
-            patch("acme2certifier.acme_srv.account.eab_handler_load", return_value=None),
+            patch(
+                "acme2certifier.acme_srv.account.load_config", return_value=config_mock2
+            ),
+            patch(
+                "acme2certifier.acme_srv.account.eab_handler_load", return_value=None
+            ),
         ):
             account = Account(False, "http://tester.local", self.logger)
             with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
@@ -1246,8 +1262,12 @@ class TestAccount(unittest.TestCase):
             {"eab_handler_file": "handler.py"} if k == "EABhandler" else {}
         )
         with (
-            patch("acme2certifier.acme_srv.account.load_config", return_value=config_mock3),
-            patch("acme2certifier.acme_srv.account.eab_handler_load", return_value=None),
+            patch(
+                "acme2certifier.acme_srv.account.load_config", return_value=config_mock3
+            ),
+            patch(
+                "acme2certifier.acme_srv.account.eab_handler_load", return_value=None
+            ),
         ):
             account = Account(False, "http://tester.local", self.logger)
             with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
@@ -1269,8 +1289,13 @@ class TestAccount(unittest.TestCase):
         eab_handler_module.EABhandler = "EABhandlerClass"
 
         with (
-            patch("acme2certifier.acme_srv.account.load_config", return_value=config_mock),
-            patch("acme2certifier.acme_srv.account.eab_handler_load", return_value=eab_handler_module),
+            patch(
+                "acme2certifier.acme_srv.account.load_config", return_value=config_mock
+            ),
+            patch(
+                "acme2certifier.acme_srv.account.eab_handler_load",
+                return_value=eab_handler_module,
+            ),
         ):
             account = Account(False, "http://tester.local", self.logger)
             account._load_configuration()
@@ -1330,7 +1355,9 @@ class TestAccount(unittest.TestCase):
         self.account.config.eab_handler = MagicMock()
         payload = {"contact": ["test@example.com"]}
         protected = {"alg": "RS256", "jwk": {}}
-        with patch("acme2certifier.acme_srv.account.ExternalAccountBinding") as mock_eab:
+        with patch(
+            "acme2certifier.acme_srv.account.ExternalAccountBinding"
+        ) as mock_eab:
             mock_eab.return_value.check.return_value = (403, "eab_error", "eab_detail")
             code, message, detail = self.account._create_account(payload, protected)
             self.assertEqual(code, 403)
@@ -1348,7 +1375,8 @@ class TestAccount(unittest.TestCase):
         with (
             patch("acme2certifier.acme_srv.account.ExternalAccountBinding") as mock_eab,
             patch(
-                "acme2certifier.acme_srv.account.generate_random_string", return_value="testaccount123"
+                "acme2certifier.acme_srv.account.generate_random_string",
+                return_value="testaccount123",
             ),
             patch.object(
                 self.account,
@@ -1658,7 +1686,9 @@ class TestAccount(unittest.TestCase):
             "contact": '["mailto:test@example.com"]',
             "created_at": "2026-02-08 12:00:00",
         }
-        with patch("acme2certifier.acme_srv.account.date_to_datestr", return_value="date_str"):
+        with patch(
+            "acme2certifier.acme_srv.account.date_to_datestr", return_value="date_str"
+        ):
             result = self.account._build_account_info(account_obj)
             self.assertEqual(result["status"], "valid")
             self.assertEqual(result["key"], {"kty": "RSA", "n": "abc", "e": "AQAB"})
@@ -1674,7 +1704,9 @@ class TestAccount(unittest.TestCase):
             "created_at": "2026-02-08 12:00:00",
             "eab_kid": "kid123",
         }
-        with patch("acme2certifier.acme_srv.account.date_to_datestr", return_value="date_str"):
+        with patch(
+            "acme2certifier.acme_srv.account.date_to_datestr", return_value="date_str"
+        ):
             result = self.account._build_account_info(account_obj)
             self.assertEqual(result["status"], "valid")
             self.assertEqual(result["key"], {"kty": "RSA", "n": "abc", "e": "AQAB"})
@@ -1689,7 +1721,9 @@ class TestAccount(unittest.TestCase):
             "contact": "[]",
             "created_at": "2026-02-08 12:00:00",
         }
-        with patch("acme2certifier.acme_srv.account.date_to_datestr", return_value="date_str"):
+        with patch(
+            "acme2certifier.acme_srv.account.date_to_datestr", return_value="date_str"
+        ):
             result = self.account._build_account_info(account_obj)
             self.assertEqual(result["status"], "valid")  # default
             self.assertEqual(result["key"], {})
@@ -1791,7 +1825,7 @@ class TestAccount(unittest.TestCase):
         with patch.object(
             self.account.message,
             "prepare_response",
-            side_effect=lambda response_dic, status_dic: response_dic,
+            side_effect=lambda response_dic, status_dic, **_kwargs: response_dic,
         ):
             result = self.account._build_response(200, "test_account", None)
         self.assertEqual(
@@ -1917,11 +1951,10 @@ class TestAccount(unittest.TestCase):
                 result = self.account.parse_request(content)
             self.assertEqual(result, {"error": "Unknown request"})
             mock_build_response.assert_called_once_with(
-                400, self.account.err_msg_dic["malformed"], "Unknown request"
-            )
-            self.assertIn(
-                "WARNING:test_a2c:Unknown request account=test_account",
-                log_cm.output,
+                400,
+                self.account.err_msg_dic["malformed"],
+                "Unknown request",
+                account_name="test_account",
             )
             self.assertIn(
                 "WARNING:test_a2c:Unknown request account=test_account",

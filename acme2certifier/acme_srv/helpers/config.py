@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import warnings
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from .plugin_loader import eab_handler_load
 from .global_variables import CONFIGURATION_ERROR_DETAIL, PARSING_ERR_MSG
 
@@ -16,11 +16,10 @@ _ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
 _ACME_SRV_CFG_LOADED: Set[str] = set()
 # Last successful load (path, source); used after logger_setup.
 _LAST_LOADED_CFG: Optional[Tuple[str, str]] = None
+ACME_SRV_CFG_FILENAME = "acme_srv.cfg"
 
 
-def _log_cfg_loaded_once(
-    logger: logging.Logger, cfg_path: str, source: str
-) -> None:
+def _log_cfg_loaded_once(logger: logging.Logger, cfg_path: str, source: str) -> None:
     """Log successful acme_srv.cfg load once per absolute path (then DEBUG)."""
     abs_path = os.path.abspath(cfg_path)
     message = "Loaded acme_srv.cfg %s (%s)"
@@ -300,6 +299,35 @@ def config_async_mode_load(
     return async_mode
 
 
+def legacy_acme_get_load(logger: logging.Logger, config_dic) -> bool:
+    """Load ``legacy_acme_get`` from ``[DEFAULT]`` (default False).
+
+    When False (default), unauthenticated GET on challenge and authorization
+    resources is rejected with HTTP 405 (RFC 8555 / Let's Encrypt behavior).
+    When True, legacy unauthenticated GET is allowed.
+    """
+    logger.debug("Helper.legacy_acme_get_load()")
+    enabled = False
+    if config_dic:
+        enabled = config_dic.getboolean("DEFAULT", "legacy_acme_get", fallback=False)
+    if enabled:
+        logger.warning(
+            "legacy_acme_get is enabled: unauthenticated GET is allowed for "
+            "challenge and authorization resources (RFC 8555 prefers POST-as-GET)."
+        )
+    logger.debug("Helper.legacy_acme_get_load() ended with: %s", enabled)
+    return enabled
+
+
+def acme_get_method_not_allowed_problem() -> Dict[str, Any]:
+    """ACME problem document for rejected plain GET on challenge/authz."""
+    return {
+        "type": "urn:ietf:params:acme:error:malformed",
+        "detail": "Method not allowed. Use POST-as-GET.",
+        "status": 405,
+    }
+
+
 def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
     """load parameters"""
     logger.debug("_config_proxy_load()")
@@ -403,7 +431,7 @@ def _default_acme_srv_cfg_file(
     helpers_dir = os.path.dirname(os.path.abspath(__file__))
     pkg_dir = os.path.dirname(helpers_dir)  # .../acme_srv (new or install tree)
     install_or_repo_root = os.path.dirname(os.path.dirname(pkg_dir))
-    repo_cfg = os.path.join(install_or_repo_root, "acme_srv.cfg")
+    repo_cfg = os.path.join(install_or_repo_root, ACME_SRV_CFG_FILENAME)
 
     preferred_deploy_cfgs = (
         "/var/www/acme2certifier/acme_srv.cfg",
@@ -420,8 +448,8 @@ def _default_acme_srv_cfg_file(
             "/opt/acme2certifier/acme_srv.cfg",
         ),
     )
-    packaged_cfg = os.path.join(pkg_dir, "acme_srv.cfg")
-    legacy_cfg = os.path.join(install_or_repo_root, "acme_srv", "acme_srv.cfg")
+    packaged_cfg = os.path.join(pkg_dir, ACME_SRV_CFG_FILENAME)
+    legacy_cfg = os.path.join(install_or_repo_root, "acme_srv", ACME_SRV_CFG_FILENAME)
     log.debug(
         "Helper._default_acme_srv_cfg_file(): candidates preferred=%s "
         "nested=%s packaged=%s legacy=%s",

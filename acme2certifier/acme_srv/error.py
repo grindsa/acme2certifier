@@ -1,21 +1,23 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""Error class"""
+"""Error class — ACME problem detail enrichment only.
 
-# pylint: disable=c0209
+Operator-visible ACME problem logging lives in Message.prepare_response.
+"""
+
 from __future__ import print_function
+from typing import Any, Optional
 
 
 class Error(object):
     """error messages"""
 
-    def __init__(self, debug=None, logger=None):
+    def __init__(self, debug: Any = None, logger: Any = None) -> None:
         self.debug = debug
         self.logger = logger
 
-    def _acme_errormessage(self, message):
+    def _acme_errormessage(self, message: Optional[str]) -> Optional[str]:
         """dictionary containing the implemented acme error messages"""
-        self.logger.debug("Error.acme_errormessage({0})".format(message))
         error_dic = {
             "urn:ietf:params:acme:error:accountDoesNotExist": None,
             "urn:ietf:params:acme:error:badCSR": None,
@@ -29,19 +31,18 @@ class Error(object):
             "notImplementedYet": "we are not that far. Stay tuned",
         }
         if message and message in error_dic:
-            result = error_dic[message]
-        else:
-            result = None
-        return result
+            return error_dic[message]
+        return None
 
-    def enrich_error(self, message, detail=None):
-        """put some more content into the error messgae"""
-        self.logger.debug("Error.enrich_error()")
+    def enrich_error(
+        self, message: Optional[str], detail: Optional[str] = None
+    ) -> Optional[str]:
+        """Prefix detail with a static ACME error description when available."""
         error_message = self._acme_errormessage(message)
 
         if message and error_message:
-            detail = "{0}: {1}".format(error_message, detail)
+            detail = f"{error_message}: {detail}"
         elif error_message:
-            detail = "{0}{1}".format(error_message, detail)
+            detail = f"{error_message}{detail}"
 
         return detail

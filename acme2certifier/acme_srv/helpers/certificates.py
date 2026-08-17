@@ -3,7 +3,7 @@
 
 import base64
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
@@ -12,7 +12,6 @@ from cryptography.hazmat.primitives.serialization.pkcs7 import (
     load_der_pkcs7_certificates,
 )
 from cryptography.x509 import load_pem_x509_certificate, ocsp
-from OpenSSL import crypto
 from .encoding import (
     convert_string_to_byte,
     convert_byte_to_string,
@@ -21,6 +20,56 @@ from .encoding import (
     b64_decode,
 )
 from .datetime_utils import date_to_uts_utc
+from pyasn1.codec.der import decoder
+from pyasn1.type import univ
+from pyasn1_modules import rfc5280
+
+_OID_SKI = "2.5.29.14"
+_OID_AKI = "2.5.29.35"
+
+
+def _cert_pem_to_der(logger: logging.Logger, certificate: str) -> bytes:
+    """Convert certificate input to DER bytes without parsing extensions."""
+    pem_data = convert_string_to_byte(
+        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    )
+    # Prefer cryptography load for PEM framing only; public_bytes touches extensions
+    # on some versions, so strip PEM manually.
+    lines = convert_byte_to_string(pem_data).strip().splitlines()
+    b64 = "".join(line for line in lines if not line.startswith("-----"))
+    return base64.b64decode(b64)
+
+
+def _cert_extension_raw_get(
+    logger: logging.Logger, certificate: str, oid: str
+) -> Optional[bytes]:
+    """Return extnValue (OCTET STRING contents) for oid, or None."""
+    logger.debug("_cert_extension_raw_get(%s)", oid)
+    der = _cert_pem_to_der(logger, certificate)
+    cert_asn1, _ = decoder.decode(der, asn1Spec=rfc5280.Certificate())
+    extensions = cert_asn1["tbsCertificate"]["extensions"]
+    if extensions is None or not extensions.hasValue():
+        return None
+    for ext in extensions:
+        if str(ext["extnID"]) == oid:
+            return bytes(ext["extnValue"])
+    return None
+
+
+def _cert_aki_asn1_get(logger: logging.Logger, certificate: str) -> Optional[str]:
+    """Get AKI keyIdentifier as hex via ASN.1 (tolerates illegal BasicConstraints)."""
+    logger.debug("_cert_aki_asn1_get()")
+    extn_value = _cert_extension_raw_get(logger, certificate, _OID_AKI)
+    if not extn_value:
+        logger.warning("No AKI found in certificate")
+        return None
+    aki, _ = decoder.decode(extn_value, asn1Spec=rfc5280.AuthorityKeyIdentifier())
+    if not aki["keyIdentifier"].isValue:
+        logger.warning("AKI extension present but keyIdentifier missing")
+        return None
+    aki_hex = bytes(aki["keyIdentifier"]).hex()
+    logger.debug("_cert_aki_asn1_get() ended with: %s", aki_hex)
+    return aki_hex
 
 
 def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
@@ -33,40 +82,26 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
         aki_value = aki.value.key_identifier.hex()
     except Exception as _err:
         logger.error(
-            "Error while getting AKI from certificate: %s. Fallback to pyOpenSSL method",
+            "Error while getting AKI from certificate: %s. Fallback to ASN.1 method",
             _err,
         )
-        aki_value = _cert_aki_pyopenssl_get(logger, certificate)
+        aki_value = _cert_aki_asn1_get(logger, certificate)
 
     logger.debug("cert_aki_get() ended with: %s", aki_value)
     return aki_value
 
 
-def _cert_aki_pyopenssl_get(logger, certificate: str) -> str:
-    """Get Authority Key Identifier from a certificate as a hex string."""
-    logger.debug("Helper.cert_aki_pyopenssl_cert()")
-
-    pem_data = convert_string_to_byte(
-        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    )
-    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
-    # Get the AKI extension
-    aki = ""
-    for i in range(cert.get_extension_count()):
-        try:
-            ext = cert.get_extension(i)
-            if "authorityKeyIdentifier" in str(ext.get_short_name()):
-                aki = ext
-        except Exception as _err:
-            logger.error("Error while getting AKI from certificate extension: %s", _err)
-    if aki:
-        # Get the SKI value and convert it to hex
-        aki_hex = aki.get_data()[4:].hex()
-    else:
-        logger.warning("No AKI found in certificate")
-        aki_hex = None
-    logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", aki_hex)
-    return aki_hex
+def _cert_ski_asn1_get(logger: logging.Logger, certificate: str) -> Optional[str]:
+    """Get SKI as hex via ASN.1 (tolerates illegal BasicConstraints)."""
+    logger.debug("_cert_ski_asn1_get()")
+    extn_value = _cert_extension_raw_get(logger, certificate, _OID_SKI)
+    if not extn_value:
+        logger.warning("No SKI found in certificate")
+        return None
+    ski, _ = decoder.decode(extn_value, asn1Spec=univ.OctetString())
+    ski_hex = bytes(ski).hex()
+    logger.debug("_cert_ski_asn1_get() ended with: %s", ski_hex)
+    return ski_hex
 
 
 def cert_load(
@@ -206,96 +241,25 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
         ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
         ski_value = ski.value.digest.hex()
     except Exception as err:
-        logger.error("Error while getting the SKI: %s. Fallback to pyopenssl", err)
-        ski_value = _cert_ski_pyopenssl_get(logger, certificate)
+        logger.error("Error while getting the SKI: %s. Fallback to ASN.1 method", err)
+        ski_value = _cert_ski_asn1_get(logger, certificate)
 
     logger.debug("Helper.cert_ski_get() ended with: %s", ski_value)
     return ski_value
-
-
-def _cert_ski_pyopenssl_get(logger: logging.Logger, certificate: str) -> str:
-    """Get Subject Key Identifier from a certificate as a hex string."""
-    logger.debug("Helper.cert_ski_pyopenssl_cert()")
-
-    pem_data = convert_string_to_byte(
-        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    )
-    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
-    # Get the SKI extension
-    ski = None
-    for i in range(cert.get_extension_count()):
-        ext = cert.get_extension(i)
-        if "subjectKeyIdentifier" in str(ext.get_short_name()):
-            ski = ext
-    if ski:
-        # Get the SKI value and convert it to hex
-        ski_hex = ski.get_data()[2:].hex()
-    else:
-        logger.warning("No SKI found in certificate")
-        ski_hex = None
-    logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", ski_hex)
-    return ski_hex
-
-
-def cryptography_version_get(logger: logging.Logger) -> int:
-    """get version number of cryptography module"""
-    logger.debug("Helper.cryptography_version_get()")
-    # pylint: disable=c0415
-    import cryptography
-
-    major_version = None
-    try:
-        version_list = cryptography.__version__.split(".")
-        if version_list:
-            major_version = int(version_list[0])
-    except Exception as err:
-        logger.error(
-            "Error while getting the version number of the cryptography module: %s", err
-        )
-        major_version = 36
-
-    logger.debug("cryptography_version_get() ended with %s", major_version)
-    return major_version
 
 
 def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool = True):
     """get extenstions from certificate certificate"""
     logger.debug("Helper.cert_extensions_get()")
 
-    crypto_module_version = cryptography_version_get(logger)
-    if crypto_module_version < 36:
-        logger.debug("Helper.cert_extensions_get(): using pyopenssl")
-        extension_list = _cert_extensions_py_openssl_get(logger, certificate, recode)
-    else:
-        cert = cert_load(logger, certificate, recode=recode)
-        extension_list = []
-        for extension in cert.extensions:
-            extension_list.append(
-                convert_byte_to_string(base64.b64encode(extension.value.public_bytes()))
-            )
+    cert = cert_load(logger, certificate, recode=recode)
+    extension_list = []
+    for extension in cert.extensions:
+        extension_list.append(
+            convert_byte_to_string(base64.b64encode(extension.value.public_bytes()))
+        )
 
     logger.debug("Helper.cert_extensions_get() ended with: %s", extension_list)
-    return extension_list
-
-
-def _cert_extensions_py_openssl_get(logger, certificate, recode=True):
-    """get extenstions from certificate certificate"""
-    logger.debug("cert_extensions_py_openssl_get()")
-    if recode:
-        pem_file = build_pem_file(
-            logger, None, b64_url_recode(logger, certificate), True
-        )
-    else:
-        pem_file = certificate
-
-    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
-    extension_list = []
-    ext_count = cert.get_extension_count()
-    for i in range(0, ext_count):
-        ext = cert.get_extension(i)
-        extension_list.append(convert_byte_to_string(base64.b64encode(ext.get_data())))
-
-    logger.debug("cert_extensions_py_openssl_get() ended with: %s", extension_list)
     return extension_list
 
 

@@ -197,16 +197,25 @@ class SourceAddressValidator(ChallengeValidator):
         try:
             from acme2certifier.acme_srv.helper import ptr_resolve
 
-            # Perform reverse lookup on source address
-            reverse_domains = ptr_resolve(
+            # ptr_resolve returns (hostname, invalid)
+            reverse_hostname, invalid = ptr_resolve(
                 self.logger, source_address, dnssrv=dns_servers
             )
+            reverse_domains = [reverse_hostname] if reverse_hostname else []
 
-            # Check if any reverse domain matches or is a subdomain of the requested domain
-            reverse_check_passed = any(
-                self._domain_matches(domain, reverse_domain)
-                for reverse_domain in reverse_domains
-            )
+            if invalid or not reverse_hostname:
+                self.logger.debug(
+                    "SourceAddressValidator._perform_reverse_check(): PTR resolution failed for %s",
+                    source_address,
+                )
+                return {
+                    "reverse_check_passed": False,
+                    "reverse_domains": reverse_domains,
+                    "source_address": source_address,
+                    "error": "PTR resolution failed",
+                }
+
+            reverse_check_passed = self._domain_matches(domain, reverse_hostname)
             self.logger.debug(
                 "SourceAddressValidator._perform_reverse_check(): Reverse check %s for %s",
                 "passed" if reverse_check_passed else "failed",
@@ -219,7 +228,6 @@ class SourceAddressValidator(ChallengeValidator):
                 "source_address": source_address,
             }
             if not reverse_check_passed:
-                # set error detail if no matches found
                 self.logger.debug(
                     "SourceAddressValidator._perform_reverse_check(): No matching reverse domains found: %s",
                     reverse_domains,

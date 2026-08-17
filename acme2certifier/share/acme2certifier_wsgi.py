@@ -14,18 +14,24 @@ from acme2certifier.acme_srv.authorization import Authorization
 from acme2certifier.acme_srv.certificate import Certificate
 from acme2certifier.acme_srv.challenge import Challenge
 from acme2certifier.acme_srv.directory import Directory
-from acme2certifier.acme_srv.housekeeping import Housekeeping
+from acme2certifier.acme_srv.housekeeping import (
+    Housekeeping,
+    resolve_housekeeping_cli_endpoint,
+)
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
-from acme2certifier.acme_srv.trigger import Trigger
+from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
 from acme2certifier.acme_srv.helper import (
     get_url,
     load_config,
     log_loaded_acme_srv_cfg,
     logger_setup,
-    logger_info,
+    log_response,
     config_check,
+    legacy_acme_get_load,
+    acme_get_method_not_allowed_problem,
+    server_name_configuration_validate,
 )
 from acme2certifier.acme_srv.db_handler import log_active_db_handler
 from acme2certifier.acme_srv.version import __dbversion__, __version__
@@ -50,6 +56,9 @@ WRT_ERROR_MSG = json.dumps(
     },
     indent=2,
 ).encode("utf-8")
+ACME_GET_ERROR_MSG = json.dumps(acme_get_method_not_allowed_problem(), indent=2).encode(
+    "utf-8"
+)
 CONTENT_TYPE_JSON = "application/json"
 WSGI_INPUT = "wsgi.input"
 
@@ -68,6 +77,14 @@ def err_wrong_request_method(start_response):
     start_response(f"405 {HTTP_CODE_DIC[405]}", [("Content-Type", CONTENT_TYPE_JSON)])
 
 
+def err_acme_get_not_allowed(start_response):
+    """RFC 8555: plain GET on challenge/authz must use POST-as-GET"""
+    start_response(
+        f"405 {HTTP_CODE_DIC[405]}",
+        [("Content-Type", CONTENT_TYPE_JSON), ("Allow", "POST")],
+    )
+
+
 def handle_exception(exc_type, exc_value, exc_traceback):
     """exception handler"""
     if issubclass(exc_type, KeyboardInterrupt):
@@ -83,6 +100,16 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 LOGGER = logger_setup(DEBUG)
 log_loaded_acme_srv_cfg(LOGGER)
 log_active_db_handler(LOGGER, CONFIG)
+config_check(LOGGER, CONFIG)
+server_name_configuration_validate(LOGGER, CONFIG)
+LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
+
+# Stack-start gate for /trigger (config + CA handler supports_trigger)
+TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
+# Stack-start gate for /housekeeping HTTP CLI
+HOUSEKEEPING_CLI_ENABLED = resolve_housekeeping_cli_endpoint(
+    LOGGER, CONFIG, log_status=True
+)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
@@ -154,23 +181,20 @@ def acmechallenge_serve(environ, start_response):
         else:
             start_response(f"200 {HTTP_CODE_DIC[200]}", [("Content-Type", "text/html")])
         # logging
-        logger_info(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], {})
+        log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], {})
         return [key_authorization.encode("utf-8")]
 
 
 def authz(environ, start_response):
     """authorization handling"""
-    if "REQUEST_METHOD" in environ and environ["REQUEST_METHOD"] in ("POST", "GET"):
+    if "REQUEST_METHOD" in environ and environ["REQUEST_METHOD"] == "POST":
         with Authorization(DEBUG, get_url(environ), LOGGER) as authorization:
-            if environ["REQUEST_METHOD"] == "POST":
-                try:
-                    request_body_size = int(environ.get("CONTENT_LENGTH", 0))
-                except ValueError:
-                    request_body_size = 0
-                request_body = environ[WSGI_INPUT].read(request_body_size)
-                response_dic = authorization.new_post(request_body)
-            else:
-                response_dic = authorization.new_get(get_url(environ, True))
+            try:
+                request_body_size = int(environ.get("CONTENT_LENGTH", 0))
+            except ValueError:
+                request_body_size = 0
+            request_body = environ[WSGI_INPUT].read(request_body_size)
+            response_dic = authorization.new_post(request_body)
 
             # create header
             headers = create_header(response_dic)
@@ -179,7 +203,22 @@ def authz(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
+                LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
+            )
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
+    elif "REQUEST_METHOD" in environ and environ["REQUEST_METHOD"] == "GET":
+        if not LEGACY_ACME_GET:
+            err_acme_get_not_allowed(start_response)
+            return [ACME_GET_ERROR_MSG]
+        with Authorization(DEBUG, get_url(environ), LOGGER) as authorization:
+            response_dic = authorization.new_get(get_url(environ, True))
+
+            headers = create_header(response_dic)
+            start_response(
+                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
+            )
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -203,7 +242,7 @@ def newaccount(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -235,7 +274,7 @@ def directory(environ, start_response):
             headers = create_header({"code": 200})
             start_response("200 OK", headers)
             # logging
-            logger_info(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "")
+            log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "")
             return [json.dumps(response_dic, indent=2).encode("utf-8")]
 
 
@@ -252,7 +291,7 @@ def cert(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [response_dic["data"].encode("utf-8")]
@@ -268,7 +307,7 @@ def cert(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             # send response
@@ -299,12 +338,15 @@ def chall(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
 
         elif environ["REQUEST_METHOD"] == "GET":
+            if not LEGACY_ACME_GET:
+                err_acme_get_not_allowed(start_response)
+                return [ACME_GET_ERROR_MSG]
 
             response_dic = challenge.get(get_url(environ, True))
 
@@ -316,7 +358,7 @@ def chall(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             # send response
@@ -368,7 +410,7 @@ def neworders(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -392,7 +434,7 @@ def order(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -415,7 +457,7 @@ def renewalinfo(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return []
@@ -431,7 +473,7 @@ def renewalinfo(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
 
@@ -460,7 +502,7 @@ def revokecert(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             if "data" in response_dic:
@@ -475,6 +517,21 @@ def revokecert(environ, start_response):
 def trigger(environ, start_response):
     """ca trigger handler"""
     if environ["REQUEST_METHOD"] == "POST":
+        if not TRIGGER_ENDPOINT_ENABLED:
+            response_dic = {
+                "code": 403,
+                "data": {
+                    "status": 403,
+                    "message": HTTP_CODE_DIC[403],
+                    "detail": "trigger endpoint disabled",
+                },
+            }
+            headers = create_header(response_dic)
+            start_response(f"403 {HTTP_CODE_DIC[403]}", headers)
+            log_response(
+                LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
+            )
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
         with Trigger(DEBUG, get_url(environ), LOGGER) as trigger_:
             request_body = get_request_body(environ)
             response_dic = trigger_.parse(request_body)
@@ -486,7 +543,7 @@ def trigger(environ, start_response):
             )
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
 
@@ -502,6 +559,21 @@ def trigger(environ, start_response):
 def housekeeping(environ, start_response):
     """cli housekeeping handler"""
     if environ["REQUEST_METHOD"] == "POST":
+        if not HOUSEKEEPING_CLI_ENABLED:
+            response_dic = {
+                "code": 403,
+                "data": {
+                    "status": 403,
+                    "message": HTTP_CODE_DIC[403],
+                    "detail": "housekeeping CLI endpoint disabled",
+                },
+            }
+            headers = create_header(response_dic)
+            start_response(f"403 {HTTP_CODE_DIC[403]}", headers)
+            log_response(
+                LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
+            )
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
         with Housekeeping(DEBUG, LOGGER) as housekeeping_:
             request_body = get_request_body(environ)
             response_dic = housekeeping_.parse(request_body)
@@ -513,7 +585,7 @@ def housekeeping(environ, start_response):
             )
 
             # logging
-            logger_info(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "****")
+            log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "****")
 
             if "data" in response_dic:
                 return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
@@ -561,9 +633,13 @@ URLS = [
     (r"^acme/renewal-info", renewalinfo),
     (r"^acme/revokecert", revokecert),
     (r"^directory?$", directory),
-    (r"^housekeeping", housekeeping),
-    (r"^trigger", trigger),
 ]
+
+if HOUSEKEEPING_CLI_ENABLED:
+    URLS.append((r"^housekeeping", housekeeping))
+
+if TRIGGER_ENDPOINT_ENABLED:
+    URLS.append((r"^trigger", trigger))
 
 
 # Helper to extract path with prefix

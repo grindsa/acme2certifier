@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Enrollment of End-User Certificates according to RFC8823 -->
+<!-- wiki-title: Enrollment of End-User Certificates according to RFC8823 -->
+<!-- wiki-category: Features -->
 
 # Enrollment of End-User Certificates according to RFC8823
 

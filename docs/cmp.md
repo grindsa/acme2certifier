@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title CA handler using CMPv2 protocol -->
+<!-- wiki-title: CA Handler using CMPv2 protocol -->
+<!-- wiki-category: CA Handlers -->
 
 # Generic CMPv2 Protocol Handler
 

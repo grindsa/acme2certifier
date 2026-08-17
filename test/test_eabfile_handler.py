@@ -104,7 +104,12 @@ class TestACMEHandler(unittest.TestCase):
         """test mac_key_get csv reader return bogus values"""
         self.eabhandler.key_file = "file"
         mock_csv.return_value = ["foo", "bar"]
-        self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: kid=kid not found in key file",
+            lcm.output,
+        )
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
@@ -120,7 +125,12 @@ class TestACMEHandler(unittest.TestCase):
         """test mac_key_get csv reader no match"""
         self.eabhandler.key_file = "file"
         mock_csv.return_value = [{"eab_kid": "kid1", "eab_mac": "mac"}]
-        self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: kid=kid not found in key file",
+            lcm.output,
+        )
 
     @patch("csv.DictReader")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)

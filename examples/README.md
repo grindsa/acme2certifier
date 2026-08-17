@@ -3,6 +3,7 @@
 Django settings templates, Docker assets, install scripts, and misc samples live here.
 
 Packaged deploy assets (canonical):
+
 - Web server configs: `acme2certifier/share/{apache2,nginx}/`
 - Handler skeletons / EAB sample data: `acme2certifier/share/skeletons/`
 

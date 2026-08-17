@@ -605,7 +605,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_custom_registry,
+            )
 
             # Create mock validator classes
             mock_validator_class1 = Mock()
@@ -674,7 +676,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_custom_registry,
+            )
 
             validator_classes = []
 
@@ -725,7 +729,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_custom_registry,
+            )
 
             # Test with None validator classes - should raise TypeError
             with self.assertRaises(TypeError):
@@ -761,7 +767,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_custom_registry,
+            )
 
             mock_validator_class = Mock()
             mock_validator_class.side_effect = Exception("Validator creation failed")
@@ -806,7 +814,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_custom_registry,
+            )
 
             mock_validator_class = Mock()
             mock_validator = Mock()
@@ -1156,7 +1166,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_custom_registry,
+            )
 
             mock_validator_class = Mock()
             mock_validator = Mock()
@@ -1207,7 +1219,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_custom_registry,
+            )
 
             mock_validator_class = Mock()
             mock_validator = Mock()
@@ -1255,7 +1269,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_custom_registry,
+            )
 
             # Create different types of mock validator classes
             class MockHttpValidator:

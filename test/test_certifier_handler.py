@@ -38,6 +38,8 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler.get_ca() returns an http error"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_get.side_effect = requests.exceptions.HTTPError
         self.assertEqual(
             {"status": 500, "message": "", "statusMessage": "Internal Server Error"},
@@ -49,6 +51,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler.get_ca() returns no json file"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
         mock_get.status_code = 200
         mock_get.return_value.json = {"bbs": "hahha"}
         self.assertEqual(
@@ -519,7 +522,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_user = "api_user"
         self.cahandler.api_password = "api_password"
         self.cahandler._auth_set()
-        self.assertTrue(self.cahandler.auth)
+        self.assertIsNotNone(self.cahandler.session)
+        self.assertIsNotNone(self.cahandler.session.auth)
 
     def test_029_auth_set(self):
         """test _auth_set without api_user"""
@@ -527,7 +531,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_password = "api_password"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._auth_set()
-        self.assertFalse(self.cahandler.auth)
+        self.assertIsNone(self.cahandler.session.auth)
         self.assertIn(
             'ERROR:test_a2c:Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file',
             lcm.output,
@@ -539,7 +543,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_password = None
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._auth_set()
-        self.assertFalse(self.cahandler.auth)
+        self.assertIsNone(self.cahandler.session.auth)
         self.assertIn(
             'ERROR:test_a2c:Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file',
             lcm.output,
@@ -548,6 +552,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch.object(requests, "post")
     def test_031__api_post(self, mock_req):
         """test _api_post successful run"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mock_req.return_value = mockresponse
         mockresponse.json = lambda: {"foo": "bar"}
@@ -558,11 +563,13 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler.get_ca() returns an http error"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_post.side_effect = Exception("exc_api_post")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("exc_api_post", self.cahandler._api_post("url", "data"))
         self.assertIn(
-            "ERROR:test_a2c:API post() request returned an error: exc_api_post",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_post",
             lcm.output,
         )
 
@@ -571,6 +578,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _ca_get successful run"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
         mockresponse = Mock()
         mock_req.return_value = mockresponse
         mockresponse.json = lambda: {"foo": "bar"}
@@ -590,6 +598,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_035__ca_get(self, mock_req):
         """test _ca_get auth none"""
         self.cahandler.api_host = "api_host"
+        self.cahandler.session = requests
         mockresponse = Mock()
         mock_req.return_value = mockresponse
         mockresponse.json = lambda: {"foo": "bar"}
@@ -600,6 +609,8 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler.get_ca() returns an http error"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_get.side_effect = Exception("exc_ca_get")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -611,7 +622,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._ca_get(),
             )
         self.assertIn(
-            "ERROR:test_a2c:API get() request returned error: exc_ca_get", lcm.output
+            "ERROR:test_a2c:Request_operation returned error: exc_ca_get", lcm.output
         )
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get")
@@ -695,14 +706,18 @@ class TestACMEHandler(unittest.TestCase):
             {"foo": "bar"}, self.cahandler._ca_get_properties("foo", "bar")
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_045__cert_get(self, mock_caget):
         """CAhandler._ca_get_properties() _ca_get_properties returns empty dic"""
         mock_caget.return_value = {}
         self.assertEqual({}, self.cahandler._cert_get("csr"))
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_046__cert_get(self, mock_caget, mock_post):
         """CAhandler._ca_get_properties() _ca_get_properties does returns "href" key"""
         self.cahandler.api_host = "api_host"
@@ -711,7 +726,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({"mock": "post"}, self.cahandler._cert_get("csr"))
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_047__cert_get(self, mock_caget, mock_post):
         """CAhandler._ca_get_properties() _ca_get_properties returns "href" key but cert_dic is empty"""
         self.cahandler.api_host = "api_host"
@@ -720,7 +737,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({"href": "href"}, self.cahandler._cert_get("csr"))
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_048__cert_get(self, mock_caget, mock_post):
         """CAhandler._ca_get_properties() _ca_get_properties does returns "href" key"""
         self.cahandler.api_host = "api_host"
@@ -730,7 +749,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({"mock": "post"}, self.cahandler._cert_get("csr"))
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_049__cert_get(self, mock_caget, mock_post):
         """CAhandler._ca_get_properties() _ca_get_properties does returns "href" key"""
         self.cahandler.api_host = "api_host"
@@ -743,7 +764,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_050__cert_get(self, mock_caget, mock_post, mock_ecl):
         """CAhandler._ca_get_properties() _ca_get_properties does returns "href" key"""
         self.cahandler.api_host = "api_host"
@@ -754,7 +777,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_051__cert_get(self, mock_caget, mock_post, mock_ecl):
         """CAhandler._ca_get_properties() _ca_get_properties does returns "href" key"""
         self.cahandler.api_host = "api_host"
@@ -769,6 +794,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._cert_get_properties() all good"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
         mockresponse = Mock()
         mock_req.return_value = mockresponse
         mockresponse.json = lambda: {"foo": "bar"}
@@ -781,6 +807,8 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._cert_get_properties() all good"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_get.side_effect = Exception("exc_api_get")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -831,6 +859,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - nothing come back from request get"""
         self.cahandler.polling_timeout = 5
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -846,6 +875,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - no status returned from  request get"""
         self.cahandler.polling_timeout = 5
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -860,6 +890,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - status "rejected" returned from  request get"""
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -875,6 +906,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - status "accepted" returned from  request get but no certificate in"""
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -891,6 +923,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - status "accepted" returned from  request "certifiate" in but no "certificateBase64" in 2dn request"""
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -918,6 +951,7 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - status "accepted" returned from  request "certifiate" in but no "certificateBase64" in 2dn request"""
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
+        self.cahandler.session = requests
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -995,7 +1029,9 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.enroll("csr"),
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._loop_poll")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get")
     def test_069_enroll(self, mock_certget, mock_loop, mock_prof):
@@ -1009,7 +1045,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_prof.called)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._loop_poll")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get")
     def test_070_enroll(self, mock_certget, mock_loop, mock_prof):
@@ -1025,7 +1063,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_prof.called)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._loop_poll")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get")
     def test_071_enroll(self, mock_certget, mock_loop, mock_prof):
@@ -1039,7 +1079,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_prof.called)
         self.assertFalse(mock_certget.called)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._loop_poll")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get")
     def test_072_enroll(self, mock_certget, mock_loop, mock_prof):
@@ -1057,7 +1099,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_certget.called)
         self.assertEqual(self.cahandler.profile_id, None)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_073_revoke(self, mock_getca):
         """CAhandler.revoke() _ca_get_properties returns nothing"""
         mock_getca.return_value = {}
@@ -1066,7 +1110,9 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert"),
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_074_revoke(self, mock_getca):
         """CAhandler.revoke() _ca_get_properties returns wrong information"""
         mock_getca.return_value = {"foo": "bar"}
@@ -1076,7 +1122,9 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_075_revoke(self, mock_getca, mock_serial):
         """CAhandler.revoke() _ca_get_properties cert_serial_get failed"""
         mock_getca.return_value = {"foo": "bar", "href": "href"}
@@ -1090,9 +1138,13 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert"),
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_076_revoke(self, mock_getca, mock_serial, mock_getcert):
         """CAhandler.revoke() _ca_get_properties get_cert_properties failed"""
         mock_getca.return_value = {"foo": "bar", "href": "href"}
@@ -1107,9 +1159,13 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert"),
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_077_revoke(self, mock_getca, mock_serial, mock_getcert):
         """CAhandler.revoke() _ca_get_properties get_cert_properties returns wrong information"""
         mock_getca.return_value = {"foo": "bar", "href": "href"}
@@ -1124,9 +1180,13 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert"),
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_078_revoke(self, mock_getca, mock_serial, mock_getcert):
         """CAhandler.revoke() _ca_get_properties get_cert_properties empty cert_list"""
         mock_getca.return_value = {"foo": "bar", "href": "href"}
@@ -1141,9 +1201,13 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert"),
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_079_revoke(self, mock_getca, mock_serial, mock_getcert):
         """CAhandler.revoke() _ca_get_properties get_cert_properties returns cert_list with wrong information"""
         mock_getca.return_value = {"foo": "bar", "href": "href"}
@@ -1158,11 +1222,17 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert"),
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.eab_profile_revocation_check")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.eab_profile_revocation_check"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_080_revoke(
         self, mock_getca, mock_serial, mock_getcert, mock_post, mock_eab
     ):
@@ -1177,11 +1247,17 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((200, None, None), self.cahandler.revoke("cert"))
         self.assertFalse(mock_eab.called)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.eab_profile_revocation_check")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.eab_profile_revocation_check"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_081_revoke(
         self, mock_getca, mock_serial, mock_getcert, mock_post, mock_eab
     ):
@@ -1198,9 +1274,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_eab.called)
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_082_revoke(self, mock_getca, mock_serial, mock_getcert, mock_post):
         """CAhandler.revoke() _ca_get_properties get_cert_properties returns href. revocation returns status without message"""
         mock_getca.return_value = {"foo": "bar", "href": "href"}
@@ -1216,9 +1296,13 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._api_post")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     def test_083_revoke(self, mock_getca, mock_serial, mock_getcert, mock_post):
         """CAhandler.revoke() _ca_get_properties get_cert_properties returns href. revocation returns status with message"""
         mock_getca.return_value = {"foo": "bar", "href": "href"}
@@ -1244,7 +1328,9 @@ class TestACMEHandler(unittest.TestCase):
             ("No payload given", None, None), self.cahandler.trigger(payload)
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_pem2der")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_encode")
@@ -1259,7 +1345,9 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_pem2der")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_encode")
@@ -1277,9 +1365,13 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.trigger(payload),
         )
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_pem2der")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_encode")
@@ -1307,9 +1399,13 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._pem_cert_chain_generate"
     )
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_pem2der")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_encode")
@@ -1336,9 +1432,13 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._pem_cert_chain_generate"
     )
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._cert_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_serial_get")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.CAhandler._ca_get_properties"
+    )
     @patch("acme2certifier.cahandlers.certifier_ca_handler.cert_pem2der")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.b64_encode")
@@ -1383,6 +1483,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_093__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - issuer in dict without certificateBase64"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer"}
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -1392,6 +1493,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_094__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns "certificates" but no active"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": "certificates"}
@@ -1406,6 +1508,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_095__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns certificate and active, 2nd request is bogus"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": {"active": "active"}}
@@ -1420,6 +1523,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_096__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns certificate two certs"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": {"active": "active"}}
@@ -1439,6 +1543,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_097__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns certificate three certs"""
+        self.cahandler.session = requests
         cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": {"active": "active"}}
@@ -1471,6 +1576,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_098__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - issuerCa in"""
+        self.cahandler.session = requests
         cert_dic = {"issuerCa": "issuerCa", "certificateBase64": "certificateBase641"}
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": "certificates"}
@@ -1489,6 +1595,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_100_request_poll(self, mock_get):
         """test request poll request returned exception"""
+        self.cahandler.session = requests
+        self.cahandler.request_retries = 0
         mock_get.side_effect = Exception("exc_api_get")
         result = ('"status" field not found in response.', None, None, "url", False)
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1500,6 +1608,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_101_request_poll(self, mock_get):
         """test request poll request returned unknown status"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "unknown"}
         mock_get.return_value = mockresponse
@@ -1509,6 +1618,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_102_request_poll(self, mock_get):
         """test request poll request returned status rejected"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "rejected"}
         mock_get.return_value = mockresponse
@@ -1518,6 +1628,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_103_request_poll(self, mock_get):
         """test request poll request returned status accepted but no certinformation in"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "accepted", "foo": "bar"}
         mock_get.return_value = mockresponse
@@ -1533,6 +1644,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_104_request_poll(self, mock_get):
         """test request poll request returned status accepted but no certinformation in"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "accepted", "certificate": "certificate"}
         mock_get.return_value = mockresponse
@@ -1551,6 +1663,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_105_request_poll(self, mock_get, mock_pemgen):
         """test request poll request returned status accepted but no certinformation in"""
+        self.cahandler.session = requests
         mockresponse = Mock()
         mockresponse.json = lambda: {
             "status": "accepted",
@@ -1562,7 +1675,9 @@ class TestACMEHandler(unittest.TestCase):
         result = (None, "bundle", "certificateBase64", "url", False)
         self.assertEqual(result, self.cahandler._request_poll("url"))
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check"
+    )
     def test_106_csr_check(self, mock_eab):
         """test csr_check"""
         csr = "csr"
@@ -1570,7 +1685,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(None, self.cahandler._csr_check(csr))
         self.assertTrue(mock_eab.called)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check")
+    @patch(
+        "acme2certifier.cahandlers.certifier_ca_handler.eab_profile_header_info_check"
+    )
     def test_107_csr_check(self, mock_eab):
         """test csr_check"""
         csr = "csr"
@@ -1583,6 +1700,66 @@ class TestACMEHandler(unittest.TestCase):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
+    def test_109_config_load(self, mock_load_cfg):
+        """test _config_load invalid request_retries value"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_host": "api_host",
+            "api_user": "api_user",
+            "api_password": "api_password",
+            "ca_name": "ca_name",
+            "request_retries": "invalid",
+        }
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "WARNING:test_a2c:Invalid value for request_retries in configuration. Using default: 3",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
+    def test_110_config_load(self, mock_load_cfg):
+        """test _config_load invalid request_retry_backoff value"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_host": "api_host",
+            "api_user": "api_user",
+            "api_password": "api_password",
+            "ca_name": "ca_name",
+            "request_retry_backoff": "invalid",
+        }
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            "WARNING:test_a2c:Invalid value for request_retry_backoff in configuration. Using default: 2.0",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
+    @patch("time.sleep")
+    def test_111__loop_poll(self, mock_sleep, mock_req_op):
+        """CAhandler._loop_poll() - request_operation returns non-dict"""
+        self.cahandler.polling_timeout = 5
+        self.cahandler.session = requests
+        mock_req_op.return_value = (200, "not_a_dict")
+        result = self.cahandler._loop_poll("request_url")
+        self.assertEqual((None, None, None, "request_url"), result)
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
+    def test_112__pem_list_cert_get(self, mock_req_op):
+        """CAhandler._pem_list_cert_get() - second request_operation returns non-dict"""
+        self.cahandler.session = requests
+        cert_dic = {"issuerCa": "issuer_url"}
+        mock_req_op.side_effect = [
+            (200, {"certificates": {"active": "active_url"}}),
+            (200, "not_a_dict"),
+        ]
+        result = self.cahandler._pem_list_cert_get(cert_dic)
+        self.assertEqual({}, result)
 
 
 if __name__ == "__main__":

@@ -31,7 +31,9 @@ class TestCompatDeprecation(unittest.TestCase):
                 )
         self.assertEqual(len(caught), 1)
         self.assertIn("handler_file is deprecated", str(caught[0].message))
-        self.assertTrue(any("handler_file is deprecated" in line for line in lcm.output))
+        self.assertTrue(
+            any("handler_file is deprecated" in line for line in lcm.output)
+        )
 
     def test_002_warn_default_ca_handler(self):
         logger = logging.getLogger("test_compat")
@@ -67,7 +69,9 @@ class TestPluginLoaderFileDeprecated(unittest.TestCase):
         self.assertTrue(
             any("handler_file is deprecated" in str(w.message) for w in caught)
         )
-        self.assertTrue(any("handler_file is deprecated" in line for line in lcm.output))
+        self.assertTrue(
+            any("handler_file is deprecated" in line for line in lcm.output)
+        )
 
 
 if __name__ == "__main__":

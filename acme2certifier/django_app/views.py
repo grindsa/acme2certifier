@@ -4,6 +4,7 @@
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
 from django.utils.html import escape
+from django.views.decorators.http import require_http_methods
 from acme2certifier.django_app.a2c_response import JsonResponse
 from acme2certifier.acme_srv.authorization import Authorization
 from acme2certifier.acme_srv.account import Account
@@ -15,15 +16,21 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     log_loaded_acme_srv_cfg,
     logger_setup,
-    logger_info,
+    log_response,
     config_check,
+    legacy_acme_get_load,
+    acme_get_method_not_allowed_problem,
+    server_name_configuration_validate,
 )
 from acme2certifier.acme_srv.db_handler import log_active_db_handler
-from acme2certifier.acme_srv.housekeeping import Housekeeping
+from acme2certifier.acme_srv.housekeeping import (
+    Housekeeping,
+    resolve_housekeeping_cli_endpoint,
+)
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
-from acme2certifier.acme_srv.trigger import Trigger
+from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 from acme2certifier.acme_srv.acmechallenge import Acmechallenge
 
@@ -37,11 +44,28 @@ LOGGER.info("starting acme2certifier version %s", __version__)
 log_loaded_acme_srv_cfg(LOGGER)
 log_active_db_handler(LOGGER, CONFIG)
 
+# Stack-start gate for /trigger (config + CA handler supports_trigger)
+TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
+# Stack-start gate for /housekeeping HTTP CLI
+HOUSEKEEPING_CLI_ENABLED = resolve_housekeeping_cli_endpoint(
+    LOGGER, CONFIG, log_status=True
+)
+
 METHOD_NOT_ALLOWED = "Method Not Allowed"
 ERR_DATA_POST = {
     "status": 405,
     "message": METHOD_NOT_ALLOWED,
     "detail": "Wrong request type. Expected POST.",
+}
+ERR_TRIGGER_DISABLED = {
+    "status": 403,
+    "message": "Unauthorized",
+    "detail": "trigger endpoint disabled",
+}
+ERR_HOUSEKEEPING_CLI_DISABLED = {
+    "status": 403,
+    "message": "Unauthorized",
+    "detail": "housekeeping CLI endpoint disabled",
 }
 ERR_RESPONSE_POST = JsonResponse(status=405, data=ERR_DATA_POST)
 ERR_RESPONSE_HEAD_GET = JsonResponse(
@@ -52,9 +76,15 @@ ERR_RESPONSE_HEAD_GET = JsonResponse(
         "detail": "Wrong request type. Expected HEAD or GET.",
     },
 )
+ERR_RESPONSE_ACME_GET = JsonResponse(
+    status=405, data=acme_get_method_not_allowed_problem()
+)
+ERR_RESPONSE_ACME_GET["Allow"] = "POST"
 
 # check configuration for parameters masked in ""
 config_check(LOGGER, CONFIG)
+server_name_configuration_validate(LOGGER, CONFIG)
+LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
@@ -87,6 +117,7 @@ def pretty_request(request):
     )
 
 
+@require_http_methods(["GET"])
 def directory(request):
     """get directory"""
     with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
@@ -119,7 +150,7 @@ def newaccount(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -147,7 +178,7 @@ def newnonce(request):
             response["Replay-Nonce"] = nonce.generate_and_add()
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -159,12 +190,14 @@ def newnonce(request):
         return ERR_RESPONSE_HEAD_GET
 
 
+@require_http_methods(["GET"])
 def servername_get(request):
     """get server name"""
     with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
         return JsonResponse({"server_name": escape(cfg_dir.servername_get())})
 
 
+@require_http_methods(["POST"])
 def acct(request):
     """xxxx command"""
     with Account(DEBUG, get_url(request.META), LOGGER) as account:
@@ -177,7 +210,7 @@ def acct(request):
             response[element] = response_dic["header"][element]
 
         # logging
-        logger_info(
+        log_response(
             LOGGER, request.META["REMOTE_ADDR"], request.META["PATH_INFO"], response_dic
         )
         # send response
@@ -202,7 +235,7 @@ def neworders(request):
                 response["Replay-Nonce"] = ""
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -216,12 +249,9 @@ def neworders(request):
 
 def authz(request):
     """new-authz command"""
-    if request.method in ("POST", "GET"):
+    if request.method == "POST":
         with Authorization(DEBUG, get_url(request.META), LOGGER) as authorization:
-            if request.method == "POST":
-                response_dic = authorization.new_post(request.body)
-            else:
-                response_dic = authorization.new_get(request.build_absolute_uri())
+            response_dic = authorization.new_post(request.body)
             # create the response
             response = JsonResponse(
                 status=response_dic["code"], data=response_dic["data"]
@@ -232,13 +262,30 @@ def authz(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
                 response_dic,
             )
             # send response
+            return response
+    elif request.method == "GET":
+        if not LEGACY_ACME_GET:
+            return ERR_RESPONSE_ACME_GET
+        with Authorization(DEBUG, get_url(request.META), LOGGER) as authorization:
+            response_dic = authorization.new_get(request.build_absolute_uri())
+            response = JsonResponse(
+                status=response_dic["code"], data=response_dic["data"]
+            )
+            for element in response_dic["header"]:
+                response[element] = response_dic["header"][element]
+            log_response(
+                LOGGER,
+                request.META["REMOTE_ADDR"],
+                request.META["PATH_INFO"],
+                response_dic,
+            )
             return response
     else:
         return ERR_RESPONSE_POST
@@ -264,7 +311,7 @@ def chall(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -273,6 +320,8 @@ def chall(request):
             # send response
             return response
         elif request.method == "GET":
+            if not LEGACY_ACME_GET:
+                return ERR_RESPONSE_ACME_GET
             response_dic = challenge.get(request.build_absolute_uri())
             # create the response
             response = JsonResponse(
@@ -299,7 +348,7 @@ def order(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -330,7 +379,7 @@ def cert(request):
                 response = HttpResponse(status=response_dic["code"])
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -361,7 +410,7 @@ def revokecert(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -376,6 +425,19 @@ def revokecert(request):
 def trigger(request):
     """ca trigger"""
     if request.method == "POST":
+        if not TRIGGER_ENDPOINT_ENABLED:
+            response_dic = {
+                "header": {},
+                "code": 403,
+                "data": ERR_TRIGGER_DISABLED,
+            }
+            log_response(
+                LOGGER,
+                request.META["REMOTE_ADDR"],
+                request.META["PATH_INFO"],
+                response_dic,
+            )
+            return JsonResponse(status=403, data=ERR_TRIGGER_DISABLED)
         with Trigger(DEBUG, get_url(request.META), LOGGER) as trigger_:
             response_dic = trigger_.parse(request.body)
             # create the response
@@ -391,7 +453,7 @@ def trigger(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -422,7 +484,7 @@ def renewalinfo(request):
                 response = HttpResponse(status=response_dic["code"])
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER,
                 request.META["REMOTE_ADDR"],
                 request.META["PATH_INFO"],
@@ -437,8 +499,21 @@ def renewalinfo(request):
 
 
 def housekeeping(request):
-    """ca trigger"""
+    """CLI housekeeping endpoint"""
     if request.method == "POST":
+        if not HOUSEKEEPING_CLI_ENABLED:
+            response_dic = {
+                "header": {},
+                "code": 403,
+                "data": ERR_HOUSEKEEPING_CLI_DISABLED,
+            }
+            log_response(
+                LOGGER,
+                request.META["REMOTE_ADDR"],
+                request.META["PATH_INFO"],
+                response_dic,
+            )
+            return JsonResponse(status=403, data=ERR_HOUSEKEEPING_CLI_DISABLED)
         with Housekeeping(DEBUG, LOGGER) as housekeeping_:
             response_dic = housekeeping_.parse(request.body)
             # create the response
@@ -454,7 +529,7 @@ def housekeeping(request):
                 response[element] = response_dic["header"][element]
 
             # logging
-            logger_info(
+            log_response(
                 LOGGER, request.META["REMOTE_ADDR"], request.META["PATH_INFO"], "****"
             )
             # send response
@@ -463,6 +538,7 @@ def housekeeping(request):
         return JsonResponse(status=405, data=ERR_DATA_POST, safe=False)
 
 
+@require_http_methods(["GET"])
 def acmechallenge_serve(request):
     """serving acme challenges"""
     with Acmechallenge(DEBUG, get_url(request.META), LOGGER) as acmechallenge:

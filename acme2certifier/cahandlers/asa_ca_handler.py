@@ -169,6 +169,7 @@ class CAhandler(object):
                     time.sleep(sleep_s)
 
         return 500, str(last_error)
+
     def _auth_set(self):
         """set basic authentication header"""
         self.logger.debug("CAhandler._auth_set()")
@@ -483,7 +484,9 @@ class CAhandler(object):
             if isinstance(api_response, dict):
                 self.logger.error('"certs" key in issuer chain not found')
             else:
-                self.logger.error("ASA API error fetching issuer chain: %s", api_response)
+                self.logger.error(
+                    "ASA API error fetching issuer chain: %s", api_response
+                )
             pem_chain = None
 
         self.logger.debug("CAhandler._issuer_chain_get() ended")

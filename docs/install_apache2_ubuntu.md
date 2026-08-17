@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title Installation from PyPI on Apache2 (Ubuntu) -->
+<!-- wiki-title: Installation from PyPI on Apache2 (Ubuntu) -->
+<!-- wiki-category: Installation -->
 
 # Installation from PyPI on Apache2 (Ubuntu)
 
@@ -17,7 +18,7 @@ A ready-made script mirrors the steps below (WSGI or Django, HTTP + SSL):
 [`examples/install_scripts/a2c-ubuntu-apache2.sh`](../examples/install_scripts/a2c-ubuntu-apache2.sh)
 
 ```bash
-# from a checkout (editable install):
+# from a checkout (install into the venv from the local tree):
 chmod a+rx examples/install_scripts/a2c-ubuntu-apache2.sh
 ./examples/install_scripts/a2c-ubuntu-apache2.sh --mode wsgi --from-source
 
@@ -32,7 +33,7 @@ chmod a+rx examples/install_scripts/a2c-ubuntu-apache2.sh
 | `--mode wsgi\|django` | DB backend + matching Apache vhosts (default: `wsgi`) |
 | `--version VERSION` | `pip` pin (e.g. `0.45.dev1`) |
 | `--pre` | allow pre-releases |
-| `--from-source` | `pip install -e .` from the current checkout |
+| `--from-source` | `pip install .` from the current checkout (into the venv) |
 
 > **Devel / pre-release builds:** packages published as `X.Y.devN` are **not** installed by a plain `pip install acme2certifier`. Use an exact version or `--pre`.
 
@@ -181,7 +182,7 @@ sudo sh -c 'cat /var/www/acme2certifier/volume/acme2certifier-cert.pem \
 If `handler: django`:
 
 1. Configure `acme2certifier.django_project.settings` (or env `ACME2CERTIFIER_SECRET_KEY` / `ACME2CERTIFIER_ALLOWED_HOSTS`). MySQL template: `examples/django/settings.py`.
-2. Apply schema and fixtures:
+1. Apply schema and fixtures:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg

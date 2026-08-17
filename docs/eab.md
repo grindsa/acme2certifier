@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: External Account Binding -->
+<!-- wiki-category: Features -->
 
 # External Account Binding
 
@@ -42,6 +43,10 @@ Behavior when `eab_strict_mode = False` (mixed mode):
 - `newAccount` may be accepted without `externalAccountBinding`.
 - Message validation allows accounts without `eab_kid` (unless other checks fail).
 - Directory metadata still shows EAB capability, but indicates it is not mandatory via `meta.externalAccountRequired = false`.
+
+> Security note: `eab_strict_mode = False` is an intentional mixed-enrollment mode.
+> Use it only when open or hybrid onboarding is desired. If EAB must be mandatory
+> for all account registrations, set `eab_strict_mode = True`.
 
 ## File Handler
 
@@ -102,7 +107,7 @@ Schemas for the database systems differ in relation to fields that are used to m
 
 #### When Using PostgreSQL
 
-Create a database and then these two tables. See [Usage](#Usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#Activate) with the database credentials that you have.
+Create a database and then these two tables. See [Usage](#usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#activate-handler) with the database credentials that you have.
 
 ```sql
 CREATE TABLE account (
@@ -123,7 +128,7 @@ CREATE TABLE credentials (
 
 #### When Using SQL Server
 
-Create a database and then these two tables. See [Usage](#Usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#Activate) with the database credentials that you have.
+Create a database and then these two tables. See [Usage](#usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#activate-handler) with the database credentials that you have.
 
 ```sql
 CREATE TABLE account (
@@ -227,7 +232,7 @@ keyid_03: bWFjXz...Az
 
 Creating a custom EAB handler is straightforward. You need to create a `handler.py` file containing an `EABhandler` class with a `mac_key_get` method to look up the `mac_key` based on a given `kid`.
 
-The `allowed_domains_check` method is optional and can be used to customize the [`allowed_domainlist_check()` function](https://github.com/grindsa/acme2certifier/blob/master/acme_srv/helper.py#L1641).
+The `allowed_domains_check` method is optional and can be used to customize the [`allowed_domainlist_check()` function](../acme2certifier/acme_srv/helpers/domain_utils.py).
 
 The [skeleton_eab_handler.py](../acme2certifier/share/skeletons/eab_handler/skeleton_eab_handler.py) provides a template for creating a custom handler.
 

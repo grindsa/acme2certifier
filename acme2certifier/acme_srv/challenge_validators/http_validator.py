@@ -5,6 +5,7 @@ Implements validation logic for HTTP-01 challenges according to RFC 8555.
 """
 
 import json
+from typing import List, Optional, Tuple
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
 
@@ -23,6 +24,9 @@ class HttpChallengeValidator(ChallengeValidator):
                 ip_validate,
                 proxy_check,
                 url_get,
+                normalize_resolved_ips,
+                filter_http01_target_ips,
+                url_get_dns_pinned,
             )
         except ImportError as e:
             return ValidationResult(
@@ -32,74 +36,73 @@ class HttpChallengeValidator(ChallengeValidator):
                 details={"import_error": str(e)},
             )
 
-        # Determine if we're dealing with DNS or IP
-        if context.authorization_type == "dns":
-            _, invalid, error_msg = fqdn_resolve(
-                self.logger, context.authorization_value, context.dns_servers
-            )
-            if invalid:
-                return ValidationResult(
-                    success=False,
-                    invalid=True,
-                    error_message=json.dumps(
-                        {
-                            "status": 400,
-                            "type": "urn:ietf:params:acme:error:dns",
-                            "detail": (
-                                f"DNS resolution failed: {error_msg}"
-                                if error_msg
-                                else "DNS resolution failed"
-                            ),
-                        }
-                    ),
-                    details={"fqdn": context.authorization_value},
-                )
-        elif context.authorization_type == "ip":
-            _, invalid = ip_validate(self.logger, context.authorization_value)
-            if invalid:
-                return ValidationResult(
-                    success=False,
-                    invalid=True,
-                    error_message=json.dumps(
-                        {
-                            "status": 400,
-                            "type": "urn:ietf:params:acme:error:malformed",
-                            "detail": f"Invalid IP address: {context.authorization_value}",
-                        }
-                    ),
-                    details={"ip": context.authorization_value},
-                )
-        else:
+        block_private = bool(
+            (context.options or {}).get("http01_block_private_ips", False)
+        )
+        challenge_path = f"/.well-known/acme-challenge/{context.token}"
+        logical_url = f"http://{context.authorization_value}{challenge_path}"
+
+        target_ips, resolve_error = self._resolve_http01_targets(
+            context,
+            fqdn_resolve,
+            ip_validate,
+            normalize_resolved_ips,
+        )
+        if resolve_error is not None:
+            return resolve_error
+
+        allowed_ips, filter_error = filter_http01_target_ips(
+            self.logger, target_ips, block_private=block_private
+        )
+        if filter_error or not allowed_ips:
             return ValidationResult(
                 success=False,
                 invalid=True,
                 error_message=json.dumps(
                     {
                         "status": 400,
-                        "type": "urn:ietf:params:acme:error:unsupported",
-                        "detail": f"Unsupported authorization type: {context.authorization_type}",
+                        "type": "urn:ietf:params:acme:error:rejectedIdentifier",
+                        "detail": filter_error
+                        or "No allowed address for HTTP-01 validation",
                     }
                 ),
-                details={"type": context.authorization_type},
+                details={
+                    "identifier": context.authorization_value,
+                    "resolved_ips": target_ips,
+                    "http01_block_private_ips": block_private,
+                },
             )
 
-        # Check for proxy configuration
         proxy_server = None
         if context.proxy_servers:
             proxy_server = proxy_check(
                 self.logger, context.authorization_value, context.proxy_servers
             )
 
-        # Perform HTTP request
-        url = f"http://{context.authorization_value}/.well-known/acme-challenge/{context.token}"
-        req, status_code, error_msg = url_get(
-            self.logger,
-            url,
-            dns_server_list=context.dns_servers,
-            proxy_server=proxy_server,
-            verify=False,
-            timeout=context.timeout,
-        )
+        if proxy_server:
+            # Proxy must resolve the hostname; IP policy still applied above.
+            # DNS pinning cannot bind the TCP peer when traffic goes via proxy.
+            self.logger.debug(
+                "HttpChallengeValidator: proxy in use; skipping DNS-pinned connect"
+            )
+            req, status_code, error_msg = url_get(
+                self.logger,
+                logical_url,
+                dns_server_list=context.dns_servers,
+                proxy_server=proxy_server,
+                verify=False,
+                timeout=context.timeout,
+            )
+        else:
+            req, status_code, error_msg = url_get_dns_pinned(
+                self.logger,
+                host=context.authorization_value,
+                path=challenge_path,
+                pinned_ips=allowed_ips,
+                verify=False,
+                timeout=context.timeout,
+            )
+
         if not req or status_code != 200:
             self.logger.warning(
                 "http-01 fetch failed: challenge=%s host=%s url=%s status=%s error=%s",
@@ -119,7 +122,10 @@ class HttpChallengeValidator(ChallengeValidator):
                         "detail": f"HTTP request failed: {status_code} {error_msg}",
                     }
                 ),
-                details={"url": url},
+                details={
+                    "url": logical_url,
+                    "pinned_ips": allowed_ips,
+                },
             )
 
         response_got = req.splitlines()[0]
@@ -155,6 +161,75 @@ class HttpChallengeValidator(ChallengeValidator):
             details={
                 "expected": response_expected,
                 "received": response_got,
-                "url": url,
+                "url": logical_url,
+                "pinned_ips": allowed_ips,
             },
+        )
+
+    def _resolve_http01_targets(
+        self,
+        context: ChallengeContext,
+        fqdn_resolve,
+        ip_validate,
+        normalize_resolved_ips,
+    ) -> Tuple[List[str], Optional[ValidationResult]]:
+        """Resolve authorization identifier to candidate IP addresses."""
+        if context.authorization_type == "dns":
+            resolved, invalid, error_msg = fqdn_resolve(
+                self.logger,
+                context.authorization_value,
+                context.dns_servers,
+                catch_all=True,
+            )
+            if invalid:
+                return [], ValidationResult(
+                    success=False,
+                    invalid=True,
+                    error_message=json.dumps(
+                        {
+                            "status": 400,
+                            "type": "urn:ietf:params:acme:error:dns",
+                            "detail": (
+                                f"DNS resolution failed: {error_msg}"
+                                if error_msg
+                                else "DNS resolution failed"
+                            ),
+                        }
+                    ),
+                    details={"fqdn": context.authorization_value},
+                )
+            return normalize_resolved_ips(resolved), None
+
+        if context.authorization_type == "ip":
+            _, invalid = ip_validate(self.logger, context.authorization_value)
+            if invalid:
+                return [], ValidationResult(
+                    success=False,
+                    invalid=True,
+                    error_message=json.dumps(
+                        {
+                            "status": 400,
+                            "type": "urn:ietf:params:acme:error:malformed",
+                            "detail": (
+                                f"Invalid IP address: {context.authorization_value}"
+                            ),
+                        }
+                    ),
+                    details={"ip": context.authorization_value},
+                )
+            return [context.authorization_value], None
+
+        return [], ValidationResult(
+            success=False,
+            invalid=True,
+            error_message=json.dumps(
+                {
+                    "status": 400,
+                    "type": "urn:ietf:params:acme:error:unsupported",
+                    "detail": (
+                        f"Unsupported authorization type: {context.authorization_type}"
+                    ),
+                }
+            ),
+            details={"type": context.authorization_type},
         )

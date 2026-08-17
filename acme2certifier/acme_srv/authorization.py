@@ -1070,7 +1070,7 @@ class Authorization(object):
                 # Continue with processing - don't fail the request
 
         # Validate message
-        code, message, detail, protected, _payload, _account_name = self.message.check(
+        code, message, detail, protected, _payload, account_name = self.message.check(
             content
         )
 
@@ -1097,7 +1097,9 @@ class Authorization(object):
 
         # Prepare response
         status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
+        response_dic = self.message.prepare_response(
+            response_dic, status_dic, account_name=account_name
+        )
 
         self.logger.debug(
             "Authorization.handle_post_request() returns: %s", json.dumps(response_dic)

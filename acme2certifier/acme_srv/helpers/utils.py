@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """General utilities for acme2certifier"""
 
-import random
+import os
+import secrets
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 from .global_variables import PARSING_ERR_MSG, CONFIGURATION_ERROR_DETAIL
 
 
@@ -30,6 +31,65 @@ def error_dic_get(logger: logging.Logger) -> Dict[str, str]:
         "useractionrequired": "urn:ietf:params:acme:error:userActionRequired",
     }
     return error_dic
+
+
+# Debian/Ubuntu kerberos alternatives install ``kinit`` as a symlink to
+# ``kinit.mit`` / ``kinit.heimdal``. Allow those resolved basenames only when
+# the configured path itself ends with ``kinit``.
+_KRB5_KINIT_RESOLVED_BASENAMES = frozenset({"kinit", "kinit.mit", "kinit.heimdal"})
+
+
+def kerberos_kinit_command_resolve(
+    logger: logging.Logger, kinit_path: Optional[str]
+) -> Optional[str]:
+    """Resolve argv0 for a kinit subprocess.
+
+    Default / bare ``kinit`` is resolved from PATH at exec time.
+    Any other configured value must be an absolute path whose basename is
+    exactly ``kinit``. After symlink resolution the basename must be one of
+    ``kinit``, ``kinit.mit``, or ``kinit.heimdal`` (Debian/Ubuntu alternatives).
+    """
+    logger.debug("Helper.kerberos_kinit_command_resolve()")
+    if not isinstance(kinit_path, str) or not kinit_path.strip():
+        return "kinit"
+
+    configured = kinit_path.strip()
+    if configured == "kinit":
+        return "kinit"
+
+    if "\x00" in configured:
+        logger.error("Rejected krb5_kinit_path: null byte in path")
+        return None
+
+    if not os.path.isabs(configured):
+        logger.error(
+            "Rejected krb5_kinit_path '%s': path must be absolute "
+            "(or the bare name 'kinit' for PATH lookup)",
+            configured,
+        )
+        return None
+
+    if os.path.basename(configured) != "kinit":
+        logger.error(
+            "Rejected krb5_kinit_path '%s': basename must be 'kinit'",
+            configured,
+        )
+        return None
+
+    resolved = os.path.realpath(configured)
+    resolved_basename = os.path.basename(resolved)
+    if resolved_basename not in _KRB5_KINIT_RESOLVED_BASENAMES:
+        logger.error(
+            "Rejected krb5_kinit_path '%s': resolved basename must be one of "
+            "%s (resolved to '%s')",
+            configured,
+            sorted(_KRB5_KINIT_RESOLVED_BASENAMES),
+            resolved,
+        )
+        return None
+
+    logger.debug("Helper.kerberos_kinit_command_resolve() ended with: %s", resolved)
+    return resolved
 
 
 def enrollment_config_log(
@@ -91,7 +151,7 @@ def radomize_parameter_list(
         min_len = len(min_length_list)
 
         # Calculate random number as index for the parameter list
-        index = random.randint(0, min_len - 1)
+        index = secrets.randbelow(min_len)
         # set parameter values
         for parameter, value_list in tmp_dic.items():
             setattr(ca_handler, parameter, value_list[index])

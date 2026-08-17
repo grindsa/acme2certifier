@@ -8,6 +8,7 @@ import time
 import json
 import os
 from typing import List, Tuple, Dict
+from urllib.parse import urlencode
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -29,6 +30,7 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     parse_url,
     proxy_check,
+    request_operation,
     uts_now,
     uts_to_date_utc,
 )
@@ -37,6 +39,9 @@ from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR
 
 class CAhandler(object):
     """CA  handler"""
+
+    # Opt into the /trigger HTTP callback endpoint (see [Trigger] enabled).
+    supports_trigger = True
 
     def __init__(self, debug: bool = False, logger: object = None):
         self.debug = debug
@@ -48,6 +53,9 @@ class CAhandler(object):
         self.ca_bundle = True
         self.ca_name = None
         self.auth = None
+        self.session = None
+        self.request_retries = 3
+        self.request_retry_backoff = 2.0
         self.polling_timeout = 60
         self.profile_id = None
         self.proxy = None
@@ -72,8 +80,9 @@ class CAhandler(object):
     def _auth_set(self):
         """set basic authentication header"""
         self.logger.debug("CAhandler._auth_set()")
+        self.session = requests.Session()
         if self.api_user and self.api_password:
-            self.auth = HTTPBasicAuth(self.api_user, self.api_password)
+            self.session.auth = HTTPBasicAuth(self.api_user, self.api_password)
         else:
             self.logger.error(
                 'Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file'
@@ -89,14 +98,18 @@ class CAhandler(object):
 
         if "certificate" in request_dic:
             # poll identifier for later storage
-            cert_dic = requests.get(
-                request_dic["certificate"],
-                auth=self.auth,
+            _code, cert_dic = request_operation(
+                self.logger,
+                url=request_dic["certificate"],
+                method="get",
                 verify=self.ca_bundle,
-                proxies=self.proxy,
+                proxy=self.proxy,
                 timeout=self.request_timeout,
-            ).json()
-            if "certificateBase64" in cert_dic:
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+            if isinstance(cert_dic, dict) and "certificateBase64" in cert_dic:
                 # this is a valid cert generate the bundle
                 error = None
                 cert_bundle = self._pem_cert_chain_generate(cert_dic)
@@ -118,18 +131,18 @@ class CAhandler(object):
         returns:
             result of the post command
         """
-        try:
-            api_response = requests.post(
-                url=url,
-                json=data,
-                auth=self.auth,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            ).json()
-        except Exception as err_:
-            self.logger.error("API post() request returned an error: %s", err_)
-            api_response = str(err_)
+        _code, api_response = request_operation(
+            self.logger,
+            url=url,
+            method="post",
+            payload=data,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
 
         return api_response
 
@@ -144,20 +157,24 @@ class CAhandler(object):
             params["q"] = f"{filter_key}:{filter_value}"
 
         if self.api_host:
-            try:
-                api_response = requests.get(
-                    self.api_host + "/v1/cas",
-                    auth=self.auth,
-                    params=params,
-                    proxies=self.proxy,
-                    verify=self.ca_bundle,
-                    timeout=self.request_timeout,
-                ).json()
-            except Exception as err_:
-                self.logger.error("API get() request returned error: %s", str(err_))
+            url = self.api_host + "/v1/cas"
+            if params:
+                url = f"{url}?{urlencode(params)}"
+            _code, api_response = request_operation(
+                self.logger,
+                url=url,
+                method="get",
+                verify=self.ca_bundle,
+                proxy=self.proxy,
+                timeout=self.request_timeout,
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+            if not isinstance(api_response, dict):
                 api_response = {
                     "status": 500,
-                    "message": str(err_),
+                    "message": str(api_response),
                     "statusMessage": "Internal Server Error",
                 }
         else:
@@ -220,22 +237,25 @@ class CAhandler(object):
         self.logger.debug("_cert_get_properties(%s:%s)", serial, ca_link)
 
         params = {"q": f"issuer-id:{ca_link},serial-number:{serial}"}
-        try:
-            api_response = requests.get(
-                self.api_host + "/v1/certificates",
-                auth=self.auth,
-                params=params,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            ).json()
-        except Exception as err_:
+        url = f"{self.api_host}/v1/certificates?{urlencode(params)}"
+        _code, api_response = request_operation(
+            self.logger,
+            url=url,
+            method="get",
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if not isinstance(api_response, dict):
             self.logger.error(
-                "Could not get certificate properties. Error: %s", str(err_)
+                "Could not get certificate properties. Error: %s", str(api_response)
             )
             api_response = {
                 "status": 500,
-                "message": str(err_),
+                "message": str(api_response),
                 "statusMessage": "Internal Server Error",
             }
         self.logger.debug("CAhandler._cert_get_properties() ended")
@@ -396,6 +416,32 @@ class CAhandler(object):
             "CAhandler", self.profile_mapping_field, fallback=None
         )
 
+        try:
+            self.request_retries = int(
+                config_dic.get(
+                    "CAhandler", "request_retries", fallback=self.request_retries
+                )
+            )
+        except Exception:
+            self.logger.warning(
+                "Invalid value for request_retries in configuration. Using default: %s",
+                self.request_retries,
+            )
+
+        try:
+            self.request_retry_backoff = float(
+                config_dic.get(
+                    "CAhandler",
+                    "request_retry_backoff",
+                    fallback=self.request_retry_backoff,
+                )
+            )
+        except Exception:
+            self.logger.warning(
+                "Invalid value for request_retry_backoff in configuration. Using default: %s",
+                self.request_retry_backoff,
+            )
+
         # check if we get a ca bundle for verification
         if "ca_bundle" in config_dic["CAhandler"]:
             try:
@@ -491,15 +537,19 @@ class CAhandler(object):
 
                 if "certificate" in request_dic:
                     # poll identifier for later storage
-                    cert_dic = requests.get(
-                        request_dic["certificate"],
-                        auth=self.auth,
+                    _code, cert_dic = request_operation(
+                        self.logger,
+                        url=request_dic["certificate"],
+                        method="get",
                         verify=self.ca_bundle,
-                        proxies=self.proxy,
+                        proxy=self.proxy,
                         timeout=self.request_timeout,
-                    ).json()
+                        session=self.session,
+                        retries=self.request_retries,
+                        retry_backoff=self.request_retry_backoff,
+                    )
                     # pylint: disable=R1723
-                    if "certificateBase64" in cert_dic:
+                    if isinstance(cert_dic, dict) and "certificateBase64" in cert_dic:
                         # this is a valid cert generate the bundle
                         error = None
                         cert_bundle = self._pem_cert_chain_generate(cert_dic)
@@ -532,13 +582,19 @@ class CAhandler(object):
             cnt = 1
             while cnt <= poll_cnt:
                 cnt += 1
-                request_dic = requests.get(
-                    request_url,
-                    auth=self.auth,
+                _code, request_dic = request_operation(
+                    self.logger,
+                    url=request_url,
+                    method="get",
                     verify=self.ca_bundle,
-                    proxies=self.proxy,
+                    proxy=self.proxy,
                     timeout=self.request_timeout,
-                ).json()
+                    session=self.session,
+                    retries=self.request_retries,
+                    retry_backoff=self.request_retry_backoff,
+                )
+                if not isinstance(request_dic, dict):
+                    request_dic = {}
 
                 # check response
                 (
@@ -564,33 +620,47 @@ class CAhandler(object):
         self.logger.debug("CAhandler._pem_list_cert_get()")
         if "issuer" in cert_dic:
             self.logger.debug("issuer found: %s", cert_dic["issuer"])
-            ca_cert_dic = requests.get(
-                cert_dic["issuer"],
-                auth=self.auth,
+            _code, ca_cert_dic = request_operation(
+                self.logger,
+                url=cert_dic["issuer"],
+                method="get",
                 verify=self.ca_bundle,
-                proxies=self.proxy,
+                proxy=self.proxy,
                 timeout=self.request_timeout,
-            ).json()
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
         else:
             self.logger.debug("issuer found: %s", cert_dic["issuerCa"])
-            ca_cert_dic = requests.get(
-                cert_dic["issuerCa"],
-                auth=self.auth,
+            _code, ca_cert_dic = request_operation(
+                self.logger,
+                url=cert_dic["issuerCa"],
+                method="get",
                 verify=self.ca_bundle,
-                proxies=self.proxy,
+                proxy=self.proxy,
                 timeout=self.request_timeout,
-            ).json()
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
 
         cert_dic = {}
-        if "certificates" in ca_cert_dic:
+        if isinstance(ca_cert_dic, dict) and "certificates" in ca_cert_dic:
             if "active" in ca_cert_dic["certificates"]:
-                cert_dic = requests.get(
-                    ca_cert_dic["certificates"]["active"],
-                    auth=self.auth,
+                _code, cert_dic = request_operation(
+                    self.logger,
+                    url=ca_cert_dic["certificates"]["active"],
+                    method="get",
                     verify=self.ca_bundle,
-                    proxies=self.proxy,
+                    proxy=self.proxy,
                     timeout=self.request_timeout,
-                ).json()
+                    session=self.session,
+                    retries=self.request_retries,
+                    retry_backoff=self.request_retry_backoff,
+                )
+                if not isinstance(cert_dic, dict):
+                    cert_dic = {}
 
         self.logger.debug("CAhandler._pem_list_cert_get() ended")
         return cert_dic
@@ -645,16 +715,19 @@ class CAhandler(object):
         poll_identifier = request_url
         rejected = False
 
-        try:
-            request_dic = requests.get(
-                request_url,
-                auth=self.auth,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            ).json()
-        except Exception as err:
-            self.logger.error("Polling request returned an error: %s", err)
+        _code, request_dic = request_operation(
+            self.logger,
+            url=request_url,
+            method="get",
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if not isinstance(request_dic, dict):
+            self.logger.error("Polling request returned an error: %s", request_dic)
             request_dic = {}
 
         # check response

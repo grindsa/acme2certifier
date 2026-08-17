@@ -16,11 +16,10 @@ from acme2certifier.compat import (
 
 # Emit routine handler-load INFO at most once per key per process.
 _HANDLER_LOAD_LOGGED: Set[str] = set()
+_EAB_HANDLER_LOAD_ENDED_NONE = "Helper.plugin_loader.eab_handler_load() ended with None"
 
 
-def _log_once_info(
-    logger: logging.Logger, key: str, msg: str, *args: Any
-) -> None:
+def _log_once_info(logger: logging.Logger, key: str, msg: str, *args: Any) -> None:
     """Log *msg* at INFO once per *key*; subsequent calls use DEBUG."""
     if key not in _HANDLER_LOAD_LOGGED:
         _HANDLER_LOAD_LOGGED.add(key)
@@ -61,8 +60,9 @@ def _load_from_file(
     )
     try:
         spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load module {module_name!r} from {file_path!r}")
         module = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
         # Register before exec so compatibility shims can replace this entry.
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
@@ -225,7 +225,7 @@ def eab_handler_load(
     logger.debug("Helper.plugin_loader.eab_handler_load() start")
     # pylint: disable=w0621
     if "EABhandler" not in config_dic:
-        logger.debug("Helper.plugin_loader.eab_handler_load() ended with None")
+        logger.debug(_EAB_HANDLER_LOAD_ENDED_NONE)
         return None
 
     section = config_dic["EABhandler"]
@@ -256,7 +256,7 @@ def eab_handler_load(
                 logger, "eab_handler", "Loaded EAB handler %s", _loaded_identity(loaded)
             )
             return loaded
-        logger.debug("Helper.plugin_loader.eab_handler_load() ended with None")
+        logger.debug(_EAB_HANDLER_LOAD_ENDED_NONE)
         return None
 
     if eab_file:
@@ -284,7 +284,7 @@ def eab_handler_load(
         "EABhandler section present but neither eab_handler_module nor "
         "eab_handler_file is set"
     )
-    logger.debug("Helper.plugin_loader.eab_handler_load() ended with None")
+    logger.debug(_EAB_HANDLER_LOAD_ENDED_NONE)
     return None
 
 
@@ -348,9 +348,7 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
             error_prefix="Loading Hooks via hooks_module",
         )
         if loaded is not None:
-            _log_once_info(
-                logger, "hooks", "Loaded hooks %s", _loaded_identity(loaded)
-            )
+            _log_once_info(logger, "hooks", "Loaded hooks %s", _loaded_identity(loaded))
             return loaded
         logger.warning("Hooks module load failed")
         return None
@@ -369,9 +367,7 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
             "Loading Hooks configured in cfg",
         )
         if loaded is not None:
-            _log_once_info(
-                logger, "hooks", "Loaded hooks %s", _loaded_identity(loaded)
-            )
+            _log_once_info(logger, "hooks", "Loaded hooks %s", _loaded_identity(loaded))
             logger.debug("Helper.plugin_loader.hooks_load() ended with module")
             return loaded
         logger.warning("Hooks file load failed")

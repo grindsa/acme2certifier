@@ -717,7 +717,11 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse = Mock()
         mockresponse.status_code = 200
         mockresponse.json = lambda: {"issuers": ["ca"]}
-        mock_req.side_effect = [Exception("timeout"), Exception("timeout"), mockresponse]
+        mock_req.side_effect = [
+            Exception("timeout"),
+            Exception("timeout"),
+            mockresponse,
+        ]
         self.assertEqual((200, {"issuers": ["ca"]}), self.cahandler._api_get("url"))
         self.assertEqual(3, mock_req.call_count)
         self.assertEqual(2, mock_sleep.call_count)
@@ -783,7 +787,9 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 """
         self.assertEqual(result, self.cahandler._pem_cert_chain_generate(cert_list))
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate")
+    @patch(
+        "acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate"
+    )
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
     def test_045___issuer_chain_get(self, mock_req, mock_pem):
         """test _issuer_chain_get()"""
@@ -793,7 +799,9 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual("issuer_chain", self.cahandler._issuer_chain_get())
         self.assertTrue(mock_pem.called)
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate")
+    @patch(
+        "acme2certifier.cahandlers.asa_ca_handler.CAhandler._pem_cert_chain_generate"
+    )
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
     def test_046___issuer_chain_get(self, mock_req, mock_pem):
         """test _issuer_chain_get()"""

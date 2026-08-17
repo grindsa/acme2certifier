@@ -28,15 +28,17 @@ The project consists of two main libraries:
 | Feature Support                                                                                                                                | Enrollment (E) | Revocation (R) | [EAB Profiling (P)](docs/eab_profiling.md) |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------- | ------------------------------------------ |
 | [DigiCert® CertCentral](docs/digicert.md)                                                                                                      | ✅             | ✅             | ✅                                         |
+| [Dogtag Certificate System](docs/dogtag_ca_handler.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [Entrust ECS Enterprise](docs/entrust.md)                                                                                                      | ✅             | ✅             | ✅                                         |
 | [EJBCA](docs/ejbca.md)                                                                                                                         | ✅             | ✅             | ✅                                         |
-| [Generic ACME Handler](docs/acme_ca.md) (LetsEncrypt, BuyPass.com, ZeroSSL)                                                                    | ❌             | ❌             | ✅                                         |
+| [Generic ACME Handler](docs/acme_ca.md) (LetsEncrypt, ZeroSSL)                                                                    | ✅              | ✅              | ✅                                         |
 | [Generic CMPv2 Handler](docs/cmp.md)                                                                                                           | ✅             | ❌             | ❌                                         |
 | [Generic EST Handler](docs/est.md)                                                                                                             | ✅             | ❌             | ❌                                         |
+| [FreeIPA](docs/freeipa.md)                                                                                                                     | ✅             | ✅             | ✅                                         |
 | [Hashicorp Vault](docs/vault.md)                                                                                                               | ✅             | ✅             | ✅                                         |
 | [Insta ActiveCMS](docs/asa.md)                                                                                                                 | ✅             | ✅             | ✅                                         |
 | [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)                                                                             | ✅             | ❌             | ✅                                         |
-| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](docs/mswcce.md)                                                           | ✅             | ❌             | ✅                                         |
+| [Microsoft ICertPassage Remote Protocol (MS-ICPR)](docs/msicpr.md)                                                                             | ✅             | ❌             | ✅                                         |
 | [NetGuard Certificate Lifecycle Manager](docs/nclm.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)                                                                              | ✅             | ✅             | ✅                                         |
 | [OpenSSL](docs/openssl.md)                                                                                                                     | ✅             | ✅             | ❌                                         |
@@ -84,6 +86,7 @@ ______________________________________________________________________
   - [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html) – **IP Address Certificates**
   - [RFC 8823](https://www.rfc-editor.org/rfc/rfc8823.html) - **Automatic Certificate Management Environment for End-User S/MIME Certificates**
   - [RFC 9773](https://datatracker.ietf.org/doc/rfc9773/) - **ACME Renewal Information (ARI) Extension**
+  - [draft-ietf-acme-dns-persist](https://datatracker.ietf.org/doc/draft-ietf-acme-dns-persist/) - **Persistent DNS TXT Record Validation**
   - [ACME Profiles Extension](docs/acme_profiling.md)
   - **TNAuthList identifiers** ([TNAuthList Profile](docs/tnauthlist.md))
   - [RFC 9447 - Automated Certificate Management Environment (ACME) Challenges Using an Authority Token](https://www.rfc-editor.org/rfc/rfc9447)
@@ -93,10 +96,10 @@ Supported challenge types:
 
 - [http-01](https://tools.ietf.org/html/rfc8555#section-8.3)
 - [dns-01](https://tools.ietf.org/html/rfc8555#section-8.4)
-- [email-reply-00](https://www.rfc-editor.org/rfc/rfc8823.html#name-use-of-acme-for-issuing-end)
+- [dns-persist-01 (experimental)](docs/dns-persist-01.md) — persistent DNS-based authorization and JIT validation (see doc for details)
+- [email-reply-00](docs/rfc8823_email_identifier.md)
 - [tls-alpn-01](https://tools.ietf.org/html/rfc8737)
 - [tkauth-01](https://www.rfc-editor.org/rfc/rfc9447)
-- [dns-persist-01 (experimental)](docs/dns-persist-01.md) — persistent DNS-based authorization and JIT validation (see doc for details)
 
 ______________________________________________________________________
 

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: Hooks -->
+<!-- wiki-category: Features -->
 
 # Hooks
 

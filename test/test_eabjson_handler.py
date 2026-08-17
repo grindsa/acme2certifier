@@ -104,7 +104,12 @@ class TestACMEHandler(unittest.TestCase):
         """test mac_key_get json reader return bogus values"""
         self.eabhandler.key_file = "file"
         mock_json.return_value = {"foo", "bar"}
-        self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: kid=kid not found in key file",
+            lcm.output,
+        )
 
     @patch("json.load")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
@@ -120,7 +125,12 @@ class TestACMEHandler(unittest.TestCase):
         """test mac_key_get json no match"""
         self.eabhandler.key_file = "file"
         mock_json.return_value = {"kid1": "mac"}
-        self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: kid=kid not found in key file",
+            lcm.output,
+        )
 
     @patch("json.load")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
@@ -132,6 +142,10 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.eabhandler.mac_key_get("kid"))
         self.assertIn(
             "ERROR:test_a2c:Failed to load EAB key file: ex_json_load", lcm.output
+        )
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: kid=kid not found in key file",
+            lcm.output,
         )
 
 
