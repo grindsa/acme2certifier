@@ -1,0 +1,60 @@
+name: "acme_ca_handler failure artifacts"
+description: "Collect sidecar logs, package failure logs, upload artifact"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "container | rpm"
+    required: true
+  ARTIFACT_NAME:
+    description: "upload-artifact name"
+    required: true
+  SIDECAR_LOGS:
+    description: "Comma-separated docker container names to dump logs for"
+    required: false
+    default: ""
+  COPY_DIRS:
+    description: "Comma-separated host dirs to copy into artifact/data/"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Collect sidecar logs and dirs"
+      if: ${{ failure() }}
+      run: |
+        set -euo pipefail
+        mkdir -p "${GITHUB_WORKSPACE}/artifact/data"
+        if [ -n "${SIDECAR_LOGS}" ]; then
+          IFS=',' read -ra names <<< "${SIDECAR_LOGS}"
+          for name in "${names[@]}"; do
+            name="$(echo "${name}" | xargs)"
+            [ -z "${name}" ] && continue
+            docker logs "${name}" > "${GITHUB_WORKSPACE}/artifact/${name}.log" 2>&1 || true
+          done
+        fi
+        if [ -n "${COPY_DIRS}" ]; then
+          IFS=',' read -ra dirs <<< "${COPY_DIRS}"
+          for dir in "${dirs[@]}"; do
+            dir="$(echo "${dir}" | xargs)"
+            [ -z "${dir}" ] && continue
+            [ -d "${dir}" ] || continue
+            sudo cp -rp "${dir}" "${GITHUB_WORKSPACE}/artifact/data/" || true
+          done
+        fi
+      shell: bash
+      env:
+        SIDECAR_LOGS: ${{ inputs.SIDECAR_LOGS }}
+        COPY_DIRS: ${{ inputs.COPY_DIRS }}
+
+    - name: "Collect failure logs"
+      if: ${{ failure() }}
+      uses: ./.github/actions/collect_failure_logs
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Upload artifacts"
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.ARTIFACT_NAME }}
+        path: ${{ github.workspace }}/artifact/upload/

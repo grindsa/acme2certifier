@@ -1,0 +1,114 @@
+# min <-> full branch sync manifest
+# See tools/min_sync/README.md
+
+source_default: master
+target_default: min-devel
+
+min_targets:
+  - min-devel
+  - min
+  - min-test
+
+full_targets:
+  - master
+  - devel
+
+# Shared product paths. Direction semantics differ (see sync.py / README).
+sync_paths:
+  - acme2certifier/__init__.py
+  - acme2certifier/compat.py
+  - acme2certifier/acme_srv/
+  - acme2certifier/dbhandlers/
+  - acme2certifier/eabhandlers/
+  - acme2certifier/hookhandlers/
+  - acme2certifier/django_app/
+  - acme2certifier/django_project/
+  - acme2certifier/share/
+  - acme2certifier/tools/
+  - acme2certifier/cahandlers/
+  - test/
+  - docs/
+  - examples/
+  - pyproject.toml
+  - tools/
+  - MANIFEST.in
+  - .pre-commit-config.yaml
+  - README.md
+  - CHANGES.md
+  - SECURITY.md
+
+# CA handlers kept on min lines (relative to acme2certifier/cahandlers/)
+keep_handlers:
+  - __init__.py
+  - asa_ca_handler.py
+  - certifier_ca_handler.py
+  - nclm_ca_handler.py
+
+# Never port these from full -> min or min -> full
+min_owned:
+  - .github/workflows/main-push-rpm.yml
+  - examples/install_scripts/rpm/packages/
+  - examples/install_scripts/rpm/acme2certifier.spec
+  - docs/install_rpm.md
+  - docs/upgrading.md
+
+# Removed after a port into a min target (in addition to non-kept handlers)
+strip_into_min:
+  - acme2certifier/cahandlers/ms_icpr
+  - .github/acme2certifier.pem
+  - .github/acme2certifier_cabundle.pem
+  - .github/acme2certifier_cert.pem
+  - .github/acme2certifier_csr.pem
+  - .github/acme2certifier_key.pem
+  - .github/workflows/helper-dump-secrets.yml
+  - .github/workflows/cahandler-asa.yml
+  - .github/workflows/cahandler-certifier.yml
+  - .github/workflows/cahandler-nclm.yml
+  - .github/workflows/helper-dump-secrets.yml
+  - .github/workflows/publish-pypi.yml
+  - .github/workflows/quality-error.yml
+  - .github/workflows/deployment-rpm.yml
+  - acme2certifier/tools/a2c_msicpr_connection_test.py
+  - acme2certifier/tools/a2c_mswcce_connection_test.py
+  - test/test_a2c_msicpr_connection_test.py
+  - .github/workflows/deployment-wsgi2django.yml
+  - .github/actions/wf_specific/wsgi2django/
+  - test/test_acme_ca_handler.py
+  - test/test_certsrv.py
+  - test/test_cmp_ca_handler.py
+  - test/test_digicert.py
+  - test/test_dogtag_ca_handler.py
+  - test/test_ejbca_handler.py
+  - test/test_entrust.py
+  - test/test_est_ca_handler.py
+  - test/test_freeipa_ca_handler.py
+  - test/test_msca_handler.py
+  - test/test_msicpr_ca_handler.py
+  - test/test_msicpr_helpers.py
+  - test/test_mswcce_ca_handler.py
+  - test/test_openssl_ca_handler.py
+  - test/test_openxpki_ca_handler.py
+  - test/test_pkcs7_soap_ca_handler.py
+  - test/test_skeleton_ca_handler.py
+  - test/test_vault_handler.py
+  - test/test_xca_ca_handler.py
+  - test/test_trigger.py
+  - examples/Docker
+  - examples/ejbca
+  - examples/soap
+  - examples/Docker/vault
+  - examples/Docker/soap-srv
+  - examples/install_scripts/debian
+  - examples/install_scripts/a2c-container-build.sh
+  - examples/install_scripts/a2c-deb.sh
+  - examples/install_scripts/a2c-rel-nginx.sh
+  - examples/install_scripts/a2c-ubuntu-apache2.sh
+  - examples/install_scripts/a2c-ubuntu-nginx.sh
+  - examples/install_scripts/fetch-sbom-rpms.sh
+
+# [project.scripts] entry points removed after a port into min
+strip_pyproject_scripts_into_min:
+  - a2c-msicpr-connection-test
+
+# Optional: do not open promote PRs; min-devel -> min stays manual
+promote: false

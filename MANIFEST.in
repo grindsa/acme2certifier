@@ -1,0 +1,3 @@
+include LICENSE README.md
+recursive-include acme2certifier/share *
+global-exclude *.old .DS_Store __pycache__ *.py[cod]

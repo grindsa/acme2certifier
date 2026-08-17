@@ -1,0 +1,266 @@
+name: "certificate_error_checking"
+description: "Certificate enroll/revoke error paths: call-site WARNING/ERROR + ACME problem logs"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+  ACME_CFG:
+    description: "Host path to acme_srv.cfg (CSR-mismatch scenario toggles challenge_validation_disable)"
+    required: false
+    default: "examples/Docker/data/acme_srv.cfg"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Test revokeCert with empty payload (certificate missing)"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=cert-revoke-miss@bar.local,
+        post -body='{}' revokeCert
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell revokeCert without certificate"
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        cat acmeshell.enroll.log || true
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for malformed (certificate missing)"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for certificate missing WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Certificate revoke failed: certificate missing in payload account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (certificate missing)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:malformed detail=certificate not found"
+
+    - name: "Test revokeCert with badRevocationReason"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=cert-revoke-reason@bar.local,
+        post -body='{"reason":99,"certificate":"aGVsbG8="}' revokeCert
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell revokeCert with bad reason"
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        cat acmeshell.enroll.log || true
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for badRevocationReason"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:badRevocationReason" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for badRevocationReason WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Certificate revoke failed: badRevocationReason account=.* reason=99"
+        REGEX: "true"
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (badRevocationReason)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:badRevocationReason"
+
+    - name: "Test revokeCert unauthorized ownership"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=cert-revoke-unauth@bar.local,
+        post -body='{"certificate":"aGVsbG8="}' revokeCert
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell revokeCert with unknown certificate"
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        cat acmeshell.enroll.log || true
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for unauthorized (ownership)"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:unauthorized" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for unauthorized ownership WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Certificate revoke failed: unauthorized (ownership) account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (unauthorized ownership)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized"
+
+    - name: "Enable challenge_validation_disable for CSR mismatch finalize"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      run: |
+        set -euo pipefail
+        sudo sed -i 's/challenge_validation_disable: False/challenge_validation_disable: True/' "${ACME_CFG}"
+        grep -n 'challenge_validation_disable' "${ACME_CFG}"
+        cd examples/Docker/
+        docker compose restart
+      shell: bash
+      env:
+        ACME_CFG: ${{ inputs.ACME_CFG }}
+
+    - name: "Wait for ACME directory after challenge_validation_disable enable"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+
+    - name: "Prepare wrong-domain CSR for finalize mismatch"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        set -euo pipefail
+        openssl req -new -newkey rsa:2048 -nodes \
+          -keyout /tmp/wrong-csr.key \
+          -outform DER -out /tmp/wrong-csr.der \
+          -subj "/CN=wrong-csr.bar.local" \
+          -addext "subjectAltName=DNS:wrong-csr.bar.local"
+        CSR_B64=$(python3 -c "import base64; print(base64.urlsafe_b64encode(open('/tmp/wrong-csr.der','rb').read()).decode().rstrip('='))")
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=cert-csr-mismatch@bar.local,
+        newOrder -identifiers=foo-csr-mismatch.bar.local
+        solve -order=0 -identifier=foo-csr-mismatch.bar.local -challengeType=http-01
+        poll -order=0
+        post -body='{"csr":"${CSR_B64}"}' {{ (order 0).Finalize }}
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell finalize with CSR vs order mismatch"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        cat acmeshell.enroll.log || true
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for badCSR (CSR mismatch)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:badCSR" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for CSR vs order mismatch WARNING"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Certificate enrollment failed: CSR vs order mismatch certificate="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (CSR mismatch badCSR)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:badCSR detail=CSR validation failed"
+
+    - name: "Restore challenge_validation_disable"
+      if: ${{ always() && inputs.DEPLOYMENT_TYPE == 'container' }}
+      run: |
+        set -euo pipefail
+        if grep -q 'challenge_validation_disable: True' "${ACME_CFG}"; then
+          sudo sed -i 's/challenge_validation_disable: True/challenge_validation_disable: False/' "${ACME_CFG}"
+          grep -n 'challenge_validation_disable' "${ACME_CFG}"
+          cd examples/Docker/
+          docker compose restart
+        fi
+      shell: bash
+      env:
+        ACME_CFG: ${{ inputs.ACME_CFG }}
+
+    - name: "Wait for ACME directory after challenge_validation_disable restore"
+      if: ${{ always() && inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}

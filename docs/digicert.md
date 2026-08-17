@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title CA handler for Digicert CertCentral -->
+<!-- wiki-title: CA Handler for Digicert CertCentral -->
+<!-- wiki-category: CA Handlers -->
 
 # Connecting to DigiCert CertCentral
 
@@ -20,7 +21,7 @@ This handler can be used to enroll certificates from [DigiCert CertCentral](http
 
 ```confag
 [CAhandler]
-handler_file: examples/ca_handler/digicert_ca_handler.py
+handler_module: acme2certifier.cahandlers.digicert_ca_handler
 api_key: <api_key>
 organization_name: <organization_name>
 
@@ -89,13 +90,13 @@ Example for lego:
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent cert_type=ssl_securesite_pro -d <fqdn> --http
 ```
 
-# eab profiling
+## EAB Profiling
 
 This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

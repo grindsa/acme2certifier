@@ -13,18 +13,8 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "EAB with ACME Profile - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 10s
-
-  - name: "EAB with ACME Profile - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "EAB with ACME Profile - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "EAB with ACME Profile - 01 - Enroll lego without profile_id"
     run: |
@@ -35,44 +25,25 @@ runs:
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server Authentication"
     shell: bash
 
-  - name: "EAB with ACME Profile - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 10s
-
   - name: "Check issuance log entry"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "issued for account" | grep "with EAB KID keyid_00" | grep "Serial:" | grep "SANs: \['DNS:lego.acme'\]"
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "issued for account" | grep "with EAB KID keyid_00" | grep "Serial:" | grep "SANs:"'
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "issued for account.*with EAB KID keyid_00.*Serial:.*SANs:"
+      REGEX: "true"
+      FLUSH: "false"
 
   - name: "EAB with ACME Profile - 01 - revoke lego"
     run: |
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke -s https://acme-srv --tls-skip-verify --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --cert.name lego.acme
     shell: bash
 
-  - name: "EAB with ACME Profile - Sleep for 20s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 20s
-
   - name: "Check Revocation log entry"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "revocation successful for account" | grep "with EAB KID" | grep "Serial" | grep "SANs: \['DNS:lego.acme'\]"
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "revocation successful for account" | grep "with EAB KID keyid_00"| grep "Serial:" | grep "SANs:"'
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "revocation successful for account.*with EAB KID.*Serial.*SANs:"
+      REGEX: "true"
 
   - name: "EAB with ACME Profile - 02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
     id: legofail01

@@ -26,14 +26,13 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from acme_srv.signature import Signature
+        from acme2certifier.acme_srv.signature import Signature
 
         self.signature = Signature(False, "http://tester.local", self.logger)
 
@@ -47,22 +46,32 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_002_signature_check(self):
         """test Signature.check() without having content"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:malformed", None),
-            self.signature.check("foo", None),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:malformed", None),
+                self.signature.check("foo", None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: empty content account=foo",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_003_signature_check(self, mock_jwk):
         """test Signature.check() while pubkey lookup failed"""
         mock_jwk.return_value = {}
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check("foo", 1),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check("foo", 1),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=foo",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
     def test_004_signature_check(self, mock_jwk, mock_sig):
         """test successful Signature.check()"""
         mock_jwk.return_value = {"foo": "bar"}
@@ -71,21 +80,31 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_005_signature_check(self):
         """test successful Signature.check() without account_name and use_emb_key False"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, 1, False),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, 1, False),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: missing kid and no embedded JWK",
+            lcm.output,
         )
 
     def test_006_signature_check(self):
         """test successful Signature.check() without account_name and use_emb_key True but having a corrupted protected header"""
         protected = {"foo": "foo"}
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, 1, True, protected),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, 1, True, protected),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: embedded JWK missing",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.DBstore")
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.DBstore")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_007_signature_check(self, mock_sig, mock_dbstore_class):
         """test successful Signature.check() with account_name and use_emb_key True, sigcheck returns something"""
         # Setup dbstore mock to return a key
@@ -97,13 +116,13 @@ class TestACMEHandler(unittest.TestCase):
         mock_sig.return_value = ("result", "error")
 
         # Create a new signature instance with the mocked dbstore
-        from acme_srv.signature import Signature
+        from acme2certifier.acme_srv.signature import Signature
 
         signature = Signature(False, "http://tester.local", self.logger)
 
         self.assertEqual(("result", "error", None), signature.check("foo", 1, True))
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_008_signature_check(self, mock_sig):
         """test successful Signature.check() without account_name and use_emb_key True, sigcheck returns something"""
         mock_sig.return_value = ("result", "error")
@@ -112,7 +131,7 @@ class TestACMEHandler(unittest.TestCase):
             ("result", "error", None), self.signature.check(None, 1, True, protected)
         )
 
-    @patch("acme_srv.signature.DBstore")
+    @patch("acme2certifier.acme_srv.signature.DBstore")
     def test_009_signature__jwk_load(self, mock_dbstore_class):
         """test jwk load  - dbstore.jwk_load() raises an exception"""
         # Setup mock to raise exception
@@ -121,7 +140,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_dbstore_class.return_value = mock_dbstore_instance
 
         # Create a new signature instance with the mocked dbstore
-        from acme_srv.signature import Signature
+        from acme2certifier.acme_srv.signature import Signature
 
         signature = Signature(False, "http://tester.local", self.logger)
 
@@ -132,7 +151,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_010_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  result and error"""
         content = "content"
@@ -142,7 +161,7 @@ class TestACMEHandler(unittest.TestCase):
             ("result", "error"), self.signature.eab_check(content, mac_key)
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_011_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  result no error"""
         content = "content"
@@ -150,7 +169,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_sigchk.return_value = ("result", None)
         self.assertEqual(("result", None), self.signature.eab_check(content, mac_key))
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_012_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  result false and  error"""
         content = "content"
@@ -158,7 +177,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_sigchk.return_value = (False, "error")
         self.assertEqual((False, "error"), self.signature.eab_check(content, mac_key))
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_013_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  content None"""
         content = None
@@ -169,7 +188,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.eab_check(content, mac_key),
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_014_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  mac_key None"""
         content = "content"
@@ -180,7 +199,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.eab_check(content, mac_key),
         )
 
-    @patch("acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
     def test_015_signature_eab_check(self, mock_sigchk):
         """test eab_check  -  mac_key and content None"""
         content = None
@@ -191,7 +210,7 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.eab_check(content, mac_key),
         )
 
-    @patch("acme_srv.signature.load_config")
+    @patch("acme2certifier.acme_srv.signature.load_config")
     def test_016__init(self, mock_load_cfg):
         """test _config_load account with url prefix without tailing slash configured"""
         parser = configparser.ConfigParser()
@@ -200,7 +219,7 @@ class TestACMEHandler(unittest.TestCase):
         self.signature.__init__(False, "http://tester.local", self.logger)
         self.assertEqual("url_prefix/acme/revokecert", self.signature.revocation_path)
 
-    @patch("acme_srv.signature.load_config")
+    @patch("acme2certifier.acme_srv.signature.load_config")
     def test_017__init(self, mock_load_cfg):
         """test _config_load account with url prefix without tailing slash configured"""
         parser = configparser.ConfigParser()
@@ -209,8 +228,8 @@ class TestACMEHandler(unittest.TestCase):
         self.signature.__init__(False, "http://tester.local", self.logger)
         self.assertEqual("/acme/revokecert", self.signature.revocation_path)
 
-    @patch("acme_srv.signature.load_config")
-    def test_016__init_empty(self, mock_load_cfg):
+    @patch("acme2certifier.acme_srv.signature.load_config")
+    def test_018__init_empty(self, mock_load_cfg):
         """test _config_load account with url prefix without tailing slash configured"""
         parser = configparser.ConfigParser()
         parser["CAHandler"] = {"foo": "bar"}
@@ -218,117 +237,167 @@ class TestACMEHandler(unittest.TestCase):
         self.signature.__init__(False, "http://tester.local", self.logger)
         self.assertEqual("/acme/revokecert", self.signature.revocation_path)
 
-    def test_018_signature_check(self):
-        """test Signature.cli_check() without having aname"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.cli_check(None, "content"),
-        )
-
     def test_019_signature_check(self):
-        """test Signature.check() without having content"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:malformed", None),
-            self.signature.cli_check("foo", None),
+        """test Signature.cli_check() without having aname"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.cli_check(None, "content"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=None",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.Signature._jwk_loader")
-    def test_020_signature_check(self, mock_jwk):
+    def test_020_signature_check(self):
+        """test Signature.check() without having content"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:malformed", None),
+                self.signature.cli_check("foo", None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: empty content account=foo",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
+    def test_021_signature_check(self, mock_jwk):
         """test Signature.check() while pubkey lookup failed"""
         mock_jwk.return_value = {}
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.cli_check("foo", 1),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.cli_check("foo", 1),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=foo",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
-    def test_021_signature_check(self, mock_jwk, mock_sig):
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
+    def test_022_signature_check(self, mock_jwk, mock_sig):
         """test successful Signature.check()"""
         mock_jwk.return_value = {"foo": "bar"}
         mock_sig.return_value = (True, None)
         self.assertEqual((True, None, None), self.signature.cli_check("foo", 1))
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
-    def test_022_signature_check(self, mock_jwk, mock_sig):
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
+    def test_023_signature_check(self, mock_jwk, mock_sig):
         """test successful Signature.check() without account_name  sigcheck returns something"""
         mock_jwk.return_value = {"foo": "bar"}
         mock_sig.return_value = ("result", "error")
         self.assertEqual(("result", "error", None), self.signature.cli_check("foo", 1))
 
-    def test_023_cli_check_no_content(self):
+    def test_024_cli_check_no_content(self):
         """Signature.cli_check() returns malformed error if content is None"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:malformed", None),
-            self.signature.cli_check("foo", None),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:malformed", None),
+                self.signature.cli_check("foo", None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: empty content account=foo",
+            lcm.output,
         )
 
-    def test_024_cli_check_no_aname(self):
+    def test_025_cli_check_no_aname(self):
         """Signature.cli_check() returns accountDoesNotExist error if aname is None"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.cli_check(None, "content"),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.cli_check(None, "content"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=None",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.Signature._jwk_loader")
-    def test_025_cli_check_pubkey_none(self, mock_jwk):
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
+    def test_026_cli_check_pubkey_none(self, mock_jwk):
         """Signature.cli_check() returns accountDoesNotExist error if pubkey is None"""
         mock_jwk.return_value = None
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.cli_check("foo", "content"),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.cli_check("foo", "content"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=foo",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
-    def test_026_cli_check_success(self, mock_jwk, mock_sig):
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
+    def test_027_cli_check_success(self, mock_jwk, mock_sig):
         """Signature.cli_check() returns result from signature_check"""
         mock_jwk.return_value = {"foo": "bar"}
         mock_sig.return_value = (True, None)
         self.assertEqual((True, None, None), self.signature.cli_check("foo", "content"))
 
-    def test_027_check_no_content(self):
+    def test_028_check_no_content(self):
         """Signature.check() returns malformed error if content is None"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:malformed", None),
-            self.signature.check("foo", None),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:malformed", None),
+                self.signature.check("foo", None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: empty content account=foo",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.Signature._jwk_loader")
-    def test_028_check_pubkey_none(self, mock_jwk):
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
+    def test_029_check_pubkey_none(self, mock_jwk):
         """Signature.check() returns accountDoesNotExist error if pubkey is None"""
         mock_jwk.return_value = None
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check("foo", "content"),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check("foo", "content"),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: account does not exist account=foo",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.signature_check")
-    @patch("acme_srv.signature.Signature._jwk_loader")
-    def test_029_check_success(self, mock_jwk, mock_sig):
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
+    def test_030_check_success(self, mock_jwk, mock_sig):
         """Signature.check() returns result from signature_check"""
         mock_jwk.return_value = {"foo": "bar"}
         mock_sig.return_value = (True, None)
         self.assertEqual((True, None, None), self.signature.check("foo", "content"))
 
-    def test_030_check_emb_key_no_protected(self):
+    def test_031_check_emb_key_no_protected(self):
         """Signature.check() returns accountDoesNotExist error if use_emb_key True but protected is None"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, "content", True, None),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, "content", True, None),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: embedded JWK missing",
+            lcm.output,
         )
 
-    def test_031_check_emb_key_no_jwk(self):
+    def test_032_check_emb_key_no_jwk(self):
         """Signature.check() returns accountDoesNotExist error if use_emb_key True but protected lacks jwk"""
         protected = {"foo": "bar"}
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, "content", True, protected),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, "content", True, protected),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: embedded JWK missing",
+            lcm.output,
         )
 
-    @patch("acme_srv.signature.signature_check")
-    def test_032_check_emb_key_success(self, mock_sig):
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    def test_033_check_emb_key_success(self, mock_sig):
         """Signature.check() returns result from signature_check with embedded jwk"""
         protected = {"jwk": {"foo": "bar"}}
         mock_sig.return_value = (True, None)
@@ -336,35 +405,40 @@ class TestACMEHandler(unittest.TestCase):
             (True, None, None), self.signature.check(None, "content", True, protected)
         )
 
-    def test_033_check_no_aname_no_emb_key(self):
+    def test_034_check_no_aname_no_emb_key(self):
         """Signature.check() returns accountDoesNotExist error if no aname and use_emb_key False"""
-        self.assertEqual(
-            (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
-            self.signature.check(None, "content", False),
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (False, "urn:ietf:params:acme:error:accountDoesNotExist", None),
+                self.signature.check(None, "content", False),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Signature check failed: missing kid and no embedded JWK",
+            lcm.output,
         )
 
-    def test_034_eab_check_no_content(self):
+    def test_035_eab_check_no_content(self):
         """Signature.eab_check() returns malformed error if content is None"""
         self.assertEqual(
             (False, "urn:ietf:params:acme:error:malformed"),
             self.signature.eab_check(None, "mac_key"),
         )
 
-    def test_035_eab_check_no_mac_key(self):
+    def test_036_eab_check_no_mac_key(self):
         """Signature.eab_check() returns malformed error if mac_key is None"""
         self.assertEqual(
             (False, "urn:ietf:params:acme:error:malformed"),
             self.signature.eab_check("content", None),
         )
 
-    @patch("acme_srv.signature.signature_check")
-    def test_036_eab_check_success(self, mock_sig):
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    def test_037_eab_check_success(self, mock_sig):
         """Signature.eab_check() returns result from signature_check"""
         mock_sig.return_value = (True, None)
         self.assertEqual((True, None), self.signature.eab_check("content", "mac_key"))
 
-    @patch("acme_srv.signature.signature_check")
-    def test_037_eab_check_error(self, mock_sig):
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    def test_038_eab_check_error(self, mock_sig):
         """Signature.eab_check() returns error from signature_check"""
         mock_sig.return_value = (False, "error")
         self.assertEqual(

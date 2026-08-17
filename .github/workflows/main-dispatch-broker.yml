@@ -1,35 +1,76 @@
-
-name: dispatch-broker
+name: Dispatch - Test workflows
 on:
   repository_dispatch:
-    types: [ artifacts_ready ]
+    types: [artifacts_ready]
+
+concurrency:
+  group: dispatch-broker-${{ github.event.client_payload.branch || github.run_id }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   guard:
+    permissions: {}
+    name: Validate dispatch payload
     runs-on: ubuntu-latest
-    if: >
-      ${{
-        github.event.client_payload.sha != '' &&
-        github.event.client_payload.run_id != '' &&
-        github.event.client_payload.branch != ''
-      }}
+    if: github.repository == 'grindsa/acme2certifier'
+    outputs:
+      ref: ${{ steps.validate.outputs.ref }}
     steps:
-      - run: |
-          echo "Triggered by SHA:    ${{ github.event.client_payload.sha }}"
-          echo "From branch:         ${{ github.event.client_payload.branch }}"
-          echo "Producer run_id:     ${{ github.event.client_payload.run_id }}"
-          echo "Called by workflow:  ${{ github.event.client_payload.called_by_workflow }}"
+      - name: Validate client_payload
+        id: validate
+        env:
+          SHA: ${{ github.event.client_payload.sha }}
+          RUN_ID: ${{ github.event.client_payload.run_id }}
+          BRANCH: ${{ github.event.client_payload.branch }}
+          FULL_REF: ${{ github.event.client_payload.full_ref }}
+          CALLED_BY: ${{ github.event.client_payload.called_by_workflow }}
+        run: |
+          set -euo pipefail
+          fail() { echo "ERROR: $1" >&2; exit 1; }
+          [[ -n "${SHA}" ]] || fail "client_payload.sha is empty"
+          [[ -n "${RUN_ID}" ]] || fail "client_payload.run_id is empty"
+          [[ -n "${BRANCH}" ]] || fail "client_payload.branch is empty"
+          if [[ "${FULL_REF}" == refs/heads/* ]]; then
+            REF="${FULL_REF#refs/heads/}"
+          elif [[ "${FULL_REF}" == refs/tags/* ]]; then
+            REF="${FULL_REF#refs/tags/}"
+          elif [[ -n "${FULL_REF}" ]]; then
+            REF="${FULL_REF}"
+          else
+            REF="${BRANCH}"
+          fi
+          echo "Triggered by SHA:    ${SHA}"
+          echo "From branch:         ${BRANCH}"
+          echo "Dispatch ref:        ${REF}"
+          echo "Producer run_id:     ${RUN_ID}"
+          echo "Called by workflow:  ${CALLED_BY}"
+          echo "ref=${REF}" >> "${GITHUB_OUTPUT}"
 
   dispatch-broker:
+    name: Dispatch test workflows
     runs-on: ubuntu-latest
     needs: guard
-    if: ${{ !startsWith(github.event.client_payload.branch, 'wf_') }}
+    permissions:
+      contents: read
+      actions: write
+    if: >
+      github.repository == 'grindsa/acme2certifier' &&
+      !startsWith(github.event.client_payload.branch, 'wf_')
     steps:
-      - name: dispatch-broker
-        uses: grindsa/dispatch-broker-action@v1
+      - name: Dispatch broker
+        uses: grindsa/dispatch-broker-action@11e2c684a324cbbcdd76063e839b4c36b5a30d37 # v1
         with:
           token: ${{ secrets.GH_WF_TOKEN }}
           repository: ${{ github.repository }}
-          ref: ${{ github.event.client_payload.branch }}
+          ref: ${{ needs.guard.outputs.ref }}
           client_payload: ${{ toJson(github.event.client_payload) }}
-          exclude_workflows: "main-build.yml, main-dispatch-broker.yml"
+          exclude_workflows: >-
+            main-build.yml,
+            main-dispatch-broker.yml,
+            main-push-rpm.yml,
+            main-create-release-push-images-to-dockerhub.yml,
+            publish-pypi.yml,
+            helper-dump-secrets.yml,
+            quality-codescanner.yml

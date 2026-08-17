@@ -24,7 +24,7 @@ class TestACMEHandler(unittest.TestCase):
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from examples.eab_handler.json_handler import EABhandler
+        from acme2certifier.eabhandlers.json_handler import EABhandler
 
         self.eabhandler = EABhandler(self.logger)
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -33,14 +33,14 @@ class TestACMEHandler(unittest.TestCase):
         """default test which always passes"""
         self.assertEqual("foo", "foo")
 
-    @patch("examples.eab_handler.json_handler.EABhandler._config_load")
+    @patch("acme2certifier.eabhandlers.json_handler.EABhandler._config_load")
     def test_002__enter__(self, mock_cfg):
         """test enter  called"""
         mock_cfg.return_value = True
         self.eabhandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    @patch("examples.eab_handler.json_handler.load_config")
+    @patch("acme2certifier.eabhandlers.json_handler.load_config")
     def test_003_config_load(self, mock_load_cfg):
         """test _config_load - empty dictionary"""
         parser = configparser.ConfigParser()
@@ -48,7 +48,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("examples.eab_handler.json_handler.load_config")
+    @patch("acme2certifier.eabhandlers.json_handler.load_config")
     def test_004_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()
@@ -57,7 +57,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("examples.eab_handler.json_handler.load_config")
+    @patch("acme2certifier.eabhandlers.json_handler.load_config")
     def test_005_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()
@@ -66,7 +66,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("examples.eab_handler.json_handler.load_config")
+    @patch("acme2certifier.eabhandlers.json_handler.load_config")
     def test_006_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()
@@ -76,26 +76,44 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("key_file", self.eabhandler.key_file)
 
     def test_007_mac_key_get(self):
-        """test mac_key_get without file specified"""
-        self.assertFalse(self.eabhandler.mac_key_get(None))
+        """test mac_key_get without file specified and without kid"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get(None))
+        self.assertIn("WARNING:test_a2c:MAC key retrieval failed: kid=None", lcm.output)
+
+    def test_008_mac_key_get_missing_key_file(self):
+        """test mac_key_get with kid but no key_file"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: key_file is None",
+            lcm.output,
+        )
 
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_008_mac_key_get(self):
+    def test_009_mac_key_get(self):
         """test mac_key_get with file but no kid"""
         self.eabhandler.key_file = "file"
-        self.assertFalse(self.eabhandler.mac_key_get(None))
-
-    @patch("json.load")
-    @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_009_mac_key_get(self, mock_json):
-        """test mac_key_get json reader return bogus values"""
-        self.eabhandler.key_file = "file"
-        mock_json.return_value = {"foo", "bar"}
-        self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get(None))
+        self.assertIn("WARNING:test_a2c:MAC key retrieval failed: kid=None", lcm.output)
 
     @patch("json.load")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
     def test_010_mac_key_get(self, mock_json):
+        """test mac_key_get json reader return bogus values"""
+        self.eabhandler.key_file = "file"
+        mock_json.return_value = {"foo", "bar"}
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: kid=kid not found in key file",
+            lcm.output,
+        )
+
+    @patch("json.load")
+    @patch("builtins.open", mock_open(read_data="foo"), create=True)
+    def test_011_mac_key_get(self, mock_json):
         """test mac_key_get json match"""
         self.eabhandler.key_file = "file"
         mock_json.return_value = {"kid": "mac"}
@@ -103,15 +121,20 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.load")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_011_mac_key_get(self, mock_json):
+    def test_012_mac_key_get(self, mock_json):
         """test mac_key_get json no match"""
         self.eabhandler.key_file = "file"
         mock_json.return_value = {"kid1": "mac"}
-        self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(self.eabhandler.mac_key_get("kid"))
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: kid=kid not found in key file",
+            lcm.output,
+        )
 
     @patch("json.load")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_012_mac_key_get(self, mock_json):
+    def test_013_mac_key_get(self, mock_json):
         """test mac_key_get json load exception"""
         self.eabhandler.key_file = "file"
         mock_json.side_effect = Exception("ex_json_load")
@@ -119,6 +142,10 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.eabhandler.mac_key_get("kid"))
         self.assertIn(
             "ERROR:test_a2c:Failed to load EAB key file: ex_json_load", lcm.output
+        )
+        self.assertIn(
+            "WARNING:test_a2c:MAC key retrieval failed: kid=kid not found in key file",
+            lcm.output,
         )
 
 

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Enrollment profiling via external account binding -->
+<!-- wiki-title: Enrollment profiling via external account binding -->
+<!-- wiki-category: Features -->
 
 # Enrollment profiling via external account binding
 
@@ -14,7 +15,7 @@ Currently the following ca-handlers have been modified and support this feature:
 - [Insta ActiveCMS](asa.md)
 - [Insta certifier/NetGuard Certificate manager](certifier.md)
 - [Microsoft Certificate Enrollment Web Services](mscertsrv.md)
-- [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](mswcce.md)
+- [Microsoft ICertPassage Remote Protocol (MS-ICPR) via SMB/DCE-RPC](msicpr.md)
 - [OpenXPKI](openxpki.md)
 - [Vault](vault.md)
 - [XCA](xca.md)
@@ -27,7 +28,7 @@ This feature requires [external account binding](eab.md) to be enabled and a spe
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: volume/kid_profiles.json
 eab_profiling: True
 ```
@@ -60,6 +61,9 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
   },
   "keyid_02": {
     "hmac": "hmac-key",
+    "order": {
+      "profiles_check_disable": "True"
+    },
     "challenge": {
       "challenge_validation_disable": "True",
       "foward_address_check": "True",
@@ -76,8 +80,8 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
 
 - ACME accounts created with keyid "keyid_00" will always use profile-id "profile_1" and specific api-user credentials for enrollment from certificate authority "non_default_ca". Further, the SANs/Common Names to be used in enrollment requests are restricted to the domains "example.com", "example.org" and "example.fi".
 - ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg. Furthermore the challenge validation got disabled for this user which means that acme2certifier will accept any CN/SAN matching the pattern "*.example.fi" or "*.acme".
-- ACME accounts created with keyid "keyid_02" do not have any special enrollment configuration as all parameters will be taken from the \[CAhandler\] section in ´acme_srv.cfg´. Furthermore, challenge validation got disabled and both forward and reverse address checking gets activated.
-- ACME accounts created with keyid "keyid_03" can use the [pre-validation domainlist](identifier_prevalidation.md) feature to enroll certificates for "www.example.fi" and "\*.acme" without challenge-validation
+- ACME accounts created with keyid "keyid_02" do not have any special enrollment configuration as all parameters will be taken from the \[CAhandler\] section in ´acme_srv.cfg´. Furthermore, challenge validation got disabled, ACME profile-name validation is skipped (`order.profiles_check_disable`), and both forward and reverse address checking gets activated.
+- ACME accounts created with keyid "keyid_03" can use the [pre-validation domainlist](identifier_prevalidation.md) feature to enroll certificates for `www.example.fi` and `*.acme` without challenge-validation
 
 Starting from v0.36 acme2certifier does support profile configuration in yaml format. Below a configuration example providing the same level of functionality as the above JSON configuration
 
@@ -110,8 +114,10 @@ keyid_01:
 
 keyid_02:
   hmac: "hmac-key"
+  order:
+    profiles_check_disable: True
   challenge:
-    challenge_validation_disable": True
+    challenge_validation_disable: True
     forward_address_check: True
     reverse_address_check: True
 
@@ -122,6 +128,8 @@ keyid_03:
     - "www.example.fi"
     - "*.acme"
 ```
+
+An optional desktop helper to create and edit `kid_profiles` YAML is available in the [a2c-eab-profile-editor](https://github.com/grindsa/a2c-eab-profile-editor) repository.
 
 ## Subject Profiling
 
@@ -163,16 +171,16 @@ The below example configuration will only allow CSR matching the following crite
 
 ## Profile verification
 
-The key file can be checked for consistency by using the `tools/eab_chk.py` utility.
+The key file can be checked for consistency with `python3 -m acme2certifier.tools.a2c_eab_chk` .
 
 ```bash
- py /var/www/acme2certifier/tools/eab_chk.py --help
+ python3 -m acme2certifier.tools.a2c_eab_chk --help
 ```
 
 ```bash
-usage: eab_chk.py [-h] -c CONFIGFILE [-d] [-v] [-vv] [-k KEYID | -s]
+usage: a2c-eab-chk [-h] -c CONFIGFILE [-d] [-v] [-vv] [-k KEYID | -s]
 
-eab_chk.py - verify eab keyfile
+a2c-eab-chk - verify eab keyfile
 
 options:
   -h, --help            show this help message and exit
@@ -191,7 +199,7 @@ Below is an example output by using the above mentioned keyfile
 - show a summary only
 
 ```bash
-py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg
+python3 -m acme2certifier.tools.a2c_eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg
 ```
 
 ```bash
@@ -201,7 +209,7 @@ Summary: 4 entries in kid_file
 - show keyids and hmac
 
 ```bash
- py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
+ python3 -m acme2certifier.tools.a2c_eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
 ```
 
 ```bash
@@ -215,7 +223,7 @@ keyid_03: YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMj
 - show profiles
 
 ```bash
-py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -vv
+python3 -m acme2certifier.tools.a2c_eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -vv
 ```
 
 ```bash
@@ -258,7 +266,7 @@ keyid_03:
 - filter output to a single keyid
 
 ```bash
-py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -k keyid_01
+python3 -m acme2certifier.tools.a2c_eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -k keyid_01
 ```
 
 ```bash

@@ -15,6 +15,11 @@ runs:
   using: "composite"
   steps:
 
+  - name: "Pull acme.sh image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: neilpang/acme.sh:latest
+
   - name: "Prepare acme.sh container"
     run: |
       docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon

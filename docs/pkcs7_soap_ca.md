@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title SOAP CA Handler Prototype -->
+<!-- wiki-title: SOAP CA Handler Prototype -->
+<!-- wiki-category: CA Handlers -->
 
 # SOAP CA Handler
 
@@ -21,7 +22,7 @@ Modify the server configuration (`acme_srv/acme_srv.cfg`) and add the following 
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/pkcs7_soap_ca_handler.py
+handler_module: acme2certifier.cahandlers.pkcs7_soap_ca_handler
 soap_srv: http[s]://<ip>:<port>
 signing_key: <filename>
 signing_cert: <filename>

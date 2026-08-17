@@ -1,0 +1,138 @@
+name: "letsencrypt_prep"
+description: "Configure acme_ca_handler for live LE staging with CF or ACMEDNS DNS-01"
+inputs:
+  VOLUME_DIR:
+    description: "Volume directory for acme_srv.cfg"
+    required: true
+  DNS_PROVIDER:
+    description: "cloudflare | acmedns"
+    required: true
+  ACME_KEYFILE:
+    description: "Path to LE account keyfile as seen by handler"
+    required: true
+  ACME_SH_SCRIPT:
+    description: "Path to acme.sh as seen by handler"
+    required: true
+  DNS_UPDATE_SCRIPT:
+    description: "Path to dns api script as seen by handler"
+    required: true
+  ACME_ACCOUNT_EMAIL:
+    description: "LE account email"
+    required: true
+  DEST_DIR:
+    description: "Host directory to place acme.sh scripts"
+    required: true
+  CF_TOKEN:
+    description: "Cloudflare API token (cloudflare provider)"
+    required: false
+    default: ""
+  CF_ZONE_ID:
+    description: "Cloudflare zone id (cloudflare provider)"
+    required: false
+    default: ""
+  ACMEDNS_USERNAME:
+    description: "acme-dns username"
+    required: false
+    default: ""
+  ACMEDNS_PASSWORD:
+    description: "acme-dns password"
+    required: false
+    default: ""
+  ACMEDNS_SUBDOMAIN:
+    description: "acme-dns subdomain"
+    required: false
+    default: ""
+  ACMEDNS_BASE_URL:
+    description: "acme-dns base URL"
+    required: false
+    default: "https://auth.acme-dns.io"
+  DNS_VALIDATION_TIMEOUT:
+    description: "Handler dns_validation_timeout seconds"
+    required: false
+    default: "120"
+  ENROLLMENT_TIMEOUT:
+    description: "Certificate enrollment_timeout seconds"
+    required: false
+    default: "600"
+  ALLOWED_DOMAINLIST:
+    description: "allowed_domainlist JSON array string"
+    required: false
+    default: '["bar.local", "*.acme.dynamop.de"]'
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Validate DNS_PROVIDER"
+      run: |
+        set -euo pipefail
+        case "${DNS_PROVIDER}" in
+          cloudflare|acmedns) ;;
+          *) echo "Unsupported DNS_PROVIDER=${DNS_PROVIDER}" >&2; exit 1 ;;
+        esac
+      shell: bash
+      env:
+        DNS_PROVIDER: ${{ inputs.DNS_PROVIDER }}
+
+    - name: "Setup acme ca_handler (cloudflare)"
+      if: inputs.DNS_PROVIDER == 'cloudflare'
+      uses: ./.github/actions/setup_cahandler_cfg
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+        OPTIONS: |
+          acme_keyfile: ${{ inputs.ACME_KEYFILE }}
+          acme_url: https://acme-staging-v02.api.letsencrypt.org
+          acme_account_email: ${{ inputs.ACME_ACCOUNT_EMAIL }}
+          acme_sh_script: ${{ inputs.ACME_SH_SCRIPT }}
+          dns_update_script: ${{ inputs.DNS_UPDATE_SCRIPT }}
+          dns_update_script_variables: {"CF_Token": "${{ inputs.CF_TOKEN }}", "CF_Zone_ID": "${{ inputs.CF_ZONE_ID }}"}
+          acme_sh_shell: /bin/bash
+          dns_validation_timeout: ${{ inputs.DNS_VALIDATION_TIMEOUT }}
+          enrollment_config_log: True
+          profiles_sync: True
+          renewalinfo_lookup: True
+          allowed_domainlist: ${{ inputs.ALLOWED_DOMAINLIST }}
+        CERTIFICATE_OPTIONS: |
+          enrollment_timeout: ${{ inputs.ENROLLMENT_TIMEOUT }}
+
+    - name: "Setup acme ca_handler (acmedns)"
+      if: inputs.DNS_PROVIDER == 'acmedns'
+      uses: ./.github/actions/setup_cahandler_cfg
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+        OPTIONS: |
+          acme_keyfile: ${{ inputs.ACME_KEYFILE }}
+          acme_url: https://acme-staging-v02.api.letsencrypt.org
+          acme_account_email: ${{ inputs.ACME_ACCOUNT_EMAIL }}
+          acme_sh_script: ${{ inputs.ACME_SH_SCRIPT }}
+          dns_update_script: ${{ inputs.DNS_UPDATE_SCRIPT }}
+          dns_update_script_variables: {"ACMEDNS_USERNAME": "${{ inputs.ACMEDNS_USERNAME }}", "ACMEDNS_PASSWORD": "${{ inputs.ACMEDNS_PASSWORD }}", "ACMEDNS_BASE_URL": "${{ inputs.ACMEDNS_BASE_URL }}", "ACMEDNS_SUBDOMAIN": "${{ inputs.ACMEDNS_SUBDOMAIN }}"}
+          acme_sh_shell: /bin/bash
+          dns_validation_timeout: ${{ inputs.DNS_VALIDATION_TIMEOUT }}
+          enrollment_config_log: True
+          profiles_sync: True
+          renewalinfo_lookup: True
+          allowed_domainlist: ${{ inputs.ALLOWED_DOMAINLIST }}
+        CERTIFICATE_OPTIONS: |
+          enrollment_timeout: ${{ inputs.ENROLLMENT_TIMEOUT }}
+
+    - name: "Fetch acme.sh (cloudflare)"
+      if: inputs.DNS_PROVIDER == 'cloudflare'
+      uses: ./.github/actions/wf_specific/acme_ca_handler/fetch_acmesh
+      with:
+        DEST_DIR: ${{ inputs.DEST_DIR }}
+        DNS_API: dns_cf.sh
+
+    - name: "Fetch acme.sh (acmedns)"
+      if: inputs.DNS_PROVIDER == 'acmedns'
+      uses: ./.github/actions/wf_specific/acme_ca_handler/fetch_acmesh
+      with:
+        DEST_DIR: ${{ inputs.DEST_DIR }}
+        DNS_API: dns_acmedns.sh
+
+    - name: "Post-cfg common"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        ACME_SUBDIR: ""

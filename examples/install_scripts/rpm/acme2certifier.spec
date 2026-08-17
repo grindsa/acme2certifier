@@ -1,14 +1,20 @@
-
+# Dual-EL noarch packaging (see docs/architecture/rpm-el-packaging.md):
+#   acme2certifier-min           — /opt payload (no python*-* module Requires)
+#   acme2certifier-min-python3   — system python3-* (EL9 default 3.9 / EL8 legacy 3.6)
+#   acme2certifier-min-python39  — parallel Python 3.9 (EL8 default)
+#
 # Disable automatic requires/provides processing
 AutoReqProv: no
 
 %global         projname        acme2certifier
 %global         __python        %{__python3}
 %global         dest_dir        /opt
+%global         app_root        %{dest_dir}/%{projname}
+%global         python_confdir  %{_sysconfdir}/%{projname}
 %{!?_unitdir: %global _unitdir /usr/lib/systemd/system}
 
-Summary:        library implementing ACME server functionality
-Name:           acme2certifier
+Summary:        library implementing ACME server functionality (min edition)
+Name:           acme2certifier-min
 
 %define         ghowner   		grindsa
 
@@ -16,12 +22,41 @@ Version:        __version__
 Release:        1.0
 License:        GPL3; @grindsa@github
 URL:            https://github.com/grindsa/acme2certifier
-Requires:       nginx
-# EPEL repo required
-Requires:       policycoreutils-python-utils
-Requires:       uwsgi-plugin-python3
-Requires:       python3-uwsgidecorators
+
+# OS / packaging helpers only — Python modules live on flavor subpackages
 Requires:       tar
+Requires(post): policycoreutils
+Requires:       policycoreutils-python-utils
+Conflicts:      acme2certifier
+
+# Web stack is operator-chosen (nginx+uWSGI or httpd+mod_wsgi).
+# Matching uWSGI Python plugin is Recommended on each flavor.
+Recommends:      nginx
+Recommends:      krb5-workstation
+Recommends:      krb5-libs
+
+BuildArch:		noarch
+
+Source0:        %{name}-%{version}.tar.gz
+
+%description
+acme2certifier-min is the reduced ACME protocol proxy for CA servers that do
+not speak ACME natively. It installs under %{app_root} (PYTHONPATH=%{app_root}).
+
+Included CA handlers: ASA, Insta Certifier, NCLM, MS-WCCE.
+
+Install a Python flavor metapackage for module dependencies:
+
+  - acme2certifier-min-python39  — EL8 default (parallel Python 3.9)
+  - acme2certifier-min-python3   — EL9 default (system 3.9) / EL8 legacy (system 3.6)
+
+Conflicts with the full acme2certifier RPM (shared /opt/acme2certifier layout).
+See docs/architecture/rpm-el-packaging.md and docs/install_rpm.md.
+
+%package python3
+Summary:        acme2certifier-min runtime for system Python 3 (python3-*)
+Requires:       %{name} = %{version}-%{release}
+Requires:       python3
 Requires:       python3-dateutil
 Requires:       python3-pytz
 Requires:       python3-setuptools
@@ -29,8 +64,6 @@ Requires:       python3-jwcrypto
 Requires:       python3-cryptography
 Requires:       python3-pyOpenSSL
 Requires:       python3-dns
-Requires:       python3-configargparse
-Requires:       python3-dateutil
 Requires:       python3-requests
 Requires:       python3-requests-pkcs12
 Requires:       python3-pysocks
@@ -40,140 +73,216 @@ Requires:       python3-xmltodict
 Requires:       python3-pyasn1
 Requires:       python3-pyasn1-modules
 Requires:       python3-pyyaml
-Requires(post): policycoreutils
-# Weak dependency for dataclasses - will install if available, won't fail if not
-Recommends:     python3-dataclasses
-Recommends:     krb5-workstation
-Recommends:     krb5-libs
+Recommends:      uwsgi-plugin-python3
+Recommends:      python3-uwsgidecorators
+Recommends:      python3-dataclasses
+Conflicts:      acme2certifier-min-python39
+Conflicts:      acme2certifier-min-python3.11
+Conflicts:      acme2certifier-python3
+Conflicts:      acme2certifier-python39
+Conflicts:      acme2certifier-python3.11
 
+%description python3
+Python flavor for acme2certifier-min using system python3-* modules.
 
-BuildArch:		noarch
+  - EL9: default (system Python 3.9)
+  - EL8: legacy/fallback (system Python 3.6)
 
+Writes %{python_confdir}/python.conf, sets uWSGI plugins = python3,
+and conflicts with other flavors.
 
-Source0:        %{name}-%{version}.tar.gz
+%package python39
+Summary:        acme2certifier-min runtime for Python 3.9 (python39-*)
+Requires:       %{name} = %{version}-%{release}
+Requires:       python39
+Requires:       python39-dateutil
+Requires:       python39-pytz
+Requires:       python39-setuptools
+Requires:       python39-jwcrypto
+Requires:       python39-cryptography
+Requires:       python39-pyOpenSSL
+Requires:       python39-dns
+Requires:       python39-requests
+Requires:       python39-requests-pkcs12
+Requires:       python39-pysocks
+Requires:       python39-josepy
+Requires:       python39-acme
+Requires:       python39-xmltodict
+Requires:       python39-pyasn1
+Requires:       python39-pyasn1-modules
+Requires:       python39-pyyaml
+Recommends:      uwsgi-plugin-python39
+Conflicts:      acme2certifier-min-python3
+Conflicts:      acme2certifier-min-python3.11
+Conflicts:      acme2certifier-python3
+Conflicts:      acme2certifier-python39
+Conflicts:      acme2certifier-python3.11
 
-%description
-acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet. It consists of two libraries:
+%description python39
+Python flavor for acme2certifier-min using python39-* modules (EL8 default app runtime).
 
-- acme_srv/*.py - a bunch of classes implementing ACME server functionality based on rfc8555
-- ca_handler.py - interface towards CA server. The intention of this library is to be
-  modular that an adaption to other CA servers should be straight forward. As of
-  today the following handlers are available:
-
-  - DigiCert® CertCentral
-  - Dogtag Certificate System
-  - Entrust ECS Enterprise
-  - Keyfactor EJBCA
-  - Generic ACME protocol handler supporting Letsencrypt, ZeroSSL and others
-  - Generic EST protocol handler
-  - Generic CMPv2 protocol handler
-  - FreeIPA
-  - Hashicorp Vault
-  - Insta ActiveCMS
-  - Insta Certifier
-  - Microsoft Certificate Enrollment Web Services
-  - Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)
-  - NetGuard Certificate Manager
-  - NetGuard Certificate Lifecycle Manager
-  - Microsoft Certificate Enrollment Web Services
-  - Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM
-  - OpenSSL
-  - OpenXPKI
-  - XCA
-
-For more up-to-date information and further documentation, please visit the project's
-home page at: https://github.com/grindsa/acme2certifier
-
-Remember to:
-  - enable acme2certifer service
-	  sudo systemctl enable acme2certifier.service
-	  sudo systemctl start acme2certifier.service
-  - active acme2certifier in your nginx configuration
-	  cp /opt/acme2certifer/examples/nginx/nginx_acme_srv[_ssl].conf /etc/nginx/conf.d
-  - enable and start nginx service
-	  sudo systemctl enable nginx.service
-	  sudo systemctl start nginx.service
+Writes %{python_confdir}/python.conf, sets uWSGI plugins = python39,
+and conflicts with other flavors.
+Missing modules / uwsgi-plugin-python39 may come from AppStream/EPEL
+or project-provided RPMs.
 
 %prep
 %autosetup -p1 -n %{name}-%{?ghsha}%{?!ghsha:%{version}} -N
 
 %build
-# nothing to build
-
+# Pure-Python; no compile step. Files are staged under /opt for dual-EL.
 
 %install
-# Main
+APP=%{buildroot}%{app_root}
 %{__mkdir_p} \
-    %{buildroot}%{_datadir} \
+    "$APP" \
+    "$APP/examples" \
     %{buildroot}%{_unitdir} \
-    %{buildroot}%{dest_dir}/%{name}/examples \
-	%{buildroot}%{_docdir}/%{projname} \
-    #\
-    #%{buildroot}%{_sysconfdir}/httpd/conf.d \
+    %{buildroot}%{_bindir} \
+    %{buildroot}%{_docdir}/%{projname} \
+    %{buildroot}%{python_confdir}
 
-# %{__cp} -a . %{buildroot}%{dest_dir}/%{projname}
-%{__cp} -a acme_srv tools %{buildroot}%{dest_dir}/%{projname}
-%{__cp} -a examples/ca_handler examples/db_handler examples/django examples/eab_handler examples/hooks examples/trigger examples/nginx %{buildroot}%{dest_dir}/%{projname}/examples
+# Importable package (parent of this dir is PYTHONPATH)
+%{__cp} -a acme2certifier "$APP/"
 
-%{__chmod} -R go-w %{buildroot}%{dest_dir}/%{projname}
+# Operator-facing share/ (stable paths for docs/install scripts)
+%{__rm} -rf "$APP/share"
+%{__cp} -a acme2certifier/share "$APP/share"
 
-%{__cp} -a \
-    examples/acme_srv.cfg \
-    %{buildroot}%{dest_dir}/%{projname}/acme_srv/acme_srv.cfg
+%{__cp} -a examples/django examples/trigger "$APP/examples/"
 
-%{__cp} -a \
-    examples/db_handler/wsgi_handler.py \
-    %{buildroot}%{dest_dir}/%{projname}/acme_srv/db_handler.py
+# WSGI entry + default cfg at deploy root
+%{__cp} -a acme2certifier/share/acme2certifier_wsgi.py "$APP/"
+%{__cp} -a acme2certifier/share/acme_srv.cfg "$APP/acme_srv.cfg"
+%{__sed} -i 's|/var/www/acme2certifier/acme_srv.db|%{app_root}/acme_srv.db|g' \
+    "$APP/acme_srv.cfg"
+%{__sed} -i 's|Writable by www-data after DEB install|Writable by nginx after RPM install|g' \
+    "$APP/acme_srv.cfg"
 
-%{__cp} -a \
-    examples/acme2certifier_wsgi.py \
-    %{buildroot}%{dest_dir}/%{projname}/
+# uWSGI ini: EL plugins + python-path for /opt layout
+%{__cp} -a acme2certifier/share/nginx/acme2certifier.ini "$APP/acme2certifier.ini"
+grep -q '^plugins' "$APP/acme2certifier.ini" || echo 'plugins = python3' >> "$APP/acme2certifier.ini"
+if grep -q '^python-path' "$APP/acme2certifier.ini"; then
+  %{__sed} -i 's|^python-path = .*|python-path = %{app_root}|' "$APP/acme2certifier.ini"
+else
+  echo 'python-path = %{app_root}' >> "$APP/acme2certifier.ini"
+fi
 
-## Modify acme2certifier.ini for Redhat/Centos and derivations
-%{__sed} '
-$a\
-plugins = python3
-' \
-  examples/nginx/acme2certifier.ini > \
-  %{buildroot}%{dest_dir}/%{projname}/acme2certifier.ini
+# Apache examples: retarget paths; drop pip venv python-home
+%{__sed} -i 's|/var/www/acme2certifier|%{app_root}|g' "$APP"/share/apache2/apache_*.conf
+%{__sed} -i '/python-home=/d' "$APP"/share/apache2/apache_*.conf
 
-## Configure and enable uWSGI service
-# %{__sed} '
-# /^User/i\
-# WorkingDirectory=%{dest_dir}/acme2certifier
-# ' \
-#    examples/nginx/uwsgi.service > \
-#    %{buildroot}%{_unitdir}/acme2certifier.service    # ugh
+# systemd unit for nginx/uWSGI path
+cat > %{buildroot}%{_unitdir}/acme2certifier.service <<'UNIT'
+[Unit]
+Description=uWSGI instance to serve acme2certifier
 
-# copy and rename service file
-%{__cp} -a \
-    examples/nginx/uwsgi.service \
-    %{buildroot}%{_unitdir}/acme2certifier.service
+[Service]
+RuntimeDirectory=uwsgi
+WorkingDirectory=/opt/acme2certifier
+Environment=PYTHONPATH=/opt/acme2certifier
+Environment=ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
+ExecStart=uwsgi --ini acme2certifier.ini
+Restart=always
+Type=notify
+NotifyAccess=all
+User=nginx
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+%{__chmod} -R go-w "$APP"
+
+# Flavor python.conf files (only one flavor installed at a time)
+cat > %{buildroot}%{python_confdir}/python.conf.python3 <<'EOF'
+# Managed by acme2certifier-min-python3 (%config(noreplace)).
+# Absolute path preferred.
+python_interpreter=/usr/bin/python3
+python_min=3.6
+EOF
+
+cat > %{buildroot}%{python_confdir}/python.conf.python39 <<'EOF'
+# Managed by acme2certifier-min-python39 (%config(noreplace)).
+# Absolute path preferred.
+python_interpreter=/usr/bin/python3.9
+python_min=3.9
+EOF
+
+# Console wrappers: honor /etc/acme2certifier/python.conf when present
+install_wrapper() {
+    name="$1"
+    module="$2"
+    cat > "%{buildroot}%{_bindir}/${name}" <<EOF
+#!/bin/bash
+export PYTHONPATH="/opt/acme2certifier\${PYTHONPATH:+:\${PYTHONPATH}}"
+export ACME_SRV_CONFIGFILE="\${ACME_SRV_CONFIGFILE:-/opt/acme2certifier/acme_srv.cfg}"
+PY=/usr/bin/python3
+PYCONF=/etc/acme2certifier/python.conf
+if [[ -r "\${PYCONF}" ]]; then
+  _py="\$(awk -F= '/^[[:space:]]*python_interpreter[[:space:]]*=/ {
+    gsub(/[[:space:]]/, "", \$2); print \$2; exit
+  }' "\${PYCONF}" 2>/dev/null || true)"
+  if [[ -n "\${_py}" && -x "\${_py}" ]]; then
+    PY="\${_py}"
+  fi
+fi
+exec "\${PY}" -m ${module} "\$@"
+EOF
+    %{__chmod} 0755 "%{buildroot}%{_bindir}/${name}"
+}
+
+install_wrapper a2c-cli acme2certifier.tools.a2c_cli
+install_wrapper a2c-db-update acme2certifier.tools.a2c_db_update
+install_wrapper a2c-django-update acme2certifier.tools.a2c_django_update
+install_wrapper a2c-django-secret-keygen acme2certifier.tools.a2c_django_secret_keygen
+install_wrapper a2c-manage acme2certifier.tools.a2c_manage
+install_wrapper a2c-eab-chk acme2certifier.tools.a2c_eab_chk
+install_wrapper a2c-cert-poll acme2certifier.tools.a2c_cert_poll
+install_wrapper a2c-cliuser-mgmt acme2certifier.tools.a2c_cliuser_mgmt
+install_wrapper a2c-invalidator acme2certifier.tools.a2c_invalidator
+install_wrapper a2c-report-generator acme2certifier.tools.a2c_report_generator
 
 %clean
 %{__chmod} -R 777 $RPM_BUILD_ROOT
 %{__rm} -rf $RPM_BUILD_ROOT
 
-
 %files
 %defattr(-,root,root,-)
-%config(noreplace) %{dest_dir}/%{projname}/acme_srv/acme_srv.cfg
-# %config(noreplace) %{dest_dir}/%{projname}/acme_srv/db_handler.py
-
+%dir %attr(0755,nginx,nginx) %{app_root}
+%config(noreplace) %attr(0644,nginx,nginx) %{app_root}/acme_srv.cfg
+%attr(0755,nginx,nginx) %{app_root}/acme2certifier/
+%attr(0755,nginx,nginx) %{app_root}/share/
+%attr(0755,nginx,nginx) %{app_root}/examples/
+%attr(0644,nginx,nginx) %{app_root}/acme2certifier_wsgi.py
+%attr(0644,nginx,nginx) %{app_root}/acme2certifier.ini
 %license LICENSE
-%doc *.md requirements.txt docs/*.md
-%attr(0755,nginx,-)%{dest_dir}/%{projname}/
+%doc *.md docs/*.md
 %{_unitdir}/acme2certifier.service
+%attr(0755,root,root) %{_bindir}/a2c-cli
+%attr(0755,root,root) %{_bindir}/a2c-db-update
+%attr(0755,root,root) %{_bindir}/a2c-django-update
+%attr(0755,root,root) %{_bindir}/a2c-django-secret-keygen
+%attr(0755,root,root) %{_bindir}/a2c-manage
+%attr(0755,root,root) %{_bindir}/a2c-eab-chk
+%attr(0755,root,root) %{_bindir}/a2c-cert-poll
+%attr(0755,root,root) %{_bindir}/a2c-cliuser-mgmt
+%attr(0755,root,root) %{_bindir}/a2c-invalidator
+%attr(0755,root,root) %{_bindir}/a2c-report-generator
+%dir %{python_confdir}
+
+%files python3
+%dir %{python_confdir}
+%attr(0644,root,root) %{python_confdir}/python.conf.python3
+
+%files python39
+%dir %{python_confdir}
+%attr(0644,root,root) %{python_confdir}/python.conf.python39
 
 %changelog
 
 %post
-if [ -d %{dest_dir}/%{projname}/%{projname} ]; then
-    echo "django environment detected"
-    cp -R %{dest_dir}/%{projname}/examples/django/acme_srv/* %{dest_dir}/%{projname}/acme_srv/
-    cp -f %{dest_dir}/%{projname}/examples/db_handler/django_handler.py %{dest_dir}/%{projname}/acme_srv/db_handler.py
-fi
-
+# SELinux: allow httpd_t (nginx) to talk to uWSGI socket (EL8 + EL9)
 cat <<EOT > /tmp/acme2certifier.te
 module acme2certifier 1.0;
 
@@ -189,9 +298,60 @@ require {
 allow httpd_t initrc_t:unix_stream_socket connectto;
 allow httpd_t var_run_t:sock_file write;
 EOT
-checkmodule -M -m -o /tmp/acme2certifier.mod /tmp/acme2certifier.te
-semodule_package -o /tmp/acme2certifier.pp -m /tmp/acme2certifier.mod
-semodule -i /tmp/acme2certifier.pp
-rm /tmp/acme2certifier.pp
-rm /tmp/acme2certifier.mod
-rm /tmp/acme2certifier.te
+if command -v checkmodule >/dev/null 2>&1 && command -v semodule_package >/dev/null 2>&1; then
+    checkmodule -M -m -o /tmp/acme2certifier.mod /tmp/acme2certifier.te
+    semodule_package -o /tmp/acme2certifier.pp -m /tmp/acme2certifier.mod
+    semodule -i /tmp/acme2certifier.pp
+    rm -f /tmp/acme2certifier.pp /tmp/acme2certifier.mod /tmp/acme2certifier.te
+else
+    rm -f /tmp/acme2certifier.te
+    echo "acme2certifier: SELinux tools missing; skipped module install" >&2
+fi
+
+if id nginx >/dev/null 2>&1; then
+    chown -R nginx:nginx /opt/acme2certifier 2>/dev/null || true
+fi
+
+%post python3
+CONFDIR=%{python_confdir}
+SRC="${CONFDIR}/python.conf.python3"
+DST="${CONFDIR}/python.conf"
+# $1==1 install (incl. flavor swap); $1>=2 upgrade — keep admin edits
+if [ "$1" -eq 1 ] || [ ! -e "${DST}" ]; then
+    cp -a "${SRC}" "${DST}"
+fi
+INI=%{app_root}/acme2certifier.ini
+if [ -f "${INI}" ]; then
+    if grep -q '^plugins' "${INI}"; then
+        sed -i 's/^plugins[[:space:]]*=.*/plugins = python3/' "${INI}"
+    else
+        echo 'plugins = python3' >> "${INI}"
+    fi
+fi
+
+%post python39
+CONFDIR=%{python_confdir}
+SRC="${CONFDIR}/python.conf.python39"
+DST="${CONFDIR}/python.conf"
+if [ "$1" -eq 1 ] || [ ! -e "${DST}" ]; then
+    cp -a "${SRC}" "${DST}"
+fi
+INI=%{app_root}/acme2certifier.ini
+if [ -f "${INI}" ]; then
+    if grep -q '^plugins' "${INI}"; then
+        sed -i 's/^plugins[[:space:]]*=.*/plugins = python39/' "${INI}"
+    else
+        echo 'plugins = python39' >> "${INI}"
+    fi
+fi
+
+%postun python3
+# Conflicts ensure exclusivity; remove active conf when this flavor is erased.
+if [ "$1" -eq 0 ]; then
+    rm -f %{python_confdir}/python.conf
+fi
+
+%postun python39
+if [ "$1" -eq 0 ]; then
+    rm -f %{python_confdir}/python.conf
+fi

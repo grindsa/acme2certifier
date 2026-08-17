@@ -9,29 +9,13 @@ inputs:
     description: "Deployment type"
     required: true
     default: "rpm"
-  TAIL_NUMBER:
-    description: "Number of lines to tail"
-    required: false
-    default: "500"
 
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 10s
-
-  - name: "EAB with ACME Profile - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory
-    shell: bash
-    env:
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-  - name: "EAB with ACME Profile - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
-    env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "EAB with ACME Profile - 01a - enrollment without profile (first value in list)"
@@ -45,18 +29,10 @@ runs:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "EAB with ACME Profile - 01a - Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer-07-C"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-C"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
+      PATTERN: "template: WebServer-07-C"
 
   - name: "EAB with ACME Profile - 01b - enrollment with profile (pick value from list)"
     run: |
@@ -69,18 +45,10 @@ runs:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "EAB with ACME Profile - 01b - Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer-07-S"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-S"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
+      PATTERN: "template: WebServer-07-S"
 
   - name: "EAB with ACME Profile - 01c - enrollment with profile containing value not included in list (to fail)"
     id: legofail02
@@ -112,18 +80,10 @@ runs:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "EAB with ACME Profile - 02 - Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer-07-C"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-C"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
+      PATTERN: "template: WebServer-07-C"
 
   - name: "EAB with ACME Profile - 03 - domainlist validation fails (to fail)"
     id: legofail03
@@ -155,15 +115,7 @@ runs:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "EAB with ACME Profile - 04 - Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer-07-S"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-S"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
+      PATTERN: "template: WebServer-07-S"

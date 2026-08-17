@@ -58,18 +58,20 @@ runs:
     with:
       time: 5s
 
-  - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
-      fi
-    shell: bash
-    env:
+  - name: "Check logs for EAB kid lookup ERROR"
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "EAB kid lookup failed kid=${{ inputs.EAB_KEY_ID }}"
+      FLUSH: "false"
+
+  - name: "Check logs for ACME problem (EAB kid lookup)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed"
 
   - name: "certbot - Failed registration with unknown credentials"
     continue-on-error: true
@@ -96,18 +98,20 @@ runs:
     with:
       time: 5s
 
-  - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
-      fi
-    shell: bash
-    env:
+  - name: "Check logs for EAB kid lookup ERROR"
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "EAB kid lookup failed kid=${{ inputs.EAB_KEY_ID }}"
+      FLUSH: "false"
+
+  - name: "Check logs for ACME problem (EAB kid lookup)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed"
 
   - name: "lego - Failed registration with unknown credentials"
     continue-on-error: true
@@ -135,15 +139,17 @@ runs:
     with:
       time: 5s
 
-  - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
-      fi
-    shell: bash
-    env:
+  - name: "Check logs for EAB kid lookup ERROR"
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "EAB kid lookup failed kid=${{ inputs.EAB_KEY_ID }}"
+      FLUSH: "false"
+
+  - name: "Check logs for ACME problem (EAB kid lookup)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed"

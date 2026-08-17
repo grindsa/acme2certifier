@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 -->
 
 <!-- wiki-title: Pass Information from ACME Client to CA Handler -->
+<!-- wiki-category: Features -->
 
 # Pass Information from ACME Client to CA Handler
 

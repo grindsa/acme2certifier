@@ -1,12 +1,6 @@
 ignore:
-  - "examples/ca_handler/skeleton_ca_handler.py"
-  - "examples/ca_handler/certsrv.py"
-  - "examples/ca_handler/ms_wcce"
-  - "examples/eab_handler/skeleton_eab_handler.py"
-  - "examples/hooks"
+  - "acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py"
+  - "acme2certifier/share/skeletons/eab_handler/skeleton_eab_handler.py"
+  - "acme2certifier/share/skeletons/hooks/skeleton_hooks.py"
   - "docs/__init__.py"
-  - "acme_srv/monkey_patches.py"
-  - "acme_srv/threadwithreturnvalue.py"
-  - 'tools/mswcce_connection_test.py'
-  - "setup.py"
   - "test"

@@ -17,15 +17,27 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Pull Mariadb image"
+      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: mariadb:lts
+
     - name: "Instanciate Mariadb"
       if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
       run: |
         echo "Instanciate mariadb for RH_VERSION $RH_VERSION"
-        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
+        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb:lts
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
+
+    - name: "Pull Mariadb image (RHEL8)"
+      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION == '8'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: mariadb:10.6-ubi9
 
     - name: "Instanciate Mariadb for RHEL8"
       if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION == '8'
@@ -37,22 +49,39 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
 
-    - name: "Sleep for 10s"
+    - name: "Wait for mariadb readiness"
       if: inputs.INSTANCIATE == 'true'
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 10s
+      run: |
+        set -euo pipefail
+        # Do not use socket-only "admin ping": it returns success during the
+        # entrypoint's temporary --skip-networking server, before root auth is
+        # ready (leads to ERROR 1045 on the next step). Prefer healthcheck.sh
+        # TCP+InnoDB checks; fall back to admin ping over TCP for older images.
+        ready() {
+          docker exec mariadbsrv healthcheck.sh --connect --innodb_initialized 2>/dev/null \
+            || docker exec mariadbsrv mariadb-admin ping -h127.0.0.1 -uroot -pfoobar --protocol=tcp --silent 2>/dev/null \
+            || docker exec mariadbsrv mariadbadmin ping -h127.0.0.1 -uroot -pfoobar --protocol=tcp --silent 2>/dev/null \
+            || docker exec mariadbsrv mysqladmin ping -h127.0.0.1 -uroot -pfoobar --protocol=tcp --silent 2>/dev/null
+        }
+        for i in $(seq 1 90); do
+          if ready; then
+            echo "mariadb ready after ${i}s"
+            exit 0
+          fi
+          echo "mariadb not ready (${i}/90), retrying..."
+          sleep 1
+        done
+        echo "mariadb did not become ready in time" >&2
+        docker logs mariadbsrv || true
+        exit 1
+      shell: bash
 
     - name: "Configure mariadb"
       working-directory: examples/Docker/
       run: |
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"DROP DATABASE IF EXISTS acme2certifier;"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
+        set -euo pipefail
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"DROP DATABASE IF EXISTS acme2certifier;"
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"FLUSH PRIVILEGES;"
       shell: bash
-
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 5s

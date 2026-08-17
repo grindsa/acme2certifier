@@ -1,0 +1,143 @@
+name: "setup_openssl_cahandler"
+description: "Stage openssl CA handler material and acme_srv.cfg into a volume directory"
+inputs:
+  VOLUME_DIR:
+    description: "Target volume directory (contains acme_ca/ and acme_srv.cfg)"
+    required: false
+    default: "data/volume"
+  CFG_SOURCE:
+    description: "Source acme_srv.cfg for openssl CA handler"
+    required: false
+    default: ".github/acme_srv.openssl.cfg"
+  CA_SOURCE_DIR:
+    description: "Directory with test CA key/cert/CRL files"
+    required: false
+    default: "test/ca"
+  PREVALIDATED:
+    description: "Authorization prevalidation mode: none | both | domain | ip"
+    required: false
+    default: "none"
+  PREVALIDATED_DOMAINS:
+    description: "JSON list for prevalidated_domainlist"
+    required: false
+    default: '["foo-01.bar.local", "*.foo.local", "*.acme-new"]'
+  PREVALIDATED_IPS:
+    description: "JSON list for prevalidated_iplist"
+    required: false
+    default: '["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"]'
+  PATH_REWRITE_FROM:
+    description: "Optional substring to rewrite in acme_srv.cfg (e.g. volume)"
+    required: false
+    default: ""
+  PATH_REWRITE_TO:
+    description: "Replacement for PATH_REWRITE_FROM (e.g. /var/www/acme2certifier/volume)"
+    required: false
+    default: ""
+  FETCH:
+    description: "If true, fetch openssl_ca_handler.py and load it via handler_module path (min RPM does not ship it)"
+    required: false
+    default: "false"
+  HANDLER_REF:
+    description: "Git ref to fetch openssl_ca_handler.py from when FETCH is true"
+    required: false
+    default: "master"
+  HANDLER_URL:
+    description: "Override raw URL for openssl_ca_handler.py"
+    required: false
+    default: ""
+  HANDLER_FILE:
+    description: "Absolute handler path written into acme_srv.cfg when FETCH is true"
+    required: false
+    default: "/opt/acme2certifier/volume/acme_ca/openssl_ca_handler.py"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Setup openssl ca_handler"
+      run: |
+        set -euo pipefail
+        case "${PREVALIDATED}" in
+          none|both|domain|ip) ;;
+          *)
+            echo "ERROR: PREVALIDATED must be none|both|domain|ip (got: ${PREVALIDATED})" >&2
+            exit 1
+            ;;
+        esac
+        case "${FETCH}" in
+          true|false) ;;
+          *)
+            echo "ERROR: FETCH must be true|false (got: ${FETCH})" >&2
+            exit 1
+            ;;
+        esac
+
+        sudo mkdir -p "${VOLUME_DIR}/acme_ca/certs"
+        sudo cp \
+          "${CA_SOURCE_DIR}/sub-ca-key.pem" \
+          "${CA_SOURCE_DIR}/sub-ca-crl.pem" \
+          "${CA_SOURCE_DIR}/sub-ca-cert.pem" \
+          "${CA_SOURCE_DIR}/root-ca-cert.pem" \
+          "${VOLUME_DIR}/acme_ca/"
+        sudo cp "${CFG_SOURCE}" "${VOLUME_DIR}/acme_srv.cfg"
+        sudo chmod 777 "${VOLUME_DIR}/acme_srv.cfg"
+
+        if [[ "${FETCH}" == "true" ]]; then
+          url="${HANDLER_URL}"
+          if [[ -z "${url}" ]]; then
+            url="https://raw.githubusercontent.com/grindsa/acme2certifier/${HANDLER_REF}/acme2certifier/cahandlers/openssl_ca_handler.py"
+          fi
+          echo "Fetching openssl_ca_handler.py from ${url}"
+          curl -fsSL "${url}" -o /tmp/openssl_ca_handler.py
+          test -s /tmp/openssl_ca_handler.py
+          grep -q 'class CAhandler' /tmp/openssl_ca_handler.py
+          sudo cp /tmp/openssl_ca_handler.py "${VOLUME_DIR}/acme_ca/openssl_ca_handler.py"
+          sudo chmod 0644 "${VOLUME_DIR}/acme_ca/openssl_ca_handler.py"
+
+          sudo sed -i \
+            -e '/^handler_module:/d' \
+            -e '/^handler_file:/d' \
+            "${VOLUME_DIR}/acme_srv.cfg"
+          if grep -q '^\[CAhandler\]' "${VOLUME_DIR}/acme_srv.cfg"; then
+            sudo sed -i "/^\[CAhandler\]/a handler_module: ${HANDLER_FILE}" \
+              "${VOLUME_DIR}/acme_srv.cfg"
+          else
+            printf '\n[CAhandler]\nhandler_module: %s\n' "${HANDLER_FILE}" \
+              | sudo tee -a "${VOLUME_DIR}/acme_srv.cfg" >/dev/null
+          fi
+        fi
+
+        if [[ "${PREVALIDATED}" != "none" ]]; then
+          {
+            echo
+            echo
+            echo "[Authorization]"
+            if [[ "${PREVALIDATED}" == "both" || "${PREVALIDATED}" == "domain" ]]; then
+              echo "prevalidated_domainlist: ${PREVALIDATED_DOMAINS}"
+            fi
+            if [[ "${PREVALIDATED}" == "both" || "${PREVALIDATED}" == "ip" ]]; then
+              echo "prevalidated_iplist: ${PREVALIDATED_IPS}"
+            fi
+          } | sudo tee -a "${VOLUME_DIR}/acme_srv.cfg" >/dev/null
+        fi
+
+        if [[ -n "${PATH_REWRITE_FROM}" ]]; then
+          sudo sed -i "s|${PATH_REWRITE_FROM}|${PATH_REWRITE_TO}|g" "${VOLUME_DIR}/acme_srv.cfg"
+        fi
+
+        echo "--- ${VOLUME_DIR}/acme_srv.cfg [CAhandler] ---"
+        awk '/^\[CAhandler\]/{p=1} p && /^\[/ && !/^\[CAhandler\]/{exit} p' \
+          "${VOLUME_DIR}/acme_srv.cfg"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        CFG_SOURCE: ${{ inputs.CFG_SOURCE }}
+        CA_SOURCE_DIR: ${{ inputs.CA_SOURCE_DIR }}
+        PREVALIDATED: ${{ inputs.PREVALIDATED }}
+        PREVALIDATED_DOMAINS: ${{ inputs.PREVALIDATED_DOMAINS }}
+        PREVALIDATED_IPS: ${{ inputs.PREVALIDATED_IPS }}
+        PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
+        PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
+        FETCH: ${{ inputs.FETCH }}
+        HANDLER_REF: ${{ inputs.HANDLER_REF }}
+        HANDLER_URL: ${{ inputs.HANDLER_URL }}
+        HANDLER_FILE: ${{ inputs.HANDLER_FILE }}

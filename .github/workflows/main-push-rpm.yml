@@ -1,223 +1,207 @@
-name: build and upload rpm
+name: Main - Push RPM
+# Build, test, and commit acme2certifier-min RPMs on push to min.
+# No dispatch. Tests fetch openssl_ca_handler (FETCH: true) + test/ca/.
 on:
   push:
     branches:
-      - "min"
+      - min
+    paths-ignore:
+      - "examples/install_scripts/rpm/packages/**"
+
+concurrency:
+  group: main-push-rpm-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
-
-   build_and_upload_rpm:
-    name: build_and_upload_rpm
+  build-rpm:
+    name: Build RPM package
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: write
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
 
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: "Parse NCM configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.NCM_CFG }}
-
-      - name: "Parse SSH tunnel configuration"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
-          uppercase: 'true'
-
-      - name: "[ PREPARE ] Retrieve Version from version.py"
-        run: |
-          echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-
-      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
-      - run: echo "APP tag is ${{ env.APP_NAME }}"
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-      - name: Retrieve dbversion numbers from version.py and fixture.xml
-        run: |
-          echo DB_VERSION=$(cat acme_srv/version.py | grep -i __dbversion__ | head -n 1 | sed 's/__dbversion__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-          echo FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' examples/django/acme_srv/fixture/status.yaml | tr -d "'") >> $GITHUB_ENV
-
-      - run: echo "db verion is ${{ env.DB_VERSION }}"
-      - run: echo "fixture verion is ${{ env.FIXTURE_VERSION }}"
-
-      - name: Check fixture version
-        if: env.DB_VERSION != env.FIXTURE_VERSION
-        run: |
-          echo "Fixture version is not equal to db version"
-          exit 1
-
-      - name: "Update version number in spec file"
-        run: |
-          sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          sudo sed -i "s/Name:           acme2certifier/Name:           acme2certifier-min/g"  examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/%{buildroot}%{dest_dir}\/%{name}\/examples/%{buildroot}%{dest_dir}\/%{projname}\/examples/g"  examples/install_scripts/rpm/acme2certifier.spec
-          git config --global user.email "grindelsack@gmail.com"
-          git config --global user.name "rpm update"
-          git add examples/nginx
-          git commit -a -m "rpm update"
-
-
-      - name: "Setup tunnel"
-        uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
-        continue-on-error: true
-        with:
-          SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
-          SSH_PORT: ${{ env.SSH_PORT }}
-          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
-          SSH_KEY: ${{ env.SSH_KEY }}
-          NCM_API_HOST: ${{ env.NCM_API_HOST }}
-          NCM_API_USER: ${{ env.NCM_API_USER }}
-          NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
-
-      - name: build RPM package
+      - name: "Build rpm package"
         id: rpm_build
-        uses: grindsa/rpmbuild@alma9
+        uses: ./.github/actions/rpm_build_upload
         with:
-          spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+          NAME_SUFFIX: -min
 
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
+  test-rpm:
+    name: Test RPM (${{ matrix.target.rhversion }}/${{ matrix.target.python_stack }}/${{ matrix.mode }})
+    needs: build-rpm
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: write
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: ["wsgi", "django"]
+        target:
+          - rhversion: "8"
+            python_stack: python39
+            python_cli: "3.9"
+            flavor_pkg: acme2certifier-min-python39
+            expect_interpreter: /usr/bin/python3.9
+          - rhversion: "8"
+            python_stack: python36
+            python_cli: "3.6"
+            flavor_pkg: acme2certifier-min-python3
+            expect_interpreter: /usr/bin/python3
+          - rhversion: "9"
+            python_stack: python3
+            python_cli: "3"
+            flavor_pkg: acme2certifier-min-python3
+            expect_interpreter: /usr/bin/python3
 
-      - name: "[ PREPARE ] setup environment for alma installation"
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
+        with:
+          RUN_ID: ${{ github.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.target.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+          PYTHON_STACK: ${{ matrix.target.python_stack }}
+          NAME_SUFFIX: -min
+
+      - name: "Assert flavor RPM present beside main payload"
         run: |
-          docker network create acme
-          sudo mkdir -p data/volume
-          sudo mkdir -p data/acme2certifier
-          sudo mkdir -p data/nginx/conf.d
-          sudo chmod -R 777 data
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          ls -la ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch
-          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-min-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-          sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
-          sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
+          set -euo pipefail
+          echo "Staged RPMs:"
+          ls -la data/*.rpm
+          test -f "data/acme2certifier-min-${RUN_ID}.noarch.rpm"
+          shopt -s nullglob
+          flavors=(data/${FLAVOR_PKG}-*.noarch.rpm)
+          if ((${#flavors[@]} == 0)); then
+            echo "ERROR: missing flavor RPM ${FLAVOR_PKG}-*.noarch.rpm in artifact" >&2
+            exit 1
+          fi
+          echo "Found flavor: ${flavors[0]}"
+        env:
+          RUN_ID: ${{ github.run_id }}
+          FLAVOR_PKG: ${{ matrix.target.flavor_pkg }}
 
-      - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+      - name: "Prepare acme_srv.cfg with openssl_ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          FETCH: true
+
+      - name: "Execute install script (flavor via --python)"
         run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_id: 101" >> data/volume/acme_srv.cfg
+          set -euo pipefail
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install \
+            -m "${MODE}" \
+            --python "${PYTHON_CLI}"
+        env:
+          MODE: ${{ matrix.mode }}
+          PYTHON_CLI: ${{ matrix.target.python_cli }}
 
-      - name: "[ PREPARE ] Almalinux instance"
+      - name: "Assert active python.conf matches flavor"
         run: |
-          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-          docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+          set -euo pipefail
+          docker exec -e EXPECT="${EXPECT}" -e FLAVOR_PKG="${FLAVOR_PKG}" acme-srv bash -lc '
+            set -euo pipefail
+            conf=/etc/acme2certifier/python.conf
+            test -f "$conf"
+            echo "--- $conf ---"
+            cat "$conf"
+            actual=$(awk -F= "/^[[:space:]]*python_interpreter[[:space:]]*=/ {
+              gsub(/[[:space:]]/, \"\", \$2); print \$2; exit
+            }" "$conf")
+            echo "interpreter=${actual} expected=${EXPECT}"
+            test "${actual}" = "${EXPECT}"
+            rpm -q acme2certifier-min
+            rpm -q "${FLAVOR_PKG}"
+          '
+        env:
+          EXPECT: ${{ matrix.target.expect_interpreter }}
+          FLAVOR_PKG: ${{ matrix.target.flavor_pkg }}
 
-      - name: "[ PREPARE ] Execute install scipt"
+      - name: "Flush logs before enrollment"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
+
+      - name: "Test enrollment / renewal / revocation"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Assert enrollment activity in logs"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Certificate"
+          IGNORE_CASE: "true"
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.target.rhversion }}-${{ matrix.target.python_stack }}-${{ matrix.mode }}.tar.gz
+
+  publish-rpm:
+    name: Commit RPMs to packages/
+    needs: test-rpm
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Download RPM artifact"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ github.run_id }}
+          ARTIFACT_NAME: acme2certifier-min-${{ github.run_id }}.noarch.rpm
+          DESTINATION_PATH: /tmp/a2c-rpms
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Stage versioned RPMs under packages/<version>/"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
-
-      - name: "[ TEST ] create client directories"
-        run: |
-          mkdir -p acme-sh
-
-      - name: "[ TEST ] http://acme-srv/directory is accessable"
-        continue-on-error: true
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "[ TEST ] https://acme-srv/directory is accessable"
-        continue-on-error: true
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-
-      - name: "[ TEST ] prepare acme.sh container"
-        continue-on-error: true
-        run: |
-          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-      - name: "[ HTTP ] acme.sh using http01 challenge"
-        continue-on-error: true
-        run: |
-          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-      - name: "[ HTTP ] acme.sh using tls-alpn01 challenge"
-        continue-on-error: true
-        run: |
-          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-      - name: "[ HTTP ] revoke via acme.sh"
-        continue-on-error: true
-        run: |
-          docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
-
-      - name: "[ HTTPS ] register via https"
-        continue-on-error: true
-        run: |
-          docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
-
-      - name: "[ HTTPS ] acme.sh using http01 challenge"
-        continue-on-error: true
-        run: |
-          docker exec -i acme-sh acme.sh --server https://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
-
-      - name: "[ HTTPS ] acme.sh using tls-alpn01 challenge"
-        continue-on-error: true
-        run: |
-          docker exec -i acme-sh acme.sh --server https://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --insecure --debug 3 --output-insecure --force
-          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-      - name: "[ HTTPS ] revoke via acme.sh"
-        continue-on-error: true
-        run: |
-          docker exec -i acme-sh acme.sh --server https://acme-srv --revoke -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure
-
-      - run: echo "srpm path ${{ steps.rpm_build.outputs.source_rpm_path }}"
-      - run: echo "srpm name ${{ steps.rpm_build.outputs.source_rpm_path }}"
-      - run: echo "rpm path  ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm"
-      - run: echo "rpm name acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm"
-
-      - name: "[ FINALIZE ] copy rpm"
-        run: |
-          git reset --hard HEAD~1
-          mkdir -p examples/install_scripts/rpm/packages
-          cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-min-${{ env.TAG_NAME }}-1.0.noarch.rpm examples/install_scripts/rpm/packages
-          # the source package is not needed for the installation, so we will not copy it to the repo
-          # cp ${{ steps.rpm_build.outputs.source_rpm_path }} examples/install_scripts/rpm/packages
-          ls -la examples/install_scripts/rpm/packages
-
-      - name: "[ FINALIZE ] cleanup before commit"
-        run: |
-          sudo rm -rf rpmbuild
-          sudo rm -rf acme-sh
-          sudo rm -rf data
-          sudo rm -rf *.pem
+          set -euo pipefail
+          TAG_NAME="$(grep -i __version__ acme2certifier/acme_srv/version.py | head -n 1 | sed 's/__version__ = //g' | sed 's/\"//g' | tr -d "[:space:]")"
+          DEST="examples/install_scripts/rpm/packages/${TAG_NAME}"
+          mkdir -p "${DEST}"
+          echo "Staged artifact RPMs:"
+          ls -la /tmp/a2c-rpms
+          for pkg in \
+            "acme2certifier-min-${TAG_NAME}-1.0.noarch.rpm" \
+            "acme2certifier-min-python3-${TAG_NAME}-1.0.noarch.rpm" \
+            "acme2certifier-min-python39-${TAG_NAME}-1.0.noarch.rpm"
+          do
+            src="/tmp/a2c-rpms/${pkg}"
+            if [[ ! -f "${src}" ]]; then
+              echo "ERROR: missing ${pkg} in artifact" >&2
+              exit 1
+            fi
+            cp -a "${src}" "${DEST}/${pkg}"
+          done
+          ls -la "${DEST}"
+        shell: bash
 
       - uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          commit_message: rpm update
-
-      - name: "[ * ] collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          cp ${{ steps.rpm_build.outputs.source_rpm_path }} ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          cp examples/install_scripts/rpm/acme2certifier.spec ${{ github.workspace }}/artifact/
-          # sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz  data acme-srv.log acme2certifier.spec
-
-      - name: "[ * ] uploading artificates"
-        uses: actions/upload-artifact@v4
-        if: ${{ failure() }}
-        with:
-          name: rpm_wsgi_upgrade_nginx.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          commit_message: "[skip ci] rpm update"
+          file_pattern: examples/install_scripts/rpm/packages/**

@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 -->
 
-<!-- wiki-title CA Handler for Microsoft Certification Authority Web Enrollment Service -->
+<!-- wiki-title: CA Handler for Microsoft Certification Authority Web Enrollment Service -->
+<!-- wiki-category: CA Handlers -->
 
 # CA Handler for Microsoft Certification Authority Web Enrollment Service
 
@@ -60,11 +61,25 @@ X-Powered-By: ASP.NET
 
 ### Extended Protection for Authentication (EPA) Configuration
 
-When using GSSAPI (Kerberos) authentication, you may encounter issues if the Microsoft Certificate Services Web Enrollment Service has Extended Protection for Authentication (EPA) set to "Required". The current `requests-gssapi` library does not support EPA in "Required" mode, and the [developers are working on implementing this feature](https://github.com/pythongssapi/requests-gssapi/pull/57).
+When using GSSAPI (Kerberos) authentication, Microsoft Certificate Services Web Enrollment may have Extended Protection for Authentication (EPA) set to **Required**. EPA/CBT support was added in [`requests-gssapi` 1.4.0](https://github.com/pythongssapi/requests-gssapi/releases/tag/v1.4.0) via [PR #57](https://github.com/pythongssapi/requests-gssapi/pull/57) as an opt-in `channel_bindings='tls-server-end-point'` parameter.
 
-**Solution**: Change the EPA setting from "Required" to "Accept" in the IIS configuration for the Certificate Services Web Enrollment Service.
+acme2certifier can enable that automatically via `gssapi_channel_bindings`:
 
-To modify the EPA setting:
+| Value | Behavior |
+|-------|----------|
+| `auto` (default) | Use `tls-server-end-point` when `requests-gssapi >= 1.4.0`; otherwise continue without and log a warning |
+| `on` | Require channel bindings; fail if `requests-gssapi` is too old |
+| `off` | Never send channel bindings |
+
+```ini
+[CAhandler]
+auth_method: gssapi
+gssapi_channel_bindings: auto
+```
+
+**Distro note**: As of writing, EL9 AppStream ships `python3-requests-gssapi` 1.4.0. Ubuntu 24.04/26.04 and EL8 still ship 1.2.x, so EPA **Required** needs a newer pip/RPM package or the IIS workaround below.
+
+**Fallback (EPA Accept)**: If channel bindings are unavailable, change Extended Protection from **Required** to **Accept** in IIS for the CertSrv application:
 
 1. Open **Internet Information Services (IIS) Manager** on the server hosting the Certificate Services Web Enrollment Service
 1. Navigate to the **Default Web Site** → **CertSrv** application
@@ -75,8 +90,6 @@ To modify the EPA setting:
 1. Restart the IIS service or the specific application pool
 
 For detailed information about Extended Protection for Authentication, refer to the [Microsoft documentation on Extended Protection for Authentication Overview](https://docs.microsoft.com/en-us/iis/configuration/system.webserver/security/authentication/windowsauthentication/extendedprotection/).
-
-**Note**: This configuration change maintains security while ensuring compatibility with the current `requests-gssapi` implementation. The EPA feature in "Accept" mode still provides protection against authentication relay attacks when supported by the client.
 
 ## Installation
 
@@ -100,13 +113,16 @@ pip install certsrv[ntlm]
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/mscertsrv_ca_handler.py
+handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler
 host: <hostname>
 user: <username>
 password: <password>
 ca_bundle: <filename>
 auth_method: <basic|ntlm|gssapi>
+gssapi_channel_bindings: <auto|on|off>
 template: <name>
+allowed_templates: ["WebServer", "WebServerModified"]
+ca_templates_check: warn
 allowed_domainlist: ["example.com", "*.example2.com"]
 krb5_principal: <principal@REALM>
 krb5_keytab: </path/to/keytab>
@@ -117,46 +133,77 @@ krb5_kinit_path: </path/to/kinit>
 
 ### Parameter Explanations
 
-- **host** – The hostname of the system providing the Web Enrollment Service.
+- **host** – The hostname of the system providing the Web Enrollment Service (FQDN/hostname without a URL scheme). When `url` is unset, requests use `https://<host>/certsrv/...`.
 - **host_variable** *(optional)* – Name of the environment variable containing the host address (overridden if `host` is set in `acme_srv.cfg`).
+- **url** *(optional)* – Full Web Enrollment base URL (for example `https://ca.example.com/certsrv`). When set, it overrides the default `https://<host>/certsrv` path construction. **Must use HTTPS**; `http://` is rejected.
+- **url_variable** *(optional)* – Name of the environment variable containing the enrollment URL (overridden if `url` is set in `acme_srv.cfg`).
 - **user** – Username for accessing the service.
 - **user_variable** *(optional)* – Name of the environment variable containing the username (overridden if `user` is set in `acme_srv.cfg`).
 - **password** – Password for authentication.
 - **password_variable** *(optional)* – Name of the environment variable containing the password (overridden if `password` is set in `acme_srv.cfg`).
-- **ca_bundle** – CA certificate bundle in PEM format, required for validating the server certificate.
-- **auth_method** – Authentication method (`basic`, `ntlm`, or `gssapi`).
+- **ca_bundle** – CA certificate bundle in PEM format used to validate the AD CS HTTPS server certificate. Prefer this over disabling verification when the enrollment endpoint uses a private/enterprise CA.
+- **verify** *(optional, default `True`)* – Whether to verify the AD CS TLS server certificate. Set to `False` only as a break-glass measure (for example lab setups with untrusted certs). **Security warning:** `verify: False` disables TLS certificate validation for enrollment traffic (CSR, credentials, returned certificates) and enables man-in-the-middle attacks on the path to AD CS. Prefer `ca_bundle` / system trust instead. The handler logs a warning at config load when verification is disabled; enrollment is not blocked.
+- **auth_method** – Authentication method (`basic`, `ntlm`, or `gssapi`). Default is `basic` for backwards compatibility. `basic` and `ntlm` are deprecated; the handler logs a warning at config load (including when the default is used) and recommends migrating to `gssapi`. Enrollment is not blocked.
+- **gssapi_channel_bindings** *(optional)* – GSSAPI channel bindings mode for EPA/CBT: `auto` (default), `on`, or `off`. Requires `requests-gssapi >= 1.4.0` when enabled.
 - **krb5_principal** *(optional, required for keytab mode)* – Kerberos principal, for example `svc-a2c-enroll@EXAMPLE.COM`.
 - **krb5_principal_variable** *(optional)* – Name of the environment variable containing the Kerberos principal (overridden if `krb5_principal` is set in `acme_srv.cfg`).
 - **krb5_keytab** *(optional, required for keytab mode)* – Path to the Kerberos keytab file used by the service account.
 - **krb5_keytab_variable** *(optional)* – Name of the environment variable containing the keytab path (overridden if `krb5_keytab` is set in `acme_srv.cfg`).
-- **krb5_cache** *(optional)* – Path to the Kerberos credential cache (ccache). In keytab mode, a temporary ccache is created if this value is omitted.
+- **krb5_cache** *(optional)* – Path to the Kerberos credential cache (ccache). In keytab mode, a temporary ccache is created if this value is omitted. If you set a shared path used by multiple worker processes or threads, concurrent `kinit`/ticket refresh can race on the same file; prefer a per-process temporary cache, or a dedicated cache with a single writer and clear operational ownership.
 - **krb5_cache_variable** *(optional)* – Name of the environment variable containing the ccache path (overridden if `krb5_cache` is set in `acme_srv.cfg`).
-- **krb5_config** *(optional)* – Path to an individual `krb5.conf` file.
+- **krb5_config** *(optional)* – Path to an individual `krb5.conf` file. Applied to `kinit` subprocesses (keytab fallback and GSSAPI password mode) and scoped as `KRB5_CONFIG` during enrollment so SPNEGO can obtain service tickets (TGS) using the same realm/KDC map. Relative paths are resolved against the process working directory.
 - **krb5_config_variable** *(optional)* – Name of the environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).
-- **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the keytab fallback path. Defaults to `kinit` resolved from `PATH`.
+- **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the keytab fallback and GSSAPI password paths. Defaults to `kinit` resolved from `PATH`. If set, the value must be an **absolute** path whose basename is exactly `kinit` (for example `/usr/bin/kinit`). Symlink targets such as Debian/Ubuntu `kinit.mit` / `kinit.heimdal` are accepted after resolution. Other values are rejected and the kinit fallback fails.
 - **krb5_kinit_path_variable** *(optional)* – Name of the environment variable containing the `kinit` binary path (overridden if `krb5_kinit_path` is set in `acme_srv.cfg`).
 - **template** – Certificate template used for enrollment.
+- **allowed_templates** *(optional)* – JSON list of ADCS templates permitted for enrollment (including templates selected via ACME profiles, `header_info`, or EAB). An empty or unset list allows any template and logs a warning (backwards compatible). When non-empty, enrollment is rejected if the selected template is not listed. EAB per-account template restrictions still apply on top of this global ceiling.
+- **ca_templates_check** *(optional, default `warn`)* – Compare the selected template against templates reported by ADCS Web Enrollment (`certrqxt.asp`): `warn` (log and continue), `on` (reject if missing from the CA list), or `off` (skip). The Web Enrollment dropdown is not a complete ADCS inventory; fetch failures or an empty CA list log a warning and enrollment continues. Results are cached process-wide (thread-safe).
 - **allowed_domainlist** *(optional)* – List of allowed domain names for enrollment (JSON format).
-- **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
+- **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`). This handler omits `password`, Kerberos credential locations (`krb5_keytab`, `krb5_cache`, `krb5_config`, `krb5_kinit_path`), and runtime GSSAPI credentials from that dump.
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
+
+Enrollment failures against AD CS return a short handler error (`Could not get certificate from CA server`). Full exception text (HTTP status, Kerberos/GSSAPI details, etc.) is written to the server log only.
 
 ### GSSAPI Keytab Mode
 
 When `auth_method` is set to `gssapi`, the handler supports keytab-based Kerberos authentication.
 If `krb5_principal` and `krb5_keytab` are configured, the handler prepares Kerberos credentials using Python GSSAPI and falls back to `kinit` if needed.
+Prepared credentials are loaded from the ccache and passed explicitly into the certsrv client; the handler does **not** mutate process-wide `KRB5CCNAME` (safe for threaded WSGI).
+When `krb5_config` is set, `KRB5_CONFIG` is temporarily scoped around enrollment so MIT Kerberos can resolve the KDC for SPNEGO/TGS (ccache alone is not enough). Concurrent enrollments with different `krb5_config` values in one process are unsupported.
 
 Example:
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/mscertsrv_ca_handler.py
+handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler
 host: <hostname>
 auth_method: gssapi
 template: <name>
 krb5_principal: svc-a2c-enroll@EXAMPLE.COM
 krb5_keytab: /etc/acme2certifier/svc-a2c-enroll.keytab
-krb5_cache: /var/lib/acme2certifier/krb5cc_a2c
+krb5_cache: /var/www/acme2certifier/volume/krb5cc_a2c
+
 krb5_config: /etc/krb5.conf
+krb5_kinit_path: /usr/bin/kinit
+```
+
+### GSSAPI Password Mode
+
+When `auth_method` is `gssapi` and `user` / `password` are configured (without keytab), the handler acquires a TGT via `kinit` in a **subprocess** with `KRB5_CONFIG` / `KRB5CCNAME` set only for that process, then loads GSSAPI credentials from the ccache and passes them explicitly to the certsrv client. Enrollment additionally scopes `KRB5_CONFIG` for SPNEGO/TGS when `krb5_config` is configured.
+Bare usernames (for example `a2c`) work when `krb5_config` defines `default_realm` and KDC settings.
+If password `kinit` is unavailable (binary missing or not on `PATH`), the handler falls back to in-process `acquire_cred_with_password`. That path also uses the scoped `KRB5_CONFIG` during enrollment when `krb5_config` is set.
+
+Example:
+
+```ini
+[CAhandler]
+handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler
+host: <hostname>
+user: a2c
+password: <secret>
+auth_method: gssapi
+template: <name>
+krb5_config: /etc/acme2certifier/krb5.conf
 krb5_kinit_path: /usr/bin/kinit
 ```
 
@@ -204,7 +251,7 @@ This handler supports [EAB profiling](eab_profiling.md) to allow individual enro
 
 ```ini
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

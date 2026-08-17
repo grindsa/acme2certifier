@@ -1,0 +1,914 @@
+# -*- coding: utf-8 -*-
+"""ca handler for Insta Certifier via REST-API class"""
+
+from __future__ import print_function
+import textwrap
+import math
+import time
+import json
+import os
+from typing import List, Tuple, Dict
+from urllib.parse import urlencode
+import requests
+from requests.auth import HTTPBasicAuth
+
+# pylint: disable=e0401
+from acme2certifier.acme_srv.helper import (
+    b64_decode,
+    b64_encode,
+    cert_pem2der,
+    cert_serial_get,
+    config_eab_profile_load,
+    config_enroll_config_log_load,
+    config_headerinfo_load,
+    config_profile_load,
+    eab_profile_header_info_check,
+    eab_profile_revocation_check,
+    enrollment_config_log,
+    error_dic_get,
+    handler_config_check,
+    load_config,
+    parse_url,
+    proxy_check,
+    request_operation,
+    uts_now,
+    uts_to_date_utc,
+)
+from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
+
+
+class CAhandler(object):
+    """CA  handler"""
+
+    # Opt into the /trigger HTTP callback endpoint (see [Trigger] enabled).
+    supports_trigger = True
+
+    def __init__(self, debug: bool = False, logger: object = None):
+        self.debug = debug
+        self.logger = logger
+        self.request_timeout = 20
+        self.api_host = None
+        self.api_user = None
+        self.api_password = None
+        self.ca_bundle = True
+        self.ca_name = None
+        self.auth = None
+        self.session = None
+        self.request_retries = 3
+        self.request_retry_backoff = 2.0
+        self.polling_timeout = 60
+        self.profile_id = None
+        self.proxy = None
+        self.header_info_field = False
+        self.eab_handler = None
+        self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
+        self.profiles = {}
+        self.profile_mapping_field = "profile_id"
+
+    def __enter__(self):
+        """Makes ACMEHandler a Context Manager"""
+        if not self.api_host:
+            self._config_load()
+            self._auth_set()
+        return self
+
+    def __exit__(self, *args):
+        """cose the connection at the end of the context"""
+
+    def _auth_set(self):
+        """set basic authentication header"""
+        self.logger.debug("CAhandler._auth_set()")
+        self.session = requests.Session()
+        if self.api_user and self.api_password:
+            self.session.auth = HTTPBasicAuth(self.api_user, self.api_password)
+        else:
+            self.logger.error(
+                'Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file'
+            )
+        self.logger.debug("CAhandler._auth_set() ended")
+
+    def _api_poll(self, request_dic: Dict[str, str]) -> Tuple[str, str, str]:
+        """poll request"""
+        self.logger.debug("CAhandler._api_poll()")
+
+        cert_bundle = None
+        cert_raw = None
+
+        if "certificate" in request_dic:
+            # poll identifier for later storage
+            _code, cert_dic = request_operation(
+                self.logger,
+                url=request_dic["certificate"],
+                method="get",
+                verify=self.ca_bundle,
+                proxy=self.proxy,
+                timeout=self.request_timeout,
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+            if isinstance(cert_dic, dict) and "certificateBase64" in cert_dic:
+                # this is a valid cert generate the bundle
+                error = None
+                cert_bundle = self._pem_cert_chain_generate(cert_dic)
+                cert_raw = cert_dic["certificateBase64"]
+            else:
+                error = "certificateBase64 is missing in cert request response"
+        else:
+            error = "No certificate structure in request response"
+
+        self.logger.debug("CAhandler._api_poll() ended")
+        return (error, cert_bundle, cert_raw)
+
+    def _api_post(self, url: str, data: Dict[str, str]) -> Dict[str, str]:
+        """
+        generic wrapper for an API post call
+        args:
+            url - API URL
+            data - data to post
+        returns:
+            result of the post command
+        """
+        _code, api_response = request_operation(
+            self.logger,
+            url=url,
+            method="post",
+            payload=data,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+
+        return api_response
+
+    def _ca_get(
+        self, filter_key: str = None, filter_value: str = None
+    ) -> Dict[str, str]:
+        """get list of CAs"""
+        self.logger.debug("_ca_get(%s:%s)", filter_key, filter_value)
+        params = {}
+
+        if filter_key:
+            params["q"] = f"{filter_key}:{filter_value}"
+
+        if self.api_host:
+            url = self.api_host + "/v1/cas"
+            if params:
+                url = f"{url}?{urlencode(params)}"
+            _code, api_response = request_operation(
+                self.logger,
+                url=url,
+                method="get",
+                verify=self.ca_bundle,
+                proxy=self.proxy,
+                timeout=self.request_timeout,
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+            if not isinstance(api_response, dict):
+                api_response = {
+                    "status": 500,
+                    "message": str(api_response),
+                    "statusMessage": "Internal Server Error",
+                }
+        else:
+            self.logger.error("api_host parameter is misisng in configuration")
+            api_response = {}
+        self.logger.debug("CAhandler._ca_get() ended with: %s", api_response)
+        return api_response
+
+    def _ca_get_properties(self, filter_key: str, filter_value: str) -> Dict[str, str]:
+        """get properties for a single CAs"""
+        self.logger.debug("_ca_get_properties(%s:%s)", filter_key, filter_value)
+        ca_list = self._ca_get(filter_key, filter_value)
+        ca_dic = {}
+        if "status" in ca_list and "message" in ca_list:
+            # we got an error from get_ca()
+            ca_dic = ca_list
+        elif "cas" in ca_list and ca_list["cas"]:
+            for cas in ca_list["cas"]:
+                if filter_key in cas and cas[filter_key] == filter_value:
+                    ca_dic = cas
+                    break
+        if not ca_dic:
+            ca_dic = {
+                "status": 404,
+                "message": "CA not found",
+                "statusMessage": "Not Found",
+            }
+        self.logger.debug("CAhandler._ca_get_properties() ended with: %s", ca_dic)
+        return ca_dic
+
+    def _cert_get(self, csr: str) -> Dict[str, str]:
+        """get certificate from CA"""
+        self.logger.debug("CAhandler._cert_get(%s)", csr)
+        ca_dic = self._ca_get_properties("name", self.ca_name)
+        cert_dic = {}
+
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(["auth", "api_password"])
+            enrollment_config_log(
+                self.logger, self, self.enrollment_config_log_skip_list
+            )
+
+        if "href" in ca_dic:
+            data = {"ca": ca_dic["href"], "pkcs10": csr}
+
+            # set profileid if configured
+            if self.profile_id:
+                data["profileId"] = self.profile_id
+
+            cert_dic = self._api_post(self.api_host + "/v1/requests", data)
+
+        if not cert_dic:
+            cert_dic = ca_dic
+
+        self.logger.debug("CAhandler._cert_get() ended with: %s", cert_dic)
+        return cert_dic
+
+    def _cert_get_properties(self, serial: str, ca_link: str) -> Dict[str, str]:
+        """get properties for a single cert"""
+        self.logger.debug("_cert_get_properties(%s:%s)", serial, ca_link)
+
+        params = {"q": f"issuer-id:{ca_link},serial-number:{serial}"}
+        url = f"{self.api_host}/v1/certificates?{urlencode(params)}"
+        _code, api_response = request_operation(
+            self.logger,
+            url=url,
+            method="get",
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if not isinstance(api_response, dict):
+            self.logger.error(
+                "Could not get certificate properties. Error: %s", str(api_response)
+            )
+            api_response = {
+                "status": 500,
+                "message": str(api_response),
+                "statusMessage": "Internal Server Error",
+            }
+        self.logger.debug("CAhandler._cert_get_properties() ended")
+        return api_response
+
+    def _certificate_revoke(
+        self, serial: str, ca_dic: Dict[str, str], rev_reason: str, rev_date: str
+    ) -> Tuple[int, str, str]:
+        self.logger.debug("CAhandler._certificate_revoke()")
+
+        code = None
+        message = None
+        detail = None
+
+        # get error message
+        err_dic = error_dic_get(self.logger)
+
+        # get certificate information via rest by search for ca+ serial
+        cert_dic = self._cert_get_properties(serial, ca_dic["href"])
+        if "certificates" in cert_dic:
+            if (
+                len(cert_dic["certificates"]) > 0
+                and "href" in cert_dic["certificates"][0]
+            ):
+                # revoke the cert
+                data = {
+                    "newStatus": "revoked",
+                    "crlReason": rev_reason,
+                    "invalidityDate": rev_date,
+                }
+                cert_dic = self._api_post(
+                    cert_dic["certificates"][0]["href"] + "/status", data
+                )
+                if "status" in cert_dic:
+                    code = 400
+                    message = err_dic["alreadyrevoked"]
+                    if "message" in cert_dic:
+                        detail = cert_dic["message"]
+                    else:
+                        detail = "no details"
+                else:
+                    code = 200
+                    message = None
+                    detail = None
+            else:
+                code = 404
+                message = err_dic["serverinternal"]
+                detail = "Cert path could not be found"
+        else:
+            code = 404
+            message = err_dic["serverinternal"]
+            detail = "Cert could not be found"
+
+        return (code, message, detail)
+
+    def _config_user_load(self, config_dic: Dict[str, str]):
+        """load username"""
+        self.logger.debug("_config_user_load()")
+        if (
+            "api_user" in config_dic["CAhandler"]
+            or "api_user_variable" in config_dic["CAhandler"]
+        ):
+            if "api_user_variable" in config_dic["CAhandler"]:
+                try:
+                    self.api_user = os.environ[
+                        config_dic.get("CAhandler", "api_user_variable")
+                    ]
+                except Exception as err:
+                    self.logger.error("Could not load user_variable:%s", err)
+            if "api_user" in config_dic["CAhandler"]:
+                if self.api_user:
+                    self.logger.info("Overwrite api_user")
+                self.api_user = config_dic.get(
+                    "CAhandler", "api_user", fallback=self.api_user
+                )
+        else:
+            self.logger.error(
+                '%s: "api_user" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
+            )
+
+        self.logger.debug("_config_user_load() ended")
+
+    def _config_password_load(self, config_dic: Dict[str, str]):
+        """load password"""
+        self.logger.debug("_config_password_load()")
+
+        if (
+            "api_password" in config_dic["CAhandler"]
+            or "api_password_variable" in config_dic["CAhandler"]
+        ):
+            if "api_password_variable" in config_dic["CAhandler"]:
+                try:
+                    self.api_password = os.environ[
+                        config_dic.get("CAhandler", "api_password_variable")
+                    ]
+                except Exception as err:
+                    self.logger.error(
+                        "Could not load passphrase_variable:%s",
+                        err,
+                    )
+            if "api_password" in config_dic["CAhandler"]:
+                if self.api_password:
+                    self.logger.info("Overwrite api_password_variable")
+                self.api_password = config_dic.get("CAhandler", "api_password")
+        else:
+            self.logger.error(
+                '%s: "api_password" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
+            )
+
+        self.logger.debug("_config_password_load() ended")
+
+    def _config_parameter_load(self, config_dic: Dict[str, str]):
+        """load parameters"""
+        self.logger.debug("_config_parameter_load()")
+
+        if "ca_name" in config_dic["CAhandler"]:
+            self.ca_name = config_dic.get("CAhandler", "ca_name", fallback=self.ca_name)
+        else:
+            self.logger.error(
+                '%s: "ca_name" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
+            )
+
+        try:
+            self.polling_timeout = int(
+                config_dic.get(
+                    "CAhandler", "polling_timeout", fallback=self.polling_timeout
+                )
+            )
+        except Exception:
+            self.logger.warning(
+                "Invalid value for polling_timeout in configuration. Using default: %s",
+                self.polling_timeout,
+            )
+
+        try:
+            self.request_timeout = int(
+                config_dic.get(
+                    "CAhandler", "request_timeout", fallback=self.request_timeout
+                )
+            )
+        except Exception:
+            self.logger.warning(
+                "Invalid value for request_timeout in configuration. Using default: %s",
+                self.request_timeout,
+            )
+
+        # load enrollment config log
+        (
+            self.enrollment_config_log,
+            self.enrollment_config_log_skip_list,
+        ) = config_enroll_config_log_load(self.logger, config_dic)
+
+        # load profile_id
+        self.profile_id = config_dic.get(
+            "CAhandler", self.profile_mapping_field, fallback=None
+        )
+
+        try:
+            self.request_retries = int(
+                config_dic.get(
+                    "CAhandler", "request_retries", fallback=self.request_retries
+                )
+            )
+        except Exception:
+            self.logger.warning(
+                "Invalid value for request_retries in configuration. Using default: %s",
+                self.request_retries,
+            )
+
+        try:
+            self.request_retry_backoff = float(
+                config_dic.get(
+                    "CAhandler",
+                    "request_retry_backoff",
+                    fallback=self.request_retry_backoff,
+                )
+            )
+        except Exception:
+            self.logger.warning(
+                "Invalid value for request_retry_backoff in configuration. Using default: %s",
+                self.request_retry_backoff,
+            )
+
+        # check if we get a ca bundle for verification
+        if "ca_bundle" in config_dic["CAhandler"]:
+            try:
+                self.ca_bundle = config_dic.getboolean("CAhandler", "ca_bundle")
+            except Exception:
+                self.ca_bundle = config_dic.get(
+                    "CAhandler", "ca_bundle", fallback=self.ca_bundle
+                )
+
+        self.logger.debug("_config_parameter_load() ended")
+
+    def _config_proxy_load(self, config_dic: Dict[str, str]):
+        """load parameters"""
+        self.logger.debug("_config_proxy_load()")
+
+        if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
+            try:
+                proxy_list = json.loads(config_dic["DEFAULT"]["proxy_server_list"])
+                url_dic = parse_url(self.logger, self.api_host)
+                if "host" in url_dic:
+                    fqdn, _port = url_dic["host"].split(":")
+                    proxy_server = proxy_check(self.logger, fqdn, proxy_list)
+                    self.proxy = {"http": proxy_server, "https": proxy_server}
+            except Exception as err_:
+                self.logger.warning(
+                    "Failed to parse proxy_server_list from configuration: %s",
+                    err_,
+                )
+
+        self.logger.debug("_config_proxy_load() ended")
+
+    def _config_load(self):
+        """ " load config from file"""
+        # pylint: disable=R0912, R0915
+        self.logger.debug("_config_load()")
+        config_dic = load_config(self.logger, "CAhandler")
+        if "CAhandler" in config_dic:
+            if "api_host" in config_dic["CAhandler"]:
+                self.api_host = config_dic.get(
+                    "CAhandler", "api_host", fallback=self.api_host
+                )
+            else:
+                self.logger.error(
+                    '%s: "api_host" parameter is missing in config file',
+                    CONFIGURATION_ERROR_DETAIL,
+                )
+
+            # load user from config
+            self._config_user_load(config_dic)
+            # load password from config
+            self._config_password_load(config_dic)
+            # load parameters from config
+            self._config_parameter_load(config_dic)
+            # load profiling
+            self.eab_profiling, self.eab_handler = config_eab_profile_load(
+                self.logger, config_dic
+            )
+
+            # load profiles
+            self.profiles = config_profile_load(self.logger, config_dic)
+
+            # load header info
+            self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+
+        # load proxy configuration
+        self._config_proxy_load(config_dic)
+        self.logger.debug("CAhandler._config_load() ended")
+
+    def _csr_check(self, csr: str) -> str:
+        """check csr"""
+        self.logger.debug("CAhandler._csr_check()")
+
+        # check for eab profiling and header_info
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
+
+        self.logger.debug("CAhandler._csr_check() ended with: %s", error)
+        return error
+
+    def _poll_cert_get(
+        self, request_dic: Dict[str, str], poll_identifier: str, error: str
+    ) -> Tuple[str, str, str, str, bool]:
+        """get certificate via poll request"""
+        self.logger.debug("CAhandler._poll_cert_get()")
+
+        cert_bundle = None
+        cert_raw = None
+        break_loop = False
+        # check response
+        if "status" in request_dic:
+            if request_dic["status"] == "accepted":
+
+                if "certificate" in request_dic:
+                    # poll identifier for later storage
+                    _code, cert_dic = request_operation(
+                        self.logger,
+                        url=request_dic["certificate"],
+                        method="get",
+                        verify=self.ca_bundle,
+                        proxy=self.proxy,
+                        timeout=self.request_timeout,
+                        session=self.session,
+                        retries=self.request_retries,
+                        retry_backoff=self.request_retry_backoff,
+                    )
+                    # pylint: disable=R1723
+                    if isinstance(cert_dic, dict) and "certificateBase64" in cert_dic:
+                        # this is a valid cert generate the bundle
+                        error = None
+                        cert_bundle = self._pem_cert_chain_generate(cert_dic)
+                        cert_raw = cert_dic["certificateBase64"]
+                        poll_identifier = None
+                        break_loop = True
+                    else:
+                        error = "Request accepted but no certificateBase64 returned"
+                else:
+                    error = "Request accepted but no certificate returned"
+            elif request_dic["status"] == "rejected":
+                error = "Request rejected by operator"
+                poll_identifier = None
+                break_loop = True
+
+        self.logger.debug("CAhandler._poll_cert_get() ended")
+        return (error, cert_bundle, cert_raw, poll_identifier, break_loop)
+
+    def _loop_poll(self, request_url: str) -> Tuple[str, str, str, str]:
+        """poll request"""
+        self.logger.debug("CAhandler._loop_poll(%s)", request_url)
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+
+        if request_url:
+            # calculate iterations based on timeout
+            poll_cnt = math.ceil(self.polling_timeout / 5)
+            cnt = 1
+            while cnt <= poll_cnt:
+                cnt += 1
+                _code, request_dic = request_operation(
+                    self.logger,
+                    url=request_url,
+                    method="get",
+                    verify=self.ca_bundle,
+                    proxy=self.proxy,
+                    timeout=self.request_timeout,
+                    session=self.session,
+                    retries=self.request_retries,
+                    retry_backoff=self.request_retry_backoff,
+                )
+                if not isinstance(request_dic, dict):
+                    request_dic = {}
+
+                # check response
+                (
+                    error,
+                    cert_bundle,
+                    cert_raw,
+                    poll_identifier,
+                    break_loop,
+                ) = self._poll_cert_get(request_dic, request_url, error)
+                if break_loop:
+                    break
+
+                # sleep
+                time.sleep(self.request_timeout)
+        else:
+            self.logger.warning("Error during polling loop: no request url specified")
+            poll_identifier = request_url
+
+        self.logger.debug("CAhandler._loop_poll() ended with error: %s", error)
+        return (error, cert_bundle, cert_raw, poll_identifier)
+
+    def _pem_list_cert_get(self, cert_dic: Dict[str, str]) -> Dict[str, str]:
+        self.logger.debug("CAhandler._pem_list_cert_get()")
+        if "issuer" in cert_dic:
+            self.logger.debug("issuer found: %s", cert_dic["issuer"])
+            _code, ca_cert_dic = request_operation(
+                self.logger,
+                url=cert_dic["issuer"],
+                method="get",
+                verify=self.ca_bundle,
+                proxy=self.proxy,
+                timeout=self.request_timeout,
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+        else:
+            self.logger.debug("issuer found: %s", cert_dic["issuerCa"])
+            _code, ca_cert_dic = request_operation(
+                self.logger,
+                url=cert_dic["issuerCa"],
+                method="get",
+                verify=self.ca_bundle,
+                proxy=self.proxy,
+                timeout=self.request_timeout,
+                session=self.session,
+                retries=self.request_retries,
+                retry_backoff=self.request_retry_backoff,
+            )
+
+        cert_dic = {}
+        if isinstance(ca_cert_dic, dict) and "certificates" in ca_cert_dic:
+            if "active" in ca_cert_dic["certificates"]:
+                _code, cert_dic = request_operation(
+                    self.logger,
+                    url=ca_cert_dic["certificates"]["active"],
+                    method="get",
+                    verify=self.ca_bundle,
+                    proxy=self.proxy,
+                    timeout=self.request_timeout,
+                    session=self.session,
+                    retries=self.request_retries,
+                    retry_backoff=self.request_retry_backoff,
+                )
+                if not isinstance(cert_dic, dict):
+                    cert_dic = {}
+
+        self.logger.debug("CAhandler._pem_list_cert_get() ended")
+        return cert_dic
+
+    def _pem_list_build(self, cert_dic: Dict[str, str]) -> List[str]:
+        self.logger.debug("CAhandler._pem_list_build()")
+
+        pem_list = []
+        issuer_loop = True
+        while issuer_loop:
+            if "certificateBase64" in cert_dic:
+                pem_list.append(cert_dic["certificateBase64"])
+            else:
+                # stop if there is no pem content in the json response
+                issuer_loop = False  # lgtm [py/unused-local-variable]
+                break
+            if "issuer" in cert_dic or "issuerCa" in cert_dic:
+                cert_dic = self._pem_list_cert_get(cert_dic)
+            else:
+                issuer_loop = False  # lgtm [py/unused-local-variable]
+                break
+
+        self.logger.debug("CAhandler._pem_list_build() ended")
+        return pem_list
+
+    def _pem_cert_chain_generate(self, cert_dic: str) -> str:
+        """build certificate chain based"""
+        self.logger.debug("CAhandler._pem_cert_chain_generate()")
+
+        if cert_dic:
+            pem_list = self._pem_list_build(cert_dic)
+        else:
+            pem_list = []
+
+        if pem_list:
+            pem_file = ""
+            for cert in pem_list:
+                pem_file = f"{pem_file}-----BEGIN CERTIFICATE-----\n{textwrap.fill(cert, 64)}\n-----END CERTIFICATE-----\n"
+        else:
+            pem_file = None
+
+        self.logger.debug("CAhandler._pem_cert_chain_generate() ended")
+        return pem_file
+
+    def _request_poll(self, request_url: str) -> Tuple[str, str, str, str, bool]:
+        """poll request"""
+        self.logger.debug("CAhandler._request_poll(%s)", request_url)
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+        poll_identifier = request_url
+        rejected = False
+
+        _code, request_dic = request_operation(
+            self.logger,
+            url=request_url,
+            method="get",
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        if not isinstance(request_dic, dict):
+            self.logger.error("Polling request returned an error: %s", request_dic)
+            request_dic = {}
+
+        # check response
+        if "status" in request_dic:
+            if request_dic["status"] == "accepted":
+                error, cert_bundle, cert_raw = self._api_poll(request_dic)
+            elif request_dic["status"] == "rejected":
+                error = "Request rejected by operator"
+                rejected = True
+            else:
+                error = f'Unknown request status: {request_dic["status"]}'
+        else:
+            error = '"status" field not found in response.'
+
+        self.logger.debug("CAhandler._request_poll() ended with error: %s", error)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
+
+    def _trigger_bundle_build(
+        self, cert_raw: str, ca_dic: Dict[str, str]
+    ) -> Tuple[str, str]:
+        self.logger.debug("CAhandler._trigger_bundle_build()")
+        error = None
+        cert_bundle = None
+
+        # get serial from pem file
+        serial = cert_serial_get(self.logger, cert_raw)
+        if serial:
+            # get certificate information via rest by search for ca+ serial
+            cert_list = self._cert_get_properties(serial, ca_dic["href"])
+            # the first entry is the cert we are looking for
+            if "certificates" in cert_list and len(cert_list["certificates"][0]) > 0:
+                cert_dic = cert_list["certificates"][0]
+                cert_bundle = self._pem_cert_chain_generate(cert_dic)
+            else:
+                error = "no certifcates found in rest query"
+        else:
+            error = "serial number lookup via rest failed"
+
+        self.logger.debug("CAhandler._trigger_bundle_build() ended with:  %s", error)
+        return (error, cert_bundle)
+
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
+        """enroll certificate"""
+        self.logger.debug("Certificate.enroll()")
+        cert_bundle = None
+        cert_raw = None
+        poll_identifier = None
+
+        # check CSR
+        error = self._csr_check(csr)
+
+        # enrollment starts here
+        if not error:
+            cert_dic = self._cert_get(csr)
+        else:
+            cert_dic = None
+
+        if cert_dic:
+            if "status" in cert_dic:
+                # this is an error
+                if "message" in cert_dic:
+                    error = cert_dic["message"]
+                else:
+                    error = "unknown error"
+            elif "certificateBase64" in cert_dic:
+                # this is a valid cert generate the bundle
+                cert_bundle = self._pem_cert_chain_generate(cert_dic)
+                cert_raw = cert_dic["certificateBase64"]
+            elif "href" in cert_dic:
+                # request is pending
+                error, cert_bundle, cert_raw, poll_identifier = self._loop_poll(
+                    cert_dic["href"]
+                )
+            else:
+                error = "no certificate information found"
+        else:
+            if not error:
+                error = "internal error"
+
+        self.logger.debug("Certificate.enroll() ended")
+        return (error, cert_bundle, cert_raw, poll_identifier)
+
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+
+        error = handler_config_check(
+            self.logger, self, ["api_host", "api_user", "api_password", "ca_name"]
+        )
+
+        self.logger.debug("CAhandler.check() ended with %s", error)
+        return error
+
+    def poll(
+        self, cert_name: str, poll_identifier: str, _csr: str
+    ) -> Tuple[str, str, str, str, str, bool]:
+        """poll pending status of pending CSR and download certificates"""
+        self.logger.debug("CAhandler.poll()")
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+        rejected = False
+
+        if poll_identifier:
+            (
+                error,
+                cert_bundle,
+                cert_raw,
+                poll_identifier,
+                rejected,
+            ) = self._request_poll(poll_identifier)
+        else:
+            self.logger.debug(
+                "skipping cert: %s as there is no poll_identifier", cert_name
+            )
+
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
+
+    def revoke(
+        self,
+        cert: str,
+        rev_reason: str = "unspecified",
+        rev_date: str = uts_to_date_utc(uts_now()),
+    ) -> Tuple[int, str, str]:
+        """revoke certificate"""
+        self.logger.debug("CAhandler.revoke(%s: %s)", rev_reason, rev_date)
+
+        # get error message
+        err_dic = error_dic_get(self.logger)
+
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, cert)
+
+        # lookup REST-PATH of issuing CA
+        ca_dic = self._ca_get_properties("name", self.ca_name)
+        if "href" in ca_dic:
+            # get serial from pem file
+            serial = cert_serial_get(self.logger, cert)
+            if serial:
+                code, message, detail = self._certificate_revoke(
+                    serial, ca_dic, rev_reason, rev_date
+                )
+            else:
+                code = 404
+                message = err_dic["serverinternal"]
+                detail = "failed to get serial number from cert"
+        else:
+            code = 404
+            message = err_dic["serverinternal"]
+            detail = "CA could not be found"
+
+        return (code, message, detail)
+
+    def trigger(self, payload: str) -> Tuple[str, str, str]:
+        """process trigger message and return certificate"""
+        self.logger.debug("CAhandler.trigger()")
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+
+        if payload:
+            # decode payload
+            cert = b64_decode(self.logger, payload)
+            try:
+                # cert is a base64 encoded pem object
+                cert_raw = b64_encode(self.logger, cert_pem2der(cert))
+            except Exception:
+                # cert is a binary der encoded object
+                cert_raw = b64_encode(self.logger, cert)
+
+            # lookup REST-PATH of issuing CA
+            ca_dic = self._ca_get_properties("name", self.ca_name)
+            if "href" in ca_dic:
+                error, cert_bundle = self._trigger_bundle_build(cert_raw, ca_dic)
+            else:
+                error = "Cannot find CA"
+        else:
+            error = "No payload given"
+
+        self.logger.debug("CAhandler.trigger() ended with error: %s", error)
+        return (error, cert_bundle, cert_raw)

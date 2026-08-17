@@ -1,50 +1,75 @@
 name: "compare_profile_info"
-description: "compare_profile_info"
+description: "Trigger profiles_sync and compare LE staging meta.profiles with a2c directory"
 inputs:
   NAME_SPACE:
-    description: "Namespace for the test"
+    description: "Docker network namespace"
     required: true
     default: "acme"
+  ACME_SERVER:
+    description: "a2c ACME server hostname"
+    required: false
+    default: "acme-srv"
+  LE_DIRECTORY_URL:
+    description: "LE staging directory URL"
+    required: false
+    default: "https://acme-staging-v02.api.letsencrypt.org/directory"
+  MAX_ATTEMPTS:
+    description: "Poll attempts until profiles match"
+    required: false
+    default: "30"
+  SLEEP_SECONDS:
+    description: "Seconds between polls"
+    required: false
+    default: "2"
 
 runs:
   using: "composite"
   steps:
+    - name: "Pull curl image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: curlimages/curl
 
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
+    - name: "Trigger profile sync from LE"
+      run: |
+        set -euo pipefail
+        docker run -i --rm --network "${NAME_SPACE}" curlimages/curl \
+          -fsS --connect-timeout 5 --max-time 20 --insecure \
+          "http://${ACME_SERVER}/directory" >/dev/null
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
-  - name: "Trigger fetch sync of profile information from LE"
-    run: |
-        docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory --insecure
-    shell: bash
-    env:
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+    - name: "Poll until profile information matches"
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 "${MAX_ATTEMPTS}"); do
+          LE_OUTPUT=$(docker run -i --rm --network "${NAME_SPACE}" curlimages/curl \
+            -fsS --connect-timeout 5 --max-time 20 --insecure \
+            "${LE_DIRECTORY_URL}") || true
+          A2C_OUTPUT=$(docker run -i --rm --network "${NAME_SPACE}" curlimages/curl \
+            -fsS --connect-timeout 5 --max-time 20 --insecure \
+            "http://${ACME_SERVER}/directory") || true
 
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
+          LE_PROFILES=$(echo "${LE_OUTPUT}" | jq -c '.meta.profiles // empty' 2>/dev/null || true)
+          A2C_PROFILES=$(echo "${A2C_OUTPUT}" | jq -c '.meta.profiles // empty' 2>/dev/null || true)
+          echo "attempt ${i}/${MAX_ATTEMPTS}"
+          echo "LE_PROFILES: ${LE_PROFILES}"
+          echo "A2C_PROFILES: ${A2C_PROFILES}"
 
-  - name: "Get and compare profile information"
-    run: |
-
-        LE_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl -f https://acme-staging-v02.api.letsencrypt.org/directory --insecure)
-        A2C_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory --insecure)
-
-        # Parse LE_OUTPUT for .meta.profiles using jq
-        LE_PROFILES=$(echo "$LE_OUTPUT" | jq '.meta.profiles // empty')
-        A2C_PROFILES=$(echo "$A2C_OUTPUT" | jq '.meta.profiles // empty')
-        echo "LE_PROFILES: $LE_PROFILES"
-        echo "A2C_PROFILES: $A2C_PROFILES"
-
-        if [ "$LE_PROFILES" != "$A2C_PROFILES" ]; then
-          echo "Profile information does not match!"
-          exit 1
-        else
-          echo "Profile information matches."
-        fi
-    shell: bash
-    env:
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+          if [ -n "${LE_PROFILES}" ] && [ "${LE_PROFILES}" = "${A2C_PROFILES}" ]; then
+            echo "Profile information matches."
+            exit 0
+          fi
+          sleep "${SLEEP_SECONDS}"
+        done
+        echo "Profile information does not match after ${MAX_ATTEMPTS} attempts" >&2
+        exit 1
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        LE_DIRECTORY_URL: ${{ inputs.LE_DIRECTORY_URL }}
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}

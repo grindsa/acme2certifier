@@ -5,6 +5,7 @@
 # pylint: disable=C0415, R0904, R0913, W0212
 import sys
 import os
+import tempfile
 import unittest
 from unittest.mock import patch, mock_open, Mock, MagicMock
 from io import StringIO
@@ -17,6 +18,8 @@ import json
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
 
+_WSGI_MODULE = "acme2certifier.share.acme2certifier_wsgi"
+
 
 class FakeDBStore(object):
     """face DBStore class needed for mocking"""
@@ -28,15 +31,27 @@ class FakeDBStore(object):
 class TestACMEHandler(unittest.TestCase):
     """test class for cgi_handler"""
 
-    @patch.dict("os.environ", {"ACME_SRV_CONFIGFILE": "ACME_SRV_CONFIGFILE"})
     def setUp(self):
         """setup unittest with fresh wsgi module state"""
         import logging
         import importlib
-        import examples.acme2certifier_wsgi
 
-        importlib.reload(examples.acme2certifier_wsgi)
-        from examples.acme2certifier_wsgi import (
+        # Fake config + writable deploy base: module import runs Housekeeping/DBstore.
+        self._tmpdir = tempfile.mkdtemp(prefix="a2c_wsgi_test_")
+        self._env_patcher = patch.dict(
+            os.environ,
+            {
+                "ACME_SRV_CONFIGFILE": "ACME_SRV_CONFIGFILE",
+                "ACME2CERTIFIER_BASE_DIR": self._tmpdir,
+            },
+        )
+        self._env_patcher.start()
+        sys.modules.pop(_WSGI_MODULE, None)
+
+        import acme2certifier.share.acme2certifier_wsgi
+
+        importlib.reload(acme2certifier.share.acme2certifier_wsgi)
+        from acme2certifier.share.acme2certifier_wsgi import (
             create_header,
             get_request_body,
             acct,
@@ -85,7 +100,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def tearDown(self):
         """teardown"""
-        pass
+        if hasattr(self, "_env_patcher"):
+            self._env_patcher.stop()
+        if hasattr(self, "_tmpdir") and os.path.isdir(self._tmpdir):
+            shutil.rmtree(self._tmpdir, ignore_errors=True)
+        sys.modules.pop(_WSGI_MODULE, None)
 
     def test_001_default(self):
         """default test which always passes"""
@@ -176,53 +195,82 @@ class TestACMEHandler(unittest.TestCase):
         environ = {"wsgi.input": StringIO("""foo"""), "CONTENT_LENGTH": "aaa"}
         self.assertFalse(self.get_request_body(environ))
 
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("acme_srv.account.Account.parse")
-    def test_017_acct(self, mock_parse, mock_body, mock_url, mock_header):
+    @patch("acme2certifier.share.acme2certifier_wsgi.log_response")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.acme_srv.account.Account.parse")
+    def test_017_acct(self, mock_parse, mock_body, mock_url, mock_header, mock_log):
         """acct"""
-        environ = "environ"
+        environ = {
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
         mock_parse.return_value = {"code": 200, "data": "data"}
         self.assertEqual([b'"data"'], self.acct(environ, Mock()))
         self.assertTrue(mock_body.called)
         self.assertTrue(mock_parse.called)
         self.assertTrue(mock_url.called)
         self.assertTrue(mock_header.called)
+        self.assertTrue(mock_log.called)
 
-    @patch("acme_srv.acmechallenge.Acmechallenge.lookup")
+    @patch("acme2certifier.acme_srv.acmechallenge.Acmechallenge.lookup")
     def test_018_acmechallenge_serve(self, mock_lookup):
         """acmechallenge_serve"""
         environ = {"PATH_INFO": "PATH_INFO", "REMOTE_ADDR": "REMOTE_ADDR"}
         mock_lookup.return_value = "foo"
         self.assertEqual([b"foo"], self.acmechallenge_serve(environ, Mock()))
 
-    @patch("acme_srv.acmechallenge.Acmechallenge.lookup")
+    @patch("acme2certifier.acme_srv.acmechallenge.Acmechallenge.lookup")
     def test_019_acmechallenge_serve(self, mock_lookup):
         """acmechallenge_serve no key_authorization"""
         environ = {"PATH_INFO": "PATH_INFO", "REMOTE_ADDR": "REMOTE_ADDR"}
         mock_lookup.return_value = None
         self.assertEqual([b"NOT FOUND"], self.acmechallenge_serve(environ, Mock()))
 
-    @patch("acme_srv.authorization.Authorization.new_post")
-    @patch("acme_srv.authorization.Authorization.new_get")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_get")
     def test_020_authz(self, mock_get, mock_post):
         """authz neither get or post"""
         environ = {"foo": "bar", "wsgi.input": StringIO("""foo""")}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.authz(environ, Mock()),
         )
         self.assertFalse(mock_get.called)
         self.assertFalse(mock_post.called)
 
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("acme_srv.authorization.Authorization.new_post")
-    @patch("acme_srv.authorization.Authorization.new_get")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_get")
     def test_021_authz(self, mock_get, mock_post, mock_header):
-        """authz get"""
+        """authz GET rejected when legacy_acme_get is False"""
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
+
+        wsgi_mod.LEGACY_ACME_GET = False
+        environ = {
+            "REQUEST_METHOD": "GET",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+            "wsgi.input": StringIO("""foo"""),
+        }
+        mock_header.return_value = {"header": "foo"}
+        mock_get.return_value = {"code": 200, "data": "data"}
+        result = self.authz(environ, Mock())
+        self.assertIn(b"POST-as-GET", result[0])
+        self.assertFalse(mock_get.called)
+        self.assertFalse(mock_post.called)
+
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_get")
+    def test_022_authz_legacy_get(self, mock_get, mock_post, mock_header):
+        """authz GET allowed when legacy_acme_get is True"""
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
+
+        wsgi_mod.LEGACY_ACME_GET = True
         environ = {
             "REQUEST_METHOD": "GET",
             "REMOTE_ADDR": "REMOTE_ADDR",
@@ -234,11 +282,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual([b'"data"'], self.authz(environ, Mock()))
         self.assertTrue(mock_get.called)
         self.assertFalse(mock_post.called)
+        wsgi_mod.LEGACY_ACME_GET = False
 
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("acme_srv.authorization.Authorization.new_post")
-    @patch("acme_srv.authorization.Authorization.new_get")
-    def test_022_authz(self, mock_get, mock_post, mock_header):
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_get")
+    def test_023_authz(self, mock_get, mock_post, mock_header):
         """authz post no content length"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -252,10 +301,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_get.called)
         self.assertTrue(mock_post.called)
 
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("acme_srv.authorization.Authorization.new_post")
-    @patch("acme_srv.authorization.Authorization.new_get")
-    def test_023_authz(self, mock_get, mock_post, mock_header):
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_get")
+    def test_024_authz(self, mock_get, mock_post, mock_header):
         """authz post content length int"""
         environ = {
             "CONTENT_LENGTH": 2,
@@ -270,10 +319,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_get.called)
         self.assertTrue(mock_post.called)
 
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("acme_srv.authorization.Authorization.new_post")
-    @patch("acme_srv.authorization.Authorization.new_get")
-    def test_024_authz(self, mock_get, mock_post, mock_header):
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_post")
+    @patch("acme2certifier.acme_srv.authorization.Authorization.new_get")
+    def test_025_authz(self, mock_get, mock_post, mock_header):
         """authz post no content length string"""
         environ = {
             "CONTENT_LENGTH": "A",
@@ -289,7 +338,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_post.called)
 
     @patch("sys.__excepthook__")
-    def test_025_handle_exception_keyboard_interrupt(self, mock_excepthook):
+    def test_026_handle_exception_keyboard_interrupt(self, mock_excepthook):
         """test handle_exception with KeyboardInterrupt - should call sys.__excepthook__"""
         exc_type = KeyboardInterrupt
         exc_value = KeyboardInterrupt("Test keyboard interrupt")
@@ -303,7 +352,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(result)
 
     @patch("sys.__excepthook__")
-    def test_026_handle_exception_keyboard_interrupt_subclass(self, mock_excepthook):
+    def test_027_handle_exception_keyboard_interrupt_subclass(self, mock_excepthook):
         """test handle_exception with KeyboardInterrupt subclass"""
 
         class CustomKeyboardInterrupt(KeyboardInterrupt):
@@ -319,9 +368,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_excepthook.assert_called_once_with(exc_type, exc_value, exc_traceback)
         self.assertIsNone(result)
 
-    @patch("examples.acme2certifier_wsgi.LOGGER")
+    @patch("acme2certifier.share.acme2certifier_wsgi.LOGGER")
     @patch("sys.__excepthook__")
-    def test_027_handle_exception_regular_exception(self, mock_excepthook, mock_logger):
+    def test_028_handle_exception_regular_exception(self, mock_excepthook, mock_logger):
         """test handle_exception with regular exception - should log via LOGGER"""
         exc_type = ValueError
         exc_value = ValueError("Test value error")
@@ -338,9 +387,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertIsNone(result)
 
-    @patch("examples.acme2certifier_wsgi.LOGGER")
+    @patch("acme2certifier.share.acme2certifier_wsgi.LOGGER")
     @patch("sys.__excepthook__")
-    def test_028_handle_exception_runtime_error(self, mock_excepthook, mock_logger):
+    def test_029_handle_exception_runtime_error(self, mock_excepthook, mock_logger):
         """test handle_exception with RuntimeError"""
         exc_type = RuntimeError
         exc_value = RuntimeError("Test runtime error")
@@ -354,9 +403,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertIsNone(result)
 
-    @patch("examples.acme2certifier_wsgi.LOGGER")
+    @patch("acme2certifier.share.acme2certifier_wsgi.LOGGER")
     @patch("sys.__excepthook__")
-    def test_029_handle_exception_system_exit(self, mock_excepthook, mock_logger):
+    def test_030_handle_exception_system_exit(self, mock_excepthook, mock_logger):
         """test handle_exception with SystemExit - should log, not call excepthook"""
         exc_type = SystemExit
         exc_value = SystemExit(1)
@@ -371,9 +420,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertIsNone(result)
 
-    @patch("examples.acme2certifier_wsgi.LOGGER")
+    @patch("acme2certifier.share.acme2certifier_wsgi.LOGGER")
     @patch("sys.__excepthook__")
-    def test_030_handle_exception_exc_info_tuple_format(
+    def test_031_handle_exception_exc_info_tuple_format(
         self, mock_excepthook, mock_logger
     ):
         """test that exc_info is passed as correct tuple format"""
@@ -398,7 +447,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(exc_info_tuple[1], exc_value)
         self.assertEqual(exc_info_tuple[2], exc_traceback)
 
-    def test_031_handle_exception_issubclass_check_various_types(self):
+    def test_032_handle_exception_issubclass_check_various_types(self):
         """test that issubclass check works correctly for various exception types"""
         test_cases = [
             (ValueError, False),
@@ -416,7 +465,9 @@ class TestACMEHandler(unittest.TestCase):
 
         for exc_type, should_call_excepthook in test_cases:
             with self.subTest(exc_type=exc_type):
-                with patch("examples.acme2certifier_wsgi.LOGGER") as mock_logger:
+                with patch(
+                    "acme2certifier.share.acme2certifier_wsgi.LOGGER"
+                ) as mock_logger:
                     with patch("sys.__excepthook__") as mock_excepthook:
                         exc_value = exc_type("Test exception")
                         exc_traceback = Mock()
@@ -434,11 +485,11 @@ class TestACMEHandler(unittest.TestCase):
 
                         self.assertIsNone(result)
 
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("acme_srv.account.Account.new")
-    def test_032_newaccount(self, mock_new, mock_body, mock_url, mock_header):
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.acme_srv.account.Account.new")
+    def test_033_newaccount(self, mock_new, mock_body, mock_url, mock_header):
         """new account - post"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -452,11 +503,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_url.called)
         self.assertTrue(mock_header.called)
 
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("acme_srv.account.Account.new")
-    def test_033_newaccount(self, mock_new, mock_body, mock_url, mock_header):
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.acme_srv.account.Account.new")
+    def test_034_newaccount(self, mock_new, mock_body, mock_url, mock_header):
         """newaccount - wrong request method"""
         environ = {
             "REQUEST_METHOD": "WRONG",
@@ -466,7 +517,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_new.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.newaccount(environ, Mock()),
         )
@@ -475,32 +526,32 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_url.called)
         self.assertFalse(mock_header.called)
 
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("acme_srv.directory.Directory.directory_get")
-    def test_034_directory(self, mock_get, mock_body, mock_url, mock_header):
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.acme_srv.directory.Directory.directory_get")
+    def test_035_directory(self, mock_get, mock_body, mock_url, mock_header):
         """newaccount - all ok"""
         environ = {"REMOTE_ADDR": "REMOTE_ADDR", "PATH_INFO": "PATH_INFO"}
         mock_get.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
-            [b'{"code": 200, "data": "data"}'], self.directory(environ, Mock())
+            [b'{\n  "code": 200,\n  "data": "data"\n}'], self.directory(environ, Mock())
         )
         self.assertFalse(mock_body.called)
         self.assertTrue(mock_get.called)
         self.assertTrue(mock_url.called)
         self.assertTrue(mock_header.called)
 
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("acme_srv.directory.Directory.directory_get")
-    def test_035_directory(self, mock_get, mock_body, mock_url, mock_header):
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.acme_srv.directory.Directory.directory_get")
+    def test_036_directory(self, mock_get, mock_body, mock_url, mock_header):
         """newaccount - directory.get throws an error"""
         environ = {"REMOTE_ADDR": "REMOTE_ADDR", "PATH_INFO": "PATH_INFO"}
         mock_get.return_value = {"code": 500, "error": "error"}
         self.assertEqual(
-            [b'{"status": 403, "message": "Forbidden", "detail": "error"}'],
+            [b'{\n  "status": 403,\n  "message": "Forbidden",\n  "detail": "error"\n}'],
             self.directory(environ, Mock()),
         )
         self.assertFalse(mock_body.called)
@@ -508,12 +559,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_url.called)
         self.assertTrue(mock_header.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.certificate.Certificate.new_post")
-    @patch("acme_srv.certificate.Certificate.new_get")
-    def test_036_cert(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_post")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_get")
+    def test_037_cert(self, mock_get, mock_post, mock_url, mock_header, mock_body):
         """cert unknown request method"""
         environ = {
             "REQUEST_METHOD": "UNK",
@@ -524,7 +575,7 @@ class TestACMEHandler(unittest.TestCase):
         # mock_post.return_value = {'code': 200, 'data': 'data'}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.cert(environ, Mock()),
         )
@@ -534,12 +585,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.certificate.Certificate.new_post")
-    @patch("acme_srv.certificate.Certificate.new_get")
-    def test_037_cert(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_post")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_get")
+    def test_038_cert(self, mock_get, mock_post, mock_url, mock_header, mock_body):
         """cert GET request"""
         environ = {
             "REQUEST_METHOD": "GET",
@@ -555,12 +606,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.certificate.Certificate.new_post")
-    @patch("acme_srv.certificate.Certificate.new_get")
-    def test_038_cert(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_post")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_get")
+    def test_039_cert(self, mock_get, mock_post, mock_url, mock_header, mock_body):
         """cert POST request"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -576,12 +627,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.challenge.Challenge.parse")
-    @patch("acme_srv.challenge.Challenge.get")
-    def test_039_chall(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.parse")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.get")
+    def test_040_chall(self, mock_get, mock_post, mock_url, mock_header, mock_body):
         """chall unknown request method"""
         environ = {
             "REQUEST_METHOD": "UNK",
@@ -592,7 +643,7 @@ class TestACMEHandler(unittest.TestCase):
         # mock_post.return_value = {'code': 200, 'data': 'data'}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.chall(environ, Mock()),
         )
@@ -602,13 +653,43 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.challenge.Challenge.parse")
-    @patch("acme_srv.challenge.Challenge.get")
-    def test_040_chall(self, mock_get, mock_post, mock_url, mock_header, mock_body):
-        """chall GET request"""
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.parse")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.get")
+    def test_041_chall(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+        """chall GET rejected when legacy_acme_get is False"""
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
+
+        wsgi_mod.LEGACY_ACME_GET = False
+        environ = {
+            "REQUEST_METHOD": "GET",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
+        mock_header.return_value = {"header": "foo"}
+        mock_get.return_value = {"code": 200, "data": "data"}
+        result = self.chall(environ, Mock())
+        self.assertIn(b"POST-as-GET", result[0])
+        self.assertFalse(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertTrue(mock_url.called)
+        self.assertFalse(mock_header.called)
+        self.assertFalse(mock_body.called)
+
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.parse")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.get")
+    def test_042_chall_legacy_get(
+        self, mock_get, mock_post, mock_url, mock_header, mock_body
+    ):
+        """chall GET allowed when legacy_acme_get is True"""
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
+
+        wsgi_mod.LEGACY_ACME_GET = True
         environ = {
             "REQUEST_METHOD": "GET",
             "REMOTE_ADDR": "REMOTE_ADDR",
@@ -622,13 +703,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_url.called)
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
+        wsgi_mod.LEGACY_ACME_GET = False
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.challenge.Challenge.parse")
-    @patch("acme_srv.challenge.Challenge.get")
-    def test_041_chall(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.parse")
+    @patch("acme2certifier.acme_srv.challenge.Challenge.get")
+    def test_043_chall(self, mock_get, mock_post, mock_url, mock_header, mock_body):
         """chall POST request"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -644,11 +726,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.order.Order.new")
-    def test_042_order(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.order.Order.new")
+    def test_044_order(self, mock_post, mock_url, mock_header, mock_body):
         """order POST request"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -663,11 +745,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.order.Order.new")
-    def test_043_order(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.order.Order.new")
+    def test_045_order(self, mock_post, mock_url, mock_header, mock_body):
         """order unknown request type"""
         environ = {
             "REQUEST_METHOD": "UNK",
@@ -678,7 +760,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.neworders(environ, Mock()),
         )
@@ -687,10 +769,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("acme_srv.nonce.Nonce.generate_and_add")
-    def test_044_nnonce(self, mock_gen, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.nonce.Nonce.generate_and_add")
+    def test_046_nnonce(self, mock_gen, mock_header, mock_body):
         """chall GET request"""
         environ = {
             "REQUEST_METHOD": "GET",
@@ -704,8 +786,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("acme_srv.nonce.Nonce.generate_and_add")
-    def test_045_nnonce(self, mock_gen):
+    @patch("acme2certifier.acme_srv.nonce.Nonce.generate_and_add")
+    def test_047_nnonce(self, mock_gen):
         """chall HEAD request"""
         environ = {
             "REQUEST_METHOD": "HEAD",
@@ -716,8 +798,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.newnonce(environ, Mock()))
         self.assertTrue(mock_gen.called)
 
-    @patch("acme_srv.nonce.Nonce.generate_and_add")
-    def test_046_nnonce(self, mock_gen):
+    @patch("acme2certifier.acme_srv.nonce.Nonce.generate_and_add")
+    def test_048_nnonce(self, mock_gen):
         """chall HEAD request"""
         environ = {
             "REQUEST_METHOD": "UNK",
@@ -727,17 +809,17 @@ class TestACMEHandler(unittest.TestCase):
         mock_gen.return_value = "foo"
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected HEAD or GET."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected HEAD or GET."\n}'
             ],
             self.newnonce(environ, Mock()),
         )
         self.assertFalse(mock_gen.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.order.Order.parse")
-    def test_047_order(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.order.Order.parse")
+    def test_049_order(self, mock_post, mock_url, mock_header, mock_body):
         """order POST request"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -752,11 +834,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.order.Order.new")
-    def test_048_order(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.order.Order.new")
+    def test_050_order(self, mock_post, mock_url, mock_header, mock_body):
         """order unknown request type"""
         environ = {
             "REQUEST_METHOD": "UNK",
@@ -767,7 +849,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.order(environ, Mock()),
         )
@@ -776,11 +858,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.certificate.Certificate.revoke")
-    def test_049_revokecert(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.revoke")
+    def test_051_revokecert(self, mock_post, mock_url, mock_header, mock_body):
         """order POST request"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -795,11 +877,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.certificate.Certificate.revoke")
-    def test_050_revokecert(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.revoke")
+    def test_052_revokecert(self, mock_post, mock_url, mock_header, mock_body):
         """order POST request"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -814,11 +896,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.order.Order.new")
-    def test_051_revokecert(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.order.Order.new")
+    def test_053_revokecert(self, mock_post, mock_url, mock_header, mock_body):
         """order unknown request type"""
         environ = {
             "REQUEST_METHOD": "UNK",
@@ -829,7 +911,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.revokecert(environ, Mock()),
         )
@@ -838,11 +920,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.trigger.Trigger.parse")
-    def test_052_trigger(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", True)
+    @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
+    def test_054_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """trigger POST request"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -857,11 +940,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.trigger.Trigger.parse")
-    def test_053_trigger(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", True)
+    @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
+    def test_055_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """trigger POST request"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -876,11 +960,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.trigger.Trigger.parse")
-    def test_054_trigger(self, mock_post, mock_url, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", True)
+    @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
+    def test_056_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """trigger unknown request type"""
         environ = {
             "REQUEST_METHOD": "UNK",
@@ -891,7 +976,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.trigger(environ, Mock()),
         )
@@ -900,7 +985,25 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    def test_055_notfound(self):
+    @patch("acme2certifier.share.acme2certifier_wsgi.log_response")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.TRIGGER_ENDPOINT_ENABLED", False)
+    @patch("acme2certifier.acme_srv.trigger.Trigger.parse")
+    def test_057_trigger_disabled(self, mock_parse, mock_header, mock_log):
+        """trigger returns 403 when endpoint gate is disabled"""
+        environ = {
+            "REQUEST_METHOD": "POST",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
+        mock_header.return_value = {"header": "foo"}
+        response = self.trigger(environ, Mock())
+        self.assertIn(b'"detail": "trigger endpoint disabled"', response[0])
+        self.assertFalse(mock_parse.called)
+        self.assertTrue(mock_header.called)
+        self.assertTrue(mock_log.called)
+
+    def test_058_notfound(self):
         """notfound"""
         environ = {
             "REQUEST_METHOD": "UNK",
@@ -908,12 +1011,17 @@ class TestACMEHandler(unittest.TestCase):
             "PATH_INFO": "PATH_INFO",
         }
         self.assertEqual(
-            [b'{"status": 404, "message": "Not Found", "detail": "Not Found"}'],
+            [
+                b'{\n  "status": 404,\n  "message": "Not Found",\n  "detail": "Not Found"\n}'
+            ],
             self.not_found(environ, Mock()),
         )
 
-    @patch("examples.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
-    def test_056_application(self):
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
+    def test_059_application(self):
         """Test redirect to /directory when root URL is accessed."""
         self.environ = {
             "REQUEST_METHOD": "GET",
@@ -928,13 +1036,16 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(response, [])
 
-    @patch("examples.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
     @patch(
-        "acme_srv.directory.DirectoryRepository.get_db_version",
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
+    @patch(
+        "acme2certifier.acme_srv.directory.DirectoryRepository.get_db_version",
         return_value=("1.0", "script_name"),
     )
-    @patch("acme_srv.directory.Directory.directory_get")
-    def test_057_application(self, mock_directory_get, mock_get_db_version):
+    @patch("acme2certifier.acme_srv.directory.Directory.directory_get")
+    def test_060_application(self, mock_directory_get, mock_get_db_version):
         """Test accessing the /acme/directory endpoint."""
         mock_directory_get.return_value = {"code": 200, "data": "data"}
         self.environ = {
@@ -947,8 +1058,11 @@ class TestACMEHandler(unittest.TestCase):
         self.start_response.assert_called()
         self.assertIsInstance(response, list)
 
-    @patch("examples.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
-    def test_058_application(self):
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
+    def test_061_application(self):
         """Test accessing the /acme/acct endpoint."""
         self.environ = {
             "REQUEST_METHOD": "GET",
@@ -956,13 +1070,16 @@ class TestACMEHandler(unittest.TestCase):
             "REMOTE_ADDR": "127.0.0.1",
             "PATH_INFO": "/acme/acct",
         }
-        with patch("examples.acme2certifier_wsgi.acct", self.acct):
+        with patch("acme2certifier.share.acme2certifier_wsgi.acct", self.acct):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called()
             self.assertIsInstance(response, list)
 
-    @patch("examples.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
-    def test_059_application(self):
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
+    def test_062_application(self):
         """Test accessing the /acme/newaccount endpoint."""
         self.environ = {
             "REQUEST_METHOD": "POST",
@@ -970,13 +1087,18 @@ class TestACMEHandler(unittest.TestCase):
             "REMOTE_ADDR": "127.0.0.1",
             "PATH_INFO": "/acme/newaccount",
         }
-        with patch("examples.acme2certifier_wsgi.newaccount", self.newaccount):
+        with patch(
+            "acme2certifier.share.acme2certifier_wsgi.newaccount", self.newaccount
+        ):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called()
             self.assertIsInstance(response, list)
 
-    @patch("examples.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
-    def test_060_application(self):
+    @patch(
+        "acme2certifier.share.acme2certifier_wsgi.CONFIG",
+        {"Directory": {"url_prefix": ""}},
+    )
+    def test_063_application(self):
         """Test accessing an unknown endpoint."""
         self.environ = {
             "REQUEST_METHOD": "POST",
@@ -984,17 +1106,20 @@ class TestACMEHandler(unittest.TestCase):
             "REMOTE_ADDR": "127.0.0.1",
             "PATH_INFO": "/unknown/path",
         }
-        with patch("examples.acme2certifier_wsgi.not_found", self.not_found):
+        with patch(
+            "acme2certifier.share.acme2certifier_wsgi.not_found", self.not_found
+        ):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called_with(
                 "404 NOT FOUND", [("Content-Type", "text/plain")]
             )
             self.assertIsInstance(response, list)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("acme_srv.housekeeping.Housekeeping.parse")
-    def test_061_housekeeping(self, mock_post, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.HOUSEKEEPING_CLI_ENABLED", True)
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")
+    def test_064_housekeeping(self, mock_post, mock_header, mock_body):
         """housekeeping POST request"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -1008,10 +1133,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("acme_srv.housekeeping.Housekeeping.parse")
-    def test_062_housekeeping(self, mock_post, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")
+    def test_065_housekeeping(self, mock_post, mock_header, mock_body):
         """housekeeping POST request"""
         environ = {
             "REQUEST_METHOD": "UNK",
@@ -1022,7 +1147,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.housekeeping(environ, Mock()),
         )
@@ -1030,10 +1155,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("acme_srv.housekeeping.Housekeeping.parse")
-    def test_063_housekeeping(self, mock_post, mock_header, mock_body):
+    @patch("acme2certifier.share.acme2certifier_wsgi.HOUSEKEEPING_CLI_ENABLED", True)
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")
+    def test_066_housekeeping(self, mock_post, mock_header, mock_body):
         """housekeeping POST request without data"""
         environ = {
             "REQUEST_METHOD": "POST",
@@ -1047,12 +1173,29 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.renewalinfo.Renewalinfo.update")
-    @patch("acme_srv.renewalinfo.Renewalinfo.get")
-    def test_064_renewalinfo(
+    @patch("acme2certifier.share.acme2certifier_wsgi.HOUSEKEEPING_CLI_ENABLED", False)
+    @patch("acme2certifier.share.acme2certifier_wsgi.log_response")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.acme_srv.housekeeping.Housekeeping.parse")
+    def test_067_housekeeping_disabled(self, mock_parse, mock_header, mock_log):
+        """housekeeping returns 403 when endpoint gate is disabled"""
+        environ = {
+            "REQUEST_METHOD": "POST",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
+        mock_header.return_value = [("Content-Type", "application/json")]
+        response = self.housekeeping(environ, Mock())
+        self.assertIn(b'"detail": "housekeeping CLI endpoint disabled"', response[0])
+        self.assertFalse(mock_parse.called)
+        self.assertTrue(mock_log.called)
+
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.update")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.get")
+    def test_068_renewalinfo(
         self, mock_get, mock_post, mock_url, mock_header, mock_body
     ):
         """renewalinfo unknown request method"""
@@ -1065,7 +1208,7 @@ class TestACMEHandler(unittest.TestCase):
         # mock_post.return_value = {'code': 200, 'data': 'data'}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.renewalinfo(environ, Mock()),
         )
@@ -1075,12 +1218,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.renewalinfo.Renewalinfo.update")
-    @patch("acme_srv.renewalinfo.Renewalinfo.get")
-    def test_065_renewalinfo(
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.update")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.get")
+    def test_069_renewalinfo(
         self, mock_get, mock_post, mock_url, mock_header, mock_body
     ):
         """renewalinfo GET request"""
@@ -1098,12 +1241,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.renewalinfo.Renewalinfo.update")
-    @patch("acme_srv.renewalinfo.Renewalinfo.get")
-    def test_066_renewalinfo(
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.update")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.get")
+    def test_070_renewalinfo(
         self, mock_get, mock_post, mock_url, mock_header, mock_body
     ):
         """renewalinfo GET request"""
@@ -1121,12 +1264,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    @patch("examples.acme2certifier_wsgi.get_request_body")
-    @patch("examples.acme2certifier_wsgi.create_header")
-    @patch("examples.acme2certifier_wsgi.get_url")
-    @patch("acme_srv.renewalinfo.Renewalinfo.update")
-    @patch("acme_srv.renewalinfo.Renewalinfo.get")
-    def test_067_renewalinfot(
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.update")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.get")
+    def test_071_renewalinfot(
         self, mock_get, mock_post, mock_url, mock_header, mock_body
     ):
         """renewalinfo POST request"""
@@ -1144,8 +1287,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
-    def test_068_get_path_with_prefix(self):
-        from examples.acme2certifier_wsgi import get_path_with_prefix
+    def test_072_get_path_with_prefix(self):
+        from acme2certifier.share.acme2certifier_wsgi import get_path_with_prefix
 
         # No Directory/url_prefix in config
         environ = {"PATH_INFO": "/foo/bar"}
@@ -1227,10 +1370,10 @@ class TestACMEHandler(unittest.TestCase):
         config = {"Directory": {"url_prefix": "api/v1"}}
         self.assertEqual(get_path_with_prefix(environ, config), "")
 
-    def test_069_application_url_match(self):
+    def test_073_application_url_match(self):
         """Test application() returns correct callback for matching URL pattern."""
         # Patch URLS and callback
-        import examples.acme2certifier_wsgi as wsgi_mod
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
 
         called = {}
 
@@ -1251,9 +1394,9 @@ class TestACMEHandler(unittest.TestCase):
         finally:
             wsgi_mod.URLS[:] = orig_URLS
 
-    def test_070_application_url_no_match(self):
+    def test_074_application_url_no_match(self):
         """Test application() calls not_found if no URL matches."""
-        import examples.acme2certifier_wsgi as wsgi_mod
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
 
         # Patch URLS to empty and patch not_found
         orig_URLS = wsgi_mod.URLS[:]
@@ -1276,9 +1419,9 @@ class TestACMEHandler(unittest.TestCase):
             wsgi_mod.not_found = orig_not_found
             wsgi_mod.URLS[:] = orig_URLS
 
-    def test_071_application_dynamic_challenge_url(self):
+    def test_075_application_dynamic_challenge_url(self):
         """Test application() dynamically adds challenge URL pattern if config present."""
-        import examples.acme2certifier_wsgi as wsgi_mod
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
 
         # Patch CONFIG and URLS
         orig_CONFIG = dict(wsgi_mod.CONFIG)
@@ -1305,9 +1448,9 @@ class TestACMEHandler(unittest.TestCase):
             wsgi_mod.CONFIG.clear()
             wsgi_mod.CONFIG.update(orig_CONFIG)
 
-    def test_072_redirect_with_url_prefix(self):
+    def test_076_redirect_with_url_prefix(self):
         """Test redirect() covers the 'if URL_PREFIX:' branch (line 527)."""
-        import examples.acme2certifier_wsgi as wsgi_mod
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
 
         # Save and patch URL_PREFIX
         orig_url_prefix = wsgi_mod.URL_PREFIX
@@ -1326,7 +1469,7 @@ class TestACMEHandler(unittest.TestCase):
         finally:
             wsgi_mod.URL_PREFIX = orig_url_prefix
 
-    def test_073_get_handler_cls_address_string(self):
+    def test_077_get_handler_cls_address_string(self):
         """Test get_handler_cls() returns handler with correct address_string()."""
         handler_cls = self.get_handler_cls()
 
@@ -1342,6 +1485,41 @@ class TestACMEHandler(unittest.TestCase):
         handler.client_address = dummy.client_address
         result = handler.address_string()
         self.assertEqual(result, "1.2.3.4")
+
+    def test_078_get_path_with_prefix_exact_prefix_match(self):
+        """PATH_INFO equal to url_prefix (no trailing slash) returns empty path"""
+        from acme2certifier.share.acme2certifier_wsgi import get_path_with_prefix
+
+        environ = {"PATH_INFO": "/api/v1"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        environ = {"PATH_INFO": "/my-prefix"}
+        config = {"Directory": {"url_prefix": "/my-prefix/"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+    def test_079_urls_register_optional_endpoints_when_enabled(self):
+        """Module import appends /housekeeping and /trigger when gates are True"""
+        import importlib
+
+        with (
+            patch(
+                "acme2certifier.acme_srv.trigger.resolve_trigger_endpoint",
+                return_value=True,
+            ),
+            patch(
+                "acme2certifier.acme_srv.housekeeping.resolve_housekeeping_cli_endpoint",
+                return_value=True,
+            ),
+        ):
+            sys.modules.pop(_WSGI_MODULE, None)
+            wsgi_mod = importlib.import_module(_WSGI_MODULE)
+
+        patterns = [pattern for pattern, _callback in wsgi_mod.URLS]
+        self.assertIn("^housekeeping", patterns)
+        self.assertIn("^trigger", patterns)
+        self.assertTrue(wsgi_mod.HOUSEKEEPING_CLI_ENABLED)
+        self.assertTrue(wsgi_mod.TRIGGER_ENDPOINT_ENABLED)
 
 
 if __name__ == "__main__":

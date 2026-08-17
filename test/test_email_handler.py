@@ -14,7 +14,7 @@ from email.mime.multipart import MIMEMultipart
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
 
-from acme_srv.email_handler import EmailHandler
+from acme2certifier.acme_srv.email_handler import EmailHandler
 
 
 class TestEmailHandler(unittest.TestCase):
@@ -57,7 +57,7 @@ class TestEmailHandler(unittest.TestCase):
         if hasattr(self.email_handler, "_polling_active"):
             self.email_handler.stop_polling()
 
-    @patch("acme_srv.email_handler.load_config")
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_001_config_load_default_section_exists(self, mock_load_config):
         """Test _config_load with DEFAULT section"""
         parser = configparser.ConfigParser()
@@ -90,7 +90,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(self.email_handler.polling_timer, 120)
         self.assertEqual(self.email_handler.connection_timeout, 45)
 
-    @patch("acme_srv.email_handler.load_config")
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_002_config_load_fallback_values(self, mock_load_config):
         """Test _config_load with fallback values"""
         parser = configparser.ConfigParser()
@@ -114,7 +114,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(self.email_handler.polling_timer, 60)  # default
         self.assertEqual(self.email_handler.connection_timeout, 30)  # default
 
-    @patch("acme_srv.email_handler.load_config")
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_003_config_load_no_default_section(self, mock_load_config):
         """Test _config_load without DEFAULT section"""
         parser = configparser.ConfigParser()
@@ -126,7 +126,7 @@ class TestEmailHandler(unittest.TestCase):
             "WARNING:test_a2c:DEFAULT configuration section not found", log.output
         )
 
-    @patch("acme_srv.email_handler.load_config")
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_004_config_load_invalid_port_values(self, mock_load_config):
         """Test _config_load with invalid port values"""
         parser = configparser.ConfigParser()
@@ -222,7 +222,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertFalse(result)
         self.assertIn("ERROR:test_a2c:Username or password not configured", log.output)
 
-    @patch("acme_srv.email_handler.smtplib.SMTP")
+    @patch("acme2certifier.acme_srv.email_handler.smtplib.SMTP")
     def test_012_send_email_success_tls(self, mock_smtp):
         """Test successful email sending with TLS"""
         # Setup
@@ -258,7 +258,7 @@ class TestEmailHandler(unittest.TestCase):
             "INFO:test_a2c:Email sent successfully to recipient@test.com", log.output
         )
 
-    @patch("acme_srv.email_handler.smtplib.SMTP_SSL")
+    @patch("acme2certifier.acme_srv.email_handler.smtplib.SMTP_SSL")
     def test_013_send_email_success_ssl(self, mock_smtp_ssl):
         """Test successful email sending with SSL"""
         # Setup
@@ -285,7 +285,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_server.starttls.assert_not_called()
         mock_server.send_message.assert_called_once()
 
-    @patch("acme_srv.email_handler.smtplib.SMTP")
+    @patch("acme2certifier.acme_srv.email_handler.smtplib.SMTP")
     def test_014_send_email_with_html(self, mock_smtp):
         """Test sending email with HTML content"""
         # Setup
@@ -318,7 +318,7 @@ class TestEmailHandler(unittest.TestCase):
         )
         self.assertFalse(result)
 
-    @patch("acme_srv.email_handler.smtplib.SMTP")
+    @patch("acme2certifier.acme_srv.email_handler.smtplib.SMTP")
     def test_016_send_email_exception(self, mock_smtp):
         """Test send email with exception"""
         # Setup
@@ -341,7 +341,7 @@ class TestEmailHandler(unittest.TestCase):
         with self.assertLogs(self.logger, level="ERROR") as log:
             self.logger.error("Failed to send email: %s", "SMTP Error")
 
-    @patch("acme_srv.email_handler.imaplib.IMAP4_SSL")
+    @patch("acme2certifier.acme_srv.email_handler.imaplib.IMAP4_SSL")
     def test_017_receive_emails_success(self, mock_imap):
         """Test successful email receiving"""
         # Setup
@@ -368,7 +368,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_mail.select.assert_called_once_with("INBOX")
         mock_mail.search.assert_called_once_with(None, "UNSEEN")
 
-    @patch("acme_srv.email_handler.imaplib.IMAP4")
+    @patch("acme2certifier.acme_srv.email_handler.imaplib.IMAP4")
     def test_018_receive_emails_no_ssl(self, mock_imap):
         """Test email receiving without SSL"""
         # Setup
@@ -393,7 +393,7 @@ class TestEmailHandler(unittest.TestCase):
         emails = self.email_handler.receive()
         self.assertEqual(len(emails), 0)
 
-    @patch("acme_srv.email_handler.imaplib.IMAP4_SSL")
+    @patch("acme2certifier.acme_srv.email_handler.imaplib.IMAP4_SSL")
     def test_020_receive_emails_exception(self, mock_imap):
         """Test receive emails with exception"""
         # Setup
@@ -549,7 +549,7 @@ class TestEmailHandler(unittest.TestCase):
 
         # Should not log anything since polling wasn't active
 
-    @patch("acme_srv.email_handler.time.sleep")
+    @patch("acme2certifier.acme_srv.email_handler.time.sleep")
     def test_028_polling_loop(self, mock_sleep):
         """Test polling loop functionality"""
         # Setup
@@ -576,7 +576,7 @@ class TestEmailHandler(unittest.TestCase):
             # Verify receive was called
             mock_receive.assert_called()
 
-    @patch("acme_srv.email_handler.EmailHandler.receive")
+    @patch("acme2certifier.acme_srv.email_handler.EmailHandler.receive")
     @patch("time.sleep")
     def test_029_polling_loop(self, mock_sleep, mock_receive):
         """Test polling loop functionality"""
@@ -610,7 +610,7 @@ class TestEmailHandler(unittest.TestCase):
                     mock_config.assert_called_once()
                 mock_stop.assert_called_once()
 
-    @patch("acme_srv.email_handler.imaplib.IMAP4_SSL")
+    @patch("acme2certifier.acme_srv.email_handler.imaplib.IMAP4_SSL")
     def test_031_receive_with_callback(self, mock_imap):
         """Test receive method with callback function"""
         # Setup
@@ -641,7 +641,7 @@ class TestEmailHandler(unittest.TestCase):
         # Create callback function to track calls
         callback_calls = []
 
-        def test_callback(email_data):
+        def callback_filter(email_data):
             result = None
             if email_data["subject"] == "Test Email 2":
                 result = email_data
@@ -651,7 +651,7 @@ class TestEmailHandler(unittest.TestCase):
 
         with self.assertLogs(self.logger, level="DEBUG") as log:
             # Test receive with callback
-            emails = self.email_handler.receive(callback=test_callback)
+            emails = self.email_handler.receive(callback=callback_filter)
 
         # Assertions
         self.assertEqual("Test Email 2", emails["subject"])
@@ -685,14 +685,14 @@ class TestEmailHandler(unittest.TestCase):
         self.assertIn("INFO:test_a2c:Email passed filter: Test Email 2", log.output)
         # self.assertIn('DEBUG:test_a2c:mailHandler.receive(): email did not pass filter: Test Email 3', log.output)
 
-    def test_emails_fetch_no_emails(self):
+    def test_032_emails_fetch_no_emails(self):
         mail = self._mock_mail(search_ids=b"")
         emails = self.email_handler._emails_fetch(
             mail, callback=None, mark_as_read=True
         )
         self.assertEqual(emails, [])
 
-    def test_emails_fetch_multiple_emails(self):
+    def test_033_emails_fetch_multiple_emails(self):
         mail = self._mock_mail()
         # Patch _email_parse to return a simple dict
         self.email_handler._email_parse = lambda msg: {
@@ -706,7 +706,7 @@ class TestEmailHandler(unittest.TestCase):
         mail.store.assert_any_call(b"1", "+FLAGS", "\\Seen")
         mail.store.assert_any_call(b"2", "+FLAGS", "\\Seen")
 
-    def test_emails_fetch_mark_as_unread(self):
+    def test_034_emails_fetch_mark_as_unread(self):
         mail = self._mock_mail()
         self.email_handler._email_parse = lambda msg: {
             "subject": "Test",
@@ -718,7 +718,7 @@ class TestEmailHandler(unittest.TestCase):
         mail.store.assert_any_call(b"1", "-FLAGS", "\\Seen")
         mail.store.assert_any_call(b"2", "-FLAGS", "\\Seen")
 
-    def test_emails_fetch_with_callback_returns_result(self):
+    def test_035_emails_fetch_with_callback_returns_result(self):
         mail = self._mock_mail()
 
         # Only return a result for the first email
@@ -734,7 +734,7 @@ class TestEmailHandler(unittest.TestCase):
         )
         self.assertEqual(emails, {"subject": "Test", "body": "Body"})
 
-    def test_emails_fetch_with_callback_filters_all(self):
+    def test_036_emails_fetch_with_callback_filters_all(self):
         mail = self._mock_mail(subjects=["NoMatch", "NoMatch2"])
 
         def callback(email):
@@ -749,14 +749,14 @@ class TestEmailHandler(unittest.TestCase):
         )
         self.assertEqual(emails, [])
 
-    def test_emails_fetch_search_not_ok(self):
+    def test_037_emails_fetch_search_not_ok(self):
         mail = self._mock_mail(search_status="NO")
         emails = self.email_handler._emails_fetch(
             mail, callback=None, mark_as_read=True
         )
         self.assertEqual(emails, [])
 
-    def test_emails_fetch_fetch_not_ok(self):
+    def test_038_emails_fetch_fetch_not_ok(self):
         mail = self._mock_mail(fetch_status="NO")
         self.email_handler._email_parse = lambda msg: {
             "subject": "Test",
@@ -768,7 +768,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(emails, [])
 
     @patch.object(EmailHandler, "send")
-    def test_032_send_email_challenge_basic_functionality(self, mock_send):
+    def test_039_send_email_challenge_basic_functionality(self, mock_send):
         """Test send_email_challenge basic functionality"""
         # Setup
         to_address = "test@example.com"
@@ -804,7 +804,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertTrue(any(to_address in message for message in log.output))
 
     @patch.object(EmailHandler, "send")
-    def test_033_send_email_challenge_with_none_parameters(self, mock_send):
+    def test_040_send_email_challenge_with_none_parameters(self, mock_send):
         """Test send_email_challenge with None parameters"""
         # Test with None to_address
         self.email_handler.send_email_challenge(to_address=None, token1="token123")
@@ -836,7 +836,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(call_args[1]["subject"], "ACME: None")
 
     @patch.object(EmailHandler, "send")
-    def test_034_send_email_challenge_message_content(self, mock_send):
+    def test_041_send_email_challenge_message_content(self, mock_send):
         """Test send_email_challenge message content formatting"""
         to_address = "user@domain.com"
         token1 = "xyz789token"
@@ -865,7 +865,7 @@ class TestEmailHandler(unittest.TestCase):
             self.assertIn(part, message)
 
     @patch.object(EmailHandler, "send")
-    def test_035_send_email_challenge_subject_formatting(self, mock_send):
+    def test_042_send_email_challenge_subject_formatting(self, mock_send):
         """Test send_email_challenge subject formatting"""
         test_cases = [
             ("simple_token", "ACME: simple_token"),
@@ -886,7 +886,7 @@ class TestEmailHandler(unittest.TestCase):
             self.assertEqual(call_args[1]["subject"], expected_subject)
 
     @patch.object(EmailHandler, "send")
-    def test_036_send_email_challenge_no_default_parameters(self, mock_send):
+    def test_043_send_email_challenge_no_default_parameters(self, mock_send):
         """Test send_email_challenge called without any parameters"""
         # This should work since both parameters have default None values
         self.email_handler.send_email_challenge()
@@ -899,7 +899,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertIn('"None"', message)  # None gets formatted into the message
 
     @patch.object(EmailHandler, "send", return_value=True)
-    def test_037_send_email_challenge_integration_success(self, mock_send):
+    def test_044_send_email_challenge_integration_success(self, mock_send):
         """Test send_email_challenge integration when send succeeds"""
         to_address = "success@example.com"
         token1 = "success_token"
@@ -914,7 +914,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_send.assert_called_once()
 
     @patch.object(EmailHandler, "send", return_value=False)
-    def test_038_send_email_challenge_integration_failure(self, mock_send):
+    def test_045_send_email_challenge_integration_failure(self, mock_send):
         """Test send_email_challenge integration when send fails"""
         to_address = "fail@example.com"
         token1 = "fail_token"
@@ -929,7 +929,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_send.assert_called_once()
 
     @patch.object(EmailHandler, "send", side_effect=Exception("SMTP error"))
-    def test_039_send_email_challenge_send_exception(self, mock_send):
+    def test_046_send_email_challenge_send_exception(self, mock_send):
         """Test send_email_challenge when send raises an exception"""
         to_address = "error@example.com"
         token1 = "error_token"

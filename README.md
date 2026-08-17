@@ -28,15 +28,17 @@ The project consists of two main libraries:
 | Feature Support                                                                                                                                | Enrollment (E) | Revocation (R) | [EAB Profiling (P)](docs/eab_profiling.md) |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------- | ------------------------------------------ |
 | [DigiCert® CertCentral](docs/digicert.md)                                                                                                      | ✅             | ✅             | ✅                                         |
+| [Dogtag Certificate System](docs/dogtag_ca_handler.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [Entrust ECS Enterprise](docs/entrust.md)                                                                                                      | ✅             | ✅             | ✅                                         |
 | [EJBCA](docs/ejbca.md)                                                                                                                         | ✅             | ✅             | ✅                                         |
-| [Generic ACME Handler](docs/acme_ca.md) (LetsEncrypt, BuyPass.com, ZeroSSL)                                                                    | ❌             | ❌             | ✅                                         |
+| [Generic ACME Handler](docs/acme_ca.md) (LetsEncrypt, ZeroSSL)                                                                    | ✅              | ✅              | ✅                                         |
 | [Generic CMPv2 Handler](docs/cmp.md)                                                                                                           | ✅             | ❌             | ❌                                         |
 | [Generic EST Handler](docs/est.md)                                                                                                             | ✅             | ❌             | ❌                                         |
+| [FreeIPA](docs/freeipa.md)                                                                                                                     | ✅             | ✅             | ✅                                         |
 | [Hashicorp Vault](docs/vault.md)                                                                                                               | ✅             | ✅             | ✅                                         |
 | [Insta ActiveCMS](docs/asa.md)                                                                                                                 | ✅             | ✅             | ✅                                         |
 | [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)                                                                             | ✅             | ❌             | ✅                                         |
-| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](docs/mswcce.md)                                                           | ✅             | ❌             | ✅                                         |
+| [Microsoft ICertPassage Remote Protocol (MS-ICPR)](docs/msicpr.md)                                                                             | ✅             | ❌             | ✅                                         |
 | [NetGuard Certificate Lifecycle Manager](docs/nclm.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)                                                                              | ✅             | ✅             | ✅                                         |
 | [OpenSSL](docs/openssl.md)                                                                                                                     | ✅             | ✅             | ❌                                         |
@@ -84,6 +86,7 @@ ______________________________________________________________________
   - [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html) – **IP Address Certificates**
   - [RFC 8823](https://www.rfc-editor.org/rfc/rfc8823.html) - **Automatic Certificate Management Environment for End-User S/MIME Certificates**
   - [RFC 9773](https://datatracker.ietf.org/doc/rfc9773/) - **ACME Renewal Information (ARI) Extension**
+  - [draft-ietf-acme-dns-persist](https://datatracker.ietf.org/doc/draft-ietf-acme-dns-persist/) - **Persistent DNS TXT Record Validation**
   - [ACME Profiles Extension](docs/acme_profiling.md)
   - **TNAuthList identifiers** ([TNAuthList Profile](docs/tnauthlist.md))
   - [RFC 9447 - Automated Certificate Management Environment (ACME) Challenges Using an Authority Token](https://www.rfc-editor.org/rfc/rfc9447)
@@ -93,30 +96,23 @@ Supported challenge types:
 
 - [http-01](https://tools.ietf.org/html/rfc8555#section-8.3)
 - [dns-01](https://tools.ietf.org/html/rfc8555#section-8.4)
-- [email-reply-00](https://www.rfc-editor.org/rfc/rfc8823.html#name-use-of-acme-for-issuing-end)
+- [dns-persist-01 (experimental)](docs/dns-persist-01.md) — persistent DNS-based authorization and JIT validation (see doc for details)
+- [email-reply-00](docs/rfc8823_email_identifier.md)
 - [tls-alpn-01](https://tools.ietf.org/html/rfc8737)
 - [tkauth-01](https://www.rfc-editor.org/rfc/rfc9447)
-- [dns-persist-01 (experimental)](docs/dns-persist-01.md) — persistent DNS-based authorization and JIT validation (see doc for details)
 
 ______________________________________________________________________
 
 ## 📦 Installation
 
-**acme2certifier** can be installed as:
+The fastest and most convenient way to install acme2certifier is Docker, then OS packages, then PyPI/pip:
 
-- **WSGI application** (Apache2/Nginx)
-- **Django project** (allows using alternative databases)
+1. **Docker** — ready-made images on [Docker Hub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container); [compose / build](examples/Docker/), [install_docker.md](docs/install_docker.md) (images install from the `.deb`)
+1. **OS packages** — [DEB](docs/install_deb.md) (`/var/www/acme2certifier`) or [RPM](docs/install_rpm.md) (`/opt/acme2certifier`)
+1. **PyPI / pip** — library + venv deploy ([Apache2 Ubuntu](docs/install_apache2_ubuntu.md), [Nginx Ubuntu](docs/install_nginx_ubuntu.md), [Nginx Alma/RHEL9](docs/install_nginx_alma.md))
+1. **Local development** — editable checkout + Django `runserver`: [development.md](docs/development.md)
 
-The fastest and most convenient way to install acme2certifier is to use docker containers. There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/).
-In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 22.04 will be provided with every release.
-
-Installation guides:
-
-- [RPM Installation (AlmaLinux 9)](docs/install_rpm.md)
-- [DEB Installation (Ubuntu 22.04)](docs/install_deb.md)
-- [Docker Build Instructions](examples/Docker/)
-- [Apache2 WSGI Setup (Ubuntu 22.04)](docs/install_apache2_wsgi.md)
-- [Nginx WSGI Setup (Ubuntu 22.04)](docs/install_nginx_wsgi_ub22.md)
+Releases publish `.deb`, `.rpm`, and PyPI (Trusted Publisher).
 
 ## Software Bill Of Material
 

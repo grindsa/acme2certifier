@@ -14,20 +14,20 @@ class TestChallengeConfiguration(unittest.TestCase):
         mock_db_handler = MagicMock()
         mock_dbstore_class = MagicMock()
         mock_db_handler.DBstore = mock_dbstore_class
-        sys.modules["acme_srv.db_handler"] = mock_db_handler
+        sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 
         # Import after mocking
-        from acme_srv.challenge import ChallengeConfiguration
+        from acme2certifier.acme_srv.challenge import ChallengeConfiguration
 
         cls.ChallengeConfiguration = ChallengeConfiguration
 
     @classmethod
     def tearDownClass(cls):
         """Clean up module mocks"""
-        if "acme_srv.db_handler" in sys.modules:
-            del sys.modules["acme_srv.db_handler"]
-        if "acme_srv.challenge" in sys.modules:
-            del sys.modules["acme_srv.challenge"]
+        if "acme2certifier.acme_srv.db_handler" in sys.modules:
+            del sys.modules["acme2certifier.acme_srv.db_handler"]
+        if "acme2certifier.acme_srv.challenge" in sys.modules:
+            del sys.modules["acme2certifier.acme_srv.challenge"]
 
     def test_001_configuration_defaults(self):
         config = self.ChallengeConfiguration()
@@ -51,16 +51,19 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
         import logging
 
         # Mock the missing db_handler module if not already done
-        if "acme_srv.db_handler" not in sys.modules:
+        if "acme2certifier.acme_srv.db_handler" not in sys.modules:
             mock_db_handler = MagicMock()
             mock_dbstore_class = MagicMock()
             mock_db_handler.DBstore = mock_dbstore_class
-            sys.modules["acme_srv.db_handler"] = mock_db_handler
+            sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 
         # Import after ensuring mocking
-        from acme_srv.challenge import DatabaseChallengeRepository
-        from acme_srv.challenge_error_handling import DatabaseError, ValidationError
-        from acme_srv.challenge_business_logic import (
+        from acme2certifier.acme_srv.challenge import DatabaseChallengeRepository
+        from acme2certifier.acme_srv.challenge_error_handling import (
+            DatabaseError,
+            ValidationError,
+        )
+        from acme2certifier.acme_srv.challenge_business_logic import (
             ChallengeInfo,
             ChallengeCreationRequest,
             ChallengeUpdateRequest,
@@ -84,7 +87,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
 
         self.repo = self.DatabaseChallengeRepository(self.dbstore, self.logger)
 
-    def test_002_find_challenges_by_authorization_success(self):
+    def test_001_find_challenges_by_authorization_success(self):
         self.dbstore.challenges_search.return_value = [
             {"name": "c1", "type": "dns-01", "status__name": "pending", "token": "tok1"}
         ]
@@ -93,7 +96,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
         self.assertEqual(result[0].name, "c1")
         self.dbstore.challenges_search.assert_called_once()
 
-    def test_003_find_challenges_by_authorization_db_error(self):
+    def test_002_find_challenges_by_authorization_db_error(self):
         self.dbstore.challenges_search.side_effect = Exception("db fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
             with self.assertRaises(self.DatabaseError):
@@ -108,12 +111,12 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             )
         )
 
-    def test_004_get_challengeinfo_by_challengename_success(self):
+    def test_003_get_challengeinfo_by_challengename_success(self):
         self.dbstore.challenge_lookup.return_value = {"name": "c1", "type": "dns-01"}
         result = self.repo.get_challengeinfo_by_challengename("c1")
         self.assertEqual(result["name"], "c1")
 
-    def test_005_get_challengeinfo_by_challengename_db_error(self):
+    def test_004_get_challengeinfo_by_challengename_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
             with self.assertRaises(self.DatabaseError):
@@ -128,7 +131,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             )
         )
 
-    def test_006_get_challenge_by_name_success(self):
+    def test_005_get_challenge_by_name_success(self):
         self.dbstore.challenge_lookup.return_value = {
             "type": "dns-01",
             "token": "tok",
@@ -139,14 +142,15 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             "validated": 123456,
         }
         with patch(
-            "acme_srv.challenge.uts_to_date_utc", return_value="2021-01-01T00:00:00Z"
+            "acme2certifier.acme_srv.challenge.uts_to_date_utc",
+            return_value="2021-01-01T00:00:00Z",
         ):
             result = self.repo.get_challenge_by_name("c1")
             self.assertEqual(result.name, "c1")
             self.assertEqual(result.status, "valid")
             self.assertEqual(result.validated, "2021-01-01T00:00:00Z")
 
-    def test_007_get_challenge_by_name_db_error(self):
+    def test_006_get_challenge_by_name_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
             with self.assertRaises(self.DatabaseError):
@@ -160,21 +164,27 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             )
         )
 
-    def test_008_create_challenge_success(self):
+    def test_007_create_challenge_success(self):
         self.dbstore.challenge_add.return_value = 1
         with (
-            patch("acme_srv.challenge.generate_random_string", return_value="c1"),
-            patch("acme_srv.challenge.uts_now", return_value=1000),
+            patch(
+                "acme2certifier.acme_srv.challenge.generate_random_string",
+                return_value="c1",
+            ),
+            patch("acme2certifier.acme_srv.challenge.uts_now", return_value=1000),
         ):
             req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
             name = self.repo.create_challenge(req)
             self.assertEqual(name, "c1")
 
-    def test_009_create_challenge_db_error(self):
+    def test_008_create_challenge_db_error(self):
         self.dbstore.challenge_add.side_effect = Exception("db fail")
         with (
-            patch("acme_srv.challenge.generate_random_string", return_value="c1"),
-            patch("acme_srv.challenge.uts_now", return_value=1000),
+            patch(
+                "acme2certifier.acme_srv.challenge.generate_random_string",
+                return_value="c1",
+            ),
+            patch("acme2certifier.acme_srv.challenge.uts_now", return_value=1000),
         ):
             req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
             with self.assertLogs("test_a2c", level="DEBUG") as log_context:
@@ -190,12 +200,12 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
                 )
             )
 
-    def test_010_update_challenge_success(self):
+    def test_009_update_challenge_success(self):
         self.dbstore.challenge_update.return_value = None
         req = self.ChallengeUpdateRequest("c1", status=2)
         self.assertTrue(self.repo.update_challenge(req))
 
-    def test_011_update_challenge_db_error(self):
+    def test_010_update_challenge_db_error(self):
         self.dbstore.challenge_update.side_effect = Exception("db fail")
         req = self.ChallengeUpdateRequest("c1", status=2)
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
@@ -210,12 +220,12 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             )
         )
 
-    def test_012_update_authorization_status_success(self):
+    def test_011_update_authorization_status_success(self):
         self.dbstore.challenge_lookup.return_value = {"authorization": "authz1"}
         self.dbstore.authorization_update.return_value = None
         self.assertTrue(self.repo.update_authorization_status("c1", "valid"))
 
-    def test_013_update_authorization_status_db_error(self):
+    def test_012_update_authorization_status_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
             with self.assertRaises(self.DatabaseError):
@@ -230,18 +240,18 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             )
         )
 
-    def test_014_get_account_jwk_success(self):
+    def test_013_get_account_jwk_success(self):
         self.dbstore.challenge_lookup.return_value = {
             "authorization__order__account__name": "acc1"
         }
         self.dbstore.jwk_load.return_value = {"kty": "RSA"}
         self.assertEqual(self.repo.get_account_jwk("c1"), {"kty": "RSA"})
 
-    def test_015_get_account_jwk_none(self):
+    def test_014_get_account_jwk_none(self):
         self.dbstore.challenge_lookup.return_value = {}
         self.assertIsNone(self.repo.get_account_jwk("c1"))
 
-    def test_016_get_authorization_account_name_success(self):
+    def test_015_get_authorization_account_name_success(self):
         self.dbstore.authorization_lookup.return_value = [
             {"order__account__name": "acc1"}
         ]
@@ -253,14 +263,14 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             "name", "authz1", ["order__account__name"]
         )
 
-    def test_017_get_authorization_account_name_none(self):
+    def test_016_get_authorization_account_name_none(self):
         self.dbstore.authorization_lookup.return_value = [{}]
 
         result = self.repo.get_authorization_account_name("authz1")
 
         self.assertIsNone(result)
 
-    def test_018_get_authorization_account_name_db_error(self):
+    def test_017_get_authorization_account_name_db_error(self):
         self.dbstore.authorization_lookup.side_effect = Exception("db fail")
 
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
@@ -282,24 +292,24 @@ class TestChallenge(unittest.TestCase):
         import logging
 
         # Mock the missing db_handler module if not already done
-        if "acme_srv.db_handler" not in sys.modules:
+        if "acme2certifier.acme_srv.db_handler" not in sys.modules:
             mock_db_handler = MagicMock()
             mock_dbstore_class = MagicMock()
             mock_db_handler.DBstore = mock_dbstore_class
-            sys.modules["acme_srv.db_handler"] = mock_db_handler
+            sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 
         # Import after ensuring mocking
-        from acme_srv.challenge import (
+        from acme2certifier.acme_srv.challenge import (
             Challenge,
             ChallengeConfiguration,
             DatabaseChallengeRepository,
         )
-        from acme_srv.challenge_error_handling import (
+        from acme2certifier.acme_srv.challenge_error_handling import (
             DatabaseError,
             ValidationError,
             UnsupportedChallengeTypeError,
         )
-        from acme_srv.challenge_business_logic import (
+        from acme2certifier.acme_srv.challenge_business_logic import (
             ChallengeInfo,
             ChallengeCreationRequest,
             ChallengeUpdateRequest,
@@ -346,24 +356,25 @@ class TestChallenge(unittest.TestCase):
             "authz_path": "/acme/authz/",
         }
 
-    def test_019_create_error_response(self):
+    def test_001_create_error_response(self):
         self.challenge.message.prepare_response.return_value = {"status": "error"}
         resp = self.challenge._create_error_response(400, "bad", "fail")
         self.assertEqual(resp["status"], "error")
 
-    def test_020_create_success_response(self):
+    def test_002_create_success_response(self):
         self.challenge.message.prepare_response.return_value = {"status": "ok"}
         resp = self.challenge._create_success_response({"foo": "bar"})
         self.assertEqual(resp["status"], "ok")
 
-    def test_021_extract_challenge_name_from_url(self):
+    def test_003_extract_challenge_name_from_url(self):
         with patch(
-            "acme_srv.challenge.parse_url", return_value={"path": "/acme/chall/c1"}
+            "acme2certifier.acme_srv.challenge.parse_url",
+            return_value={"path": "/acme/chall/c1"},
         ):
             name = self.challenge._extract_challenge_name_from_url("/acme/chall/c1")
             self.assertEqual(name, "c1")
 
-    def test_022_get_challenge_validation_details_success(self):
+    def test_004_get_challenge_validation_details_success(self):
         self.challenge.dbstore.challenge_lookup.return_value = {
             "type": "dns-01",
             "token": "tok",
@@ -372,20 +383,22 @@ class TestChallenge(unittest.TestCase):
             "authorization__value": "val",
         }
         self.challenge.repository.get_account_jwk.return_value = {"kty": "RSA"}
-        with patch("acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"):
+        with patch(
+            "acme2certifier.acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"
+        ):
             details = self.challenge._get_challenge_validation_details("c1")
             self.assertEqual(details["jwk_thumbprint"], "thumb")
 
-    def test_023_get_challenge_validation_details_no_challenge(self):
+    def test_005_get_challenge_validation_details_no_challenge(self):
         self.challenge.dbstore.challenge_lookup.return_value = None
         self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
 
-    def test_024_get_challenge_validation_details_no_pubkey(self):
+    def test_006_get_challenge_validation_details_no_pubkey(self):
         self.challenge.dbstore.challenge_lookup.return_value = {"type": "dns-01"}
         self.challenge.repository.get_account_jwk.return_value = None
         self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
 
-    def test_025_get_challenge_validation_details_missing_required_fields(self):
+    def test_007_get_challenge_validation_details_missing_required_fields(self):
         self.challenge.dbstore.challenge_lookup.return_value = {
             "type": "dns-01",
             "token": "tok",
@@ -393,10 +406,12 @@ class TestChallenge(unittest.TestCase):
             # missing authorization__value and keyauthorization
         }
         self.challenge.repository.get_account_jwk.return_value = {"kty": "RSA"}
-        with patch("acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"):
+        with patch(
+            "acme2certifier.acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"
+        ):
             self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
 
-    def test_026_get_challenge_validation_details_exception(self):
+    def test_008_get_challenge_validation_details_exception(self):
         self.challenge.dbstore.challenge_lookup.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
@@ -405,7 +420,7 @@ class TestChallenge(unittest.TestCase):
             lcm.output,
         )
 
-    def test_027_handle_challenge_validation_request_valid(self):
+    def test_009_handle_challenge_validation_request_valid(self):
         info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
         )
@@ -419,7 +434,7 @@ class TestChallenge(unittest.TestCase):
         )
         self.assertEqual(resp["status"], "ok")
 
-    def test_028_handle_challenge_validation_request_tnauthlist(self):
+    def test_010_handle_challenge_validation_request_tnauthlist(self):
         info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
@@ -434,7 +449,7 @@ class TestChallenge(unittest.TestCase):
         )
         self.assertEqual(resp["status"], "ok")
 
-    def test_029_handle_challenge_validation_request_tnauthlist_fail(self):
+    def test_011_handle_challenge_validation_request_tnauthlist_fail(self):
         info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
@@ -448,7 +463,7 @@ class TestChallenge(unittest.TestCase):
         )
         self.assertEqual(resp["code"], 400)
 
-    def test_030_handle_validation_disabled(self):
+    def test_012_handle_validation_disabled(self):
         self.challenge.config.forward_address_check = False
         self.challenge.config.reverse_address_check = False
         self.challenge.state_manager.transition_to_valid = Mock()
@@ -459,7 +474,7 @@ class TestChallenge(unittest.TestCase):
             lcm.output,
         )
 
-    def test_031_handle_validation_disabled_invalid(self):
+    def test_013_handle_validation_disabled_invalid(self):
         self.challenge.config.forward_address_check = True
         self.challenge._perform_source_address_validation = Mock(
             return_value=(False, True, "fail")
@@ -467,7 +482,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.state_manager.transition_to_invalid = Mock()
         self.assertFalse(self.challenge._handle_validation_disabled("c1"))
 
-    def test_032_load_address_check_configuration(self):
+    def test_014_load_address_check_configuration(self):
         import logging
         from configparser import ConfigParser
 
@@ -485,7 +500,7 @@ class TestChallenge(unittest.TestCase):
             "INFO:test_a2c:Challenge validation is globally disabled.", lcm.output
         )
 
-    def test_033_load_dns_configuration(self):
+    def test_015_load_dns_configuration(self):
         config_dic = {
             "Challenge": {
                 "dns_server_list": '["8.8.8.8"]',
@@ -496,7 +511,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(self.challenge.config.dns_server_list, ["8.8.8.8"])
         self.assertEqual(self.challenge.config.dns_validation_pause_timer, 2)
 
-    def test_034_load_dns_configuration_fail(self):
+    def test_016_load_dns_configuration_fail(self):
         # Set to None first to test that bad configuration doesn't change it
         self.challenge.config.dns_server_list = None
         config_dic = {
@@ -517,12 +532,12 @@ class TestChallenge(unittest.TestCase):
             lcm.output,
         )
 
-    def test_035_load_proxy_configuration(self):
+    def test_017_load_proxy_configuration(self):
         config_dic = {"DEFAULT": {"proxy_server_list": '{"http": "proxy"}'}}
         self.challenge._load_proxy_configuration(config_dic)
         self.assertEqual(self.challenge.proxy_server_list, {"http": "proxy"})
 
-    def test_036_load_proxy_configuration_fail(self):
+    def test_018_load_proxy_configuration_fail(self):
         config_dic = {"DEFAULT": {"proxy_server_list": "badjson"}}
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.challenge._load_proxy_configuration(config_dic)
@@ -532,7 +547,7 @@ class TestChallenge(unittest.TestCase):
             lcm.output,
         )
 
-    def test_037_load_configuration(self):
+    def test_019_load_configuration(self):
         from configparser import ConfigParser
 
         config_obj = ConfigParser()
@@ -540,12 +555,14 @@ class TestChallenge(unittest.TestCase):
         config_obj.set("Challenge", "sectigo_sim", "False")
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -553,7 +570,7 @@ class TestChallenge(unittest.TestCase):
             self.challenge._load_configuration()
             self.assertFalse(self.challenge.config.sectigo_sim)
 
-    def test_038_load_configuration_without_challengesection(self):
+    def test_020_load_configuration_without_challengesection(self):
         from configparser import ConfigParser
 
         config_obj = ConfigParser()  # No Challenge section
@@ -571,7 +588,7 @@ class TestChallenge(unittest.TestCase):
             self.challenge.config.reverse_address_check
         )  # Default value should be used
 
-    def test_039_load_configuration_with_source_address_check(self):
+    def test_021_load_configuration_with_source_address_check(self):
         from configparser import ConfigParser
 
         config_obj = ConfigParser()  # No Challenge section
@@ -593,7 +610,7 @@ class TestChallenge(unittest.TestCase):
             lcm.output,
         )
 
-    def test_040_load_directory_caa_identities_empty(self):
+    def test_022_load_directory_caa_identities_empty(self):
         from configparser import ConfigParser
 
         config_obj = ConfigParser()
@@ -603,7 +620,7 @@ class TestChallenge(unittest.TestCase):
 
         self.assertEqual(result, [])
 
-    def test_041_load_directory_caa_identities_json_list(self):
+    def test_023_load_directory_caa_identities_json_list(self):
         from configparser import ConfigParser
 
         config_obj = ConfigParser()
@@ -614,7 +631,7 @@ class TestChallenge(unittest.TestCase):
 
         self.assertEqual(result, ["acme.local", "bar.local"])
 
-    def test_042_load_directory_caa_identities_invalid_json_fallback(self):
+    def test_024_load_directory_caa_identities_invalid_json_fallback(self):
         from configparser import ConfigParser
 
         config_obj = ConfigParser()
@@ -625,7 +642,7 @@ class TestChallenge(unittest.TestCase):
 
         self.assertEqual(result, ["acme.local,bar.local"])
 
-    def test_043_load_directory_caa_identities_invalid_json_logs_warning(self):
+    def test_025_load_directory_caa_identities_invalid_json_logs_warning(self):
         from configparser import ConfigParser
 
         config_obj = ConfigParser()
@@ -641,7 +658,7 @@ class TestChallenge(unittest.TestCase):
             lcm.output,
         )
 
-    def test_044_load_directory_caa_identities_non_list_json_logs_warning(self):
+    def test_026_load_directory_caa_identities_non_list_json_logs_warning(self):
         from configparser import ConfigParser
 
         config_obj = ConfigParser()
@@ -657,7 +674,7 @@ class TestChallenge(unittest.TestCase):
             lcm.output,
         )
 
-    def test_045_ensure_components_initialized(self):
+    def test_027_ensure_components_initialized(self):
         self.challenge.factory = Mock()
         self.challenge.service = Mock()
         self.challenge._ensure_components_initialized()  # Should not raise
@@ -665,20 +682,20 @@ class TestChallenge(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.challenge._ensure_components_initialized()
 
-    def test_046_perform_challenge_validation_success(self):
+    def test_028_perform_challenge_validation_success(self):
         self.challenge.state_manager.transition_to_processing = Mock()
         self.challenge.config.validation_disabled = False
         self.challenge._execute_challenge_validation = Mock()
         self.challenge._update_challenge_state_from_validation = Mock(return_value=True)
         self.assertTrue(self.challenge._perform_challenge_validation("c1", {}))
 
-    def test_047_perform_challenge_validation_disabled(self):
+    def test_029_perform_challenge_validation_disabled(self):
         self.challenge.state_manager.transition_to_processing = Mock()
         self.challenge.config.validation_disabled = True
         self.challenge._handle_validation_disabled = Mock(return_value=True)
         self.assertTrue(self.challenge._perform_challenge_validation("c1", {}))
 
-    def test_048_perform_challenge_validation_exception(self):
+    def test_030_perform_challenge_validation_exception(self):
         self.challenge.state_manager.transition_to_processing = Mock()
         self.challenge.config.validation_disabled = False
         self.challenge._execute_challenge_validation = Mock(
@@ -695,13 +712,13 @@ class TestChallenge(unittest.TestCase):
             "ERROR:test_a2c:Challenge validation error for c1: fail", lcm.output
         )
 
-    def test_049_perform_source_address_validation_disabled(self):
+    def test_031_perform_source_address_validation_disabled(self):
         self.challenge.config.forward_address_check = False
         self.challenge.config.reverse_address_check = False
         result = self.challenge._perform_source_address_validation("c1")
         self.assertEqual(result, (True, False, None))
 
-    def test_050_perform_source_address_validation_not_found(self):
+    def test_032_perform_source_address_validation_not_found(self):
         self.challenge.config.forward_address_check = True
         self.challenge.repository.get_challenge_by_name.return_value = None
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
@@ -709,7 +726,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(result, (False, True, "Challenge not found"))
         self.assertIn("ERROR:test_a2c:Challenge not found: c1", lcm.output)
 
-    def test_051_perform_source_address_validation_success(self):
+    def test_033_perform_source_address_validation_success(self):
         self.challenge.config.forward_address_check = True
         info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
@@ -721,7 +738,7 @@ class TestChallenge(unittest.TestCase):
         result = self.challenge._perform_source_address_validation("c1")
         self.assertEqual(result, (True, False, None))
 
-    def test_052_perform_source_address_validation_fail(self):
+    def test_034_perform_source_address_validation_fail(self):
         self.challenge.config.forward_address_check = True
         info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
@@ -737,7 +754,7 @@ class TestChallenge(unittest.TestCase):
         )
         self.assertEqual(result, (False, True, "fail"))
 
-    def test_053_perform_source_address_validation_validator_not_available(self):
+    def test_035_perform_source_address_validation_validator_not_available(self):
         self.challenge.config.forward_address_check = True
         info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
@@ -751,7 +768,7 @@ class TestChallenge(unittest.TestCase):
         )
         self.assertEqual(result, (True, False, None))
 
-    def test_054_perform_source_address_validation_exception(self):
+    def test_036_perform_source_address_validation_exception(self):
         self.challenge.config.forward_address_check = True
         info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
@@ -767,7 +784,7 @@ class TestChallenge(unittest.TestCase):
             result, (False, True, "Source address validation error for c1: fail")
         )
 
-    def test_055_perform_validation_with_retry_success(self):
+    def test_037_perform_validation_with_retry_success(self):
         context = Mock()
         self.challenge.validator_registry.validate_challenge.side_effect = [
             Mock(success=False, invalid=False),
@@ -776,7 +793,7 @@ class TestChallenge(unittest.TestCase):
         result = self.challenge._perform_validation_with_retry("dns-01", context)
         self.assertTrue(result.success)
 
-    def test_056_perform_validation_with_retry_invalid(self):
+    def test_038_perform_validation_with_retry_invalid(self):
         context = Mock()
         self.challenge.validator_registry.validate_challenge.return_value = Mock(
             success=False, invalid=True
@@ -785,25 +802,111 @@ class TestChallenge(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
 
-    def test_057_start_async_validation(self):
-        with patch("acme_srv.challenge.Thread") as mock_thread:
+    def test_039_start_async_validation(self):
+        with patch("acme2certifier.acme_srv.challenge.Thread") as mock_thread:
             instance = mock_thread.return_value
             instance.join.return_value = True
+            instance.is_alive.return_value = False
             self.challenge._perform_challenge_validation = Mock()
             self.challenge._start_async_validation("c1", {})
             instance.start.assert_called_once()
             instance.join.assert_called_once()
 
-    def test_058_update_challenge_state_from_validation_invalid(self):
-        validation_result = Mock(invalid=True, success=False)
+    def test_040_update_challenge_state_from_validation_invalid(self):
+        from acme2certifier.acme_srv.challenge_error_handling import ErrorHandler
+
+        validation_result = Mock(
+            invalid=True,
+            success=False,
+            error_message='{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "DNS record not found or incorrect"}',
+            details={
+                "expected_hash": "abc",
+                "dns_record": "_acme-challenge.example.com",
+                "found_records": [],
+            },
+        )
+        self.challenge.error_handler = ErrorHandler(self.logger)
         self.challenge.state_manager.transition_to_invalid = Mock()
-        self.assertFalse(
-            self.challenge._update_challenge_state_from_validation(
-                "c1", validation_result
+        self.challenge.repository.get_challenge_by_name.return_value = (
+            self.ChallengeInfo(
+                "c1",
+                "dns-01",
+                "tok",
+                "processing",
+                "authz",
+                "dns",
+                "example.com",
+                "url",
             )
         )
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            self.assertFalse(
+                self.challenge._update_challenge_state_from_validation(
+                    "c1", validation_result
+                )
+            )
+        joined = "\n".join(log_cm.output)
+        self.assertIn(
+            "Challenge validation failed: challenge=c1 type=dns-01 host=example.com reason=DNS record not found or incorrect; expected_hash=abc dns_record=_acme-challenge.example.com found_records=[]",
+            joined,
+        )
+        self.challenge.state_manager.transition_to_invalid.assert_called_once()
 
-    def test_059_update_challenge_state_from_validation_success(self):
+    def test_041_update_challenge_state_from_validation_invalid_http_mismatch(self):
+        from acme2certifier.acme_srv.challenge_error_handling import ErrorHandler
+
+        validation_result = Mock(
+            invalid=True,
+            success=False,
+            error_message='{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Keyauthorization mismatch"}',
+            details={"expected": "tok.thumb", "received": "wrong", "url": "http://h"},
+        )
+        self.challenge.error_handler = ErrorHandler(self.logger)
+        self.challenge.state_manager.transition_to_invalid = Mock()
+        self.challenge.repository.get_challenge_by_name.return_value = (
+            self.ChallengeInfo(
+                "c2", "http-01", "tok", "processing", "authz", "dns", "foo.bar", "url"
+            )
+        )
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            self.assertFalse(
+                self.challenge._update_challenge_state_from_validation(
+                    "c2", validation_result
+                )
+            )
+        joined = "\n".join(log_cm.output)
+        self.assertIn(
+            "Challenge validation failed: challenge=c2 type=http-01 host=foo.bar reason=Keyauthorization mismatch; expected='tok.thumb' received='wrong'",
+            joined,
+        )
+
+    def test_042_update_challenge_state_from_validation_invalid_unknown_challenge(
+        self,
+    ):
+        from acme2certifier.acme_srv.challenge_error_handling import ErrorHandler
+
+        validation_result = Mock(
+            invalid=True,
+            success=False,
+            error_message="plain failure",
+            details=None,
+        )
+        self.challenge.error_handler = ErrorHandler(self.logger)
+        self.challenge.state_manager.transition_to_invalid = Mock()
+        self.challenge.repository.get_challenge_by_name.return_value = None
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            self.assertFalse(
+                self.challenge._update_challenge_state_from_validation(
+                    "missing", validation_result
+                )
+            )
+        joined = "\n".join(log_cm.output)
+        self.assertIn(
+            "Challenge validation failed: challenge=missing type=unknown host=unknown reason=plain failure",
+            joined,
+        )
+
+    def test_043_update_challenge_state_from_validation_success(self):
         validation_result = Mock(invalid=False, success=True)
         self.challenge.state_manager.transition_to_valid = Mock()
         self.assertTrue(
@@ -812,15 +915,20 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    def test_060_update_challenge_state_from_validation_inconclusive(self):
+    def test_044_update_challenge_state_from_validation_inconclusive(self):
         validation_result = Mock(invalid=False, success=False)
-        self.assertFalse(
-            self.challenge._update_challenge_state_from_validation(
-                "c1", validation_result
+        with self.assertLogs("test_a2c", level="INFO") as log_cm:
+            self.assertFalse(
+                self.challenge._update_challenge_state_from_validation(
+                    "c1", validation_result
+                )
             )
+        self.assertIn(
+            "INFO:test_a2c:Challenge validation inconclusive: challenge=c1 (status remains processing)",
+            log_cm.output,
         )
 
-    def test_061_validate_tnauthlist_payload_success(self):
+    def test_045_validate_tnauthlist_payload_success(self):
         info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
@@ -828,7 +936,7 @@ class TestChallenge(unittest.TestCase):
         result = self.challenge._validate_tnauthlist_payload(payload, info)
         self.assertEqual(result["code"], 200)
 
-    def test_062_validate_tnauthlist_payload_missing_atc(self):
+    def test_046_validate_tnauthlist_payload_missing_atc(self):
         info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
@@ -844,7 +952,7 @@ class TestChallenge(unittest.TestCase):
         )
         self.assertEqual(result["code"], 400)
 
-    def test_063_validate_tnauthlist_payload_missing_spc(self):
+    def test_047_validate_tnauthlist_payload_missing_spc(self):
         info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
@@ -860,7 +968,7 @@ class TestChallenge(unittest.TestCase):
         )
         self.assertEqual(result["code"], 400)
 
-    def test_064_process_challenge_request_success(self):
+    def test_048_process_challenge_request_success(self):
         self.challenge._ensure_components_initialized = Mock()
         self.challenge.message.check.return_value = (
             200,
@@ -882,7 +990,7 @@ class TestChallenge(unittest.TestCase):
         resp = self.challenge.process_challenge_request("content")
         self.assertEqual(resp["status"], "ok")
 
-    def test_065_process_challenge_request_error(self):
+    def test_049_process_challenge_request_error(self):
         self.challenge._ensure_components_initialized = Mock()
         self.challenge.message.check.side_effect = Exception("fail")
         self.challenge.error_handler.handle_error.return_value = Mock()
@@ -892,7 +1000,7 @@ class TestChallenge(unittest.TestCase):
         resp = self.challenge.process_challenge_request("content")
         self.assertEqual(resp["status"], "error")
 
-    def test_066_retrieve_challenge_set_success(self):
+    def test_050_retrieve_challenge_set_success(self):
         self.challenge._ensure_components_initialized = Mock()
         self.challenge.service = Mock()
         self.challenge.service.get_challenge_set_for_authorization.return_value = [
@@ -901,7 +1009,7 @@ class TestChallenge(unittest.TestCase):
         resp = self.challenge.retrieve_challenge_set("authz", "valid", "tok", False)
         self.assertEqual(resp, [{"foo": "bar"}])
 
-    def test_067_retrieve_challenge_set_exception(self):
+    def test_051_retrieve_challenge_set_exception(self):
         self.challenge._ensure_components_initialized = Mock()
         self.challenge.service = Mock()
         self.challenge.service.get_challenge_set_for_authorization.side_effect = (
@@ -922,7 +1030,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    def test_068_challengeset_get_and_parse(self):
+    def test_052_challengeset_get_and_parse(self):
         self.challenge.retrieve_challenge_set = Mock(return_value=[{"foo": "bar"}])
         self.assertEqual(
             self.challenge.challengeset_get("a", "b", "c", False), [{"foo": "bar"}]
@@ -932,13 +1040,13 @@ class TestChallenge(unittest.TestCase):
 
     # Additional tests to reach 100% coverage
 
-    def test_069_context_manager(self):
+    def test_053_context_manager(self):
         """Test context manager functionality"""
         with patch.object(self.challenge, "_load_configuration"):
             with self.challenge as challenge_instance:
                 self.assertEqual(challenge_instance, self.challenge)
 
-    def test_070_create_challenge_special_types(self):
+    def test_054_create_challenge_special_types(self):
         """Test create challenge with special challenge types"""
         self.challenge.repository = Mock()
 
@@ -948,13 +1056,14 @@ class TestChallenge(unittest.TestCase):
         request.value = "test_value"
 
         with patch(
-            "acme_srv.challenge.generate_random_string", return_value="random_token"
+            "acme2certifier.acme_srv.challenge.generate_random_string",
+            return_value="random_token",
         ):
             self.challenge.repository.create_challenge = Mock(return_value="chid")
             result = self.challenge.repository.create_challenge(request)
             self.assertEqual(result, "chid")
 
-    def test_071_update_challenge_with_all_fields(self):
+    def test_055_update_challenge_with_all_fields(self):
         """Test challenge update with all optional fields"""
         self.challenge.repository = Mock()
 
@@ -968,7 +1077,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.repository.update_challenge(request)
         self.challenge.repository.update_challenge.assert_called_once()
 
-    def test_072_get_account_jwk_exception(self):
+    def test_056_get_account_jwk_exception(self):
         """Test get_account_jwk with database exception"""
         self.challenge.repository = self.DatabaseChallengeRepository(
             Mock(), self.logger
@@ -992,7 +1101,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    def test_073_get_challengeinfo_by_challengename_none_result(self):
+    def test_057_get_challengeinfo_by_challengename_none_result(self):
         """Test get_challengeinfo_by_challengename when no challenge found"""
         self.challenge.repository = self.DatabaseChallengeRepository(
             Mock(), self.logger
@@ -1004,7 +1113,7 @@ class TestChallenge(unittest.TestCase):
         )
         self.assertIsNone(result)
 
-    def test_074_get_challenge_by_name_none_result(self):
+    def test_058_get_challenge_by_name_none_result(self):
         """Test get_challenge_by_name when no challenge found"""
         self.challenge.repository = self.DatabaseChallengeRepository(
             Mock(), self.logger
@@ -1014,7 +1123,7 @@ class TestChallenge(unittest.TestCase):
         result = self.challenge.repository.get_challenge_by_name("nonexistent")
         self.assertIsNone(result)
 
-    def test_075_execute_challenge_validation_unsupported_type(self):
+    def test_059_execute_challenge_validation_unsupported_type(self):
         """Test _execute_challenge_validation with unsupported challenge type"""
         self.challenge.validator_registry = Mock()
         self.challenge.validator_registry.is_supported.return_value = False
@@ -1034,19 +1143,19 @@ class TestChallenge(unittest.TestCase):
         with self.assertRaises(self.UnsupportedChallengeTypeError):
             self.challenge._execute_challenge_validation("test_challenge")
 
-    def test_076_execute_challenge_validation_no_details(self):
+    def test_060_execute_challenge_validation_no_details(self):
         """Test _execute_challenge_validation when details cannot be retrieved"""
         self.challenge._get_challenge_validation_details = Mock(return_value=None)
 
         with self.assertRaises(self.ValidationError):
             self.challenge._execute_challenge_validation("test_challenge")
 
-    def test_077_extract_challenge_name_from_url_with_suffix(self):
+    def test_061_extract_challenge_name_from_url_with_suffix(self):
         """Test _extract_challenge_name_from_url with URL suffix"""
         self.challenge.path_dic = {"chall_path": "/acme/chall/"}
 
         with patch(
-            "acme_srv.challenge.parse_url",
+            "acme2certifier.acme_srv.challenge.parse_url",
             return_value={"path": "/acme/chall/test_challenge/authz"},
         ):
             result = self.challenge._extract_challenge_name_from_url(
@@ -1054,7 +1163,7 @@ class TestChallenge(unittest.TestCase):
             )
             self.assertEqual(result, "test_challenge")
 
-    def test_078_handle_challenge_validation_request_email_address(self):
+    def test_062_handle_challenge_validation_request_email_address(self):
         """Test challenge validation with email address configuration"""
         self.challenge.config.email_identifier_support = True
         self.challenge.config.email_address = "test@example.com"
@@ -1083,7 +1192,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(resp["status"], "ok")
         self.assertEqual(resp["data"]["from"], "test@example.com")
 
-    def test_079_load_address_check_configuration_deprecated(self):
+    def test_063_load_address_check_configuration_deprecated(self):
         """Test loading deprecated source_address_check configuration"""
         from configparser import ConfigParser
 
@@ -1097,7 +1206,7 @@ class TestChallenge(unittest.TestCase):
             mock_warning.assert_called_once()
             self.assertTrue(self.challenge.config.forward_address_check)
 
-    def test_080_load_configuration_validation_timeout_error(self):
+    def test_064_load_configuration_validation_timeout_error(self):
         """Test loading configuration with invalid validation timeout"""
         from configparser import ConfigParser
 
@@ -1106,12 +1215,14 @@ class TestChallenge(unittest.TestCase):
         config_obj.set("Challenge", "challenge_validation_timeout", "invalid")
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -1121,7 +1232,7 @@ class TestChallenge(unittest.TestCase):
             self.challenge._load_configuration()
             mock_warning.assert_called_once()
 
-    def test_081_load_configuration_email_identifier_no_address(self):
+    def test_065_load_configuration_email_identifier_no_address(self):
         """Test email identifier support without email address configured"""
         from configparser import ConfigParser
 
@@ -1130,12 +1241,14 @@ class TestChallenge(unittest.TestCase):
         config_obj.set("Order", "email_identifier_support", "True")
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -1146,7 +1259,7 @@ class TestChallenge(unittest.TestCase):
             mock_warning.assert_called_once()
             self.assertFalse(self.challenge.config.email_identifier_support)
 
-    def test_082_load_configuration_with_url_prefix(self):
+    def test_066_load_configuration_with_url_prefix(self):
         """Test loading configuration with URL prefix"""
         from configparser import ConfigParser
 
@@ -1157,12 +1270,14 @@ class TestChallenge(unittest.TestCase):
         original_path_dic = self.challenge.path_dic.copy()
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -1175,7 +1290,7 @@ class TestChallenge(unittest.TestCase):
                 self.assertEqual(value, expected_value)
 
     # Tests for special challenge creation types
-    def test_083_create_challenge_sectigo_email(self):
+    def test_067_create_challenge_sectigo_email(self):
         """Test create challenge with sectigo-email-01 type"""
         self.challenge.repository = self.DatabaseChallengeRepository(
             Mock(), self.logger
@@ -1191,7 +1306,7 @@ class TestChallenge(unittest.TestCase):
         request.token = "token1"
 
         with patch(
-            "acme_srv.challenge.generate_random_string",
+            "acme2certifier.acme_srv.challenge.generate_random_string",
             return_value="random_challenge_name",
         ):
             result = self.challenge.repository.create_challenge(request)
@@ -1203,7 +1318,7 @@ class TestChallenge(unittest.TestCase):
             data_dic = call_args[0][2]  # third argument
             self.assertEqual(data_dic["status"], 5)
 
-    def test_084_create_challenge_email_reply(self):
+    def test_068_create_challenge_email_reply(self):
         """Test create challenge with email-reply-00 type"""
         self.challenge.repository = self.DatabaseChallengeRepository(
             Mock(), self.logger
@@ -1216,7 +1331,9 @@ class TestChallenge(unittest.TestCase):
         request.authorization_name = "authz1"
         request.token = "token1"
 
-        with patch("acme_srv.challenge.generate_random_string") as mock_gen:
+        with patch(
+            "acme2certifier.acme_srv.challenge.generate_random_string"
+        ) as mock_gen:
             mock_gen.side_effect = [
                 "challenge_name",
                 "random_token",
@@ -1228,7 +1345,7 @@ class TestChallenge(unittest.TestCase):
             data_dic = call_args[0][2]  # third argument
             self.assertEqual(data_dic["keyauthorization"], "random_token")
 
-    def test_085_update_challenge_with_individual_fields(self):
+    def test_069_update_challenge_with_individual_fields(self):
         """Test update challenge with different combinations of optional fields"""
         self.challenge.repository = self.DatabaseChallengeRepository(
             Mock(), self.logger
@@ -1259,7 +1376,7 @@ class TestChallenge(unittest.TestCase):
         request.keyauthorization = "test_keyauth"
         self.challenge.repository.update_challenge(request)
 
-    def test_086_handle_challenge_validation_request_with_validated_flag(self):
+    def test_070_handle_challenge_validation_request_with_validated_flag(self):
         """Test challenge validation response includes validated flag for valid challenges"""
         self.challenge.config.email_identifier_support = False
         self.challenge.config.email_address = None
@@ -1296,7 +1413,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(resp["status"], "ok")
         self.assertEqual(resp["data"]["validated"], "2023-01-01T00:00:00Z")
 
-    def test_087_load_configuration_with_email_identifier_and_address(self):
+    def test_071_load_configuration_with_email_identifier_and_address(self):
         """Test loading configuration with email identifier support and valid email address"""
         from configparser import ConfigParser
 
@@ -1308,12 +1425,14 @@ class TestChallenge(unittest.TestCase):
         ] = "test@example.com"  # Use dict-style access for DEFAULT
 
         with (
-            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch(
+                "acme2certifier.acme_srv.challenge.load_config", return_value=config_obj
+            ),
             patch.object(self.challenge, "_load_dns_configuration"),
             patch.object(self.challenge, "_load_proxy_configuration"),
             patch.object(self.challenge, "_load_address_check_configuration"),
             patch(
-                "acme_srv.challenge.create_challenge_validator_registry",
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
                 return_value=Mock(),
             ),
             patch.object(self.challenge, "_initialize_business_logic_components"),
@@ -1324,11 +1443,11 @@ class TestChallenge(unittest.TestCase):
             self.assertEqual(self.challenge.config.email_address, "test@example.com")
 
     # Test for remaining uncovered lines
-    def test_088_initialize_business_logic_components(self):
+    def test_072_initialize_business_logic_components(self):
         """Test _initialize_business_logic_components method"""
         with (
-            patch("acme_srv.challenge.ChallengeFactory") as mock_factory,
-            patch("acme_srv.challenge.ChallengeService") as mock_service,
+            patch("acme2certifier.acme_srv.challenge.ChallengeFactory") as mock_factory,
+            patch("acme2certifier.acme_srv.challenge.ChallengeService") as mock_service,
         ):
             self.challenge.path_dic = {"chall_path": "/chall/"}
             self.challenge.config.email_address = "test@example.com"
@@ -1342,7 +1461,7 @@ class TestChallenge(unittest.TestCase):
             mock_service.assert_called_once()
 
     # Tests for uncovered lines in process_challenge_request error handling
-    def test_089_process_challenge_request_message_check_failure(self):
+    def test_073_process_challenge_request_message_check_failure(self):
         """Test process_challenge_request when message check fails (line 907)"""
         # Set up necessary components
         self.challenge.factory = Mock()
@@ -1369,10 +1488,10 @@ class TestChallenge(unittest.TestCase):
             }
             self.challenge.process_challenge_request("invalid_content")
             mock_error_response.assert_called_once_with(
-                400, "bad request", "invalid format"
+                400, "bad request", "invalid format", account_name=""
             )
 
-    def test_090_process_challenge_request_url_missing_in_protected(self):
+    def test_074_process_challenge_request_url_missing_in_protected(self):
         """Test process_challenge_request when URL is missing from protected header (line 910)"""
         # Set up necessary components
         self.challenge.factory = Mock()
@@ -1400,10 +1519,13 @@ class TestChallenge(unittest.TestCase):
             }
             self.challenge.process_challenge_request("content_without_url")
             mock_error_response.assert_called_once_with(
-                400, "malformed", "url missing in protected header"
+                400,
+                "malformed",
+                "url missing in protected header",
+                account_name="account",
             )
 
-    def test_091_process_challenge_request_empty_challenge_name_extraction(self):
+    def test_075_process_challenge_request_empty_challenge_name_extraction(self):
         """Test process_challenge_request when challenge name extraction fails (line 918)"""
         # Set up necessary components
         self.challenge.factory = Mock()
@@ -1436,10 +1558,10 @@ class TestChallenge(unittest.TestCase):
             }
             self.challenge.process_challenge_request("content_with_invalid_url")
             mock_error_response.assert_called_once_with(
-                400, "malformed", "could not get challenge"
+                400, "malformed", "could not get challenge", account_name="account"
             )
 
-    def test_092_process_challenge_request_nonexistent_challenge_name(self):
+    def test_076_process_challenge_request_nonexistent_challenge_name(self):
         """Test process_challenge_request when challenge doesn't exist in repository (line 924)"""
         # Set up necessary components
         self.challenge.factory = Mock()
@@ -1480,11 +1602,14 @@ class TestChallenge(unittest.TestCase):
                 "content_with_nonexistent_challenge"
             )
             mock_error_response.assert_called_once_with(
-                400, "malformed", "invalid challenge: nonexistent_challenge"
+                400,
+                "malformed",
+                "invalid challenge: nonexistent_challenge",
+                account_name="account",
             )
 
     # Tests for the final remaining uncovered lines (389-402, 508, 515)
-    def test_093_execute_challenge_validation_full_context_creation(self):
+    def test_077_execute_challenge_validation_full_context_creation(self):
         """Test _execute_challenge_validation with full ChallengeContext creation (lines 389-402)"""
         self.challenge.validator_registry = Mock()
         self.challenge.validator_registry.is_supported.return_value = True
@@ -1521,7 +1646,7 @@ class TestChallenge(unittest.TestCase):
             self.assertEqual(args[0], "dns-01")  # challenge_type
             # We can't easily verify the context object, but we know it was created if this method was called
 
-    def test_094_handle_challenge_validation_request_email_address_response_building(
+    def test_078_handle_challenge_validation_request_email_address_response_building(
         self,
     ):
         """Test that line 508 is executed: response_dic["data"]["from"] = self.config.email_address"""
@@ -1555,7 +1680,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(captured_data["from"], "test@example.com")
         self.assertEqual(captured_data["type"], "email-reply-00")
 
-    def test_095_handle_challenge_validation_request_validated_flag_response_building(
+    def test_079_handle_challenge_validation_request_validated_flag_response_building(
         self,
     ):
         """Test that line 515 is executed: response_dic["data"]["validated"] = updated_challenge_info.validated"""
@@ -1589,7 +1714,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(captured_data["validated"], validated_time)
         self.assertEqual(captured_data["status"], "valid")
 
-    def test_096_handle_challenge_validation_request_dns_persist_with_accounturi(
+    def test_080_handle_challenge_validation_request_dns_persist_with_accounturi(
         self,
     ):
         """Test dns-persist-01 response adds accounturi and issuer-domain-names."""
@@ -1637,7 +1762,7 @@ class TestChallenge(unittest.TestCase):
             captured_data["issuer-domain-names"], ["acme.local", "bar.local"]
         )
 
-    def test_097_handle_challenge_validation_request_dns_persist_without_accounturi(
+    def test_081_handle_challenge_validation_request_dns_persist_without_accounturi(
         self,
     ):
         """Test dns-persist-01 response omits accounturi if account is unavailable."""
@@ -1683,7 +1808,7 @@ class TestChallenge(unittest.TestCase):
         self.assertNotIn("accounturi", captured_data)
         self.assertEqual(captured_data["issuer-domain-names"], [])
 
-    def test_098_handle_challenge_validation_request_dns_persist_account_lookup_error(
+    def test_082_handle_challenge_validation_request_dns_persist_account_lookup_error(
         self,
     ):
         """Test dns-persist-01 response handles account lookup DatabaseError gracefully."""
@@ -1729,7 +1854,7 @@ class TestChallenge(unittest.TestCase):
         self.assertNotIn("accounturi", captured_data)
         self.assertEqual(captured_data["issuer-domain-names"], ["acme.local"])
 
-    def test_099_get_eab_kid_from_challenge_success(self):
+    def test_083_get_eab_kid_from_challenge_success(self):
         """Test _get_eab_kid_from_challenge with successful EAB kid retrieval"""
         self.challenge.repository = Mock()
         self.challenge.repository.get_challengeinfo_by_challengename.return_value = {
@@ -1752,7 +1877,7 @@ class TestChallenge(unittest.TestCase):
             ),
         )
 
-    def test_100_get_eab_kid_from_challenge_no_eab_kid(self):
+    def test_084_get_eab_kid_from_challenge_no_eab_kid(self):
         """Test _get_eab_kid_from_challenge when no EAB kid is found"""
         self.challenge.repository = Mock()
         self.challenge.repository.get_challengeinfo_by_challengename.return_value = {
@@ -1766,7 +1891,7 @@ class TestChallenge(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_101_get_eab_kid_from_challenge_empty_eab_kid(self):
+    def test_085_get_eab_kid_from_challenge_empty_eab_kid(self):
         """Test _get_eab_kid_from_challenge when EAB kid is empty string"""
         self.challenge.repository = Mock()
         self.challenge.repository.get_challengeinfo_by_challengename.return_value = {
@@ -1780,7 +1905,7 @@ class TestChallenge(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_102_get_eab_kid_from_challenge_missing_key(self):
+    def test_086_get_eab_kid_from_challenge_missing_key(self):
         """Test _get_eab_kid_from_challenge when EAB kid key is missing"""
         self.challenge.repository = Mock()
         self.challenge.repository.get_challengeinfo_by_challengename.return_value = {
@@ -1794,7 +1919,7 @@ class TestChallenge(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_103_get_eab_kid_from_challenge_exception(self):
+    def test_087_get_eab_kid_from_challenge_exception(self):
         """Test _get_eab_kid_from_challenge with database exception"""
         self.challenge.repository = Mock()
         self.challenge.repository.get_challengeinfo_by_challengename.side_effect = (
@@ -1815,7 +1940,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    def test_104_get_challenge_profile_settings_success(self):
+    def test_088_get_challenge_profile_settings_success(self):
         """Test _get_challenge_profile_settings with valid profile"""
         profile_dic = {
             "test_kid": {
@@ -1836,7 +1961,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_settings)
 
-    def test_105_get_challenge_profile_settings_defaults(self):
+    def test_089_get_challenge_profile_settings_defaults(self):
         """Test _get_challenge_profile_settings with missing settings using defaults"""
         profile_dic = {"test_kid": {"challenge": {}}}
 
@@ -1849,7 +1974,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_settings)
 
-    def test_106_get_challenge_profile_settings_no_challenge_section(self):
+    def test_090_get_challenge_profile_settings_no_challenge_section(self):
         """Test _get_challenge_profile_settings when challenge section is missing"""
         profile_dic = {"test_kid": {"other_section": {}}}
 
@@ -1862,7 +1987,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_settings)
 
-    def test_107_get_challenge_profile_settings_kid_not_found(self):
+    def test_091_get_challenge_profile_settings_kid_not_found(self):
         """Test _get_challenge_profile_settings when EAB kid not in profile"""
         profile_dic = {
             "other_kid": {"challenge": {"challenge_validation_disable": True}}
@@ -1872,7 +1997,7 @@ class TestChallenge(unittest.TestCase):
 
         self.assertEqual(result, {})
 
-    def test_108_apply_eab_profile_settings_validation_disable(self):
+    def test_092_apply_eab_profile_settings_validation_disable(self):
         """Test _apply_eab_profile_settings with validation disable setting"""
         settings = {
             "challenge_validation_disable": True,
@@ -1897,7 +2022,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    def test_109_apply_eab_profile_settings_forward_address_check(self):
+    def test_093_apply_eab_profile_settings_forward_address_check(self):
         """Test _apply_eab_profile_settings with forward address check setting"""
         settings = {
             "challenge_validation_disable": False,
@@ -1922,7 +2047,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    def test_110_apply_eab_profile_settings_reverse_address_check(self):
+    def test_094_apply_eab_profile_settings_reverse_address_check(self):
         """Test _apply_eab_profile_settings with reverse address check setting"""
         settings = {
             "challenge_validation_disable": False,
@@ -1947,7 +2072,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    def test_111_apply_eab_profile_settings_all_settings(self):
+    def test_095_apply_eab_profile_settings_all_settings(self):
         """Test _apply_eab_profile_settings with all settings enabled"""
         settings = {
             "challenge_validation_disable": True,
@@ -1986,7 +2111,7 @@ class TestChallenge(unittest.TestCase):
             info_messages,
         )
 
-    def test_112_apply_eab_profile_settings_no_settings(self):
+    def test_096_apply_eab_profile_settings_no_settings(self):
         """Test _apply_eab_profile_settings with no settings enabled"""
         settings = {
             "challenge_validation_disable": False,
@@ -2006,7 +2131,7 @@ class TestChallenge(unittest.TestCase):
         self.assertFalse(self.challenge.config.forward_address_check)
         self.assertFalse(self.challenge.config.reverse_address_check)
 
-    def test_113_check_challenge_validation_eabprofile_disabled(self):
+    def test_097_check_challenge_validation_eabprofile_disabled(self):
         """Test _check_challenge_validation_eabprofile when EAB profiling is disabled"""
         # Ensure EAB profiling is disabled
         self.challenge.config.eab_profiling = False
@@ -2020,7 +2145,7 @@ class TestChallenge(unittest.TestCase):
         # Verify early return - method should not be called
         self.challenge._get_eab_kid_from_challenge.assert_not_called()
 
-    def test_114_check_challenge_validation_eabprofile_no_handler(self):
+    def test_098_check_challenge_validation_eabprofile_no_handler(self):
         """Test _check_challenge_validation_eabprofile when EAB handler is None"""
         # EAB profiling enabled but no handler
         self.challenge.config.eab_profiling = True
@@ -2034,7 +2159,7 @@ class TestChallenge(unittest.TestCase):
         # Verify early return - method should not be called
         self.challenge._get_eab_kid_from_challenge.assert_not_called()
 
-    def test_115_check_challenge_validation_eabprofile_no_eab_kid(self):
+    def test_099_check_challenge_validation_eabprofile_no_eab_kid(self):
         """Test _check_challenge_validation_eabprofile when no EAB kid found"""
         # Set up EAB profiling
         self.challenge.config.eab_profiling = True
@@ -2050,7 +2175,7 @@ class TestChallenge(unittest.TestCase):
             "test_challenge"
         )
 
-    def test_116_check_challenge_validation_eabprofile_success(self):
+    def test_100_check_challenge_validation_eabprofile_success(self):
         """Test _check_challenge_validation_eabprofile with successful profile application"""
         # Set up EAB profiling
         mock_eab_handler = Mock()
@@ -2103,7 +2228,7 @@ class TestChallenge(unittest.TestCase):
             "test_kid",
         )
 
-    def test_117_check_challenge_validation_eabprofile_no_challenge_section(self):
+    def test_101_check_challenge_validation_eabprofile_no_challenge_section(self):
         """Test _check_challenge_validation_eabprofile when profile has no challenge section"""
         # Set up EAB profiling
         mock_eab_handler = Mock()
@@ -2134,7 +2259,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge._get_challenge_profile_settings.assert_not_called()
         self.challenge._apply_eab_profile_settings.assert_not_called()
 
-    def test_118_check_challenge_validation_eabprofile_kid_not_in_profile(self):
+    def test_102_check_challenge_validation_eabprofile_kid_not_in_profile(self):
         """Test _check_challenge_validation_eabprofile when EAB kid not in profile"""
         # Set up EAB profiling
         mock_eab_handler = Mock()
@@ -2167,7 +2292,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge._get_challenge_profile_settings.assert_not_called()
         self.challenge._apply_eab_profile_settings.assert_not_called()
 
-    def test_119_check_challenge_validation_eabprofile_exception(self):
+    def test_103_check_challenge_validation_eabprofile_exception(self):
         """Test _check_challenge_validation_eabprofile with exception during processing"""
         # Set up EAB profiling
         mock_eab_handler = Mock()
@@ -2201,7 +2326,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    def test_120_check_challenge_validation_eabprofile_exception_during_get_eab_kid(
+    def test_104_check_challenge_validation_eabprofile_exception_during_get_eab_kid(
         self,
     ):
         """Test _check_challenge_validation_eabprofile with exception during _get_eab_kid_from_challenge"""
@@ -2221,7 +2346,7 @@ class TestChallenge(unittest.TestCase):
             "test_challenge"
         )
 
-    def test_121_get_challenge_details_success(self):
+    def test_105_get_challenge_details_success(self):
         """Test get_challenge_details with successful challenge retrieval"""
         url = "http://example.com/acme/chall/test_challenge"
         mock_challenge_info = Mock()
@@ -2253,7 +2378,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_result)
 
-    def test_122_get_challenge_details_challenge_not_found(self):
+    def test_106_get_challenge_details_challenge_not_found(self):
         """Test get_challenge_details when challenge is not found"""
         url = "http://example.com/acme/chall/nonexistent_challenge"
 
@@ -2270,7 +2395,7 @@ class TestChallenge(unittest.TestCase):
         expected_result = {"code": 404, "data": {}}
         self.assertEqual(result, expected_result)
 
-    def test_123_get_challenge_details_with_none_validated(self):
+    def test_107_get_challenge_details_with_none_validated(self):
         """Test get_challenge_details with challenge having None validated field"""
         url = "http://example.com/acme/chall/test_challenge"
         mock_challenge_info = Mock()
@@ -2302,7 +2427,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_result)
 
-    def test_124_get_challenge_details_valid_status(self):
+    def test_108_get_challenge_details_valid_status(self):
         """Test get_challenge_details with valid challenge status"""
         url = "http://example.com/acme/chall/valid_challenge"
         mock_challenge_info = Mock()
@@ -2334,7 +2459,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_result)
 
-    def test_125_get_challenge_details_invalid_status(self):
+    def test_109_get_challenge_details_invalid_status(self):
         """Test get_challenge_details with invalid challenge status"""
         url = "http://example.com/acme/chall/invalid_challenge"
         mock_challenge_info = Mock()
@@ -2366,7 +2491,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_result)
 
-    def test_126_get_challenge_details_processing_status(self):
+    def test_110_get_challenge_details_processing_status(self):
         """Test get_challenge_details with processing challenge status"""
         url = "http://example.com/acme/chall/processing_challenge"
         mock_challenge_info = Mock()
@@ -2398,7 +2523,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_result)
 
-    def test_127_get_challenge_details_tls_alpn_challenge(self):
+    def test_111_get_challenge_details_tls_alpn_challenge(self):
         """Test get_challenge_details with tls-alpn-01 challenge type"""
         url = "http://example.com/acme/chall/tls_challenge"
         mock_challenge_info = Mock()
@@ -2430,7 +2555,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_result)
 
-    def test_128_get_challenge_details_empty_challenge_name(self):
+    def test_112_get_challenge_details_empty_challenge_name(self):
         """Test get_challenge_details with empty challenge name from URL"""
         url = "http://example.com/acme/chall/"
 
@@ -2445,7 +2570,7 @@ class TestChallenge(unittest.TestCase):
         expected_result = {"code": 404, "data": {}}
         self.assertEqual(result, expected_result)
 
-    def test_129_get_challenge_details_repository_exception(self):
+    def test_113_get_challenge_details_repository_exception(self):
         """Test get_challenge_details with repository exception"""
         url = "http://example.com/acme/chall/test_challenge"
 
@@ -2481,7 +2606,7 @@ class TestChallenge(unittest.TestCase):
             mock_error_detail, 500
         )
 
-    def test_130_get_challenge_details_extract_url_exception(self):
+    def test_114_get_challenge_details_extract_url_exception(self):
         """Test get_challenge_details with exception in URL extraction (not caught by try-catch)"""
         url = "invalid_url"
 
@@ -2495,7 +2620,7 @@ class TestChallenge(unittest.TestCase):
 
             self.assertEqual(str(context.exception), "URL parse error")
 
-    def test_131_get_challenge_details_special_characters_in_url(self):
+    def test_115_get_challenge_details_special_characters_in_url(self):
         """Test get_challenge_details with special characters in URL"""
         url = "http://example.com/acme/chall/test_challenge_123-abc"
         mock_challenge_info = Mock()
@@ -2527,7 +2652,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_result)
 
-    def test_132_get_challenge_details_long_challenge_name(self):
+    def test_116_get_challenge_details_long_challenge_name(self):
         """Test get_challenge_details with very long challenge name"""
         url = "http://example.com/acme/chall/very_long_challenge_name_123456789012345678901234567890"
         mock_challenge_info = Mock()
@@ -2559,7 +2684,7 @@ class TestChallenge(unittest.TestCase):
         }
         self.assertEqual(result, expected_result)
 
-    def test_133_get_challenge_details_logs_debug_message(self):
+    def test_117_get_challenge_details_logs_debug_message(self):
         """Test get_challenge_details logs appropriate debug message"""
         url = "http://example.com/acme/chall/test_challenge"
         mock_challenge_info = Mock()
@@ -2585,7 +2710,7 @@ class TestChallenge(unittest.TestCase):
             "DEBUG:test_a2c:Challenge.get_challenge_details(test_challenge)", lcm.output
         )
 
-    def test_134_perform_validation_with_retry_dns_challenge_success_first_attempt(
+    def test_118_perform_validation_with_retry_dns_challenge_success_first_attempt(
         self,
     ):
         """Test _perform_validation_with_retry with dns-01 challenge succeeding on first attempt"""
@@ -2602,7 +2727,7 @@ class TestChallenge(unittest.TestCase):
             "dns-01", mock_context
         )
 
-    def test_135_perform_validation_with_retry_dns_challenge_success_after_retries(
+    def test_119_perform_validation_with_retry_dns_challenge_success_after_retries(
         self,
     ):
         """Test _perform_validation_with_retry with dns-01 challenge succeeding after retries"""
@@ -2636,7 +2761,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(mock_sleep.call_count, 2)
         mock_sleep.assert_called_with(self.challenge.config.dns_validation_pause_timer)
 
-    def test_136_perform_validation_with_retry_dns_challenge_invalid_first_attempt(
+    def test_120_perform_validation_with_retry_dns_challenge_invalid_first_attempt(
         self,
     ):
         """Test _perform_validation_with_retry with dns-01 challenge invalid on first attempt"""
@@ -2654,7 +2779,7 @@ class TestChallenge(unittest.TestCase):
             "dns-01", mock_context
         )
 
-    def test_137_perform_validation_with_retry_dns_challenge_max_retries_reached(self):
+    def test_121_perform_validation_with_retry_dns_challenge_max_retries_reached(self):
         """Test _perform_validation_with_retry with dns-01 challenge reaching max retries (lines 997-1002)"""
         mock_context = Mock()
         mock_result = Mock()
@@ -2683,7 +2808,7 @@ class TestChallenge(unittest.TestCase):
             lcm.output,
         )
 
-    def test_138_perform_validation_with_retry_email_challenge_max_retries_reached(
+    def test_122_perform_validation_with_retry_email_challenge_max_retries_reached(
         self,
     ):
         """Test _perform_validation_with_retry with email-reply-00 challenge reaching max retries (lines 997-1002)"""
@@ -2714,7 +2839,7 @@ class TestChallenge(unittest.TestCase):
             lcm.output,
         )
 
-    def test_139_perform_validation_with_retry_http_challenge_single_attempt(self):
+    def test_123_perform_validation_with_retry_http_challenge_single_attempt(self):
         """Test _perform_validation_with_retry with http-01 challenge (single attempt)"""
         mock_context = Mock()
         mock_result = Mock()
@@ -2740,7 +2865,7 @@ class TestChallenge(unittest.TestCase):
         # Result should be marked as invalid since no retries and it didn't succeed
         self.assertTrue(result.invalid)
 
-    def test_140_perform_validation_with_retry_tls_challenge_single_attempt(self):
+    def test_124_perform_validation_with_retry_tls_challenge_single_attempt(self):
         """Test _perform_validation_with_retry with tls-alpn-01 challenge (single attempt)"""
         mock_context = Mock()
         mock_result = Mock()
@@ -2759,7 +2884,7 @@ class TestChallenge(unittest.TestCase):
         # Result should be the successful result
         self.assertEqual(result, mock_result)
 
-    def test_141_perform_validation_with_retry_dns_challenge_fourth_attempt_no_sleep(
+    def test_125_perform_validation_with_retry_dns_challenge_fourth_attempt_no_sleep(
         self,
     ):
         """Test _perform_validation_with_retry with dns-01 challenge not sleeping on last attempt"""
@@ -2786,7 +2911,7 @@ class TestChallenge(unittest.TestCase):
         # Should have 4 sleep calls - no sleep after the last attempt
         self.assertEqual(mock_sleep.call_count, 4)
 
-    def test_142_perform_validation_with_retry_preserves_dns_validation_pause_timer(
+    def test_126_perform_validation_with_retry_preserves_dns_validation_pause_timer(
         self,
     ):
         """Test _perform_validation_with_retry uses correct dns_validation_pause_timer"""
@@ -2806,7 +2931,7 @@ class TestChallenge(unittest.TestCase):
         # Verify sleep was called with the configured timer value
         mock_sleep.assert_called_with(1.5)
 
-    def test_143_get_legacy_api_calls_get_challenge_details(self):
+    def test_127_get_legacy_api_calls_get_challenge_details(self):
         """Test get() legacy API method calls get_challenge_details"""
         url = "http://example.com/acme/chall/test_challenge"
         expected_result = {"code": 200, "data": {"type": "http-01"}}
@@ -2821,7 +2946,7 @@ class TestChallenge(unittest.TestCase):
         # Should return the same result
         self.assertEqual(result, expected_result)
 
-    def test_144_get_legacy_api_logs_debug_message(self):
+    def test_128_get_legacy_api_logs_debug_message(self):
         """Test get() legacy API method logs appropriate debug message"""
         url = "http://example.com/acme/chall/test_challenge"
         with patch.object(
@@ -2833,7 +2958,7 @@ class TestChallenge(unittest.TestCase):
         # Should log debug message
         self.assertIn("DEBUG:test_a2c:Challenge.get() called - legacy API", lcm.output)
 
-    def test_145_get_legacy_api_handles_404_response(self):
+    def test_129_get_legacy_api_handles_404_response(self):
         """Test get() legacy API method handles 404 response from get_challenge_details"""
         url = "http://example.com/acme/chall/nonexistent_challenge"
         expected_result = {"code": 404, "data": {}}
@@ -2846,7 +2971,7 @@ class TestChallenge(unittest.TestCase):
         mock_get_details.assert_called_once_with(url)
         self.assertEqual(result, expected_result)
 
-    def test_146_get_legacy_api_handles_error_response(self):
+    def test_130_get_legacy_api_handles_error_response(self):
         """Test get() legacy API method handles error response from get_challenge_details"""
         url = "http://example.com/acme/chall/test_challenge"
         expected_result = {
@@ -2863,7 +2988,7 @@ class TestChallenge(unittest.TestCase):
         mock_get_details.assert_called_once_with(url)
         self.assertEqual(result, expected_result)
 
-    def test_147_get_legacy_api_passes_through_all_response_types(self):
+    def test_131_get_legacy_api_passes_through_all_response_types(self):
         """Test get() legacy API method passes through various response types"""
         url = "http://example.com/acme/chall/test_challenge"
 
@@ -2886,11 +3011,12 @@ class TestChallenge(unittest.TestCase):
         mock_get_details.assert_called_once_with(url)
         self.assertEqual(result, expected_result)
 
-    @patch("acme_srv.challenge.Thread")
-    def test_148_start_async_validation_sync_mode(self, mock_thread_class):
+    @patch("acme2certifier.acme_srv.challenge.Thread")
+    def test_132_start_async_validation_sync_mode(self, mock_thread_class):
         """Test _start_async_validation with sync mode (async_mode=False)"""
         # Setup
         mock_thread = Mock()
+        mock_thread.is_alive.return_value = False
         mock_thread_class.return_value = mock_thread
         self.challenge.config.async_mode = False
         self.challenge.config.validation_timeout = 30
@@ -2917,9 +3043,15 @@ class TestChallenge(unittest.TestCase):
                 for message in log.output
             )
         )
+        self.assertTrue(
+            any(
+                "Challenge validation finished: challenge=test_challenge" in message
+                for message in log.output
+            )
+        )
 
-    @patch("acme_srv.challenge.Thread")
-    def test_149_start_async_validation_async_mode(self, mock_thread_class):
+    @patch("acme2certifier.acme_srv.challenge.Thread")
+    def test_133_start_async_validation_async_mode(self, mock_thread_class):
         """Test _start_async_validation with async mode (async_mode=True)"""
         # Setup
         mock_thread = Mock()
@@ -2931,7 +3063,7 @@ class TestChallenge(unittest.TestCase):
         payload = {"test": "data"}
 
         # Execute
-        with self.assertLogs(self.logger, level="INFO") as log:
+        with self.assertLogs(self.logger, level="DEBUG") as log:
             self.challenge._start_async_validation(challenge_name, payload)
 
         # Verify thread creation and execution
@@ -2946,17 +3078,24 @@ class TestChallenge(unittest.TestCase):
         # Verify async logging
         self.assertTrue(
             any(
-                "asynchronous Challenge validation enabled, not waiting for result"
+                "Challenge validation started asynchronously: challenge=async_challenge"
                 in message
                 for message in log.output
             )
         )
+        self.assertTrue(
+            any(
+                "POST response may still be processing" in message
+                for message in log.output
+            )
+        )
 
-    @patch("acme_srv.challenge.Thread")
-    def test_150_start_async_validation_empty_payload(self, mock_thread_class):
+    @patch("acme2certifier.acme_srv.challenge.Thread")
+    def test_134_start_async_validation_empty_payload(self, mock_thread_class):
         """Test _start_async_validation with empty payload"""
         # Setup
         mock_thread = Mock()
+        mock_thread.is_alive.return_value = False
         mock_thread_class.return_value = mock_thread
         self.challenge.config.async_mode = False
         self.challenge.config.validation_timeout = 15
@@ -2975,8 +3114,8 @@ class TestChallenge(unittest.TestCase):
         mock_thread.start.assert_called_once()
         mock_thread.join.assert_called_once_with(timeout=15)
 
-    @patch("acme_srv.challenge.Thread")
-    def test_151_start_async_validation_complex_payload(self, mock_thread_class):
+    @patch("acme2certifier.acme_srv.challenge.Thread")
+    def test_135_start_async_validation_complex_payload(self, mock_thread_class):
         """Test _start_async_validation with complex payload data"""
         # Setup
         mock_thread = Mock()
@@ -3002,8 +3141,8 @@ class TestChallenge(unittest.TestCase):
         mock_thread.start.assert_called_once()
         mock_thread.join.assert_not_called()  # async mode
 
-    @patch("acme_srv.challenge.Thread")
-    def test_152_start_async_validation_different_timeout_values(
+    @patch("acme2certifier.acme_srv.challenge.Thread")
+    def test_136_start_async_validation_different_timeout_values(
         self, mock_thread_class
     ):
         """Test _start_async_validation with different timeout values in sync mode"""
@@ -3014,6 +3153,7 @@ class TestChallenge(unittest.TestCase):
                 # Reset mock
                 mock_thread_class.reset_mock()
                 mock_thread = Mock()
+                mock_thread.is_alive.return_value = False
                 mock_thread_class.return_value = mock_thread
 
                 # Setup
@@ -3029,13 +3169,14 @@ class TestChallenge(unittest.TestCase):
                 # Verify correct timeout is used
                 mock_thread.join.assert_called_once_with(timeout=timeout)
 
-    @patch("acme_srv.challenge.Thread")
-    def test_153_start_async_validation_thread_target_arguments(
+    @patch("acme2certifier.acme_srv.challenge.Thread")
+    def test_137_start_async_validation_thread_target_arguments(
         self, mock_thread_class
     ):
         """Test _start_async_validation passes correct arguments to thread target"""
         # Setup
         mock_thread = Mock()
+        mock_thread.is_alive.return_value = False
         mock_thread_class.return_value = mock_thread
         self.challenge.config.async_mode = False
         self.challenge._perform_challenge_validation = Mock()
@@ -3053,6 +3194,7 @@ class TestChallenge(unittest.TestCase):
                 # Reset mock
                 mock_thread_class.reset_mock()
                 mock_thread = Mock()
+                mock_thread.is_alive.return_value = False
                 mock_thread_class.return_value = mock_thread
 
                 # Execute
@@ -3064,11 +3206,12 @@ class TestChallenge(unittest.TestCase):
                     args=(challenge_name, payload),
                 )
 
-    @patch("acme_srv.challenge.Thread")
-    def test_154_start_async_validation_logging_behavior(self, mock_thread_class):
+    @patch("acme2certifier.acme_srv.challenge.Thread")
+    def test_138_start_async_validation_logging_behavior(self, mock_thread_class):
         """Test _start_async_validation logging in both sync and async modes"""
         # Setup
         mock_thread = Mock()
+        mock_thread.is_alive.return_value = False
         mock_thread_class.return_value = mock_thread
         self.challenge._perform_challenge_validation = Mock()
         challenge_name = "logging_test_challenge"
@@ -3079,15 +3222,20 @@ class TestChallenge(unittest.TestCase):
         with self.assertLogs(self.logger, level="DEBUG") as log_sync:
             self.challenge._start_async_validation(challenge_name, payload)
 
-        # Verify sync mode only has debug logging
         debug_messages = [msg for msg in log_sync.output if "DEBUG" in msg]
-        info_messages = [
+        async_info_messages = [
             msg
             for msg in log_sync.output
-            if "asynchronous Challenge validation enabled" in msg
+            if "Challenge validation started asynchronously" in msg
+        ]
+        finished_messages = [
+            msg
+            for msg in log_sync.output
+            if "Challenge validation finished: challenge=logging_test_challenge" in msg
         ]
         self.assertGreater(len(debug_messages), 0)
-        self.assertEqual(len(info_messages), 0)
+        self.assertEqual(len(async_info_messages), 0)
+        self.assertGreater(len(finished_messages), 0)
 
         # Reset mock for async test
         mock_thread_class.reset_mock()
@@ -3099,15 +3247,84 @@ class TestChallenge(unittest.TestCase):
         with self.assertLogs(self.logger, level="DEBUG") as log_async:
             self.challenge._start_async_validation(challenge_name, payload)
 
-        # Verify async mode has both debug and info logging
-        debug_messages = [msg for msg in log_async.output if "DEBUG" in msg]
-        info_messages = [
+        # Verify async start is DEBUG only (no INFO flood)
+        async_start_messages = [
             msg
             for msg in log_async.output
-            if "asynchronous Challenge validation enabled" in msg
+            if "Challenge validation started asynchronously" in msg
         ]
-        self.assertGreater(len(debug_messages), 0)
-        self.assertGreater(len(info_messages), 0)
+        self.assertTrue(any("DEBUG:" in msg for msg in async_start_messages))
+        self.assertFalse(any("INFO:" in msg for msg in async_start_messages))
+
+    def test_139_load_http01_block_private_ips(self):
+        """http01_block_private_ips defaults false and can be enabled"""
+        from configparser import ConfigParser
+
+        config_dic = ConfigParser()
+        config_dic.add_section("Challenge")
+        self.challenge._load_address_check_configuration(config_dic)
+        self.assertFalse(self.challenge.config.http01_block_private_ips)
+
+        config_dic.set("Challenge", "http01_block_private_ips", "True")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.challenge._load_address_check_configuration(config_dic)
+        self.assertTrue(self.challenge.config.http01_block_private_ips)
+        self.assertTrue(
+            any("http01_block_private_ips=True" in line for line in lcm.output)
+        )
+
+    @patch("acme2certifier.acme_srv.challenge.Thread")
+    def test_140_start_async_validation_timeout_still_processing(
+        self, mock_thread_class
+    ):
+        """sync mode WARNING when validation thread is still alive after join"""
+        mock_thread = Mock()
+        mock_thread.is_alive.return_value = True
+        mock_thread_class.return_value = mock_thread
+        self.challenge.config.async_mode = False
+        self.challenge.config.validation_timeout = 7
+        self.challenge._perform_challenge_validation = Mock()
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.challenge._start_async_validation("slow_chal", {})
+
+        mock_thread.join.assert_called_once_with(timeout=7)
+        self.assertIn(
+            "WARNING:test_a2c:Challenge validation still processing after timeout: "
+            "challenge=slow_chal timeout=7 (result will be applied asynchronously)",
+            lcm.output,
+        )
+
+    def test_141_format_challenge_validation_reason_json_non_dict(self):
+        """_format_challenge_validation_reason stringifies non-dict JSON"""
+        validation_result = Mock(
+            error_message='["not", "a", "dict"]',
+            details=None,
+        )
+        reason = self.challenge._format_challenge_validation_reason(validation_result)
+        self.assertEqual(reason, '["not", "a", "dict"]')
+
+    def test_142_format_challenge_validation_reason_url_only_details(self):
+        """_format_challenge_validation_reason appends url from details"""
+        validation_result = Mock(
+            error_message='{"detail": "HTTP request failed"}',
+            details={"url": "http://example.com/.well-known/acme-challenge/t"},
+        )
+        reason = self.challenge._format_challenge_validation_reason(validation_result)
+        self.assertEqual(
+            reason,
+            "HTTP request failed; url=http://example.com/.well-known/acme-challenge/t",
+        )
+
+    def test_143_format_challenge_validation_reason_empty_error_message(self):
+        """_format_challenge_validation_reason falls back when error_message is empty"""
+        validation_result = Mock(error_message=None, details=None)
+        reason = self.challenge._format_challenge_validation_reason(validation_result)
+        self.assertEqual(reason, "validation failed")
+
+        validation_result = Mock(error_message="", details={"url": "http://ex/"})
+        reason = self.challenge._format_challenge_validation_reason(validation_result)
+        self.assertEqual(reason, "url=http://ex/")
 
 
 if __name__ == "__main__":

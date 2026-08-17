@@ -1,6 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title Dry Run Mode -->
+<!-- wiki-title: Dry Run Mode -->
+<!-- wiki-category: Features -->
 
 # Dry Run Mode
 
@@ -29,7 +30,7 @@ When an ACME client submits a certificate order and the dry run mode is enabled 
 - **Instead of forwarding the CSR to the CA**, acme2certifier returns an `unauthorized` error with the detail message:
 
 ```log
-Dry run mode - enrollment skipped
+Dry run mode - enrollment and certificate issuance skipped
 ```
 
 - No certificate is stored in the database and nothing is sent to the CA backend.
@@ -139,5 +140,5 @@ The following log entries can help confirm that dry run mode is working as expec
 | :---------- | :------ |
 | `Helper.config_dryrun_load() ended with: True/None` | Global dry run mode is enabled. |
 | `Certificate._validate_csr_against_order(): enabling dryrun mode for profile: <name>` | Profile-based dry run has been triggered for this request. |
-| `Dry run mode enabled - skipping enrollment and database storage` | The enrollment step has been skipped for this request. |
+| `Dry run mode enabled - skipping enrollment and certificate issuance` | The enrollment step has been skipped for this request. |
 | `Dryrun profile name not set in configuration, please set dryrun_profile parameter` | `dryrun = profile` is configured but `dryrun_profile` is missing. |

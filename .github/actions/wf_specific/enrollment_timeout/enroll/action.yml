@@ -10,18 +10,8 @@ runs:
   using: "composite"
   steps:
 
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 10s
-
-  - name: "Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "Enroll acme.sh"
     run: |
@@ -29,17 +19,10 @@ runs:
     shell: bash
 
   - name: "Check timeout"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec acme-srv grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
 
   - name: "Sleep for 10s"
     uses: juliangruber/sleep-action@v2.0.4
@@ -57,18 +40,19 @@ runs:
       time: 10s
 
   - name: "Check certificate reusage"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Reuse existing certificate"
-        docker compose logs | grep "issued for account" | grep "Serial:" | grep "reused: True"
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec acme-srv grep "Reuse existing certificate" /var/log/messages
-        docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "issued for account" | grep "Serial:" | grep "reused: True"'
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "Reuse existing certificate"
+      FLUSH: "false"
+
+  - name: "Check certificate reusage reused flag"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "issued for account.*Serial:.*reused: True"
+      REGEX: "true"
+      FLUSH: "false"
 
   - name: "Enroll Lego"
     run: |
@@ -77,15 +61,11 @@ runs:
     shell: bash
 
   - name: "Check timeout"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      fi
-    shell: bash
-    env:
+    if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
 
   - name: "Register certbot"
     run: |
@@ -98,12 +78,8 @@ runs:
     shell: bash
 
   - name: "Check timeout"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      fi
-    shell: bash
-    env:
+    if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"

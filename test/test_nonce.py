@@ -26,14 +26,13 @@ class TestNonce(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         self.nonce = Nonce(False, self.logger)
 
@@ -47,18 +46,20 @@ class TestNonce(unittest.TestCase):
 
     def test_003_nonce_check(self):
         """test Nonce.check() with missing nonce"""
-        self.assertEqual(
-            (400, "urn:ietf:params:acme:error:badNonce", "NONE"),
-            self.nonce.check({"foo": "bar"}),
-        )
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                (400, "urn:ietf:params:acme:error:badNonce", "NONE"),
+                self.nonce.check({"foo": "bar"}),
+            )
+        self.assertIn("WARNING:test_a2c:badNonce: missing", lcm.output)
 
-    @patch("acme_srv.nonce.Nonce._validate_and_consume_nonce")
+    @patch("acme2certifier.acme_srv.nonce.Nonce._validate_and_consume_nonce")
     def test_004_nonce_check(self, mock_validate_and_consume_nonce):
         """test Nonce.check() calls _validate_and_consume_nonce()"""
         mock_validate_and_consume_nonce.return_value = (200, None, None)
         self.assertEqual((200, None, None), self.nonce.check({"nonce": "aaa"}))
 
-    @patch("acme_srv.nonce.DBstore")
+    @patch("acme2certifier.acme_srv.nonce.DBstore")
     def test_005_nonce__validate_and_consume_nonce(self, mock_dbstore_class):
         """test Nonce._validate_and_consume_nonce()"""
         # Setup mock to return True for nonce_check
@@ -68,13 +69,13 @@ class TestNonce(unittest.TestCase):
         mock_dbstore_class.return_value = mock_dbstore_instance
 
         # Create a new nonce instance with the mocked dbstore
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         nonce = Nonce(False, self.logger)
 
         self.assertEqual((200, None, None), nonce._validate_and_consume_nonce("aaa"))
 
-    @patch("acme_srv.nonce.DBstore")
+    @patch("acme2certifier.acme_srv.nonce.DBstore")
     def test_006_nonce_generate_and_add(self, mock_dbstore_class):
         """test Nonce._add() if dbstore.nonce_add raises an exception"""
         # Setup mock to raise exception
@@ -83,7 +84,7 @@ class TestNonce(unittest.TestCase):
         mock_dbstore_class.return_value = mock_dbstore_instance
 
         # Create a new nonce instance with the mocked dbstore
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         nonce = Nonce(False, self.logger)
 
@@ -94,7 +95,7 @@ class TestNonce(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.nonce.DBstore")
+    @patch("acme2certifier.acme_srv.nonce.DBstore")
     def test_007_nonce__validate_and_consume_nonce(self, mock_dbstore_class):
         """test Nonce._validate_and_consume_nonce() if dbstore.nonce_delete raises an exception"""
         # Setup mock: nonce_check returns True, nonce_delete raises exception
@@ -104,7 +105,7 @@ class TestNonce(unittest.TestCase):
         mock_dbstore_class.return_value = mock_dbstore_instance
 
         # Create a new nonce instance with the mocked dbstore
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         nonce = Nonce(False, self.logger)
 
@@ -115,7 +116,7 @@ class TestNonce(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.nonce.DBstore")
+    @patch("acme2certifier.acme_srv.nonce.DBstore")
     def test_008_nonce__validate_and_consume_nonce(self, mock_dbstore_class):
         """test Nonce._validate_and_consume_nonce() if dbstore.nonce_check raises an exception"""
         # Setup mock to raise exception on nonce_check
@@ -124,14 +125,19 @@ class TestNonce(unittest.TestCase):
         mock_dbstore_class.return_value = mock_dbstore_instance
 
         # Create a new nonce instance with the mocked dbstore
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         nonce = Nonce(False, self.logger)
 
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            nonce._validate_and_consume_nonce("nonce")
+            result = nonce._validate_and_consume_nonce("nonce")
+        self.assertEqual((400, "urn:ietf:params:acme:error:badNonce", "nonce"), result)
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to check nonce: exc_nonce_check",
+            lcm.output,
+        )
+        self.assertIn(
+            "WARNING:test_a2c:badNonce: unknown or already consumed",
             lcm.output,
         )
 
@@ -139,14 +145,14 @@ class TestNonce(unittest.TestCase):
         """test enter"""
         self.nonce.__enter__()
 
-    @patch("acme_srv.nonce.load_config", return_value=None)
+    @patch("acme2certifier.acme_srv.nonce.load_config", return_value=None)
     def test_010_load_configuration_without_config(self, _mock_load_config):
         """test _load_configuration() keeps default validity if config is missing"""
         self.nonce.config.validity = 7200
         self.nonce._load_configuration()
         self.assertEqual(7200, self.nonce.config.validity)
 
-    @patch("acme_srv.nonce.load_config")
+    @patch("acme2certifier.acme_srv.nonce.load_config")
     def test_011_load_configuration_with_validity(self, mock_load_config):
         """test _load_configuration() applies Nonce.validity from config"""
         config_mock = MagicMock()
@@ -159,21 +165,21 @@ class TestNonce(unittest.TestCase):
         self.assertEqual(3600, self.nonce.config.validity)
         config_mock.get.assert_called_once_with("Nonce", "validity", fallback=7200)
 
-    @patch("acme_srv.nonce.load_config")
+    @patch("acme2certifier.acme_srv.nonce.load_config")
     def test_012_load_configuration_invalid_validity(self, mock_load_config):
         """test _load_configuration() raises ConfigurationError on invalid validity"""
         config_mock = MagicMock()
         config_mock.get.return_value = "invalid"
         mock_load_config.return_value = config_mock
 
-        from acme_srv.nonce import ConfigurationError
+        from acme2certifier.acme_srv.nonce import ConfigurationError
 
         with self.assertRaises(ConfigurationError) as ctx:
             self.nonce._load_configuration()
 
         self.assertIn("Invalid validity parameter", str(ctx.exception))
 
-    @patch("acme_srv.nonce.load_config")
+    @patch("acme2certifier.acme_srv.nonce.load_config")
     def test_013_load_configuration_uses_current_fallback(self, mock_load_config):
         """test _load_configuration() uses current validity as fallback value"""
         config_mock = MagicMock()
@@ -189,7 +195,7 @@ class TestNonce(unittest.TestCase):
     def test_014_expire_nonces_skips_if_validity_disabled(self):
         """test expire_nonces() returns empty result when validity <= 0"""
         repo_mock = MagicMock()
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         nonce = Nonce(False, self.logger, repo=repo_mock)
         nonce.config.validity = 0
@@ -208,7 +214,7 @@ class TestNonce(unittest.TestCase):
         """test expire_nonces() with no expired nonce entries"""
         repo_mock = MagicMock()
         repo_mock.search_expired_nonces.return_value = []
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         nonce = Nonce(False, self.logger, repo=repo_mock)
         nonce.config.validity = 120
@@ -224,7 +230,7 @@ class TestNonce(unittest.TestCase):
         repo_mock = MagicMock()
         repo_mock.search_expired_nonces.return_value = ["n1", "n2", "n3"]
         repo_mock.delete_nonces.return_value = 3
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         nonce = Nonce(False, self.logger, repo=repo_mock)
         nonce.config.validity = 300
@@ -239,7 +245,7 @@ class TestNonce(unittest.TestCase):
         """test expire_nonces() handles repository search errors"""
         repo_mock = MagicMock()
         repo_mock.search_expired_nonces.side_effect = Exception("exc_search")
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         nonce = Nonce(False, self.logger, repo=repo_mock)
         nonce.config.validity = 60
@@ -259,7 +265,7 @@ class TestNonce(unittest.TestCase):
         repo_mock = MagicMock()
         repo_mock.search_expired_nonces.return_value = ["n1", "n2"]
         repo_mock.delete_nonces.side_effect = Exception("exc_delete")
-        from acme_srv.nonce import Nonce
+        from acme2certifier.acme_srv.nonce import Nonce
 
         nonce = Nonce(False, self.logger, repo=repo_mock)
         nonce.config.validity = 100
@@ -275,18 +281,40 @@ class TestNonce(unittest.TestCase):
         repo_mock.search_expired_nonces.assert_called_once_with(900)
         repo_mock.delete_nonces.assert_called_once_with(["n1", "n2"])
 
+    @patch("acme2certifier.acme_srv.nonce.DBstore")
+    def test_019_nonce__validate_and_consume_nonce_unknown(self, mock_dbstore_class):
+        """test Nonce._validate_and_consume_nonce() logs WARNING for unknown nonce"""
+        mock_dbstore_instance = MagicMock()
+        mock_dbstore_instance.nonce_check.return_value = False
+        mock_dbstore_class.return_value = mock_dbstore_instance
+
+        from acme2certifier.acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger)
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            result = nonce._validate_and_consume_nonce("stale-nonce")
+        self.assertEqual(
+            (400, "urn:ietf:params:acme:error:badNonce", "stale-nonce"), result
+        )
+        self.assertIn(
+            "WARNING:test_a2c:badNonce: unknown or already consumed",
+            lcm.output,
+        )
+        mock_dbstore_instance.nonce_delete.assert_not_called()
+
 
 class TestNonceRepository(unittest.TestCase):
     """tests for NonceRepository pass-through methods"""
 
     def setUp(self):
         """setup repository test fixtures"""
-        from acme_srv.nonce import NonceRepository
+        from acme2certifier.acme_srv.nonce import NonceRepository
 
         self.dbstore_mock = MagicMock()
         self.repo = NonceRepository(self.dbstore_mock)
 
-    def test_019_repository_delete_nonces(self):
+    def test_001_repository_delete_nonces(self):
         """test NonceRepository.delete_nonces() forwards call to DB layer"""
         self.dbstore_mock.nonce_delete_bulk.return_value = 2
 
@@ -295,7 +323,7 @@ class TestNonceRepository(unittest.TestCase):
         self.assertEqual(2, result)
         self.dbstore_mock.nonce_delete_bulk.assert_called_once_with(["n1", "n2"])
 
-    def test_020_repository_check_nonce(self):
+    def test_002_repository_check_nonce(self):
         """test NonceRepository.check_nonce() forwards call to DB layer"""
         self.dbstore_mock.nonce_check.return_value = True
 
@@ -304,7 +332,7 @@ class TestNonceRepository(unittest.TestCase):
         self.assertTrue(result)
         self.dbstore_mock.nonce_check.assert_called_once_with("nonce-1")
 
-    def test_021_repository_delete_nonce(self):
+    def test_003_repository_delete_nonce(self):
         """test NonceRepository.delete_nonce() forwards call to DB layer"""
         self.dbstore_mock.nonce_delete.return_value = None
 
@@ -313,7 +341,7 @@ class TestNonceRepository(unittest.TestCase):
         self.assertIsNone(result)
         self.dbstore_mock.nonce_delete.assert_called_once_with("nonce-2")
 
-    def test_022_repository_add_nonce(self):
+    def test_004_repository_add_nonce(self):
         """test NonceRepository.add_nonce() forwards call to DB layer"""
         self.dbstore_mock.nonce_add.return_value = 42
 
@@ -322,7 +350,7 @@ class TestNonceRepository(unittest.TestCase):
         self.assertEqual(42, result)
         self.dbstore_mock.nonce_add.assert_called_once_with("nonce-3")
 
-    def test_023_repository_search_expired_nonces(self):
+    def test_005_repository_search_expired_nonces(self):
         """test NonceRepository.search_expired_nonces() forwards timestamp filter"""
         self.dbstore_mock.nonce_search_by_timestamp.return_value = ["n1", "n2"]
 

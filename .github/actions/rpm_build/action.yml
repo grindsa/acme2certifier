@@ -5,13 +5,17 @@ inputs:
     description: "Email address to use for git commit"
     required: true
     default: "grindelsack@gmail.com"
+  NAME_SUFFIX:
+    description: "Package name suffix after acme2certifier (empty on full branches, -min on min-*)"
+    required: false
+    default: ""
 outputs:
   rpm_dir_path:
     description: "Path to the directory containing the RPM package"
     value: ${{ steps.rpm.outputs.rpm_dir_path }}
   rpm_file_name:
     description: "Name of the RPM package file"
-    value: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+    value: acme2certifier${{ inputs.NAME_SUFFIX }}-${{ env.TAG_NAME }}-1.0.noarch.rpm
 
 runs:
   using: "composite"
@@ -19,7 +23,7 @@ runs:
 
     - name: "Retrieve Version from version.py"
       run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+        echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       shell: bash
 
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
@@ -28,10 +32,10 @@ runs:
     - name: "Update version number in spec file and path in nginx ssl config"
       run: |
         sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+        sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" acme2certifier/share/nginx/nginx_acme_srv_ssl.conf
         git config --global user.email "$EMAIL"
         git config --global user.name "rpm update"
-        git add examples/nginx
+        git add acme2certifier/share/nginx
         git commit -a -m "rpm update"
       shell: bash
       env:
@@ -39,7 +43,7 @@ runs:
 
     - name: "Build RPM package"
       id: rpm
-      uses: grindsa/rpmbuild@alma9
+      uses: grindsa/rpmbuild@181689c2688c53a25c421d45b343bfcb3a1c043e # alma9
       with:
         spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 

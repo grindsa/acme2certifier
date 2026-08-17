@@ -1,0 +1,97 @@
+name: "channel_rpm_setup"
+description: "Prepare Alma and download the RPM artifact"
+inputs:
+  RUN_ID:
+    description: "Producer workflow run ID"
+    required: true
+  TOKEN:
+    description: "GitHub token for artifact download"
+    required: true
+  REPO:
+    description: "owner/repo for artifact download"
+    required: true
+  RH_VERSION:
+    description: "RHEL/Alma major version"
+    required: true
+  JSON_SECRET:
+    description: "GH_CFG JSON secret (GH_USER / GH_SBOM_REPO_TOKEN)"
+    required: false
+    default: ""
+  PARSE_GH_CFG:
+    description: "Parse JSON_SECRET into env before rpm_prep"
+    required: false
+    default: "true"
+  RPM_BUILD:
+    description: "Build RPM during prep"
+    required: false
+    default: "false"
+  NAME_SPACE:
+    description: "Docker network namespace"
+    required: false
+    default: "acme"
+  IPV6:
+    description: "IPv6 docker network"
+    required: false
+    default: "false"
+  PYTHON_STACK:
+    description: "SBOM python stack override"
+    required: false
+    default: ""
+  DJANGO_DB:
+    description: "Django database for rpm_prep"
+    required: false
+    default: ""
+  ARTIFACT_NAME:
+    description: "RPM artifact name; empty uses acme2certifier<NAME_SUFFIX>-<run_id>.noarch.rpm"
+    required: false
+    default: ""
+  DESTINATION_PATH:
+    description: "Download destination"
+    required: false
+    default: "data/"
+  NAME_SUFFIX:
+    description: "Package name suffix after acme2certifier (empty on full branches, -min on min-*)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Parse JSON secret"
+      if: ${{ inputs.PARSE_GH_CFG == 'true' }}
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ inputs.JSON_SECRET }}
+
+    - name: "Get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> "$GITHUB_ENV"
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> "$GITHUB_ENV"
+      shell: bash
+
+    - run: echo "runner IP is $RUNNER_IP"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+      shell: bash
+
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
+      with:
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+        RH_VERSION: ${{ inputs.RH_VERSION }}
+        RPM_BUILD: ${{ inputs.RPM_BUILD }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        IPV6: ${{ inputs.IPV6 }}
+        PYTHON_STACK: ${{ inputs.PYTHON_STACK }}
+        DJANGO_DB: ${{ inputs.DJANGO_DB }}
+        NAME_SUFFIX: ${{ inputs.NAME_SUFFIX }}
+
+    - name: "Download RPM artifact by name from build run"
+      uses: ./.github/actions/download_artifact
+      with:
+        RUN_ID: ${{ inputs.RUN_ID }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME != '' && inputs.ARTIFACT_NAME || format('acme2certifier{0}-{1}.noarch.rpm', inputs.NAME_SUFFIX, inputs.RUN_ID) }}
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        TOKEN: ${{ inputs.TOKEN }}
+        REPO: ${{ inputs.REPO }}

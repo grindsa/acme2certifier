@@ -1,23 +1,56 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title How to Create Your Own CA Handler -->
+<!-- wiki-title: How to Create Your Own CA Handler -->
+<!-- wiki-category: CA Handlers -->
 
 # How to Create Your Own CA Handler
 
-Creating your own CA handler should be straightforward. All you need to do is create a `ca_handler.py` file with a `CAhandler` class that contains the following methods required by `acme2certifier`:
+Built-in CA handlers ship as package modules. Prefer configuring them with `handler_module` (for example `acme2certifier.cahandlers.openssl_ca_handler`). For a custom out-of-tree handler, set `handler_module` to the **filesystem path** of the `.py` file The older `handler_file` option is **deprecated** but still supported; see [Upgrading](upgrading.md).
+
+Creating your own CA handler should be straightforward. All you need to do is create a Python module with a `CAhandler` class that contains the following methods required by `acme2certifier`:
 
 - **`enroll`**: Enrolls a new certificate from the CA server.
 - **[`poll`](poll.md)**: Polls a pending certificate request from the CA server.
 - **`revoke`**: Revokes an existing certificate on the CA server.
 - **[`trigger`](trigger.md)**: Processes triggers sent by the CA server.
 
-The [`skeleton_ca_handler.py`](../examples/ca_handler/skeleton_ca_handler.py) file provides a template that you can use to create customized CA handlers.
+The [`skeleton_ca_handler.py`](../acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py) file provides a template that you can use to create customized CA handlers.
+
+## Custom handlers: path or package
+
+`handler_module` accepts either:
+
+| Value | How it loads |
+| --- | --- |
+| Dotted import path | `importlib.import_module` (built-ins and installed packages) |
+| Filesystem path (absolute, relative with `/`, or ending in `.py`) | Load from that file (recommended for customer handlers) |
+
+**Out-of-tree / Docker volume (recommended for custom code):**
+
+```ini
+[CAhandler]
+handler_module: /var/www/acme2certifier/volume/ca_handler.py
+```
+
+Place the file on the volume (or any readable path), fix imports to `from acme2certifier.acme_srv.helper import …`, and point `handler_module` at it. No package layout, no `PYTHONPATH` export.
+
+**Built-in or installable package:**
+
+```ini
+[CAhandler]
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
+# or: myorg.handlers.custom_ca_handler
+```
+
+Until **1.0**, `handler_file: /path/to/handler.py` still works but emits a deprecation warning — migrate to `handler_module` with the same path.
 
 The following skeleton outlines the input parameters received by `acme2certifier`, as well as the expected return values:
 
 ```python
 class CAhandler:
     """CA handler"""
+
+    supports_trigger = False
 
     def __init__(self, debug=None, logger=None):
         """
@@ -97,6 +130,11 @@ class CAhandler:
         #     cert_bundle - Certificate chain in PEM format
         #     cert_raw - Certificate in ASN.1 (binary) format, base64 encoded
 
+        # Handlers that implement a real trigger must also set:
+        #     supports_trigger = True
+        # on the CAhandler class. Otherwise /trigger stays disabled even when
+        # [Trigger] enabled = True in acme_srv.cfg.
+
         self.logger.debug("CAhandler.trigger()")
         ...
         self.logger.debug("CAhandler.trigger() ended with error: {0}".format(error))
@@ -107,4 +145,4 @@ class CAhandler:
 
 You can add additional methods as needed. Additionally, you can configure `acme_srv.cfg` to customize the behavior of the CA handler.
 
-For further details, check [`certifier_ca_handler.py`](../examples/ca_handler/certifier_ca_handler.py), especially the `_config_load()` method.
+For further details, check [`acme2certifier.cahandlers.certifier_ca_handler`](../acme2certifier/cahandlers/certifier_ca_handler.py), especially the `_config_load()` method.

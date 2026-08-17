@@ -12,7 +12,7 @@ sys.path.insert(0, ".")
 sys.path.insert(1, "..")
 
 # Import the module under test
-from acme_srv.challenge_error_handling import (
+from acme2certifier.acme_srv.challenge_error_handling import (
     ErrorCategory,
     ErrorSeverity,
     ErrorDetail,

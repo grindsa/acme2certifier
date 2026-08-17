@@ -1,5 +1,5 @@
 name: "flow-logs-flush"
-description: "flush logs for acme-srv container"
+description: "flush logs for acme-srv deployment"
 inputs:
   DEPLOYMENT_TYPE:
     description: "Deployment type"

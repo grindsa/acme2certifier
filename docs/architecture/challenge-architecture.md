@@ -48,7 +48,7 @@ The refactored challenge system implements a clean, modular architecture using e
 
 ## Core Components
 
-### 1. Challenge Validators (`/acme_srv/challenge_validators/`)
+### 1. Challenge Validators (`acme2certifier/acme_srv/challenge_validators/`)
 
 The validator system provides modular, type-specific validation logic:
 
@@ -81,7 +81,7 @@ challenge_validators/
 1. **`TkauthChallengeValidator`**: TKAuth-01 challenge validation
 1. **`SourceAddressValidator`**: Source address validation support
 
-### 2. Business Logic Layer (`/acme_srv/challenge_business_logic.py`)
+### 2. Business Logic Layer (`acme2certifier/acme_srv/challenge_business_logic.py`)
 
 Handles challenge lifecycle management and business rules:
 
@@ -91,7 +91,7 @@ Handles challenge lifecycle management and business rules:
 - **`ChallengeService`**: High-level business operations
 - **`ChallengeInfo`**: Challenge data structures
 
-### 3. Error Handling (`/acme_srv/challenge_error_handling.py`)
+### 3. Error Handling (`acme2certifier/acme_srv/challenge_error_handling.py`)
 
 Comprehensive error management system:
 
@@ -99,7 +99,7 @@ Comprehensive error management system:
 - **`ChallengeError`**: Base exception class with error categorization
 - **Custom Exception Hierarchy**: Specific error types for different failure modes
 
-### 4. Registry Setup (`/acme_srv/challenge_registry_setup.py`)
+### 4. Registry Setup (`acme2certifier/acme_srv/challenge_registry_setup.py`)
 
 Factory functions for creating and configuring the validator registry:
 
@@ -107,7 +107,7 @@ Factory functions for creating and configuring the validator registry:
 - Configuration-driven validator registration
 - Support for optional challenge types (email, tkauth)
 
-### 5. Main Challenge Class (`/acme_srv/challenge.py`)
+### 5. Main Challenge Class (`acme2certifier/acme_srv/challenge.py`)
 
 The Challenge class serves as the main entry point:
 
@@ -181,10 +181,10 @@ This section provides step-by-step guidance for implementing new challenge types
 
 ### Step 1: Create the Validator Class
 
-Create a new file in `/acme_srv/challenge_validators/` following the naming convention:
+Create a new file in `acme2certifier/acme_srv/challenge_validators/` following the naming convention:
 
 ```python
-# /acme_srv/challenge_validators/mychallengie_validator.py
+# acme2certifier/acme_srv/challenge_validators/mychallengie_validator.py
 """
 MyChallenge-01 Challenge Validator.
 
@@ -207,7 +207,7 @@ class MyChallengeValidator(ChallengeValidator):
 
         try:
             # Import required helpers
-            from acme_srv.helper import some_helper_function
+            from acme2certifier.acme_srv.helper import some_helper_function
         except ImportError as e:
             return ValidationResult(
                 success=False,
@@ -280,7 +280,7 @@ class MyChallengeValidator(ChallengeValidator):
 
 ### Step 2: Register the Validator
 
-Update `/acme_srv/challenge_validators/__init__.py` to include your new validator:
+Update `acme2certifier/acme_srv/challenge_validators/__init__.py` to include your new validator:
 
 ```python
 # Add import
@@ -295,7 +295,7 @@ __all__ = [
 
 ### Step 3: Configure Registration
 
-Update `/acme_srv/challenge_registry_setup.py` to register your validator:
+Update `acme2certifier/acme_srv/challenge_registry_setup.py` to register your validator:
 
 ```python
 def create_challenge_validator_registry(
@@ -319,7 +319,7 @@ def create_challenge_validator_registry(
 
 ### Step 4: Update Challenge Factory
 
-If your challenge type requires special creation logic, update `/acme_srv/challenge_business_logic.py`:
+If your challenge type requires special creation logic, update `acme2certifier/acme_srv/challenge_business_logic.py`:
 
 ```python
 class ChallengeFactory:
@@ -374,8 +374,13 @@ Create comprehensive tests for your validator in `/test/`:
 
 import unittest
 from unittest.mock import Mock, patch
-from acme_srv.challenge_validators.mychallengie_validator import MyChallengeValidator
-from acme_srv.challenge_validators import ChallengeContext, ValidationResult
+from acme2certifier.acme_srv.challenge_validators.mychallengie_validator import (
+    MyChallengeValidator,
+)
+from acme2certifier.acme_srv.challenge_validators import (
+    ChallengeContext,
+    ValidationResult,
+)
 
 
 class TestMyChallengeValidator(unittest.TestCase):
@@ -436,7 +441,7 @@ if __name__ == "__main__":
 
 Update documentation:
 
-1. Add your validator to the README in `/acme_srv/challenge_validators/README.md`
+1. Add your validator to the README in `acme2certifier/acme_srv/challenge_validators/README.md`
 1. Document configuration options
 1. Add usage examples
 
@@ -448,7 +453,9 @@ Test your new challenge type with the complete system:
 # Example integration test
 def test_new_challenge_integration(self):
     """Test integration of new challenge type"""
-    from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+    from acme2certifier.acme_srv.challenge_registry_setup import (
+        create_challenge_validator_registry,
+    )
 
     # Configure with your challenge enabled
     config = Mock()
@@ -475,7 +482,7 @@ def test_new_challenge_integration(self):
 ```python
 # Always handle import errors
 try:
-    from acme_srv.helper import required_function
+    from acme2certifier.acme_srv.helper import required_function
 except ImportError as e:
     return ValidationResult(
         success=False,

@@ -1,4 +1,4 @@
-name: "enroll_dns01 "
+name: "enroll_dns01"
 description: "enroll_dns01"
 
 inputs:
@@ -26,24 +26,11 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 10s
-
-  - name: "Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SRV.$NAME_SPACE/directory
-    shell: bash
-    env:
-      ACME_SRV: ${{ inputs.ACME_SRV }}
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-  - name: "Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SRV.$NAME_SPACE/directory
-    shell: bash
-    env:
-      ACME_SRV: ${{ inputs.ACME_SRV }}
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SRV }}.${{ inputs.NAME_SPACE }}
 
   - name: "Enroll acme.sh - single domain"
     run: |

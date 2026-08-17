@@ -1,132 +1,128 @@
-name: "acme_clients - enroll, renew and revoke certificates"
-description: "Test if acme.sh, certbot and lego can enroll, renew and certificates"
+name: "enroll_dns_wc"
+description: "Wildcard DNS-01 enroll via lego against a2c (manual dns, validation disabled on a2c)"
 inputs:
   ACME_SERVER:
-    description: "ACME server URL"
-    required: true
+    description: "ACME server hostname"
+    required: false
     default: "acme-srv"
   REVOCATION:
-    description: "Revocation method"
-    required: true
-    default: "true"
-  RENEWAL:
-    description: "Renewal method"
-    required: true
-    default: "true"
-  VERIFY_CERT:
-    description: "Verify certificate"
-    required: true
-    default: "true"
-  USE_CERTBOT:
-    description: "Use certbot"
-    required: true
+    description: "Revoke after enroll"
+    required: false
     default: "true"
   USE_RSA:
-    description: "Use RSA"
-    required: true
+    description: "Use RSA key type"
+    required: false
     default: "false"
-  HTTP_PORT:
-    description: "HTTP port"
-    required: true
-    default: "80"
   HTTPS_PORT:
     description: "HTTPS port"
-    required: true
+    required: false
     default: "443"
   HOSTNAME_SUFFIX:
-    description: "Hostname suffix"
-    required: true
+    description: "Optional container name suffix"
+    required: false
+    default: ""
   NAME_SPACE:
-    description: "Namespace"
+    description: "Docker network / DNS namespace"
     required: true
     default: "acme"
-  TEST_ADL:
-    description: "Test allowed_domainlist feature"
-    required: true
-    default: "false"
   CERT_TIMEOUT:
-    description: "Certificate timeout"
-    required: true
-    default: "120"
+    description: "lego cert.timeout and http-timeout seconds"
+    required: false
+    default: "360"
+  MAX_ATTEMPTS:
+    description: "Enrollment retry attempts (fresh order each attempt)"
+    required: false
+    default: "3"
+  RETRY_SLEEP_SECONDS:
+    description: "Base sleep between retries (multiplied by attempt)"
+    required: false
+    default: "15"
 
 runs:
   using: "composite"
   steps:
+    - name: "Pull lego image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: goacme/lego
 
     - name: "Create directories"
       run: |
-        mkdir -p acme-sh/
-        sudo mkdir -p certbot/
-        sudo mkdir -p lego/ca
-        sudo cp .github/acme2certifier_cabundle.pem certbot/
-        sudo cp .github/acme2certifier_cabundle.pem lego/
-        if [ -f cert-2.pem ]; then
-          echo "delete cert-2.pem"
-          rm -f cert-2.pem
-        fi
-        if [ -f cert-1.pem ]; then
-          echo "delete cert-1.pem"
-          rm -f cert-1.pem
-        fi
+        set -euo pipefail
+        mkdir -p lego/ca
+        sudo cp .github/acme2certifier_cabundle.pem lego/ || true
       shell: bash
 
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.4
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
       with:
-        time: 5s
-
-    - name: "Test if http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
-      shell: bash
-      env:
-        ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
-        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
-      shell: bash
-      env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-        NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "HTTPS - Enroll lego"
       run: |
-        echo "##### HTTP - Enroll lego #####"
-        if [ "$USE_RSA" == "false" ]; then
-          echo "use ECC"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify -a --email "lego@example.com" -d *.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls
-        else
-          echo "use RSA"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify -a --email "lego@example.com" --key-type=rsa2048 -d *.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls
-        fi
+        set -euo pipefail
+        # --dns manual: trigger dns-01 (required for wildcards). challenge_validation_disable
+        # on a2c skips server-side checks; --dns.propagation.wait skips client TXT wait.
+        attempt=1
+        while [ "${attempt}" -le "${MAX_ATTEMPTS}" ]; do
+          echo "Wildcard enrollment attempt ${attempt}/${MAX_ATTEMPTS}"
+          sudo rm -rf lego/certificates lego/accounts 2>/dev/null || true
+          set +e
+          if [ "${USE_RSA}" = "false" ]; then
+            echo | docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem \
+              -v "$PWD/lego:/.lego/" --name "lego${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
+              goacme/lego run -s "https://${ACME_SERVER}:${HTTPS_PORT}" --tls-skip-verify -a \
+              --email "lego@example.com" -d "*.${NAME_SPACE}" \
+              --cert.timeout "${CERT_TIMEOUT}" --http-timeout "${CERT_TIMEOUT}" \
+              --dns manual --dns.propagation.wait 1s --no-random-sleep
+          else
+            echo | docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem \
+              -v "$PWD/lego:/.lego/" --name "lego${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
+              goacme/lego run -s "https://${ACME_SERVER}:${HTTPS_PORT}" --tls-skip-verify -a \
+              --email "lego@example.com" --key-type=rsa2048 -d "*.${NAME_SPACE}" \
+              --cert.timeout "${CERT_TIMEOUT}" --http-timeout "${CERT_TIMEOUT}" \
+              --dns manual --dns.propagation.wait 1s --no-random-sleep
+          fi
+          rc=$?
+          set -e
+          if [ "${rc}" -eq 0 ]; then
+            exit 0
+          fi
+          echo "Wildcard enrollment failed (attempt ${attempt}/${MAX_ATTEMPTS}, rc=${rc})" >&2
+          if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
+            break
+          fi
+          sleep_secs=$((attempt * RETRY_SLEEP_SECONDS))
+          echo "Retrying in ${sleep_secs}s..."
+          sleep "${sleep_secs}"
+          attempt=$((attempt + 1))
+        done
+        echo "Wildcard enrollment failed after ${MAX_ATTEMPTS} attempts" >&2
+        exit 1
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         USE_RSA: ${{ inputs.USE_RSA }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        RETRY_SLEEP_SECONDS: ${{ inputs.RETRY_SLEEP_SECONDS }}
 
     - name: "HTTPS - Revoke lego"
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
-        echo "#### HTTPS - Revoke lego"
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego certificates revoke -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify --email "lego@example.com" --cert.name *.$NAME_SPACE
+        set -euo pipefail
+        docker run -i -v "$PWD/lego:/.lego/" --rm --name "lego${HOSTNAME_SUFFIX}" \
+          --network "${NAME_SPACE}" goacme/lego certificates revoke \
+          -s "https://${ACME_SERVER}:${HTTPS_PORT}" --tls-skip-verify \
+          --email "lego@example.com" --cert.name "*.${NAME_SPACE}"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 5s

@@ -40,12 +40,12 @@ The Renewalinfo subsystem implements a modular, maintainable architecture using 
 
 ## Core Components
 
-### 1. RenewalinfoConfig (`acme_srv/renewalinfo.py`)
+### 1. RenewalinfoConfig (`acme2certifier/acme_srv/renewalinfo.py`)
 
 - **Purpose**: Holds all configuration parameters for renewal logic (e.g., renewal_force, threshold, retry timeout).
 - **Implementation**: Python dataclass for type safety and clarity.
 
-### 2. RenewalinfoRepository (`acme_srv/renewalinfo.py`)
+### 2. RenewalinfoRepository (`acme2certifier/acme_srv/renewalinfo.py`)
 
 - **Purpose**: Encapsulates all database access for certificates and housekeeping parameters.
 - **Responsibilities**:
@@ -54,7 +54,7 @@ The Renewalinfo subsystem implements a modular, maintainable architecture using 
   - Housekeeping parameter management
 - **Benefits**: Clean separation from business logic, easy to mock for testing.
 
-### 3. Renewalinfo (Main Handler, `acme_srv/renewalinfo.py`)
+### 3. Renewalinfo (Main Handler, `acme2certifier/acme_srv/renewalinfo.py`)
 
 - **Purpose**: Implements all business logic for ACME renewal info endpoints.
 - **Responsibilities**:
@@ -101,6 +101,7 @@ The Renewalinfo subsystem implements a modular, maintainable architecture using 
 ```text
 acme_srv/
 ├── renewalinfo.py         # Main handler, config, repository
-├── db_handler.py          # Database abstraction
+├── dbhandlers/            # Database backends (wsgi/django)
+│   └── (selected via acme_srv.cfg / ACME_SRV_DB_HANDLER)
 ├── message.py             # Protocol message handling
 ```
