@@ -30,10 +30,9 @@ sync_paths:
   - docs/
   - examples/
   - pyproject.toml
+  - tools/
   - MANIFEST.in
   - .pre-commit-config.yaml
-  - .gitignore
-  - sonar-project.properties
   - README.md
   - CHANGES.md
   - SECURITY.md
