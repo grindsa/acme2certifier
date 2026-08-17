@@ -112,3 +112,8 @@ addopts = [
     "--cov=acme2certifier",
     "--cov-report=term:skip-covered",
 ]
+
+[tool.black]
+# py314 enables PEP 758 (except TypeError, ValueError without parens), which breaks
+# on Python <3.14 and fights other formatters/linters. Keep parentheses.
+target-version = ["py312"]
