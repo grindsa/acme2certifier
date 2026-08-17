@@ -909,7 +909,6 @@ echo "  Next:     edit ${CFG} (CA handler), see docs/acme_srv.md"
 echo "  Logs:     journalctl -u acme2certifier -n 50 --no-pager"
 echo "            tail -n 50 /var/log/nginx/error.log" >&2
 if [[ "${EL_MAJOR}" == "8" && "${FLAVOR_PKG}" == "${FLAVOR_PYTHON3}" ]]; then
-if [[ "${EL_MAJOR}" == "8" && "${FLAVOR_PKG}" == *"-python3" && "${FLAVOR_PKG}" != *python39* ]]; then
   echo
   echo "  Note (EL8 legacy 3.6): if imports fail on cryptography/jwcrypto/dns, install"
   echo "  backports from https://github.com/grindsa/sbom (docs/install_rpm.md)."
