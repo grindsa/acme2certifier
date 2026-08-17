@@ -239,4 +239,3 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-

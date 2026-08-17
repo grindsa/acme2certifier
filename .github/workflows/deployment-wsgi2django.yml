@@ -490,4 +490,3 @@ jobs:
           DEPLOYMENT_TYPE: pip
           ARTIFACT_NAME: pip-${{ matrix.ubuntu_version }}-${{ matrix.websrv }}-wsgi2django.tar.gz
           WEBSRV: ${{ matrix.websrv }}
-

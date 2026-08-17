@@ -817,4 +817,3 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: test-deb-nginx-${{ matrix.mode }}-${{ matrix.hop.id }}-upgrade.tar.gz
           WEBSRV: nginx
-

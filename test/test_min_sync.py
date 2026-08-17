@@ -11,8 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "min_sync
 import sync as min_sync  # noqa: E402
 
 
-def test_is_min_owned_prefix() -> None:
-    owned = [".github/workflows/main-push-rpm.yml", "examples/install_scripts/rpm/packages/"]
+def test_001_is_min_owned_prefix() -> None:
+    owned = [
+        ".github/workflows/main-push-rpm.yml",
+        "examples/install_scripts/rpm/packages/",
+    ]
     assert min_sync._is_min_owned(".github/workflows/main-push-rpm.yml", owned)
     assert min_sync._is_min_owned(
         "examples/install_scripts/rpm/packages/acme2certifier-min-1.rpm", owned
@@ -20,7 +23,7 @@ def test_is_min_owned_prefix() -> None:
     assert not min_sync._is_min_owned("acme2certifier/acme_srv/order.py", owned)
 
 
-def test_target_classification() -> None:
+def test_002_target_classification() -> None:
     manifest = {
         "min_targets": ["min-devel", "min"],
         "full_targets": ["master", "devel"],
@@ -30,7 +33,7 @@ def test_target_classification() -> None:
     assert not min_sync._is_min_target("master", manifest)
 
 
-def test_local_and_create_pr_are_exclusive() -> None:
+def test_003_local_and_create_pr_are_exclusive() -> None:
     parser = min_sync.build_parser()
     try:
         parser.parse_args(["--local", "--create-pr"])
@@ -40,7 +43,7 @@ def test_local_and_create_pr_are_exclusive() -> None:
     assert raised
 
 
-def test_local_flag_parses() -> None:
+def test_004_local_flag_parses() -> None:
     args = min_sync.build_parser().parse_args(["--local"])
     assert args.local is True
     assert args.create_pr is False

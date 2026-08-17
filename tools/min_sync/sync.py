@@ -157,7 +157,9 @@ def _strip_handlers(repo: Path, keep_handlers: Sequence[str]) -> list[str]:
     return removed
 
 
-def _restore_min_owned(repo: Path, target_ref: str, min_owned: Sequence[str]) -> list[str]:
+def _restore_min_owned(
+    repo: Path, target_ref: str, min_owned: Sequence[str]
+) -> list[str]:
     restored: list[str] = []
     for path in min_owned:
         if _path_exists_at_ref(repo, target_ref, path):
@@ -208,10 +210,7 @@ def _port_into_full(
         if _is_min_owned(path, min_owned):
             continue
         if path.rstrip("/") == CAHANDLERS_DIR:
-            handler_paths = [
-                f"{CAHANDLERS_DIR}/{h.rstrip('/')}"
-                for h in keep_handlers
-            ]
+            handler_paths = [f"{CAHANDLERS_DIR}/{h.rstrip('/')}" for h in keep_handlers]
             for hp in handler_paths:
                 files = _list_files_at_ref(repo, source_ref, hp)
                 ported.extend(_checkout_paths(repo, source_ref, files or [hp]))
@@ -445,11 +444,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 *[f"- `{p}`" for p in ported],
                 "",
                 "### Strip / restore",
-                *(
-                    [f"- `{p}`" for p in stripped]
-                    if stripped
-                    else ["- (none)"]
-                ),
+                *([f"- `{p}`" for p in stripped] if stripped else ["- (none)"]),
                 "",
                 f"Manifest: `tools/min_sync/{MANIFEST_NAME}`",
             ]
@@ -494,11 +489,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _run(["git", "reset", "--hard"], cwd=repo)
             if original:
                 _run(["git", "checkout", original], cwd=repo, check=False)
-            if (
-                not local_mode
-                and work_branch != original
-                and work_branch != target
-            ):
+            if not local_mode and work_branch != original and work_branch != target:
                 _run(
                     ["git", "branch", "-D", work_branch],
                     cwd=repo,

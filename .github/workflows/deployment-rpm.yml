@@ -167,4 +167,3 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-rh${{ matrix.target.rhversion }}-${{ matrix.target.python_stack }}-${{ matrix.mode }}.tar.gz
-

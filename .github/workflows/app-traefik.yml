@@ -257,4 +257,3 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}-${{ matrix.challenge_type }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
-

@@ -109,4 +109,3 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: a2c-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-
