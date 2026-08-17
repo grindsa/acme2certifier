@@ -55,6 +55,9 @@ set -euo pipefail
 readonly MODE_DJANGO="django"
 readonly MODE_WSGI="wsgi"
 readonly DJANGO_SETTINGS="acme2certifier.django_project.settings"
+readonly PKG_FULL="acme2certifier"
+readonly PKG_MIN="acme2certifier-min"
+readonly DEFAULT_DATA_DIR="/tmp/acme2certifier"
 
 MODE="wsgi"
 MODE_EXPLICIT=0
@@ -81,7 +84,7 @@ usage() {
 }
 
 pkg_name() {
-  printf '%s' "acme2certifier${NAME_SUFFIX}"
+  printf '%s' "${PKG_FULL}${NAME_SUFFIX}"
 }
 
 normalize_name_suffix() {
@@ -100,6 +103,7 @@ is_main_rpm_basename() {
   local pkg="${2:-}"
   case "${base}" in
     *-python*.rpm|*-python*.RPM) return 1 ;;
+    *) ;;
   esac
   if [[ -n "${pkg}" ]]; then
     case "${base}" in
@@ -175,18 +179,18 @@ find_rpm() {
     fi
     append_pkg_globs candidates "." "$(pkg_name)"
     append_pkg_globs candidates ".." "$(pkg_name)"
-    append_pkg_globs candidates "/tmp/acme2certifier" "$(pkg_name)"
+    append_pkg_globs candidates "${DEFAULT_DATA_DIR}" "$(pkg_name)"
   else
     if [[ -n "${DATA_DIR}" ]]; then
-      append_pkg_globs candidates "${DATA_DIR}" "acme2certifier-min"
-      append_pkg_globs candidates "${DATA_DIR}" "acme2certifier"
+      append_pkg_globs candidates "${DATA_DIR}" "${PKG_MIN}"
+      append_pkg_globs candidates "${DATA_DIR}" "${PKG_FULL}"
     fi
-    append_pkg_globs candidates "." "acme2certifier-min"
-    append_pkg_globs candidates "." "acme2certifier"
-    append_pkg_globs candidates ".." "acme2certifier-min"
-    append_pkg_globs candidates ".." "acme2certifier"
-    append_pkg_globs candidates "/tmp/acme2certifier" "acme2certifier-min"
-    append_pkg_globs candidates "/tmp/acme2certifier" "acme2certifier"
+    append_pkg_globs candidates "." "${PKG_MIN}"
+    append_pkg_globs candidates "." "${PKG_FULL}"
+    append_pkg_globs candidates ".." "${PKG_MIN}"
+    append_pkg_globs candidates ".." "${PKG_FULL}"
+    append_pkg_globs candidates "${DEFAULT_DATA_DIR}" "${PKG_MIN}"
+    append_pkg_globs candidates "${DEFAULT_DATA_DIR}" "${PKG_FULL}"
   fi
   for candidate in "${candidates[@]}"; do
     # shellcheck disable=SC2086
@@ -278,7 +282,8 @@ install_uwsgi_python_plugin() {
 }
 
 uwsgi_plugins_value() {
-  case "$1" in
+  local flavor="$1"
+  case "${flavor}" in
     *-python39) echo "python39" ;;
     *) echo "python3" ;;
   esac
@@ -347,14 +352,14 @@ el_major() {
 }
 
 resolve_defaults() {
-  if [[ -z "${DATA_DIR}" && -d /tmp/acme2certifier ]]; then
-    DATA_DIR="/tmp/acme2certifier"
+  if [[ -z "${DATA_DIR}" && -d "${DEFAULT_DATA_DIR}" ]]; then
+    DATA_DIR="${DEFAULT_DATA_DIR}"
   fi
   if [[ -z "${VOLUME_DIR}" ]]; then
     if [[ -n "${DATA_DIR}" && -d "${DATA_DIR}/volume" ]]; then
       VOLUME_DIR="${DATA_DIR}/volume"
-    elif [[ -d /tmp/acme2certifier/volume ]]; then
-      VOLUME_DIR="/tmp/acme2certifier/volume"
+    elif [[ -d "${DEFAULT_DATA_DIR}/volume" ]]; then
+      VOLUME_DIR="${DEFAULT_DATA_DIR}/volume"
     fi
   fi
 }
@@ -479,7 +484,7 @@ restart_services() {
 do_restart() {
   echo "==> Restart mode (no package reinstall)"
   if [[ -z "${VOLUME_DIR}" || ! -d "${VOLUME_DIR}" ]]; then
-    echo "ERROR: --restart requires a volume dir (pass --volume-dir or mount /tmp/acme2certifier/volume)" >&2
+    echo "ERROR: --restart requires a volume dir (pass --volume-dir or mount ${DEFAULT_DATA_DIR}/volume)" >&2
     exit 1
   fi
   # Preserve install-time DBhandler; volume cfg often lacks [DBhandler] and would
