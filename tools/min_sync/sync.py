@@ -157,6 +157,37 @@ def _strip_handlers(repo: Path, keep_handlers: Sequence[str]) -> list[str]:
     return removed
 
 
+def _strip_pyproject_scripts(repo: Path, script_names: Sequence[str]) -> list[str]:
+    """Remove full-only console scripts from pyproject.toml on min targets."""
+    if not script_names:
+        return []
+    path = repo / "pyproject.toml"
+    if not path.exists():
+        return []
+    remove = set(script_names)
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    in_scripts = False
+    new_lines: list[str] = []
+    removed: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "[project.scripts]":
+            in_scripts = True
+            new_lines.append(line)
+            continue
+        if in_scripts and stripped.startswith("[") and stripped.endswith("]"):
+            in_scripts = False
+        if in_scripts and stripped and not stripped.startswith("#") and "=" in stripped:
+            key = stripped.split("=", 1)[0].strip()
+            if key in remove:
+                removed.append(key)
+                continue
+        new_lines.append(line)
+    if removed:
+        path.write_text("".join(new_lines), encoding="utf-8")
+    return [f"pyproject.toml:[project.scripts].{name}" for name in removed]
+
+
 def _restore_min_owned(
     repo: Path, target_ref: str, min_owned: Sequence[str]
 ) -> list[str]:
@@ -182,6 +213,9 @@ def _port_into_min(
     min_owned: list[str] = list(manifest.get("min_owned") or [])
     keep_handlers: list[str] = list(manifest.get("keep_handlers") or [])
     strip_into_min: list[str] = list(manifest.get("strip_into_min") or [])
+    strip_pyproject_scripts: list[str] = list(
+        manifest.get("strip_pyproject_scripts_into_min") or []
+    )
 
     ported: list[str] = []
     for path in sync_paths:
@@ -192,6 +226,7 @@ def _port_into_min(
     stripped: list[str] = []
     stripped.extend(_strip_handlers(repo, keep_handlers))
     stripped.extend(_rm_paths(repo, strip_into_min))
+    stripped.extend(_strip_pyproject_scripts(repo, strip_pyproject_scripts))
     stripped.extend(_restore_min_owned(repo, target_ref, min_owned))
     return ported, stripped
 

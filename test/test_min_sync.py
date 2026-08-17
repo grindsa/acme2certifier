@@ -47,3 +47,24 @@ def test_004_local_flag_parses() -> None:
     args = min_sync.build_parser().parse_args(["--local"])
     assert args.local is True
     assert args.create_pr is False
+
+
+def test_005_strip_pyproject_scripts(tmp_path) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        "[project.scripts]\n"
+        "a2c-cli = \"acme2certifier.tools.a2c_cli:main\"\n"
+        "a2c-wsgi2django = \"acme2certifier.tools.a2c_wsgi2django:main\"\n"
+        "\n"
+        "[tool.pytest.ini_options]\n"
+        "testpaths = [\"test\"]\n",
+        encoding="utf-8",
+    )
+    removed = min_sync._strip_pyproject_scripts(
+        tmp_path, ["a2c-wsgi2django", "a2c-msicpr-connection-test"]
+    )
+    assert removed == ["pyproject.toml:[project.scripts].a2c-wsgi2django"]
+    text = pyproject.read_text(encoding="utf-8")
+    assert "a2c-cli" in text
+    assert "a2c-wsgi2django" not in text
+    assert "testpaths" in text

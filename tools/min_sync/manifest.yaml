@@ -65,6 +65,8 @@ strip_into_min:
   - acme2certifier/tools/a2c_msicpr_connection_test.py
   - acme2certifier/tools/a2c_mswcce_connection_test.py
   - test/test_a2c_msicpr_connection_test.py
+  - .github/workflows/deployment-wsgi2django.yml
+  - .github/actions/wf_specific/wsgi2django/
   - test/test_acme_ca_handler.py
   - test/test_certsrv.py
   - test/test_cmp_ca_handler.py
@@ -97,6 +99,10 @@ strip_into_min:
   - examples/install_scripts/a2c-ubuntu-apache2.sh
   - examples/install_scripts/a2c-ubuntu-nginx.sh
   - examples/install_scripts/fetch-sbom-rpms.sh
+
+# [project.scripts] entry points removed after a port into min
+strip_pyproject_scripts_into_min:
+  - a2c-msicpr-connection-test
 
 # Optional: do not open promote PRs; min-devel -> min stays manual
 promote: false
