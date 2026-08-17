@@ -13,9 +13,19 @@ runs:
     id: rpm_build
     uses: ./.github/actions/rpm_build
 
-  - name: "Rename rpm package"
+  - name: "Rename main RPM package"
     run: |
-      sudo mv ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch/acme2certifier-*.noarch.rpm ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch/acme2certifier-${{ github.run_id }}.noarch.rpm
+      set -euo pipefail
+      NOARCH="${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch"
+      # Rename payload RPM only; keep flavor subpackages (acme2certifier-python*).
+      main="$(ls -1 "${NOARCH}"/acme2certifier-[0-9]*.noarch.rpm 2>/dev/null | head -n 1)"
+      if [[ -z "${main}" ]]; then
+        echo "ERROR: main acme2certifier-*.noarch.rpm not found in ${NOARCH}" >&2
+        ls -la "${NOARCH}" >&2 || true
+        exit 1
+      fi
+      sudo mv "${main}" "${NOARCH}/acme2certifier-${{ github.run_id }}.noarch.rpm"
+      ls -la "${NOARCH}"
     shell: bash
 
   - name: "Upload RPM package"

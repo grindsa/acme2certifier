@@ -10,6 +10,13 @@ inputs:
   RH_VERSION:
     description: "RHEL version"
     required: true
+  PYTHON_STACK:
+    description: >-
+      SBOM leaf under rpm-repo/RPMs/rhelN/: python39 (EL8 default),
+      python36 (EL8 legacy), python3 (EL9 default). Empty = auto from RH_VERSION.
+      Space-separated list allowed (e.g. "python36 python39" for EL8 upgrades).
+    required: false
+    default: ""
   DJANGO_DB:
     description: "Django database"
   RPM_BUILD:
@@ -58,7 +65,9 @@ runs:
         sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
         if [ -f ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
           echo "RPM exists"
-          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+          # Main payload + python flavor subpackages
+          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-*.noarch.rpm data/
+          ls -la data/acme2certifier-*.rpm
         else
           echo "RPM does not exist"
         fi
@@ -86,12 +95,65 @@ runs:
 
     - name: "Retrieve rpm from SBOM repo"
       run: |
-        git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/rhel$RH_VERSION/*.rpm  data
+        set -euo pipefail
+        # Map OS + flavor → SBOM leaf (see grindsa/sbom rpm-repo/README.md)
+        STACKS="${PYTHON_STACK:-}"
+        if [[ -z "${STACKS}" ]]; then
+          case "${RH_VERSION}" in
+            8) STACKS=python39 ;;
+            9) STACKS=python3 ;;
+            *)
+              echo "ERROR: unsupported RH_VERSION=${RH_VERSION} (expected 8 or 9)" >&2
+              exit 1
+              ;;
+          esac
+        fi
+
+        rm -rf /tmp/sbom
+        # Partial clone + sparse checkout: only the needed RPM leaf/leaves
+        git clone --filter=blob:none --sparse --depth 1 \
+          "https://${GH_USER}:${GH_SBOM_REPO_TOKEN}@github.com/${GH_USER}/sbom" /tmp/sbom
+
+        ARCH="$(uname -m)"
+        shopt -s nullglob
+        copied=0
+        leaves=()
+        for STACK in ${STACKS}; do
+          case "${STACK}" in
+            python36|python39|python3) ;;
+            *)
+              echo "ERROR: PYTHON_STACK entries must be python36|python39|python3 (got: ${STACK})" >&2
+              exit 1
+              ;;
+          esac
+          LEAF="rpm-repo/RPMs/rhel${RH_VERSION}/${STACK}"
+          leaves+=("${LEAF}")
+        done
+        git -C /tmp/sbom sparse-checkout set "${leaves[@]}"
+
+        for STACK in ${STACKS}; do
+          LEAF="rpm-repo/RPMs/rhel${RH_VERSION}/${STACK}"
+          SRC="/tmp/sbom/${LEAF}"
+          if [[ ! -d "${SRC}" ]]; then
+            echo "ERROR: missing SBOM path ${SRC}" >&2
+            ls -la /tmp/sbom/rpm-repo/RPMs/rhel${RH_VERSION}/ 2>/dev/null || true
+            exit 1
+          fi
+          echo "SBOM leaf: ${LEAF}"
+          # Stage only noarch + runner arch (skip foreign-arch RPMs in the leaf)
+          for r in "${SRC}"/*.noarch.rpm "${SRC}"/*."${ARCH}".rpm; do
+            [[ -f "${r}" ]] || continue
+            sudo cp -v "${r}" data/
+            copied=$((copied + 1))
+          done
+        done
+        echo "Staged ${copied} companion RPM(s) for arch=${ARCH} from: ${STACKS}"
+        ls -la data/*.rpm 2>/dev/null | head -80 || true
       env:
         GH_USER: ${{ inputs.GH_USER }}
         GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
+        PYTHON_STACK: ${{ inputs.PYTHON_STACK }}
       shell: bash
 
     - name: "Pull AlmaLinux image"

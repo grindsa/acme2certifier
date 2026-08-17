@@ -12,7 +12,7 @@ The current implementation follows these specifications:
 
 - [RFC 9447 - Automated Certificate Management Environment (ACME) Challenges Using an Authority Token](https://www.rfc-editor.org/rfc/rfc9447)
 - [RFC 9448 - TNAuthList Profile of Automated Certificate Management Environment (ACME) Authority Token](https://www.rfc-editor.org/rfc/rfc9448.html)
-- [ATIS-1000080](https://access.atis.org/higherlogic/ws/public/download/69428)
+- [ATIS-1000080](https://atis.org/resources/signature-based-handling-of-asserted-information-using-tokens-shaken-governance-model-and-certificate-management-atis-1000080-v002/)
 
 ## Enabling TNAuthList Support
 
