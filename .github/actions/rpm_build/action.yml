@@ -5,13 +5,17 @@ inputs:
     description: "Email address to use for git commit"
     required: true
     default: "grindelsack@gmail.com"
+  NAME_SUFFIX:
+    description: "Package name suffix after acme2certifier (empty on full branches, -min on min-*)"
+    required: false
+    default: ""
 outputs:
   rpm_dir_path:
     description: "Path to the directory containing the RPM package"
     value: ${{ steps.rpm.outputs.rpm_dir_path }}
   rpm_file_name:
     description: "Name of the RPM package file"
-    value: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+    value: acme2certifier${{ inputs.NAME_SUFFIX }}-${{ env.TAG_NAME }}-1.0.noarch.rpm
 
 runs:
   using: "composite"

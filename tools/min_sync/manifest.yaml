@@ -47,13 +47,21 @@ keep_handlers:
 min_owned:
   - .github/workflows/main-push-rpm.yml
   - examples/install_scripts/rpm/packages/
+  - examples/install_scripts/rpm/acme2certifier.spec
+  - docs/install_rpm.md
+  - docs/upgrading.md
 
 # Removed after a port into a min target (in addition to non-kept handlers)
 strip_into_min:
   - acme2certifier/cahandlers/ms_icpr
   - .github/workflows/helper-dump-secrets.yml
+  - .github/workflows/cahandler-asa.yml
+  - .github/workflows/cahandler-certifier.yml
+  - .github/workflows/cahandler-nclm.yml
+  - .github/workflows/helper-dump-secrets.yml
   - .github/workflows/publish-pypi.yml
   - .github/workflows/quality-error.yml
+  - .github/workflows/deployment-rpm.yml
   - acme2certifier/tools/a2c_msicpr_connection_test.py
   - acme2certifier/tools/a2c_mswcce_connection_test.py
   - test/test_a2c_msicpr_connection_test.py

@@ -27,6 +27,10 @@ inputs:
     description: "Where to place the RPM"
     required: false
     default: "data/"
+  NAME_SUFFIX:
+    description: "Package name suffix after acme2certifier (empty on full branches, -min on min-*)"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -39,12 +43,13 @@ runs:
         RH_VERSION: ${{ inputs.RH_VERSION }}
         RPM_BUILD: false
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        NAME_SUFFIX: ${{ inputs.NAME_SUFFIX }}
 
     - name: "Download RPM artifact"
       uses: ./.github/actions/download_artifact
       with:
         RUN_ID: ${{ inputs.RUN_ID }}
-        ARTIFACT_NAME: acme2certifier-${{ inputs.RUN_ID }}.noarch.rpm
+        ARTIFACT_NAME: acme2certifier${{ inputs.NAME_SUFFIX }}-${{ inputs.RUN_ID }}.noarch.rpm
         DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
         TOKEN: ${{ inputs.TOKEN }}
         REPO: ${{ inputs.REPO }}

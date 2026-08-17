@@ -33,6 +33,22 @@ inputs:
     description: "Replacement for PATH_REWRITE_FROM (e.g. /var/www/acme2certifier/volume)"
     required: false
     default: ""
+  FETCH:
+    description: "If true, fetch openssl_ca_handler.py and load it via handler_module path (min RPM does not ship it)"
+    required: false
+    default: "false"
+  HANDLER_REF:
+    description: "Git ref to fetch openssl_ca_handler.py from when FETCH is true"
+    required: false
+    default: "master"
+  HANDLER_URL:
+    description: "Override raw URL for openssl_ca_handler.py"
+    required: false
+    default: ""
+  HANDLER_FILE:
+    description: "Absolute handler path written into acme_srv.cfg when FETCH is true"
+    required: false
+    default: "/opt/acme2certifier/volume/acme_ca/openssl_ca_handler.py"
 
 runs:
   using: "composite"
@@ -47,6 +63,13 @@ runs:
             exit 1
             ;;
         esac
+        case "${FETCH}" in
+          true|false) ;;
+          *)
+            echo "ERROR: FETCH must be true|false (got: ${FETCH})" >&2
+            exit 1
+            ;;
+        esac
 
         sudo mkdir -p "${VOLUME_DIR}/acme_ca/certs"
         sudo cp \
@@ -57,6 +80,31 @@ runs:
           "${VOLUME_DIR}/acme_ca/"
         sudo cp "${CFG_SOURCE}" "${VOLUME_DIR}/acme_srv.cfg"
         sudo chmod 777 "${VOLUME_DIR}/acme_srv.cfg"
+
+        if [[ "${FETCH}" == "true" ]]; then
+          url="${HANDLER_URL}"
+          if [[ -z "${url}" ]]; then
+            url="https://raw.githubusercontent.com/grindsa/acme2certifier/${HANDLER_REF}/acme2certifier/cahandlers/openssl_ca_handler.py"
+          fi
+          echo "Fetching openssl_ca_handler.py from ${url}"
+          curl -fsSL "${url}" -o /tmp/openssl_ca_handler.py
+          test -s /tmp/openssl_ca_handler.py
+          grep -q 'class CAhandler' /tmp/openssl_ca_handler.py
+          sudo cp /tmp/openssl_ca_handler.py "${VOLUME_DIR}/acme_ca/openssl_ca_handler.py"
+          sudo chmod 0644 "${VOLUME_DIR}/acme_ca/openssl_ca_handler.py"
+
+          sudo sed -i \
+            -e '/^handler_module:/d' \
+            -e '/^handler_file:/d' \
+            "${VOLUME_DIR}/acme_srv.cfg"
+          if grep -q '^\[CAhandler\]' "${VOLUME_DIR}/acme_srv.cfg"; then
+            sudo sed -i "/^\[CAhandler\]/a handler_module: ${HANDLER_FILE}" \
+              "${VOLUME_DIR}/acme_srv.cfg"
+          else
+            printf '\n[CAhandler]\nhandler_module: %s\n' "${HANDLER_FILE}" \
+              | sudo tee -a "${VOLUME_DIR}/acme_srv.cfg" >/dev/null
+          fi
+        fi
 
         if [[ "${PREVALIDATED}" != "none" ]]; then
           {
@@ -75,6 +123,10 @@ runs:
         if [[ -n "${PATH_REWRITE_FROM}" ]]; then
           sudo sed -i "s|${PATH_REWRITE_FROM}|${PATH_REWRITE_TO}|g" "${VOLUME_DIR}/acme_srv.cfg"
         fi
+
+        echo "--- ${VOLUME_DIR}/acme_srv.cfg [CAhandler] ---"
+        awk '/^\[CAhandler\]/{p=1} p && /^\[/ && !/^\[CAhandler\]/{exit} p' \
+          "${VOLUME_DIR}/acme_srv.cfg"
       shell: bash
       env:
         VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
@@ -85,3 +137,7 @@ runs:
         PREVALIDATED_IPS: ${{ inputs.PREVALIDATED_IPS }}
         PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
         PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
+        FETCH: ${{ inputs.FETCH }}
+        HANDLER_REF: ${{ inputs.HANDLER_REF }}
+        HANDLER_URL: ${{ inputs.HANDLER_URL }}
+        HANDLER_FILE: ${{ inputs.HANDLER_FILE }}

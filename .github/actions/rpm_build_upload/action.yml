@@ -1,9 +1,14 @@
 name: "rpm_build_upload"
 description: "Build and Upload package"
+inputs:
+  NAME_SUFFIX:
+    description: "Package name suffix after acme2certifier (empty on full branches, -min on min-*)"
+    required: false
+    default: ""
 outputs:
   rpm_file_name:
     description: "Name of the RPM package file"
-    value: acme2certifier-${{ github.run_id }}.noarch.rpm
+    value: acme2certifier${{ inputs.NAME_SUFFIX }}-${{ github.run_id }}.noarch.rpm
 
 runs:
   using: "composite"
@@ -12,24 +17,29 @@ runs:
   - name: "Build rpm package"
     id: rpm_build
     uses: ./.github/actions/rpm_build
+    with:
+      NAME_SUFFIX: ${{ inputs.NAME_SUFFIX }}
 
-  - name: "Rename main RPM package"
+  - name: "Stage main RPM alias for CI"
     run: |
       set -euo pipefail
+      PKG="acme2certifier${NAME_SUFFIX}"
       NOARCH="${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch"
-      # Rename payload RPM only; keep flavor subpackages (acme2certifier-python*).
-      main="$(ls -1 "${NOARCH}"/acme2certifier-[0-9]*.noarch.rpm 2>/dev/null | head -n 1)"
+      # Payload RPM only; keep flavor subpackages (${PKG}-python*).
+      main="$(ls -1 "${NOARCH}/${PKG}"-[0-9]*.noarch.rpm 2>/dev/null | head -n 1)"
       if [[ -z "${main}" ]]; then
-        echo "ERROR: main acme2certifier-*.noarch.rpm not found in ${NOARCH}" >&2
+        echo "ERROR: main ${PKG}-*.noarch.rpm not found in ${NOARCH}" >&2
         ls -la "${NOARCH}" >&2 || true
         exit 1
       fi
-      sudo mv "${main}" "${NOARCH}/acme2certifier-${{ github.run_id }}.noarch.rpm"
+      sudo cp "${main}" "${NOARCH}/${PKG}-${{ github.run_id }}.noarch.rpm"
       ls -la "${NOARCH}"
     shell: bash
+    env:
+      NAME_SUFFIX: ${{ inputs.NAME_SUFFIX }}
 
   - name: "Upload RPM package"
     uses: actions/upload-artifact@v7
     with:
-      name: acme2certifier-${{ github.run_id }}.noarch.rpm
+      name: acme2certifier${{ inputs.NAME_SUFFIX }}-${{ github.run_id }}.noarch.rpm
       path: ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch/

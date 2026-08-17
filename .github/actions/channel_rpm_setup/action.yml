@@ -42,13 +42,17 @@ inputs:
     required: false
     default: ""
   ARTIFACT_NAME:
-    description: "RPM artifact name; empty uses acme2certifier-<run_id>.noarch.rpm"
+    description: "RPM artifact name; empty uses acme2certifier<NAME_SUFFIX>-<run_id>.noarch.rpm"
     required: false
     default: ""
   DESTINATION_PATH:
     description: "Download destination"
     required: false
     default: "data/"
+  NAME_SUFFIX:
+    description: "Package name suffix after acme2certifier (empty on full branches, -min on min-*)"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -81,12 +85,13 @@ runs:
         IPV6: ${{ inputs.IPV6 }}
         PYTHON_STACK: ${{ inputs.PYTHON_STACK }}
         DJANGO_DB: ${{ inputs.DJANGO_DB }}
+        NAME_SUFFIX: ${{ inputs.NAME_SUFFIX }}
 
     - name: "Download RPM artifact by name from build run"
       uses: ./.github/actions/download_artifact
       with:
         RUN_ID: ${{ inputs.RUN_ID }}
-        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME != '' && inputs.ARTIFACT_NAME || format('acme2certifier-{0}.noarch.rpm', inputs.RUN_ID) }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME != '' && inputs.ARTIFACT_NAME || format('acme2certifier{0}-{1}.noarch.rpm', inputs.NAME_SUFFIX, inputs.RUN_ID) }}
         DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
         TOKEN: ${{ inputs.TOKEN }}
         REPO: ${{ inputs.REPO }}
