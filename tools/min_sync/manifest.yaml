@@ -30,6 +30,7 @@ sync_paths:
   - docs/
   - examples/
   - pyproject.toml
+  - tools/
   - MANIFEST.in
   - .pre-commit-config.yaml
   - README.md
