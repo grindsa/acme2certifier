@@ -52,5 +52,6 @@ committed.
 - `keep_handlers` — CA handlers retained on min
 - `min_owned` — never overwritten / never pushed to full
 - `strip_into_min` — extra paths removed after a port into min
+- `strip_pyproject_scripts_into_min` — `[project.scripts]` names dropped after a port into min
 
 Edit the manifest when the min surface area changes; do not special-case in the script.

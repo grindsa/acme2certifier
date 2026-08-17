@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -119,13 +120,24 @@ def _checkout_paths(repo: Path, source_ref: str, paths: Iterable[str]) -> list[s
     return checked
 
 
+def _rm_fs(path: Path) -> None:
+    """Remove leftover files/dirs git rm leaves behind (empty directories)."""
+    if not path.exists() and not path.is_symlink():
+        return
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+        return
+    path.unlink()
+
+
 def _rm_paths(repo: Path, paths: Iterable[str]) -> list[str]:
     removed: list[str] = []
     for path in paths:
         p = repo / path
-        if not p.exists():
+        if not p.exists() and not p.is_symlink():
             continue
         _run(["git", "rm", "-rf", "--ignore-unmatch", "--", path], cwd=repo)
+        _rm_fs(p)
         removed.append(path)
     return removed
 
@@ -145,7 +157,40 @@ def _strip_handlers(repo: Path, keep_handlers: Sequence[str]) -> list[str]:
     return removed
 
 
-def _restore_min_owned(repo: Path, target_ref: str, min_owned: Sequence[str]) -> list[str]:
+def _strip_pyproject_scripts(repo: Path, script_names: Sequence[str]) -> list[str]:
+    """Remove full-only console scripts from pyproject.toml on min targets."""
+    if not script_names:
+        return []
+    path = repo / "pyproject.toml"
+    if not path.exists():
+        return []
+    remove = set(script_names)
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    in_scripts = False
+    new_lines: list[str] = []
+    removed: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "[project.scripts]":
+            in_scripts = True
+            new_lines.append(line)
+            continue
+        if in_scripts and stripped.startswith("[") and stripped.endswith("]"):
+            in_scripts = False
+        if in_scripts and stripped and not stripped.startswith("#") and "=" in stripped:
+            key = stripped.split("=", 1)[0].strip()
+            if key in remove:
+                removed.append(key)
+                continue
+        new_lines.append(line)
+    if removed:
+        path.write_text("".join(new_lines), encoding="utf-8")
+    return [f"pyproject.toml:[project.scripts].{name}" for name in removed]
+
+
+def _restore_min_owned(
+    repo: Path, target_ref: str, min_owned: Sequence[str]
+) -> list[str]:
     restored: list[str] = []
     for path in min_owned:
         if _path_exists_at_ref(repo, target_ref, path):
@@ -168,6 +213,9 @@ def _port_into_min(
     min_owned: list[str] = list(manifest.get("min_owned") or [])
     keep_handlers: list[str] = list(manifest.get("keep_handlers") or [])
     strip_into_min: list[str] = list(manifest.get("strip_into_min") or [])
+    strip_pyproject_scripts: list[str] = list(
+        manifest.get("strip_pyproject_scripts_into_min") or []
+    )
 
     ported: list[str] = []
     for path in sync_paths:
@@ -178,6 +226,7 @@ def _port_into_min(
     stripped: list[str] = []
     stripped.extend(_strip_handlers(repo, keep_handlers))
     stripped.extend(_rm_paths(repo, strip_into_min))
+    stripped.extend(_strip_pyproject_scripts(repo, strip_pyproject_scripts))
     stripped.extend(_restore_min_owned(repo, target_ref, min_owned))
     return ported, stripped
 
@@ -196,10 +245,7 @@ def _port_into_full(
         if _is_min_owned(path, min_owned):
             continue
         if path.rstrip("/") == CAHANDLERS_DIR:
-            handler_paths = [
-                f"{CAHANDLERS_DIR}/{h.rstrip('/')}"
-                for h in keep_handlers
-            ]
+            handler_paths = [f"{CAHANDLERS_DIR}/{h.rstrip('/')}" for h in keep_handlers]
             for hp in handler_paths:
                 files = _list_files_at_ref(repo, source_ref, hp)
                 ported.extend(_checkout_paths(repo, source_ref, files or [hp]))
@@ -433,11 +479,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 *[f"- `{p}`" for p in ported],
                 "",
                 "### Strip / restore",
-                *(
-                    [f"- `{p}`" for p in stripped]
-                    if stripped
-                    else ["- (none)"]
-                ),
+                *([f"- `{p}`" for p in stripped] if stripped else ["- (none)"]),
                 "",
                 f"Manifest: `tools/min_sync/{MANIFEST_NAME}`",
             ]
@@ -482,11 +524,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _run(["git", "reset", "--hard"], cwd=repo)
             if original:
                 _run(["git", "checkout", original], cwd=repo, check=False)
-            if (
-                not local_mode
-                and work_branch != original
-                and work_branch != target
-            ):
+            if not local_mode and work_branch != original and work_branch != target:
                 _run(
                     ["git", "branch", "-D", work_branch],
                     cwd=repo,

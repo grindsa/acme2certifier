@@ -7,6 +7,7 @@ target_default: min-devel
 min_targets:
   - min-devel
   - min
+  - min-test
 
 full_targets:
   - master
@@ -41,7 +42,6 @@ keep_handlers:
   - asa_ca_handler.py
   - certifier_ca_handler.py
   - nclm_ca_handler.py
-  - ms_wcce/
 
 # Never port these from full -> min or min -> full
 min_owned:
@@ -53,6 +53,8 @@ min_owned:
 
 # Removed after a port into a min target (in addition to non-kept handlers)
 strip_into_min:
+  - acme2certifier/cahandlers/ms_icpr
+  - .github/workflows/helper-dump-secrets.yml
   - .github/workflows/cahandler-asa.yml
   - .github/workflows/cahandler-certifier.yml
   - .github/workflows/cahandler-nclm.yml
@@ -61,9 +63,10 @@ strip_into_min:
   - .github/workflows/quality-error.yml
   - .github/workflows/deployment-rpm.yml
   - acme2certifier/tools/a2c_msicpr_connection_test.py
-  - acme2certifier/tools/a2c_wsgi2django.py
   - acme2certifier/tools/a2c_mswcce_connection_test.py
   - test/test_a2c_msicpr_connection_test.py
+  - .github/workflows/deployment-wsgi2django.yml
+  - .github/actions/wf_specific/wsgi2django/
   - test/test_acme_ca_handler.py
   - test/test_certsrv.py
   - test/test_cmp_ca_handler.py
@@ -83,6 +86,23 @@ strip_into_min:
   - test/test_skeleton_ca_handler.py
   - test/test_vault_handler.py
   - test/test_xca_ca_handler.py
+  - test/test_trigger.py
+  - examples/Docker
+  - examples/ejbca
+  - examples/soap
+  - examples/Docker/vault
+  - examples/Docker/soap-srv
+  - examples/install_scripts/debian
+  - examples/install_scripts/a2c-container-build.sh
+  - examples/install_scripts/a2c-deb.sh
+  - examples/install_scripts/a2c-rel-nginx.sh
+  - examples/install_scripts/a2c-ubuntu-apache2.sh
+  - examples/install_scripts/a2c-ubuntu-nginx.sh
+  - examples/install_scripts/fetch-sbom-rpms.sh
+
+# [project.scripts] entry points removed after a port into min
+strip_pyproject_scripts_into_min:
+  - a2c-msicpr-connection-test
 
 # Optional: do not open promote PRs; min-devel -> min stays manual
 promote: false
