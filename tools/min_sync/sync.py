@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Bidirectional allowlist sync between full (master/devel) and min branches.
 
-Always prepares a review PR branch; never promotes min-devel -> min.
+Default: sync branch for review PR. --local applies files on the target
+branch without committing. Never promotes min-devel -> min.
 """
 
 from __future__ import annotations
@@ -218,6 +219,22 @@ def _create_branch(repo: Path, name: str, start_ref: str) -> None:
     _run(["git", "checkout", "-B", name, start_ref], cwd=repo, capture=False)
 
 
+def _checkout_local_target(repo: Path, name: str, origin_ref: str) -> None:
+    """Checkout an existing local target branch; create it from origin if missing.
+
+    Does not reset a local branch that already exists.
+    """
+    exists = _run(
+        ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{name}"],
+        cwd=repo,
+        check=False,
+    )
+    if exists.returncode == 0:
+        _run(["git", "checkout", name], cwd=repo, capture=False)
+        return
+    _run(["git", "checkout", "-b", name, origin_ref], cwd=repo, capture=False)
+
+
 def _commit(repo: Path, message: str) -> None:
     _run(["git", "add", "-A"], cwd=repo)
     # Nothing to commit?
@@ -261,7 +278,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Allowlist sync between full and min branches. "
-            "Opens/prepares a review PR; does not promote min-devel -> min."
+            "Default prepares a sync branch; --local applies files only "
+            "(no commit, no PR). Does not promote min-devel -> min."
         )
     )
     parser.add_argument(
@@ -274,17 +292,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--into",
         dest="target",
         default=None,
-        help="Target branch / PR base (default: manifest target_default)",
+        help="Target branch (default: manifest target_default)",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Apply sync on a temp branch, print diff, discard",
     )
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--create-pr",
         action="store_true",
-        help="Push branch and create a GitHub PR via gh",
+        help="Push sync branch and create a GitHub PR via gh",
+    )
+    mode.add_argument(
+        "--local",
+        action="store_true",
+        help="Apply allowlist sync on the local target branch (no commit, no PR)",
     )
     parser.add_argument(
         "--repo-root",
@@ -301,7 +325,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--branch-name",
         default=None,
-        help="Override sync branch name",
+        help="Override sync branch name (ignored with --local)",
     )
     return parser
 
@@ -340,23 +364,44 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not into_min and not _is_min_target(source, manifest):
         raise SyncError("Into full requires a min source (min-devel/min).")
 
+    if args.local and args.branch_name:
+        raise SyncError("--branch-name cannot be used with --local.")
+
     _ensure_clean(repo)
     original = _current_branch(repo)
     _fetch(repo, source, target)
 
     source_ref = f"origin/{source}"
-    target_ref = f"origin/{target}"
+    origin_target_ref = f"origin/{target}"
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d")
-    branch = args.branch_name or f"sync/{source}-to-{target}-{stamp}"
+    local_mode = bool(args.local)
+    # Temp branch for dry-run; sync/* for PR path; target itself for --local
+    if local_mode and not args.dry_run:
+        work_branch = target
+    else:
+        work_branch = args.branch_name or f"sync/{source}-to-{target}-{stamp}"
+
+    if args.dry_run:
+        mode = "dry-run"
+    elif local_mode:
+        mode = "local (files only, no commit)"
+    elif args.create_pr:
+        mode = "commit + PR"
+    else:
+        mode = "commit (sync branch)"
 
     print(f"Repo:    {repo}")
     print(f"From:    {source_ref}")
-    print(f"Into:    {target_ref}")
-    print(f"Branch:  {branch}")
-    print(f"Mode:    {'dry-run' if args.dry_run else 'commit'}"
-          f"{' + PR' if args.create_pr and not args.dry_run else ''}")
+    print(f"Into:    {origin_target_ref}")
+    print(f"Branch:  {work_branch}")
+    print(f"Mode:    {mode}")
 
-    _create_branch(repo, branch, target_ref)
+    if local_mode and not args.dry_run:
+        _checkout_local_target(repo, target, origin_target_ref)
+        target_ref = "HEAD"
+    else:
+        _create_branch(repo, work_branch, origin_target_ref)
+        target_ref = origin_target_ref
 
     try:
         if into_min:
@@ -402,23 +447,32 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("\nDry-run: discarding branch changes.")
             _run(["git", "reset", "--hard"], cwd=repo)
             _run(["git", "checkout", original], cwd=repo, capture=False)
-            _run(["git", "branch", "-D", branch], cwd=repo)
+            if work_branch != original and work_branch != target:
+                _run(["git", "branch", "-D", work_branch], cwd=repo)
             print("Done (dry-run).")
+            return 0
+
+        if local_mode:
+            print(
+                f"\nSynced files onto `{target}` (not committed, not pushed). "
+                f"Review, then commit when ready:"
+            )
+            print(f"  git commit -m '{title}'")
             return 0
 
         _commit(repo, title)
         if args.create_pr:
-            _push(repo, branch)
-            url = _create_pr(repo, branch, target, title, body)
+            _push(repo, work_branch)
+            url = _create_pr(repo, work_branch, target, title, body)
             print(f"\nPR: {url}")
         else:
             print(
-                f"\nCommitted on `{branch}`. "
+                f"\nCommitted on `{work_branch}`. "
                 f"Push and open PR into `{target}` when ready:"
             )
-            print(f"  git push -u origin {branch}")
+            print(f"  git push -u origin {work_branch}")
             print(
-                f"  gh pr create --base {target} --head {branch} "
+                f"  gh pr create --base {target} --head {work_branch} "
                 f"--title '{title}'"
             )
         return 0
@@ -428,6 +482,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             _run(["git", "reset", "--hard"], cwd=repo)
             if original:
                 _run(["git", "checkout", original], cwd=repo, check=False)
+            if (
+                not local_mode
+                and work_branch != original
+                and work_branch != target
+            ):
+                _run(
+                    ["git", "branch", "-D", work_branch],
+                    cwd=repo,
+                    check=False,
+                )
         except SyncError:
             pass
         raise
