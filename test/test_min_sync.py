@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -80,9 +81,9 @@ def test_006_confine_to_root_accepts_in_repo(tmp_path: Path) -> None:
     manifest.parent.mkdir(parents=True)
     manifest.write_text("x: 1\n", encoding="utf-8")
     confined = min_sync._confine_to_root(manifest, tmp_path)
-    assert confined == manifest.resolve()
+    assert confined == os.path.realpath(str(manifest))
     relative = min_sync._confine_to_root(Path("tools/min_sync/manifest.yaml"), tmp_path)
-    assert relative == manifest.resolve()
+    assert relative == os.path.realpath(str(manifest))
 
 
 def test_007_confine_to_root_rejects_escape(tmp_path: Path) -> None:

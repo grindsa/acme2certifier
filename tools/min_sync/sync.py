@@ -48,24 +48,22 @@ def _run(
     return result
 
 
-def _confine_to_root(path: Path, root: Path) -> Path:
-    """Resolve path and reject traversal outside root."""
-    if ".." in path.parts:
+def _confine_to_root(path: Path, root: Path) -> str:
+    """Return a realpath that stays inside root (S8707 sanitizer)."""
+    root_resolved = os.path.realpath(os.fspath(root))
+    raw = os.fspath(path)
+    candidate = raw if os.path.isabs(raw) else os.path.join(root_resolved, raw)
+    resolved = os.path.realpath(candidate)
+    prefix = root_resolved if root_resolved.endswith(os.sep) else root_resolved + os.sep
+    if resolved != root_resolved and not resolved.startswith(prefix):
         raise SyncError(f"Path is outside repository root: {path}")
-    root_resolved = os.path.realpath(str(root))
-    candidate = path if path.is_absolute() else Path(root_resolved) / path
-    resolved = os.path.realpath(str(candidate))
-    if os.path.commonpath([root_resolved, resolved]) != root_resolved:
-        raise SyncError(f"Path is outside repository root: {path}")
-    return Path(resolved)
+    return resolved
 
 
 def _load_manifest(path: Path, root: Path) -> dict:
     safe_path = _confine_to_root(path, root)
-    root_resolved = os.path.realpath(str(root))
-    if os.path.commonpath([root_resolved, str(safe_path)]) != root_resolved:
-        raise SyncError(f"Path is outside repository root: {path}")
-    data = yaml.safe_load(safe_path.read_text(encoding="utf-8"))
+    with open(safe_path, encoding="utf-8") as handle:
+        data = yaml.safe_load(handle)
     if not isinstance(data, dict):
         raise SyncError(f"Invalid manifest: {safe_path}")
     return data
