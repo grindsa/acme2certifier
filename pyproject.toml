@@ -111,7 +111,12 @@ testpaths = ["test"]
 addopts = [
     "--cov=acme2certifier",
     "--cov-report=term:skip-covered",
+    "--cov-report=lcov",
 ]
+
+[tool.coverage.run]
+# Relative paths so IDE coverage (Markis / Testing) maps to workspace files.
+relative_files = true
 
 [tool.black]
 # py314 enables PEP 758 (except TypeError, ValueError without parens), which breaks
