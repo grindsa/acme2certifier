@@ -1,0 +1,36 @@
+DEFAULT:
+  debug: false
+
+Nonce:
+  # disable nonce/signature checks. THIS IS A SEVERE SECURITY ISSUE!
+  # Ignored unless ACME2CERTIFIER_I_KNOW_THE_RISK=1 is set (checks stay enabled).
+  # Please use only for testing/debugging purposes.
+  nonce_check_disable: false
+  # signature_check_disable: false
+
+# Prefer handler_module, e.g.:
+# handler_module: acme2certifier.cahandlers.openssl_ca_handler
+# CA specific options
+CAhandler: {}
+
+DBhandler:
+  # handler: wsgi
+  # handler: django
+  # handler_module: acme2certifier.dbhandlers.wsgi_handler
+  # Or set ACME_SRV_DB_HANDLER=wsgi|django|<dotted.module> (cfg wins over env)
+  # Writable by www-data after DEB install (same tree as legacy deployments).
+  dbfile: /var/www/acme2certifier/acme_srv.db
+
+Certificate:
+  revocation_reason_check_disable: false
+
+Challenge:
+  # when true disable challenge validation. Challenge will be set to 'valid' without further checking
+  # THIS IS A SEVERE SECURTIY ISSUE! Please do only for testing/debugging purposes
+  challenge_validation_disable: false
+
+Order:
+  tnauthlist_support: false
+
+# Helper:
+#   log_format: "%(asctime)s - acme2certifier - %(levelname)s - %(message)s"

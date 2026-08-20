@@ -28,22 +28,23 @@ The editable install (`-e`) puts `a2c-manage` and the other [CLI tools](../tools
 
 ```bash
 export ACME2CERTIFIER_BASE_DIR="$PWD"
-export ACME_SRV_CONFIGFILE="$PWD/acme_srv.cfg"
+export ACME_SRV_CONFIGFILE="$PWD/acme_srv.cfg"   # or acme_srv.yaml / acme_srv.yml
 export ACME2CERTIFIER_DEBUG=1
 ```
 
 | Variable                  | Role                                                           |
 | ------------------------- | -------------------------------------------------------------- |
 | `ACME2CERTIFIER_BASE_DIR` | Deploy root: Django `db.sqlite3`, relative `dbfile` / CA paths |
-| `ACME_SRV_CONFIGFILE`     | Absolute path to cfg (beats `/var/www/...` and `/opt/...`)     |
+| `ACME_SRV_CONFIGFILE`     | Absolute path to `acme_srv.cfg` or `acme_srv.yaml` / `.yml` (beats `/var/www/...` and `/opt/...`) |
 | `ACME2CERTIFIER_DEBUG`    | Django `DEBUG` (`1` / `true`)                                  |
 
 ## 3. Config and a local OpenSSL CA
 
-`acme_srv.cfg` at the repo root is gitignored.
+`acme_srv.cfg` (and `acme_srv.yaml` / `acme_srv.yml`) at the repo root is gitignored.
 
 ```bash
 cp acme2certifier/share/acme_srv.cfg acme_srv.cfg
+# or: cp examples/acme_srv.yaml acme_srv.yaml
 mkdir -p acme_srv/ca/certs
 cp test/ca/sub-ca-key.pem test/ca/sub-ca-cert.pem \
    test/ca/sub-ca-crl.pem test/ca/root-ca-cert.pem \
