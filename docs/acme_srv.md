@@ -7,6 +7,8 @@
 
 ## configuration options for acme2certifier
 
+INI (`acme_srv.cfg`) and YAML (`acme_srv.yaml` / `acme_srv.yml`) are equivalent. The shipped default remains INI (`acme2certifier/share/acme_srv.cfg`). See [YAML configuration](#yaml-configuration) for file detection and native lists.
+
 | Section         | Option                                | Description                                                                                                                                                                                                           | Values                                                                                                                  | Default                                     |
 | :-------------- | :------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- | :------------------------------------------ |
 | `DEFAULT`       | `debug`                               | Debug mode                                                                                                                                                                                                            | True/False                                                                                                              | False                                       |
@@ -106,14 +108,36 @@ acme2certifier logs a startup warning when `server_name` is not present in
 
 Dynamic loading of CA/EAB/Hooks handlers from module names or filesystem paths
 is a by-design extensibility feature. If an attacker can modify `acme_srv.cfg`
+(or `acme_srv.yaml` / `acme_srv.yml`)
 or referenced plugin files, they can execute arbitrary Python code as the
 acme2certifier service user.
 
 Recommended mitigations:
 
-- Restrict write access to `acme_srv.cfg` and custom plugin paths
+- Restrict write access to `acme_srv.cfg` / `acme_srv.yaml` and custom plugin paths
 - Use read-only mounts for config/plugin files in production
 - Apply change-control / integrity monitoring for handler and hooks references
+
+## YAML configuration
+
+`load_config()` accepts INI or YAML and always returns `configparser.ConfigParser`. Format is detected from **file content on every load** (no format cache). The filename extension is a tie-breaker only.
+
+| File | Role |
+| :--- | :--- |
+| `acme_srv.cfg` | INI (default shipped format) |
+| `acme_srv.yaml` / `acme_srv.yml` | YAML |
+| `examples/acme_srv.yaml` | YAML equivalent of `examples/acme_srv.cfg` |
+| `ACME_SRV_CONFIGFILE` | Explicit path to either format |
+
+### Detection
+
+1. Strip a UTF-8 BOM and leading whitespace. An empty file is treated as INI (same as today).
+2. First non-comment line starting with `[` → INI.
+3. First non-comment line starting with `{`, `-`, or `---`, or a `SectionName:` mapping → YAML.
+4. Otherwise the extension decides (`.yaml`/`.yml` → YAML, else INI).
+5. If INI parsing fails, the **same file** is retried as YAML. Invalid YAML, duplicate keys, and unsupported types (for example unquoted dates) abort startup — a half-parsed config is not used.
+
+At each default search location, `acme_srv.cfg` is tried first, then `acme_srv.yaml`, then `acme_srv.yml`.
 
 Instructions for [Insta Certifier](certifier.md)
 
