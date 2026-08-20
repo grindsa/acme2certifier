@@ -1,0 +1,45 @@
+name: "stage_yaml_cfg"
+description: "Stage acme_srv.yml into a volume dir and point acme_srv.cfg at it"
+inputs:
+  VOLUME_DIR:
+    description: "Target volume directory (acme_srv.yml / acme_srv.cfg are written here)"
+    required: false
+    default: "data/volume"
+  CFG_SOURCE:
+    description: "Source YAML config"
+    required: false
+    default: ".github/acme_srv.openssl.yml"
+  PATH_REWRITE_FROM:
+    description: "Optional substring to rewrite in the staged YAML"
+    required: false
+    default: ""
+  PATH_REWRITE_TO:
+    description: "Replacement for PATH_REWRITE_FROM"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Stage acme_srv.yml"
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo mkdir -p "${VOLUME_DIR}"
+        sudo cp "${CFG_SOURCE}" "${VOLUME_DIR}/acme_srv.yml"
+        sudo chmod 777 "${VOLUME_DIR}/acme_srv.yml"
+        if [[ -n "${PATH_REWRITE_FROM}" ]]; then
+          sudo sed -i "s|${PATH_REWRITE_FROM}|${PATH_REWRITE_TO}|g" \
+            "${VOLUME_DIR}/acme_srv.yml"
+        fi
+        sudo rm -f "${VOLUME_DIR}/acme_srv.cfg"
+        sudo ln -sfn acme_srv.yml "${VOLUME_DIR}/acme_srv.cfg"
+        echo "--- ${VOLUME_DIR}/acme_srv.cfg -> acme_srv.yml ---"
+        ls -l "${VOLUME_DIR}/acme_srv.cfg" "${VOLUME_DIR}/acme_srv.yml"
+        echo "--- ${VOLUME_DIR}/acme_srv.yml ---"
+        cat "${VOLUME_DIR}/acme_srv.yml"
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        CFG_SOURCE: ${{ inputs.CFG_SOURCE }}
+        PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
+        PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}

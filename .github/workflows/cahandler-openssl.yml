@@ -47,7 +47,7 @@ jobs:
       actions: write
     needs: guard
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -147,6 +147,33 @@ jobs:
       - name: "With cert_validity - enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Stage YAML acme_srv.yml"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/stage_yaml_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Restart a2c with YAML config"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "YAML config - enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+        with:
+          HOSTNAME_SUFFIX: -yaml
+          RENEWAL: "false"
+
+      - name: "Check logs for YAML config format"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: ", yaml)"
+
       - name: "Channel teardown"
         if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
@@ -165,7 +192,7 @@ jobs:
       actions: write
     needs: guard
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -269,6 +296,32 @@ jobs:
       - name: "With cert_validity - enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Stage YAML acme_srv.yml"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/stage_yaml_cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "YAML config - enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+        with:
+          HOSTNAME_SUFFIX: -yaml
+          RENEWAL: "false"
+
+      - name: "Check logs for YAML config format"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: ", yaml)"
+
       - name: "Channel teardown"
         if: ${{ always() }}
         uses: ./.github/actions/channel_teardown
@@ -287,7 +340,7 @@ jobs:
       actions: write
     needs: guard
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -397,6 +450,36 @@ jobs:
 
       - name: "With cert_validity - enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Stage YAML acme_srv.yml"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/stage_yaml_cfg
+        with:
+          PATH_REWRITE_FROM: "volume"
+          PATH_REWRITE_TO: "/var/www/acme2certifier/volume"
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "YAML config - enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+        with:
+          HOSTNAME_SUFFIX: -yaml
+          RENEWAL: "false"
+
+      - name: "Check logs for YAML config format"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: deb
+          PATTERN: ", yaml)"
 
       - name: "Channel teardown"
         if: ${{ always() }}

@@ -191,6 +191,19 @@ normalize_dbhandler_mode() {
   esac
 }
 
+# True when the first non-empty, non-comment line is not an INI [section].
+cfg_is_yaml() {
+  local cfg="${1:-${CFG}}"
+  ${SUDO} awk '
+    BEGIN { rc=1 }
+    /^[[:space:]]*$/ { next }
+    /^[[:space:]]*[#;]/ { next }
+    /^\[/ { rc=1; exit }
+    { rc=0; exit }
+    END { exit rc }
+  ' "${cfg}"
+}
+
 # Read [DBhandler] handler / handler_module from cfg (short name or empty).
 get_dbhandler_mode() {
   local cfg="${1:-${CFG}}"
@@ -199,16 +212,29 @@ get_dbhandler_mode() {
     echo ""
     return 0
   fi
-  raw="$(${SUDO} awk '
-    /^\[DBhandler\]/ { in_sec=1; next }
-    /^\[/ { in_sec=0 }
-    in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
-      sub(/^[^:]*:[[:space:]]*/, "")
-      gsub(/[[:space:]]/, "")
-      print
-      exit
-    }
-  ' "${cfg}" 2>/dev/null || true)"
+  if cfg_is_yaml "${cfg}"; then
+    raw="$(${SUDO} awk '
+      /^DBhandler:/ { in_sec=1; next }
+      in_sec && /^[^[:space:]#].*:/ { in_sec=0 }
+      in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
+        sub(/^[^:]*:[[:space:]]*/, "")
+        gsub(/[[:space:]]/, "")
+        print
+        exit
+      }
+    ' "${cfg}" 2>/dev/null || true)"
+  else
+    raw="$(${SUDO} awk '
+      /^\[DBhandler\]/ { in_sec=1; next }
+      /^\[/ { in_sec=0 }
+      in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
+        sub(/^[^:]*:[[:space:]]*/, "")
+        gsub(/[[:space:]]/, "")
+        print
+        exit
+      }
+    ' "${cfg}" 2>/dev/null || true)"
+  fi
   normalize_dbhandler_mode "${raw}"
 }
 
@@ -216,6 +242,18 @@ get_dbhandler_mode() {
 set_dbhandler_mode() {
   local mode="$1"
   echo "==> Setting DBhandler to ${mode}"
+  if cfg_is_yaml "${CFG}"; then
+    if ${SUDO} grep -q '^DBhandler:' "${CFG}"; then
+      ${SUDO} sed -i \
+        '/^DBhandler:/,/^[^[:space:]#]/{
+          /^[[:space:]]*#*[[:space:]]*handler[[:space:]]*:/d
+        }' "${CFG}"
+      ${SUDO} sed -i "/^DBhandler:/a\\  handler: ${mode}" "${CFG}"
+    else
+      printf '\nDBhandler:\n  handler: %s\n' "${mode}" | ${SUDO} tee -a "${CFG}" >/dev/null
+    fi
+    return 0
+  fi
   if ! ${SUDO} grep -q '^\[DBhandler\]' "${CFG}"; then
     printf '\n[DBhandler]\nhandler: %s\n' "${mode}" | ${SUDO} tee -a "${CFG}" >/dev/null
     return 0
