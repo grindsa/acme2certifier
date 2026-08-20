@@ -53,11 +53,11 @@ def test_005_strip_pyproject_scripts(tmp_path) -> None:
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
         "[project.scripts]\n"
-        "a2c-cli = \"acme2certifier.tools.a2c_cli:main\"\n"
-        "a2c-wsgi2django = \"acme2certifier.tools.a2c_wsgi2django:main\"\n"
+        'a2c-cli = "acme2certifier.tools.a2c_cli:main"\n'
+        'a2c-wsgi2django = "acme2certifier.tools.a2c_wsgi2django:main"\n'
         "\n"
         "[tool.pytest.ini_options]\n"
-        "testpaths = [\"test\"]\n",
+        'testpaths = ["test"]\n',
         encoding="utf-8",
     )
     removed = min_sync._strip_pyproject_scripts(

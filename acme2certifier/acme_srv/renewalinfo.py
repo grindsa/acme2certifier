@@ -30,6 +30,7 @@ class RenewalinfoConfig:
     renewalthreshold_pctg: float = 85.0
     retry_after_timeout: int = 86400
     renewalinfo_lookup: bool = False
+    renewalinfo_disable: bool = False
 
 
 class RenewalinfoRepository:
@@ -133,6 +134,14 @@ class Renewalinfo(object):
         config_dic = load_config()
 
         if "Renewalinfo" in config_dic:
+            try:
+                self.config.renewalinfo_disable = config_dic.getboolean(
+                    "Renewalinfo",
+                    "renewalinfo_disable",
+                    fallback=self.config.renewalinfo_disable,
+                )
+            except Exception as err_:
+                self.logger.error("renewalinfo_disable not set: %s", err_)
             try:
                 self.config.renewal_force = config_dic.getboolean(
                     "Renewalinfo", "renewal_force", fallback=False
@@ -356,6 +365,9 @@ class Renewalinfo(object):
     def get(self, url: str) -> Dict[str, str]:
         """Get renewal information (backwards compatible public method)"""
         self.logger.debug("Renewalinfo.get()")
+        if self.config.renewalinfo_disable:
+            self.logger.debug("Renewalinfo.get() - endpoint disabled")
+            return {"code": 404, "data": {}}
 
         renewalinfo_string = self._parse_renewalinfo_string_from_url(url)
         if self.config.renewalinfo_lookup and hasattr(
@@ -395,6 +407,9 @@ class Renewalinfo(object):
     def update(self, content: str) -> Dict[str, str]:
         """Update renewal info (backwards compatible public method)"""
         self.logger.debug("Renewalinfo.update()")
+        if self.config.renewalinfo_disable:
+            self.logger.debug("Renewalinfo.update() - endpoint disabled")
+            return {"code": 404, "data": {}}
         (
             code,
             _message,
