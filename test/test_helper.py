@@ -8481,6 +8481,113 @@ Order:
             any("could not read config file" in line for line in lcm.output)
         )
 
+    def test_638_unique_key_loader_non_mapping_node(self):
+        """_UniqueKeyLoader.construct_mapping delegates non-mapping nodes"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        loader = config_mod._UniqueKeyLoader("")
+        node = yaml.nodes.ScalarNode("tag:yaml.org,2002:str", "foo")
+        with self.assertRaises(yaml.constructor.ConstructorError):
+            loader.construct_mapping(node)
+
+    def test_639_detect_comments_only_is_ini(self):
+        """Comment-only content is treated as empty INI"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self.assertEqual(
+            config_mod._detect_config_format("# only\n; also\n\n", "acme_srv.cfg"),
+            "ini",
+        )
+
+    def test_640_detect_ambiguous_yaml_extension(self):
+        """Ambiguous content with a .yaml name is detected as YAML"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self.assertEqual(
+            config_mod._detect_config_format("debug = false\n", "acme_srv.yaml"),
+            "yaml",
+        )
+
+    def test_641_yaml_non_string_option_key_raises(self):
+        """Integer YAML option names fail the load"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(
+                tmpdir, "acme_srv.yaml", "Order:\n  1: foo\n"
+            )
+            with self.assertRaisesRegex(ValueError, "YAML config key must be a string"):
+                self.load_config(self.logger, None, cfg_path)
+
+    def test_642_set_yaml_option_adds_missing_section(self):
+        """_set_yaml_option creates a section when it does not exist"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        config = config_mod._new_config_parser()
+        config_mod._set_yaml_option(config, "Order", "foo", "bar", self.logger)
+        self.assertEqual(config.get("Order", "foo"), "bar")
+
+    def test_643_yaml_empty_document_returns_empty_config(self):
+        """A YAML document with only --- yields an empty ConfigParser"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.yaml", "---\n")
+            config = self.load_config(self.logger, None, cfg_path)
+        self.assertEqual(config_mod._LAST_LOADED_CFG[2], "yaml")
+        self.assertEqual(config.sections(), [])
+
+    def test_644_yaml_non_string_section_key_raises(self):
+        """Integer YAML section names fail the load"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.yaml", "1:\n  foo: bar\n")
+            with self.assertRaisesRegex(ValueError, "YAML config key must be a string"):
+                self.load_config(self.logger, None, cfg_path)
+
+    def test_645_yaml_top_level_scalar_goes_to_default(self):
+        """Root-level scalar keys are stored under DEFAULT"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.yaml", "debug: false\n")
+            config = self.load_config(self.logger, None, cfg_path)
+        self.assertFalse(config.getboolean("DEFAULT", "debug"))
+
+    def test_646_default_deploy_base_dir_fallback_when_dirs_missing(self):
+        """default_deploy_base_dir falls back when deploy roots are absent"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        env = os.environ.copy()
+        env.pop("ACME2CERTIFIER_BASE_DIR", None)
+        with patch.dict(os.environ, env, clear=True):
+            with patch(
+                "acme2certifier.acme_srv.helpers.config.os.path.isdir",
+                return_value=False,
+            ):
+                self.assertEqual(
+                    config_mod.default_deploy_base_dir(),
+                    "/var/www/acme2certifier",
+                )
+
+    def test_647_default_wsgi_dbfile_joins_deploy_base(self):
+        """default_wsgi_dbfile uses default_deploy_base_dir for acme_srv.db"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        with patch(
+            "acme2certifier.acme_srv.helpers.config.default_deploy_base_dir",
+            return_value="/custom/base",
+        ):
+            self.assertEqual(
+                config_mod.default_wsgi_dbfile(),
+                os.path.join("/custom/base", "acme_srv.db"),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
