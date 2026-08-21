@@ -14,6 +14,7 @@ from unittest.mock import patch, MagicMock, Mock
 import dns.resolver
 import base64
 import requests
+import yaml
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -2313,7 +2314,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             with self.assertLogs("test_a2c", level="INFO") as lcm1:
                 self.load_config(self.logger, None, cfg_path)
             self.assertIn(
-                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit)",
+                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit, ini)",
                 lcm1.output,
             )
             with self.assertLogs("test_a2c", level="DEBUG") as lcm2:
@@ -2326,7 +2327,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             )
             self.assertTrue(
                 any(
-                    f"DEBUG:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit)" in line
+                    f"DEBUG:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit, ini)"
+                    in line
                     for line in lcm2.output
                 )
             )
@@ -2353,7 +2355,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 with self.assertLogs("test_a2c", level="INFO") as lcm:
                     self.load_config(self.logger, None, None)
             self.assertIn(
-                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (ACME_SRV_CONFIGFILE)",
+                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (ACME_SRV_CONFIGFILE, ini)",
                 lcm.output,
             )
         finally:
@@ -2378,12 +2380,12 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             # Early load without configured logger must not consume the once-slot
             # on the app logger.
             self.load_config(None, None, cfg_path)
-            self.assertEqual(config_mod._LAST_LOADED_CFG, (abs_path, "explicit"))
+            self.assertEqual(config_mod._LAST_LOADED_CFG, (abs_path, "explicit", "ini"))
             self.assertNotIn(abs_path, config_mod._ACME_SRV_CFG_LOADED)
             with self.assertLogs("test_a2c", level="INFO") as lcm:
                 config_mod.log_loaded_acme_srv_cfg(self.logger)
             self.assertIn(
-                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit)",
+                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit, ini)",
                 lcm.output,
             )
         finally:
@@ -7948,6 +7950,643 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 )
             )
         self.assertTrue(any("null byte in path" in msg for msg in lcm.output))
+
+    _YAML_CFG_INI = """\
+[DEFAULT]
+debug: False
+dns_server_list: ["192.0.2.53", "192.0.2.54"]
+
+[DBhandler]
+handler: wsgi
+dbfile: /var/www/acme2certifier/acme_srv.db
+
+[Order]
+tnauthlist_support: False
+allowed_domainlist: ["*.example.local", "foo.bar.local"]
+allowed_iplist: ["10.0.0.0/8"]
+header_info_list: ["HTTP_USER_AGENT"]
+profiles: {"short": "http://example.local/short", "long": "http://example.local/long"}
+"""
+
+    _YAML_CFG_YAML = """\
+DEFAULT:
+  debug: false
+  dns_server_list:
+    - 192.0.2.53
+    - 192.0.2.54
+DBhandler:
+  handler: wsgi
+  dbfile: /var/www/acme2certifier/acme_srv.db
+Order:
+  tnauthlist_support: false
+  allowed_domainlist:
+    - "*.example.local"
+    - foo.bar.local
+  allowed_iplist:
+    - 10.0.0.0/8
+  header_info_list:
+    - HTTP_USER_AGENT
+  profiles:
+    short: http://example.local/short
+    long: http://example.local/long
+"""
+
+    def _write_acme_cfg(self, directory, name, content):
+        """Write UTF-8 config text and return the path."""
+        cfg_path = os.path.join(directory, name)
+        with open(cfg_path, "w", encoding="utf8") as handle:
+            handle.write(content)
+        return cfg_path
+
+    def _reset_acme_srv_cfg_load_state(self, config_mod):
+        """Clear once-per-path load/warn state."""
+        config_mod._ACME_SRV_CFG_LOADED.clear()
+        config_mod._ACME_SRV_CFG_PATH_WARNED.clear()
+        config_mod._LAST_LOADED_CFG = None
+
+    def test_611_load_config_ini_regression(self):
+        """INI acme_srv.cfg still loads via ConfigParser"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.cfg", self._YAML_CFG_INI)
+            config = self.load_config(self.logger, None, cfg_path)
+        self.assertFalse(config.getboolean("DEFAULT", "debug"))
+        self.assertEqual(config.get("DBhandler", "handler"), "wsgi")
+        self.assertFalse(config.getboolean("Order", "tnauthlist_support"))
+
+    def test_612_load_config_yaml_equivalent(self):
+        """YAML loads the same options as the equivalent INI"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            ini_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.cfg", self._YAML_CFG_INI),
+            )
+            yaml_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.yaml", self._YAML_CFG_YAML),
+            )
+        self.assertEqual(
+            yaml_cfg.getboolean("DEFAULT", "debug"),
+            ini_cfg.getboolean("DEFAULT", "debug"),
+        )
+        self.assertEqual(
+            yaml_cfg.get("DBhandler", "dbfile"),
+            ini_cfg.get("DBhandler", "dbfile"),
+        )
+        self.assertEqual(
+            yaml_cfg.getboolean("Order", "tnauthlist_support"),
+            ini_cfg.getboolean("Order", "tnauthlist_support"),
+        )
+
+    def test_613_detect_ini_content_with_yaml_name(self):
+        """Content starting with [ is INI even when the name is .yaml"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self.assertEqual(
+            config_mod._detect_config_format(
+                "[DEFAULT]\ndebug: False\n", "acme_srv.yaml"
+            ),
+            "ini",
+        )
+
+    def test_614_detect_yaml_content_with_cfg_name(self):
+        """Top-level SectionName: is YAML even when the name is .cfg"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self.assertEqual(
+            config_mod._detect_config_format(
+                "DEFAULT:\n  debug: false\n", "acme_srv.cfg"
+            ),
+            "yaml",
+        )
+
+    def test_615_load_ini_named_yaml(self):
+        """INI bytes in a .yaml file are parsed as INI"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.yaml", self._YAML_CFG_INI)
+            config = self.load_config(self.logger, None, cfg_path)
+            abs_path = os.path.abspath(cfg_path)
+        self.assertEqual(config_mod._LAST_LOADED_CFG, (abs_path, "explicit", "ini"))
+        self.assertFalse(config.getboolean("DEFAULT", "debug"))
+
+    def test_616_load_yaml_named_cfg(self):
+        """YAML bytes in a .cfg file are parsed as YAML"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.cfg", self._YAML_CFG_YAML)
+            config = self.load_config(self.logger, None, cfg_path)
+            abs_path = os.path.abspath(cfg_path)
+        self.assertEqual(config_mod._LAST_LOADED_CFG, (abs_path, "explicit", "yaml"))
+        self.assertFalse(config.getboolean("DEFAULT", "debug"))
+
+    def test_617_native_yaml_allowed_domainlist_matches_ini_json(self):
+        """Native YAML allowed_domainlist equals INI JSON via the helper"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            ini_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.cfg", self._YAML_CFG_INI),
+            )
+            yaml_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.yaml", self._YAML_CFG_YAML),
+            )
+        self.assertEqual(
+            self.config_allowed_domainlist_load(self.logger, yaml_cfg),
+            self.config_allowed_domainlist_load(self.logger, ini_cfg),
+        )
+        self.assertEqual(
+            self.config_allowed_domainlist_load(self.logger, yaml_cfg),
+            ["*.example.local", "foo.bar.local"],
+        )
+
+    def test_618_native_yaml_allowed_iplist_matches_ini_json(self):
+        """Native YAML allowed_iplist equals INI JSON via the helper"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            ini_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.cfg", self._YAML_CFG_INI),
+            )
+            yaml_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.yaml", self._YAML_CFG_YAML),
+            )
+        self.assertEqual(
+            self.config_allowed_iplist_load(self.logger, yaml_cfg),
+            self.config_allowed_iplist_load(self.logger, ini_cfg),
+        )
+
+    def test_619_native_yaml_header_info_list_matches_ini_json(self):
+        """Native YAML header_info_list equals INI JSON via the helper"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            ini_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.cfg", self._YAML_CFG_INI),
+            )
+            yaml_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.yaml", self._YAML_CFG_YAML),
+            )
+        self.assertEqual(
+            self.config_headerinfo_load(self.logger, yaml_cfg),
+            self.config_headerinfo_load(self.logger, ini_cfg),
+        )
+        self.assertEqual(
+            self.config_headerinfo_load(self.logger, yaml_cfg),
+            "HTTP_USER_AGENT",
+        )
+
+    def test_620_native_yaml_profiles_match_ini_json(self):
+        """Native YAML profiles mapping equals INI JSON via the helper"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            ini_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.cfg", self._YAML_CFG_INI),
+            )
+            yaml_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.yaml", self._YAML_CFG_YAML),
+            )
+        self.assertEqual(
+            self.config_profile_load(self.logger, yaml_cfg),
+            self.config_profile_load(self.logger, ini_cfg),
+        )
+        self.assertEqual(
+            self.config_profile_load(self.logger, yaml_cfg),
+            {
+                "short": "http://example.local/short",
+                "long": "http://example.local/long",
+            },
+        )
+
+    def test_621_native_yaml_dns_server_list_matches_ini_json(self):
+        """Native YAML dns_server_list equals INI JSON via the helper"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            ini_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.cfg", self._YAML_CFG_INI),
+            )
+            yaml_cfg = self.load_config(
+                self.logger,
+                None,
+                self._write_acme_cfg(tmpdir, "acme_srv.yaml", self._YAML_CFG_YAML),
+            )
+        yaml_list, _pause = self.config_dns_server_list_load(self.logger, yaml_cfg)
+        ini_list, _pause_ini = self.config_dns_server_list_load(self.logger, ini_cfg)
+        self.assertEqual(yaml_list, ini_list)
+        self.assertEqual(yaml_list, ["192.0.2.53", "192.0.2.54"])
+
+    def test_622_invalid_yaml_raises(self):
+        """Malformed YAML aborts load instead of returning a partial config"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(
+                tmpdir, "acme_srv.yaml", "DEFAULT:\n  debug: [\n"
+            )
+            with self.assertRaises(yaml.YAMLError):
+                self.load_config(self.logger, None, cfg_path)
+
+    def test_623_duplicate_yaml_keys_raise(self):
+        """Duplicate YAML keys fail the load"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(
+                tmpdir,
+                "acme_srv.yaml",
+                "Order:\n  allowed_domainlist: []\n  allowed_domainlist: []\n",
+            )
+            with self.assertRaisesRegex(
+                yaml.constructor.ConstructorError, "duplicate key"
+            ):
+                self.load_config(self.logger, None, cfg_path)
+
+    def test_624_datetime_yaml_value_raises(self):
+        """Unquoted YAML dates are rejected"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(
+                tmpdir, "acme_srv.yaml", "DEFAULT:\n  when: 2024-01-01\n"
+            )
+            with self.assertRaisesRegex(ValueError, "Unsupported YAML type date"):
+                self.load_config(self.logger, None, cfg_path)
+
+    def test_625_non_mapping_yaml_root_raises(self):
+        """A YAML list document cannot become ConfigParser sections"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.yaml", "- foo\n- bar\n")
+            with self.assertRaisesRegex(ValueError, "root must be a mapping"):
+                self.load_config(self.logger, None, cfg_path)
+
+    def test_626_null_yaml_option_omitted_with_warning(self):
+        """YAML null options are skipped and logged"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(
+                tmpdir,
+                "acme_srv.yaml",
+                "DEFAULT:\n  debug: false\n  unused: null\n",
+            )
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                config = self.load_config(self.logger, None, cfg_path)
+        self.assertNotIn("unused", config["DEFAULT"])
+        self.assertFalse(config.getboolean("DEFAULT", "debug"))
+        self.assertTrue(
+            any(
+                "Ignoring null YAML option DEFAULT.unused" in line
+                for line in lcm.output
+            )
+        )
+
+    def test_627_yaml_yes_on_are_booleans(self):
+        """PyYAML 1.1 yes/on values become ConfigParser booleans"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(
+                tmpdir,
+                "acme_srv.yaml",
+                "DEFAULT:\n  debug: yes\nNonce:\n  nonce_check_disable: on\n",
+            )
+            config = self.load_config(self.logger, None, cfg_path)
+        self.assertTrue(config.getboolean("DEFAULT", "debug"))
+        self.assertTrue(config.getboolean("Nonce", "nonce_check_disable"))
+
+    def test_628_discovery_finds_yaml_when_cfg_missing(self):
+        """Default discovery uses acme_srv.yaml when acme_srv.cfg is absent"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+
+        def _isfile_for(path_set):
+            return lambda path: path in path_set
+
+        with patch(
+            "os.path.isfile",
+            side_effect=_isfile_for({"/var/www/acme2certifier/acme_srv.yaml"}),
+        ):
+            self.assertEqual(
+                config_mod._default_acme_srv_cfg_file(self.logger),
+                "/var/www/acme2certifier/acme_srv.yaml",
+            )
+
+    def test_629_discovery_prefers_cfg_over_yaml_same_location(self):
+        """At one location acme_srv.cfg wins over yaml/yml"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+
+        def _isfile_for(path_set):
+            return lambda path: path in path_set
+
+        with patch(
+            "os.path.isfile",
+            side_effect=_isfile_for(
+                {
+                    "/var/www/acme2certifier/acme_srv.cfg",
+                    "/var/www/acme2certifier/acme_srv.yaml",
+                    "/var/www/acme2certifier/acme_srv.yml",
+                }
+            ),
+        ):
+            self.assertEqual(
+                config_mod._default_acme_srv_cfg_file(self.logger),
+                "/var/www/acme2certifier/acme_srv.cfg",
+            )
+
+    def test_630_discovery_prefers_yaml_over_yml(self):
+        """acme_srv.yaml is tried before acme_srv.yml"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+
+        def _isfile_for(path_set):
+            return lambda path: path in path_set
+
+        with patch(
+            "os.path.isfile",
+            side_effect=_isfile_for(
+                {
+                    "/var/www/acme2certifier/acme_srv.yaml",
+                    "/var/www/acme2certifier/acme_srv.yml",
+                }
+            ),
+        ):
+            self.assertEqual(
+                config_mod._default_acme_srv_cfg_file(self.logger),
+                "/var/www/acme2certifier/acme_srv.yaml",
+            )
+
+    def test_631_discovery_fallback_remains_cfg(self):
+        """When nothing exists, discovery still returns the INI fallback path"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        with patch("os.path.isfile", return_value=False):
+            self.assertEqual(
+                config_mod._default_acme_srv_cfg_file(self.logger),
+                "/var/www/acme2certifier/acme_srv.cfg",
+            )
+
+    def test_632_discovery_yaml_at_preferred_beats_cfg_elsewhere(self):
+        """YAML at /var/www wins over cfg at /opt when the DEB path has no cfg"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+
+        def _isfile_for(path_set):
+            return lambda path: path in path_set
+
+        with patch(
+            "os.path.isfile",
+            side_effect=_isfile_for(
+                {
+                    "/var/www/acme2certifier/acme_srv.yaml",
+                    "/opt/acme2certifier/acme_srv.cfg",
+                }
+            ),
+        ):
+            self.assertEqual(
+                config_mod._default_acme_srv_cfg_file(self.logger),
+                "/var/www/acme2certifier/acme_srv.yaml",
+            )
+
+    def test_633_load_log_includes_yaml_format_once_per_path(self):
+        """Successful YAML load logs format at INFO once, then DEBUG"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(
+                tmpdir, "acme_srv.yaml", self._YAML_CFG_YAML
+            )
+            abs_path = os.path.abspath(cfg_path)
+            with self.assertLogs("test_a2c", level="INFO") as lcm1:
+                self.load_config(self.logger, None, cfg_path)
+            self.assertIn(
+                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit, yaml)",
+                lcm1.output,
+            )
+            with self.assertLogs("test_a2c", level="DEBUG") as lcm2:
+                self.load_config(self.logger, None, cfg_path)
+            self.assertFalse(
+                any(
+                    line.startswith("INFO:test_a2c:Loaded acme_srv.cfg")
+                    for line in lcm2.output
+                )
+            )
+            self.assertTrue(
+                any(
+                    f"DEBUG:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit, yaml)"
+                    in line
+                    for line in lcm2.output
+                )
+            )
+
+    def test_634_format_detected_on_every_parse(self):
+        """Format is re-detected on every load_config() call"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(
+                tmpdir, "acme_srv.yaml", self._YAML_CFG_YAML
+            )
+            expected = f"DEBUG:test_a2c:Detected acme_srv config format: yaml (path={cfg_path})"
+            with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+                self.load_config(self.logger, None, cfg_path)
+                self.load_config(self.logger, None, cfg_path)
+        self.assertEqual(lcm.output.count(expected), 2)
+
+    def test_635_ini_parse_failure_retries_yaml(self):
+        """Ambiguous .cfg content that fails INI parse is retried as YAML"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        content = "%YAML 1.1\n---\nDEFAULT:\n  debug: false\n"
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.cfg", content)
+            self.assertEqual(config_mod._detect_config_format(content, cfg_path), "ini")
+            config = self.load_config(self.logger, None, cfg_path)
+        self.assertEqual(config_mod._LAST_LOADED_CFG[2], "yaml")
+        self.assertFalse(config.getboolean("DEFAULT", "debug"))
+
+    def test_636_empty_file_is_ini(self):
+        """Empty content keeps the historical empty-INI behavior"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.yaml", "")
+            config = self.load_config(self.logger, None, cfg_path)
+        self.assertEqual(config_mod._LAST_LOADED_CFG[2], "ini")
+        self.assertEqual(config.sections(), [])
+
+    def test_637_missing_file_warns_and_returns_empty(self):
+        """Unreadable path logs a warning and returns an empty ConfigParser"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = os.path.join(tmpdir, "missing.cfg")
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                config = self.load_config(self.logger, None, cfg_path)
+        self.assertEqual(config.sections(), [])
+        self.assertTrue(
+            any("could not read config file" in line for line in lcm.output)
+        )
+
+    def test_638_unique_key_loader_non_mapping_node(self):
+        """_UniqueKeyLoader.construct_mapping delegates non-mapping nodes"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        loader = config_mod._UniqueKeyLoader("")
+        node = yaml.nodes.ScalarNode("tag:yaml.org,2002:str", "foo")
+        with self.assertRaises(yaml.constructor.ConstructorError):
+            loader.construct_mapping(node)
+
+    def test_639_detect_comments_only_is_ini(self):
+        """Comment-only content is treated as empty INI"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self.assertEqual(
+            config_mod._detect_config_format("# only\n; also\n\n", "acme_srv.cfg"),
+            "ini",
+        )
+
+    def test_640_detect_ambiguous_yaml_extension(self):
+        """Ambiguous content with a .yaml name is detected as YAML"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self.assertEqual(
+            config_mod._detect_config_format("debug = false\n", "acme_srv.yaml"),
+            "yaml",
+        )
+
+    def test_641_yaml_non_string_option_key_raises(self):
+        """Integer YAML option names fail the load"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(
+                tmpdir, "acme_srv.yaml", "Order:\n  1: foo\n"
+            )
+            with self.assertRaisesRegex(ValueError, "YAML config key must be a string"):
+                self.load_config(self.logger, None, cfg_path)
+
+    def test_642_set_yaml_option_adds_missing_section(self):
+        """_set_yaml_option creates a section when it does not exist"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        config = config_mod._new_config_parser()
+        config_mod._set_yaml_option(config, "Order", "foo", "bar", self.logger)
+        self.assertEqual(config.get("Order", "foo"), "bar")
+
+    def test_643_yaml_empty_document_returns_empty_config(self):
+        """A YAML document with only --- yields an empty ConfigParser"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.yaml", "---\n")
+            config = self.load_config(self.logger, None, cfg_path)
+        self.assertEqual(config_mod._LAST_LOADED_CFG[2], "yaml")
+        self.assertEqual(config.sections(), [])
+
+    def test_644_yaml_non_string_section_key_raises(self):
+        """Integer YAML section names fail the load"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.yaml", "1:\n  foo: bar\n")
+            with self.assertRaisesRegex(ValueError, "YAML config key must be a string"):
+                self.load_config(self.logger, None, cfg_path)
+
+    def test_645_yaml_top_level_scalar_goes_to_default(self):
+        """Root-level scalar keys are stored under DEFAULT"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        self._reset_acme_srv_cfg_load_state(config_mod)
+        with TemporaryDirectory() as tmpdir:
+            cfg_path = self._write_acme_cfg(tmpdir, "acme_srv.yaml", "debug: false\n")
+            config = self.load_config(self.logger, None, cfg_path)
+        self.assertFalse(config.getboolean("DEFAULT", "debug"))
+
+    def test_646_default_deploy_base_dir_fallback_when_dirs_missing(self):
+        """default_deploy_base_dir falls back when deploy roots are absent"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        env = os.environ.copy()
+        env.pop("ACME2CERTIFIER_BASE_DIR", None)
+        with patch.dict(os.environ, env, clear=True):
+            with patch(
+                "acme2certifier.acme_srv.helpers.config.os.path.isdir",
+                return_value=False,
+            ):
+                self.assertEqual(
+                    config_mod.default_deploy_base_dir(),
+                    "/var/www/acme2certifier",
+                )
+
+    def test_647_default_wsgi_dbfile_joins_deploy_base(self):
+        """default_wsgi_dbfile uses default_deploy_base_dir for acme_srv.db"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        with patch(
+            "acme2certifier.acme_srv.helpers.config.default_deploy_base_dir",
+            return_value="/custom/base",
+        ):
+            self.assertEqual(
+                config_mod.default_wsgi_dbfile(),
+                os.path.join("/custom/base", "acme_srv.db"),
+            )
 
 
 if __name__ == "__main__":

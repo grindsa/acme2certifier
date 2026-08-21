@@ -7,6 +7,9 @@ import logging
 import os
 import warnings
 from typing import Any, Dict, List, Optional, Set, Tuple
+
+import yaml
+
 from .plugin_loader import eab_handler_load
 from .global_variables import CONFIGURATION_ERROR_DETAIL, PARSING_ERR_MSG
 
@@ -14,20 +17,47 @@ from .global_variables import CONFIGURATION_ERROR_DETAIL, PARSING_ERR_MSG
 _ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
 # Emit successful load INFO at most once per absolute path per process.
 _ACME_SRV_CFG_LOADED: Set[str] = set()
-# Last successful load (path, source); used after logger_setup.
-_LAST_LOADED_CFG: Optional[Tuple[str, str]] = None
+# Last successful load (path, source, format); used after logger_setup.
+_LAST_LOADED_CFG: Optional[Tuple[str, str, str]] = None
 ACME_SRV_CFG_FILENAME = "acme_srv.cfg"
+ACME_SRV_YAML_FILENAMES = ("acme_srv.yaml", "acme_srv.yml")
+_YAML_CONFIG_EXTENSIONS = {".yaml", ".yml"}
 
 
-def _log_cfg_loaded_once(logger: logging.Logger, cfg_path: str, source: str) -> None:
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """SafeLoader that rejects duplicate mapping keys."""
+
+    def construct_mapping(
+        self, node: yaml.nodes.MappingNode, deep: bool = False
+    ) -> Dict[Any, Any]:
+        if not isinstance(node, yaml.nodes.MappingNode):
+            return super().construct_mapping(node, deep=deep)
+        self.flatten_mapping(node)
+        mapping: Dict[Any, Any] = {}
+        for key_node, value_node in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in mapping:
+                raise yaml.constructor.ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    f"found duplicate key {key!r}",
+                    key_node.start_mark,
+                )
+            mapping[key] = self.construct_object(value_node, deep=deep)
+        return mapping
+
+
+def _log_cfg_loaded_once(
+    logger: logging.Logger, cfg_path: str, source: str, cfg_format: str
+) -> None:
     """Log successful acme_srv.cfg load once per absolute path (then DEBUG)."""
     abs_path = os.path.abspath(cfg_path)
-    message = "Loaded acme_srv.cfg %s (%s)"
+    message = "Loaded acme_srv.cfg %s (%s, %s)"
     if abs_path not in _ACME_SRV_CFG_LOADED:
         _ACME_SRV_CFG_LOADED.add(abs_path)
-        logger.info(message, abs_path, source)
+        logger.info(message, abs_path, source, cfg_format)
     else:
-        logger.debug(message, abs_path, source)
+        logger.debug(message, abs_path, source, cfg_format)
 
 
 def log_loaded_acme_srv_cfg(logger: logging.Logger) -> None:
@@ -37,8 +67,8 @@ def log_loaded_acme_srv_cfg(logger: logging.Logger) -> None:
     configured; this flushes the pending path/source to the app logger.
     """
     if _LAST_LOADED_CFG:
-        path, source = _LAST_LOADED_CFG
-        _log_cfg_loaded_once(logger, path, source)
+        path, source, cfg_format = _LAST_LOADED_CFG
+        _log_cfg_loaded_once(logger, path, source, cfg_format)
 
 
 def config_check(logger: logging.Logger, config_dic: Dict):
@@ -412,18 +442,36 @@ def resolve_config_path(path: Optional[str]) -> Optional[str]:
     return os.path.normpath(os.path.join(base_dir, path))
 
 
+def _acme_srv_config_paths(directory: str) -> Tuple[str, ...]:
+    """Return cfg, then yaml, then yml paths for one directory."""
+    names = (ACME_SRV_CFG_FILENAME,) + ACME_SRV_YAML_FILENAMES
+    return tuple(os.path.join(directory, name) for name in names)
+
+
+def _first_existing_acme_srv_config(directory: str) -> Optional[str]:
+    """First existing acme_srv config in a directory (``.cfg`` wins)."""
+    for path in _acme_srv_config_paths(directory):
+        if os.path.isfile(path):
+            return path
+    return None
+
+
 def _default_acme_srv_cfg_file(
     logger: Optional[logging.Logger] = None,
 ) -> str:
     """Resolve default acme_srv.cfg after the package move.
 
-    Candidates (first existing file wins):
-    1. Preferred OS deploy roots: ``/var/www/acme2certifier/acme_srv.cfg``
-       (DEB) or ``/opt/acme2certifier/acme_srv.cfg`` (RPM)
-    2. Checkout / install root: ``<repo>/acme_srv.cfg``
-    3. Nested deploy paths under ``.../acme_srv/acme_srv.cfg`` (warn)
-    4. Next to the package module: ``.../acme_srv/acme_srv.cfg``
-    5. Legacy repo layout: ``<repo>/acme_srv/acme_srv.cfg`` (warn)
+    Candidates (first existing file wins). At each location ``acme_srv.cfg``
+    is tried before ``acme_srv.yaml`` then ``acme_srv.yml``:
+
+    1. Preferred OS deploy roots: ``/var/www/acme2certifier/`` (DEB) or
+       ``/opt/acme2certifier/`` (RPM)
+    2. Checkout / install root: ``<repo>/``
+    3. Nested deploy paths under ``.../acme_srv/`` (warn)
+    4. Next to the package module: ``.../acme_srv/``
+    5. Legacy repo layout: ``<repo>/acme_srv/`` (warn)
+
+    If nothing exists, fall back to ``/var/www/acme2certifier/acme_srv.cfg``.
     """
     log = logger or logging.getLogger(__name__)
     log.debug("Helper._default_acme_srv_cfg_file() start")
@@ -431,71 +479,230 @@ def _default_acme_srv_cfg_file(
     helpers_dir = os.path.dirname(os.path.abspath(__file__))
     pkg_dir = os.path.dirname(helpers_dir)  # .../acme_srv (new or install tree)
     install_or_repo_root = os.path.dirname(os.path.dirname(pkg_dir))
-    repo_cfg = os.path.join(install_or_repo_root, ACME_SRV_CFG_FILENAME)
+    fallback_cfg = os.path.join("/var/www/acme2certifier", ACME_SRV_CFG_FILENAME)
 
-    preferred_deploy_cfgs = (
-        "/var/www/acme2certifier/acme_srv.cfg",
-        "/opt/acme2certifier/acme_srv.cfg",
-        repo_cfg,
+    preferred_dirs = (
+        "/var/www/acme2certifier",
+        "/opt/acme2certifier",
+        install_or_repo_root,
     )
-    nested_deploy_cfgs = (
-        (
-            "/var/www/acme2certifier/acme_srv/acme_srv.cfg",
-            "/var/www/acme2certifier/acme_srv.cfg",
-        ),
-        (
-            "/opt/acme2certifier/acme_srv/acme_srv.cfg",
-            "/opt/acme2certifier/acme_srv.cfg",
-        ),
+    nested_dirs = (
+        ("/var/www/acme2certifier/acme_srv", "/var/www/acme2certifier"),
+        ("/opt/acme2certifier/acme_srv", "/opt/acme2certifier"),
     )
-    packaged_cfg = os.path.join(pkg_dir, ACME_SRV_CFG_FILENAME)
-    legacy_cfg = os.path.join(install_or_repo_root, "acme_srv", ACME_SRV_CFG_FILENAME)
+    legacy_dir = os.path.join(install_or_repo_root, "acme_srv")
     log.debug(
         "Helper._default_acme_srv_cfg_file(): candidates preferred=%s "
         "nested=%s packaged=%s legacy=%s",
-        preferred_deploy_cfgs,
-        [path for path, _ in nested_deploy_cfgs],
-        packaged_cfg,
-        legacy_cfg,
+        [path for d in preferred_dirs for path in _acme_srv_config_paths(d)],
+        [path for d, _ in nested_dirs for path in _acme_srv_config_paths(d)],
+        _acme_srv_config_paths(pkg_dir),
+        _acme_srv_config_paths(legacy_dir),
     )
 
-    for deploy_cfg in preferred_deploy_cfgs:
-        if os.path.isfile(deploy_cfg):
+    for deploy_dir in preferred_dirs:
+        found = _first_existing_acme_srv_config(deploy_dir)
+        if found:
             log.debug(
                 "Helper._default_acme_srv_cfg_file() ended with preferred %s",
-                deploy_cfg,
+                found,
             )
-            return deploy_cfg
+            return found
 
-    for nested_cfg, preferred_cfg in nested_deploy_cfgs:
-        if os.path.isfile(nested_cfg):
-            _warn_acme_srv_cfg_path(nested_cfg, preferred_cfg, log)
+    for nested_dir, preferred_dir in nested_dirs:
+        found = _first_existing_acme_srv_config(nested_dir)
+        if found:
+            preferred = os.path.join(preferred_dir, os.path.basename(found))
+            _warn_acme_srv_cfg_path(found, preferred, log)
             log.debug(
                 "Helper._default_acme_srv_cfg_file() ended with nested %s",
-                nested_cfg,
+                found,
             )
-            return nested_cfg
+            return found
 
-    if os.path.isfile(packaged_cfg):
+    packaged = _first_existing_acme_srv_config(pkg_dir)
+    if packaged:
         log.debug(
             "Helper._default_acme_srv_cfg_file() ended with packaged %s",
-            packaged_cfg,
+            packaged,
         )
-        return packaged_cfg
+        return packaged
 
-    if os.path.isfile(legacy_cfg):
-        _warn_acme_srv_cfg_path(legacy_cfg, repo_cfg, log)
+    legacy = _first_existing_acme_srv_config(legacy_dir)
+    if legacy:
+        preferred = os.path.join(install_or_repo_root, os.path.basename(legacy))
+        _warn_acme_srv_cfg_path(legacy, preferred, log)
         log.debug(
             "Helper._default_acme_srv_cfg_file() ended with legacy %s",
-            legacy_cfg,
+            legacy,
         )
-        return legacy_cfg
+        return legacy
 
     log.debug(
         "Helper._default_acme_srv_cfg_file() ended with fallback %s",
-        preferred_deploy_cfgs[0],
+        fallback_cfg,
     )
-    return preferred_deploy_cfgs[0]
+    return fallback_cfg
+
+
+def _new_config_parser() -> configparser.ConfigParser:
+    """Return an empty ConfigParser matching historical load_config() settings."""
+    config = configparser.ConfigParser(interpolation=None)
+    config.optionxform = str
+    return config
+
+
+def _read_config_file(path: str) -> str:
+    """Read a config file as UTF-8. ``utf-8-sig`` strips a leading BOM."""
+    with open(path, encoding="utf-8-sig") as handle:
+        return handle.read()
+
+
+def _detect_config_format(content: str, path: str) -> str:
+    """Detect INI vs YAML from raw content on every call.
+
+    Extension (``.yaml``/``.yml`` vs ``.cfg``) is a tie-breaker only.
+    """
+    text = content.lstrip("\ufeff").lstrip()
+    if not text:
+        return "ini"
+
+    first_line = ""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or stripped.startswith(";"):
+            continue
+        first_line = stripped
+        break
+    if not first_line:
+        return "ini"
+
+    if first_line.startswith("["):
+        return "ini"
+    if (
+        first_line.startswith("{")
+        or first_line.startswith("---")
+        or first_line.startswith("-")
+    ):
+        return "yaml"
+    if ":" in first_line:
+        return "yaml"
+
+    ext = os.path.splitext(path)[1].lower()
+    if ext in _YAML_CONFIG_EXTENSIONS:
+        return "yaml"
+    return "ini"
+
+
+def _parse_ini(content: str) -> configparser.ConfigParser:
+    """Parse INI text into ConfigParser."""
+    config = _new_config_parser()
+    config.read_string(content)
+    return config
+
+
+def _yaml_value_to_option(
+    value: Any,
+    logger: logging.Logger,
+    section: str,
+    option: str,
+) -> Optional[str]:
+    """Normalize a YAML value to a ConfigParser option string.
+
+    ``null`` is omitted (returns ``None``) with a warning. Lists and dicts are
+    ``json.dumps``-encoded so existing ``json.loads`` helpers keep working.
+    Unsupported types (including ``datetime``/``date``) raise ``ValueError``.
+    """
+    if value is None:
+        logger.warning("Ignoring null YAML option %s.%s", section, option)
+        return None
+    if isinstance(value, bool):
+        return "True" if value else "False"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, dict)):
+        return json.dumps(value)
+    raise ValueError(
+        f"Unsupported YAML type {type(value).__name__} for {section}.{option}"
+    )
+
+
+def _set_yaml_option(
+    config: configparser.ConfigParser,
+    section: str,
+    option: Any,
+    value: Any,
+    logger: logging.Logger,
+) -> None:
+    """Set one normalized YAML value on ``config``."""
+    if not isinstance(option, str):
+        raise ValueError(
+            f"YAML config key must be a string, got {type(option).__name__}: {option!r}"
+        )
+    converted = _yaml_value_to_option(value, logger, section, option)
+    if converted is None:
+        return
+    if section != "DEFAULT" and not config.has_section(section):
+        config.add_section(section)
+    config.set(section, option, converted)
+
+
+def _parse_yaml(content: str, logger: logging.Logger) -> configparser.ConfigParser:
+    """Parse YAML text and normalize it to ConfigParser.
+
+    Mapping values become sections. Scalar, list, and null values at the root
+    are stored under ``DEFAULT``. Non-mapping roots raise ``ValueError``.
+    """
+    data = yaml.load(content, Loader=_UniqueKeyLoader)
+    config = _new_config_parser()
+    if data is None:
+        return config
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"acme_srv YAML config root must be a mapping, got {type(data).__name__}"
+        )
+    for raw_key, value in data.items():
+        if not isinstance(raw_key, str):
+            raise ValueError(
+                "YAML config key must be a string, "
+                f"got {type(raw_key).__name__}: {raw_key!r}"
+            )
+        if isinstance(value, dict):
+            if raw_key != "DEFAULT" and not config.has_section(raw_key):
+                config.add_section(raw_key)
+            for option, option_value in value.items():
+                _set_yaml_option(config, raw_key, option, option_value, logger)
+        else:
+            _set_yaml_option(config, "DEFAULT", raw_key, value, logger)
+    return config
+
+
+def _parse_config_content(
+    content: str, path: str, logger: logging.Logger
+) -> Tuple[configparser.ConfigParser, str]:
+    """Detect format, parse, and return ``(config, format)``.
+
+    Format is re-detected on every call. If INI parsing fails, the same content
+    is retried as YAML. YAML parse errors are not caught.
+    """
+    cfg_format = _detect_config_format(content, path)
+    logger.debug(
+        "Detected acme_srv config format: %s (path=%s)",
+        cfg_format,
+        path,
+    )
+    if cfg_format == "yaml":
+        return _parse_yaml(content, logger), "yaml"
+    try:
+        return _parse_ini(content), "ini"
+    except configparser.Error:
+        logger.debug(
+            "INI parse failed, retrying as YAML (path=%s)",
+            path,
+        )
+        return _parse_yaml(content, logger), "yaml"
 
 
 def load_config(
@@ -526,24 +733,31 @@ def load_config(
         source = "default"
 
     log.debug("load_config(%s:%s)", mfilter, cfg_file)
-    config = configparser.ConfigParser(interpolation=None)
-    config.optionxform = str
-    read_ok = config.read(cfg_file, encoding="utf8")
-    if read_ok:
-        abs_path = os.path.abspath(cfg_file)
-        _LAST_LOADED_CFG = (abs_path, source)
-        # Only emit INFO when a configured app logger was passed. Module-level
-        # load_config() runs before logger_setup(); flush via
-        # log_loaded_acme_srv_cfg() afterwards.
-        if logger is not None:
-            _log_cfg_loaded_once(logger, abs_path, source)
-        else:
-            log.debug("Loaded acme_srv.cfg %s (%s)", abs_path, source)
-    else:
+    try:
+        content = _read_config_file(cfg_file)
+    except OSError:
         log.warning(
             "Helper.load_config(): could not read config file %s",
             cfg_file,
         )
+        log.debug(
+            "Helper.load_config() ended sections=%s",
+            [],
+        )
+        # needed for backward compatibility - returns an empty configparser object
+        return _new_config_parser()
+
+    config, cfg_format = _parse_config_content(content, cfg_file, log)
+    abs_path = os.path.abspath(cfg_file)
+    _LAST_LOADED_CFG = (abs_path, source, cfg_format)
+
+    # Only emit INFO when a configured app logger was passed. Module-level
+    # load_config() runs before logger_setup(); flush via
+    # log_loaded_acme_srv_cfg() afterwards.
+    if logger is not None:
+        _log_cfg_loaded_once(logger, abs_path, source, cfg_format)
+    else:
+        log.debug("Loaded acme_srv.cfg %s (%s, %s)", abs_path, source, cfg_format)
     log.debug(
         "Helper.load_config() ended sections=%s",
         list(config.sections()),

@@ -136,6 +136,8 @@ acme_srv/certifier_ca_handler.py
 acme_srv/acme_srv.cfg
 # Local checkout config at repo root (preferred over acme_srv/acme_srv.cfg)
 /acme_srv.cfg
+/acme_srv.yaml
+/acme_srv.yml
 acme_srv/wsgi_handler.py
 acme_srv/django_handler.py
 acme_srv/a2c_response.py
@@ -176,6 +178,7 @@ acme_srv/acme_srv.db.old.*
 *.key
 *.db-wal
 *.db-shm
+*.old
 settings.json
 coverage.lcov
 .github/acme2certifier.pem
