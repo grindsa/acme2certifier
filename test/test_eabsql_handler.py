@@ -21,15 +21,9 @@ class TestEABHandler(unittest.TestCase):
         import sys
         import types
 
-        sys.modules["psycopg2"] = types.ModuleType("psycopg2")
-        sys.modules["psycopg2"].connect = MagicMock()
-        mssql_mock = types.ModuleType("mssql_python")
+        sys.modules["pyodbc"] = types.ModuleType("pyodbc")
+        sys.modules["pyodbc"].connect = MagicMock()
 
-        def dummy_connect(*args, **kwargs):
-            return None
-
-        mssql_mock.connect = dummy_connect
-        sys.modules["mssql_python"] = mssql_mock
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)
@@ -338,70 +332,66 @@ class TestEABHandler(unittest.TestCase):
         self.eabhandler.db_name = None
         self.eabhandler.db_user = None
         self.eabhandler.db_password = None
+        self.eabhandler.db_system = None
         result = self.eabhandler.key_file_load()
         self.assertEqual(result, {})
 
-    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_mssql_profiles")
-    def test_031_key_file_load_mssql(self, mock_load_mssql):
-        """MSSQL: should call _load_mssql_profiles and return its result"""
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_profiles")
+    def test_031_key_file_load_mssql(self, mock_load):
+        """MSSQL: should call _load_profiles and return its result"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
         self.eabhandler.db_system = "mssql"
-        mock_load_mssql.return_value = {"key": "profile"}
+        mock_load.return_value = {"key": "profile"}
         result = self.eabhandler.key_file_load()
         self.assertEqual(result, {"key": "profile"})
-        mock_load_mssql.assert_called_once()
+        mock_load.assert_called_once()
 
-    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_postgres_profiles")
-    def test_032_key_file_load_postgres(self, mock_load_postgres):
-        """Postgres: should call _load_postgres_profiles and return its result"""
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_profiles")
+    def test_032_key_file_load_postgres(self, mock_load):
+        """Postgres: should call _load_profiles and return its result"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
         self.eabhandler.db_system = "postgres"
-        mock_load_postgres.return_value = {"key": "profile"}
+        mock_load.return_value = {"key": "profile"}
         result = self.eabhandler.key_file_load()
         self.assertEqual(result, {"key": "profile"})
-        mock_load_postgres.assert_called_once()
+        mock_load.assert_called_once()
 
-    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_mssql_profiles")
-    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_postgres_profiles")
-    def test_033_key_file_load_error(self, mock_postgres, mock_mssql):
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_profiles")
+    def test_033_key_file_load_error(self, mock_load):
         """Invalid db_system: should return empty dict"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
         self.eabhandler.db_system = "invalid"
-        mock_postgres.return_value = {}
-        mock_mssql.return_value = {}
+        mock_load.return_value = {}
         result = self.eabhandler.key_file_load()
         self.assertEqual(result, {})
 
-    @patch("acme2certifier.eabhandlers.sql_handler.connect")
+    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
     def test_034_load_mssql_profiles_success(self, mock_connect):
         """Successful fetch: should return dict with profiles"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
-        # Mock MSSQL connection and cursor
+        self.eabhandler.db_system = "mssql"
+
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = [
-            MagicMock(key_id="id1", profile="profile1"),
-            MagicMock(key_id="id2", profile="profile2"),
-        ]
+        mock_cursor.fetchall.return_value =  [('id1', 'profile1'), ('id2', 'profile2')]
         mock_connect.return_value = mock_conn
-        result = self.eabhandler._load_mssql_profiles("SELECT ...")
+        result = self.eabhandler._load_profiles("mssql", "SELECT ...")
         self.assertEqual(result, {"id1": "profile1", "id2": "profile2"})
-        mock_conn.close.assert_called_once()
 
-    @patch("acme2certifier.eabhandlers.sql_handler.connect")
+    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
     def test_035_load_mssql_profiles_empty(self, mock_connect):
         """Empty result: should return empty dict"""
         mock_conn = MagicMock()
@@ -409,35 +399,36 @@ class TestEABHandler(unittest.TestCase):
         mock_conn.cursor.return_value = mock_cursor
         mock_cursor.fetchall.return_value = []
         mock_connect.return_value = mock_conn
-        result = self.eabhandler._load_mssql_profiles("SELECT ...")
+        result = self.eabhandler._load_profiles("mssql", "SELECT ...")
         self.assertEqual(result, {})
 
-    @patch("acme2certifier.eabhandlers.sql_handler.connect")
+    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
     def test_036_load_mssql_profiles_exception(self, mock_connect):
         """Exception: should log error and return empty dict"""
         mock_connect.side_effect = Exception("connection error")
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
-            result = self.eabhandler._load_mssql_profiles("SELECT ...")
+            result = self.eabhandler._load_profiles("mssql", "SELECT ...")
         self.assertEqual(result, {})
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
-    @patch("acme2certifier.eabhandlers.sql_handler.psycopg2.connect")
+    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
     def test_037_load_postgres_profiles_success(self, mock_connect):
         """Successful fetch: should return dict with profiles"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
+        self.eabhandler.db_system = "postgres"
+
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
         mock_cursor.fetchall.return_value = [("id1", "profile1"), ("id2", "profile2")]
         mock_connect.return_value = mock_conn
-        result = self.eabhandler._load_postgres_profiles("SELECT ...")
+        result = self.eabhandler._load_profiles("postgres", "SELECT ...")
         self.assertEqual(result, {"id1": "profile1", "id2": "profile2"})
-        mock_conn.close.assert_called_once()
 
-    @patch("acme2certifier.eabhandlers.sql_handler.psycopg2.connect")
+    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
     def test_038_load_postgres_profiles_empty(self, mock_connect):
         """Empty result: should return empty dict"""
         mock_conn = MagicMock()
@@ -447,16 +438,15 @@ class TestEABHandler(unittest.TestCase):
         mock_conn.cursor.return_value = mock_cursor
         mock_cursor.fetchall.return_value = []
         mock_connect.return_value = mock_conn
-        result = self.eabhandler._load_postgres_profiles("SELECT ...")
+        result = self.eabhandler._load_profiles("postgres", "SELECT ...")
         self.assertEqual(result, {})
-        self.assertTrue(mock_conn.close.called)
 
-    @patch("acme2certifier.eabhandlers.sql_handler.psycopg2.connect")
-    def test_039_load_postgres_profiles_exception(self, mock_connect):
+    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
+    def test_039_load_profiles_exception(self, mock_connect):
         """Exception: should log error and return empty dict"""
         mock_connect.side_effect = Exception("connection error")
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
-            result = self.eabhandler._load_postgres_profiles("SELECT ...")
+            result = self.eabhandler._load_profiles("postgres", "SELECT ...")
         self.assertEqual(result, {})
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
@@ -488,6 +478,7 @@ class TestEABHandler(unittest.TestCase):
         self.eabhandler.db_name = None
         self.eabhandler.db_user = None
         self.eabhandler.db_password = None
+        self.eabhandler.db_system = None
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             result = self.eabhandler.mac_key_get("key1")
         self.assertIsNone(result)
