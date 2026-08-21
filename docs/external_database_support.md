@@ -69,35 +69,6 @@ GRANT postgres TO acme2certifier;
 sudo apt-get install python3-django python3-psycopg2
 ```
 
-### When Using SQL Server
-
-_SQL Server support has not been tested in the [release regression](https://github.com/grindsa/acme2certifier/actions/workflows/django_tests.yml) to the same extent as the other two databases._
-
-Note that this part of the guide is written for **Red Hat Enterprise Linux 9**.
-
-It is assumed that SQL Server is already installed and running.
-
-- Open SQL Server Management Studio.
-
-- Create the acme2certifier database and database user:
-
-```SQL
-CREATE DATABASE acme2certifier;
-CREATE LOGIN acme2certifier WITH PASSWORD = 'a2c+passwd';
-CREATE USER acme2certifier FOR LOGIN acme2certifier;
-```
-
-- From Object Explorer, open acme2certifier → Security → Logins → acme2certifier Properties. Under User Mapping, map the user to the database and grant the required roles. Under Server Roles, grant `public` and `sysadmin` as needed so the acme2certifier user has full access to the database.
-
-- Install missing Python modules:
-
-```bash
-pip install mssql-django pyodbc
-sudo dnf install unixODBC
-```
-
-- Follow [these instructions](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver15&tabs=redhat18-install%2Credhat17-install%2Cdebian8-install%2Credhat7-13-install%2Crhel7-offline#17) to install Microsoft ODBC 17.
-
 ## Install and Configure acme2certifier
 
 ### Debian-based deployment
@@ -214,26 +185,6 @@ DATABASES = {
     }
 }
 ```
-
-### Connecting to SQL Server
-
-- Modify `settings.py` and configure your database connection as below:
-
-```python
-DATABASES = {
-    "default": {
-        "ENGINE": "mssql",
-        "NAME": "acme2certifier",
-        "USER": "acme2certifier",
-        "PASSWORD": "a2c+passwd",
-        "HOST": "sqlserverdbsrv,1433",
-        "PORT": "",
-        "OPTIONS": {"driver": "ODBC Driver 17 for SQL Server"},
-    }
-}
-```
-
-- You may also need to disable some SELinux settings for Apache, depending on your server configuration.
 
 ## Finalize acme2certifier configuration
 
