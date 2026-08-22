@@ -99,10 +99,51 @@ jobs:
           mkdir /tmp/acme_sh
           curl -kL https://github.com/grindsa/acme.sh/archive/tnauth_list_support.tar.gz | tar xz -C /tmp/acme_sh --strip-components=1
 
+      - name: "Expect tnauth enrollment to fail without break-glass acknowledgement"
+        id: tnauth_fail_closed
+        continue-on-error: true
+        run: |
+          rm -rf /tmp/acme-sh-home-fail-closed
+          /tmp/acme_sh/acme.sh --home /tmp/acme-sh-home-fail-closed \
+            --server http://127.0.0.1:22280 \
+            --accountemail grindsa-fail@tnauth.acme \
+            --issue -d cert-fail.acme.local \
+            --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
+
+      - name: "Verify tnauth enrollment failed without acknowledgement"
+        run: |
+          if [[ "${{ steps.tnauth_fail_closed.outcome }}" != "failure" ]]; then
+            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK"
+            exit 1
+          fi
+          echo "tnauth enrollment failed as expected without break-glass acknowledgement"
+
+      # tkauth-01 has no authority token verification, so the challenge is refused
+      # unless the break-glass variable acknowledges it. Testing only.
+      - name: "Acknowledge unverified tkauth-01 authority tokens"
+        working-directory: examples/Docker
+        run: |
+          cat <<'EOF' > docker-compose.override.yml
+          services:
+            acme-srv:
+              environment:
+                ACME2CERTIFIER_I_KNOW_THE_RISK: "1"
+          EOF
+          docker compose up -d --force-recreate --no-build
+
+      - name: "Wait for ACME directory after restart"
+        run: |
+          curl -f --retry 30 --retry-delay 2 --retry-connrefused \
+            http://localhost:22280/directory
+
       - name: "Enroll certificate using tnauth identifier"
         run: |
-          cd /tmp/acme_sh
-          /tmp/acme_sh/acme.sh --server http://127.0.0.1:22280 --accountemail grindsa@tnauth.acme --issue -d cert.acme.local --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
+          rm -rf /tmp/acme-sh-home-acknowledged
+          /tmp/acme_sh/acme.sh --home /tmp/acme-sh-home-acknowledged \
+            --server http://127.0.0.1:22280 \
+            --accountemail grindsa@tnauth.acme \
+            --issue -d cert.acme.local \
+            --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -177,10 +218,48 @@ jobs:
           mkdir /tmp/acme_sh
           curl -kL https://github.com/grindsa/acme.sh/archive/tnauth_list_support.tar.gz | tar xz -C /tmp/acme_sh --strip-components=1
 
+      - name: "Expect tnauth enrollment to fail without break-glass acknowledgement"
+        id: tnauth_fail_closed
+        continue-on-error: true
+        run: |
+          rm -rf /tmp/acme-sh-home-fail-closed
+          /tmp/acme_sh/acme.sh --home /tmp/acme-sh-home-fail-closed \
+            --server http://127.0.0.1:22280 \
+            --accountemail grindsa-fail@tnauth.acme \
+            --issue -d cert-fail.acme.local \
+            --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
+
+      - name: "Verify tnauth enrollment failed without acknowledgement"
+        run: |
+          if [[ "${{ steps.tnauth_fail_closed.outcome }}" != "failure" ]]; then
+            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK"
+            exit 1
+          fi
+          echo "tnauth enrollment failed as expected without break-glass acknowledgement"
+
+      # tkauth-01 has no authority token verification, so the challenge is refused
+      # unless the break-glass variable acknowledges it. Testing only.
+      - name: "Acknowledge unverified tkauth-01 authority tokens"
+        run: |
+          docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+            printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+              > /etc/systemd/system.conf.d/a2c-tkauth.conf && \
+            systemctl daemon-reexec'
+          docker exec acme-srv systemctl restart acme2certifier.service
+
+      - name: "Wait for ACME directory after restart"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          CHECK_HTTPS: "false"
+
       - name: "Enroll certificate using tnauth identifier"
         run: |
-          cd /tmp/acme_sh
-          /tmp/acme_sh/acme.sh --server http://127.0.0.1:22280 --accountemail grindsa@tnauth.acme --issue -d cert.acme.local --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
+          rm -rf /tmp/acme-sh-home-acknowledged
+          /tmp/acme_sh/acme.sh --home /tmp/acme-sh-home-acknowledged \
+            --server http://127.0.0.1:22280 \
+            --accountemail grindsa@tnauth.acme \
+            --issue -d cert.acme.local \
+            --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -251,10 +330,48 @@ jobs:
           mkdir /tmp/acme_sh
           curl -kL https://github.com/grindsa/acme.sh/archive/tnauth_list_support.tar.gz | tar xz -C /tmp/acme_sh --strip-components=1
 
+      - name: "Expect tnauth enrollment to fail without break-glass acknowledgement"
+        id: tnauth_fail_closed
+        continue-on-error: true
+        run: |
+          rm -rf /tmp/acme-sh-home-fail-closed
+          /tmp/acme_sh/acme.sh --home /tmp/acme-sh-home-fail-closed \
+            --server http://127.0.0.1:22280 \
+            --accountemail grindsa-fail@tnauth.acme \
+            --issue -d cert-fail.acme.local \
+            --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
+
+      - name: "Verify tnauth enrollment failed without acknowledgement"
+        run: |
+          if [[ "${{ steps.tnauth_fail_closed.outcome }}" != "failure" ]]; then
+            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK"
+            exit 1
+          fi
+          echo "tnauth enrollment failed as expected without break-glass acknowledgement"
+
+      # tkauth-01 has no authority token verification, so the challenge is refused
+      # unless the break-glass variable acknowledges it. Testing only.
+      - name: "Acknowledge unverified tkauth-01 authority tokens"
+        run: |
+          docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+            printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+              > /etc/systemd/system.conf.d/a2c-tkauth.conf && \
+            systemctl daemon-reexec'
+          docker exec acme-srv systemctl restart acme2certifier.service
+
+      - name: "Wait for ACME directory after restart"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          CHECK_HTTPS: "false"
+
       - name: "Enroll certificate using tnauth identifier"
         run: |
-          cd /tmp/acme_sh
-          /tmp/acme_sh/acme.sh --server http://127.0.0.1:22280 --accountemail grindsa@tnauth.acme --issue -d cert.acme.local --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
+          rm -rf /tmp/acme-sh-home-acknowledged
+          /tmp/acme_sh/acme.sh --home /tmp/acme-sh-home-acknowledged \
+            --server http://127.0.0.1:22280 \
+            --accountemail grindsa@tnauth.acme \
+            --issue -d cert.acme.local \
+            --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
 
       - name: "Channel teardown"
         if: ${{ always() }}
