@@ -132,9 +132,7 @@ jobs:
           docker compose up -d --force-recreate --no-build
 
       - name: "Wait for ACME directory after restart"
-        run: |
-          curl -f --retry 30 --retry-delay 2 --retry-connrefused \
-            http://localhost:22280/directory
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Enroll certificate using tnauth identifier"
         run: |
@@ -351,13 +349,20 @@ jobs:
 
       # tkauth-01 has no authority token verification, so the challenge is refused
       # unless the break-glass variable acknowledges it. Testing only.
+      # apache2/mod_wsgi has no acme2certifier.service — restart apache2 instead.
       - name: "Acknowledge unverified tkauth-01 authority tokens"
         run: |
           docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
             printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
               > /etc/systemd/system.conf.d/a2c-tkauth.conf && \
             systemctl daemon-reexec'
-          docker exec acme-srv systemctl restart acme2certifier.service
+          if [[ "$WEBSRV" == "apache2" ]]; then
+            docker exec acme-srv systemctl restart apache2
+          else
+            docker exec acme-srv systemctl restart acme2certifier.service
+          fi
+        env:
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "Wait for ACME directory after restart"
         uses: ./.github/actions/wait_for_directory
