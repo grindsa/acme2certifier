@@ -356,6 +356,20 @@ class DBstore(object):
         self.logger.debug("DBStore.certificate_add() ended with :%s", obj.id)
         return obj.id
 
+    def certificate_replaced_update(self, cert_name: str) -> int:
+        """Set replaced=True for an existing certificate; leave other columns unchanged."""
+        self.logger.debug("DBStore.certificate_replaced_update(%s)", cert_name)
+        cert = Certificate.objects.filter(name=cert_name).first()
+        if not cert:
+            self.logger.debug("DBStore.certificate_replaced_update() ended with: 0")
+            return 0
+        cert.replaced = True
+        cert.save(update_fields=["replaced"])
+        self.logger.debug(
+            "DBStore.certificate_replaced_update() ended with: %s", cert.id
+        )
+        return cert.id
+
     def certificate_account_check(self, account_name: str, certificate: str) -> str:
         """check issuer against certificate"""
         self.logger.debug("DBStore.certificate_account_check(%s)", account_name)

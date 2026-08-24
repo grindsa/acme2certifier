@@ -450,8 +450,8 @@ def renewalinfo(environ, start_response):
         if environ["REQUEST_METHOD"] == "POST":
             request_body = get_request_body(environ)
             response_dic = renewalinfo_.update(request_body)
-            # create header
-            headers = create_header(response_dic, False)
+            error_body = response_dic.get("code", 200) >= 400 and "data" in response_dic
+            headers = create_header(response_dic, error_body)
             start_response(
                 f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
             )
@@ -460,6 +460,8 @@ def renewalinfo(environ, start_response):
             log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
+            if error_body:
+                return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
             return []
 
         elif environ["REQUEST_METHOD"] == "GET":

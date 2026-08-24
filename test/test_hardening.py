@@ -31,35 +31,35 @@ from acme2certifier.acme_srv.renewalinfo import Renewalinfo
 
 
 class TestResourceOwnershipHelper:
-    def test_resource_owner_matches_equal_accounts(self) -> None:
+    def test_001_owner_matches_equal_accounts(self) -> None:
         assert resource_owner_matches("acct-a", "acct-a") is True
 
-    def test_resource_owner_matches_different_accounts(self) -> None:
+    def test_002_owner_matches_different_accounts(self) -> None:
         assert resource_owner_matches("acct-a", "acct-b") is False
 
-    def test_resource_owner_matches_missing_requester(self) -> None:
+    def test_003_owner_matches_missing_requester(self) -> None:
         assert resource_owner_matches(None, "acct-a") is False
         assert resource_owner_matches("", "acct-a") is False
 
-    def test_resource_owner_matches_missing_owner(self) -> None:
+    def test_004_owner_matches_missing_owner(self) -> None:
         assert resource_owner_matches("acct-a", None) is False
         assert resource_owner_matches("acct-a", "") is False
 
-    def test_ownership_unauthorized_tuple(self) -> None:
+    def test_005_unauthorized_tuple(self) -> None:
         assert ownership_unauthorized() == (
             403,
             UNAUTHORIZED_TYPE,
             OWNERSHIP_DENIED_DETAIL,
         )
 
-    def test_ownership_lookup_failed_tuple(self) -> None:
+    def test_006_lookup_failed_tuple(self) -> None:
         code, msg, _detail = ownership_lookup_failed()
         assert code == 500
         assert msg == "urn:ietf:params:acme:error:serverInternal"
 
 
 class TestTkauthFailClosed:
-    def test_perform_validation_fails_closed_without_ack(self) -> None:
+    def test_007_validation_fails_closed_without_ack(self) -> None:
         logger = Mock(spec=logging.Logger)
         validator = TkauthChallengeValidator(logger)
         context = ChallengeContext(
@@ -75,7 +75,7 @@ class TestTkauthFailClosed:
         assert result.invalid is True
         assert result.error_message == NOT_IMPLEMENTED_MSG
 
-    def test_perform_validation_succeeds_when_acknowledged(self) -> None:
+    def test_008_validation_succeeds_when_acknowledged(self) -> None:
         logger = logging.getLogger("test_hardening_tkauth")
         validator = TkauthChallengeValidator(logger)
         context = ChallengeContext(
@@ -95,7 +95,9 @@ class TestOrderResourceOwnership:
     @pytest.fixture
     def order(self):
         models_mock = MagicMock()
-        with patch.dict("sys.modules", {"acme2certifier.acme_srv.db_handler": models_mock}):
+        with patch.dict(
+            "sys.modules", {"acme2certifier.acme_srv.db_handler": models_mock}
+        ):
             logging.basicConfig(level=logging.CRITICAL)
             logger = logging.getLogger("test_hardening_order")
             from acme2certifier.acme_srv.order import Order
@@ -111,7 +113,7 @@ class TestOrderResourceOwnership:
             }
             yield order_obj
 
-    def test_cross_account_order_request_denied(self, order) -> None:
+    def test_009_account_order_request_denied(self, order) -> None:
         order.message.check.return_value = (
             200,
             None,
@@ -124,7 +126,9 @@ class TestOrderResourceOwnership:
             order, "get_order_details", return_value={"status": "ready"}
         ), patch.object(
             order, "_get_order_account_name", return_value="victim-acct"
-        ), patch.object(order, "_process_order_request") as mock_process:
+        ), patch.object(
+            order, "_process_order_request"
+        ) as mock_process:
             order.message.prepare_response.side_effect = lambda resp, status, **_: {
                 **resp,
                 **status,
@@ -134,7 +138,7 @@ class TestOrderResourceOwnership:
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
 
-    def test_same_account_order_request_allowed(self, order) -> None:
+    def test_010_account_order_request_allowed(self, order) -> None:
         order.message.check.return_value = (
             200,
             None,
@@ -155,11 +159,13 @@ class TestOrderResourceOwnership:
             order,
             "_process_order_request",
             return_value=(200, None, None, None),
-        ), patch.object(order, "get_order_details", return_value={"status": "ready"}):
+        ), patch.object(
+            order, "get_order_details", return_value={"status": "ready"}
+        ):
             result = order.parse_order_content("content")
         assert result["code"] == 200
 
-    def test_order_owner_lookup_unavailable_denied(self, order) -> None:
+    def test_011_owner_lookup_unavailable_denied(self, order) -> None:
         order.message.check.return_value = (
             200,
             None,
@@ -206,7 +212,7 @@ class TestCertificateResourceOwnership:
         )
         yield cert
 
-    def test_cross_account_certificate_download_denied(self, certificate) -> None:
+    def test_012_account_certificate_download_denied(self, certificate) -> None:
         certificate._validate_certificate_request_message = MagicMock(
             return_value=(
                 200,
@@ -225,7 +231,7 @@ class TestCertificateResourceOwnership:
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
 
-    def test_same_account_certificate_download_allowed(self, certificate) -> None:
+    def test_013_account_certificate_download_allowed(self, certificate) -> None:
         certificate._validate_certificate_request_message = MagicMock(
             return_value=(
                 200,
@@ -239,7 +245,9 @@ class TestCertificateResourceOwnership:
         with patch.object(
             certificate, "_lookup_certificate_owner_account", return_value="owner"
         ), patch.object(
-            certificate, "get_certificate_details", return_value={"code": 200, "data": "pem"}
+            certificate,
+            "get_certificate_details",
+            return_value={"code": 200, "data": "pem"},
         ):
             result = certificate.process_certificate_request("content")
         assert result["code"] == 200
@@ -270,7 +278,7 @@ class TestChallengeResourceOwnership:
         )
         yield ch
 
-    def test_cross_account_challenge_post_denied(self, challenge) -> None:
+    def test_014_account_challenge_post_denied(self, challenge) -> None:
         challenge.message.check.return_value = (
             200,
             None,
@@ -287,7 +295,7 @@ class TestChallengeResourceOwnership:
         mock_handle.assert_not_called()
         assert result["code"] == 403
 
-    def test_same_account_challenge_post_allowed(self, challenge) -> None:
+    def test_015_account_challenge_post_allowed(self, challenge) -> None:
         challenge.message.check.return_value = (
             200,
             None,
@@ -298,7 +306,9 @@ class TestChallengeResourceOwnership:
         )
         challenge.repository.get_challenge_owner_account_name.return_value = "owner"
         with patch.object(
-            challenge, "_handle_challenge_validation_request", return_value={"code": 200}
+            challenge,
+            "_handle_challenge_validation_request",
+            return_value={"code": 200},
         ):
             result = challenge.process_challenge_request("content")
         assert result["code"] == 200
@@ -315,7 +325,7 @@ class TestAuthorizationResourceOwnership:
         auth.business_logic.extract_authorization_name_from_url.return_value = "authz1"
         yield auth
 
-    def test_cross_account_authorization_post_denied(self, authorization) -> None:
+    def test_016_account_authorization_post_denied(self, authorization) -> None:
         authorization.message.check.return_value = (
             200,
             "ok",
@@ -337,7 +347,7 @@ class TestAuthorizationResourceOwnership:
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
 
-    def test_same_account_authorization_post_allowed(self, authorization) -> None:
+    def test_017_account_authorization_post_allowed(self, authorization) -> None:
         authorization.message.check.return_value = (
             200,
             "ok",
@@ -349,7 +359,9 @@ class TestAuthorizationResourceOwnership:
         authorization.repository.find_authorization_by_name.return_value = {
             "order__account__name": "owner"
         }
-        authorization.get_authorization_details = MagicMock(return_value={"status": "valid"})
+        authorization.get_authorization_details = MagicMock(
+            return_value={"status": "valid"}
+        )
         authorization.message.prepare_response.side_effect = lambda resp, status, **_: {
             **resp,
             **status,
@@ -357,7 +369,7 @@ class TestAuthorizationResourceOwnership:
         result = authorization.handle_post_request("content")
         assert result["code"] == 200
 
-    def test_authorization_owner_lookup_db_error_returns_500(self, authorization) -> None:
+    def test_018_owner_lookup_db_error_returns_500(self, authorization) -> None:
         authorization.message.check.return_value = (
             200,
             "ok",
@@ -385,7 +397,7 @@ class TestRenewalinfoResourceOwnership:
         info.repository = MagicMock()
         yield info
 
-    def test_cross_account_replaced_update_denied(self, renewalinfo) -> None:
+    def test_019_account_replaced_update_denied(self, renewalinfo) -> None:
         renewalinfo.message.check.return_value = (
             200,
             None,
@@ -394,15 +406,24 @@ class TestRenewalinfoResourceOwnership:
             {"certid": "cid", "replaced": True},
             "attacker",
         )
+        renewalinfo.message.prepare_response.side_effect = lambda resp, status, **_: {
+            **resp,
+            "code": status["code"],
+            "data": {
+                "status": status["code"],
+                "type": status.get("type"),
+                "detail": status.get("detail"),
+            },
+            "header": {},
+        }
         renewalinfo._lookup_certificate_by_renewalinfo = MagicMock(
             return_value={"name": "cert1", "order__account__name": "victim"}
         )
-        with patch.object(renewalinfo.repository, "add_certificate") as mock_add:
-            result = renewalinfo.update("content")
-        mock_add.assert_not_called()
+        result = renewalinfo.update("content")
+        renewalinfo.repository.mark_certificate_replaced.assert_not_called()
         assert result["code"] == 403
 
-    def test_same_account_replaced_update_allowed(self, renewalinfo) -> None:
+    def test_020_account_replaced_update_allowed(self, renewalinfo) -> None:
         renewalinfo.message.check.return_value = (
             200,
             None,
@@ -414,6 +435,9 @@ class TestRenewalinfoResourceOwnership:
         renewalinfo._lookup_certificate_by_renewalinfo = MagicMock(
             return_value={"name": "cert1", "order__account__name": "owner"}
         )
-        renewalinfo.repository.add_certificate.return_value = True
+        renewalinfo.repository.mark_certificate_replaced.return_value = True
         result = renewalinfo.update("content")
         assert result["code"] == 200
+        renewalinfo.repository.mark_certificate_replaced.assert_called_once_with(
+            "cert1"
+        )

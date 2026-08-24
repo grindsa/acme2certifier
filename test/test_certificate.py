@@ -3285,9 +3285,7 @@ class TestCertificate(unittest.TestCase):
         self.cert.repository.certificate_lookup.return_value = {
             "order__account__name": "owner"
         }
-        self.assertEqual(
-            self.cert._lookup_certificate_owner_account("cert1"), "owner"
-        )
+        self.assertEqual(self.cert._lookup_certificate_owner_account("cert1"), "owner")
         self.cert.repository.certificate_lookup.assert_called_once_with(
             "name", "cert1", ["order__account__name"]
         )

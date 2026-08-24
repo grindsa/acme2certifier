@@ -2,7 +2,7 @@
 """Renewalinfo class: ACME renewal info handler with separated config and repository helpers."""
 
 from __future__ import print_function
-from typing import Dict
+from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
@@ -23,6 +23,7 @@ from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     log_ownership_denial,
+    ownership_lookup_failed,
     ownership_unauthorized,
     resource_owner_matches,
 )
@@ -93,6 +94,7 @@ class RenewalinfoRepository:
                     "issue_uts",
                     "aki",
                     "created_at",
+                    "order__account__name",
                 ],
             )
         except Exception as err_:
@@ -106,6 +108,13 @@ class RenewalinfoRepository:
         """Add or update certificate in database."""
         self.logger.debug("RenewalinfoRepository.add_certificate()")
         return self.dbstore.certificate_add(data_dic)
+
+    def mark_certificate_replaced(self, cert_name: str) -> int:
+        """Set replaced=True for an existing certificate without rewriting other columns."""
+        self.logger.debug(
+            "RenewalinfoRepository.mark_certificate_replaced(%s)", cert_name
+        )
+        return self.dbstore.certificate_replaced_update(cert_name)
 
     def get_housekeeping_param(self, name):
         """Retrieve housekeeping parameter by name from database."""
@@ -401,40 +410,65 @@ class Renewalinfo(object):
             response_dic["data"] = self.err_msg_dic["malformed"]
         return response_dic
 
+    def _problem_response(
+        self,
+        status: Tuple[int, str, str],
+        account_name: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """Build an ACME problem document the same way order/certificate handlers do."""
+        code, message, detail = status
+        return self.message.prepare_response(
+            {},
+            {"code": code, "type": message, "detail": detail},
+            account_name=account_name,
+        )
+
     def update(self, content: str) -> Dict[str, str]:
         """Update renewal info (backwards compatible public method)"""
         self.logger.debug("Renewalinfo.update()")
         (
             code,
-            _message,
-            _detail,
+            message,
+            detail,
             _protected,
             payload,
             account_name,
         ) = self.message.check(content)
-        response_dic = {}
-        if code == 200 and "certid" in payload and "replaced" in payload:
-            try:
-                cert_dic = self._lookup_certificate_by_renewalinfo(payload["certid"])
-            except ResourceOwnershipLookupError:
-                response_dic["code"] = 500
-                return response_dic
-            if cert_dic and payload["replaced"]:
-                owner = cert_dic.get("order__account__name")
-                if not resource_owner_matches(account_name, owner):
-                    log_ownership_denial(
-                        self.logger,
-                        account_name,
-                        "certificate",
-                        cert_dic.get("name", payload["certid"]),
-                    )
-                    response_dic["code"] = ownership_unauthorized()[0]
-                    return response_dic
-                cert_dic["replaced"] = True
-                cert_id = self.repository.add_certificate(cert_dic)
-                response_dic["code"] = 200 if cert_id else 400
-            else:
-                response_dic["code"] = 400
-        else:
-            response_dic["code"] = 400
-        return response_dic
+        if code != 200:
+            return self._problem_response((code, message, detail), account_name)
+        if "certid" not in payload or "replaced" not in payload:
+            return self._problem_response(
+                (400, self.err_msg_dic["malformed"], "certid or replaced missing"),
+                account_name,
+            )
+        try:
+            cert_dic = self._lookup_certificate_by_renewalinfo(payload["certid"])
+        except ResourceOwnershipLookupError:
+            return self._problem_response(ownership_lookup_failed(), account_name)
+        if not cert_dic or not payload["replaced"]:
+            return self._problem_response(
+                (400, self.err_msg_dic["malformed"], "certificate not found"),
+                account_name,
+            )
+        owner = cert_dic.get("order__account__name")
+        if not resource_owner_matches(account_name, owner):
+            log_ownership_denial(
+                self.logger,
+                account_name,
+                "certificate",
+                cert_dic.get("name", payload["certid"]),
+            )
+            return self._problem_response(ownership_unauthorized(), account_name)
+        cert_name = cert_dic.get("name")
+        if not cert_name:
+            return self._problem_response(
+                (400, self.err_msg_dic["malformed"], "certificate name missing"),
+                account_name,
+            )
+        cert_id = self.repository.mark_certificate_replaced(cert_name)
+        if not cert_id:
+            return self._problem_response(
+                (400, self.err_msg_dic["malformed"], "certificate update failed"),
+                account_name,
+            )
+        return {"code": 200}
