@@ -144,7 +144,16 @@ runs:
     - name: "Check attacker did not receive a valid order or certificate"
       working-directory: acmeshell
       run: |
-        ! grep -E '"status": "valid"|/acme/cert/' acmeshell.attacker.log
+        set -euo pipefail
+        # newAccount legitimately returns "status": "valid"; do not treat that as a leak.
+        if grep -E '/acme/cert/' acmeshell.attacker.log; then
+          echo "ERROR: attacker received a certificate URL" >&2
+          exit 1
+        fi
+        if grep -E '"identifiers"|"authorizations"' acmeshell.attacker.log; then
+          echo "ERROR: attacker received an order payload" >&2
+          exit 1
+        fi
       shell: bash
 
     - name: "Check a2c logs for ownership denial WARNING"

@@ -2700,7 +2700,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, "foo"]])
         self.dbstore.cursor.fetchone = Mock(
-            side_effect=[None, [1, 2, 3, 4, 5], [1, 2], [0, 2]]
+            side_effect=[None, [1, 2, 3, 4, 5], [1, 2], [0, 2], [1]]
         )
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
@@ -2727,7 +2727,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, "foo"]])
         self.dbstore.cursor.fetchone = Mock(
-            side_effect=[None, [2, 2, 3, 4, 5], [1, 2], [1, 2]]
+            side_effect=[None, [2, 2, 3, 4, 5], [1, 2], [1, 2], [1]]
         )
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
@@ -2755,7 +2755,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, "foo"]])
         self.dbstore.cursor.fetchone = Mock(
-            side_effect=[None, [1, 2, 3, 4, 5], [2, 2], [2, 2]]
+            side_effect=[None, [1, 2, 3, 4, 5], [2, 2], [2, 2], [1]]
         )
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
