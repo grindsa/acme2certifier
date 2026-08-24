@@ -463,17 +463,44 @@ class Certificate(object):
         )
         return result
 
-    def _check_certificate_reusability(self, csr: str) -> Tuple[None, str, str, str]:
+    def _lookup_order_account_name(self, order_name: str) -> Optional[str]:
+        """Return the account that owns an order."""
+        self.logger.debug("Certificate._lookup_order_account_name(%s)", order_name)
+        try:
+            order_dic = self.repository.order_lookup(
+                "name", order_name, ["account__name"]
+            )
+        except Exception as err_:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to look up order owner: %s", err_
+            )
+            return None
+        if not order_dic:
+            return None
+        return order_dic.get("account__name")
+
+    def _check_certificate_reusability(
+        self, csr: str, account_name: Optional[str]
+    ) -> Tuple[None, str, str, str]:
         """Check if an existing certificate can be reused"""
         self.logger.debug(
-            "Certificate._check_certificate_reusability(%s)",
+            "Certificate._check_certificate_reusability(%s, account=%s)",
             self.config.cert_reusage_timeframe,
+            account_name,
         )
         try:
             result_dic = self.repository.search_certificates(
                 "csr",
                 csr,
-                ("cert", "cert_raw", "expire_uts", "issue_uts", "created_at", "id"),
+                (
+                    "cert",
+                    "cert_raw",
+                    "expire_uts",
+                    "issue_uts",
+                    "created_at",
+                    "id",
+                    "order__account__name",
+                ),
             )
         except Exception as err_:
             self.logger.critical(
@@ -513,9 +540,12 @@ class Certificate(object):
                     certificate["expire_uts"],
                 )
                 # check if there certificates within reusage timeframe
+                # Require same owning account; skip reuse when account is unknown.
                 if (
                     certificate["cert_raw"]
                     and certificate["cert"]
+                    and account_name
+                    and certificate.get("order__account__name") == account_name
                     and uts - self.config.cert_reusage_timeframe <= uts_create
                     and uts <= certificate["expire_uts"]
                 ):
@@ -775,18 +805,21 @@ class Certificate(object):
         )
         return csr_check_result
 
-    def _process_certificate_enrollment(self, csr: str) -> Tuple[str, str, str, str]:
+    def _process_certificate_enrollment(
+        self, csr: str, order_name: Optional[str] = None
+    ) -> Tuple[str, str, str, str]:
         self.logger.debug("Certificate._process_certificate_enrollment()")
 
         poll_identifier = None
         error = None
+        account_name = self._lookup_order_account_name(order_name) if order_name else None
         if self.config.cert_reusage_timeframe:
             (
                 error,
                 certificate,
                 certificate_raw,
                 poll_identifier,
-            ) = self._check_certificate_reusability(csr)
+            ) = self._check_certificate_reusability(csr, account_name)
         else:
             certificate = None
             certificate_raw = None
@@ -1000,7 +1033,7 @@ class Certificate(object):
             certificate_raw,
             poll_identifier,
             cert_reusage,
-        ) = self._process_certificate_enrollment(csr)
+        ) = self._process_certificate_enrollment(csr, order_name)
         if certificate:
             result, error = self._store_certificate_and_update_order(
                 certificate,
