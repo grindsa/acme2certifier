@@ -890,17 +890,18 @@ class TestCertificate(unittest.TestCase):
                 "cert_raw": "r",
                 "created_at": 1,
                 "id": 1,
+                "order__account__name": "acct1",
             }
         ]
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
-            result = self.cert._check_certificate_reusability("csr")
+            result = self.cert._check_certificate_reusability("csr", "acct1")
             self.assertIsInstance(result, tuple)
 
     def test_051_check_certificate_reusability_db_error(self):
         self.cert.repository.search_certificates.side_effect = Exception("fail")
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
-                result = self.cert._check_certificate_reusability("csr")
+                result = self.cert._check_certificate_reusability("csr", None)
                 self.assertIsInstance(result, tuple)
             self.assertIn(
                 "CRITICAL:test_a2c:Database error: failed to search for certificate reusage: fail",
@@ -910,7 +911,7 @@ class TestCertificate(unittest.TestCase):
     def test_052_check_certificate_reusability_none_found(self):
         self.cert.repository.search_certificates.return_value = None
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
-            result = self.cert._check_certificate_reusability("csr")
+            result = self.cert._check_certificate_reusability("csr", None)
             self.assertIsInstance(result, tuple)
 
     def test_053_handle_enrollment_error(self):
@@ -1255,7 +1256,7 @@ class TestCertificate(unittest.TestCase):
             "Reusability error"
         )
         with self.assertLogs(self.cert.logger, level="CRITICAL") as log:
-            result = self.cert._check_certificate_reusability("csr")
+            result = self.cert._check_certificate_reusability("csr", None)
             self.assertEqual(result, (None, None, None, None))
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to search for certificate reusage: Reusability error",
@@ -2957,14 +2958,38 @@ class TestCertificate(unittest.TestCase):
             "cert_raw": "raw_value",
             "created_at": 1,
             "id": 42,
+            "order__account__name": "acct1",
         }
         self.cert.repository.search_certificates.return_value = [cert_data]
         self.cert.config.cert_reusage_timeframe = 2  # Ensure reuse block is entered
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
-            _, cert, cert_raw, message = self.cert._check_certificate_reusability("csr")
+            _, cert, cert_raw, message = self.cert._check_certificate_reusability(
+                "csr", "acct1"
+            )
             self.assertEqual(cert, "cert_value")
             self.assertEqual(cert_raw, "raw_value")
             self.assertIn("reused certificate from id: 42", message)
+
+    def test_186b_check_certificate_reusability_account_scoped(self):
+        """Reuse must be scoped to the requesting account."""
+        cert_data = {
+            "expire_uts": 9999999999,
+            "issue_uts": 1,
+            "cert": "cert_value",
+            "cert_raw": "raw_value",
+            "created_at": 1,
+            "id": 43,
+            "order__account__name": "other-account",
+        }
+        self.cert.repository.search_certificates.return_value = [cert_data]
+        self.cert.config.cert_reusage_timeframe = 2
+        with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
+            _, cert, cert_raw, message = self.cert._check_certificate_reusability(
+                "csr", "requesting-account"
+            )
+        self.assertIsNone(cert)
+        self.assertIsNone(cert_raw)
+        self.assertIsNone(message)
 
     def test_187_process_enrollment_and_store_certificate_log_exception(self):
         """Test _process_enrollment_and_store_certificate covers log_certificate_issuance exception branch (lines 930-933)."""
