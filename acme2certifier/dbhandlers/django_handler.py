@@ -591,6 +591,13 @@ class DBstore(object):
         self.logger.debug("DBStore.nonce_delete(%s)", nonce)
         Nonce.objects.filter(nonce=nonce).delete()
 
+    def nonce_consume(self, nonce: str) -> int:
+        """Atomically delete a nonce if present; return affected row count."""
+        self.logger.debug("DBStore.nonce_consume(%s)", nonce)
+        deleted, _ = Nonce.objects.filter(nonce=nonce).delete()
+        self.logger.debug("DBStore.nonce_consume() ended with: %s", deleted)
+        return deleted
+
     def nonce_delete_bulk(self, nonce_list: List[str]) -> int:
         """Delete a list of nonces in a single cleanup run."""
         self.logger.debug("DBStore.nonce_delete_bulk with %s entries", len(nonce_list))
