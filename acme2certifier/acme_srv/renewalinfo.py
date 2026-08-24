@@ -20,6 +20,12 @@ from acme2certifier.acme_srv.helper import (
     b64_decode,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    ResourceOwnershipLookupError,
+    log_ownership_denial,
+    ownership_unauthorized,
+    resource_owner_matches,
+)
 
 
 @dataclass
@@ -56,6 +62,7 @@ class RenewalinfoRepository:
                     "expire_uts",
                     "issue_uts",
                     "created_at",
+                    "order__account__name",
                 ),
             )
         except Exception as err_:
@@ -63,7 +70,9 @@ class RenewalinfoRepository:
                 f"{DB_ERROR_MSG}: failed to look up certificate for renewal info (draft01): %s",
                 err_,
             )
-            return None
+            raise ResourceOwnershipLookupError(
+                f"failed to look up certificate for certid {certid_hex}"
+            ) from err_
 
     def get_certificates_by_serial(self, serial):
         """Retrieve certificates by serial from database."""
@@ -401,12 +410,26 @@ class Renewalinfo(object):
             _detail,
             _protected,
             payload,
-            _account_name,
+            account_name,
         ) = self.message.check(content)
         response_dic = {}
         if code == 200 and "certid" in payload and "replaced" in payload:
-            cert_dic = self._lookup_certificate_by_renewalinfo(payload["certid"])
+            try:
+                cert_dic = self._lookup_certificate_by_renewalinfo(payload["certid"])
+            except ResourceOwnershipLookupError:
+                response_dic["code"] = 500
+                return response_dic
             if cert_dic and payload["replaced"]:
+                owner = cert_dic.get("order__account__name")
+                if not resource_owner_matches(account_name, owner):
+                    log_ownership_denial(
+                        self.logger,
+                        account_name,
+                        "certificate",
+                        cert_dic.get("name", payload["certid"]),
+                    )
+                    response_dic["code"] = ownership_unauthorized()[0]
+                    return response_dic
                 cert_dic["replaced"] = True
                 cert_id = self.repository.add_certificate(cert_dic)
                 response_dic["code"] = 200 if cert_id else 400

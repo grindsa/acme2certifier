@@ -1847,24 +1847,29 @@ class TestAuthorization(unittest.TestCase):
         ):
             self.authorization.message = self.mock_message
             with patch.object(
-                self.authorization, "get_authorization_details", return_value={}
-            ) as mock_get_details:
+                self.authorization,
+                "_lookup_authorization_owner_account",
+                return_value="account",
+            ):
                 with patch.object(
-                    self.mock_message,
-                    "prepare_response",
-                    return_value={"error": "unauthorized"},
-                ) as mock_prepare_response:
-                    result = self.authorization.handle_post_request(
-                        '{"test": "content"}'
-                    )
-                    mock_prepare_response.assert_called_once()
-                    status_dic = mock_prepare_response.call_args[0][1]
-                    expected_status_dic = {
-                        "code": 403,
-                        "type": "urn:ietf:params:acme:error:unauthorized",
-                        "detail": "authorization lookup failed",
-                    }
-                    self.assertEqual(status_dic, expected_status_dic)
+                    self.authorization, "get_authorization_details", return_value={}
+                ) as mock_get_details:
+                    with patch.object(
+                        self.mock_message,
+                        "prepare_response",
+                        return_value={"error": "unauthorized"},
+                    ) as mock_prepare_response:
+                        result = self.authorization.handle_post_request(
+                            '{"test": "content"}'
+                        )
+                        mock_prepare_response.assert_called_once()
+                        status_dic = mock_prepare_response.call_args[0][1]
+                        expected_status_dic = {
+                            "code": 403,
+                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "detail": "authorization lookup failed",
+                        }
+                        self.assertEqual(status_dic, expected_status_dic)
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
@@ -1886,25 +1891,30 @@ class TestAuthorization(unittest.TestCase):
             self.authorization.message = self.mock_message
             with patch.object(
                 self.authorization,
-                "get_authorization_details",
-                side_effect=AuthorizationError("Auth error"),
-            ) as mock_get_details:
+                "_lookup_authorization_owner_account",
+                return_value="account",
+            ):
                 with patch.object(
-                    self.mock_message,
-                    "prepare_response",
-                    return_value={"error": "unauthorized"},
-                ) as mock_prepare_response:
-                    result = self.authorization.handle_post_request(
-                        '{"test": "content"}'
-                    )
-                    mock_prepare_response.assert_called_once()
-                    status_dic = mock_prepare_response.call_args[0][1]
-                    expected_status_dic = {
-                        "code": 403,
-                        "type": "urn:ietf:params:acme:error:unauthorized",
-                        "detail": "authorization error",
-                    }
-                    self.assertEqual(status_dic, expected_status_dic)
+                    self.authorization,
+                    "get_authorization_details",
+                    side_effect=AuthorizationError("Auth error"),
+                ) as mock_get_details:
+                    with patch.object(
+                        self.mock_message,
+                        "prepare_response",
+                        return_value={"error": "unauthorized"},
+                    ) as mock_prepare_response:
+                        result = self.authorization.handle_post_request(
+                            '{"test": "content"}'
+                        )
+                        mock_prepare_response.assert_called_once()
+                        status_dic = mock_prepare_response.call_args[0][1]
+                        expected_status_dic = {
+                            "code": 403,
+                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "detail": "authorization error",
+                        }
+                        self.assertEqual(status_dic, expected_status_dic)
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
@@ -1926,25 +1936,30 @@ class TestAuthorization(unittest.TestCase):
             self.authorization.message = self.mock_message
             with patch.object(
                 self.authorization,
-                "get_authorization_details",
-                return_value={"foo": "bar"},
-            ) as mock_get_details:
+                "_lookup_authorization_owner_account",
+                return_value="account",
+            ):
                 with patch.object(
-                    self.mock_message,
-                    "prepare_response",
-                    return_value={"error": "unauthorized"},
-                ) as mock_prepare_response:
-                    result = self.authorization.handle_post_request(
-                        '{"test": "content"}'
-                    )
-                    mock_prepare_response.assert_called_once()
-                    status_dic = mock_prepare_response.call_args[0][1]
-                    expected_status_dic = {
-                        "code": 200,
-                        "type": "message",
-                        "detail": "detail",
-                    }
-                    self.assertEqual(status_dic, expected_status_dic)
+                    self.authorization,
+                    "get_authorization_details",
+                    return_value={"foo": "bar"},
+                ) as mock_get_details:
+                    with patch.object(
+                        self.mock_message,
+                        "prepare_response",
+                        return_value={"error": "unauthorized"},
+                    ) as mock_prepare_response:
+                        result = self.authorization.handle_post_request(
+                            '{"test": "content"}'
+                        )
+                        mock_prepare_response.assert_called_once()
+                        status_dic = mock_prepare_response.call_args[0][1]
+                        expected_status_dic = {
+                            "code": 200,
+                            "type": "message",
+                            "detail": "detail",
+                        }
+                        self.assertEqual(status_dic, expected_status_dic)
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
@@ -2685,6 +2700,32 @@ class TestAuthorization(unittest.TestCase):
         )
         self.mock_logger.debug.assert_any_call(
             "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_emaillist from eab profile."
+        )
+
+    def test_070_lookup_authorization_owner_account_missing(self):
+        """_lookup_authorization_owner_account returns None when authz is missing"""
+        self.authorization.repository = Mock()
+        self.authorization.repository.find_authorization_by_name.return_value = None
+        self.assertIsNone(
+            self.authorization._lookup_authorization_owner_account("missing")
+        )
+        self.authorization.repository.find_authorization_by_name.assert_called_once_with(
+            "missing", ["order__account__name"]
+        )
+
+    def test_071_check_authorization_ownership_db_error(self):
+        """_check_authorization_ownership maps AuthorizationError to lookup failure"""
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ownership_lookup_failed,
+        )
+
+        self.authorization.repository = Mock()
+        self.authorization.repository.find_authorization_by_name.side_effect = (
+            AuthorizationError("db fail")
+        )
+        self.assertEqual(
+            self.authorization._check_authorization_ownership("authz", "acc"),
+            ownership_lookup_failed(),
         )
 
 

@@ -32,6 +32,11 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     ENROLLMENT_FAILED_DETAIL,
     DB_ERROR_MSG,
 )
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    log_ownership_denial,
+    ownership_unauthorized,
+    resource_owner_matches,
+)
 from acme2certifier.acme_srv.message import Message
 
 
@@ -1192,7 +1197,7 @@ class Order(object):
         return result
 
     def _get_order_account_name(self, order_name: str) -> Optional[str]:
-        """Lookup account name for an order (needed for EAB profile at finalize)."""
+        """Return the account that owns an order, or None if missing/unavailable."""
         self.logger.debug("Order._get_order_account_name(%s)", order_name)
         try:
             order_dic = self.repository.order_lookup(
@@ -1206,6 +1211,16 @@ class Order(object):
         if not order_dic:
             return None
         return order_dic.get("account__name") or order_dic.get("account")
+
+    def _check_order_ownership(
+        self, order_name: str, account_name: Optional[str]
+    ) -> Tuple[int, str, str]:
+        """Verify the requester owns the order."""
+        owner = self._get_order_account_name(order_name)
+        if not resource_owner_matches(account_name, owner):
+            log_ownership_denial(self.logger, account_name, "order", order_name)
+            return ownership_unauthorized()
+        return (200, None, None)
 
     def _header_info_lookup(self, header: Optional[Dict[str, Any]]) -> str:
         """lookup header information and serialize them in a string"""
@@ -1656,26 +1671,35 @@ class Order(object):
         return response_dic
 
     def _parse_order_message(
-        self, protected: Dict[str, str], payload: Dict[str, str], header: str = None
+        self,
+        protected: Dict[str, str],
+        payload: Dict[str, str],
+        header: str = None,
+        account_name: Optional[str] = None,
     ) -> Tuple[int, str, str, str, str]:
         """parse new order message"""
         self.logger.debug("Order._parse_order_message()")
 
         order_name = certificate_name = None
+        code = message = detail = None
 
         if "url" in protected:
             order_name = self._name_get(protected["url"])
             if order_name:
                 order_dic = self.get_order_details(order_name)
                 if order_dic:
-                    (
-                        code,
-                        message,
-                        detail,
-                        certificate_name,
-                    ) = self._process_order_request(
-                        order_name, protected, payload, header
+                    code, message, detail = self._check_order_ownership(
+                        order_name, account_name
                     )
+                    if code == 200:
+                        (
+                            code,
+                            message,
+                            detail,
+                            certificate_name,
+                        ) = self._process_order_request(
+                            order_name, protected, payload, header
+                        )
                 else:
                     self.logger.warning(
                         "Order request failed: order not found order=%s",
@@ -1720,7 +1744,9 @@ class Order(object):
                 detail,
                 certificate_name,
                 order_name,
-            ) = self._parse_order_message(protected, payload, header)
+            ) = self._parse_order_message(
+                protected, payload, header, account_name=account_name
+            )
 
             if code == 200:
                 # create response
