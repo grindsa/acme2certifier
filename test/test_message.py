@@ -375,7 +375,7 @@ class TestACMEHandler(unittest.TestCase):
         config_dic = {
             "code": 403,
             "type": "urn:ietf:params:acme:error:unauthorized",
-            "detail": "EAB kid lookup failed",
+            "detail": "invalid eab credentials",
         }
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.message.prepare_response(data_dic, config_dic, account_name="acct-123")
@@ -383,7 +383,7 @@ class TestACMEHandler(unittest.TestCase):
             any(
                 "ACME problem code=403" in line
                 and "type=urn:ietf:params:acme:error:unauthorized" in line
-                and "detail=EAB kid lookup failed" in line
+                and "detail=invalid eab credentials" in line
                 and "account=acct-123" in line
                 for line in lcm.output
             )
