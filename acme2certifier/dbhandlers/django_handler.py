@@ -684,6 +684,21 @@ class DBstore(object):
         )
         obj.save()
 
+    def order_update_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> int:
+        """Update order status only when current status matches; return row count."""
+        self.logger.debug(
+            "order_update_if_status(%s, %s -> %s)", name, expected_status, new_status
+        )
+        new_inst = self._status_getinstance(new_status, "name")
+        expected_inst = self._status_getinstance(expected_status, "name")
+        updated = Order.objects.filter(name=name, status=expected_inst).update(
+            status=new_inst
+        )
+        self.logger.debug("DBStore.order_update_if_status() ended with: %s", updated)
+        return updated
+
     def orders_invalid_search(
         self,
         mkey: str,
