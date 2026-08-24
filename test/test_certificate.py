@@ -1755,7 +1755,10 @@ class TestCertificate(unittest.TestCase):
             patch.object(
                 self.cert,
                 "_validate_certificate_request_message",
-                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
+                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, "acc"),
+            ),
+            patch.object(
+                self.cert, "_lookup_certificate_owner_account", return_value="acc"
             ),
             patch.object(
                 self.cert,
@@ -1772,7 +1775,7 @@ class TestCertificate(unittest.TestCase):
                 400,
                 "data",
                 "error",
-                account_name="",
+                account_name="acc",
             )
 
     def test_123_process_certificate_request_missing_url(self):
@@ -1798,7 +1801,10 @@ class TestCertificate(unittest.TestCase):
             patch.object(
                 self.cert,
                 "_validate_certificate_request_message",
-                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
+                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, "acc"),
+            ),
+            patch.object(
+                self.cert, "_lookup_certificate_owner_account", return_value="acc"
             ),
             patch.object(
                 self.cert,
@@ -3272,6 +3278,76 @@ class TestCertificate(unittest.TestCase):
         self.assertIn(
             "WARNING:test_a2c:Certificate poll failed: ca timeout certificate=cert order=order rejected=False",
             log.output,
+        )
+
+    def test_201_lookup_certificate_owner_account_success(self):
+        """_lookup_certificate_owner_account returns order__account__name"""
+        self.cert.repository.certificate_lookup.return_value = {
+            "order__account__name": "owner"
+        }
+        self.assertEqual(
+            self.cert._lookup_certificate_owner_account("cert1"), "owner"
+        )
+        self.cert.repository.certificate_lookup.assert_called_once_with(
+            "name", "cert1", ["order__account__name"]
+        )
+
+    def test_202_lookup_certificate_owner_account_missing(self):
+        """_lookup_certificate_owner_account returns None when cert is missing"""
+        self.cert.repository.certificate_lookup.return_value = None
+        self.assertIsNone(self.cert._lookup_certificate_owner_account("cert1"))
+
+    def test_203_lookup_certificate_owner_account_db_error(self):
+        """_lookup_certificate_owner_account logs critical and raises on DB error"""
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ResourceOwnershipLookupError,
+        )
+
+        self.cert.repository.certificate_lookup.side_effect = Exception("fail")
+        with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+            with self.assertRaises(ResourceOwnershipLookupError):
+                self.cert._lookup_certificate_owner_account("cert1")
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to look up certificate owner: fail",
+            lcm.output,
+        )
+
+    def test_204_check_certificate_ownership_lookup_error(self):
+        """_check_certificate_ownership maps lookup errors to 500"""
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ResourceOwnershipLookupError,
+            ownership_lookup_failed,
+        )
+
+        with patch.object(
+            self.cert,
+            "_lookup_certificate_owner_account",
+            side_effect=ResourceOwnershipLookupError("db"),
+        ):
+            self.assertEqual(
+                self.cert._check_certificate_ownership("cert1", "acc"),
+                ownership_lookup_failed(),
+            )
+
+    def test_205_resolve_certificate_ownership_unexpected_error(self):
+        """_resolve_certificate_ownership maps unexpected errors to lookup failure"""
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ownership_lookup_failed,
+        )
+
+        with patch.object(
+            self.cert,
+            "_check_certificate_ownership",
+            side_effect=RuntimeError("boom"),
+        ):
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                self.assertEqual(
+                    self.cert._resolve_certificate_ownership("cert1", "acc"),
+                    ownership_lookup_failed(),
+                )
+        self.assertIn(
+            "ERROR:test_a2c:Error checking certificate ownership: boom",
+            lcm.output,
         )
 
 

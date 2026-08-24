@@ -286,6 +286,31 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             )
         )
 
+    def test_018_get_challenge_owner_account_name_success(self):
+        self.dbstore.challenge_lookup.return_value = {
+            "authorization__order__account__name": "owner"
+        }
+        self.assertEqual(self.repo.get_challenge_owner_account_name("c1"), "owner")
+        self.dbstore.challenge_lookup.assert_called_once_with(
+            "name",
+            "c1",
+            ["authorization__order__account__name"],
+        )
+
+    def test_019_get_challenge_owner_account_name_none(self):
+        self.dbstore.challenge_lookup.return_value = {}
+        self.assertIsNone(self.repo.get_challenge_owner_account_name("c1"))
+
+    def test_020_get_challenge_owner_account_name_db_error(self):
+        self.dbstore.challenge_lookup.side_effect = Exception("db fail")
+        with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+            with self.assertRaises(self.DatabaseError):
+                self.repo.get_challenge_owner_account_name("c1")
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to get challenge owner account: db fail",
+            lcm.output,
+        )
+
 
 class TestChallenge(unittest.TestCase):
     def setUp(self):
@@ -984,6 +1009,7 @@ class TestChallenge(unittest.TestCase):
                 "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
             )
         )
+        self.challenge.repository.get_challenge_owner_account_name.return_value = "acc"
         self.challenge._handle_challenge_validation_request = Mock(
             return_value={"status": "ok"}
         )
@@ -3325,6 +3351,52 @@ class TestChallenge(unittest.TestCase):
         validation_result = Mock(error_message="", details={"url": "http://ex/"})
         reason = self.challenge._format_challenge_validation_reason(validation_result)
         self.assertEqual(reason, "url=http://ex/")
+
+    def test_144_check_challenge_ownership_db_error(self):
+        """_check_challenge_ownership wraps DatabaseError as ownership lookup error"""
+        from acme2certifier.acme_srv.challenge_error_handling import DatabaseError
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ResourceOwnershipLookupError,
+        )
+
+        self.challenge.repository.get_challenge_owner_account_name.side_effect = (
+            DatabaseError("db fail")
+        )
+        with self.assertRaises(ResourceOwnershipLookupError):
+            self.challenge._check_challenge_ownership("c1", "acc")
+
+    def test_145_process_challenge_request_ownership_lookup_failed(self):
+        """process_challenge_request returns 500 when ownership lookup fails"""
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ResourceOwnershipLookupError,
+        )
+
+        self.challenge._ensure_components_initialized = Mock()
+        self.challenge.message.check.return_value = (
+            200,
+            None,
+            None,
+            {"url": "u"},
+            {},
+            "acc",
+        )
+        self.challenge._extract_challenge_name_from_url = Mock(return_value="c1")
+        self.challenge.repository.get_challenge_by_name.return_value = (
+            self.ChallengeInfo(
+                "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
+            )
+        )
+        self.challenge._check_challenge_ownership = Mock(
+            side_effect=ResourceOwnershipLookupError("db")
+        )
+        self.challenge._create_error_response = Mock(
+            return_value={"code": 500, "type": "serverInternal"}
+        )
+        result = self.challenge.process_challenge_request("content")
+        self.assertEqual(result["code"], 500)
+        self.challenge._create_error_response.assert_called_once()
+        args = self.challenge._create_error_response.call_args
+        self.assertEqual(args[0][0], 500)
 
 
 if __name__ == "__main__":

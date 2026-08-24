@@ -14,6 +14,9 @@ from acme2certifier.acme_srv.renewalinfo import (
     RenewalinfoConfig,
     RenewalinfoRepository,
 )
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    ResourceOwnershipLookupError,
+)
 
 
 class TestRenewalinfoConfig(unittest.TestCase):
@@ -37,9 +40,8 @@ class TestRenewalinfoRepository(unittest.TestCase):
 
     def test_002_get_certificate_by_certid_exception(self):
         self.mock_dbstore.certificate_lookup.side_effect = Exception("fail")
-        result = self.repo.get_certificate_by_certid("abc")
-        self.assertIsNone(result)
-        self.logger.critical.assert_called()
+        with self.assertRaises(ResourceOwnershipLookupError):
+            self.repo.get_certificate_by_certid("abc")
 
     def test_003_get_certificates_by_serial_success(self):
         self.mock_dbstore.certificates_search.return_value = [{"foo": "bar"}]
@@ -159,11 +161,12 @@ class TestRenewalinfo(unittest.TestCase):
             None,
             None,
             {"certid": "foo", "replaced": True},
-            None,
+            "owner-acct",
         )
         self.mock_repository.get_certificate_by_certid.return_value = {
             "expire_uts": 100000,
             "issue_uts": 90000,
+            "order__account__name": "owner-acct",
         }
         self.mock_repository.add_certificate.return_value = True
         with patch(
@@ -557,10 +560,10 @@ class TestRenewalinfo(unittest.TestCase):
             None,
             None,
             {"certid": "foo", "replaced": True},
-            None,
+            "owner",
         )
         renewalinfo._lookup_certificate_by_renewalinfo = MagicMock(
-            return_value={"foo": "bar"}
+            return_value={"foo": "bar", "order__account__name": "owner"}
         )
         renewalinfo.repository.add_certificate.return_value = True
         result = renewalinfo.update("content")
@@ -713,6 +716,24 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertEqual(result["code"], 201)
             self.assertIn("data", result)
             self.assertEqual(result["data"], {"foo": "bar"})
+
+    def test_038_update_ownership_lookup_error_returns_500(self):
+        """update() returns 500 when certificate ownership lookup fails"""
+        renewalinfo = self.renewalinfo
+        renewalinfo.message = MagicMock()
+        renewalinfo.message.check.return_value = (
+            200,
+            None,
+            None,
+            None,
+            {"certid": "cid", "replaced": True},
+            "owner",
+        )
+        renewalinfo._lookup_certificate_by_renewalinfo = MagicMock(
+            side_effect=ResourceOwnershipLookupError("db")
+        )
+        result = renewalinfo.update("content")
+        self.assertEqual(result["code"], 500)
 
 
 if __name__ == "__main__":

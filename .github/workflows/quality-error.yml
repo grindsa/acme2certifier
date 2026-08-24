@@ -125,6 +125,15 @@ jobs:
       - name: "Test for Certificate Resource"
         uses: ./.github/actions/wf_specific/error_tests/certificate_checks
 
+      - name: "Flush logs before resource ownership checks"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+          CONTAINER_NAME: acme-srv
+
+      - name: "Test cross-account resource ownership"
+        uses: ./.github/actions/wf_specific/error_tests/resource_ownership_checks
+
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
