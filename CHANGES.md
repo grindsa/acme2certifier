@@ -6,6 +6,15 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.45.1
+
+**Bug Fixes and Improvements**:
+
+- [tkauth-01](docs/tnauthlist.md) challenges are rejected instead of succeeding unconditionally; the authority token is never verified, so `tnauthlist_support` no longer grants authorizations. Accepting unverified tokens requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (testing only) and is logged at `CRITICAL`
+- `eabkid_check_disable` is ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set (EAB kid checks stay enabled and a warning is logged); acknowledgement is logged at `CRITICAL`
+- Global full-universe prevalidation `prevalidated_domainlist=["*"]` and IP networks with prefix length 0 (`0.0.0.0/0`, `::/0`) are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1`; scoped patterns (e.g. `*.example.com`, `10.0.0.0/8`) and EAB-profile lists are unchanged
+- CSR-to-order binding at finalize: strict bidirectional identifier/SAN/CN equality by default (`[Certificate] csr_binding_strict`, including `rfc822Name` for email identifiers); legacy one-way mode when set to `False`
+
 ## Changes in 0.45
 
 **New Features**:

@@ -1,0 +1,303 @@
+name: "csr_binding_checks"
+description: "CSR-to-order binding: strict reject extra/missing names; legacy subset enrolls"
+inputs:
+  NAME_SPACE:
+    description: "Docker network namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  ACME_CFG:
+    description: "Host path to acme_srv.cfg"
+    required: false
+    default: "examples/Docker/data/acme_srv.cfg"
+  DOMAIN_A:
+    description: "First prevalidated DNS identifier"
+    required: false
+    default: "bind-a.acme"
+  DOMAIN_B:
+    description: "Second prevalidated DNS identifier"
+    required: false
+    default: "bind-b.acme"
+  DOMAIN_EXTRA:
+    description: "SAN not present on the one-name order"
+    required: false
+    default: "extra.acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Enable csr-binding CI config"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      run: |
+        set -euo pipefail
+        MARKER="# csr-binding CI"
+        if ! grep -qF "${MARKER}" "${ACME_CFG}"; then
+          sudo tee -a "${ACME_CFG}" >/dev/null <<EOF
+
+        ${MARKER}
+        [Challenge]
+        challenge_validation_disable: True
+
+        [Authorization]
+        prevalidated_domainlist: ["${DOMAIN_A}", "${DOMAIN_B}", "${DOMAIN_EXTRA}"]
+
+        [Certificate]
+        csr_binding_strict: True
+        EOF
+        fi
+        grep -n 'csr_binding_strict\|challenge_validation_disable\|prevalidated_domainlist' "${ACME_CFG}"
+        cd examples/Docker/
+        docker compose restart
+      shell: bash
+      env:
+        ACME_CFG: ${{ inputs.ACME_CFG }}
+        DOMAIN_A: ${{ inputs.DOMAIN_A }}
+        DOMAIN_B: ${{ inputs.DOMAIN_B }}
+        DOMAIN_EXTRA: ${{ inputs.DOMAIN_EXTRA }}
+
+    - name: "Wait for ACME directory after csr-binding enable"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+
+    - name: "Flush logs before missing-identifier finalize"
+      uses: ./.github/actions/logs_flush
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        CONTAINER_NAME: ${{ inputs.ACME_SERVER }}
+
+    - name: "Prepare missing-identifier CSR (strict reject)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        set -euo pipefail
+        openssl req -new -newkey rsa:2048 -nodes \
+          -keyout /tmp/csr-bind-miss.key \
+          -outform DER -out /tmp/csr-bind-miss.der \
+          -subj "/CN=${DOMAIN_A}" \
+          -addext "subjectAltName=DNS:${DOMAIN_A}"
+        CSR_B64=$(python3 -c "import base64; print(base64.urlsafe_b64encode(open('/tmp/csr-bind-miss.der','rb').read()).decode().rstrip('='))")
+        rm -f acmeshell.csrbind.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=csr-bind-miss@bar.local,
+        newOrder -identifiers=${DOMAIN_A},${DOMAIN_B}
+        solve -order=0 -identifier=${DOMAIN_A} -challengeType=http-01
+        solve -order=0 -identifier=${DOMAIN_B} -challengeType=http-01
+        poll -order=0
+        post -body='{"csr":"${CSR_B64}"}' {{ (order 0).Finalize }}
+        EOT
+      shell: bash
+      env:
+        DOMAIN_A: ${{ inputs.DOMAIN_A }}
+        DOMAIN_B: ${{ inputs.DOMAIN_B }}
+
+    - name: "Run acmeshell finalize with missing order identifier"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.csrbind.log'
+        cat acmeshell.csrbind.log || true
+      shell: bash
+
+    - name: "Check acmeshell log for badCSR (missing identifier)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:badCSR" acmeshell.csrbind.log
+      shell: bash
+
+    - name: "Check a2c logs for CSR vs order mismatch WARNING"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Certificate enrollment failed: CSR vs order mismatch certificate="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (missing identifier badCSR)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:badCSR detail=CSR validation failed"
+
+    - name: "Flush logs before extra-SAN finalize"
+      uses: ./.github/actions/logs_flush
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        CONTAINER_NAME: ${{ inputs.ACME_SERVER }}
+
+    - name: "Prepare extra-SAN CSR (strict reject)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        set -euo pipefail
+        openssl req -new -newkey rsa:2048 -nodes \
+          -keyout /tmp/csr-bind-extra.key \
+          -outform DER -out /tmp/csr-bind-extra.der \
+          -subj "/CN=${DOMAIN_A}" \
+          -addext "subjectAltName=DNS:${DOMAIN_A},DNS:${DOMAIN_EXTRA}"
+        CSR_B64=$(python3 -c "import base64; print(base64.urlsafe_b64encode(open('/tmp/csr-bind-extra.der','rb').read()).decode().rstrip('='))")
+        rm -f acmeshell.csrbind.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=csr-bind-extra@bar.local,
+        newOrder -identifiers=${DOMAIN_A}
+        solve -order=0 -identifier=${DOMAIN_A} -challengeType=http-01
+        poll -order=0
+        post -body='{"csr":"${CSR_B64}"}' {{ (order 0).Finalize }}
+        EOT
+      shell: bash
+      env:
+        DOMAIN_A: ${{ inputs.DOMAIN_A }}
+        DOMAIN_EXTRA: ${{ inputs.DOMAIN_EXTRA }}
+
+    - name: "Run acmeshell finalize with extra CSR SAN"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.csrbind.log'
+        cat acmeshell.csrbind.log || true
+      shell: bash
+
+    - name: "Check acmeshell log for badCSR (extra SAN)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:badCSR" acmeshell.csrbind.log
+      shell: bash
+
+    - name: "Check a2c logs for CSR vs order mismatch WARNING (extra SAN)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "Certificate enrollment failed: CSR vs order mismatch certificate="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (extra SAN badCSR)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=400 type=urn:ietf:params:acme:error:badCSR detail=CSR validation failed"
+
+    - name: "Set csr_binding_strict False"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      run: |
+        set -euo pipefail
+        sudo sed -i 's/csr_binding_strict: True/csr_binding_strict: False/' "${ACME_CFG}"
+        grep -n 'csr_binding_strict' "${ACME_CFG}"
+        cd examples/Docker/
+        docker compose restart
+      shell: bash
+      env:
+        ACME_CFG: ${{ inputs.ACME_CFG }}
+
+    - name: "Wait for ACME directory after csr_binding_strict False"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+
+    - name: "Flush logs before legacy subset finalize"
+      uses: ./.github/actions/logs_flush
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        CONTAINER_NAME: ${{ inputs.ACME_SERVER }}
+
+    - name: "Prepare subset CSR (legacy allow)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        set -euo pipefail
+        openssl req -new -newkey rsa:2048 -nodes \
+          -keyout /tmp/csr-bind-legacy.key \
+          -outform DER -out /tmp/csr-bind-legacy.der \
+          -subj "/CN=${DOMAIN_A}" \
+          -addext "subjectAltName=DNS:${DOMAIN_A}"
+        CSR_B64=$(python3 -c "import base64; print(base64.urlsafe_b64encode(open('/tmp/csr-bind-legacy.der','rb').read()).decode().rstrip('='))")
+        rm -f acmeshell.csrbind.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=csr-bind-legacy@bar.local,
+        newOrder -identifiers=${DOMAIN_A},${DOMAIN_B}
+        solve -order=0 -identifier=${DOMAIN_A} -challengeType=http-01
+        solve -order=0 -identifier=${DOMAIN_B} -challengeType=http-01
+        poll -order=0
+        post -body='{"csr":"${CSR_B64}"}' {{ (order 0).Finalize }}
+        poll -order=0 -status=valid
+        EOT
+      shell: bash
+      env:
+        DOMAIN_A: ${{ inputs.DOMAIN_A }}
+        DOMAIN_B: ${{ inputs.DOMAIN_B }}
+
+    - name: "Run acmeshell finalize subset CSR (legacy)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.csrbind.log'
+        cat acmeshell.csrbind.log
+      shell: bash
+
+    - name: "Check acmeshell log for valid order (legacy subset)"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      working-directory: acmeshell
+      run: |
+        set -euo pipefail
+        if grep -F "urn:ietf:params:acme:error:badCSR" acmeshell.csrbind.log; then
+          echo "ERROR: legacy csr_binding_strict=False rejected subset CSR" >&2
+          exit 1
+        fi
+        grep -E '/acme/cert/' acmeshell.csrbind.log
+        grep '"status": "valid"' acmeshell.csrbind.log
+      shell: bash
+
+    - name: "Remove csr-binding CI config block"
+      if: ${{ always() && inputs.DEPLOYMENT_TYPE == 'container' }}
+      run: |
+        set -euo pipefail
+        if grep -qF '# csr-binding CI' "${ACME_CFG}"; then
+          sudo sed -i '/# csr-binding CI/,$d' "${ACME_CFG}"
+        fi
+        cd examples/Docker/
+        docker compose restart
+      shell: bash
+      env:
+        ACME_CFG: ${{ inputs.ACME_CFG }}
+
+    - name: "Wait for ACME directory after cfg restore"
+      if: ${{ always() && inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
