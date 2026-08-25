@@ -778,6 +778,91 @@ PZwtZpoz736yvIqanX6u2zUHLDzSRZXOZHY6pxANqoH6howxqGkI3FMjeDbDUln7
             lcm.output,
         )
 
+    def test_052a_helper_cert_san_get_email(self):
+        """cert_san_get extracts rfc822Name SANs as EMAIL:"""
+        import ipaddress
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = issuer = x509.Name(
+            [x509.NameAttribute(NameOID.COMMON_NAME, "user@example.com")]
+        )
+        cert_obj = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+            .not_valid_after(
+                datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(days=1)
+            )
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [
+                        x509.RFC822Name("user@example.com"),
+                        x509.DNSName("foo.example.com"),
+                        x509.IPAddress(ipaddress.IPv4Address("192.168.14.131")),
+                    ]
+                ),
+                critical=False,
+            )
+            .sign(key, hashes.SHA256())
+        )
+        cert = base64.b64encode(
+            cert_obj.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(
+            [
+                "DNS:foo.example.com",
+                "IP:192.168.14.131",
+                "EMAIL:user@example.com",
+            ],
+            self.cert_san_get(self.logger, cert),
+        )
+
+    def test_052b_helper_cert_san_get_email_only(self):
+        """cert_san_get with only rfc822Name SANs"""
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = issuer = x509.Name(
+            [x509.NameAttribute(NameOID.COMMON_NAME, "user@example.com")]
+        )
+        cert_obj = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+            .not_valid_after(
+                datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(days=1)
+            )
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [x509.RFC822Name("user@example.com")]
+                ),
+                critical=False,
+            )
+            .sign(key, hashes.SHA256())
+        )
+        cert = base64.b64encode(
+            cert_obj.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(
+            ["EMAIL:user@example.com"],
+            self.cert_san_get(self.logger, cert),
+        )
+
     def test_053_helper_build_pem_file(self):
         """test build_pem_file without exsting content"""
         existing = None
@@ -1505,6 +1590,76 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         self.assertIn(
             "ERROR:test_a2c:Error while getting SANs from CSR: 'str' object has no attribute 'extensions'",
             lcm.output,
+        )
+
+    def test_128a_helper_csr_san_get_email(self):
+        """csr_san_get extracts rfc822Name SANs as EMAIL:"""
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        csr_obj = (
+            x509.CertificateSigningRequestBuilder()
+            .subject_name(
+                x509.Name(
+                    [x509.NameAttribute(NameOID.COMMON_NAME, "user@example.com")]
+                )
+            )
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [
+                        x509.RFC822Name("user@example.com"),
+                        x509.RFC822Name("other@example.org"),
+                        x509.DNSName("foo.example.com"),
+                    ]
+                ),
+                critical=False,
+            )
+            .sign(key, hashes.SHA256())
+        )
+        csr = base64.b64encode(
+            csr_obj.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(
+            [
+                "DNS:foo.example.com",
+                "EMAIL:user@example.com",
+                "EMAIL:other@example.org",
+            ],
+            self.csr_san_get(self.logger, csr),
+        )
+
+    def test_128b_helper_csr_san_get_email_only(self):
+        """csr_san_get with only rfc822Name SANs"""
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        csr_obj = (
+            x509.CertificateSigningRequestBuilder()
+            .subject_name(
+                x509.Name(
+                    [x509.NameAttribute(NameOID.COMMON_NAME, "user@example.com")]
+                )
+            )
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [x509.RFC822Name("user@example.com")]
+                ),
+                critical=False,
+            )
+            .sign(key, hashes.SHA256())
+        )
+        csr = base64.b64encode(
+            csr_obj.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(
+            ["EMAIL:user@example.com"],
+            self.csr_san_get(self.logger, csr),
         )
 
     def test_129_helper_csr_extensions_get(self):
