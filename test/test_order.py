@@ -722,9 +722,12 @@ class TestOrderClass(unittest.TestCase):
         # test _parse_order_message for all code paths
         # url in protected, order_name, order_dic, process_order_request
         with patch.object(self.order, "_name_get", return_value="order"):
-            with patch.object(
-                self.order, "get_order_details", return_value={"status": "ok"}
-            ), patch.object(self.order, "_get_order_account_name", return_value="acc"):
+            with (
+                patch.object(
+                    self.order, "get_order_details", return_value={"status": "ok"}
+                ),
+                patch.object(self.order, "_get_order_account_name", return_value="acc"),
+            ):
                 with patch.object(
                     self.order,
                     "_process_order_request",
