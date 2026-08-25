@@ -3,6 +3,7 @@
 
 # pylint: disable=R0913, R1705
 from __future__ import print_function
+import ipaddress
 import json
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
@@ -29,6 +30,16 @@ from acme2certifier.acme_srv.helpers.domain_utils import (
     is_email_whitelisted,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    log_ownership_denial,
+    ownership_lookup_failed,
+    ownership_unauthorized,
+    resource_owner_matches,
+)
+from acme2certifier.acme_srv.helpers.security_gate import (
+    SECURITY_DISABLE_ACK_ENV,
+    security_disable_acknowledged,
+)
 from acme2certifier.acme_srv.message import Message
 from acme2certifier.acme_srv.nonce import Nonce
 
@@ -472,6 +483,81 @@ class Authorization(object):
         # pylint: disable=unnecessary-pass
         pass
 
+    @staticmethod
+    def _is_unbounded_domain_prevalidation(domainlist: List[str]) -> bool:
+        """True when the list is solely the full-universe domain wildcard '*'."""
+        return (
+            len(domainlist) == 1
+            and isinstance(domainlist[0], str)
+            and domainlist[0].strip() == "*"
+        )
+
+    @staticmethod
+    def _is_unbounded_ip_network(entry: Any) -> bool:
+        """True for networks covering the entire address family (prefix length 0)."""
+        if not isinstance(entry, str):
+            return False
+        try:
+            return ipaddress.ip_network(entry.strip(), strict=False).prefixlen == 0
+        except ValueError:
+            return False
+
+    def _gate_unbounded_domain_prevalidation(
+        self, domainlist: List[str]
+    ) -> Optional[List[str]]:
+        """Require break-glass env for global prevalidated_domainlist=['*']."""
+        if not self._is_unbounded_domain_prevalidation(domainlist):
+            return domainlist
+
+        if not security_disable_acknowledged():
+            self.logger.warning(
+                "Ignoring prevalidated_domainlist=['*'] in [Authorization]; "
+                "challenge validation remains required for all DNS identifiers. "
+                "Set %s=1 only for testing if you intentionally need a full-universe "
+                "prevalidation wildcard. Scoped entries (e.g. '*.example.com') are "
+                "unaffected.",
+                SECURITY_DISABLE_ACK_ENV,
+            )
+            return None
+
+        self.logger.critical(
+            "**** SECURITY DISABLE ACKNOWLEDGED via %s: "
+            "prevalidated_domainlist=['*'] ****",
+            SECURITY_DISABLE_ACK_ENV,
+        )
+        return domainlist
+
+    def _gate_unbounded_ip_prevalidation(
+        self, iplist: List[str]
+    ) -> Optional[List[str]]:
+        """Require break-glass env for global 0.0.0.0/0 or ::/0 prevalidation entries."""
+        unbounded = [entry for entry in iplist if self._is_unbounded_ip_network(entry)]
+        if not unbounded:
+            return iplist
+
+        if not security_disable_acknowledged():
+            kept = [
+                entry for entry in iplist if not self._is_unbounded_ip_network(entry)
+            ]
+            self.logger.warning(
+                "Ignoring unbounded IP prevalidation %s in [Authorization]; "
+                "challenge validation remains required for those address spaces. "
+                "Set %s=1 only for testing if you intentionally need full-universe "
+                "IP prevalidation. Kept scoped entries: %s",
+                unbounded,
+                SECURITY_DISABLE_ACK_ENV,
+                kept if kept else "none",
+            )
+            return kept or None
+
+        self.logger.critical(
+            "**** SECURITY DISABLE ACKNOWLEDGED via %s: unbounded IP "
+            "prevalidation %s ****",
+            SECURITY_DISABLE_ACK_ENV,
+            unbounded,
+        )
+        return iplist
+
     def _load_json_config_param(
         self, config_dic, parameter_name: str
     ) -> Optional[List[str]]:
@@ -486,9 +572,14 @@ class Authorization(object):
                 config_dic.get("Authorization", parameter_name, fallback="null")
             )
             if value:
-                self.logger.warning(
-                    f"{parameter_name} loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
-                )
+                if parameter_name == "prevalidated_domainlist":
+                    value = self._gate_unbounded_domain_prevalidation(value)
+                elif parameter_name == "prevalidated_iplist":
+                    value = self._gate_unbounded_ip_prevalidation(value)
+                if value:
+                    self.logger.warning(
+                        f"{parameter_name} loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
+                    )
         except json.JSONDecodeError as err:
             value = None
             raise ConfigurationError(f"Invalid {parameter_name} parameter") from err
@@ -878,10 +969,8 @@ class Authorization(object):
         if not domainlist:
             return
 
-        wildcard_all = (
-            len(self.config.prevalidated_domainlist) == 1
-            and isinstance(self.config.prevalidated_domainlist[0], str)
-            and self.config.prevalidated_domainlist[0].strip() == "*"
+        wildcard_all = self._is_unbounded_domain_prevalidation(
+            self.config.prevalidated_domainlist
         )
 
         if wildcard_all:

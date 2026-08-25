@@ -121,6 +121,26 @@ class Message(object):
         )
         return nonce_check_disable, signature_check_disable
 
+    def _apply_eabkid_check_disable_gate(self, eabkid_check_disable: bool) -> bool:
+        """Honor eabkid_check_disable only when break-glass env acknowledges it."""
+        if not eabkid_check_disable:
+            return False
+
+        if not security_disable_acknowledged():
+            self.logger.warning(
+                "Ignoring eabkid_check_disable in [EABhandler]; EAB kid checks "
+                "remain enabled. Set %s=1 only for testing if you intentionally "
+                "need this option.",
+                SECURITY_DISABLE_ACK_ENV,
+            )
+            return False
+
+        self.logger.critical(
+            "**** SECURITY DISABLE ACKNOWLEDGED via %s: eabkid_check_disable ****",
+            SECURITY_DISABLE_ACK_ENV,
+        )
+        return True
+
     def _load_configuration(self) -> MessageConfiguration:
         """Load and parse config from file and return MessageConfiguration dataclass."""
         self.logger.debug("Message._load_configuration()")
@@ -140,10 +160,14 @@ class Message(object):
                 nonce_check_disable, signature_check_disable
             )
         if "EABhandler" in config_dic:
-            if config_dic.getboolean(
-                "EABhandler", "eabkid_check_disable", fallback=False
-            ):
-                msg_config.eabkid_check_disable = True
+            msg_config.eabkid_check_disable = self._apply_eabkid_check_disable_gate(
+                config_dic.getboolean(
+                    "EABhandler", "eabkid_check_disable", fallback=False
+                )
+            )
+            if msg_config.eabkid_check_disable:
+                # Acknowledged disable: skip EAB handler load (existing behavior).
+                pass
             elif (
                 "eab_handler_file" in config_dic["EABhandler"]
                 or "eab_handler_module" in config_dic["EABhandler"]
@@ -165,6 +189,7 @@ class Message(object):
                 "EABhandler", "eab_strict_mode", fallback=True
             )
         else:
+            # No EAB configured — kid revalidation is N/A (not an explicit disable).
             msg_config.eabkid_check_disable = True
 
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
