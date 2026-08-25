@@ -225,6 +225,9 @@ def cert_san_get(
         sans_list = ext.value.get_values_for_type(x509.IPAddress)
         for san in sans_list:
             sans.append(f"IP:{san}")
+        sans_list = ext.value.get_values_for_type(x509.RFC822Name)
+        for san in sans_list:
+            sans.append(f"EMAIL:{san}")
     except Exception as err:
         logger.error("Error while getting SANs from certificate: %s", err)
 

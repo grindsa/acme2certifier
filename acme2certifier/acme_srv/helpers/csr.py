@@ -102,6 +102,9 @@ def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
             sans_list = ext.value.get_values_for_type(x509.IPAddress)
             for san in sans_list:
                 sans.append(f"IP:{san}")
+            sans_list = ext.value.get_values_for_type(x509.RFC822Name)
+            for san in sans_list:
+                sans.append(f"EMAIL:{san}")
 
         except Exception as err:
             logger.error("Error while getting SANs from CSR: %s", err)
