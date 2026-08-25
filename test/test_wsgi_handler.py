@@ -3345,6 +3345,79 @@ class TestACMEHandler(unittest.TestCase):
         result = self.dbstore.nonce_search_by_timestamp(0)
         self.assertEqual([], result)
 
+    def test_168_db_update_nonce_dedupes_and_indexes(self):
+        """test _db_update_nonce removes duplicates and creates unique index"""
+        # Insert duplicates by temporarily dropping uniqueness if present.
+        self.dbstore._db_open()
+        self.dbstore.cursor.execute("DROP INDEX IF EXISTS nonce_nonce_unique")
+        # Table may already enforce UNIQUE via CREATE TABLE; rebuild without it.
+        self.dbstore.cursor.execute("ALTER TABLE nonce RENAME TO nonce_tmp")
+        self.dbstore.cursor.execute(
+            'CREATE TABLE "nonce" ('
+            '"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, '
+            '"nonce" varchar(30) NOT NULL, '
+            '"created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)'
+        )
+        self.dbstore.cursor.execute(
+            "INSERT INTO nonce(id, nonce, created_at) "
+            "SELECT id, nonce, created_at FROM nonce_tmp"
+        )
+        self.dbstore.cursor.execute("DROP TABLE nonce_tmp")
+        self.dbstore.cursor.execute(
+            "INSERT INTO nonce(nonce) VALUES ('dup'), ('dup'), ('keep')"
+        )
+        self.dbstore._db_close()
+
+        self.dbstore._db_open()
+        self.dbstore._db_update_nonce()
+        self.dbstore._db_close()
+
+        self.dbstore._db_open()
+        self.dbstore.cursor.execute(
+            "SELECT nonce, COUNT(*) FROM nonce GROUP BY nonce HAVING COUNT(*) > 1"
+        )
+        self.assertEqual([], self.dbstore.cursor.fetchall())
+        self.dbstore.cursor.execute(
+            "SELECT count(*) FROM sqlite_master WHERE type='index' "
+            "AND name='nonce_nonce_unique'"
+        )
+        self.assertEqual(1, self.dbstore.cursor.fetchone()[0])
+        self.dbstore._db_close()
+
+        # Idempotent second run
+        self.dbstore._db_open()
+        self.dbstore._db_update_nonce()
+        self.dbstore._db_close()
+
+    def test_169_certificate_replaced_update(self):
+        """certificate_replaced_update sets replaced flag; missing returns 0"""
+        data_dic = {
+            "alg": "alg1",
+            "jwk": '{"key11": "val11", "key12": "val12"}',
+            "contact": "contact1",
+            "name": "name1",
+        }
+        self.dbstore.account_add(data_dic)
+        data_dic = {
+            "name": "ordRepl",
+            "identifiers": "identifiers",
+            "account": "name1",
+            "status": 1,
+            "expires": "25",
+        }
+        self.dbstore.order_add(data_dic)
+        data_dic = {
+            "name": "certRepl",
+            "csr": "csr1",
+            "order": "ordRepl",
+            "header_info": "header_info1",
+        }
+        cid = self.dbstore.certificate_add(data_dic)
+        self.assertEqual(0, self.dbstore.certificate_replaced_update("missing"))
+        self.assertEqual(cid, self.dbstore.certificate_replaced_update("certRepl"))
+        row = self.dbstore._certificate_search("name", "certRepl")
+        self.assertEqual(1, dict_from_row(row)["replaced"])
+
 
 if __name__ == "__main__":
 

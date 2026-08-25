@@ -3464,6 +3464,68 @@ class TestOrderClass(unittest.TestCase):
         self.assertFalse(self.order.config.profiles_check_disable)
         mock_eab_handler.__enter__.assert_not_called()
 
+    def test_216_check_order_ownership_denied(self):
+        """_check_order_ownership denies mismatched account"""
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ownership_unauthorized,
+        )
+
+        with patch.object(self.order, "_get_order_account_name", return_value="other"):
+            self.assertEqual(
+                self.order._check_order_ownership("ord1", "acc"),
+                ownership_unauthorized(),
+            )
+
+    def test_217_finalize_ready_order_update_if_status_db_error(self):
+        """OrderDatabaseError on claim maps to not-ready path"""
+        from acme2certifier.acme_srv.order import OrderDatabaseError
+
+        self.order._get_order_info = MagicMock(return_value={"status": "ready"})
+        self.order.repository.order_update_if_status.side_effect = OrderDatabaseError(
+            "fail"
+        )
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            result = self.order._finalize_order("order1", {"csr": "csrval"})
+        self.assertEqual(result[0], 403)
+        self.assertIn(
+            "WARNING:test_a2c:Order finalize failed: orderNotReady order=order1 status=processing",
+            log_cm.output,
+        )
+
+    def test_218_finalize_ready_authz_invalid_update_db_error(self):
+        """OrderDatabaseError while marking invalid is swallowed"""
+        from acme2certifier.acme_srv.order import OrderDatabaseError
+
+        self.order._get_order_info = MagicMock(return_value={"status": "ready"})
+        self.order.repository.order_update_if_status = MagicMock(return_value=1)
+        self.order.repository.authorization_lookup = MagicMock(
+            return_value=[
+                {"name": "az1", "status__name": "pending", "expires": 9999999999}
+            ]
+        )
+        self.order.repository.order_update.side_effect = OrderDatabaseError("fail")
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            result = self.order._finalize_order("order1", {"csr": "csrval"})
+        self.assertEqual(result[0], 403)
+        self.assertIn(
+            "WARNING:test_a2c:Order finalize failed: authorizations not valid for issuance order=order1",
+            log_cm.output,
+        )
+
+    def test_219_authorizations_valid_for_issuance_db_error(self):
+        """_authorizations_valid_for_issuance returns False on DB error"""
+        from acme2certifier.acme_srv.order import OrderDatabaseError
+
+        self.order.repository.authorization_lookup.side_effect = OrderDatabaseError(
+            "fail"
+        )
+        self.assertFalse(self.order._authorizations_valid_for_issuance("order1"))
+
+    def test_220_authorizations_valid_for_issuance_empty(self):
+        """_authorizations_valid_for_issuance returns False for empty list"""
+        self.order.repository.authorization_lookup.return_value = []
+        self.assertFalse(self.order._authorizations_valid_for_issuance("order1"))
+
 
 if __name__ == "__main__":
     unittest.main()

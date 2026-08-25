@@ -714,6 +714,97 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertIn("data", result)
             self.assertEqual(result["data"], {"foo": "bar"})
 
+    def test_047_update_ownership_lookup_error_returns_500(self):
+        """update() returns 500 when certificate ownership lookup fails"""
+        renewalinfo = self.renewalinfo
+        renewalinfo.message = MagicMock()
+        renewalinfo.message.prepare_response.side_effect = _acme_prepare_response
+        renewalinfo.message.check.return_value = (
+            200,
+            None,
+            None,
+            None,
+            {"certid": "cid", "replaced": True},
+            "owner",
+        )
+        renewalinfo._lookup_certificate_by_renewalinfo = MagicMock(
+            side_effect=ResourceOwnershipLookupError("db")
+        )
+        result = renewalinfo.update("content")
+        self.assertEqual(result["code"], 500)
+        self.assertEqual(
+            result["data"]["type"], "urn:ietf:params:acme:error:serverInternal"
+        )
+
+    def test_048_update_cross_account_returns_403_problem(self):
+        """update() returns an ACME unauthorized problem for a foreign certid"""
+        self.mock_message.check.return_value = (
+            200,
+            None,
+            None,
+            None,
+            {"certid": "cid", "replaced": True},
+            "attacker",
+        )
+        self.renewalinfo._lookup_certificate_by_renewalinfo = MagicMock(
+            return_value={"name": "cert1", "order__account__name": "victim"}
+        )
+        result = self.renewalinfo.update("content")
+        self.assertEqual(result["code"], 403)
+        self.assertEqual(result["data"]["type"], UNAUTHORIZED_TYPE)
+        self.assertEqual(result["data"]["detail"], OWNERSHIP_DENIED_DETAIL)
+        self.mock_repository.mark_certificate_replaced.assert_not_called()
+
+    def test_049_update_message_check_failure(self):
+        """update() returns problem response when message.check fails"""
+        self.mock_message.check.return_value = (
+            400,
+            "urn:ietf:params:acme:error:malformed",
+            "bad jws",
+            None,
+            {},
+            None,
+        )
+        result = self.renewalinfo.update("content")
+        self.assertEqual(result["code"], 400)
+        self.assertEqual(result["data"]["type"], "urn:ietf:params:acme:error:malformed")
+
+    def test_050_update_missing_certificate_name(self):
+        """update() rejects cert lookup without name"""
+        self.mock_message.check.return_value = (
+            200,
+            None,
+            None,
+            None,
+            {"certid": "cid", "replaced": True},
+            "owner",
+        )
+        self.renewalinfo._lookup_certificate_by_renewalinfo = MagicMock(
+            return_value={"order__account__name": "owner"}
+        )
+        result = self.renewalinfo.update("content")
+        self.assertEqual(result["code"], 400)
+        self.assertEqual(result["data"]["detail"], "certificate name missing")
+        self.mock_repository.mark_certificate_replaced.assert_not_called()
+
+    def test_051_update_mark_replaced_failed(self):
+        """update() returns problem when mark_certificate_replaced fails"""
+        self.mock_message.check.return_value = (
+            200,
+            None,
+            None,
+            None,
+            {"certid": "cid", "replaced": True},
+            "owner",
+        )
+        self.renewalinfo._lookup_certificate_by_renewalinfo = MagicMock(
+            return_value={"name": "cert1", "order__account__name": "owner"}
+        )
+        self.mock_repository.mark_certificate_replaced.return_value = 0
+        result = self.renewalinfo.update("content")
+        self.assertEqual(result["code"], 400)
+        self.assertEqual(result["data"]["detail"], "certificate update failed")
+
 
 if __name__ == "__main__":
     unittest.main()
