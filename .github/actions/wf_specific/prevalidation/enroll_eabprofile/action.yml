@@ -1,5 +1,10 @@
 name: "enroll_eabprofile"
 description: "Prevalidation EAB profile enrollment test"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
 
 runs:
   using: "composite"
@@ -7,11 +12,36 @@ runs:
   - name: "Wait for ACME directory"
     uses: ./.github/actions/wait_for_directory
 
+  - name: "Flush logs"
+    uses: ./.github/actions/logs_flush
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
   - name: "EAB - 00a - Enroll lego including prevalidated domain and ip (to succeed)"
     run: |
       sudo rm -rf lego/*
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme -d lego01.acme.local -d 10.0.0.1 --http
     shell: bash
+
+  - name: "Sleep for 10s"
+    if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
+    uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
+    with:
+      time: 10s
+
+  - name: "Check logs domain preauth (EAB profile)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "type=dns identifier=lego01.acme.local"
+      FLUSH: "false"
+
+  - name: "Check logs IP preauth (EAB profile)"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "type=ip identifier=10.0.0.1"
+      FLUSH: "true"
 
   - name: "EAB - 00b - Enroll lego including prevalidated domain (to succeed)"
     run: |
