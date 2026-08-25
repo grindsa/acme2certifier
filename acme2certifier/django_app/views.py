@@ -21,6 +21,7 @@ from acme2certifier.acme_srv.helper import (
     legacy_acme_get_load,
     acme_get_method_not_allowed_problem,
     server_name_configuration_validate,
+    tnauthlist_configuration_validate,
 )
 from acme2certifier.acme_srv.db_handler import log_active_db_handler
 from acme2certifier.acme_srv.housekeeping import (
@@ -84,6 +85,7 @@ ERR_RESPONSE_ACME_GET["Allow"] = "POST"
 # check configuration for parameters masked in ""
 config_check(LOGGER, CONFIG)
 server_name_configuration_validate(LOGGER, CONFIG)
+tnauthlist_configuration_validate(LOGGER, CONFIG)
 LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
@@ -479,6 +481,12 @@ def renewalinfo(request):
                 response = JsonResponse(response_dic["data"])
                 # generate additional header elements
                 for element in response_dic["header"]:
+                    response[element] = response_dic["header"][element]
+            elif response_dic.get("code", 200) >= 400 and response_dic.get("data"):
+                response = JsonResponse(
+                    status=response_dic["code"], data=response_dic["data"]
+                )
+                for element in response_dic.get("header", {}):
                     response[element] = response_dic["header"][element]
             else:
                 response = HttpResponse(status=response_dic["code"])

@@ -375,7 +375,7 @@ class TestACMEHandler(unittest.TestCase):
         config_dic = {
             "code": 403,
             "type": "urn:ietf:params:acme:error:unauthorized",
-            "detail": "EAB kid lookup failed",
+            "detail": "invalid eab credentials",
         }
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.message.prepare_response(data_dic, config_dic, account_name="acct-123")
@@ -383,7 +383,7 @@ class TestACMEHandler(unittest.TestCase):
             any(
                 "ACME problem code=403" in line
                 and "type=urn:ietf:params:acme:error:unauthorized" in line
-                and "detail=EAB kid lookup failed" in line
+                and "detail=invalid eab credentials" in line
                 and "account=acct-123" in line
                 for line in lcm.output
             )
@@ -643,42 +643,90 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
-    def test_037_config_load(self, mock_load_cfg, mock_eab):
-        """test _config_load"""
+    def test_037_config_load_eabkid_disable_ignored_without_ack(
+        self, mock_load_cfg, mock_eab
+    ):
+        """eabkid_check_disable is ignored without break-glass env; handler still loads"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {
             "eab_handler_file": "eab_handler_file",
             "eabkid_check_disable": True,
         }
         mock_load_cfg.return_value = parser
-        from acme2certifier.acme_srv.message import Message
+        mock_eab.return_value = MagicMock()
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        self.message = Message(False, "http://tester.local", self.logger)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
         self.assertFalse(self.message.config.nonce_check_disable)
         self.assertFalse(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
-        self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.config.eabkid_check_disable)
+        self.assertTrue(mock_eab.called)
         self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertTrue(
+            any(
+                "Ignoring eabkid_check_disable" in line
+                and SECURITY_DISABLE_ACK_ENV in line
+                for line in lcm.output
+            )
+        )
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
-    def test_038_config_load(self, mock_load_cfg, mock_eab):
-        """test _config_load"""
+    def test_038_config_load_eabkid_disable_with_ack(self, mock_load_cfg, mock_eab):
+        """eabkid_check_disable honored when break-glass env is set"""
         parser = configparser.ConfigParser()
-        parser["EABhandler"] = {"foo": "bar", "eabkid_check_disable": True}
+        parser["EABhandler"] = {
+            "eab_handler_file": "eab_handler_file",
+            "eabkid_check_disable": True,
+        }
         mock_load_cfg.return_value = parser
-        from acme2certifier.acme_srv.message import Message
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        self.message = Message(False, "http://tester.local", self.logger)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
         self.assertFalse(self.message.config.nonce_check_disable)
         self.assertFalse(self.message.config.signature_check_disable)
         self.assertTrue(self.message.config.eabkid_check_disable)
         self.assertFalse(mock_eab.called)
         self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertTrue(
+            any(
+                "SECURITY DISABLE ACKNOWLEDGED" in line
+                and "eabkid_check_disable" in line
+                for line in lcm.output
+            )
+        )
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_039_config_load(self, mock_load_cfg, mock_eab):
+        """incomplete EABhandler with eabkid_check_disable ignored without ack"""
+        parser = configparser.ConfigParser()
+        parser["EABhandler"] = {"foo": "bar", "eabkid_check_disable": True}
+        mock_load_cfg.return_value = parser
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
+        self.assertFalse(self.message.config.nonce_check_disable)
+        self.assertFalse(self.message.config.signature_check_disable)
+        self.assertFalse(self.message.config.eabkid_check_disable)
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertTrue(
+            any(
+                "Configuration error: EABHandler incomplete" in line
+                for line in lcm.output
+            )
+        )
+
+    @patch("acme2certifier.acme_srv.message.eab_handler_load")
+    @patch("acme2certifier.acme_srv.message.load_config")
+    def test_040_config_load(self, mock_load_cfg, mock_eab):
         """test _config_load wrong eab handler config"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {"foo": "bar", "invalid_eabkid_deactivate": True}
@@ -698,7 +746,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
-    def test_040_config_load(self, mock_load_cfg, mock_eab):
+    def test_041_config_load(self, mock_load_cfg, mock_eab):
         """test _config_load empty config"""
         parser = configparser.ConfigParser()
         parser["CAHandler"] = {"foo": "bar"}
@@ -713,8 +761,8 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
-    def test_041_config_load(self, mock_load_cfg, mock_eab):
-        """test _config_load"""
+    def test_042_config_load(self, mock_load_cfg, mock_eab):
+        """eabkid_check_disable without ack loads handler (handler returns None)"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {
             "eab_handler_file": "eab_handler_file",
@@ -722,20 +770,24 @@ class TestACMEHandler(unittest.TestCase):
         }
         mock_load_cfg.return_value = parser
         mock_eab.return_value = None
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
-        from acme2certifier.acme_srv.message import Message
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        self.message = Message(False, "http://tester.local", self.logger)
-        # self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler could not get loaded', lcm.output)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
         self.assertFalse(self.message.config.nonce_check_disable)
         self.assertFalse(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
-        self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.config.eabkid_check_disable)
+        self.assertTrue(mock_eab.called)
         self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertIn(
+            "CRITICAL:test_a2c:EABHandler could not get loaded",
+            lcm.output,
+        )
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
-    def test_042_config_load(self, mock_load_cfg, mock_eab):
+    def test_043_config_load(self, mock_load_cfg, mock_eab):
         """test _config_load eab_load returned None"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {"eab_handler_file": "eab_handler_file"}
@@ -758,7 +810,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
-    def test_043_config_load(self, mock_load_cfg, mock_eab):
+    def test_044_config_load(self, mock_load_cfg, mock_eab):
         """test _config_load"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {
@@ -779,8 +831,8 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
-    def test_044_config_load(self, mock_load_cfg, mock_eab):
-        """test _config_load"""
+    def test_045_config_load(self, mock_load_cfg, mock_eab):
+        """eabkid_check_disable without ack loads handler despite disable request"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {
             "eab_handler_file": "eab_handler_file",
@@ -789,17 +841,23 @@ class TestACMEHandler(unittest.TestCase):
         }
         mock_load_cfg.return_value = parser
         mock_eab.return_value = None
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
-        self.message._load_configuration()
-        # self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler could not get loaded', lcm.output)
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
         self.assertFalse(self.message.config.nonce_check_disable)
         self.assertFalse(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
-        self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.config.eabkid_check_disable)
+        self.assertTrue(mock_eab.called)
         self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertIn(
+            "CRITICAL:test_a2c:EABHandler could not get loaded",
+            lcm.output,
+        )
 
     @patch("acme2certifier.acme_srv.message.decode_message")
-    def test_045_message_check(self, mock_decode):
+    def test_046_message_check(self, mock_decode):
         """cli_check failed bcs of decoding error"""
         message = '{"foo" : "bar"}'
         mock_decode.return_value = (False, "detail", None, None, None)
@@ -819,7 +877,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.signature.Signature.cli_check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.message.decode_message")
-    def test_046_message_check(self, mock_decode, mock_name_get, mock_check):
+    def test_047_message_check(self, mock_decode, mock_name_get, mock_check):
         """message check failed bcs sig.cli_check() failed"""
         self.message.dbstore = MagicMock()
         mock_decode.return_value = (True, None, "protected", "payload", "signature")
@@ -835,7 +893,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.signature.Signature.cli_check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.message.decode_message")
-    def test_047_message_check(self, mock_decode, mock_name_get, mock_check):
+    def test_048_message_check(self, mock_decode, mock_name_get, mock_check):
         """message check failed bcs sig.cli_check() successful"""
         mock_decode.return_value = (True, None, "protected", "payload", "signature")
         mock_check.return_value = ("True", "error", "detail")
@@ -851,7 +909,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.signature.Signature.cli_check")
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
     @patch("acme2certifier.acme_srv.message.decode_message")
-    def test_048_message_check(self, mock_decode, mock_name_get, mock_check):
+    def test_049_message_check(self, mock_decode, mock_name_get, mock_check):
         """message check failed bcs sig.cli_check() successful"""
         mock_decode.return_value = (True, None, "protected", "payload", "signature")
         mock_check.return_value = ("True", "error", "detail")
@@ -869,7 +927,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_049_invalid_eab_check(self):
+    def test_050_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -884,7 +942,7 @@ class TestACMEHandler(unittest.TestCase):
             self.message._check_and_handle_invalid_eab_credentials("account_name"),
         )
 
-    def test_050_invalid_eab_check(self):
+    def test_051_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -903,7 +961,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_051_invalid_eab_check(self):
+    def test_052_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -929,7 +987,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(self.message.repo.account_update.called)
 
-    def test_052_invalid_eab_check(self):
+    def test_053_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -947,7 +1005,7 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Account account_name has no eab credentials", lcm.output
         )
 
-    def test_053_invalid_eab_check(self):
+    def test_054_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -965,7 +1023,7 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Account lookup for account_name failed.", lcm.output
         )
 
-    def test_054_invalid_eab_check_non_strict_no_eab_kid(self):
+    def test_055_invalid_eab_check_non_strict_no_eab_kid(self):
         """test _invalid_eab_check allows missing eab_kid in non-strict mode"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -983,7 +1041,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_055__safe_account_lookup_db_error(self):
+    def test_056__safe_account_lookup_db_error(self):
         """test _safe_account_lookup - dbstore.account_lookup raises an exception"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = Exception(
@@ -996,7 +1054,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_056_eab_mac_key_exists_exception(self):
+    def test_057_eab_mac_key_exists_exception(self):
         """Test _eab_mac_key_exists handles exception and returns False"""
         self.message.config.eab_handler = MagicMock()
         # Simulate eab_handler raising an exception when called
@@ -1006,7 +1064,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(result)
         self.assertIn("ERROR:test_a2c:EAB handler error: handler error", lcm.output)
 
-    def test_057_handle_missing_eab_credentials_db_error(self):
+    def test_058_handle_missing_eab_credentials_db_error(self):
         """Test _handle_missing_eab_credentials handles db error gracefully"""
         self.message.repo = MagicMock()
         self.message.repo.account_update.side_effect = Exception("db error")
@@ -1027,7 +1085,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
-    def test_058_extract_account_name_from_content(self, mock_name_get):
+    def test_059_extract_account_name_from_content(self, mock_name_get):
         """Test _extract_account_name_from_content handles unexpected exceptions gracefully"""
         mock_name_get.return_value = "account_name"
         protected = {"jwk": {"n": "n"}, "url": "http://tester.local/acme/revokecert"}
@@ -1045,19 +1103,19 @@ class TestAccountRepository(unittest.TestCase):
             "acme2certifier.acme_srv.message"
         ).AccountRepository(self.mock_dbstore)
 
-    def test_001_account_lookup_calls_dbstore(self):
+    def test_060_account_lookup_calls_dbstore(self):
         self.mock_dbstore.account_lookup.return_value = "result"
         result = self.repo.account_lookup("key", "value")
         self.mock_dbstore.account_lookup.assert_called_once_with("key", "value")
         self.assertEqual(result, "result")
 
-    def test_002_account_update_calls_dbstore(self):
+    def test_061_account_update_calls_dbstore(self):
         self.mock_dbstore.account_update.return_value = "updated"
         result = self.repo.account_update({"foo": "bar"}, True)
         self.mock_dbstore.account_update.assert_called_once_with({"foo": "bar"}, True)
         self.assertEqual(result, "updated")
 
-    def test_003_cli_permissions_get_calls_dbstore(self):
+    def test_062_cli_permissions_get_calls_dbstore(self):
         self.mock_dbstore.cli_permissions_get.return_value = {"perm": True}
         result = self.repo.cli_permissions_get("account_name")
         self.mock_dbstore.cli_permissions_get.assert_called_once_with("account_name")

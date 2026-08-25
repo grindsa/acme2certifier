@@ -209,22 +209,41 @@ find_rpm() {
 find_flavor_rpm() {
   local flavor_name="$1"
   local main_rpm="$2"
-  local dir
-  dir="$(dirname "${main_rpm}")"
+  local dir main_evr candidate cand_evr
   local matches=()
+  local evr_matches=()
+  dir="$(dirname "${main_rpm}")"
+  # Prefer flavor EVR matching the main payload. Upgrade CI keeps the from-tag
+  # flavor next to the build artifact; mtime alone can pick the wrong file.
+  main_evr="$(rpm -qp --qf '%{EVR}' "${main_rpm}" 2>/dev/null || true)"
   # shellcheck disable=SC2086
   mapfile -t matches < <(ls -1t "${dir}/${flavor_name}"-*.rpm "${dir}/${flavor_name}"-*.noarch.rpm 2>/dev/null || true)
-  if [[ ${#matches[@]} -gt 0 && -f "${matches[0]}" ]]; then
-    printf '%s\n' "${matches[0]}"
-    return 0
-  fi
   if [[ -n "${DATA_DIR}" ]]; then
     # shellcheck disable=SC2086
-    mapfile -t matches < <(ls -1t "${DATA_DIR}/${flavor_name}"-*.rpm 2>/dev/null || true)
-    if [[ ${#matches[@]} -gt 0 && -f "${matches[0]}" ]]; then
-      printf '%s\n' "${matches[0]}"
+    mapfile -t matches < <(
+      { printf '%s\n' "${matches[@]+"${matches[@]}"}"; ls -1t "${DATA_DIR}/${flavor_name}"-*.rpm 2>/dev/null || true; } \
+        | awk 'NF && !seen[$0]++'
+    )
+  fi
+  if [[ ${#matches[@]} -eq 0 ]]; then
+    return 1
+  fi
+  if [[ -n "${main_evr}" ]]; then
+    for candidate in "${matches[@]}"; do
+      [[ -f "${candidate}" ]] || continue
+      cand_evr="$(rpm -qp --qf '%{EVR}' "${candidate}" 2>/dev/null || true)"
+      if [[ "${cand_evr}" == "${main_evr}" ]]; then
+        evr_matches+=("${candidate}")
+      fi
+    done
+    if [[ ${#evr_matches[@]} -gt 0 ]]; then
+      printf '%s\n' "${evr_matches[0]}"
       return 0
     fi
+  fi
+  if [[ -f "${matches[0]}" ]]; then
+    printf '%s\n' "${matches[0]}"
+    return 0
   fi
   return 1
 }
@@ -742,7 +761,9 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
 fi
 
 echo "==> Installing ${RPM_FILE} + ${FLAVOR_FILE}"
-if ! ${SUDO} ${PKG} localinstall -y "${RPM_FILE}" "${FLAVOR_FILE}"; then
+# --allowerasing: upgrades replace an older EVR of main+flavor (flavor Requires
+# exact acme2certifier = NVR). Fresh installs are unaffected.
+if ! ${SUDO} ${PKG} localinstall -y --allowerasing "${RPM_FILE}" "${FLAVOR_FILE}"; then
   if [[ "${EL_MAJOR}" == "8" \
      && "${FLAVOR_PKG}" == *"-python39" \
      && -z "${PYTHON_OPT}" ]]; then
@@ -753,7 +774,7 @@ if ! ${SUDO} ${PKG} localinstall -y "${RPM_FILE}" "${FLAVOR_FILE}"; then
       exit 1
     }
     echo "==> Using flavor: ${FLAVOR_FILE}"
-    ${SUDO} ${PKG} localinstall -y "${RPM_FILE}" "${FLAVOR_FILE}"
+    ${SUDO} ${PKG} localinstall -y --allowerasing "${RPM_FILE}" "${FLAVOR_FILE}"
   else
     exit 1
   fi

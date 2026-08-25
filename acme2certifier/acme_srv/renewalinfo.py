@@ -2,7 +2,7 @@
 """Renewalinfo class: ACME renewal info handler with separated config and repository helpers."""
 
 from __future__ import print_function
-from typing import Dict
+from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
@@ -18,8 +18,16 @@ from acme2certifier.acme_srv.helper import (
     cert_aki_get,
     b64_url_recode,
     b64_decode,
+    duration_to_seconds,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    ResourceOwnershipLookupError,
+    log_ownership_denial,
+    ownership_lookup_failed,
+    ownership_unauthorized,
+    resource_owner_matches,
+)
 
 
 @dataclass
@@ -30,6 +38,8 @@ class RenewalinfoConfig:
     renewalthreshold_pctg: float = 85.0
     retry_after_timeout: int = 86400
     renewalinfo_lookup: bool = False
+    renewalinfo_disable: bool = False
+    renewal_window_duration: Optional[int] = None
 
 
 class RenewalinfoRepository:
@@ -56,6 +66,7 @@ class RenewalinfoRepository:
                     "expire_uts",
                     "issue_uts",
                     "created_at",
+                    "order__account__name",
                 ),
             )
         except Exception as err_:
@@ -63,7 +74,9 @@ class RenewalinfoRepository:
                 f"{DB_ERROR_MSG}: failed to look up certificate for renewal info (draft01): %s",
                 err_,
             )
-            return None
+            raise ResourceOwnershipLookupError(
+                f"failed to look up certificate for certid {certid_hex}"
+            ) from err_
 
     def get_certificates_by_serial(self, serial):
         """Retrieve certificates by serial from database."""
@@ -84,6 +97,7 @@ class RenewalinfoRepository:
                     "issue_uts",
                     "aki",
                     "created_at",
+                    "order__account__name",
                 ],
             )
         except Exception as err_:
@@ -97,6 +111,13 @@ class RenewalinfoRepository:
         """Add or update certificate in database."""
         self.logger.debug("RenewalinfoRepository.add_certificate()")
         return self.dbstore.certificate_add(data_dic)
+
+    def mark_certificate_replaced(self, cert_name: str) -> int:
+        """Set replaced=True for an existing certificate without rewriting other columns."""
+        self.logger.debug(
+            "RenewalinfoRepository.mark_certificate_replaced(%s)", cert_name
+        )
+        return self.dbstore.certificate_replaced_update(cert_name)
 
     def get_housekeeping_param(self, name):
         """Retrieve housekeeping parameter by name from database."""
@@ -134,6 +155,14 @@ class Renewalinfo(object):
 
         if "Renewalinfo" in config_dic:
             try:
+                self.config.renewalinfo_disable = config_dic.getboolean(
+                    "Renewalinfo",
+                    "renewalinfo_disable",
+                    fallback=self.config.renewalinfo_disable,
+                )
+            except Exception as err_:
+                self.logger.error("renewalinfo_disable not set: %s", err_)
+            try:
                 self.config.renewal_force = config_dic.getboolean(
                     "Renewalinfo", "renewal_force", fallback=False
                 )
@@ -156,6 +185,19 @@ class Renewalinfo(object):
             except Exception as err_:
                 self.logger.error("retry_after_timeout parsing error: %s", err_)
                 self.config.retry_after_timeout = 86400
+            try:
+                raw_duration = config_dic.get(
+                    "Renewalinfo", "renewal_window_duration", fallback=None
+                )
+                if raw_duration is None or str(raw_duration).strip() == "":
+                    self.config.renewal_window_duration = None
+                else:
+                    self.config.renewal_window_duration = duration_to_seconds(
+                        raw_duration
+                    )
+            except Exception as err_:
+                self.logger.error("renewal_window_duration parsing error: %s", err_)
+                self.config.renewal_window_duration = None
 
         self._load_ca_handler(config_dic)
         self._parse_cahandler_section(config_dic)
@@ -298,10 +340,13 @@ class Renewalinfo(object):
                     )
                     + cert_dic["issue_uts"]
                 )
+            end_uts = cert_dic["expire_uts"]
+            if not self.config.renewal_force and self.config.renewal_window_duration:
+                end_uts = min(end_uts, start_uts + self.config.renewal_window_duration)
             renewalinfo_dic = {
                 "suggestedWindow": {
                     "start": uts_to_date_utc(start_uts),
-                    "end": uts_to_date_utc(cert_dic["expire_uts"]),
+                    "end": uts_to_date_utc(end_uts),
                 }
             }
         else:
@@ -356,6 +401,9 @@ class Renewalinfo(object):
     def get(self, url: str) -> Dict[str, str]:
         """Get renewal information (backwards compatible public method)"""
         self.logger.debug("Renewalinfo.get()")
+        if self.config.renewalinfo_disable:
+            self.logger.debug("Renewalinfo.get() - endpoint disabled")
+            return {"code": 404, "data": {}}
 
         renewalinfo_string = self._parse_renewalinfo_string_from_url(url)
         if self.config.renewalinfo_lookup and hasattr(
@@ -392,26 +440,68 @@ class Renewalinfo(object):
             response_dic["data"] = self.err_msg_dic["malformed"]
         return response_dic
 
+    def _problem_response(
+        self,
+        status: Tuple[int, str, str],
+        account_name: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """Build an ACME problem document the same way order/certificate handlers do."""
+        code, message, detail = status
+        return self.message.prepare_response(
+            {},
+            {"code": code, "type": message, "detail": detail},
+            account_name=account_name,
+        )
+
     def update(self, content: str) -> Dict[str, str]:
         """Update renewal info (backwards compatible public method)"""
         self.logger.debug("Renewalinfo.update()")
+        if self.config.renewalinfo_disable:
+            self.logger.debug("Renewalinfo.update() - endpoint disabled")
+            return {"code": 404, "data": {}}
         (
             code,
-            _message,
-            _detail,
+            message,
+            detail,
             _protected,
             payload,
-            _account_name,
+            account_name,
         ) = self.message.check(content)
-        response_dic = {}
-        if code == 200 and "certid" in payload and "replaced" in payload:
+        if code != 200:
+            return self._problem_response((code, message, detail), account_name)
+        if "certid" not in payload or "replaced" not in payload:
+            return self._problem_response(
+                (400, self.err_msg_dic["malformed"], "certid or replaced missing"),
+                account_name,
+            )
+        try:
             cert_dic = self._lookup_certificate_by_renewalinfo(payload["certid"])
-            if cert_dic and payload["replaced"]:
-                cert_dic["replaced"] = True
-                cert_id = self.repository.add_certificate(cert_dic)
-                response_dic["code"] = 200 if cert_id else 400
-            else:
-                response_dic["code"] = 400
-        else:
-            response_dic["code"] = 400
-        return response_dic
+        except ResourceOwnershipLookupError:
+            return self._problem_response(ownership_lookup_failed(), account_name)
+        if not cert_dic or not payload["replaced"]:
+            return self._problem_response(
+                (400, self.err_msg_dic["malformed"], "certificate not found"),
+                account_name,
+            )
+        owner = cert_dic.get("order__account__name")
+        if not resource_owner_matches(account_name, owner):
+            log_ownership_denial(
+                self.logger,
+                account_name,
+                "certificate",
+                cert_dic.get("name", payload["certid"]),
+            )
+            return self._problem_response(ownership_unauthorized(), account_name)
+        cert_name = cert_dic.get("name")
+        if not cert_name:
+            return self._problem_response(
+                (400, self.err_msg_dic["malformed"], "certificate name missing"),
+                account_name,
+            )
+        cert_id = self.repository.mark_certificate_replaced(cert_name)
+        if not cert_id:
+            return self._problem_response(
+                (400, self.err_msg_dic["malformed"], "certificate update failed"),
+                account_name,
+            )
+        return {"code": 200}

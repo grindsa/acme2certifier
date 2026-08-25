@@ -30,6 +30,7 @@ from .helpers.certificates import (
     cert_pem2der,
     cert_pubkey_get,
     cert_san_get,
+    cert_bound_names_get,
     cert_ski_get,
     cert_extensions_get,
     cert_serial_get,
@@ -47,10 +48,12 @@ from .helpers.csr import (
     csr_dn_get,
     csr_pubkey_get,
     csr_san_get,
+    csr_bound_names_get,
     csr_san_byte_get,
     csr_extensions_get,
     csr_subject_get,
     csr_cn_lookup,
+    san_list_to_bound_names,
 )
 
 # Cryptographic operations
@@ -72,6 +75,7 @@ from .helpers.datetime_utils import (
     date_to_uts_utc,
     date_to_datestr,
     datestr_to_date,
+    duration_to_seconds,
 )
 
 # Validation functions
@@ -127,6 +131,7 @@ from .helpers.config import (
     config_allowed_iplist_load,
     config_async_mode_load,
     legacy_acme_get_load,
+    tnauthlist_configuration_validate,
     acme_get_method_not_allowed_problem,
     config_proxy_load,
     config_dns_server_list_load,

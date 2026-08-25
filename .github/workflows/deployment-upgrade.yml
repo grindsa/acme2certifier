@@ -611,9 +611,20 @@ jobs:
                 owners+=("${own}")
               fi
             done
+            # Also drop python3-* counterparts of python39-* SBOM RPMs. Shared
+            # /usr/lib/.build-id entries (e.g. cryptography) conflict even when
+            # /usr/bin helpers were already cleared.
+            for r in "${filtered[@]}"; do
+              name="$(rpm -qp --qf %{NAME} "${r}" 2>/dev/null || true)"
+              [[ "${name}" == python39-* ]] || continue
+              legacy="python3-${name#python39-}"
+              if rpm -q "${legacy}" >/dev/null 2>&1; then
+                owners+=("${legacy}")
+              fi
+            done
             if ((${#owners[@]} > 0)); then
               mapfile -t owners < <(printf "%s\n" "${owners[@]}" | sort -u)
-              echo "Removing conflicting owners of /usr/bin helpers (--nodeps):"
+              echo "Removing conflicting python3 /usr/bin owners (--nodeps):"
               printf "  %s\n" "${owners[@]}"
               rpm -e --nodeps "${owners[@]}"
             fi

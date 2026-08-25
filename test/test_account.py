@@ -307,7 +307,7 @@ class TestExternalAccountBinding(unittest.TestCase):
                 )
             self.assertEqual(code, 403)
             self.assertEqual(message, "unauthorized")
-            self.assertEqual(detail, "EAB signature verification failed")
+            self.assertEqual(detail, "invalid eab credentials")
             self.assertIn(
                 "ERROR:test_a2c:EAB signature verification failed kid=test_kid error=error",
                 log_cm.output,
@@ -327,7 +327,7 @@ class TestExternalAccountBinding(unittest.TestCase):
             )
         self.assertEqual(code, 403)
         self.assertEqual(message, "unauthorized")
-        self.assertEqual(detail, "EAB kid lookup failed")
+        self.assertEqual(detail, "invalid eab credentials")
         self.assertIn(
             "ERROR:test_a2c:EAB kid lookup failed kid=test_kid",
             log_cm.output,
@@ -452,7 +452,7 @@ class TestExternalAccountBinding(unittest.TestCase):
             )
         self.assertEqual(code, 403)
         self.assertEqual(message, "unauthorized")
-        self.assertEqual(detail, "EAB kid lookup failed")
+        self.assertEqual(detail, "invalid eab credentials")
         self.assertTrue(
             any("EAB kid lookup failed kid=None" in line for line in log_cm.output),
             log_cm.output,

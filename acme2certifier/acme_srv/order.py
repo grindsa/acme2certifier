@@ -32,6 +32,11 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     ENROLLMENT_FAILED_DETAIL,
     DB_ERROR_MSG,
 )
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    log_ownership_denial,
+    ownership_unauthorized,
+    resource_owner_matches,
+)
 from acme2certifier.acme_srv.message import Message
 
 
@@ -101,6 +106,22 @@ class OrderRepository:
         except Exception as err:
             self.logger.critical(f"{DB_ERROR_MSG}: failed to update order: %s", err)
             raise OrderDatabaseError(f"Failed to update order: {err}") from err
+
+    def order_update_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> int:
+        """Conditionally update order status; return affected row count."""
+        try:
+            return self.dbstore.order_update_if_status(
+                name, new_status, expected_status
+            )
+        except Exception as err:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed conditional order status update: %s", err
+            )
+            raise OrderDatabaseError(
+                f"Failed conditional order status update: {err}"
+            ) from err
 
     def authorization_lookup(self, key, value, fields):
         """Look up an authorization in the database."""
@@ -1192,7 +1213,7 @@ class Order(object):
         return result
 
     def _get_order_account_name(self, order_name: str) -> Optional[str]:
-        """Lookup account name for an order (needed for EAB profile at finalize)."""
+        """Return the account that owns an order, or None if missing/unavailable."""
         self.logger.debug("Order._get_order_account_name(%s)", order_name)
         try:
             order_dic = self.repository.order_lookup(
@@ -1206,6 +1227,16 @@ class Order(object):
         if not order_dic:
             return None
         return order_dic.get("account__name") or order_dic.get("account")
+
+    def _check_order_ownership(
+        self, order_name: str, account_name: Optional[str]
+    ) -> Tuple[int, str, str]:
+        """Verify the requester owns the order."""
+        owner = self._get_order_account_name(order_name)
+        if not resource_owner_matches(account_name, owner):
+            log_ownership_denial(self.logger, account_name, "order", order_name)
+            return ownership_unauthorized()
+        return (200, None, None)
 
     def _header_info_lookup(self, header: Optional[Dict[str, Any]]) -> str:
         """lookup header information and serialize them in a string"""
@@ -1291,15 +1322,64 @@ class Order(object):
         self, order_name: str, payload: Dict[str, str], header: str = None
     ) -> Tuple[int, Optional[str], Optional[str], Optional[str]]:
         """Handle finalize flow for ready orders."""
-        self.repository.order_update({"name": order_name, "status": "processing"})
-        if "csr" in payload:
-            return self._finalize_csr(order_name, payload, header)
+        if "csr" not in payload:
+            self.logger.warning(
+                "Order finalize failed: csr missing order=%s",
+                order_name,
+            )
+            return 400, self.error_msg_dic["badcsr"], "csr is missing in payload", None
 
-        self.logger.warning(
-            "Order finalize failed: csr missing order=%s",
-            order_name,
-        )
-        return 400, self.error_msg_dic["badcsr"], "csr is missing in payload", None
+        try:
+            claimed = self.repository.order_update_if_status(
+                order_name, "processing", "ready"
+            )
+        except OrderDatabaseError:
+            claimed = 0
+
+        if not claimed:
+            return self._finalize_not_ready_order(order_name, "processing")
+
+        if not self._authorizations_valid_for_issuance(order_name):
+            self.logger.warning(
+                "Order finalize failed: authorizations not valid for issuance order=%s",
+                order_name,
+            )
+            try:
+                self.repository.order_update({"name": order_name, "status": "invalid"})
+            except OrderDatabaseError:
+                pass
+            return (
+                403,
+                self.error_msg_dic["ordernotready"],
+                "Order is not ready",
+                None,
+            )
+
+        return self._finalize_csr(order_name, payload, header)
+
+    def _authorizations_valid_for_issuance(self, order_name: str) -> bool:
+        """True when every order authorization is valid and unexpired."""
+        self.logger.debug("Order._authorizations_valid_for_issuance(%s)", order_name)
+        try:
+            authz_list = self.repository.authorization_lookup(
+                "order__name",
+                order_name,
+                ["name", "status__name", "expires"],
+            )
+        except OrderDatabaseError:
+            return False
+
+        if not authz_list:
+            return False
+
+        now = uts_now()
+        for authz in authz_list:
+            if authz.get("status__name") != "valid":
+                return False
+            expires = authz.get("expires")
+            if expires is not None and expires != 0 and expires <= now:
+                return False
+        return True
 
     def _finalize_valid_order(
         self, order_name: str
@@ -1656,26 +1736,35 @@ class Order(object):
         return response_dic
 
     def _parse_order_message(
-        self, protected: Dict[str, str], payload: Dict[str, str], header: str = None
+        self,
+        protected: Dict[str, str],
+        payload: Dict[str, str],
+        header: str = None,
+        account_name: Optional[str] = None,
     ) -> Tuple[int, str, str, str, str]:
         """parse new order message"""
         self.logger.debug("Order._parse_order_message()")
 
         order_name = certificate_name = None
+        code = message = detail = None
 
         if "url" in protected:
             order_name = self._name_get(protected["url"])
             if order_name:
                 order_dic = self.get_order_details(order_name)
                 if order_dic:
-                    (
-                        code,
-                        message,
-                        detail,
-                        certificate_name,
-                    ) = self._process_order_request(
-                        order_name, protected, payload, header
+                    code, message, detail = self._check_order_ownership(
+                        order_name, account_name
                     )
+                    if code == 200:
+                        (
+                            code,
+                            message,
+                            detail,
+                            certificate_name,
+                        ) = self._process_order_request(
+                            order_name, protected, payload, header
+                        )
                 else:
                     self.logger.warning(
                         "Order request failed: order not found order=%s",
@@ -1720,7 +1809,9 @@ class Order(object):
                 detail,
                 certificate_name,
                 order_name,
-            ) = self._parse_order_message(protected, payload, header)
+            ) = self._parse_order_message(
+                protected, payload, header, account_name=account_name
+            )
 
             if code == 200:
                 # create response

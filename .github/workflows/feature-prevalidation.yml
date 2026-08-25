@@ -153,6 +153,8 @@ jobs:
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/prevalidation/enroll_eabprofile
+        with:
+          DEPLOYMENT_TYPE: "container"
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -276,6 +278,8 @@ jobs:
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/prevalidation/enroll_eabprofile
+        with:
+          DEPLOYMENT_TYPE: "rpm"
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -406,6 +410,8 @@ jobs:
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/prevalidation/enroll_eabprofile
+        with:
+          DEPLOYMENT_TYPE: "deb"
 
       - name: "Channel teardown"
         if: ${{ always() }}

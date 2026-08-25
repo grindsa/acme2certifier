@@ -1,0 +1,199 @@
+name: "resource_ownership_checks"
+description: "Cross-account order poll/finalize must return 403 unauthorized"
+inputs:
+  NAME_SPACE:
+    description: "Docker network namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  ACME_CFG:
+    description: "Host path to acme_srv.cfg"
+    required: false
+    default: "examples/Docker/data/acme_srv.cfg"
+  TEST_DOMAIN:
+    description: "Prevalidated DNS identifier for victim order"
+    required: false
+    default: "crossacct.acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Enable prevalidated_domainlist for ownership test"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      run: |
+        set -euo pipefail
+        MARKER="# resource-ownership CI"
+        if ! grep -qF "${MARKER}" "${ACME_CFG}"; then
+          # Marker before [Authorization] so cleanup removes the whole section
+          # (not an orphan header that breaks later DuplicateSectionError checks).
+          sudo tee -a "${ACME_CFG}" >/dev/null <<EOF
+
+        ${MARKER}
+        [Authorization]
+        prevalidated_domainlist: ["${TEST_DOMAIN}"]
+        EOF
+        fi
+        grep -n 'prevalidated_domainlist' "${ACME_CFG}"
+        python3 -c "import configparser, os; c=configparser.ConfigParser(); assert c.read(os.environ['ACME_CFG'], encoding='utf8')"
+        cd examples/Docker/
+        docker compose restart
+      shell: bash
+      env:
+        ACME_CFG: ${{ inputs.ACME_CFG }}
+        TEST_DOMAIN: ${{ inputs.TEST_DOMAIN }}
+
+    - name: "Wait for ACME directory after prevalidation enable"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+
+    - name: "Prepare victim acmeshell script"
+      working-directory: acmeshell
+      run: |
+        set -euo pipefail
+        rm -f acmeshell.victim.log victim.order.url victim.finalize.url
+        cat <<EOT > victim.shell
+        newAccount -contacts=victim-ownership@bar.local,
+        newOrder -identifiers=${TEST_DOMAIN}
+        getAuthz -order=0 -identifier=${TEST_DOMAIN}
+        poll -order=0 -status=ready
+        getOrder -order=0
+        EOT
+      shell: bash
+      env:
+        TEST_DOMAIN: ${{ inputs.TEST_DOMAIN }}
+
+    - name: "Run victim flow (order ready)"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/victim.shell &> /acmeshell/acmeshell.victim.log'
+        cat acmeshell.victim.log
+      shell: bash
+
+    - name: "Extract victim order and finalize URLs from log"
+      working-directory: acmeshell
+      run: |
+        set -euo pipefail
+        grep -q '"status": "ready"' acmeshell.victim.log
+        grep -oE 'http://acme-srv/acme/order/[^"/]+/finalize' acmeshell.victim.log | tail -1 > victim.finalize.url
+        grep -oE 'http://acme-srv/acme/order/[^"/]+' acmeshell.victim.log | grep -v finalize | tail -1 > victim.order.url
+        test -s victim.finalize.url
+        test -s victim.order.url
+        echo "order=$(cat victim.order.url)"
+        echo "finalize=$(cat victim.finalize.url)"
+      shell: bash
+
+    - name: "Prepare attacker CSR and shell script"
+      working-directory: acmeshell
+      run: |
+        set -euo pipefail
+        ORDER_URL="$(cat victim.order.url)"
+        FINALIZE_URL="$(cat victim.finalize.url)"
+        openssl req -new -newkey rsa:2048 -nodes \
+          -keyout attacker.key -outform DER -out attacker.csr.der \
+          -subj "/CN=${TEST_DOMAIN}" \
+          -addext "subjectAltName=DNS:${TEST_DOMAIN}"
+        CSR_B64="$(python3 - <<'PY'
+        import base64, pathlib
+        der = pathlib.Path("attacker.csr.der").read_bytes()
+        print(base64.urlsafe_b64encode(der).rstrip(b"=").decode())
+        PY
+        )"
+        BODY="$(python3 -c "import json; print(json.dumps({'csr': '${CSR_B64}'}))")"
+        cat <<EOT > attacker.shell
+        newAccount -contacts=attacker-ownership@bar.local,
+        post -noData ${ORDER_URL}
+        post -body='${BODY}' ${FINALIZE_URL}
+        EOT
+      shell: bash
+      env:
+        TEST_DOMAIN: ${{ inputs.TEST_DOMAIN }}
+
+    - name: "Run attacker cross-account poll and finalize"
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/attacker.shell &> /acmeshell/acmeshell.attacker.log'
+        cat acmeshell.attacker.log
+      shell: bash
+
+    - name: "Check acmeshell log for unauthorized on cross-account poll"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:unauthorized" acmeshell.attacker.log
+      shell: bash
+
+    - name: "Check acmeshell log for unauthorized on cross-account finalize"
+      working-directory: acmeshell
+      run: |
+        grep -c "urn:ietf:params:acme:error:unauthorized" acmeshell.attacker.log | awk '$1 >= 2'
+      shell: bash
+
+    - name: "Check attacker did not receive a valid order or certificate"
+      working-directory: acmeshell
+      run: |
+        set -euo pipefail
+        # newAccount legitimately returns "status": "valid"; do not treat that as a leak.
+        if grep -E '/acme/cert/' acmeshell.attacker.log; then
+          echo "ERROR: attacker received a certificate URL" >&2
+          exit 1
+        fi
+        if grep -E '"identifiers"|"authorizations"' acmeshell.attacker.log; then
+          echo "ERROR: attacker received an order payload" >&2
+          exit 1
+        fi
+      shell: bash
+
+    - name: "Check a2c logs for ownership denial WARNING"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "resource access denied: unauthorized account="
+        FLUSH: "false"
+
+    - name: "Check a2c logs for ACME problem (unauthorized ownership)"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized"
+
+    - name: "Remove prevalidated_domainlist ownership test block"
+      if: ${{ always() && inputs.DEPLOYMENT_TYPE == 'container' }}
+      run: |
+        set -euo pipefail
+        if grep -qF '# resource-ownership CI' "${ACME_CFG}"; then
+          sudo sed -i '/# resource-ownership CI/,$d' "${ACME_CFG}"
+        fi
+        cd examples/Docker/
+        docker compose restart
+      shell: bash
+      env:
+        ACME_CFG: ${{ inputs.ACME_CFG }}
+
+    - name: "Wait for ACME directory after cfg restore"
+      if: ${{ always() && inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}

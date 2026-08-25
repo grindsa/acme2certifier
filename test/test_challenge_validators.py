@@ -39,8 +39,10 @@ from acme2certifier.acme_srv.challenge_validators.email_reply_validator import (
     EmailReplyChallengeValidator,
 )
 from acme2certifier.acme_srv.challenge_validators.tkauth_validator import (
+    NOT_IMPLEMENTED_MSG,
     TkauthChallengeValidator,
 )
+from acme2certifier.acme_srv.helpers.security_gate import SECURITY_DISABLE_ACK_ENV
 from acme2certifier.acme_srv.challenge_validators.source_address_validator import (
     SourceAddressValidator,
 )
@@ -1981,8 +1983,8 @@ class TestTkauthChallengeValidator(unittest.TestCase):
         result = self.validator.get_challenge_type()
         self.assertEqual(result, "tkauth-01")
 
-    def test_002_perform_validation_success(self):
-        """Test perform_validation success (placeholder implementation)"""
+    def test_002_perform_validation_fails_closed(self):
+        """Test perform_validation refuses the challenge without acknowledgement"""
         context = ChallengeContext(
             challenge_name="test",
             token="test_token",
@@ -1991,14 +1993,60 @@ class TestTkauthChallengeValidator(unittest.TestCase):
             authorization_value="example.com",
         )
 
-        result = self.validator.perform_validation(context)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            result = self.validator.perform_validation(context)
 
-        # Based on the actual placeholder implementation
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertEqual(result.error_message, NOT_IMPLEMENTED_MSG)
+        self.assertEqual(result.details["validation_type"], "tkauth-01")
+        self.assertEqual(result.details["authorization_value"], "example.com")
+
+    def test_003_perform_validation_logs_error_when_refused(self):
+        """Test perform_validation logs the break-glass hint when refusing"""
+        logger = logging.getLogger("test_a2c")
+        validator = TkauthChallengeValidator(logger)
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+        )
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                validator.perform_validation(context)
+
+        self.assertTrue(
+            any(
+                NOT_IMPLEMENTED_MSG in line and SECURITY_DISABLE_ACK_ENV in line
+                for line in lcm.output
+            )
+        )
+
+    def test_004_perform_validation_acknowledged(self):
+        """Test perform_validation accepts any token once acknowledged"""
+        logger = logging.getLogger("test_a2c")
+        validator = TkauthChallengeValidator(logger)
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+        )
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+                result = validator.perform_validation(context)
+
         self.assertTrue(result.success)
         self.assertFalse(result.invalid)
         self.assertIsNone(result.error_message)
-        self.assertEqual(result.details["validation_type"], "tkauth-01")
-        self.assertEqual(result.details["authorization_value"], "example.com")
+        self.assertTrue(
+            any("SECURITY DISABLE ACKNOWLEDGED" in line for line in lcm.output)
+        )
 
 
 class TestSourceAddressValidator(unittest.TestCase):
