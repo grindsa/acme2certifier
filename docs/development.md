@@ -214,6 +214,16 @@ pytest
 
 `pyproject.toml` collects `test/` only. Coverage is enabled by default (`--cov=acme2certifier`).
 
+### CSR-to-order binding
+
+Unit coverage: `pytest test/test_hardening.py::TestCsrBinding`.
+
+Live container coverage is the composite action `.github/actions/wf_specific/error_tests/csr_binding_checks`, invoked from [quality-error.yml](../.github/workflows/quality-error.yml):
+
+- Strict (default): missing order identifier → `badCSR`; extra CSR SAN → `badCSR`
+- `csr_binding_strict: False`: subset CSR still enrolls
+- Email SAN smuggling is covered by unit tests (needs `email_identifier_support` plus mailbox config)
+
 ## Related
 
 - [Package layout](architecture/package-layout.md)

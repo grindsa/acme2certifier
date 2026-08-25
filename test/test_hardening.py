@@ -3,12 +3,19 @@
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 import os
 import sys
+from typing import Iterable, List, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -28,6 +35,37 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
 )
 from acme2certifier.acme_srv.helpers.security_gate import SECURITY_DISABLE_ACK_ENV
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
+
+
+def _build_csr_b64(
+    cn: Optional[str] = None,
+    dns_sans: Optional[Iterable[str]] = None,
+    email_sans: Optional[Iterable[str]] = None,
+) -> str:
+    """Build a base64 DER CSR for binding regression tests."""
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject_attrs: List[x509.NameAttribute] = []
+    if cn is not None:
+        subject_attrs.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
+    builder = x509.CertificateSigningRequestBuilder().subject_name(
+        x509.Name(subject_attrs)
+    )
+    san_entries: List[x509.GeneralName] = []
+    for dns in dns_sans or ():
+        san_entries.append(x509.DNSName(dns))
+    for email in email_sans or ():
+        san_entries.append(x509.RFC822Name(email))
+    if san_entries:
+        builder = builder.add_extension(
+            x509.SubjectAlternativeName(san_entries),
+            critical=False,
+        )
+    csr_obj = builder.sign(key, hashes.SHA256())
+    return base64.b64encode(csr_obj.public_bytes(serialization.Encoding.DER)).decode()
+
+
+def _identifiers_json(*pairs: tuple[str, str]) -> str:
+    return json.dumps([{"type": t, "value": v} for t, v in pairs])
 
 
 class TestResourceOwnershipHelper:
@@ -441,3 +479,136 @@ class TestRenewalinfoResourceOwnership:
         renewalinfo.repository.mark_certificate_replaced.assert_called_once_with(
             "cert1"
         )
+
+
+class TestCsrBinding:
+    """CSR-to-order strict binding (security review medium finding)."""
+
+    @pytest.fixture
+    def certificate(self):
+        logging.basicConfig(level=logging.CRITICAL)
+        logger = logging.getLogger("test_hardening_csr_binding")
+        from acme2certifier.acme_srv.certificate import Certificate
+
+        cert = Certificate(debug=True, srv_name="http://srv", logger=logger)
+        cert.config.csr_binding_strict = True
+        cert.repository = MagicMock()
+        cert.err_msg_dic = {
+            "badcsr": "urn:ietf:params:acme:error:badCSR",
+            "serverinternal": "urn:ietf:params:acme:error:serverInternal",
+        }
+        yield cert
+
+    def test_021_strict_exact_match_allows_enrollment(self, certificate) -> None:
+        csr = _build_csr_b64(
+            cn="example.com",
+            dns_sans=["example.com"],
+        )
+        identifiers = _identifiers_json(("dns", "example.com"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is True
+            with patch.object(
+                certificate, "_validate_input_parameters", return_value={}
+            ), patch.object(
+                certificate,
+                "_handle_enrollment_thread_execution",
+                return_value=(None, ""),
+            ):
+                error, detail = certificate.process_certificate_enrollment_request(
+                    "cert1", csr, "order1"
+                )
+        assert error is None
+        assert detail == ""
+
+    def test_022_strict_extra_email_san_rejected(self, certificate) -> None:
+        csr = _build_csr_b64(
+            cn="user@example.com",
+            email_sans=["user@example.com", "attacker@evil.com"],
+        )
+        identifiers = _identifiers_json(("email", "user@example.com"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+            with patch.object(
+                certificate, "_validate_input_parameters", return_value={}
+            ):
+                error, detail = certificate.process_certificate_enrollment_request(
+                    "cert1", csr, "order1"
+                )
+        assert error == "urn:ietf:params:acme:error:badCSR"
+        assert detail == "CSR validation failed"
+
+    def test_023_strict_missing_order_identifier_rejected(self, certificate) -> None:
+        csr = _build_csr_b64(dns_sans=["a.example.com"])
+        identifiers = _identifiers_json(
+            ("dns", "a.example.com"),
+            ("dns", "b.example.com"),
+        )
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_024_strict_cn_mismatch_rejected(self, certificate) -> None:
+        csr = _build_csr_b64(
+            cn="evil.example.com",
+            dns_sans=["example.com"],
+        )
+        identifiers = _identifiers_json(("dns", "example.com"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_025_strict_cn_only_email_allowed(self, certificate) -> None:
+        csr = _build_csr_b64(cn="user@example.com")
+        identifiers = _identifiers_json(("email", "user@example.com"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is True
+
+    def test_026_legacy_non_strict_allows_subset(self, certificate) -> None:
+        certificate.config.csr_binding_strict = False
+        csr = _build_csr_b64(dns_sans=["a.example.com"])
+        identifiers = _identifiers_json(
+            ("dns", "a.example.com"),
+            ("dns", "b.example.com"),
+        )
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is True
