@@ -41,22 +41,28 @@ runs:
       if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
       run: |
         set -euo pipefail
-        MARKER="# csr-binding CI"
-        if ! grep -qF "${MARKER}" "${ACME_CFG}"; then
+        # openssl base cfg already has [Challenge]/[Certificate]; do not append
+        # duplicate section headers (configparser.DuplicateSectionError).
+        sudo cp -a "${ACME_CFG}" "${ACME_CFG}.pre-csrbind"
+        sudo sed -i 's/challenge_validation_disable: False/challenge_validation_disable: True/' "${ACME_CFG}"
+        if grep -qE '^[[:space:]]*csr_binding_strict:' "${ACME_CFG}"; then
+          sudo sed -i 's/^[[:space:]]*csr_binding_strict:.*/csr_binding_strict: True/' "${ACME_CFG}"
+        else
+          sudo sed -i '/^\[Certificate\]/a csr_binding_strict: True' "${ACME_CFG}"
+        fi
+        if grep -qE '^[[:space:]]*prevalidated_domainlist:' "${ACME_CFG}"; then
+          sudo sed -i "s|^[[:space:]]*prevalidated_domainlist:.*|prevalidated_domainlist: [\"${DOMAIN_A}\", \"${DOMAIN_B}\", \"${DOMAIN_EXTRA}\"]|" "${ACME_CFG}"
+        elif grep -qE '^\[Authorization\]' "${ACME_CFG}"; then
+          sudo sed -i "/^\[Authorization\]/a prevalidated_domainlist: [\"${DOMAIN_A}\", \"${DOMAIN_B}\", \"${DOMAIN_EXTRA}\"]" "${ACME_CFG}"
+        else
           sudo tee -a "${ACME_CFG}" >/dev/null <<EOF
-
-        ${MARKER}
-        [Challenge]
-        challenge_validation_disable: True
 
         [Authorization]
         prevalidated_domainlist: ["${DOMAIN_A}", "${DOMAIN_B}", "${DOMAIN_EXTRA}"]
-
-        [Certificate]
-        csr_binding_strict: True
         EOF
         fi
         grep -n 'csr_binding_strict\|challenge_validation_disable\|prevalidated_domainlist' "${ACME_CFG}"
+        python3 -c "import configparser, os; c=configparser.ConfigParser(); assert c.read(os.environ['ACME_CFG'], encoding='utf8')"
         cd examples/Docker/
         docker compose restart
       shell: bash
@@ -280,13 +286,15 @@ runs:
         grep '"status": "valid"' acmeshell.csrbind.log
       shell: bash
 
-    - name: "Remove csr-binding CI config block"
+    - name: "Restore acme_srv.cfg after csr-binding"
       if: ${{ always() && inputs.DEPLOYMENT_TYPE == 'container' }}
       run: |
         set -euo pipefail
-        if grep -qF '# csr-binding CI' "${ACME_CFG}"; then
-          sudo sed -i '/# csr-binding CI/,$d' "${ACME_CFG}"
+        if [[ -f "${ACME_CFG}.pre-csrbind" ]]; then
+          sudo mv "${ACME_CFG}.pre-csrbind" "${ACME_CFG}"
+          sudo chmod 777 "${ACME_CFG}"
         fi
+        python3 -c "import configparser, os; c=configparser.ConfigParser(); assert c.read(os.environ['ACME_CFG'], encoding='utf8')"
         cd examples/Docker/
         docker compose restart
       shell: bash
