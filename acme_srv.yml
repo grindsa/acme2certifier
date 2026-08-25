@@ -1,0 +1,67 @@
+DEFAULT:
+  debug: false
+  # dryrun: profile
+  # dryrun_profile: dry-run
+  # appname: acme2certifier
+
+Account:
+  inner_header_nonce_allow: true
+  ecc_only: false
+
+DBhandler:
+  handler: wsgi
+  dbfile: acme_srv/acme_srv.db
+
+Directory:
+  suppress_product_information: true
+  db_check: true
+  tos_url: https://letsencrypt.org/documents/LE-SA-v1.5-February-24-2025.pdf
+  caaidentities:
+    - acme.local
+    - acme-srv.acme
+
+Helper:
+  log_format: "%(asctime)s - acme2certifier - %(levelname)s - %(message)s"
+
+Renewalinfo:
+  renewalthreshold_pctg: 85
+  retry_after_timeout: 60
+
+CAhandler:
+  ca_error_details_forward: true
+  enrollment_config_log: true
+  handler_module: acme2certifier.cahandlers.xca_ca_handler
+  xdb_file: acme_srv/xca/acme2certifier.xdb
+  issuing_ca_name: sub-ca
+  issuing_ca_key: sub-ca
+  template_name: TLS_server
+  passphrase: test1234
+  ca_cert_chain_list:
+    - root-ca
+
+Certificate:
+  cert_reusage_timeframe: 30
+  enrollment_timeout: 30
+  cert_operations_log: true
+
+Challenge:
+  # challenge_validation_disable: true
+  dns_persist_01_support: true
+  dns_persist_allow_policy_wildcard: true
+
+Order:
+  tnauthlist_support: true
+  header_info_list:
+    - HTTP_USER_AGENT
+  profiles:
+    acme: http://foo.bar/profile1
+    TLS_server: http://foo.bar/profile2
+    profile3: http://foo.bar/profile3
+
+Authorization:
+  #prevalidated_domainlist:
+  #  - foo-01.bar.local
+  #  - "*.bar1.local"
+  #  - "*.acme.dynamop.de"
+  #  - "*.acme"
+  validity: 3600

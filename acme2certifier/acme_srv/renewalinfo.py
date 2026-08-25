@@ -2,7 +2,7 @@
 """Renewalinfo class: ACME renewal info handler with separated config and repository helpers."""
 
 from __future__ import print_function
-from typing import Dict
+from typing import Dict, Optional
 from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
@@ -18,6 +18,7 @@ from acme2certifier.acme_srv.helper import (
     cert_aki_get,
     b64_url_recode,
     b64_decode,
+    duration_to_seconds,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
@@ -31,6 +32,7 @@ class RenewalinfoConfig:
     retry_after_timeout: int = 86400
     renewalinfo_lookup: bool = False
     renewalinfo_disable: bool = False
+    renewal_window_duration: Optional[int] = None
 
 
 class RenewalinfoRepository:
@@ -165,6 +167,19 @@ class Renewalinfo(object):
             except Exception as err_:
                 self.logger.error("retry_after_timeout parsing error: %s", err_)
                 self.config.retry_after_timeout = 86400
+            try:
+                raw_duration = config_dic.get(
+                    "Renewalinfo", "renewal_window_duration", fallback=None
+                )
+                if raw_duration is None or str(raw_duration).strip() == "":
+                    self.config.renewal_window_duration = None
+                else:
+                    self.config.renewal_window_duration = duration_to_seconds(
+                        raw_duration
+                    )
+            except Exception as err_:
+                self.logger.error("renewal_window_duration parsing error: %s", err_)
+                self.config.renewal_window_duration = None
 
         self._load_ca_handler(config_dic)
         self._parse_cahandler_section(config_dic)
@@ -307,10 +322,13 @@ class Renewalinfo(object):
                     )
                     + cert_dic["issue_uts"]
                 )
+            end_uts = cert_dic["expire_uts"]
+            if not self.config.renewal_force and self.config.renewal_window_duration:
+                end_uts = min(end_uts, start_uts + self.config.renewal_window_duration)
             renewalinfo_dic = {
                 "suggestedWindow": {
                     "start": uts_to_date_utc(start_uts),
-                    "end": uts_to_date_utc(cert_dic["expire_uts"]),
+                    "end": uts_to_date_utc(end_uts),
                 }
             }
         else:

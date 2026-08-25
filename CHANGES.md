@@ -6,6 +6,13 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.45.1
+
+**BugFixes and Improvements**:
+
+- Option `[Renewalinfo] renewalinfo_disable` to hide and disable the ACME Renewal Info (ARI) endpoint ([#369](https://github.com/grindsa/acme2certifier/issues/369))
+- Option `[Renewalinfo] renewal_window_duration` to cap ARI `suggestedWindow` length (`end = min(expire, start + duration)`); unset keeps end at certificate expiry ([#369](https://github.com/grindsa/acme2certifier/issues/369))
+
 ## Changes in 0.45
 
 **New Features**:
@@ -16,7 +23,6 @@ and pick the appropriate release branch.
 - [`a2c-wsgi2django`](docs/migrate_wsgi_to_django.md) CLI to migrate ACME runtime data from WSGI SQLite to Django ORM via a portable JSON dump (`export`, `import`, `check`, `wipe`)
 - Digicert CA handler options `request_retries` and `request_retry_backoff` for HTTP transport retries
 - [EAB profiling](docs/eab_profiling.md): skip ACME profile-name validation per account via `order.profiles_check_disable`
-- Option `[Renewalinfo] renewalinfo_disable` to hide and disable the ACME Renewal Info (ARI) endpoint ([#369](https://github.com/grindsa/acme2certifier/issues/369))
 
 **RPM packaging (quick reference)** — install: [install_rpm.md](docs/install_rpm.md); upgrade: [upgrading.md](docs/upgrading.md#rpm-pre-045--045)
 
