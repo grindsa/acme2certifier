@@ -15,6 +15,24 @@ from acme2certifier.acme_srv.renewalinfo import (
     RenewalinfoRepository,
 )
 from acme2certifier.acme_srv.helper import duration_to_seconds, uts_to_date_utc
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    OWNERSHIP_DENIED_DETAIL,
+    UNAUTHORIZED_TYPE,
+    ResourceOwnershipLookupError,
+)
+
+
+def _acme_prepare_response(response_dic, status_dic, *args, **kwargs):
+    result = dict(response_dic or {})
+    result["code"] = status_dic["code"]
+    if status_dic.get("code", 200) >= 400:
+        result["data"] = {
+            "status": status_dic["code"],
+            "type": status_dic.get("type"),
+            "detail": status_dic.get("detail"),
+        }
+    result.setdefault("header", {})
+    return result
 
 
 class TestDurationToSeconds(unittest.TestCase):
@@ -301,6 +319,31 @@ class TestRenewalinfo(unittest.TestCase):
         self.assertEqual(result["suggestedWindow"]["start"], uts_to_date_utc(99000))
         self.assertEqual(result["suggestedWindow"]["end"], uts_to_date_utc(100000))
 
+    def test_019b_generate_renewalinfo_window_with_duration(self):
+        # start=99000, duration=2d → end=min(100000, 99000+172800)=100000 (clamped to expire)
+        cert_dic = {"expire_uts": 100000, "issue_uts": 90000}
+        self.renewalinfo.config.renewal_force = False
+        self.renewalinfo.config.renewalthreshold_pctg = 90.0
+        self.renewalinfo.config.renewal_window_duration = 172800
+        result = self.renewalinfo._generate_renewalinfo_window(cert_dic)
+        self.assertEqual(result["suggestedWindow"]["end"], uts_to_date_utc(100000))
+
+    def test_019c_generate_renewalinfo_window_duration_caps_end(self):
+        # long-lived cert: start at 85%, duration 2d caps end well before expiry
+        issue = 1_000_000
+        lifetime = 100 * 86400  # 100 days
+        expire = issue + lifetime
+        start = issue + int(lifetime * 0.85)
+        cert_dic = {"expire_uts": expire, "issue_uts": issue}
+        self.renewalinfo.config.renewal_force = False
+        self.renewalinfo.config.renewalthreshold_pctg = 85.0
+        self.renewalinfo.config.renewal_window_duration = 2 * 86400
+        result = self.renewalinfo._generate_renewalinfo_window(cert_dic)
+        self.assertEqual(result["suggestedWindow"]["start"], uts_to_date_utc(start))
+        self.assertEqual(
+            result["suggestedWindow"]["end"], uts_to_date_utc(start + 2 * 86400)
+        )
+
     def test_020_generate_renewalinfo_window_empty(self):
         cert_dic = {}
         result = self.renewalinfo._generate_renewalinfo_window(cert_dic)
@@ -494,6 +537,50 @@ class TestRenewalinfo(unittest.TestCase):
                 "retry_after_timeout parsing error: %s", unittest.mock.ANY
             )
             self.assertEqual(self.renewalinfo.config.retry_after_timeout, 86400)
+
+    def test_028b_load_configuration_renewal_window_duration_error(self):
+        class DummyConfig:
+            def getboolean(self, section, key, fallback=None):
+                return False
+
+            def get(self, section, key, fallback=None):
+                if key == "renewalthreshold_pctg":
+                    return "85.0"
+                if key == "retry_after_timeout":
+                    return "86400"
+                if key == "renewal_window_duration":
+                    return "not-a-duration"
+                return fallback
+
+            def __contains__(self, key):
+                return True
+
+            def __getitem__(self, key):
+                if key == "CAhandler":
+                    return {"handler_file": "/dev/null"}
+                raise KeyError(key)
+
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.load_config",
+            return_value=DummyConfig(),
+        ):
+            self.renewalinfo.logger = MagicMock()
+            self.renewalinfo.config = RenewalinfoConfig()
+            self.renewalinfo._load_configuration()
+            self.renewalinfo.logger.error.assert_any_call(
+                "renewal_window_duration parsing error: %s", unittest.mock.ANY
+            )
+            self.assertIsNone(self.renewalinfo.config.renewal_window_duration)
+
+    def test_028c_get_disabled_returns_404(self):
+        self.renewalinfo.config.renewalinfo_disable = True
+        result = self.renewalinfo.get("/acme/renewal-info/foo")
+        self.assertEqual(result, {"code": 404, "data": {}})
+
+    def test_028d_update_disabled_returns_404(self):
+        self.renewalinfo.config.renewalinfo_disable = True
+        result = self.renewalinfo.update("content")
+        self.assertEqual(result, {"code": 404, "data": {}})
 
     def test_029_exit_does_nothing_and_returns_none(self):
         renewalinfo = self.renewalinfo
