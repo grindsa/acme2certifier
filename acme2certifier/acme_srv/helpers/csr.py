@@ -141,6 +141,23 @@ def _cn_bound_type(cn: str) -> str:
         return "dns"
 
 
+def san_list_to_bound_names(
+    logger: logging.Logger, san_list: List[str]
+) -> Set[Tuple[str, str]]:
+    """Convert DNS:/IP:/EMAIL: SAN strings to normalized bound-name pairs."""
+    names: Set[Tuple[str, str]] = set()
+    for san in san_list:
+        try:
+            san_type, san_value = san.split(":", 1)
+        except ValueError as err:
+            logger.error("Error while splitting SAN %s: %s", san, err)
+            continue
+        normalized = _normalize_bound_name(san_type, san_value)
+        if normalized:
+            names.add(normalized)
+    return names
+
+
 def csr_bound_names_get(
     logger: logging.Logger, csr: str
 ) -> Set[Tuple[str, str]]:

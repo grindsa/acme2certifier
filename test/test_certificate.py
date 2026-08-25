@@ -388,8 +388,8 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.tnauthlist_support = False
         with (
             patch(
-                "acme2certifier.acme_srv.certificate.csr_san_get",
-                return_value=["DNS:foo"],
+                "acme2certifier.acme_srv.certificate.csr_bound_names_get",
+                return_value={("dns", "foo")},
             ),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
@@ -500,6 +500,7 @@ class TestCertificate(unittest.TestCase):
         self.assertTrue(result)
 
     def test_016_validate_identifiers_against_sans(self):
+        self.cert.config.csr_binding_strict = False
         with patch.object(
             self.cert, "_check_identifier_match", return_value=True
         ) as mock_check:
@@ -508,7 +509,43 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, [True])
 
+    def test_016a_validate_identifiers_against_sans_strict_match(self):
+        self.cert.config.csr_binding_strict = True
+        result = self.cert._validate_identifiers_against_sans(
+            [{"type": "dns", "value": "foo.example.com"}],
+            [],
+            bound_names={("dns", "foo.example.com")},
+        )
+        self.assertEqual(result, [True])
+
+    def test_016b_validate_identifiers_against_sans_strict_extra_bound(self):
+        self.cert.config.csr_binding_strict = True
+        with patch.object(self.cert.logger, "warning") as mock_warning:
+            result = self.cert._validate_identifiers_against_sans(
+                [{"type": "email", "value": "user@example.com"}],
+                [],
+                bound_names={
+                    ("email", "user@example.com"),
+                    ("email", "attacker@evil.com"),
+                },
+            )
+        self.assertEqual(result, [False])
+        mock_warning.assert_called_once()
+
+    def test_016c_validate_identifiers_against_sans_strict_missing_order_id(self):
+        self.cert.config.csr_binding_strict = True
+        result = self.cert._validate_identifiers_against_sans(
+            [
+                {"type": "dns", "value": "a.example.com"},
+                {"type": "dns", "value": "b.example.com"},
+            ],
+            [],
+            bound_names={("dns", "a.example.com")},
+        )
+        self.assertEqual(result, [False])
+
     def test_017_validate_identifiers_against_sans_unknown(self):
+        self.cert.config.csr_binding_strict = False
         with (
             patch.object(
                 self.cert, "_check_identifier_match", return_value=True
@@ -526,6 +563,7 @@ class TestCertificate(unittest.TestCase):
             self.assertIsInstance(args[2], ValueError)
 
     def test_018_validate_identifiers_against_nosans(self):
+        self.cert.config.csr_binding_strict = False
         with (
             patch.object(self.cert, "_check_identifier_match") as mock_check,
             patch.object(self.cert.logger, "error") as mock_logger_error,
@@ -772,11 +810,8 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.tnauthlist_support = False
         with (
             patch(
-                "acme2certifier.acme_srv.certificate.cert_san_get",
-                return_value=["DNS:foo"],
-            ),
-            patch(
-                "acme2certifier.acme_srv.certificate.cert_cn_get", return_value="foo"
+                "acme2certifier.acme_srv.certificate.cert_bound_names_get",
+                return_value={("dns", "foo")},
             ),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
@@ -792,11 +827,8 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.tnauthlist_support = False
         with (
             patch(
-                "acme2certifier.acme_srv.certificate.cert_san_get",
-                return_value=["DNS:foo"],
-            ),
-            patch(
-                "acme2certifier.acme_srv.certificate.cert_cn_get", return_value="foo"
+                "acme2certifier.acme_srv.certificate.cert_bound_names_get",
+                return_value={("dns", "foo")},
             ),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
@@ -843,11 +875,8 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.tnauthlist_support = False
         with (
             patch(
-                "acme2certifier.acme_srv.certificate.cert_san_get",
-                return_value=["DNS:foo"],
-            ),
-            patch(
-                "acme2certifier.acme_srv.certificate.cert_cn_get", return_value="foo"
+                "acme2certifier.acme_srv.certificate.cert_bound_names_get",
+                return_value={("dns", "foo")},
             ),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
@@ -1227,7 +1256,7 @@ class TestCertificate(unittest.TestCase):
 
     def test_082_validate_certificate_authorization_exception(self):
         with patch(
-            "acme2certifier.acme_srv.certificate.cert_san_get",
+            "acme2certifier.acme_srv.certificate.cert_bound_names_get",
             side_effect=Exception("SAN error"),
         ):
             with self.assertLogs(self.cert.logger, level="WARNING") as log:
@@ -1528,12 +1557,17 @@ class TestCertificate(unittest.TestCase):
         """Covers identifiers JSON decode error (lines 663-664)."""
         identifier_dic = {"identifiers": "not-a-json"}
         csr = "irrelevant"
-        # Patch csr_san_get to return empty list, so identifier_status will be [False]
-        with patch("acme2certifier.acme_srv.certificate.csr_san_get", return_value=[]):
-            with self.assertLogs(self.cert.logger, level="WARNING") as lcm:
+        with patch(
+            "acme2certifier.acme_srv.certificate.csr_bound_names_get",
+            return_value=set(),
+        ):
+            with self.assertLogs(self.cert.logger, level="ERROR") as lcm:
                 result = self.cert._load_and_validate_identifiers(identifier_dic, csr)
                 self.assertEqual(result, [False])
-            self.assertIn("ERROR:test_a2c:No SANs found in certificate", lcm.output)
+            self.assertIn(
+                "ERROR:test_a2c:No identifiers or bound names to compare",
+                lcm.output,
+            )
 
     def test_106_and_validate_identifiers_tnauthlist_extension_error(self):
         """Covers tnauthlist extension error (lines 676-678)."""
@@ -1566,7 +1600,7 @@ class TestCertificate(unittest.TestCase):
                 self.cert, "_check_for_tnauth_identifiers", return_value=False
             ),
             patch(
-                "acme2certifier.acme_srv.certificate.csr_san_get",
+                "acme2certifier.acme_srv.certificate.csr_bound_names_get",
                 side_effect=Exception("fail"),
             ),
         ):
@@ -2852,11 +2886,11 @@ class TestCertificate(unittest.TestCase):
         self.assertEqual(detail, ENROLLMENT_FAILED_DETAIL)
 
     def test_181_validate_certificate_authorization_sans_exception(self):
-        # Explicitly covers lines 477-481: exception in cert_san_get triggers warning and returns []
+        # Explicitly covers exception in cert_bound_names_get triggers warning and returns []
         self.cert.config.tnauthlist_support = False
         with (
             patch(
-                "acme2certifier.acme_srv.certificate.cert_san_get",
+                "acme2certifier.acme_srv.certificate.cert_bound_names_get",
                 side_effect=Exception("fail"),
             ),
             patch.object(self.cert.logger, "warning") as mock_warning,
@@ -2885,6 +2919,7 @@ class TestCertificate(unittest.TestCase):
         # Covers the branch where tnauthlist_support is False and cn2san_add is True
         self.cert.config.tnauthlist_support = False
         self.cert.config.cn2san_add = True
+        self.cert.config.csr_binding_strict = False
         # Simulate no SANs returned, but CN is present
         with (
             patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=[]),
@@ -2904,11 +2939,11 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, ["ok"])
 
     def test_184_validate_certificate_authorization_sans_exception(self):
-        # Covers lines 477-481: exception in cert_san_get triggers warning and returns []
+        # Covers exception in cert_bound_names_get triggers warning and returns []
         self.cert.config.tnauthlist_support = False
         with (
             patch(
-                "acme2certifier.acme_srv.certificate.cert_san_get",
+                "acme2certifier.acme_srv.certificate.cert_bound_names_get",
                 side_effect=Exception("fail"),
             ),
             patch.object(self.cert.logger, "warning") as mock_warning,
@@ -2999,6 +3034,7 @@ class TestCertificate(unittest.TestCase):
                 self.assertIsNone(self.cert.config.cert_operations_log)
                 self.assertFalse(self.cert.config.tnauthlist_support)
                 self.assertFalse(self.cert.config.cn2san_add)
+                self.assertTrue(self.cert.config.csr_binding_strict)
                 self.assertFalse(self.cert.config.ignore_pre_hook_failure)
                 self.assertTrue(self.cert.config.ignore_post_hook_failure)
                 self.assertFalse(self.cert.config.ignore_success_hook_failure)
@@ -3012,6 +3048,7 @@ class TestCertificate(unittest.TestCase):
         config.set("Certificate", "enrollment_timeout", "9")
         config.set("Certificate", "retry_after", "321")
         config.set("Certificate", "cert_operations_log", "JSON")
+        config.set("Certificate", "csr_binding_strict", "False")
         config.add_section("Order")
         config.set("Order", "tnauthlist_support", "True")
         config.add_section("CAhandler")
@@ -3032,6 +3069,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(self.cert.config.enrollment_timeout, 9)
             self.assertEqual(self.cert.config.retry_after, 321)
             self.assertEqual(self.cert.config.cert_operations_log, "json")
+            self.assertFalse(self.cert.config.csr_binding_strict)
             self.assertTrue(self.cert.config.tnauthlist_support)
             self.assertTrue(self.cert.config.cn2san_add)
             self.assertTrue(self.cert.config.ignore_pre_hook_failure)
