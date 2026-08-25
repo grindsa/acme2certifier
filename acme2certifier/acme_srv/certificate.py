@@ -841,7 +841,9 @@ class Certificate(object):
 
         poll_identifier = None
         error = None
-        account_name = self._lookup_order_account_name(order_name) if order_name else None
+        account_name = (
+            self._lookup_order_account_name(order_name) if order_name else None
+        )
         if self.config.cert_reusage_timeframe:
             (
                 error,
