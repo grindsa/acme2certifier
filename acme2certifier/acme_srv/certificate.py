@@ -254,6 +254,7 @@ class CertificateConfiguration:
     cert_reusage_timeframe: int = 0
     cn2san_add: bool = False
     csr_binding_strict: bool = True
+    email_identifier_rewrite: bool = False
     dryrun: bool = False
     dryrun_profilename: Optional[str] = None
     enrollment_timeout: int = 5
@@ -412,7 +413,11 @@ class Certificate(object):
         else:
             try:
                 if self.config.csr_binding_strict:
-                    bound_names = cert_bound_names_get(self.logger, certificate)
+                    bound_names = cert_bound_names_get(
+                        self.logger,
+                        certificate,
+                        email_identifier_rewrite=self.config.email_identifier_rewrite,
+                    )
                     identifier_status = self._validate_identifiers_against_sans(
                         identifiers, [], bound_names=bound_names
                     )
@@ -650,6 +655,9 @@ class Certificate(object):
             self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
             )
+            self.config.email_identifier_rewrite = config_dic.getboolean(
+                "Order", "email_identifier_rewrite", fallback=False
+            )
 
         # CAhandler section
         if "CAhandler" in config_dic:
@@ -743,7 +751,11 @@ class Certificate(object):
         else:
             try:
                 if self.config.csr_binding_strict:
-                    bound_names = csr_bound_names_get(self.logger, csr)
+                    bound_names = csr_bound_names_get(
+                        self.logger,
+                        csr,
+                        email_identifier_rewrite=self.config.email_identifier_rewrite,
+                    )
                     identifier_status = self._validate_identifiers_against_sans(
                         identifiers, [], bound_names=bound_names
                     )
@@ -1126,7 +1138,9 @@ class Certificate(object):
             if "type" not in identifier or "value" not in identifier:
                 continue
             normalized = _normalize_bound_name(
-                identifier["type"], identifier["value"]
+                identifier["type"],
+                identifier["value"],
+                email_identifier_rewrite=self.config.email_identifier_rewrite,
             )
             if normalized:
                 order_set.add(normalized)
@@ -1144,7 +1158,11 @@ class Certificate(object):
         if self.config.csr_binding_strict:
             order_set = self._order_identifier_set(identifiers)
             if bound_names is None:
-                bound_names = san_list_to_bound_names(self.logger, san_list)
+                bound_names = san_list_to_bound_names(
+                    self.logger,
+                    san_list,
+                    email_identifier_rewrite=self.config.email_identifier_rewrite,
+                )
 
             if not order_set and not bound_names:
                 self.logger.error("No identifiers or bound names to compare")

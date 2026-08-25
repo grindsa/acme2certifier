@@ -612,3 +612,40 @@ class TestCsrBinding:
                 "identifiers": identifiers,
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
+
+    def test_027_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
+        """email_identifier_rewrite: dns:user@host order matches CSR DNS+EMAIL SANs."""
+        certificate.config.email_identifier_rewrite = True
+        csr = _build_csr_b64(
+            cn="jum@mailserver.acme",
+            dns_sans=["jum@mailserver.acme"],
+            email_sans=["jum@mailserver.acme"],
+        )
+        identifiers = _identifiers_json(("dns", "jum@mailserver.acme"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is True
+
+    def test_028_rewrite_still_rejects_extra_email(self, certificate) -> None:
+        certificate.config.email_identifier_rewrite = True
+        csr = _build_csr_b64(
+            cn="jum@mailserver.acme",
+            dns_sans=["jum@mailserver.acme"],
+            email_sans=["jum@mailserver.acme", "attacker@evil.com"],
+        )
+        identifiers = _identifiers_json(("dns", "jum@mailserver.acme"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False

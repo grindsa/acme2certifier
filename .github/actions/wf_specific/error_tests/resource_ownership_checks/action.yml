@@ -35,14 +35,17 @@ runs:
         set -euo pipefail
         MARKER="# resource-ownership CI"
         if ! grep -qF "${MARKER}" "${ACME_CFG}"; then
+          # Marker before [Authorization] so cleanup removes the whole section
+          # (not an orphan header that breaks later DuplicateSectionError checks).
           sudo tee -a "${ACME_CFG}" >/dev/null <<EOF
 
-        [Authorization]
         ${MARKER}
+        [Authorization]
         prevalidated_domainlist: ["${TEST_DOMAIN}"]
         EOF
         fi
         grep -n 'prevalidated_domainlist' "${ACME_CFG}"
+        python3 -c "import configparser, os; c=configparser.ConfigParser(); assert c.read(os.environ['ACME_CFG'], encoding='utf8')"
         cd examples/Docker/
         docker compose restart
       shell: bash

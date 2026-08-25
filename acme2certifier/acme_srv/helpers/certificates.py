@@ -236,12 +236,18 @@ def cert_san_get(
 
 
 def cert_bound_names_get(
-    logger: logging.Logger, certificate: str, recode: bool = True
+    logger: logging.Logger,
+    certificate: str,
+    recode: bool = True,
+    email_identifier_rewrite: bool = False,
 ) -> Set[Tuple[str, str]]:
     """Return normalized (type, value) pairs from certificate SANs and subject CN."""
     from .csr import _cn_bound_type, _normalize_bound_name
 
-    logger.debug("Helper.cert_bound_names_get()")
+    logger.debug(
+        "Helper.cert_bound_names_get(email_identifier_rewrite=%s)",
+        email_identifier_rewrite,
+    )
     names: Set[Tuple[str, str]] = set()
     if not certificate:
         logger.debug("Helper.cert_bound_names_get() ended with: %s", names)
@@ -253,13 +259,19 @@ def cert_bound_names_get(
         except ValueError as err:
             logger.error("Error while splitting SAN %s: %s", san, err)
             continue
-        normalized = _normalize_bound_name(san_type, san_value)
+        normalized = _normalize_bound_name(
+            san_type, san_value, email_identifier_rewrite=email_identifier_rewrite
+        )
         if normalized:
             names.add(normalized)
 
     cn = cert_cn_get(logger, certificate)
     if cn:
-        normalized = _normalize_bound_name(_cn_bound_type(cn), cn)
+        normalized = _normalize_bound_name(
+            _cn_bound_type(cn),
+            cn,
+            email_identifier_rewrite=email_identifier_rewrite,
+        )
         if normalized:
             names.add(normalized)
 

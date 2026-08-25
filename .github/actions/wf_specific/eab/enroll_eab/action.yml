@@ -96,15 +96,16 @@ runs:
 
   - name: "Disable eab-kid checking"
     run: |
+      set -euo pipefail
       sudo echo "eabkid_check_disable: True" >> $DATA_DIR/acme_srv.cfg
       # eabkid_check_disable is ignored unless ACME2CERTIFIER_I_KNOW_THE_RISK=1
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        cat <<'EOF' > examples/Docker/docker-compose.override.yml
-        services:
-          acme-srv:
-            environment:
-              ACME2CERTIFIER_I_KNOW_THE_RISK: "1"
-        EOF
+        printf '%s\n' \
+          'services:' \
+          '  acme-srv:' \
+          '    environment:' \
+          '      ACME2CERTIFIER_I_KNOW_THE_RISK: "1"' \
+          > examples/Docker/docker-compose.override.yml
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ] || [ "$DEPLOYMENT_TYPE" == "deb" ]; then
         docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
           printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
