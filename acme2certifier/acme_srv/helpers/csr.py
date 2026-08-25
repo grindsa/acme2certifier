@@ -2,8 +2,9 @@
 """CSR utilities for acme2certifier"""
 
 import base64
+import ipaddress
 import logging
-from typing import List, Dict
+from typing import Dict, List, Optional, Set, Tuple
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from .encoding import (
@@ -111,6 +112,69 @@ def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
 
     logger.debug("Helper.csr_san_get() ended with: %s", str(sans))
     return sans
+
+
+def _normalize_bound_name(
+    name_type: str, name_value: str
+) -> Optional[Tuple[str, str]]:
+    """Normalize a (type, value) pair for CSR/order binding comparison."""
+    if not name_type or name_value is None or name_value == "":
+        return None
+    normalized_type = name_type.lower()
+    normalized_value = name_value.lower()
+    if normalized_type == "ip":
+        try:
+            normalized_value = str(ipaddress.ip_address(name_value.strip()))
+        except ValueError:
+            pass
+    return (normalized_type, normalized_value)
+
+
+def _cn_bound_type(cn: str) -> str:
+    """Infer ACME identifier type for a CSR Common Name."""
+    if "@" in cn:
+        return "email"
+    try:
+        ipaddress.ip_address(cn)
+        return "ip"
+    except ValueError:
+        return "dns"
+
+
+def csr_bound_names_get(
+    logger: logging.Logger, csr: str
+) -> Set[Tuple[str, str]]:
+    """
+    Return normalized (type, value) pairs from CSR SANs and subject CN.
+
+    SAN types map DNS/IP/EMAIL → dns/ip/email. A subject CN is included when
+    present (email if it contains '@', else ip if parseable, else dns) and
+    deduplicated against SANs.
+    """
+    logger.debug("Helper.csr_bound_names_get()")
+    names: Set[Tuple[str, str]] = set()
+    if not csr:
+        logger.debug("Helper.csr_bound_names_get() ended with: %s", names)
+        return names
+
+    for san in csr_san_get(logger, csr):
+        try:
+            san_type, san_value = san.split(":", 1)
+        except ValueError as err:
+            logger.error("Error while splitting SAN %s: %s", san, err)
+            continue
+        normalized = _normalize_bound_name(san_type, san_value)
+        if normalized:
+            names.add(normalized)
+
+    cn = csr_cn_get(logger, csr)
+    if cn:
+        normalized = _normalize_bound_name(_cn_bound_type(cn), cn)
+        if normalized:
+            names.add(normalized)
+
+    logger.debug("Helper.csr_bound_names_get() ended with: %s", names)
+    return names
 
 
 def csr_san_byte_get(logger: logging.Logger, csr: str) -> bytes:
