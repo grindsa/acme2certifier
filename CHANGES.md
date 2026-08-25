@@ -14,6 +14,8 @@ and pick the appropriate release branch.
 - `eabkid_check_disable` is ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set (EAB kid checks stay enabled and a warning is logged); acknowledgement is logged at `CRITICAL`
 - Global full-universe prevalidation `prevalidated_domainlist=["*"]` and IP networks with prefix length 0 (`0.0.0.0/0`, `::/0`) are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1`; scoped patterns (e.g. `*.example.com`, `10.0.0.0/8`) and EAB-profile lists are unchanged
 - CSR-to-order binding at finalize: strict bidirectional identifier/SAN/CN equality by default (`[Certificate] csr_binding_strict`, including `rfc822Name` for email identifiers); legacy one-way mode when set to `False`
+- Option `[Renewalinfo] renewalinfo_disable` to hide and disable the ACME Renewal Info (ARI) endpoint ([#369](https://github.com/grindsa/acme2certifier/issues/369))
+- Option `[Renewalinfo] renewal_window_duration` to cap ARI `suggestedWindow` length (`end = min(expire, start + duration)`); unset keeps end at certificate expiry ([#369](https://github.com/grindsa/acme2certifier/issues/369))
 
 ## Changes in 0.45
 

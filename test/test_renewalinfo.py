@@ -14,32 +14,44 @@ from acme2certifier.acme_srv.renewalinfo import (
     RenewalinfoConfig,
     RenewalinfoRepository,
 )
-from acme2certifier.acme_srv.helpers.resource_ownership import (
-    OWNERSHIP_DENIED_DETAIL,
-    UNAUTHORIZED_TYPE,
-    ResourceOwnershipLookupError,
-)
+from acme2certifier.acme_srv.helper import duration_to_seconds, uts_to_date_utc
 
 
-def _acme_prepare_response(response_dic, status_dic, *args, **kwargs):
-    result = dict(response_dic or {})
-    result["code"] = status_dic["code"]
-    if status_dic.get("code", 200) >= 400:
-        result["data"] = {
-            "status": status_dic["code"],
-            "type": status_dic.get("type"),
-            "detail": status_dic.get("detail"),
-        }
-    result.setdefault("header", {})
-    return result
+class TestDurationToSeconds(unittest.TestCase):
+    """duration_to_seconds coverage used by Renewalinfo config parsing."""
+
+    def test_001_seconds_int(self):
+        self.assertEqual(duration_to_seconds(172800), 172800)
+
+    def test_002_seconds_string(self):
+        self.assertEqual(duration_to_seconds("90s"), 90)
+        self.assertEqual(duration_to_seconds("90"), 90)
+
+    def test_003_units(self):
+        self.assertEqual(duration_to_seconds("30m"), 1800)
+        self.assertEqual(duration_to_seconds("48h"), 172800)
+        self.assertEqual(duration_to_seconds("2d"), 172800)
+        self.assertEqual(duration_to_seconds("1w"), 604800)
+        self.assertEqual(duration_to_seconds("2D"), 172800)
+
+    def test_004_whitespace(self):
+        self.assertEqual(duration_to_seconds(" 3d "), 259200)
+        self.assertEqual(duration_to_seconds("48 h"), 172800)
+
+    def test_005_invalid(self):
+        for value in (0, -5, "-1d", "0d", "", "foo", "2x", "1.5d", True, False):
+            with self.assertRaises(ValueError):
+                duration_to_seconds(value)
 
 
 class TestRenewalinfoConfig(unittest.TestCase):
-    def test_001_default_values(self):
+    def test_006_default_values(self):
         config = RenewalinfoConfig()
         self.assertFalse(config.renewal_force)
+        self.assertFalse(config.renewalinfo_disable)
         self.assertEqual(config.renewalthreshold_pctg, 85.0)
         self.assertEqual(config.retry_after_timeout, 86400)
+        self.assertIsNone(config.renewal_window_duration)
 
 
 class TestRenewalinfoRepository(unittest.TestCase):
@@ -283,8 +295,11 @@ class TestRenewalinfo(unittest.TestCase):
     def test_019_generate_renewalinfo_window_normal(self):
         cert_dic = {"expire_uts": 100000, "issue_uts": 90000}
         self.renewalinfo.config.renewal_force = False
+        self.renewalinfo.config.renewalthreshold_pctg = 90.0
+        self.renewalinfo.config.renewal_window_duration = None
         result = self.renewalinfo._generate_renewalinfo_window(cert_dic)
-        self.assertIn("suggestedWindow", result)
+        self.assertEqual(result["suggestedWindow"]["start"], uts_to_date_utc(99000))
+        self.assertEqual(result["suggestedWindow"]["end"], uts_to_date_utc(100000))
 
     def test_020_generate_renewalinfo_window_empty(self):
         cert_dic = {}
@@ -337,6 +352,8 @@ class TestRenewalinfo(unittest.TestCase):
                     return "99.9"
                 if key == "retry_after_timeout":
                     return "12345"
+                if key == "renewal_window_duration":
+                    return "2d"
                 return fallback
 
             def __contains__(self, key):
@@ -355,8 +372,10 @@ class TestRenewalinfo(unittest.TestCase):
             self.renewalinfo.config = RenewalinfoConfig()
             self.renewalinfo._load_configuration()
             self.assertTrue(self.renewalinfo.config.renewal_force)
+            self.assertTrue(self.renewalinfo.config.renewalinfo_disable)
             self.assertEqual(self.renewalinfo.config.renewalthreshold_pctg, 99.9)
             self.assertEqual(self.renewalinfo.config.retry_after_timeout, 12345)
+            self.assertEqual(self.renewalinfo.config.renewal_window_duration, 172800)
 
     def test_025_load_configuration_defaults(self):
         class DummyConfig:
@@ -382,8 +401,10 @@ class TestRenewalinfo(unittest.TestCase):
             self.renewalinfo.config = RenewalinfoConfig()
             self.renewalinfo._load_configuration()
             self.assertFalse(self.renewalinfo.config.renewal_force)
+            self.assertFalse(self.renewalinfo.config.renewalinfo_disable)
             self.assertEqual(self.renewalinfo.config.renewalthreshold_pctg, 85.0)
             self.assertEqual(self.renewalinfo.config.retry_after_timeout, 86400)
+            self.assertIsNone(self.renewalinfo.config.renewal_window_duration)
 
     def test_026_load_configuration_renewal_force_error(self):
         class DummyConfig:
@@ -410,6 +431,7 @@ class TestRenewalinfo(unittest.TestCase):
             self.renewalinfo._load_configuration()
             # Should fallback to default False
             self.assertFalse(self.renewalinfo.config.renewal_force)
+            self.assertFalse(self.renewalinfo.config.renewalinfo_disable)
 
     def test_027_load_configuration_renewalthreshold_pctg_error(self):
         class DummyConfig:

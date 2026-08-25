@@ -55,6 +55,7 @@ class TestACMEHandler(unittest.TestCase):
             validate_email,
             uts_to_date_utc,
             date_to_uts_utc,
+            duration_to_seconds,
             load_config,
             cert_serial_get,
             cert_san_get,
@@ -225,6 +226,7 @@ class TestACMEHandler(unittest.TestCase):
         self.url_get = url_get
         self.url_get_with_own_dns = url_get_with_own_dns
         self.uts_to_date_utc = uts_to_date_utc
+        self.duration_to_seconds = duration_to_seconds
         self.validate_email = validate_email
         self.validate_ip = validate_ip
         self.validate_fqdn = validate_fqdn
@@ -446,67 +448,114 @@ class TestACMEHandler(unittest.TestCase):
         timestamp = datetime.datetime(2018, 12, 1, 5, 0, 1)
         self.assertEqual(1543640401, self.date_to_uts_utc(timestamp))
 
-    def test_023_helper_generate_random_string(self):
+    def test_023_helper_duration_to_seconds_int(self):
+        """duration_to_seconds: plain integer seconds"""
+        self.assertEqual(172800, self.duration_to_seconds(172800))
+        self.assertEqual(1, self.duration_to_seconds(1))
+
+    def test_024_helper_duration_to_seconds_numeric_string(self):
+        """duration_to_seconds: numeric string without unit (seconds)"""
+        self.assertEqual(90, self.duration_to_seconds("90"))
+        self.assertEqual(172800, self.duration_to_seconds("172800"))
+
+    def test_025_helper_duration_to_seconds_units(self):
+        """duration_to_seconds: s/m/h/d/w unit suffixes"""
+        self.assertEqual(90, self.duration_to_seconds("90s"))
+        self.assertEqual(1800, self.duration_to_seconds("30m"))
+        self.assertEqual(172800, self.duration_to_seconds("48h"))
+        self.assertEqual(172800, self.duration_to_seconds("2d"))
+        self.assertEqual(259200, self.duration_to_seconds("3d"))
+        self.assertEqual(604800, self.duration_to_seconds("1w"))
+
+    def test_026_helper_duration_to_seconds_case_and_whitespace(self):
+        """duration_to_seconds: case-insensitive units and surrounding whitespace"""
+        self.assertEqual(172800, self.duration_to_seconds("2D"))
+        self.assertEqual(3600, self.duration_to_seconds("1H"))
+        self.assertEqual(172800, self.duration_to_seconds(" 2d "))
+        self.assertEqual(1800, self.duration_to_seconds("30 m"))
+
+    def test_027_helper_duration_to_seconds_invalid(self):
+        """duration_to_seconds: reject non-positive and malformed values"""
+        for value in (
+            0,
+            -1,
+            "-1d",
+            "0d",
+            "0",
+            "",
+            "   ",
+            "foo",
+            "2x",
+            "d2",
+            "1.5d",
+            "2dd",
+            True,
+            False,
+        ):
+            with self.assertRaises(ValueError):
+                self.duration_to_seconds(value)
+
+    def test_028_helper_generate_random_string(self):
         """test date_to_uts_utc without format"""
         self.assertEqual(5, len(self.generate_random_string(self.logger, 5)))
 
-    def test_024_helper_generate_random_string(self):
+    def test_029_helper_generate_random_string(self):
         """test date_to_uts_utc without format"""
         self.assertEqual(15, len(self.generate_random_string(self.logger, 15)))
 
-    def test_025_helper_b64_url_recode(self):
+    def test_030_helper_b64_url_recode(self):
         """test base64url recode to base64 - add padding for 1 char"""
         self.assertEqual("fafafaf=", self.b64_url_recode(self.logger, "fafafaf"))
 
-    def test_026_helper_b64_url_recode(self):
+    def test_031_helper_b64_url_recode(self):
         """test base64url recode to base64 - add padding for 2 char"""
         self.assertEqual("fafafa==", self.b64_url_recode(self.logger, "fafafa"))
 
-    def test_027_helper_b64_url_recode(self):
+    def test_032_helper_b64_url_recode(self):
         """test base64url recode to base64 - add padding for 3 char"""
         self.assertEqual("fafaf===", self.b64_url_recode(self.logger, "fafaf"))
 
-    def test_028_helper_b64_url_recode(self):
+    def test_033_helper_b64_url_recode(self):
         """test base64url recode to base64 - no padding"""
         self.assertEqual("fafafafa", self.b64_url_recode(self.logger, "fafafafa"))
 
-    def test_029_helper_b64_url_recode(self):
+    def test_034_helper_b64_url_recode(self):
         """test base64url replace - with + and pad"""
         self.assertEqual("fafa+f==", self.b64_url_recode(self.logger, "fafa-f"))
 
-    def test_030_helper_b64_url_recode(self):
+    def test_035_helper_b64_url_recode(self):
         """test base64url replace _ with / and pad"""
         self.assertEqual("fafa/f==", self.b64_url_recode(self.logger, "fafa_f"))
 
-    def test_031_helper_b64_url_recode(self):
+    def test_036_helper_b64_url_recode(self):
         """test base64url recode to base64 - add padding for 1 char"""
         self.assertEqual("fafafaf=", self.b64_url_recode(self.logger, b"fafafaf"))
 
-    def test_032_helper_b64_url_recode(self):
+    def test_037_helper_b64_url_recode(self):
         """test base64url recode to base64 - add padding for 2 char"""
         self.assertEqual("fafafa==", self.b64_url_recode(self.logger, b"fafafa"))
 
-    def test_033_helper_b64_url_recode(self):
+    def test_038_helper_b64_url_recode(self):
         """test base64url recode to base64 - add padding for 3 char"""
         self.assertEqual("fafaf===", self.b64_url_recode(self.logger, b"fafaf"))
 
-    def test_034_helper_b64_url_recode(self):
+    def test_039_helper_b64_url_recode(self):
         """test base64url recode to base64 - no padding"""
         self.assertEqual("fafafafa", self.b64_url_recode(self.logger, b"fafafafa"))
 
-    def test_035_helper_b64_url_recode(self):
+    def test_040_helper_b64_url_recode(self):
         """test base64url replace - with + and pad"""
         self.assertEqual("fafa+f==", self.b64_url_recode(self.logger, b"fafa-f"))
 
-    def test_036_helper_b64_url_recode(self):
+    def test_041_helper_b64_url_recode(self):
         """test base64url replace _ with / and pad"""
         self.assertEqual("fafa/f==", self.b64_url_recode(self.logger, b"fafa_f"))
 
-    def test_037_helper_b64_url_recode(self):
+    def test_042_helper_b64_url_recode(self):
         """test base64url replace _ with / and pad"""
         self.assertEqual("fafa/f==", self.b64_url_recode(self.logger, b"fafa_f"))
 
-    def test_038_helper_decode_message(self):
+    def test_043_helper_decode_message(self):
         """decode message with empty payload - certbot issue"""
         data_dic = '{"protected": "eyJub25jZSI6ICIyNmU2YTQ2ZWZhZGQ0NzdkOTA4ZDdjMjAxNGU0OWIzNCIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYXV0aHovUEcxODlGRnpmYW8xIiwgImtpZCI6ICJodHRwOi8vbGFwdG9wLm5jbG0tc2FtYmEubG9jYWwvYWNtZS9hY2N0L3l1WjFHVUpiNzZaayIsICJhbGciOiAiUlMyNTYifQ", "payload": "", "signature": "ZW5jb2RlZF9zaWduYXR1cmU="}'
         e_result = (
@@ -523,7 +572,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(e_result, self.decode_message(self.logger, data_dic))
 
-    def test_039_helper_decode_message(self):
+    def test_044_helper_decode_message(self):
         """decode message with empty payload - certbot issue"""
         data_dic = '{"protected": "eyJub25jZSI6ICIyNmU2YTQ2ZWZhZGQ0NzdkOTA4ZDdjMjAxNGU0OWIzNCIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYXV0aHovUEcxODlGRnpmYW8xIiwgImtpZCI6ICJodHRwOi8vbGFwdG9wLm5jbG0tc2FtYmEubG9jYWwvYWNtZS9hY2N0L3l1WjFHVUpiNzZaayIsICJhbGciOiAiUlMyNTYifQ", "payload": "eyJmb28iOiAiYmFyMSJ9", "signature": "ZW5jb2RlZF9zaWduYXR1cmU="}'
         e_result = (
@@ -541,7 +590,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.decode_message(self.logger, data_dic))
 
     @patch("json.loads")
-    def test_040_helper_decode_message(self, mock_json):
+    def test_045_helper_decode_message(self, mock_json):
         """decode message with with exception during decoding"""
         mock_json.side_effect = Exception("exc_mock_json")
         data_dic = '{"protected": "eyJub25jZSI6ICIyNmU2YTQ2ZWZhZGQ0NzdkOTA4ZDdjMjAxNGU0OWIzNCIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYXV0aHovUEcxODlGRnpmYW8xIiwgImtpZCI6ICJodHRwOi8vbGFwdG9wLm5jbG0tc2FtYmEubG9jYWwvYWNtZS9hY2N0L3l1WjFHVUpiNzZaayIsICJhbGciOiAiUlMyNTYifQ", "payload": "", "signature": "ZW5jb2RlZF9zaWduYXR1cmU="}'
@@ -555,7 +604,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(e_result, self.decode_message(self.logger, data_dic))
         self.assertIn(result, lcm.output)
 
-    def test_041_helper_cert_serial_get(self):
+    def test_046_helper_cert_serial_get(self):
         """test cert_serial_get"""
         cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
                 ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
@@ -576,7 +625,7 @@ class TestACMEHandler(unittest.TestCase):
                 t+eRUDECE+0UnjyeCjTn3EU="""
         self.assertEqual(10, self.cert_serial_get(self.logger, cert))
 
-    def test_042_helper_cert_serial_get(self):
+    def test_047_helper_cert_serial_get(self):
         """test cert_serial_get"""
         cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
                 ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
@@ -597,7 +646,7 @@ class TestACMEHandler(unittest.TestCase):
                 t+eRUDECE+0UnjyeCjTn3EU="""
         self.assertEqual(10, self.cert_serial_get(self.logger, cert, hexformat=False))
 
-    def test_043_helper_cert_serial_get(self):
+    def test_048_helper_cert_serial_get(self):
         """test cert_serial_get"""
         cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
                 ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
@@ -618,7 +667,7 @@ class TestACMEHandler(unittest.TestCase):
                 t+eRUDECE+0UnjyeCjTn3EU="""
         self.assertEqual("0a", self.cert_serial_get(self.logger, cert, hexformat=True))
 
-    def test_044_helper_cert_issuer_get(self):
+    def test_049_helper_cert_issuer_get(self):
         """test cert_issuer_get"""
         cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
                 ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
@@ -639,7 +688,7 @@ class TestACMEHandler(unittest.TestCase):
                 t+eRUDECE+0UnjyeCjTn3EU="""
         self.assertEqual("CN=foo.example.com", self.cert_issuer_get(self.logger, cert))
 
-    def test_045_helper_cert_san_get(self):
+    def test_050_helper_cert_san_get(self):
         """test cert_san_get for a single SAN"""
         cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
                 ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
@@ -660,7 +709,7 @@ class TestACMEHandler(unittest.TestCase):
                 t+eRUDECE+0UnjyeCjTn3EU="""
         self.assertEqual(["DNS:foo.example.com"], self.cert_san_get(self.logger, cert))
 
-    def test_046_helper_cert_san_get(self):
+    def test_051_helper_cert_san_get(self):
         """test cert_san_get for a multiple SAN of type DNS"""
         cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
                 LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
@@ -684,12 +733,12 @@ class TestACMEHandler(unittest.TestCase):
             self.cert_san_get(self.logger, cert),
         )
 
-    def test_047_helper_cert_san_get(self):
+    def test_052_helper_cert_san_get(self):
         """test cert_san_get for a multiple SAN of type DNS"""
         cert = """MIIDaDCCAVCgAwIBAgIICwL0UBNcUakwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMzA3MTkxODU5NDRaFw0yNDA3MTgxODU5NDRaMBkxFzAVBgNVBAMTDjE5Mi4xNjguMTQuMTMxMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEN626lPpwBt4SEvdf5Tb0BpP1tl9KiFE/9xCIyYPsi9VXVDq/EcwO3CRp4fy+3bhZj6i43DdnluETcx8ZR2XyE6NuMGwwHQYDVR0OBBYEFBp+ZupvT2BB92sDkxy2GffHXDRLMB8GA1UdIwQYMBaAFL/ejo4GIiKrrUPI3dRPqKtIQT7VMAsGA1UdDwQEAwID6DAMBgNVHRMBAf8EAjAAMA8GA1UdEQQIMAaHBMCoDoMwDQYJKoZIhvcNAQELBQADggIBAFpq5RWGP4kDRnRjq8pte87bGS9LEmSlGOA8HlQZ+kjAoTunNN7/gvDch4F/CIl1N8cbQ/Ty1vx9CznTpQ39c2LNMILnjNHqQpYRIgLSBvCm26pAdlmicy6zdGlRKaePoMXINw4csDZ4REERg/c21ANhFclYyWWUM987bHZuBZJM8zBfR98ZnOzuQMRb5xztRlXSvddW4qEyKihl+5wPduaF8hDui4wbDFW6pUE9DWO/S1m37Tshh1O3NLlAlaMMwLsYaGkW7yzM4OrzmghJCRtdF9lbYYqHoKxLVWyCRF/pXqqQ/y+k4sN0MeZ7Wk4dI18aGHTGEzu6GSynNptyCQNsoTYexDA/rx57ukX7TqrU5JU/VyrKYD+M/rsLMj3vY4YmmH4W12IhAxa6+UmGG9ixHKpTgLVLRJDdzPMLY+IdI9WHdo7nHDOsaKvrFWqmvsCxT214jN0fVkOTMazG4ILg4DZhMWh8QxGULR7ul2oYnlyGUXiag7qLjNu1/RltJg9sp+ZxVC7RWaoCwxp6CIT95wrUAFTt9NBkccafsQKsF2ZtrUNZ8Z7B3y6hzr9d6rWlZCKlcr/ZNSOnrRTwuCz5HL3Gd2/DfyZUmy5U1+URbktMIdddlV5jaeSpwFZI8Xga4cYJAE7xjVq8HN3jbZ6m4PyylfaQfXisozKRECs4"""
         self.assertEqual(["IP:192.168.14.131"], self.cert_san_get(self.logger, cert))
 
-    def test_048_helper_cert_san_get(self):
+    def test_053_helper_cert_san_get(self):
         """test cert_san_get for a multiple SAN of type DNS"""
         cert = """MIIDezCCAWOgAwIBAgIIIAuZLppuFT4wDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMzA3MjAwNDIxMTlaFw0yNDA3MTkwNDIxMTlaMBkxFzAVBgNVBAMTDjE5Mi4xNjguMTQuMTMxMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQTs6Bra1zfVSiReD4AYj8HCKdcaMO5WsgB0zhpVu3HuSQSIQHC8CMe8haCywjYisbbWeDzT654tc674/MjScraOBgDB+MB0GA1UdDgQWBBQQa+M+3oTsdKTSB/Rt3Dk7/Vy0YzAfBgNVHSMEGDAWgBS/3o6OBiIiq61DyN3UT6irSEE+1TALBgNVHQ8EBAMCA+gwDAYDVR0TAQH/BAIwADAhBgNVHREEGjAYghBmb29iYXIuYmFyLmxvY2FshwTAqA6DMA0GCSqGSIb3DQEBCwUAA4ICAQCcevAczULbl5Le/xI1LSQ/PSsROjOZHUjlWf5bRs53aTM6wMqDBsFGdLzTN5vzWqVjie1Nzu8XGSEEuF0L/2bltGgYiYQqD4HKJedEEbYxQbg77o9JLp52MltvXGRH5gYGSGPZbuQ8QANvDn6FqBZjskOtED8SZGGt5spgxK7eguoJoQken68TgdZptL6l6eryTgouPbG0j5vTPPxuZpqxM9vQa4ADyqyvOKRMkZC98IbruChlCtFztILJPkvNx8Gbmlzv201uW9/9mNzcV8vVtlcB+Ftb/+sCfYuU/ShwUuOxOLE7+OKjLlalfniNwqx2l6f30nvvsa11vQc/Rwy1Z+vv96EzyF+GthMx2qLIG4eLLbISATwUfpR0UcLMtr83LRzB578rxrtwcgB5s+AWSDsYEKnzXabQdX1cEuiM3iEdlZ7McFzRvwElObhoDDOqOjGALWmdboox6dDskpQEhe6JALsj3mH07017h5T3W3PvqWD2IAsqH+WTuxCTmfjbqqoAz/Zt2ipIAFtSk79WvWwth/K+xtYhmuoe2+ygocqa9tF9AyoihImSEk1EjXvqKqRLPZwg41C3WKvLlg57fpRFZYR1W28ZqAqqVNf8MMHcsHdZ7koMBhIKKnSe/HdLWm7ghVjAEdYVYvOcOZHzxXBmnV/6ZLRQXu2XQnATJw=="""
         self.assertEqual(
@@ -697,7 +746,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cert_san_get(self.logger, cert),
         )
 
-    def test_049_helper_cert_san_get(self):
+    def test_054_helper_cert_san_get(self):
         """test cert_san_get for a multiple SAN of type DNS"""
         cert = """MIIDezCCAWOgAwIBAgIIIAuZLppuFT4wDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMzA3MjAwNDIxMTlaFw0yNDA3MTkwNDIxMTlaMBkxFzAVBgNVBAMTDjE5Mi4xNjguMTQuMTMxMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQTs6Bra1zfVSiReD4AYj8HCKdcaMO5WsgB0zhpVu3HuSQSIQHC8CMe8haCywjYisbbWeDzT654tc674/MjScraOBgDB+MB0GA1UdDgQWBBQQa+M+3oTsdKTSB/Rt3Dk7/Vy0YzAfBgNVHSMEGDAWgBS/3o6OBiIiq61DyN3UT6irSEE+1TALBgNVHQ8EBAMCA+gwDAYDVR0TAQH/BAIwADAhBgNVHREEGjAYghBmb29iYXIuYmFyLmxvY2FshwTAqA6DMA0GCSqGSIb3DQEBCwUAA4ICAQCcevAczULbl5Le/xI1LSQ/PSsROjOZHUjlWf5bRs53aTM6wMqDBsFGdLzTN5vzWqVjie1Nzu8XGSEEuF0L/2bltGgYiYQqD4HKJedEEbYxQbg77o9JLp52MltvXGRH5gYGSGPZbuQ8QANvDn6FqBZjskOtED8SZGGt5spgxK7eguoJoQken68TgdZptL6l6eryTgouPbG0j5vTPPxuZpqxM9vQa4ADyqyvOKRMkZC98IbruChlCtFztILJPkvNx8Gbmlzv201uW9/9mNzcV8vVtlcB+Ftb/+sCfYuU/ShwUuOxOLE7+OKjLlalfniNwqx2l6f30nvvsa11vQc/Rwy1Z+vv96EzyF+GthMx2qLIG4eLLbISATwUfpR0UcLMtr83LRzB578rxrtwcgB5s+AWSDsYEKnzXabQdX1cEuiM3iEdlZ7McFzRvwElObhoDDOqOjGALWmdboox6dDskpQEhe6JALsj3mH07017h5T3W3PvqWD2IAsqH+WTuxCTmfjbqqoAz/Zt2ipIAFtSk79WvWwth/K+xtYhmuoe2+ygocqa9tF9AyoihImSEk1EjXvqKqRLPZwg41C3WKvLlg57fpRFZYR1W28ZqAqqVNf8MMHcsHdZ7koMBhIKKnSe/HdLWm7ghVjAEdYVYvOcOZHzxXBmnV/6ZLRQXu2XQnATJw=="""
         self.assertEqual(
@@ -705,7 +754,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cert_san_get(self.logger, cert),
         )
 
-    def test_050_helper_cert_san_get(self):
+    def test_055_helper_cert_san_get(self):
         """test cert_san_get for a single SAN"""
         cert = """
 -----BEGIN CERTIFICATE-----
@@ -733,7 +782,7 @@ t+eRUDECE+0UnjyeCjTn3EU=
             self.cert_san_get(self.logger, cert, recode=False),
         )
 
-    def test_051_helper_cert_san_get(self):
+    def test_056_helper_cert_san_get(self):
         """test cert_san_get for a single SAN and recode = False"""
         cert = """-----BEGIN X509 CERTIFICATE-----
 MIIE2zCCAsOgAwIBAgIPAXI102H4bCWEkhD2SaLsMA0GCSqGSIb3DQEBDQUAMDIx
@@ -769,7 +818,7 @@ PZwtZpoz736yvIqanX6u2zUHLDzSRZXOZHY6pxANqoH6howxqGkI3FMjeDbDUln7
         )
 
     @patch("acme2certifier.acme_srv.helpers.certificates.cert_load")
-    def test_052_helper_cert_san_get(self, mock_certload):
+    def test_057_helper_cert_san_get(self, mock_certload):
         """test cert_san_get for a single SAN and recode = False"""
         cert = "cert"
         mock_certload.return_value = "mock_csrload"
@@ -914,7 +963,7 @@ PZwtZpoz736yvIqanX6u2zUHLDzSRZXOZHY6pxANqoH6howxqGkI3FMjeDbDUln7
             self.build_pem_file(self.logger, existing, cert, False),
         )
 
-    def test_060_helper_build_pem_file(self):
+    def test_063_helper_build_pem_file(self):
         """test build_pem_file for CSR"""
         existing = None
         csr = "MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDBvH7P73CwR7AF/WGeTfIDLlMWD6VZV3CTZBF0AwNMTFU/zbdAX8r63pzElX/5C5ZVsc36XHqdAJcioJlI33uE3RhOSvDyOcDgWlnPK9gj2soQ7enizGqd1u7hf6C3IwFtc4uGNOU3Z/tnTzVdYiCSKS+5lTZfMxn4FtEUN+w90NHBvC+AlTo3Gl0gqbYOZgg/UwWj60u7S2gBzSeb2/w62Z7bz+SknGZbeI4ySo30ET6oCSCAUN42jE+1dHI/Y+tGBtqP3h7W7OezKeLsJjD9r07U0+uMoVCY9oKTyT0gK8+gsde0tpt6QKa93HJGUPAP9ehrKCl335QcJESFw67/AgMBAAGgOTA3BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEAf4cdGpYHLqX+06BFF7+NqXLmKvc7n66vAfevLN75eu/pCXhhRSdpXvcYm+mAVEXJCPaG2kFGt6wfBvVWoVX/91d+OuAtiUHmhY95Oi7g3RF3ThCrvT2mR4zsNiKgC34jXbl9489iIiFRBQXkq2fLwN5JwBYutUENwkDIeApRRbmUzTDbar1xoBAQ3GjVtOAEjHc/3S1yyKkCpM6Qkg8uWOJAXw9INJqH6x55nMZrvTUuXkURc/mvhV+bp2vdKoigGvfa3VVfoAI0BZLQMohQ9QLKoNQsKxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A=="
@@ -1115,7 +1164,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """convert byte2string for a string value"""
         self.assertEqual("foo", self.convert_byte_to_string("foo"))
 
-    def test_080_helper_convert_byte_to_string(self):
+    def test_085_helper_convert_byte_to_string(self):
         """convert byte2string for a string value"""
         self.assertEqual("foo", self.convert_byte_to_string("foo"))
 
