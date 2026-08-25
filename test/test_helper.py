@@ -70,6 +70,7 @@ class TestACMEHandler(unittest.TestCase):
             url_get_with_own_dns,
             dns_server_list_load,
             csr_san_get,
+            csr_bound_names_get,
             csr_san_byte_get,
             csr_extensions_get,
             fqdn_resolve,
@@ -188,6 +189,7 @@ class TestACMEHandler(unittest.TestCase):
         self.csr_extensions_get = csr_extensions_get
         self.csr_pubkey_get = csr_pubkey_get
         self.csr_san_get = csr_san_get
+        self.csr_bound_names_get = csr_bound_names_get
         self.date_to_datestr = date_to_datestr
         self.date_to_uts_utc = date_to_uts_utc
         self.datestr_to_date = datestr_to_date
@@ -1661,6 +1663,154 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             ["EMAIL:user@example.com"],
             self.csr_san_get(self.logger, csr),
         )
+
+    def test_128c_helper_csr_bound_names_get_dns_and_cn(self):
+        """csr_bound_names_get unions DNS SAN and CN (CN may duplicate SAN)"""
+        csr = "MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDMwfxxbCCTsZY8mTFZkoQ5cAJyQZLUiz34sDDRvEpI9ZzdNNm2AEZR7AgKNuBkLwzUzY5iQ182huNzYJYZZEvYX++ocF2ngapTMQgfB+bWS5bpWIdjnAcz1/86jmJgTciwL25dSnEWL17Yn3pAWweoewr730rq/PMyIbviQrasksnSo7abe2mctxkHjHb5sZ+Z1yRTN6ir/bObXmxr+vHeeD2vLRv4Hd5XaA1d+k31J2FVMnrn5OpWbxGHo49zd0xdy2mgTdZ9UraLaQnyGlkjYzV0rqHIAIm8HOUjGN5U75/rlOPF0x62FCICZU/z1AgRvugaA5eO8zTSQJiMiBe3AgMBAAGgOTA3BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEANAXOIkv0CovmdzyoAv1dsiK0TK2XHBdBTEPFDsrT7MnrIXOFS4FnDrg8zpn7QBzBRTl3HaKN8fnpIHkA/6ZRDqaEJq0AeskjxIg9LKDBBx5TEdgPh1CwruRWLlXtrqU7XXQmk0wLIo/kfaDRcTjyJ3yHTEK06mCAaws0sTKlTw2D4pIiDRp8zbLHeSEUX5UKOSGbLSSUY/F2XwgPB8nC2BCD/gkvHRR+dMQSdOCiS9GLwZdYAAyESw6WhmGPjmVbeTRgSt/9//yx3JKQgkFYmpSMLKR2G525M+l1qfku/4b0iMOa4vQjFRj5AXZH0SBpAKtvnFxUpP6P9mTE7+akOQ=="
+        self.assertEqual(
+            {("dns", "foo1.bar.local")},
+            self.csr_bound_names_get(self.logger, csr),
+        )
+
+    def test_128d_helper_csr_bound_names_get_cn_only_email(self):
+        """CN-only email CSR yields a single email name (no SAN extension)"""
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        csr_obj = (
+            x509.CertificateSigningRequestBuilder()
+            .subject_name(
+                x509.Name(
+                    [x509.NameAttribute(NameOID.COMMON_NAME, "User@Example.COM")]
+                )
+            )
+            .sign(key, hashes.SHA256())
+        )
+        csr = base64.b64encode(
+            csr_obj.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(
+            {("email", "user@example.com")},
+            self.csr_bound_names_get(self.logger, csr),
+        )
+
+    def test_128e_helper_csr_bound_names_get_email_san_and_cn(self):
+        """email SAN + matching CN deduplicates; extra email SAN retained"""
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        csr_obj = (
+            x509.CertificateSigningRequestBuilder()
+            .subject_name(
+                x509.Name(
+                    [x509.NameAttribute(NameOID.COMMON_NAME, "user@example.com")]
+                )
+            )
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [
+                        x509.RFC822Name("user@example.com"),
+                        x509.RFC822Name("other@example.org"),
+                    ]
+                ),
+                critical=False,
+            )
+            .sign(key, hashes.SHA256())
+        )
+        csr = base64.b64encode(
+            csr_obj.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(
+            {
+                ("email", "user@example.com"),
+                ("email", "other@example.org"),
+            },
+            self.csr_bound_names_get(self.logger, csr),
+        )
+
+    def test_128f_helper_csr_bound_names_get_ip_normalize(self):
+        """IP SANs are normalized (IPv6 compressed form)"""
+        import ipaddress
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        csr_obj = (
+            x509.CertificateSigningRequestBuilder()
+            .subject_name(
+                x509.Name(
+                    [x509.NameAttribute(NameOID.COMMON_NAME, "ip-csr")]
+                )
+            )
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [
+                        x509.IPAddress(ipaddress.IPv6Address("2001:db8::1")),
+                        x509.IPAddress(ipaddress.IPv4Address("192.0.2.1")),
+                    ]
+                ),
+                critical=False,
+            )
+            .sign(key, hashes.SHA256())
+        )
+        csr = base64.b64encode(
+            csr_obj.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(
+            {
+                ("dns", "ip-csr"),
+                ("ip", "2001:db8::1"),
+                ("ip", "192.0.2.1"),
+            },
+            self.csr_bound_names_get(self.logger, csr),
+        )
+
+    def test_128g_helper_csr_bound_names_get_cn_extra_dns(self):
+        """CN distinct from SANs is retained as dns"""
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        csr_obj = (
+            x509.CertificateSigningRequestBuilder()
+            .subject_name(
+                x509.Name(
+                    [x509.NameAttribute(NameOID.COMMON_NAME, "cn.example.com")]
+                )
+            )
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [x509.DNSName("san.example.com")]
+                ),
+                critical=False,
+            )
+            .sign(key, hashes.SHA256())
+        )
+        csr = base64.b64encode(
+            csr_obj.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(
+            {
+                ("dns", "cn.example.com"),
+                ("dns", "san.example.com"),
+            },
+            self.csr_bound_names_get(self.logger, csr),
+        )
+
+    def test_128h_helper_csr_bound_names_get_empty(self):
+        """empty/missing CSR yields empty set"""
+        self.assertEqual(set(), self.csr_bound_names_get(self.logger, None))
+        self.assertEqual(set(), self.csr_bound_names_get(self.logger, ""))
 
     def test_129_helper_csr_extensions_get(self):
         """get sns in hex"""

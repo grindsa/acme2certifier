@@ -47,6 +47,7 @@ from .helpers.csr import (
     csr_dn_get,
     csr_pubkey_get,
     csr_san_get,
+    csr_bound_names_get,
     csr_san_byte_get,
     csr_extensions_get,
     csr_subject_get,
