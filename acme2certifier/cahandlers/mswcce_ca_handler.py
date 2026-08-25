@@ -5,8 +5,6 @@ Historically named MS-WCCE; enrollment uses the MS-ICPR RPC interface.
 Prefer ``handler_module: acme2certifier.cahandlers.msicpr_ca_handler``.
 """
 
-from __future__ import annotations
-
 import warnings
 
 from acme2certifier.cahandlers.msicpr_ca_handler import CAhandler

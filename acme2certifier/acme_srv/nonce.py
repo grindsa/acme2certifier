@@ -37,6 +37,10 @@ class NonceRepository:
     def delete_nonce(self, nonce) -> None:
         return self.dbstore.nonce_delete(nonce)
 
+    def consume_nonce(self, nonce: str) -> int:
+        """Atomically delete nonce if present; return affected row count."""
+        return self.dbstore.nonce_consume(nonce)
+
     def add_nonce(self, nonce) -> int:
         return self.dbstore.nonce_add(nonce)
 
@@ -88,21 +92,15 @@ class Nonce(object):
                 ) from err
 
     def _validate_and_consume_nonce(self, nonce: str) -> Tuple[int, str, str]:
-        """Check if nonce exists and delete it (consume)."""
+        """Consume nonce via atomic conditional delete; branch on affected rows."""
         self.logger.debug("Nonce._validate_and_consume_nonce(%s)", nonce)
         try:
-            nonce_chk_result = self.repo.check_nonce(nonce)
+            deleted = self.repo.consume_nonce(nonce)
         except Exception as err_:
-            self.logger.critical(f"{DB_ERROR_MSG}: failed to check nonce: %s", err_)
-            nonce_chk_result = False
+            self.logger.critical(f"{DB_ERROR_MSG}: failed to consume nonce: %s", err_)
+            deleted = 0
 
-        if nonce_chk_result:
-            try:
-                self.repo.delete_nonce(nonce)
-            except Exception as err_:
-                self.logger.critical(
-                    f"{DB_ERROR_MSG}: failed to delete nonce: %s", err_
-                )
+        if deleted:
             code = 200
             message = None
             detail = None

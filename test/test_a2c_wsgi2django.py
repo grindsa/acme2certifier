@@ -98,7 +98,7 @@ def _create_wsgi_schema(conn: sqlite3.Connection) -> None:
     cur.execute(
         'CREATE TABLE "nonce" ('
         '"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, '
-        '"nonce" varchar(30) NOT NULL, '
+        '"nonce" varchar(30) NOT NULL UNIQUE, '
         '"created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)'
     )
     cur.execute(

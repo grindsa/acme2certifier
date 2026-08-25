@@ -71,7 +71,7 @@ runs:
     with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
-      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed"
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=invalid eab credentials"
       FLUSH: "false"
 
   - name: "certbot - Failed registration with unknown credentials"
@@ -112,7 +112,7 @@ runs:
     with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
-      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed"
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=invalid eab credentials"
       FLUSH: "false"
 
   - name: "lego - Failed registration with unknown credentials"
@@ -154,5 +154,5 @@ runs:
     with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
-      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=EAB kid lookup failed"
+      PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=invalid eab credentials"
       FLUSH: "false"

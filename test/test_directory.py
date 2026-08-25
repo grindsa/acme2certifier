@@ -69,6 +69,9 @@ class TestDirectory(unittest.TestCase):
                     patch.object(
                         self.directory, "_parse_cahandler_section"
                     ) as mock_parse_cahandler_section,
+                    patch.object(
+                        self.directory, "_parse_renewalinfo_section"
+                    ) as mock_parse_renewalinfo_section,
                 ):
                     self.directory._load_configuration()
                     mock_parse_dir.assert_called()
@@ -76,6 +79,7 @@ class TestDirectory(unittest.TestCase):
                     mock_parse_eab.assert_called()
                     mock_load_ca.assert_called()
                     mock_parse_cahandler_section.assert_called()
+                    mock_parse_renewalinfo_section.assert_called()
                     mock_async_mode_load.assert_called()
 
     def test_003_parse_directory_empty(self):
@@ -312,37 +316,67 @@ class TestDirectory(unittest.TestCase):
             for v in resp.values()
         )
         self.assertTrue(found_random)
+        self.assertIn("renewalInfo", resp)
+        self.assertEqual(resp["renewalInfo"], "http://localhost/acme/renewal-info")
 
-    def test_026_get_directory_response_success(self):
+    def test_026_build_directory_response_omits_renewalinfo_when_disabled(self):
+        self.directory.config.renewalinfo_disable = True
+        resp = self.directory._build_directory_response()
+        self.assertNotIn("renewalInfo", resp)
+
+    def test_027_parse_renewalinfo_section_disable_true(self):
+        config_dic = MagicMock()
+        config_dic.__contains__.side_effect = lambda k: k == "Renewalinfo"
+        config_dic.getboolean.side_effect = lambda section, key, fallback=None: True
+        self.directory._parse_renewalinfo_section(config_dic)
+        self.assertTrue(self.directory.config.renewalinfo_disable)
+
+    def test_028_parse_renewalinfo_section_disable_false(self):
+        config_dic = MagicMock()
+        config_dic.__contains__.side_effect = lambda k: k == "Renewalinfo"
+        config_dic.getboolean.side_effect = lambda section, key, fallback=None: False
+        self.directory.config.renewalinfo_disable = True
+        self.directory._parse_renewalinfo_section(config_dic)
+        self.assertFalse(self.directory.config.renewalinfo_disable)
+
+    def test_029_parse_renewalinfo_section_error(self):
+        config_dic = MagicMock()
+        config_dic.__contains__.side_effect = lambda k: k == "Renewalinfo"
+        config_dic.getboolean.side_effect = Exception("fail")
+        with patch.object(self.mock_logger, "error") as mock_error:
+            self.directory._parse_renewalinfo_section(config_dic)
+            mock_error.assert_any_call("renewalinfo_disable not set: %s", ANY)
+
+    def test_030_get_directory_response_success(self):
         self.directory.cahandler = self.mock_cahandler
         self.mock_cahandler_instance.handler_check.return_value = None
         resp = self.directory.get_directory_response()
         self.assertIn("newAuthz", resp)
         self.assertIn("meta", resp)
 
-    def test_027_get_directory_response_error(self):
+    def test_031_get_directory_response_error(self):
         self.directory.cahandler = self.mock_cahandler
         self.mock_cahandler_instance.handler_check.return_value = "error"
         resp = self.directory.get_directory_response()
         self.assertIn("error", resp)
 
-    def test_028_get_directory_response_no_handler(self):
+    def test_032_get_directory_response_no_handler(self):
         self.directory.cahandler = None
         resp = self.directory.get_directory_response()
         self.assertIn("error", resp)
 
-    def test_029_directory_get(self):
+    def test_033_directory_get(self):
         with patch.object(
             self.directory, "get_directory_response", return_value={"key": "value"}
         ):
             resp = self.directory.directory_get()
             self.assertEqual(resp, {"key": "value"})
 
-    def test_030_servername_get(self):
+    def test_034_servername_get(self):
         self.directory.server_name = "test_server"
         self.assertEqual(self.directory.servername_get(), "test_server")
 
-    def test_031_parse_directory_section_calls_parse_caaidentities(self):
+    def test_035_parse_directory_section_calls_parse_caaidentities(self):
         # Mock config_dic to behave like configparser.ConfigParser
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "Directory"
@@ -363,14 +397,14 @@ class TestDirectory(unittest.TestCase):
             self.directory._parse_directory_section(config_dic)
             mock_parse_caaidentities.assert_called_once_with('["id1", "id2"]')
 
-    def test_032_repository_get_db_version_success(self):
+    def test_036_repository_get_db_version_success(self):
         mock_dbstore = MagicMock()
         mock_dbstore.dbversion_get.return_value = ("1.0", "script")
         repo = DirectoryRepository(mock_dbstore, self.mock_logger)
         result = repo.get_db_version()
         self.assertEqual(result, ("1.0", "script"))
 
-    def test_033_repository_get_db_version_exception(self):
+    def test_037_repository_get_db_version_exception(self):
         mock_dbstore = MagicMock()
         mock_dbstore.dbversion_get.side_effect = Exception("fail")
         repo = DirectoryRepository(mock_dbstore, self.mock_logger)
@@ -379,7 +413,7 @@ class TestDirectory(unittest.TestCase):
             self.assertEqual(result, (None, None))
             mock_critical.assert_called()
 
-    def test_034_get_directory_response_profiles_sync_load_profiles(self):
+    def test_038_get_directory_response_profiles_sync_load_profiles(self):
         # Setup Directory with profiles_sync enabled and no error from handler_check
         self.directory.config.profiles_sync = True
         self.directory.config.acme_url = "https://acme.example.com"
@@ -404,21 +438,21 @@ class TestDirectory(unittest.TestCase):
             self.assertEqual(self.directory.config.profiles, {"profile": "loaded"})
             self.assertIn("newAuthz", resp)
 
-    def test_035_get_directory_response_no_cahandler(self):
+    def test_039_get_directory_response_no_cahandler(self):
         self.directory.cahandler = None
         with patch.object(self.mock_logger, "critical") as mock_critical:
             resp = self.directory.get_directory_response()
             self.assertIn("error", resp)
             mock_critical.assert_called()
 
-    def test_036_profile_list_get_success(self):
+    def test_040_profile_list_get_success(self):
         mock_dbstore = MagicMock()
         profiles_json = None
         mock_dbstore.hkparameter_get.return_value = profiles_json
         repo = DirectoryRepository(mock_dbstore, self.mock_logger)
         self.assertFalse(repo.profile_list_get())
 
-    def test_037_profile_list_get_success(self):
+    def test_041_profile_list_get_success(self):
         mock_dbstore = MagicMock()
         profiles_json = '[{"name": "profile1"}, {"name": "profile2"}]'
         mock_dbstore.hkparameter_get.return_value = profiles_json
@@ -426,7 +460,7 @@ class TestDirectory(unittest.TestCase):
         result = repo.profile_list_get()
         self.assertEqual(result, [{"name": "profile1"}, {"name": "profile2"}])
 
-    def test_038_profile_list_get_db_exception(self):
+    def test_042_profile_list_get_db_exception(self):
         mock_dbstore = MagicMock()
         mock_dbstore.hkparameter_get.side_effect = Exception("fail")
         repo = DirectoryRepository(mock_dbstore, self.mock_logger)
@@ -435,7 +469,7 @@ class TestDirectory(unittest.TestCase):
             self.assertEqual(result, [])
             mock_critical.assert_called()
 
-    def test_039_profile_list_get_json_error(self):
+    def test_043_profile_list_get_json_error(self):
         mock_dbstore = MagicMock()
         # Use an invalid JSON string to ensure json.loads fails
         mock_dbstore.hkparameter_get.return_value = "{invalid_json: true]"
@@ -445,14 +479,14 @@ class TestDirectory(unittest.TestCase):
             self.assertEqual(result, [])
             mock_error.assert_called()
 
-    def test_040_profile_list_set_success(self):
+    def test_044_profile_list_set_success(self):
         mock_dbstore = MagicMock()
         repo = DirectoryRepository(mock_dbstore, self.mock_logger)
         data_dic = {"profiles": ["profile1", "profile2"]}
         repo.profile_list_set(data_dic)
         mock_dbstore.hkparameter_add.assert_called_once_with(data_dic)
 
-    def test_041_profile_list_set_db_exception(self):
+    def test_045_profile_list_set_db_exception(self):
         mock_dbstore = MagicMock()
         mock_dbstore.hkparameter_add.side_effect = Exception("fail")
         repo = DirectoryRepository(mock_dbstore, self.mock_logger)
@@ -461,7 +495,7 @@ class TestDirectory(unittest.TestCase):
             repo.profile_list_set(data_dic)
             mock_critical.assert_called()
 
-    def test_042_parse_cahandler_section_profiles_sync_exception(self):
+    def test_046_parse_cahandler_section_profiles_sync_exception(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
         config_dic.__getitem__.side_effect = lambda k: (
@@ -472,7 +506,7 @@ class TestDirectory(unittest.TestCase):
             self.directory._parse_cahandler_section(config_dic)
             mock_error.assert_any_call("profiles_sync not set: %s", ANY)
 
-    def test_043_parse_cahandler_section_sets_acme_url(self):
+    def test_047_parse_cahandler_section_sets_acme_url(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
         config_dic.__getitem__.side_effect = lambda k: (
@@ -482,7 +516,7 @@ class TestDirectory(unittest.TestCase):
         self.directory._parse_cahandler_section(config_dic)
         self.assertEqual(self.directory.config.acme_url, "https://acme.example.com")
 
-    def test_044_parse_cahandler_section_profiles_sync_disabled(self):
+    def test_048_parse_cahandler_section_profiles_sync_disabled(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
         config_dic.__getitem__.side_effect = lambda k: (
@@ -493,7 +527,7 @@ class TestDirectory(unittest.TestCase):
         self.directory._parse_cahandler_section(config_dic)
         self.assertFalse(self.directory.config.profiles_sync)
 
-    def test_045_parse_cahandler_section_profiles_sync_enabled_profiles_configured(
+    def test_049_parse_cahandler_section_profiles_sync_enabled_profiles_configured(
         self,
     ):
         config_dic = MagicMock()
@@ -513,7 +547,7 @@ class TestDirectory(unittest.TestCase):
                 "Profiles are configured via acme_srv.cfg. Disabling profile sync."
             )
 
-    def test_046_parse_cahandler_section_profiles_sync_enabled_no_acme_url(self):
+    def test_050_parse_cahandler_section_profiles_sync_enabled_no_acme_url(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
         config_dic.__getitem__.side_effect = lambda k: {} if k == "CAhandler" else None
@@ -529,7 +563,7 @@ class TestDirectory(unittest.TestCase):
                 "profiles_sync is set but no acme_url configured."
             )
 
-    def test_047_parse_cahandler_section_profiles_sync_interval_set(self):
+    def test_051_parse_cahandler_section_profiles_sync_interval_set(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
         config_dic.__getitem__.side_effect = lambda k: (
@@ -547,7 +581,7 @@ class TestDirectory(unittest.TestCase):
         self.directory._parse_cahandler_section(config_dic)
         self.assertEqual(self.directory.config.profiles_sync_interval, 1234)
 
-    def test_048_parse_cahandler_section_profiles_sync_interval_error(self):
+    def test_052_parse_cahandler_section_profiles_sync_interval_error(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
         config_dic.__getitem__.side_effect = lambda k: (

@@ -96,16 +96,33 @@ runs:
 
   - name: "Disable eab-kid checking"
     run: |
+      set -euo pipefail
       sudo echo "eabkid_check_disable: True" >> $DATA_DIR/acme_srv.cfg
+      # eabkid_check_disable is ignored unless ACME2CERTIFIER_I_KNOW_THE_RISK=1
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        printf '%s\n' \
+          'services:' \
+          '  acme-srv:' \
+          '    environment:' \
+          '      ACME2CERTIFIER_I_KNOW_THE_RISK: "1"' \
+          > examples/Docker/docker-compose.override.yml
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ] || [ "$DEPLOYMENT_TYPE" == "deb" ]; then
+        docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+          printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+            > /etc/systemd/system.conf.d/a2c-eabkid.conf && \
+          systemctl daemon-reexec'
+      fi
     shell: bash
     env:
       DATA_DIR: ${{ inputs.DATA_DIR }}
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "Restart services"
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         cd examples/Docker/
-        docker compose restart
+        # force-recreate so the break-glass env from override is applied
+        docker compose up -d --force-recreate --no-build
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
       elif [ "$DEPLOYMENT_TYPE" == "deb" ]; then

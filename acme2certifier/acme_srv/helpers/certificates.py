@@ -3,7 +3,7 @@
 
 import base64
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Set
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
@@ -225,11 +225,58 @@ def cert_san_get(
         sans_list = ext.value.get_values_for_type(x509.IPAddress)
         for san in sans_list:
             sans.append(f"IP:{san}")
+        sans_list = ext.value.get_values_for_type(x509.RFC822Name)
+        for san in sans_list:
+            sans.append(f"EMAIL:{san}")
     except Exception as err:
         logger.error("Error while getting SANs from certificate: %s", err)
 
     logger.debug("Helper.cert_san_get() ended")
     return sans
+
+
+def cert_bound_names_get(
+    logger: logging.Logger,
+    certificate: str,
+    recode: bool = True,
+    email_identifier_rewrite: bool = False,
+) -> Set[Tuple[str, str]]:
+    """Return normalized (type, value) pairs from certificate SANs and subject CN."""
+    from .csr import _cn_bound_type, _normalize_bound_name
+
+    logger.debug(
+        "Helper.cert_bound_names_get(email_identifier_rewrite=%s)",
+        email_identifier_rewrite,
+    )
+    names: Set[Tuple[str, str]] = set()
+    if not certificate:
+        logger.debug("Helper.cert_bound_names_get() ended with: %s", names)
+        return names
+
+    for san in cert_san_get(logger, certificate, recode=recode):
+        try:
+            san_type, san_value = san.split(":", 1)
+        except ValueError as err:
+            logger.error("Error while splitting SAN %s: %s", san, err)
+            continue
+        normalized = _normalize_bound_name(
+            san_type, san_value, email_identifier_rewrite=email_identifier_rewrite
+        )
+        if normalized:
+            names.add(normalized)
+
+    cn = cert_cn_get(logger, certificate)
+    if cn:
+        normalized = _normalize_bound_name(
+            _cn_bound_type(cn),
+            cn,
+            email_identifier_rewrite=email_identifier_rewrite,
+        )
+        if normalized:
+            names.add(normalized)
+
+    logger.debug("Helper.cert_bound_names_get() ended with: %s", names)
+    return names
 
 
 def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
