@@ -6,6 +6,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.45.1
+
+**Bug Fixes and Improvements**:
+
+- [tkauth-01](docs/tnauthlist.md) challenges are rejected instead of succeeding unconditionally; the authority token is never verified, so `tnauthlist_support` no longer grants authorizations. Accepting unverified tokens requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (testing only) and is logged at `CRITICAL`
+
 ## Changes in 0.45
 
 **New Features**:

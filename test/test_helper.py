@@ -7949,6 +7949,97 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         self.assertTrue(any("null byte in path" in msg for msg in lcm.output))
 
+    def test_611_tnauthlist_configuration_validate_disabled(self):
+        """no message when tnauthlist_support is off"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.config import (
+            tnauthlist_configuration_validate,
+        )
+
+        config_dic = ConfigParser()
+        config_dic["Order"] = {"tnauthlist_support": "False"}
+        with patch.object(self.logger, "error") as error_mock:
+            with patch.object(self.logger, "critical") as critical_mock:
+                tnauthlist_configuration_validate(self.logger, config_dic)
+        error_mock.assert_not_called()
+        critical_mock.assert_not_called()
+
+    def test_612_tnauthlist_configuration_validate_enabled_not_acknowledged(self):
+        """tnauthlist_support without acknowledgement logs an error"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.config import (
+            tnauthlist_configuration_validate,
+        )
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
+        config_dic = ConfigParser()
+        config_dic["Order"] = {"tnauthlist_support": "True"}
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                tnauthlist_configuration_validate(self.logger, config_dic)
+        self.assertTrue(
+            any(
+                "tkauth-01 validation is not implemented" in line
+                and SECURITY_DISABLE_ACK_ENV in line
+                for line in lcm.output
+            )
+        )
+
+    def test_613_tnauthlist_configuration_validate_enabled_acknowledged(self):
+        """tnauthlist_support with acknowledgement logs a critical message"""
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.config import (
+            tnauthlist_configuration_validate,
+        )
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
+        config_dic = ConfigParser()
+        config_dic["Order"] = {"tnauthlist_support": "True"}
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+                tnauthlist_configuration_validate(self.logger, config_dic)
+        self.assertTrue(
+            any("SECURITY DISABLE ACKNOWLEDGED" in line for line in lcm.output)
+        )
+
+    def test_614_tnauthlist_configuration_validate_empty_config(self):
+        """tnauthlist_configuration_validate returns early when config_dic is falsy"""
+        from acme2certifier.acme_srv.helpers.config import (
+            tnauthlist_configuration_validate,
+        )
+
+        with patch.object(self.logger, "error") as error_mock:
+            with patch.object(self.logger, "critical") as critical_mock:
+                tnauthlist_configuration_validate(self.logger, None)
+        error_mock.assert_not_called()
+        critical_mock.assert_not_called()
+
+    def test_615_default_wsgi_dbfile(self):
+        """default_wsgi_dbfile joins deploy base dir with acme_srv.db"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        with patch.object(
+            config_mod, "default_deploy_base_dir", return_value="/custom/base"
+        ):
+            self.assertEqual(
+                config_mod.default_wsgi_dbfile(),
+                os.path.join("/custom/base", "acme_srv.db"),
+            )
+
+    def test_616_default_acme_srv_cfg_file_preferred_deploy(self):
+        """_default_acme_srv_cfg_file returns first existing preferred deploy path"""
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        preferred = "/var/www/acme2certifier/acme_srv.cfg"
+        with patch("os.path.isfile", side_effect=lambda p: p == preferred):
+            self.assertEqual(
+                config_mod._default_acme_srv_cfg_file(self.logger), preferred
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
