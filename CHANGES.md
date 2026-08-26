@@ -11,8 +11,6 @@ and pick the appropriate release branch.
 **Bug Fixes and Improvements**:
 
 - [tkauth-01](docs/tnauthlist.md) challenges are rejected instead of succeeding unconditionally; the authority token is never verified, so `tnauthlist_support` no longer grants authorizations. Accepting unverified tokens requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (testing only) and is logged at `CRITICAL`
-- `eabkid_check_disable` is ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set (EAB kid checks stay enabled and a warning is logged); acknowledgement is logged at `CRITICAL`
-- Global full-universe prevalidation `prevalidated_domainlist=["*"]` and IP networks with prefix length 0 (`0.0.0.0/0`, `::/0`) are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1`; scoped patterns (e.g. `*.example.com`, `10.0.0.0/8`) and EAB-profile lists are unchanged
 
 ## Changes in 0.45
 

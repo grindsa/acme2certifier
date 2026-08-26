@@ -5,7 +5,6 @@
 from __future__ import print_function
 import json
 import logging
-import os
 from typing import Tuple, Dict, List, Optional
 from dataclasses import dataclass
 from acme2certifier.acme_srv.helper import (
@@ -24,9 +23,11 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     CONFIGURATION_ERROR_DETAIL,
 )
 
-# Break-glass acknowledgment for disabling nonce/signature checks (testing only).
-SECURITY_DISABLE_ACK_ENV = "ACME2CERTIFIER_I_KNOW_THE_RISK"
-_SECURITY_DISABLE_ACK_VALUES = frozenset({"1", "true", "yes", "on"})
+# Re-exported for backwards compatibility; the gate now lives in helpers.security_gate.
+from acme2certifier.acme_srv.helpers.security_gate import (  # noqa: F401
+    SECURITY_DISABLE_ACK_ENV,
+    security_disable_acknowledged,
+)
 
 
 @dataclass
@@ -41,14 +42,6 @@ class MessageConfiguration:
     eab_strict_mode: bool = True
     invalid_eabkid_deactivate: bool = False
     eab_handler: Optional[object] = None
-
-
-def security_disable_acknowledged() -> bool:
-    """Return True when the break-glass env var acknowledges security-disable flags."""
-    return (
-        os.environ.get(SECURITY_DISABLE_ACK_ENV, "").strip().lower()
-        in _SECURITY_DISABLE_ACK_VALUES
-    )
 
 
 class AccountRepository:

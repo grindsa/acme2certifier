@@ -1146,50 +1146,106 @@ class Authorization(object):
             self.logger.error("Authorization error: %s", err)
             return {"code": 404, "header": {}, "data": {"error": str(err)}}
 
+    def _lookup_authorization_owner_account(self, authz_name: str) -> Optional[str]:
+        """Return the account that owns an authorization."""
+        authz = self.repository.find_authorization_by_name(
+            authz_name, ["order__account__name"]
+        )
+        if not authz:
+            return None
+        return authz.get("order__account__name")
+
+    def _check_authorization_ownership(
+        self, authz_name: str, account_name: Optional[str]
+    ) -> Tuple[int, str, str]:
+        """Verify the requester owns the authorization."""
+        try:
+            owner = self._lookup_authorization_owner_account(authz_name)
+        except AuthorizationError:
+            return ownership_lookup_failed()
+        if not resource_owner_matches(account_name, owner):
+            log_ownership_denial(self.logger, account_name, "authorization", authz_name)
+            return ownership_unauthorized()
+        return (200, None, None)
+
+    def _expire_authorizations_if_enabled(self) -> None:
+        """Expire invalid authorizations unless expiry checks are disabled."""
+        if self.config.expiry_check_disable:
+            return
+        try:
+            self.invalidate()
+        except Exception as err:
+            self.logger.warning("Failed to expire authorizations: %s", err)
+
+    def _authorization_payload_from_url(
+        self, url: str, code: int, message: str, detail: str
+    ) -> Tuple[int, str, str, Dict[str, Any]]:
+        """Load authorization details for a POST body, or return an ACME error tuple."""
+        try:
+            auth_info = self.get_authorization_details(url)
+        except AuthorizationError as err:
+            self.logger.error("Authorization error: %s", err)
+            return (
+                403,
+                "urn:ietf:params:acme:error:unauthorized",
+                "authorization error",
+                {},
+            )
+        if not auth_info:
+            return (
+                403,
+                "urn:ietf:params:acme:error:unauthorized",
+                "authorization lookup failed",
+                {},
+            )
+        return code, message, detail, {"data": auth_info}
+
+    def _process_valid_post(
+        self,
+        protected: Dict[str, Any],
+        account_name: Optional[str],
+        code: int,
+        message: str,
+        detail: str,
+    ) -> Tuple[int, str, str, Dict[str, Any]]:
+        """Handle a successfully authenticated authorization POST."""
+        if "url" not in protected:
+            return (
+                400,
+                "urn:ietf:params:acme:error:malformed",
+                "url is missing in protected",
+                {},
+            )
+        authz_name = self.business_logic.extract_authorization_name_from_url(
+            protected["url"], self.server_name
+        )
+        own_code, own_message, own_detail = self._check_authorization_ownership(
+            authz_name, account_name
+        )
+        if own_code != 200:
+            return own_code, own_message, own_detail, {}
+        return self._authorization_payload_from_url(
+            protected["url"], code, message, detail
+        )
+
     def handle_post_request(self, content: str) -> Dict[str, str]:
         """Handle POST request for authorization"""
         self.logger.debug("Authorization.handle_post_request()")
+        self._expire_authorizations_if_enabled()
 
-        # Expire invalid authorizations if not disabled
-        if not self.config.expiry_check_disable:
-            try:
-                self.invalidate()  # Call public method for backward compatibility
-            except Exception as err:
-                self.logger.warning("Failed to expire authorizations: %s", err)
-                # Continue with processing - don't fail the request
-
-        # Validate message
         code, message, detail, protected, _payload, account_name = self.message.check(
             content
         )
-
-        response_dic = {}
+        response_dic: Dict[str, Any] = {}
         if code == 200:
-            if "url" not in protected:
-                code = 400
-                message = "urn:ietf:params:acme:error:malformed"
-                detail = "url is missing in protected"
-            else:
-                try:
-                    auth_info = self.get_authorization_details(protected["url"])
-                    if auth_info:
-                        response_dic["data"] = auth_info
-                    else:
-                        code = 403
-                        message = "urn:ietf:params:acme:error:unauthorized"
-                        detail = "authorization lookup failed"
-                except AuthorizationError as err:
-                    self.logger.error("Authorization error: %s", err)
-                    code = 403
-                    message = "urn:ietf:params:acme:error:unauthorized"
-                    detail = "authorization error"
+            code, message, detail, response_dic = self._process_valid_post(
+                protected, account_name, code, message, detail
+            )
 
-        # Prepare response
         status_dic = {"code": code, "type": message, "detail": detail}
         response_dic = self.message.prepare_response(
             response_dic, status_dic, account_name=account_name
         )
-
         self.logger.debug(
             "Authorization.handle_post_request() returns: %s", json.dumps(response_dic)
         )

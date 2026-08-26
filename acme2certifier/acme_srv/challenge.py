@@ -21,6 +21,13 @@ from acme2certifier.acme_srv.helper import (
     config_dns_server_list_load,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    ResourceOwnershipLookupError,
+    log_ownership_denial,
+    ownership_lookup_failed,
+    ownership_unauthorized,
+    resource_owner_matches,
+)
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
 
@@ -332,6 +339,29 @@ class DatabaseChallengeRepository(ChallengeRepository):
             self.logger.critical(f"{DB_ERROR_MSG}: failed to get account JWK: %s", err)
             raise DatabaseError(f"Failed to get account JWK: {err}") from err
 
+    def get_challenge_owner_account_name(self, challenge_name: str) -> Optional[str]:
+        """Get account name for the order that owns a challenge."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.get_challenge_owner_account_name(%s)",
+            challenge_name,
+        )
+        try:
+            challenge_dic = self.dbstore.challenge_lookup(
+                "name",
+                challenge_name,
+                ["authorization__order__account__name"],
+            )
+            if challenge_dic and "authorization__order__account__name" in challenge_dic:
+                return challenge_dic["authorization__order__account__name"]
+            return None
+        except Exception as err:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to get challenge owner account: %s", err
+            )
+            raise DatabaseError(
+                f"Failed to get challenge owner account: {err}"
+            ) from err
+
     def get_authorization_account_name(self, authorization_name: str) -> Optional[str]:
         """Get account name for an authorization."""
         self.logger.debug(
@@ -425,6 +455,19 @@ class Challenge:
         self.logger.debug("Challenge._create_error_response() called")
         status_dic = {"code": code, "type": message, "detail": detail}
         return self.message.prepare_response({}, status_dic, account_name=account_name)
+
+    def _check_challenge_ownership(
+        self, challenge_name: str, account_name: Optional[str]
+    ) -> Tuple[int, str, str]:
+        """Verify the requester owns the challenge."""
+        try:
+            owner = self.repository.get_challenge_owner_account_name(challenge_name)
+        except DatabaseError as err:
+            raise ResourceOwnershipLookupError(str(err)) from err
+        if not resource_owner_matches(account_name, owner):
+            log_ownership_denial(self.logger, account_name, "challenge", challenge_name)
+            return ownership_unauthorized()
+        return (200, None, None)
 
     def _create_success_response(self, response_dic: Dict[str, Any]) -> Dict[str, str]:
         """Create standardized success response."""
@@ -1386,6 +1429,20 @@ class Challenge:
                     400,
                     self.err_msg_dic["malformed"],
                     f"invalid challenge: {challenge_name}",
+                    account_name=account_name,
+                )
+
+            try:
+                own_code, own_message, own_detail = self._check_challenge_ownership(
+                    challenge_name, account_name
+                )
+            except ResourceOwnershipLookupError:
+                own_code, own_message, own_detail = ownership_lookup_failed()
+            if own_code != 200:
+                return self._create_error_response(
+                    own_code,
+                    own_message,
+                    own_detail,
                     account_name=account_name,
                 )
 
