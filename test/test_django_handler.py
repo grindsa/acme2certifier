@@ -581,6 +581,9 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual(1, self.dbstore.nonce_consume("n2"))
         self.assertFalse(self.dbstore.nonce_check("n2"))
         self.assertEqual(0, self.dbstore.nonce_consume("n2"))
+        self.dbstore.nonce_add("nDel")
+        self.dbstore.nonce_delete("nDel")
+        self.assertFalse(self.dbstore.nonce_check("nDel"))
         self.dbstore.nonce_add("nOld")
         found = self.dbstore.nonce_search_by_timestamp(int(time.time()) + 3600)
         self.assertIn("nOld", found)
@@ -694,6 +697,22 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual("chall-uni", chall.__unicode__())
         cert = Certificate.objects.create(name="cert-uni", order=order)
         self.assertEqual("cert-uni", cert.__unicode__())
+
+    def test_042_certificate_replaced_update(self) -> None:
+        """certificate_replaced_update sets replaced and returns 0 when missing"""
+        acct = self._seed_account("acctRepl")
+        self._seed_order(acct, "ordRepl")
+        cid = self.dbstore.certificate_add(
+            {
+                "name": "certRepl",
+                "order": "ordRepl",
+                "csr": "csr",
+            }
+        )
+        self.assertEqual(0, self.dbstore.certificate_replaced_update("missing"))
+        self.assertEqual(cid, self.dbstore.certificate_replaced_update("certRepl"))
+        cert = Certificate.objects.get(name="certRepl")
+        self.assertTrue(cert.replaced)
 
 
 class TestDjangoHandlerInitializeReload(unittest.TestCase):

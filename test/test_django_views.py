@@ -631,6 +631,36 @@ class TestDjangoViews(unittest.TestCase):
         self.assertEqual(404, resp.status_code)
         self.assertIn(b"NOT FOUND", resp.content)
 
+    @patch(f"{_VIEWS}.log_response")
+    @patch(f"{_VIEWS}.get_url", return_value="http://srv")
+    def test_044_renewalinfo_error_json_with_headers(self, _url, mock_log) -> None:
+        """renewalinfo error with data returns JsonResponse and copies headers"""
+        cm, inst = self._cm(
+            update={
+                "code": 403,
+                "data": {"type": "urn:ietf:params:acme:error:unauthorized"},
+                "header": {"Replay-Nonce": "err-n"},
+            }
+        )
+        with patch(f"{_VIEWS}.Renewalinfo", return_value=cm):
+            resp = self.views.renewalinfo(
+                self._meta(
+                    self.rf.post(
+                        "/renewal-info",
+                        data=b"{}",
+                        content_type="application/jose+json",
+                    )
+                )
+            )
+        self.assertEqual(403, resp.status_code)
+        self.assertEqual("err-n", resp["Replay-Nonce"])
+        self.assertEqual(
+            "urn:ietf:params:acme:error:unauthorized",
+            json.loads(resp.content)["type"],
+        )
+        self.assertTrue(inst.update.called)
+        self.assertTrue(mock_log.called)
+
 
 if __name__ == "__main__":
     unittest.main()

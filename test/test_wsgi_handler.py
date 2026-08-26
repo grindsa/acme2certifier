@@ -3358,7 +3358,7 @@ class TestACMEHandler(unittest.TestCase):
         result = self.dbstore.nonce_search_by_timestamp(0)
         self.assertEqual([], result)
 
-    def test_167_db_update_nonce_dedupes_and_indexes(self):
+    def test_168_db_update_nonce_dedupes_and_indexes(self):
         """test _db_update_nonce removes duplicates and creates unique index"""
         # Insert duplicates by temporarily dropping uniqueness if present.
         self.dbstore._db_open()
@@ -3401,6 +3401,35 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore._db_open()
         self.dbstore._db_update_nonce()
         self.dbstore._db_close()
+
+    def test_169_certificate_replaced_update(self):
+        """certificate_replaced_update sets replaced flag; missing returns 0"""
+        data_dic = {
+            "alg": "alg1",
+            "jwk": '{"key11": "val11", "key12": "val12"}',
+            "contact": "contact1",
+            "name": "name1",
+        }
+        self.dbstore.account_add(data_dic)
+        data_dic = {
+            "name": "ordRepl",
+            "identifiers": "identifiers",
+            "account": "name1",
+            "status": 1,
+            "expires": "25",
+        }
+        self.dbstore.order_add(data_dic)
+        data_dic = {
+            "name": "certRepl",
+            "csr": "csr1",
+            "order": "ordRepl",
+            "header_info": "header_info1",
+        }
+        cid = self.dbstore.certificate_add(data_dic)
+        self.assertEqual(0, self.dbstore.certificate_replaced_update("missing"))
+        self.assertEqual(cid, self.dbstore.certificate_replaced_update("certRepl"))
+        row = self.dbstore._certificate_search("name", "certRepl")
+        self.assertEqual(1, dict_from_row(row)["replaced"])
 
 
 if __name__ == "__main__":
