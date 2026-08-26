@@ -740,6 +740,466 @@ class TestACMEHandler(unittest.TestCase):
         finally:
             os.unlink(path)
 
+    def test_046_trigger_signature_from_headers_variants(self):
+        """header extraction covers META keys and case-insensitive fallback"""
+        from acme2certifier.acme_srv.helpers.trigger_auth import (
+            trigger_signature_from_headers,
+        )
+
+        self.assertIsNone(trigger_signature_from_headers(None))
+        self.assertIsNone(trigger_signature_from_headers({}))
+        self.assertEqual(
+            "abc",
+            trigger_signature_from_headers({"X-A2C-Trigger-Signature": " abc "}),
+        )
+        self.assertEqual(
+            "def",
+            trigger_signature_from_headers({"x-a2c-trigger-signature": "def"}),
+        )
+        self.assertEqual(
+            "ghi",
+            trigger_signature_from_headers({"X_A2C_Trigger_Signature": " ghi "}),
+        )
+        self.assertIsNone(
+            trigger_signature_from_headers({"x-a2c-trigger-signature": ""})
+        )
+        self.assertIsNone(
+            trigger_signature_from_headers({"X_A2C_Trigger_Signature": ""})
+        )
+        self.assertIsNone(trigger_signature_from_headers({"Other": "x"}))
+
+    def test_047_normalize_and_load_keys_file_line_and_empty(self):
+        """_load_keys_from_file handles empty, line format, comments, bad JSON list"""
+        import tempfile
+        import os
+        from acme2certifier.acme_srv.helpers.trigger_auth import (
+            _load_keys_from_file,
+            _normalize_key_list,
+        )
+
+        self.assertEqual([], _normalize_key_list([None, "  "]))
+        self.assertEqual(["a", "a"], _normalize_key_list([None, "  ", "a", "a"]))
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write("\n")
+            empty_path = handle.name
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write("# comment\nkey-one\n\nkey-two\n")
+            line_path = handle.name
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write("[1, 2]\n")
+            array_path = handle.name
+        try:
+            self.assertEqual([], _load_keys_from_file(self.logger, empty_path))
+            self.assertEqual(
+                ["key-one", "key-two"],
+                _load_keys_from_file(self.logger, line_path),
+            )
+            with patch(
+                "acme2certifier.acme_srv.helpers.trigger_auth.json.loads",
+                return_value={"not": "list"},
+            ):
+                with self.assertRaises(ValueError):
+                    _load_keys_from_file(self.logger, array_path)
+        finally:
+            os.unlink(empty_path)
+            os.unlink(line_path)
+            os.unlink(array_path)
+
+    def test_048_hmac_keys_load_parse_errors_and_missing_file(self):
+        """hmac_keys parse errors and missing hmac_keys_file are logged"""
+        import configparser
+        from acme2certifier.acme_srv.helpers.trigger_auth import trigger_hmac_keys_load
+
+        parser = configparser.ConfigParser()
+        parser["Trigger"] = {"hmac_keys": '{"not":"list"}'}
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            keys, disabled = trigger_hmac_keys_load(self.logger, parser)
+        self.assertEqual([], keys)
+        self.assertFalse(disabled)
+        self.assertTrue(any("Failed to parse [Trigger] hmac_keys" in x for x in lcm.output))
+
+        parser2 = configparser.ConfigParser()
+        parser2["Trigger"] = {"hmac_keys_file": "/no/such/trigger_keys.json"}
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            keys, _disabled = trigger_hmac_keys_load(self.logger, parser2)
+        self.assertEqual([], keys)
+        self.assertTrue(any("hmac_keys_file" in x for x in lcm.output))
+
+    def test_049_hmac_keys_load_file_read_error_and_dict_config(self):
+        """hmac_keys_file load exception and plain-dict config path"""
+        import tempfile
+        import os
+        from acme2certifier.acme_srv.helpers.trigger_auth import trigger_hmac_keys_load
+
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write('["ok"]\n')
+            path = handle.name
+        try:
+            with patch(
+                "acme2certifier.acme_srv.helpers.trigger_auth._load_keys_from_file",
+                side_effect=OSError("boom"),
+            ):
+                parser = configparser.ConfigParser()
+                parser["Trigger"] = {"hmac_keys_file": path}
+                with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                    keys, _d = trigger_hmac_keys_load(self.logger, parser)
+                self.assertEqual([], keys)
+                self.assertTrue(
+                    any("Failed to load [Trigger] hmac_keys_file" in x for x in lcm.output)
+                )
+        finally:
+            os.unlink(path)
+
+        keys, disabled = trigger_hmac_keys_load(
+            self.logger, {"Trigger": {"hmac_keys": '["dict-key"]'}}
+        )
+        self.assertEqual(["dict-key"], keys)
+        self.assertFalse(disabled)
+        self.assertEqual(
+            ([], False), trigger_hmac_keys_load(self.logger, {"Other": {}})
+        )
+
+    def test_050_hmac_keys_getboolean_exception(self):
+        """auth_disable getboolean exception falls back to False"""
+        from acme2certifier.acme_srv.helpers.trigger_auth import trigger_hmac_keys_load
+
+        class _BrokenBool(configparser.ConfigParser):
+            def getboolean(self, section, option, **kwargs):
+                raise ValueError("bad bool")
+
+        parser = _BrokenBool()
+        parser["Trigger"] = {"hmac_keys": '["k"]', "auth_disable": "maybe"}
+        keys, disabled = trigger_hmac_keys_load(self.logger, parser)
+        self.assertEqual(["k"], keys)
+        self.assertFalse(disabled)
+
+    def test_051_ca_cert_load_paths(self):
+        """trigger_ca_cert_load covers missing get, missing file, success"""
+        import tempfile
+        import os
+        from acme2certifier.acme_srv.helpers.trigger_auth import trigger_ca_cert_load
+
+        self.assertIsNone(trigger_ca_cert_load(self.logger, object()))
+        self.assertIsNone(trigger_ca_cert_load(self.logger, {"Trigger": {}}))
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertIsNone(
+                trigger_ca_cert_load(
+                    self.logger, {"Trigger": {"ca_cert": "/missing/ca.pem"}}
+                )
+            )
+        self.assertTrue(any("[Trigger] ca_cert" in x for x in lcm.output))
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n")
+            path = handle.name
+        try:
+            parser = configparser.ConfigParser()
+            parser["Trigger"] = {"ca_cert": path}
+            self.assertEqual(path, trigger_ca_cert_load(self.logger, parser))
+        finally:
+            os.unlink(path)
+
+    def test_052_hmac_verify_edge_cases(self):
+        """trigger_hmac_verify rejects bad input and accepts matching key"""
+        import hashlib
+        import hmac as hm
+        from acme2certifier.acme_srv.helpers.trigger_auth import trigger_hmac_verify
+
+        body = b"payload"
+        self.assertFalse(trigger_hmac_verify(body, None, ["k"]))
+        self.assertFalse(trigger_hmac_verify(body, "ab", []))
+        self.assertFalse(trigger_hmac_verify(None, "ab", ["k"]))
+        self.assertFalse(trigger_hmac_verify(body, "zz", ["k"]))
+        sig = hm.new(b"secret", body, hashlib.sha256).hexdigest()
+        self.assertTrue(trigger_hmac_verify(body, sig, ["wrong", "secret"]))
+        self.assertFalse(trigger_hmac_verify(body, sig, ["wrong"]))
+
+    def test_053_verify_signed_by_branches(self):
+        """_verify_signed_by covers issuer mismatch, RSA ok, EC path, failures"""
+        import datetime
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa, ec
+        from cryptography.x509.oid import NameOID
+        from acme2certifier.acme_srv.helpers.trigger_auth import _verify_signed_by
+
+        def _name(cn):
+            return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
+
+        ca_key = rsa.generate_private_key(65537, 2048)
+        ee_key = rsa.generate_private_key(65537, 2048)
+        ca = (
+            x509.CertificateBuilder()
+            .subject_name(_name("ca"))
+            .issuer_name(_name("ca"))
+            .public_key(ca_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(
+                datetime.datetime.now(datetime.timezone.utc)
+                - datetime.timedelta(days=1)
+            )
+            .not_valid_after(
+                datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(days=1)
+            )
+            .sign(ca_key, hashes.SHA256())
+        )
+        leaf = (
+            x509.CertificateBuilder()
+            .subject_name(_name("ee"))
+            .issuer_name(_name("ca"))
+            .public_key(ee_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(
+                datetime.datetime.now(datetime.timezone.utc)
+                - datetime.timedelta(days=1)
+            )
+            .not_valid_after(
+                datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(days=1)
+            )
+            .sign(ca_key, hashes.SHA256())
+        )
+        self.assertTrue(_verify_signed_by(leaf, ca))
+        self.assertFalse(_verify_signed_by(leaf, leaf))
+
+        leaf_bad = MagicMock()
+        leaf_bad.issuer = ca.subject
+        leaf_bad.signature_hash_algorithm = None
+        self.assertFalse(_verify_signed_by(leaf_bad, ca))
+
+        ec_ca_key = ec.generate_private_key(ec.SECP256R1())
+        ec_ee_key = ec.generate_private_key(ec.SECP256R1())
+        ec_ca = (
+            x509.CertificateBuilder()
+            .subject_name(_name("ecca"))
+            .issuer_name(_name("ecca"))
+            .public_key(ec_ca_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(
+                datetime.datetime.now(datetime.timezone.utc)
+                - datetime.timedelta(days=1)
+            )
+            .not_valid_after(
+                datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(days=1)
+            )
+            .sign(ec_ca_key, hashes.SHA256())
+        )
+        ec_leaf = (
+            x509.CertificateBuilder()
+            .subject_name(_name("ecee"))
+            .issuer_name(_name("ecca"))
+            .public_key(ec_ee_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(
+                datetime.datetime.now(datetime.timezone.utc)
+                - datetime.timedelta(days=1)
+            )
+            .not_valid_after(
+                datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(days=1)
+            )
+            .sign(ec_ca_key, hashes.SHA256())
+        )
+        self.assertTrue(_verify_signed_by(ec_leaf, ec_ca))
+
+        # wrong key type falls through
+        weird_issuer = MagicMock()
+        weird_issuer.subject = leaf.issuer
+        weird_issuer.public_key.return_value = object()
+        self.assertFalse(_verify_signed_by(leaf, weird_issuer))
+
+        # verify exception path
+        bad_issuer = MagicMock()
+        bad_issuer.subject = leaf.issuer
+        bad_rsa = MagicMock(spec=rsa.RSAPublicKey)
+        bad_rsa.verify.side_effect = Exception("sig")
+        bad_issuer.public_key.return_value = bad_rsa
+        self.assertFalse(_verify_signed_by(leaf, bad_issuer))
+
+    def test_054_cert_chain_verify_success_and_failures(self):
+        """trigger_cert_chain_verify success, load fail, empty trust, bad bundle, no trust"""
+        import datetime
+        import tempfile
+        import os
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+        from acme2certifier.acme_srv.helpers.trigger_auth import (
+            trigger_cert_chain_verify,
+        )
+
+        def _name(cn):
+            return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
+
+        def _build(subject, issuer_name, key, issuer_key, ca=False):
+            return (
+                x509.CertificateBuilder()
+                .subject_name(subject)
+                .issuer_name(issuer_name)
+                .public_key(key.public_key())
+                .serial_number(x509.random_serial_number())
+                .not_valid_before(
+                    datetime.datetime.now(datetime.timezone.utc)
+                    - datetime.timedelta(days=1)
+                )
+                .not_valid_after(
+                    datetime.datetime.now(datetime.timezone.utc)
+                    + datetime.timedelta(days=1)
+                )
+                .add_extension(
+                    x509.BasicConstraints(ca=ca, path_length=None), critical=True
+                )
+                .sign(issuer_key, hashes.SHA256())
+            )
+
+        ik = rsa.generate_private_key(65537, 2048)
+        inter = _build(_name("inter"), _name("inter"), ik, ik, ca=True)
+        lk = rsa.generate_private_key(65537, 2048)
+        leaf = _build(_name("leaf"), _name("inter"), lk, ik, ca=False)
+        tk = rsa.generate_private_key(65537, 2048)
+        trust_other = _build(_name("trust"), _name("trust"), tk, tk, ca=True)
+
+        leaf_pem = leaf.public_bytes(serialization.Encoding.PEM).decode()
+        inter_pem = inter.public_bytes(serialization.Encoding.PEM).decode()
+        other_pem = trust_other.public_bytes(serialization.Encoding.PEM).decode()
+        bundle = leaf_pem + inter_pem
+
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(
+                trigger_cert_chain_verify(
+                    self.logger, "not-a-cert", None, "/no/ca.pem"
+                )
+            )
+        self.assertTrue(any("Failed to load leaf or ca_cert" in x for x in lcm.output))
+
+        with tempfile.NamedTemporaryFile("wb", delete=False) as handle:
+            handle.write(b"")
+            empty_path = handle.name
+        try:
+            with patch(
+                "acme2certifier.acme_srv.helpers.trigger_auth.x509.load_pem_x509_certificates",
+                return_value=[],
+            ), patch(
+                "acme2certifier.acme_srv.helpers.trigger_auth.x509.load_pem_x509_certificate",
+                return_value=leaf,
+            ):
+                with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                    self.assertFalse(
+                        trigger_cert_chain_verify(
+                            self.logger, leaf_pem, None, empty_path
+                        )
+                    )
+                self.assertTrue(
+                    any("No certificates found" in x for x in lcm.output)
+                )
+        finally:
+            os.unlink(empty_path)
+
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write(inter_pem)
+            trust_path = handle.name
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write(other_pem)
+            other_path = handle.name
+        try:
+            self.assertTrue(
+                trigger_cert_chain_verify(self.logger, leaf_pem, bundle, trust_path)
+            )
+            # bytes leaf / bytes bundle
+            self.assertTrue(
+                trigger_cert_chain_verify(
+                    self.logger,
+                    leaf_pem.encode(),
+                    bundle.encode(),
+                    trust_path,
+                )
+            )
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.assertFalse(
+                    trigger_cert_chain_verify(
+                        self.logger, leaf_pem, "not-pem-bundle", other_path
+                    )
+                )
+            self.assertTrue(
+                any("Could not parse trigger cert_bundle" in x for x in lcm.output)
+            )
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.assertFalse(
+                    trigger_cert_chain_verify(
+                        self.logger, leaf_pem, None, other_path
+                    )
+                )
+            self.assertTrue(any("no issuer for leaf/cert" in x for x in lcm.output))
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.assertFalse(
+                    trigger_cert_chain_verify(
+                        self.logger, leaf_pem, bundle, other_path
+                    )
+                )
+            self.assertTrue(
+                any("trust anchor not reached" in x for x in lcm.output)
+            )
+        finally:
+            os.unlink(trust_path)
+            os.unlink(other_path)
+
+    @patch("acme2certifier.acme_srv.trigger.trigger_ca_cert_load")
+    @patch("acme2certifier.acme_srv.trigger.trigger_hmac_keys_load")
+    @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
+    def test_055_resolve_trigger_missing_ca_cert(
+        self, mock_cahandler_load, mock_keys, mock_ca_cert
+    ):
+        """resolve_trigger_endpoint errors when ca_cert missing"""
+        from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
+
+        cahandler_cls = type("FakeCAhandler", (), {"supports_trigger": True})
+        mock_cahandler_load.return_value = SimpleNamespace(CAhandler=cahandler_cls)
+        mock_keys.return_value = (["k"], False)
+        mock_ca_cert.return_value = None
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(
+                resolve_trigger_endpoint(
+                    self.logger,
+                    {"Trigger": {"enabled": "true"}},
+                    log_status=True,
+                )
+            )
+        self.assertTrue(any("ca_cert is missing" in x for x in lcm.output))
+
+    @patch("acme2certifier.acme_srv.trigger.trigger_ca_cert_load")
+    @patch("acme2certifier.acme_srv.trigger.trigger_hmac_keys_load")
+    @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
+    def test_056_resolve_trigger_missing_hmac_keys(
+        self, mock_cahandler_load, mock_keys, mock_ca_cert
+    ):
+        """resolve_trigger_endpoint errors when hmac keys missing"""
+        from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
+
+        cahandler_cls = type("FakeCAhandler", (), {"supports_trigger": True})
+        mock_cahandler_load.return_value = SimpleNamespace(CAhandler=cahandler_cls)
+        mock_keys.return_value = ([], False)
+        mock_ca_cert.return_value = "/tmp/ca.pem"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(
+                resolve_trigger_endpoint(
+                    self.logger,
+                    {"Trigger": {"enabled": "true"}},
+                    log_status=True,
+                )
+            )
+        self.assertTrue(any("no hmac_keys" in x for x in lcm.output))
+
+    def test_057_cert_store_missing_ca_cert(self):
+        """_cert_store errors when ca_cert unset"""
+        self.trigger.ca_cert = None
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            code, message, _detail = self.trigger._cert_store("b", "r", "pem")
+        self.assertEqual(400, code)
+        self.assertEqual("certificate verification failed", message)
+        self.assertTrue(any("ca_cert not configured" in x for x in lcm.output))
+
 
 if __name__ == "__main__":
     unittest.main()

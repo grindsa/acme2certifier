@@ -191,14 +191,14 @@ class Trigger(object):
         self.logger.debug("Trigger._cert_store()")
 
         if not self.ca_cert:
-            self.logger.error("Trigger._cert_store(): ca_cert not configured")
+            self.logger.error("Trigger ca_cert not configured")
             return (400, "certificate verification failed", None)
 
         if not trigger_cert_chain_verify(
             self.logger, cert_pem, cert_bundle, self.ca_cert
         ):
             self.logger.warning(
-                "Trigger._cert_store(): submitted certificate failed ca_cert chain verify"
+                "submitted certificate failed ca_cert chain verify"
             )
             return (400, "certificate verification failed", None)
 
@@ -207,7 +207,7 @@ class Trigger(object):
 
         if len(cert_name_list) > 1:
             self.logger.warning(
-                "Trigger._cert_store(): ambiguous pubkey match for %s processing orders",
+                "ambiguous pubkey match for %s processing orders",
                 len(cert_name_list),
             )
             return (409, "ambiguous certificate match", None)

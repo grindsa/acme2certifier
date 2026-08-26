@@ -723,6 +723,100 @@ class TestACMEHandler(unittest.TestCase):
             ("No payload given", None, None), self.cahandler.trigger("")
         )
 
+    def test_161_trigger_missing_issuing_ca(self):
+        """trigger fails when issuing_ca_cert missing"""
+        self.cahandler.issuer_dict = {
+            "issuing_ca_key": None,
+            "issuing_ca_cert": "/no/such/ca.pem",
+            "issuing_ca_crl": None,
+        }
+        self.assertEqual(
+            ("issuing_ca_cert missing or unreadable", None, None),
+            self.cahandler.trigger("cGF5bG9hZA=="),
+        )
+
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_load")
+    def test_162_trigger_loads_config_when_issuer_unset(self, mock_cfg):
+        """trigger calls _config_load when issuing_ca_cert unset"""
+        self.cahandler.issuer_dict = {
+            "issuing_ca_key": None,
+            "issuing_ca_cert": None,
+            "issuing_ca_crl": None,
+        }
+
+        def _load():
+            self.cahandler.issuer_dict["issuing_ca_cert"] = "/still/missing.pem"
+
+        mock_cfg.side_effect = _load
+        err, bundle, raw = self.cahandler.trigger("cGF5bG9hZA==")
+        self.assertEqual("issuing_ca_cert missing or unreadable", err)
+        self.assertIsNone(bundle)
+        self.assertIsNone(raw)
+        self.assertTrue(mock_cfg.called)
+
+    def test_163_trigger_pem_and_der_payload(self):
+        """trigger accepts base64 PEM and DER payloads"""
+        import base64
+        import os
+
+        ca_cert = os.path.join("test", "ca", "sub-ca-cert.pem")
+        self.cahandler.issuer_dict = {
+            "issuing_ca_key": os.path.join("test", "ca", "sub-ca-key.pem"),
+            "issuing_ca_cert": ca_cert,
+            "issuing_ca_crl": os.path.join("test", "ca", "sub-ca-crl.pem"),
+        }
+        self.cahandler.ca_cert_chain_list = [
+            os.path.join("test", "ca", "root-ca-cert.pem")
+        ]
+        # Fresh leaf signed by test sub-ca
+        import datetime
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+        from cryptography.hazmat.backends import default_backend
+
+        with open(ca_cert, "rb") as fso:
+            ca = x509.load_pem_x509_certificate(fso.read(), default_backend())
+        with open(self.cahandler.issuer_dict["issuing_ca_key"], "rb") as fso:
+            ca_key = serialization.load_pem_private_key(
+                fso.read(), password=b"Test1234", backend=default_backend()
+            )
+        ee_key = rsa.generate_private_key(65537, 2048)
+        leaf = (
+            x509.CertificateBuilder()
+            .subject_name(
+                x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "trig.example")])
+            )
+            .issuer_name(ca.subject)
+            .public_key(ee_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(
+                datetime.datetime.now(datetime.timezone.utc)
+                - datetime.timedelta(days=1)
+            )
+            .not_valid_after(
+                datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(days=1)
+            )
+            .sign(ca_key, hashes.SHA256())
+        )
+        pem = leaf.public_bytes(serialization.Encoding.PEM)
+        der = leaf.public_bytes(serialization.Encoding.DER)
+        err, bundle, raw = self.cahandler.trigger(
+            base64.b64encode(pem).decode()
+        )
+        self.assertIsNone(err)
+        self.assertIn("BEGIN CERTIFICATE", bundle)
+        self.assertTrue(raw)
+        err2, bundle2, raw2 = self.cahandler.trigger(
+            base64.b64encode(der).decode()
+        )
+        self.assertIsNone(err2)
+        self.assertTrue(bundle2)
+        self.assertTrue(raw2)
+
+
     def test_070_poll(self):
         """test poll"""
         self.assertEqual(

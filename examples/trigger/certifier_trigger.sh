@@ -60,7 +60,7 @@ else
   exit 1
 fi
 
-curl -sS -X POST \
+curl -k -sS -X POST \
   -H "Content-Type: application/json" \
   -H "X-A2C-Trigger-Signature: ${SIGNATURE}" \
   -d "${PAYLOAD}" \

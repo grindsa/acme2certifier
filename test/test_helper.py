@@ -8596,6 +8596,127 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             any("Error while splitting SAN malformed" in msg for msg in lcm.output)
         )
 
+    def test_641_unique_key_loader_duplicate_and_mapping(self):
+        """_UniqueKeyLoader rejects duplicate keys and loads mappings"""
+        import yaml
+        from acme2certifier.acme_srv.helpers.config import _UniqueKeyLoader
+
+        ok = yaml.load("a: 1\nb: 2\n", Loader=_UniqueKeyLoader)
+        self.assertEqual({"a": 1, "b": 2}, ok)
+        with self.assertRaises(yaml.constructor.ConstructorError):
+            yaml.load("a: 1\na: 2\n", Loader=_UniqueKeyLoader)
+        # non-mapping node uses SafeLoader path
+        self.assertEqual([1, 2], yaml.load("- 1\n- 2\n", Loader=_UniqueKeyLoader))
+        loader = _UniqueKeyLoader("")
+        scalar = yaml.ScalarNode("tag:yaml.org,2002:str", "hello")
+        with self.assertRaises(yaml.constructor.ConstructorError):
+            loader.construct_mapping(scalar)
+
+    def test_645_set_yaml_option_null_and_new_section(self):
+        """_set_yaml_option skips null and creates non-DEFAULT sections"""
+        from acme2certifier.acme_srv.helpers.config import _set_yaml_option
+        import configparser
+
+        config = configparser.ConfigParser()
+        with self.assertLogs("test_a2c", level="WARNING"):
+            _set_yaml_option(config, "Sec", "opt", None, self.logger)
+        self.assertFalse(config.has_section("Sec"))
+        _set_yaml_option(config, "Sec", "opt", "val", self.logger)
+        self.assertEqual("val", config.get("Sec", "opt"))
+
+    def test_642_log_loaded_acme_srv_cfg_flushes_last(self):
+        """log_loaded_acme_srv_cfg emits pending load info"""
+        import acme2certifier.acme_srv.helpers.config as cfgmod
+
+        prev = cfgmod._LAST_LOADED_CFG
+        cfgmod._LAST_LOADED_CFG = ("/tmp/acme_srv.cfg", "test", "ini")
+        cfgmod._ACME_SRV_CFG_LOADED.discard(os.path.abspath("/tmp/acme_srv.cfg"))
+        try:
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                cfgmod.log_loaded_acme_srv_cfg(self.logger)
+            self.assertTrue(any("Loaded acme_srv.cfg" in x for x in lcm.output))
+        finally:
+            cfgmod._LAST_LOADED_CFG = prev
+
+    def test_643_detect_config_format_variants(self):
+        """_detect_config_format covers empty, comments, ini, yaml markers, ext"""
+        from acme2certifier.acme_srv.helpers.config import _detect_config_format
+
+        self.assertEqual("ini", _detect_config_format("", "x.cfg"))
+        self.assertEqual("ini", _detect_config_format("# only\n; c\n", "x.cfg"))
+        self.assertEqual("ini", _detect_config_format("[DEFAULT]\na: 1\n", "x.cfg"))
+        self.assertEqual("yaml", _detect_config_format("---\na: 1\n", "x.cfg"))
+        self.assertEqual("yaml", _detect_config_format("- item\n", "x.cfg"))
+        self.assertEqual("yaml", _detect_config_format("{a: 1}\n", "x.cfg"))
+        self.assertEqual("yaml", _detect_config_format("DEFAULT:\n  a: 1\n", "x.cfg"))
+        self.assertEqual("yaml", _detect_config_format("weird\n", "x.yaml"))
+        self.assertEqual("ini", _detect_config_format("weird\n", "x.cfg"))
+
+    def test_644_yaml_value_and_parse_yaml(self):
+        """YAML value normalization and _parse_yaml edge cases"""
+        from acme2certifier.acme_srv.helpers.config import (
+            _yaml_value_to_option,
+            _parse_yaml,
+            _set_yaml_option,
+            _parse_config_content,
+        )
+        import configparser
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertIsNone(
+                _yaml_value_to_option(None, self.logger, "S", "o")
+            )
+        self.assertTrue(any("Ignoring null YAML option" in x for x in lcm.output))
+        self.assertEqual("True", _yaml_value_to_option(True, self.logger, "S", "o"))
+        self.assertEqual("False", _yaml_value_to_option(False, self.logger, "S", "o"))
+        self.assertEqual("3", _yaml_value_to_option(3, self.logger, "S", "o"))
+        self.assertEqual("hi", _yaml_value_to_option("hi", self.logger, "S", "o"))
+        self.assertEqual("[1]", _yaml_value_to_option([1], self.logger, "S", "o"))
+        with self.assertRaises(ValueError):
+            _yaml_value_to_option(object(), self.logger, "S", "o")
+
+        cfg = _parse_yaml("", self.logger)
+        self.assertIsInstance(cfg, configparser.ConfigParser)
+        with self.assertRaises(ValueError):
+            _parse_yaml("- just a list\n", self.logger)
+        with self.assertRaises(ValueError):
+            _parse_yaml("1: foo\n", self.logger)  # non-string key via int
+
+        # non-string option key
+        config = configparser.ConfigParser()
+        with self.assertRaises(ValueError):
+            _set_yaml_option(config, "S", 123, "v", self.logger)
+
+        parsed = _parse_yaml(
+            "DEFAULT:\n  debug: true\nOrder:\n  validity: 10\n  tags: [a, b]\n"
+            "root_scalar: hello\n",
+            self.logger,
+        )
+        self.assertEqual("True", parsed.get("DEFAULT", "debug"))
+        self.assertEqual("10", parsed.get("Order", "validity"))
+        self.assertIn("a", parsed.get("Order", "tags"))
+        self.assertEqual("hello", parsed.get("DEFAULT", "root_scalar"))
+
+        cfg2, fmt = _parse_config_content(
+            "Order:\n  validity: 5\n", "acme_srv.yaml", self.logger
+        )
+        self.assertEqual("yaml", fmt)
+        self.assertEqual("5", cfg2.get("Order", "validity"))
+
+        # INI fail then YAML retry
+        with patch(
+            "acme2certifier.acme_srv.helpers.config._detect_config_format",
+            return_value="ini",
+        ), patch(
+            "acme2certifier.acme_srv.helpers.config._parse_ini",
+            side_effect=configparser.Error("bad"),
+        ):
+            cfg4, fmt4 = _parse_config_content(
+                "Order:\n  validity: 7\n", "x.cfg", self.logger
+            )
+            self.assertEqual("yaml", fmt4)
+            self.assertEqual("7", cfg4.get("Order", "validity"))
+
 
 if __name__ == "__main__":
     unittest.main()
