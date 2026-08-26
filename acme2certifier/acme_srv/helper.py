@@ -75,6 +75,7 @@ from .helpers.datetime_utils import (
     date_to_uts_utc,
     date_to_datestr,
     datestr_to_date,
+    duration_to_seconds,
 )
 
 # Validation functions

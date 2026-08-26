@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Account-to-resource ownership checks for authenticated ACME requests."""
 
-from __future__ import annotations
-
 import logging
 from typing import Optional, Tuple
 

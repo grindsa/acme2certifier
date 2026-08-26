@@ -2063,6 +2063,12 @@ class TestAuthorization(unittest.TestCase):
         )
         # Check that mark_order_as_ready was NOT called (since auth_details is None)
         self.assertFalse(hasattr(self.authorization.repository, "_order_ready_called"))
+        self.mock_logger.info.assert_called_once_with(
+            "Prevalidation succeeded: authz=%s type=%s identifier=%s",
+            authz_name,
+            "dns",
+            id_value,
+        )
 
         # Clean up
         domain_utils.is_domain_whitelisted = orig_is_domain_whitelisted
@@ -2135,6 +2141,12 @@ class TestAuthorization(unittest.TestCase):
                 "Whitelist check result for reconstructed wildcard id_value" in msg
                 for msg in debug_messages
             )
+        )
+        self.mock_logger.info.assert_called_once_with(
+            "Prevalidation succeeded: authz=%s type=%s identifier=%s",
+            "authz_1",
+            "dns",
+            "bar.local",
         )
 
     def test_094_handle_domain_prevalidation_global_wildcard_with_order(self):
@@ -2639,6 +2651,12 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_order_as_ready.assert_called_once_with(
             "order1"
         )
+        self.mock_logger.info.assert_called_once_with(
+            "Prevalidation succeeded: authz=%s type=%s identifier=%s",
+            "authz",
+            "dns",
+            "foo.com",
+        )
 
     def test_110_domain_whitelist_dns_no_match(self):
         """Test DNS identifier does not match prevalidated_domainlist, status not changed, no mark calls"""
@@ -2706,8 +2724,11 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_order_as_ready.assert_called_once_with(
             "order_ip"
         )
-        self.mock_logger.debug.assert_any_call(
-            "IP %s is preauthorized, setting authorization status to 'valid'", id_value
+        self.mock_logger.info.assert_called_once_with(
+            "Prevalidation succeeded: authz=%s type=%s identifier=%s",
+            authz_name,
+            "ip",
+            id_value,
         )
 
     @patch(
@@ -2736,8 +2757,11 @@ class TestAuthorization(unittest.TestCase):
             authz_name
         )
         self.authorization.repository.mark_order_as_ready.assert_not_called()
-        self.mock_logger.debug.assert_any_call(
-            "IP %s is preauthorized, setting authorization status to 'valid'", id_value
+        self.mock_logger.info.assert_called_once_with(
+            "Prevalidation succeeded: authz=%s type=%s identifier=%s",
+            authz_name,
+            "ip",
+            id_value,
         )
 
     @patch(
@@ -2765,6 +2789,7 @@ class TestAuthorization(unittest.TestCase):
             "IP %s is not preauthorized, leaving authorization status unchanged",
             id_value,
         )
+        self.mock_logger.info.assert_not_called()
 
     def test_116_ip_prevalidation_iplist_not_set(self):
         """If prevalidated_iplist is None, nothing happens"""
@@ -2893,6 +2918,12 @@ class TestAuthorization(unittest.TestCase):
         )
         self.authorization.repository.mark_order_as_ready.assert_called_once_with(
             "order_email"
+        )
+        self.mock_logger.info.assert_called_once_with(
+            "Prevalidation succeeded: authz=%s type=%s identifier=%s",
+            authz_name,
+            "email",
+            id_value,
         )
 
     def test_122_handle_email_prevalidation_email_not_whitelisted(self):

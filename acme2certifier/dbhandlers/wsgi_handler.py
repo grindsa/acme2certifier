@@ -1912,6 +1912,32 @@ class DBstore(object):
         self._db_close()
         self.logger.debug("DBStore.order_update() ended")
 
+    def order_update_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> int:
+        """Update order status only when current status matches; return row count."""
+        self.logger.debug(
+            "order_update_if_status(%s, %s -> %s)", name, expected_status, new_status
+        )
+        new_status_id = dict_from_row(self._status_search("name", new_status))["id"]
+        expected_status_id = dict_from_row(
+            self._status_search("name", expected_status)
+        )["id"]
+        self._db_open()
+        self.cursor.execute(
+            """UPDATE orders SET status_id = :new_status
+               WHERE name = :name AND status_id = :expected_status""",
+            {
+                "name": name,
+                "new_status": new_status_id,
+                "expected_status": expected_status_id,
+            },
+        )
+        updated = self.cursor.rowcount
+        self._db_close()
+        self.logger.debug("DBStore.order_update_if_status() ended with: %s", updated)
+        return updated
+
     def orders_invalid_search(
         self,
         column: str,

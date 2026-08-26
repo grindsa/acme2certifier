@@ -39,6 +39,7 @@ class DirectoryConfig:
     profiles_sync: bool = False
     profiles_sync_interval: int = 604800  # default: 7 days
     async_mode: bool = False
+    renewalinfo_disable: bool = False
 
 
 class DirectoryRepository:
@@ -122,6 +123,7 @@ class Directory:
         self._parse_booleans(config_dic)
         self._parse_eab_and_profiles(config_dic)
         self._parse_cahandler_section(config_dic)
+        self._parse_renewalinfo_section(config_dic)
         self._load_ca_handler(config_dic)
         self.config.async_mode = config_async_mode_load(
             self.logger, config_dic, self.dbstore.type
@@ -235,6 +237,20 @@ class Directory:
 
         self.logger.debug("Directory._parse_cahandler_section() ended")
 
+    def _parse_renewalinfo_section(self, config_dic: object) -> None:
+        """Parse [Renewalinfo] renewalinfo_disable for directory advertisement."""
+        self.logger.debug("Directory._parse_renewalinfo_section()")
+        if "Renewalinfo" in config_dic:
+            try:
+                self.config.renewalinfo_disable = config_dic.getboolean(
+                    "Renewalinfo",
+                    "renewalinfo_disable",
+                    fallback=self.config.renewalinfo_disable,
+                )
+            except Exception as err_:
+                self.logger.error("renewalinfo_disable not set: %s", err_)
+        self.logger.debug("Directory._parse_renewalinfo_section() ended")
+
     def _validate_profiles_sync(self) -> None:
         if not self.config.profiles_sync:
             return
@@ -311,11 +327,12 @@ class Directory:
             + self.config.url_prefix
             + "/acme/revokecert",
             "keyChange": self.server_name + self.config.url_prefix + "/acme/key-change",
-            "renewalInfo": self.server_name
-            + self.config.url_prefix
-            + "/acme/renewal-info",
             "meta": self._build_meta_information(),
         }
+        if not self.config.renewalinfo_disable:
+            d_dic["renewalInfo"] = (
+                self.server_name + self.config.url_prefix + "/acme/renewal-info"
+            )
         if self.config.db_check:
             version, _script_name = self.repository.get_db_version()
             if version == self.dbversion:

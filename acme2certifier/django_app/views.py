@@ -467,43 +467,47 @@ def trigger(request):
         return ERR_RESPONSE_POST
 
 
+def _copy_acme_headers(response, header_dic):
+    """Copy ACME response headers onto a Django response."""
+    for element in header_dic or {}:
+        response[element] = header_dic[element]
+    return response
+
+
+def _renewalinfo_build_response(method: str, response_dic: dict):
+    """Map Renewalinfo handler result to a Django HTTP response."""
+    code = response_dic.get("code", 200)
+    if code == 200 and method == "GET":
+        response = JsonResponse(response_dic["data"])
+        return _copy_acme_headers(response, response_dic.get("header"))
+    if code >= 400 and response_dic.get("data"):
+        response = JsonResponse(status=code, data=response_dic["data"])
+        return _copy_acme_headers(response, response_dic.get("header"))
+    return HttpResponse(status=code)
+
+
+def _renewalinfo_dispatch(renewalinfo_, request):
+    """Invoke GET get() or POST update() on the Renewalinfo handler."""
+    if request.method == "POST":
+        return renewalinfo_.update(request.body)
+    return renewalinfo_.get(request.build_absolute_uri())
+
+
 def renewalinfo(request):
     """renewal info"""
-    if request.method in ("POST", "GET"):
-        with Renewalinfo(DEBUG, get_url(request.META), LOGGER) as renewalinfo_:
-            if request.method == "POST":
-                response_dic = renewalinfo_.update(request.body)
-            else:
-                response_dic = renewalinfo_.get(request.build_absolute_uri())
-
-            # create the response
-            if response_dic["code"] == 200 and request.method == "GET":
-                response = JsonResponse(response_dic["data"])
-                # generate additional header elements
-                for element in response_dic["header"]:
-                    response[element] = response_dic["header"][element]
-            elif response_dic.get("code", 200) >= 400 and response_dic.get("data"):
-                response = JsonResponse(
-                    status=response_dic["code"], data=response_dic["data"]
-                )
-                for element in response_dic.get("header", {}):
-                    response[element] = response_dic["header"][element]
-            else:
-                response = HttpResponse(status=response_dic["code"])
-
-            # logging
-            log_response(
-                LOGGER,
-                request.META["REMOTE_ADDR"],
-                request.META["PATH_INFO"],
-                response_dic,
-            )
-
-            # send response
-            return response
-
-    else:
+    if request.method not in ("POST", "GET"):
         return ERR_RESPONSE_POST
+
+    with Renewalinfo(DEBUG, get_url(request.META), LOGGER) as renewalinfo_:
+        response_dic = _renewalinfo_dispatch(renewalinfo_, request)
+        response = _renewalinfo_build_response(request.method, response_dic)
+        log_response(
+            LOGGER,
+            request.META["REMOTE_ADDR"],
+            request.META["PATH_INFO"],
+            response_dic,
+        )
+        return response
 
 
 def housekeeping(request):

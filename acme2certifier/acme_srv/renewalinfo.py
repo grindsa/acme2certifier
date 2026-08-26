@@ -18,6 +18,7 @@ from acme2certifier.acme_srv.helper import (
     cert_aki_get,
     b64_url_recode,
     b64_decode,
+    duration_to_seconds,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
@@ -37,6 +38,8 @@ class RenewalinfoConfig:
     renewalthreshold_pctg: float = 85.0
     retry_after_timeout: int = 86400
     renewalinfo_lookup: bool = False
+    renewalinfo_disable: bool = False
+    renewal_window_duration: Optional[int] = None
 
 
 class RenewalinfoRepository:
@@ -152,6 +155,14 @@ class Renewalinfo(object):
 
         if "Renewalinfo" in config_dic:
             try:
+                self.config.renewalinfo_disable = config_dic.getboolean(
+                    "Renewalinfo",
+                    "renewalinfo_disable",
+                    fallback=self.config.renewalinfo_disable,
+                )
+            except Exception as err_:
+                self.logger.error("renewalinfo_disable not set: %s", err_)
+            try:
                 self.config.renewal_force = config_dic.getboolean(
                     "Renewalinfo", "renewal_force", fallback=False
                 )
@@ -174,6 +185,19 @@ class Renewalinfo(object):
             except Exception as err_:
                 self.logger.error("retry_after_timeout parsing error: %s", err_)
                 self.config.retry_after_timeout = 86400
+            try:
+                raw_duration = config_dic.get(
+                    "Renewalinfo", "renewal_window_duration", fallback=None
+                )
+                if raw_duration is None or str(raw_duration).strip() == "":
+                    self.config.renewal_window_duration = None
+                else:
+                    self.config.renewal_window_duration = duration_to_seconds(
+                        raw_duration
+                    )
+            except Exception as err_:
+                self.logger.error("renewal_window_duration parsing error: %s", err_)
+                self.config.renewal_window_duration = None
 
         self._load_ca_handler(config_dic)
         self._parse_cahandler_section(config_dic)
@@ -316,10 +340,13 @@ class Renewalinfo(object):
                     )
                     + cert_dic["issue_uts"]
                 )
+            end_uts = cert_dic["expire_uts"]
+            if not self.config.renewal_force and self.config.renewal_window_duration:
+                end_uts = min(end_uts, start_uts + self.config.renewal_window_duration)
             renewalinfo_dic = {
                 "suggestedWindow": {
                     "start": uts_to_date_utc(start_uts),
-                    "end": uts_to_date_utc(cert_dic["expire_uts"]),
+                    "end": uts_to_date_utc(end_uts),
                 }
             }
         else:
@@ -374,6 +401,9 @@ class Renewalinfo(object):
     def get(self, url: str) -> Dict[str, str]:
         """Get renewal information (backwards compatible public method)"""
         self.logger.debug("Renewalinfo.get()")
+        if self.config.renewalinfo_disable:
+            self.logger.debug("Renewalinfo.get() - endpoint disabled")
+            return {"code": 404, "data": {}}
 
         renewalinfo_string = self._parse_renewalinfo_string_from_url(url)
         if self.config.renewalinfo_lookup and hasattr(
@@ -426,6 +456,9 @@ class Renewalinfo(object):
     def update(self, content: str) -> Dict[str, str]:
         """Update renewal info (backwards compatible public method)"""
         self.logger.debug("Renewalinfo.update()")
+        if self.config.renewalinfo_disable:
+            self.logger.debug("Renewalinfo.update() - endpoint disabled")
+            return {"code": 404, "data": {}}
         (
             code,
             message,

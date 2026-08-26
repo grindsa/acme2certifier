@@ -907,6 +907,30 @@ class Authorization(object):
                 err,
             )
 
+    def _apply_prevalidation_success(
+        self,
+        authz_name: str,
+        auth_details: Optional[Dict[str, str]],
+        id_type: str,
+        id_value: str,
+        authz_info: Dict[str, Any],
+    ) -> None:
+        """Mark authorization valid via prevalidation; log INFO once on state transition."""
+        if authz_info.get("status") == "valid":
+            return
+        self.logger.info(
+            "Prevalidation succeeded: authz=%s type=%s identifier=%s",
+            authz_name,
+            id_type,
+            id_value,
+        )
+        authz_info["status"] = "valid"
+        self.repository.mark_authorization_as_valid(authz_name)
+        if auth_details is not None:
+            self.repository.mark_order_as_ready(auth_details.get("order__name"))
+        else:
+            self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
+
     def _apply_prevalidation_whitelist(
         self, authz_name, auth_details, id_type, id_value, authz_info
     ):
@@ -951,12 +975,9 @@ class Authorization(object):
                 "Email %s is preauthorized, setting authorization status to 'valid'",
                 id_value,
             )
-            authz_info["status"] = "valid"
-            self.repository.mark_authorization_as_valid(authz_name)
-            if auth_details is not None:
-                self.repository.mark_order_as_ready(auth_details.get("order__name"))
-            else:
-                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
+            self._apply_prevalidation_success(
+                authz_name, auth_details, "email", id_value, authz_info
+            )
 
     def _handle_domain_prevalidation(
         self, authz_name, auth_details, id_value, authz_info
@@ -974,18 +995,19 @@ class Authorization(object):
         )
 
         if wildcard_all:
-            self.logger.warning(
-                "Global wildcard prevalidation is active (prevalidated_domainlist contains '*'). Marking authorization %s as valid without challenge validation.",
-                authz_name,
-            )
-            authz_info["status"] = "valid"
-            self.repository.mark_authorization_as_valid(authz_name)
-            if auth_details is not None:
-                self.repository.mark_order_as_ready(auth_details.get("order__name"))
-            else:
-                self.logger.debug(
-                    "No order information found for authorization %s", authz_name
+            if authz_info.get("status") != "valid":
+                self.logger.warning(
+                    "Global wildcard prevalidation is active (prevalidated_domainlist contains '*'). Marking authorization %s as valid without challenge validation.",
+                    authz_name,
                 )
+                authz_info["status"] = "valid"
+                self.repository.mark_authorization_as_valid(authz_name)
+                if auth_details is not None:
+                    self.repository.mark_order_as_ready(auth_details.get("order__name"))
+                else:
+                    self.logger.debug(
+                        "No order information found for authorization %s", authz_name
+                    )
             return
 
         self.logger.debug(
@@ -1037,12 +1059,9 @@ class Authorization(object):
                 "Domain %s is preauthorized, setting authorization status to 'valid'",
                 id_value,
             )
-            authz_info["status"] = "valid"
-            self.repository.mark_authorization_as_valid(authz_name)
-            if auth_details is not None:
-                self.repository.mark_order_as_ready(auth_details.get("order__name"))
-            else:
-                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
+            self._apply_prevalidation_success(
+                authz_name, auth_details, "dns", id_value, authz_info
+            )
 
     def _handle_ip_prevalidation(self, authz_name, auth_details, id_value, authz_info):
         """Handle IP identifier prevalidation based on whitelist configuration. If the IP is whitelisted, mark the authorization as valid and the order as ready."""
@@ -1060,12 +1079,9 @@ class Authorization(object):
                 "IP %s is preauthorized, setting authorization status to 'valid'",
                 id_value,
             )
-            authz_info["status"] = "valid"
-            self.repository.mark_authorization_as_valid(authz_name)
-            if auth_details is not None:
-                self.repository.mark_order_as_ready(auth_details.get("order__name"))
-            else:
-                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
+            self._apply_prevalidation_success(
+                authz_name, auth_details, "ip", id_value, authz_info
+            )
         else:
             self.logger.debug(
                 "IP %s is not preauthorized, leaving authorization status unchanged",

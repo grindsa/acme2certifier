@@ -160,13 +160,12 @@ class TestOrderResourceOwnership:
             {},
             "attacker",
         )
-        with patch.object(order, "_name_get", return_value="victim"), patch.object(
-            order, "get_order_details", return_value={"status": "ready"}
-        ), patch.object(
-            order, "_get_order_account_name", return_value="victim-acct"
-        ), patch.object(
-            order, "_process_order_request"
-        ) as mock_process:
+        with (
+            patch.object(order, "_name_get", return_value="victim"),
+            patch.object(order, "get_order_details", return_value={"status": "ready"}),
+            patch.object(order, "_get_order_account_name", return_value="victim-acct"),
+            patch.object(order, "_process_order_request") as mock_process,
+        ):
             order.message.prepare_response.side_effect = lambda resp, status, **_: {
                 **resp,
                 **status,
@@ -189,16 +188,16 @@ class TestOrderResourceOwnership:
             **resp,
             **status,
         }
-        with patch.object(order, "_name_get", return_value="owner"), patch.object(
-            order, "get_order_details", return_value={"status": "ready"}
-        ), patch.object(
-            order, "_get_order_account_name", return_value="owner-acct"
-        ), patch.object(
-            order,
-            "_process_order_request",
-            return_value=(200, None, None, None),
-        ), patch.object(
-            order, "get_order_details", return_value={"status": "ready"}
+        with (
+            patch.object(order, "_name_get", return_value="owner"),
+            patch.object(order, "get_order_details", return_value={"status": "ready"}),
+            patch.object(order, "_get_order_account_name", return_value="owner-acct"),
+            patch.object(
+                order,
+                "_process_order_request",
+                return_value=(200, None, None, None),
+            ),
+            patch.object(order, "get_order_details", return_value={"status": "ready"}),
         ):
             result = order.parse_order_content("content")
         assert result["code"] == 200
@@ -216,9 +215,11 @@ class TestOrderResourceOwnership:
             **resp,
             **status,
         }
-        with patch.object(order, "_name_get", return_value="victim"), patch.object(
-            order, "get_order_details", return_value={"status": "ready"}
-        ), patch.object(order, "_get_order_account_name", return_value=None):
+        with (
+            patch.object(order, "_name_get", return_value="victim"),
+            patch.object(order, "get_order_details", return_value={"status": "ready"}),
+            patch.object(order, "_get_order_account_name", return_value=None),
+        ):
             result = order.parse_order_content("content")
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
@@ -261,9 +262,12 @@ class TestCertificateResourceOwnership:
                 "attacker",
             )
         )
-        with patch.object(
-            certificate, "_lookup_certificate_owner_account", return_value="victim"
-        ), patch.object(certificate, "get_certificate_details") as mock_get:
+        with (
+            patch.object(
+                certificate, "_lookup_certificate_owner_account", return_value="victim"
+            ),
+            patch.object(certificate, "get_certificate_details") as mock_get,
+        ):
             result = certificate.process_certificate_request("content")
         mock_get.assert_not_called()
         assert result["code"] == 403
@@ -280,12 +284,15 @@ class TestCertificateResourceOwnership:
                 "owner",
             )
         )
-        with patch.object(
-            certificate, "_lookup_certificate_owner_account", return_value="owner"
-        ), patch.object(
-            certificate,
-            "get_certificate_details",
-            return_value={"code": 200, "data": "pem"},
+        with (
+            patch.object(
+                certificate, "_lookup_certificate_owner_account", return_value="owner"
+            ),
+            patch.object(
+                certificate,
+                "get_certificate_details",
+                return_value={"code": 200, "data": "pem"},
+            ),
         ):
             result = certificate.process_certificate_request("content")
         assert result["code"] == 200
@@ -514,12 +521,15 @@ class TestCsrBinding:
                 "identifiers": identifiers,
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
-            with patch.object(
-                certificate, "_validate_input_parameters", return_value={}
-            ), patch.object(
-                certificate,
-                "_handle_enrollment_thread_execution",
-                return_value=(None, ""),
+            with (
+                patch.object(
+                    certificate, "_validate_input_parameters", return_value={}
+                ),
+                patch.object(
+                    certificate,
+                    "_handle_enrollment_thread_execution",
+                    return_value=(None, ""),
+                ),
             ):
                 error, detail = certificate.process_certificate_enrollment_request(
                     "cert1", csr, "order1"
