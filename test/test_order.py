@@ -697,7 +697,7 @@ class TestOrderClass(unittest.TestCase):
         with patch.object(self.order, "_name_get", return_value="order"):
             with patch.object(
                 self.order, "get_order_details", return_value={"status": "ok"}
-            ):
+            ), patch.object(self.order, "_get_order_account_name", return_value="acc"):
                 with patch.object(
                     self.order,
                     "_process_order_request",
@@ -714,7 +714,9 @@ class TestOrderClass(unittest.TestCase):
                         _detail,
                         _cert,
                         _order,
-                    ) = self.order._parse_order_message({"url": "url"}, {}, None)
+                    ) = self.order._parse_order_message(
+                        {"url": "url"}, {}, None, account_name="acc"
+                    )
                     self.assertEqual(code, 200)
             # url in protected, order_name, no order_dic
             with patch.object(self.order, "get_order_details", return_value={}):

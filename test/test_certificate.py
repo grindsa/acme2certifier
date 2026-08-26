@@ -919,17 +919,18 @@ class TestCertificate(unittest.TestCase):
                 "cert_raw": "r",
                 "created_at": 1,
                 "id": 1,
+                "order__account__name": "acct1",
             }
         ]
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
-            result = self.cert._check_certificate_reusability("csr")
+            result = self.cert._check_certificate_reusability("csr", "acct1")
             self.assertIsInstance(result, tuple)
 
     def test_066_check_certificate_reusability_db_error(self):
         self.cert.repository.search_certificates.side_effect = Exception("fail")
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
-                result = self.cert._check_certificate_reusability("csr")
+                result = self.cert._check_certificate_reusability("csr", None)
                 self.assertIsInstance(result, tuple)
             self.assertIn(
                 "CRITICAL:test_a2c:Database error: failed to search for certificate reusage: fail",
@@ -939,7 +940,7 @@ class TestCertificate(unittest.TestCase):
     def test_067_check_certificate_reusability_none_found(self):
         self.cert.repository.search_certificates.return_value = None
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
-            result = self.cert._check_certificate_reusability("csr")
+            result = self.cert._check_certificate_reusability("csr", None)
             self.assertIsInstance(result, tuple)
 
     def test_068_handle_enrollment_error(self):
@@ -1284,7 +1285,7 @@ class TestCertificate(unittest.TestCase):
             "Reusability error"
         )
         with self.assertLogs(self.cert.logger, level="CRITICAL") as log:
-            result = self.cert._check_certificate_reusability("csr")
+            result = self.cert._check_certificate_reusability("csr", None)
             self.assertEqual(result, (None, None, None, None))
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to search for certificate reusage: Reusability error",
@@ -1789,7 +1790,10 @@ class TestCertificate(unittest.TestCase):
             patch.object(
                 self.cert,
                 "_validate_certificate_request_message",
-                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
+                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, "acc"),
+            ),
+            patch.object(
+                self.cert, "_lookup_certificate_owner_account", return_value="acc"
             ),
             patch.object(
                 self.cert,
@@ -1806,7 +1810,7 @@ class TestCertificate(unittest.TestCase):
                 400,
                 "data",
                 "error",
-                account_name="",
+                account_name="acc",
             )
 
     def test_138_process_certificate_request_missing_url(self):
@@ -1832,7 +1836,10 @@ class TestCertificate(unittest.TestCase):
             patch.object(
                 self.cert,
                 "_validate_certificate_request_message",
-                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
+                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, "acc"),
+            ),
+            patch.object(
+                self.cert, "_lookup_certificate_owner_account", return_value="acc"
             ),
             patch.object(
                 self.cert,
@@ -2986,11 +2993,14 @@ class TestCertificate(unittest.TestCase):
             "cert_raw": "raw_value",
             "created_at": 1,
             "id": 42,
+            "order__account__name": "acct1",
         }
         self.cert.repository.search_certificates.return_value = [cert_data]
         self.cert.config.cert_reusage_timeframe = 2  # Ensure reuse block is entered
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
-            _, cert, cert_raw, message = self.cert._check_certificate_reusability("csr")
+            _, cert, cert_raw, message = self.cert._check_certificate_reusability(
+                "csr", "acct1"
+            )
             self.assertEqual(cert, "cert_value")
             self.assertEqual(cert_raw, "raw_value")
             self.assertIn("reused certificate from id: 42", message)

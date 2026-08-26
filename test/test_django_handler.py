@@ -566,7 +566,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual("ES256", jwk2["alg"])
 
     def test_032_nonce_ops(self) -> None:
-        """test nonce_add / check / delete / delete_bulk / search_by_timestamp"""
+        """test nonce_add / check / delete / consume / delete_bulk / search_by_timestamp"""
         rid = self.dbstore.nonce_add("n1")
         self.assertIsInstance(rid, int)
         self.assertTrue(self.dbstore.nonce_check("n1"))
@@ -578,7 +578,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertGreaterEqual(deleted, 2)
         self.assertFalse(self.dbstore.nonce_check("n1"))
         self.assertTrue(self.dbstore.nonce_check("n2"))
-        self.dbstore.nonce_delete("n2")
+        self.assertEqual(1, self.dbstore.nonce_consume("n2"))
         self.assertFalse(self.dbstore.nonce_check("n2"))
         self.assertEqual(0, self.dbstore.nonce_consume("n2"))
         self.dbstore.nonce_add("nDel")
@@ -590,7 +590,13 @@ class TestDjangoHandler(unittest.TestCase):
         found_empty = self.dbstore.nonce_search_by_timestamp(0)
         self.assertEqual([], found_empty)
 
-    def test_033_certificate_add_without_order(self) -> None:
+    def test_033_nonce_unique(self) -> None:
+        """test duplicate nonce insert is rejected after unique constraint"""
+        self.dbstore.nonce_add("unique-n")
+        with self.assertRaises(Exception):
+            self.dbstore.nonce_add("unique-n")
+
+    def test_034_certificate_add_without_order(self) -> None:
         """test certificate_add without order key"""
         # order FK is required by model; create with order via ORM then update path
         # covers branch where "order" not in data_dic by mocking update_or_create
@@ -611,7 +617,7 @@ class TestDjangoHandler(unittest.TestCase):
             ),
         )
 
-    def test_034_challenge_update_without_status(self) -> None:
+    def test_035_challenge_update_without_status(self) -> None:
         """test challenge_update without status key"""
         acct = self._seed_account("acctCu")
         order = self._seed_order(acct, "ordCu")
@@ -626,14 +632,14 @@ class TestDjangoHandler(unittest.TestCase):
         self.dbstore.challenge_update({"name": "chCu", "keyauthorization": "ka2"})
         self.assertEqual("ka2", Challenge.objects.get(name="chCu").keyauthorization)
 
-    def test_035_order_update_without_status(self) -> None:
+    def test_036_order_update_without_status(self) -> None:
         """test order_update without status key"""
         acct = self._seed_account("acctOu2")
         self._seed_order(acct, "ordOu2")
         self.dbstore.order_update({"name": "ordOu2", "expires": 42})
         self.assertEqual(42, Order.objects.get(name="ordOu2").expires)
 
-    def test_036_authorization_add_without_optional(self) -> None:
+    def test_037_authorization_add_without_optional(self) -> None:
         """test authorization_add without order/status keys"""
         acct = self._seed_account("acctAzO")
         order = self._seed_order(acct, "ordAzO")
@@ -652,7 +658,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual(77, rid)
         self.assertEqual(order.name, "ordAzO")  # keep seed referenced
 
-    def test_037_modify_key_lte_branch_in_search(self) -> None:
+    def test_038_modify_key_lte_branch_in_search(self) -> None:
         """test certificates_search with <= operant"""
         acct = self._seed_account("acctLte")
         order = self._seed_order(acct, "ordLte")
@@ -669,7 +675,7 @@ class TestDjangoHandler(unittest.TestCase):
         )
         self.assertTrue(any(r["name"] == "certLte" for r in rows))
 
-    def test_038_model_unicode_methods(self) -> None:
+    def test_039_model_unicode_methods(self) -> None:
         """test Django model __unicode__() helpers"""
         nonce = Nonce.objects.create(nonce="n-unicode")
         self.assertEqual("n-unicode", nonce.__unicode__())
@@ -712,7 +718,7 @@ class TestDjangoHandler(unittest.TestCase):
 class TestDjangoHandlerInitializeReload(unittest.TestCase):
     """cover initialize monkey_patches import for Django < 4 via reload"""
 
-    def test_001_initialize_loads_monkey_patches_on_django3(self) -> None:
+    def test_040_initialize_loads_monkey_patches_on_django3(self) -> None:
         """reload django_handler with Django major < 4 to hit monkey_patches import"""
         saved = {
             key: sys.modules.get(key)

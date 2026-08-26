@@ -7,6 +7,21 @@
 
 Support for the **TNAuthList** identifier and **tkauth-01** challenges is currently **experimental**, as neither the identifier nor the challenge type has been fully standardized.
 
+> [!WARNING]
+> **tkauth-01 validation is not implemented.** acme2certifier does not verify the authority token presented by the client: there is no signature check against a trust anchor and no comparison of the token's `tktype`/`tkvalue` against the requested identifier. Accepting the challenge would therefore authorize any Service Provider Code the client cares to claim.
+>
+> As a consequence, tkauth-01 challenges are **rejected** and TNAuthList authorizations are marked `invalid`, so enrollment fails. Enabling `tnauthlist_support` alone does not change this; the server logs an error at startup to make that explicit.
+
+## Accepting unverified authority tokens (testing only)
+
+For interoperability testing you can make the server accept **any** authority token without verification by setting the break-glass environment variable for the acme2certifier process:
+
+```sh
+ACME2CERTIFIER_I_KNOW_THE_RISK=1
+```
+
+This is the same acknowledgement used by `nonce_check_disable` and `signature_check_disable`. With it set, every accepted tkauth-01 challenge is logged at `CRITICAL`. **Never set this in production** — it allows any account to obtain certificates asserting authority over telephone number ranges it does not hold.
+
 ## Implementation
 
 The current implementation follows these specifications:

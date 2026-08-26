@@ -1847,24 +1847,29 @@ class TestAuthorization(unittest.TestCase):
         ):
             self.authorization.message = self.mock_message
             with patch.object(
-                self.authorization, "get_authorization_details", return_value={}
-            ) as mock_get_details:
+                self.authorization,
+                "_lookup_authorization_owner_account",
+                return_value="account",
+            ):
                 with patch.object(
-                    self.mock_message,
-                    "prepare_response",
-                    return_value={"error": "unauthorized"},
-                ) as mock_prepare_response:
-                    result = self.authorization.handle_post_request(
-                        '{"test": "content"}'
-                    )
-                    mock_prepare_response.assert_called_once()
-                    status_dic = mock_prepare_response.call_args[0][1]
-                    expected_status_dic = {
-                        "code": 403,
-                        "type": "urn:ietf:params:acme:error:unauthorized",
-                        "detail": "authorization lookup failed",
-                    }
-                    self.assertEqual(status_dic, expected_status_dic)
+                    self.authorization, "get_authorization_details", return_value={}
+                ) as mock_get_details:
+                    with patch.object(
+                        self.mock_message,
+                        "prepare_response",
+                        return_value={"error": "unauthorized"},
+                    ) as mock_prepare_response:
+                        result = self.authorization.handle_post_request(
+                            '{"test": "content"}'
+                        )
+                        mock_prepare_response.assert_called_once()
+                        status_dic = mock_prepare_response.call_args[0][1]
+                        expected_status_dic = {
+                            "code": 403,
+                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "detail": "authorization lookup failed",
+                        }
+                        self.assertEqual(status_dic, expected_status_dic)
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
@@ -1886,25 +1891,30 @@ class TestAuthorization(unittest.TestCase):
             self.authorization.message = self.mock_message
             with patch.object(
                 self.authorization,
-                "get_authorization_details",
-                side_effect=AuthorizationError("Auth error"),
-            ) as mock_get_details:
+                "_lookup_authorization_owner_account",
+                return_value="account",
+            ):
                 with patch.object(
-                    self.mock_message,
-                    "prepare_response",
-                    return_value={"error": "unauthorized"},
-                ) as mock_prepare_response:
-                    result = self.authorization.handle_post_request(
-                        '{"test": "content"}'
-                    )
-                    mock_prepare_response.assert_called_once()
-                    status_dic = mock_prepare_response.call_args[0][1]
-                    expected_status_dic = {
-                        "code": 403,
-                        "type": "urn:ietf:params:acme:error:unauthorized",
-                        "detail": "authorization error",
-                    }
-                    self.assertEqual(status_dic, expected_status_dic)
+                    self.authorization,
+                    "get_authorization_details",
+                    side_effect=AuthorizationError("Auth error"),
+                ) as mock_get_details:
+                    with patch.object(
+                        self.mock_message,
+                        "prepare_response",
+                        return_value={"error": "unauthorized"},
+                    ) as mock_prepare_response:
+                        result = self.authorization.handle_post_request(
+                            '{"test": "content"}'
+                        )
+                        mock_prepare_response.assert_called_once()
+                        status_dic = mock_prepare_response.call_args[0][1]
+                        expected_status_dic = {
+                            "code": 403,
+                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "detail": "authorization error",
+                        }
+                        self.assertEqual(status_dic, expected_status_dic)
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
@@ -1926,25 +1936,30 @@ class TestAuthorization(unittest.TestCase):
             self.authorization.message = self.mock_message
             with patch.object(
                 self.authorization,
-                "get_authorization_details",
-                return_value={"foo": "bar"},
-            ) as mock_get_details:
+                "_lookup_authorization_owner_account",
+                return_value="account",
+            ):
                 with patch.object(
-                    self.mock_message,
-                    "prepare_response",
-                    return_value={"error": "unauthorized"},
-                ) as mock_prepare_response:
-                    result = self.authorization.handle_post_request(
-                        '{"test": "content"}'
-                    )
-                    mock_prepare_response.assert_called_once()
-                    status_dic = mock_prepare_response.call_args[0][1]
-                    expected_status_dic = {
-                        "code": 200,
-                        "type": "message",
-                        "detail": "detail",
-                    }
-                    self.assertEqual(status_dic, expected_status_dic)
+                    self.authorization,
+                    "get_authorization_details",
+                    return_value={"foo": "bar"},
+                ) as mock_get_details:
+                    with patch.object(
+                        self.mock_message,
+                        "prepare_response",
+                        return_value={"error": "unauthorized"},
+                    ) as mock_prepare_response:
+                        result = self.authorization.handle_post_request(
+                            '{"test": "content"}'
+                        )
+                        mock_prepare_response.assert_called_once()
+                        status_dic = mock_prepare_response.call_args[0][1]
+                        expected_status_dic = {
+                            "code": 200,
+                            "type": "message",
+                            "detail": "detail",
+                        }
+                        self.assertEqual(status_dic, expected_status_dic)
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
