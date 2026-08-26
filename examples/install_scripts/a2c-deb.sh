@@ -538,12 +538,10 @@ else
       /etc/nginx/sites-available/acme_srv_ssl.conf
     CERT="${APP_ROOT}/volume/acme2certifier_cert.pem"
     KEY="${APP_ROOT}/volume/acme2certifier_key.pem"
-    if [[ ! -f "${CERT}" || ! -f "${KEY}" ]]; then
-      if [[ -f /etc/nginx/acme2certifier_cert.pem && -f /etc/nginx/acme2certifier_key.pem ]]; then
-        echo "==> Seeding TLS cert/key from /etc/nginx"
-        ${SUDO} cp -f /etc/nginx/acme2certifier_cert.pem "${CERT}"
-        ${SUDO} cp -f /etc/nginx/acme2certifier_key.pem "${KEY}"
-      fi
+    if [[ (! -f "${CERT}" || ! -f "${KEY}") && -f /etc/nginx/acme2certifier_cert.pem && -f /etc/nginx/acme2certifier_key.pem ]]; then
+      echo "==> Seeding TLS cert/key from /etc/nginx"
+      ${SUDO} cp -f /etc/nginx/acme2certifier_cert.pem "${CERT}"
+      ${SUDO} cp -f /etc/nginx/acme2certifier_key.pem "${KEY}"
     fi
     if [[ ! -f "${CERT}" || ! -f "${KEY}" ]]; then
       echo "==> Generating self-signed TLS cert/key"

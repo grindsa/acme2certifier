@@ -55,6 +55,9 @@ set -euo pipefail
 readonly MODE_DJANGO="django"
 readonly MODE_WSGI="wsgi"
 readonly DJANGO_SETTINGS="acme2certifier.django_project.settings"
+readonly PKG_BASE="acme2certifier"
+readonly PKG_MIN="${PKG_BASE}-min"
+readonly DEFAULT_DATA_DIR="/tmp/acme2certifier"
 
 MODE="wsgi"
 MODE_EXPLICIT=0
@@ -81,7 +84,7 @@ usage() {
 }
 
 pkg_name() {
-  printf '%s' "acme2certifier${NAME_SUFFIX}"
+  printf '%s' "${PKG_BASE}${NAME_SUFFIX}"
 }
 
 normalize_name_suffix() {
@@ -99,25 +102,29 @@ is_main_rpm_basename() {
   local base="$1"
   local pkg="${2:-}"
   case "${base}" in
-    *-python*.rpm|*-python*.RPM) return 1 ;;
-  esac
-  if [[ -n "${pkg}" ]]; then
-    case "${base}" in
-      "${pkg}"-[0-9]*.rpm|"${pkg}"-[0-9]*.RPM) return 0 ;;
-      *) return 1 ;;
-    esac
-  fi
-  case "${base}" in
-    acme2certifier-min-[0-9]*.rpm|acme2certifier-min-[0-9]*.RPM) return 0 ;;
-    acme2certifier-[0-9]*.rpm|acme2certifier-[0-9]*.RPM) return 0 ;;
-    *) return 1 ;;
+    *-python*.rpm|*-python*.RPM)
+      return 1
+      ;;
+    *)
+      if [[ -n "${pkg}" ]]; then
+        case "${base}" in
+          "${pkg}"-[0-9]*.rpm|"${pkg}"-[0-9]*.RPM) return 0 ;;
+          *) return 1 ;;
+        esac
+      fi
+      case "${base}" in
+        "${PKG_MIN}"-[0-9]*.rpm|"${PKG_MIN}"-[0-9]*.RPM) return 0 ;;
+        "${PKG_BASE}"-[0-9]*.rpm|"${PKG_BASE}"-[0-9]*.RPM) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
   esac
 }
 
 infer_suffix_from_basename() {
   local base="$1"
   case "${base}" in
-    acme2certifier-min-[0-9]*) printf '%s' '-min' ;;
+    "${PKG_MIN}"-[0-9]*) printf '%s' '-min' ;;
     *) printf '' ;;
   esac
 }
@@ -175,18 +182,17 @@ find_rpm() {
     fi
     append_pkg_globs candidates "." "$(pkg_name)"
     append_pkg_globs candidates ".." "$(pkg_name)"
-    append_pkg_globs candidates "/tmp/acme2certifier" "$(pkg_name)"
+    append_pkg_globs candidates "${DEFAULT_DATA_DIR}" "$(pkg_name)"
   else
-    if [[ -n "${DATA_DIR}" ]]; then
-      append_pkg_globs candidates "${DATA_DIR}" "acme2certifier-min"
-      append_pkg_globs candidates "${DATA_DIR}" "acme2certifier"
-    fi
-    append_pkg_globs candidates "." "acme2certifier-min"
-    append_pkg_globs candidates "." "acme2certifier"
-    append_pkg_globs candidates ".." "acme2certifier-min"
-    append_pkg_globs candidates ".." "acme2certifier"
-    append_pkg_globs candidates "/tmp/acme2certifier" "acme2certifier-min"
-    append_pkg_globs candidates "/tmp/acme2certifier" "acme2certifier"
+    local search_roots=()
+    local root pkg
+    [[ -n "${DATA_DIR}" ]] && search_roots+=("${DATA_DIR}")
+    search_roots+=("." ".." "${DEFAULT_DATA_DIR}")
+    for root in "${search_roots[@]}"; do
+      for pkg in "${PKG_MIN}" "${PKG_BASE}"; do
+        append_pkg_globs candidates "${root}" "${pkg}"
+      done
+    done
   fi
   for candidate in "${candidates[@]}"; do
     # shellcheck disable=SC2086
@@ -297,7 +303,8 @@ install_uwsgi_python_plugin() {
 }
 
 uwsgi_plugins_value() {
-  case "$1" in
+  local flavor="$1"
+  case "${flavor}" in
     *-python39) echo "python39" ;;
     *) echo "python3" ;;
   esac
@@ -366,14 +373,14 @@ el_major() {
 }
 
 resolve_defaults() {
-  if [[ -z "${DATA_DIR}" && -d /tmp/acme2certifier ]]; then
-    DATA_DIR="/tmp/acme2certifier"
+  if [[ -z "${DATA_DIR}" && -d "${DEFAULT_DATA_DIR}" ]]; then
+    DATA_DIR="${DEFAULT_DATA_DIR}"
   fi
   if [[ -z "${VOLUME_DIR}" ]]; then
     if [[ -n "${DATA_DIR}" && -d "${DATA_DIR}/volume" ]]; then
       VOLUME_DIR="${DATA_DIR}/volume"
-    elif [[ -d /tmp/acme2certifier/volume ]]; then
-      VOLUME_DIR="/tmp/acme2certifier/volume"
+    elif [[ -d "${DEFAULT_DATA_DIR}/volume" ]]; then
+      VOLUME_DIR="${DEFAULT_DATA_DIR}/volume"
     fi
   fi
 }
@@ -498,7 +505,7 @@ restart_services() {
 do_restart() {
   echo "==> Restart mode (no package reinstall)"
   if [[ -z "${VOLUME_DIR}" || ! -d "${VOLUME_DIR}" ]]; then
-    echo "ERROR: --restart requires a volume dir (pass --volume-dir or mount /tmp/acme2certifier/volume)" >&2
+    echo "ERROR: --restart requires a volume dir (pass --volume-dir or mount ${DEFAULT_DATA_DIR}/volume)" >&2
     exit 1
   fi
   # Preserve install-time DBhandler; volume cfg often lacks [DBhandler] and would
