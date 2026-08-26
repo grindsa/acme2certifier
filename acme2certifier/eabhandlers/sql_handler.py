@@ -6,9 +6,8 @@
 from __future__ import print_function
 
 from logging import Logger
-import psycopg2
+import pyodbc
 import re
-from mssql_python import connect
 from typing import Dict, List, Optional, Tuple
 
 from acme2certifier.acme_srv.helper import load_config, csr_cn_get, csr_san_get
@@ -231,59 +230,46 @@ class EABhandler(object):
         data_dic = {}
 
         if self.db_host and self.db_name and self.db_user and self.db_password:
-            SQL_QUERY = "SELECT key_id, profile FROM credentials WHERE STATUS = 1;"
+            sql_query = "SELECT key_id, profile FROM acme_credential WHERE enabled = 1;"
+            db_driver = ""
+
             if self.db_system == "mssql":
-                data_dic = self._load_mssql_profiles(SQL_QUERY)
+                db_driver = "DRIVER={ODBC Driver 18 for SQL Server}"
             elif self.db_system == "postgres":
-                data_dic = self._load_postgres_profiles(SQL_QUERY)
+                db_driver = "DRIVER={PostgreSQL}"
+
+            data_dic = self._load_profiles(db_driver, sql_query)
 
         self.logger.debug("EABhandler.key_file.load() ended: {%s}", bool(data_dic))
         return data_dic
 
-    def _load_mssql_profiles(self, sql_query: str) -> Dict[str, str]:
-        """Helper to load profiles from MSSQL"""
+    def _load_profiles(self, db_driver, sql_query: str) -> Dict[str,str]:
+        """Helper to load eab profiles from database"""
+        self.logger.debug("EABhandler._load_profiles()")
+
         data_dic = {}
+
         try:
             conn_str = (
-                "Server="
+                db_driver
+                + ";SERVER="
                 + self.db_host
-                + ";Database="
+                + ";DATABASE="
                 + self.db_name
-                + ";Encrypt=yes;UID="
+                + ";UID="
                 + self.db_user
                 + ";PWD="
                 + self.db_password
-                + ";TrustServerCertificate=yes"
+                + ";Encrypt=yes;TrustServerCertificate=yes"
             )
-            conn = connect(conn_str)
-            cursor = conn.cursor()
-            cursor.execute(sql_query)
-            rows = cursor.fetchall()
-            for row in rows:
-                data_dic[row.key_id] = row.profile
-            conn.close()
-        except Exception as err:
-            self.logger.error("EABhandler._load_mssql_profiles() error: %s", err)
-        return data_dic
-
-    def _load_postgres_profiles(self, sql_query: str) -> Dict[str, str]:
-        """Helper to load profiles from Postgres"""
-        data_dic = {}
-        try:
-            conn = psycopg2.connect(
-                host=self.db_host,
-                dbname=self.db_name,
-                user=self.db_user,
-                password=self.db_password,
-            )
+            conn = pyodbc.connect(conn_str)
             cursor = conn.cursor()
             cursor.execute(sql_query)
             rows = cursor.fetchall()
             for row in rows:
                 data_dic[str(row[0])] = str(row[1])
-            conn.close()
         except Exception as err:
-            self.logger.error("EABhandler._load_postgres_profiles() error: %s", err)
+            self.logger.error("EABhandler._load_profiles() error: %s", err)
         return data_dic
 
     def mac_key_get(self, key_id: str) -> Optional[str]:

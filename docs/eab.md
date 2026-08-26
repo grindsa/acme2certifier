@@ -91,17 +91,17 @@ The `key_file` should contain key-value pairs in JSON format:
 
 ## SQL Handler
 
-The `sql_handler.py` script allows `kid` and `mac_key` (Base64 encoded) to be loaded from a database. SQL Handler supports PostgreSQL and SQL Server database systems.
+The `sql_handler.py` script allows `kid` and `mac_key` (Base64 encoded) to be loaded from a database. SQL Handler supports PostgreSQL and Microsoft SQL Server database systems.
 
 Using a database for storing EAB credentials is useful in use cases where many `acme2certifier` instances use the same credentials, for example in data centers using load balancing. Instead of maintaining multiple JSON files, credentials can be maintained using a single database instance.
 
 Using a database is beneficial also when rotating and managing `kid/mac_key` pairs in more complex scenarios, with the addition of an `account` table that can maintain information about the account related to each key.
 
-It is recommended to use the same [external database](external_database_support.md) for both `acme2certifier` and EAB.
-
 ### Database Schema
 
-The database schema includes two tables, one for actual credentials used by `acme2certifier` and another for managing accounts and credentials. Any number of credentials can be related to a single account. Only the credentials table is actually used by `acme2certifier`.
+The database schema includes two tables, one for actual credentials used by `acme2certifier` and another for managing accounts related to the credentials. Any number of credentials can be related to a single account.
+
+Only the `acme_credential` table is actually used by `acme2certifier` in the query `SELECT key_id, profile FROM acme_credential WHERE enabled = 1;`. You may implement any number additional columns for these tables if you wish, as they do not affect the functionality of this application.
 
 Schemas for the database systems differ in relation to fields that are used to maintain JSON data. SQL Server has `NVARCHAR` type for that, whereas PostgreSQL has `JSONB`. Schemas also have a status column to indicate if the credentials are active or not (value is 0 or 1).
 
@@ -110,19 +110,19 @@ Schemas for the database systems differ in relation to fields that are used to m
 Create a database and then these two tables. See [Usage](#usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#activate-handler) with the database credentials that you have.
 
 ```sql
-CREATE TABLE account (
+CREATE TABLE acme_account (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(127) NOT NULL,
-    contact VARCHAR(127)
+    name VARCHAR(256) NOT NULL,
+    email VARCHAR(320)
 );
 
-CREATE TABLE credentials (
+CREATE TABLE acme_credential (
     id SERIAL PRIMARY KEY,
-    account_id INT NOT NULL REFERENCES account (id),
+    account_id INT NOT NULL REFERENCES acme_account (id),
     key_id VARCHAR(63) NOT NULL,
+    description VARCHAR(127),
     profile JSONB,
-    description VARCHAR(255),
-    status SMALLINT NOT NULL
+    enabled SMALLINT NOT NULL
 );
 ```
 
@@ -131,19 +131,19 @@ CREATE TABLE credentials (
 Create a database and then these two tables. See [Usage](#usage) for entering some data in the tables. Then, [configure acme_srv.cfg](#activate-handler) with the database credentials that you have.
 
 ```sql
-CREATE TABLE account (
+CREATE TABLE acme_account (
     id INT IDENTITY(1,1) PRIMARY KEY,
-    name NVARCHAR(127) NOT NULL,
-    contact NVARCHAR(127)
+    name NVARCHAR(256) NOT NULL,
+    email NVARCHAR(320)
 );
 
-CREATE TABLE credentials (
+CREATE TABLE acme_credential (
     id INT IDENTITY(1,1) PRIMARY KEY,
-    account_id INT NOT NULL REFERENCES account (id),
+    account_id INT NOT NULL REFERENCES acme_account (id),
     key_id NVARCHAR(63) NOT NULL,
+    description NVARCHAR(127),
     profile NVARCHAR(MAX),
-    description NVARCHAR(255),
-    status TINYINT NOT NULL
+    enabled TINYINT NOT NULL
 );
 ```
 
@@ -152,16 +152,16 @@ CREATE TABLE credentials (
 In the simplest scenario, the database will have one account that all the keys are related to.
 
 ```sql
-INSERT INTO account (name, contact)
+INSERT INTO acme_account (name, email)
   VALUES ('myaccount', 'contact@myaccount.com');
 ```
 
-The `profile` column in `credentials` table should contain JSON data in the same format as it is used in JSON Handler.
+The `profile` column in `acme_credential` table should contain JSON data in the same format as it is used in JSON Handler.
 
 Example:
 
 ```sql
-INSERT INTO credentials (account_id, key_id, description, profile, status)
+INSERT INTO acme_credential (account_id, key_id, description, profile, enabled)
   VALUES (
     (SELECT id FROM account WHERE account.name = 'myaccount'),
     'keyid_03',
@@ -176,6 +176,12 @@ INSERT INTO credentials (account_id, key_id, description, profile, status)
   );
 ```
 
+### Install additional packages
+
+SQL handler uses [pyodbc](https://pypi.org/project/pyodbc/) for database connections and database drivers are also required. On your acme2certifier server, install the Python module with `pip install pyodbc`. Then, install `unixODBC` with your system's package manager.
+
+For SQL Server, follow these [instructions](https://learn.microsoft.com/en-us/sql/connect/odbc/microsoft-odbc-driver-for-sql-server) to install Microsoft ODBC 18. For PostgreSQL, see [psqlODBC](https://odbc.postgresql.org/) to get packages for your system.
+
 ### Activate Handler
 
 To activate this handler, configure the `EABhandler` section in `acme_srv.cfg` as follows. For `db_system`, enter either `mssql` or `postgres`.
@@ -184,12 +190,14 @@ To activate this handler, configure the `EABhandler` section in `acme_srv.cfg` a
 [EABhandler]
 eab_profiling: True
 eab_handler_module: acme2certifier.eabhandlers.sql_handler
-db_system: mssql, postgres
+db_system:
 db_host:
 db_name:
 db_user:
 db_password:
 ```
+
+Above, allowed values for `db_system` are either `mssql` or `postgres`.
 
 ## Keyfile Verification
 
