@@ -68,3 +68,56 @@ def test_005_strip_pyproject_scripts(tmp_path) -> None:
     assert "a2c-cli" in text
     assert "a2c-wsgi2django" not in text
     assert "testpaths" in text
+
+
+def test_006_ensure_under_root_accepts_inside(tmp_path: Path) -> None:
+    inside = tmp_path / "tools" / "min_sync" / "manifest.yaml"
+    inside.parent.mkdir(parents=True)
+    inside.write_text("min_targets: []\n", encoding="utf-8")
+    resolved = min_sync._ensure_under_root(inside, tmp_path)
+    assert resolved == inside.resolve()
+
+
+def test_007_ensure_under_root_rejects_escape(tmp_path: Path) -> None:
+    outside = tmp_path / ".." / "escape.yaml"
+    try:
+        min_sync._ensure_under_root(outside, tmp_path)
+        raised = False
+    except min_sync.SyncError:
+        raised = True
+    assert raised
+
+
+def test_008_load_manifest_rejects_outside_root(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside = tmp_path / "evil.yaml"
+    outside.write_text("min_targets: []\n", encoding="utf-8")
+    try:
+        min_sync._load_manifest(outside, root=root)
+        raised = False
+    except min_sync.SyncError:
+        raised = True
+    assert raised
+
+
+def test_009_validate_sync_pair_into_min() -> None:
+    manifest = {
+        "min_targets": ["min-devel", "min"],
+        "full_targets": ["master", "devel"],
+    }
+    assert min_sync._validate_sync_pair("master", "min-devel", manifest) is True
+    assert min_sync._validate_sync_pair("min-devel", "master", manifest) is False
+
+
+def test_010_validate_sync_pair_rejects_same_family() -> None:
+    manifest = {
+        "min_targets": ["min-devel", "min"],
+        "full_targets": ["master", "devel"],
+    }
+    try:
+        min_sync._validate_sync_pair("min-devel", "min", manifest)
+        raised = False
+    except min_sync.SyncError:
+        raised = True
+    assert raised

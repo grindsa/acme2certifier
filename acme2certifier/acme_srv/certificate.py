@@ -384,60 +384,78 @@ class Certificate(object):
             return ownership_unauthorized()
         return (200, None, None)
 
+    def _parse_order_identifiers(self, identifier_dic: Dict[str, str]) -> list:
+        """Load order identifiers JSON; return [] on parse failure."""
+        try:
+            return json.loads(identifier_dic["identifiers"].lower())
+        except Exception:
+            return []
+
+    def _validate_authorization_tnauthlist(
+        self, identifier_dic: Dict[str, str], certificate: str
+    ) -> List[str]:
+        """Match order identifiers against TNAuthList certificate extensions."""
+        try:
+            tnauthlist = cert_extensions_get(self.logger, certificate)
+            return self._validate_identifiers_against_tnauthlist(
+                identifier_dic, tnauthlist
+            )
+        except Exception as err:
+            self.logger.warning(
+                "Error while parsing certificate for TNAuthList identifier check: %s",
+                err,
+            )
+            return []
+
+    def _certificate_san_list(self, certificate: str) -> list:
+        """SANs from the certificate, optionally filling DNS from CN."""
+        san_list = cert_san_get(self.logger, certificate)
+        if self.config.cn2san_add:
+            cert_cn = cert_cn_get(self.logger, certificate)
+            if not san_list and cert_cn:
+                san_list.append(f"DNS:{cert_cn}")
+        return san_list
+
+    def _validate_authorization_sans(
+        self, identifiers: list, certificate: str
+    ) -> List[str]:
+        """Match order identifiers against certificate SANs / bound names."""
+        try:
+            if self.config.csr_binding_strict:
+                bound_names = cert_bound_names_get(
+                    self.logger,
+                    certificate,
+                    email_identifier_rewrite=self.config.email_identifier_rewrite,
+                )
+                return self._validate_identifiers_against_sans(
+                    identifiers, [], bound_names=bound_names
+                )
+            san_list = self._certificate_san_list(certificate)
+            return self._validate_identifiers_against_sans(identifiers, san_list)
+        except Exception as err:
+            self.logger.warning(
+                "Error while parsing certificate for SAN identifier check: %s",
+                err,
+            )
+            return []
+
     def _validate_certificate_authorization(
         self, identifier_dic: Dict[str, str], certificate: str
     ) -> List[str]:
         self.logger.debug("Certificate._validate_certificate_authorization()")
-        # load identifiers
-        try:
-            identifiers = json.loads(identifier_dic["identifiers"].lower())
-        except Exception:
-            identifiers = []
-
-        # check if we have a tnauthlist identifier
-        tnauthlist_identifer_in = self._check_for_tnauth_identifiers(identifiers)
-        if self.config.tnauthlist_support and tnauthlist_identifer_in:
-            try:
-                # get list of certextensions in base64 format and identifier status
-                tnauthlist = cert_extensions_get(self.logger, certificate)
-                identifier_status = self._validate_identifiers_against_tnauthlist(
-                    identifier_dic, tnauthlist
-                )
-            except Exception as err:
-                # enough to set identifier_list as empty list
-                identifier_status = []
-                self.logger.warning(
-                    "Error while parsing certificate for TNAuthList identifier check: %s",
-                    err,
-                )
+        identifiers = self._parse_order_identifiers(identifier_dic)
+        use_tnauthlist = (
+            self.config.tnauthlist_support
+            and self._check_for_tnauth_identifiers(identifiers)
+        )
+        if use_tnauthlist:
+            identifier_status = self._validate_authorization_tnauthlist(
+                identifier_dic, certificate
+            )
         else:
-            try:
-                if self.config.csr_binding_strict:
-                    bound_names = cert_bound_names_get(
-                        self.logger,
-                        certificate,
-                        email_identifier_rewrite=self.config.email_identifier_rewrite,
-                    )
-                    identifier_status = self._validate_identifiers_against_sans(
-                        identifiers, [], bound_names=bound_names
-                    )
-                else:
-                    san_list = cert_san_get(self.logger, certificate)
-                    if self.config.cn2san_add:
-                        cert_cn = cert_cn_get(self.logger, certificate)
-                        if not san_list and cert_cn:
-                            san_list.append(f"DNS:{cert_cn}")
-                    identifier_status = self._validate_identifiers_against_sans(
-                        identifiers, san_list
-                    )
-            except Exception as err:
-                # enough to set identifier_list as empty list
-                identifier_status = []
-                self.logger.warning(
-                    "Error while parsing certificate for SAN identifier check: %s",
-                    err,
-                )
-
+            identifier_status = self._validate_authorization_sans(
+                identifiers, certificate
+            )
         self.logger.debug("Certificate._validate_certificate_authorization() ended")
         return identifier_status
 
@@ -1148,6 +1166,65 @@ class Certificate(object):
                 order_set.add(normalized)
         return order_set
 
+    def _compare_bound_name_sets(
+        self,
+        identifiers: List[Dict[str, str]],
+        san_list: List[str],
+        bound_names: Optional[Set[Tuple[str, str]]],
+    ) -> List[bool]:
+        """Strict mode: order identifier set must equal certificate bound names."""
+        order_set = self._order_identifier_set(identifiers)
+        if bound_names is None:
+            bound_names = san_list_to_bound_names(
+                self.logger,
+                san_list,
+                email_identifier_rewrite=self.config.email_identifier_rewrite,
+            )
+
+        if not order_set and not bound_names:
+            self.logger.error("No identifiers or bound names to compare")
+            return [False]
+        if order_set == bound_names:
+            return [True]
+
+        self.logger.warning(
+            "CSR/order identifier mismatch: order_only=%s bound_only=%s",
+            order_set - bound_names,
+            bound_names - order_set,
+        )
+        return [False]
+
+    def _split_san_entry(self, san: str) -> Tuple[Optional[str], Optional[str]]:
+        """Split ``TYPE:value`` SAN; return (None, None) on parse failure."""
+        try:
+            cert_type, cert_value = san.lower().split(":", 1)
+            return cert_type, cert_value
+        except Exception as err_:
+            self.logger.error("Error while splitting san %s: %s", san, err_)
+            return None, None
+
+    def _match_sans_to_identifiers(
+        self, identifiers: List[Dict[str, str]], san_list: List[str]
+    ) -> List[bool]:
+        """Legacy mode: each SAN must match an order identifier."""
+        identifier_status: List[bool] = []
+        for san in san_list:
+            cert_type, cert_value = self._split_san_entry(san)
+            san_is_in = self._check_identifier_match(
+                cert_type, cert_value, identifiers, False
+            )
+            self.logger.debug(
+                "SAN check for %s against identifiers returned %s",
+                san.lower(),
+                san_is_in,
+            )
+            identifier_status.append(san_is_in)
+
+        if not identifier_status:
+            self.logger.error("No SANs found in certificate")
+            identifier_status.append(False)
+        return identifier_status
+
     def _validate_identifiers_against_sans(
         self,
         identifiers: List[Dict[str, str]],
@@ -1158,51 +1235,11 @@ class Certificate(object):
         self.logger.debug("Certificate._validate_identifiers_against_sans()")
 
         if self.config.csr_binding_strict:
-            order_set = self._order_identifier_set(identifiers)
-            if bound_names is None:
-                bound_names = san_list_to_bound_names(
-                    self.logger,
-                    san_list,
-                    email_identifier_rewrite=self.config.email_identifier_rewrite,
-                )
-
-            if not order_set and not bound_names:
-                self.logger.error("No identifiers or bound names to compare")
-                identifier_status = [False]
-            elif order_set == bound_names:
-                identifier_status = [True]
-            else:
-                self.logger.warning(
-                    "CSR/order identifier mismatch: order_only=%s bound_only=%s",
-                    order_set - bound_names,
-                    bound_names - order_set,
-                )
-                identifier_status = [False]
+            identifier_status = self._compare_bound_name_sets(
+                identifiers, san_list, bound_names
+            )
         else:
-            identifier_status = []
-            for san in san_list:
-                san_is_in = False
-                try:
-                    cert_type, cert_value = san.lower().split(":", 1)
-                except Exception as err_:
-                    self.logger.error("Error while splitting san %s: %s", san, err_)
-                    cert_type = None
-                    cert_value = None
-
-                san_is_in = self._check_identifier_match(
-                    cert_type, cert_value, identifiers, san_is_in
-                )
-
-                self.logger.debug(
-                    "SAN check for %s against identifiers returned %s",
-                    san.lower(),
-                    san_is_in,
-                )
-                identifier_status.append(san_is_in)
-
-            if not identifier_status:
-                self.logger.error("No SANs found in certificate")
-                identifier_status.append(False)
+            identifier_status = self._match_sans_to_identifiers(identifiers, san_list)
 
         self.logger.debug(
             "Certificate._validate_identifiers_against_sans() ended with %s",

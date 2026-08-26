@@ -47,7 +47,17 @@ def _run(
     return result
 
 
-def _load_manifest(path: Path) -> dict:
+def _ensure_under_root(path: Path, root: Path) -> Path:
+    """Resolve path and reject anything outside root (path-injection guard)."""
+    resolved = path.resolve()
+    root_resolved = root.resolve()
+    if not resolved.is_relative_to(root_resolved):
+        raise SyncError(f"Path escapes repository root: {path}")
+    return resolved
+
+
+def _load_manifest(path: Path, *, root: Path) -> dict:
+    path = _ensure_under_root(path, root)
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise SyncError(f"Invalid manifest: {path}")
@@ -376,26 +386,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
-    repo = args.repo_root
-    if repo is None:
+def _resolve_repo(repo_root: Path | None) -> Path:
+    if repo_root is None:
         top = _run(
             ["git", "rev-parse", "--show-toplevel"],
             cwd=Path.cwd(),
         ).stdout.strip()
-        repo = Path(top)
-    repo = repo.resolve()
+        repo_root = Path(top)
+    return repo_root.resolve()
 
-    manifest_path = args.manifest or (repo / "tools" / "min_sync" / MANIFEST_NAME)
-    manifest = _load_manifest(manifest_path)
 
-    source = args.source or manifest.get("source_default") or "master"
-    target = args.target or manifest.get("target_default") or "min-devel"
+def _is_known_target(branch: str, manifest: dict) -> bool:
+    return _is_min_target(branch, manifest) or _is_full_target(branch, manifest)
 
-    if not (_is_min_target(source, manifest) or _is_full_target(source, manifest)):
+
+def _validate_sync_pair(source: str, target: str, manifest: dict) -> bool:
+    """Validate source/target policy. Returns True when syncing into a min branch."""
+    if not _is_known_target(source, manifest):
         raise SyncError(f"Unknown source branch for sync policy: {source}")
-    if not (_is_min_target(target, manifest) or _is_full_target(target, manifest)):
+    if not _is_known_target(target, manifest):
         raise SyncError(f"Unknown target branch for sync policy: {target}")
     if source == target:
         raise SyncError("Source and target must differ.")
@@ -409,8 +418,170 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SyncError("Into min requires a full source (master/devel).")
     if not into_min and not _is_min_target(source, manifest):
         raise SyncError("Into full requires a min source (min-devel/min).")
+    return into_min
 
-    if args.local and args.branch_name:
+
+def _resolve_work_branch(
+    *,
+    source: str,
+    target: str,
+    stamp: str,
+    local_mode: bool,
+    dry_run: bool,
+    branch_name: str | None,
+) -> str:
+    # Temp branch for dry-run; sync/* for PR path; target itself for --local
+    if local_mode and not dry_run:
+        return target
+    return branch_name or f"sync/{source}-to-{target}-{stamp}"
+
+
+def _mode_label(*, dry_run: bool, local_mode: bool, create_pr: bool) -> str:
+    if dry_run:
+        return "dry-run"
+    if local_mode:
+        return "local (files only, no commit)"
+    if create_pr:
+        return "commit + PR"
+    return "commit (sync branch)"
+
+
+def _prepare_worktree(
+    repo: Path,
+    *,
+    target: str,
+    work_branch: str,
+    origin_target_ref: str,
+    local_mode: bool,
+    dry_run: bool,
+) -> str:
+    """Checkout worktree; return target_ref used for restore comparisons."""
+    if local_mode and not dry_run:
+        _checkout_local_target(repo, target, origin_target_ref)
+        return "HEAD"
+    _create_branch(repo, work_branch, origin_target_ref)
+    return origin_target_ref
+
+
+def _build_pr_body(
+    source: str, target: str, ported: Sequence[str], stripped: Sequence[str]
+) -> str:
+    strip_lines = [f"- `{p}`" for p in stripped] if stripped else ["- (none)"]
+    return "\n".join(
+        [
+            f"Automated allowlist sync from `{source}` into `{target}`.",
+            "",
+            "Review carefully. This does **not** promote `min-devel` → `min`.",
+            "",
+            "### Ported paths",
+            *[f"- `{p}`" for p in ported],
+            "",
+            "### Strip / restore",
+            *strip_lines,
+            "",
+            f"Manifest: `tools/min_sync/{MANIFEST_NAME}`",
+        ]
+    )
+
+
+def _print_staged_summary(stat: str, stripped: Sequence[str]) -> None:
+    print("\n--- staged diff ---\n")
+    print(stat)
+    if stripped:
+        print("\nStripped/restored:")
+        for path in stripped:
+            print(f"  - {path}")
+
+
+def _discard_dry_run(
+    repo: Path, *, original: str, work_branch: str, target: str
+) -> None:
+    print("\nDry-run: discarding branch changes.")
+    _run(["git", "reset", "--hard"], cwd=repo)
+    _run(["git", "checkout", original], cwd=repo, capture=False)
+    if work_branch != original and work_branch != target:
+        _run(["git", "branch", "-D", work_branch], cwd=repo)
+    print("Done (dry-run).")
+
+
+def _finalize_sync(
+    repo: Path,
+    *,
+    source: str,
+    target: str,
+    work_branch: str,
+    stamp: str,
+    ported: Sequence[str],
+    stripped: Sequence[str],
+    dry_run: bool,
+    local_mode: bool,
+    create_pr: bool,
+    original: str,
+) -> int:
+    title = f"[sync] {source} → {target} ({stamp})"
+    body = _build_pr_body(source, target, ported, stripped)
+
+    if dry_run:
+        _discard_dry_run(
+            repo, original=original, work_branch=work_branch, target=target
+        )
+        return 0
+
+    if local_mode:
+        print(
+            f"\nSynced files onto `{target}` (not committed, not pushed). "
+            f"Review, then commit when ready:"
+        )
+        print(f"  git commit -m '{title}'")
+        return 0
+
+    _commit(repo, title)
+    if create_pr:
+        _push(repo, work_branch)
+        url = _create_pr(repo, work_branch, target, title, body)
+        print(f"\nPR: {url}")
+    else:
+        print(
+            f"\nCommitted on `{work_branch}`. "
+            f"Push and open PR into `{target}` when ready:"
+        )
+        print(f"  git push -u origin {work_branch}")
+        print(
+            f"  gh pr create --base {target} --head {work_branch} --title '{title}'"
+        )
+    return 0
+
+
+def _cleanup_failed_sync(
+    repo: Path,
+    *,
+    original: str,
+    work_branch: str,
+    target: str,
+    local_mode: bool,
+) -> None:
+    try:
+        _run(["git", "reset", "--hard"], cwd=repo)
+        if original:
+            _run(["git", "checkout", original], cwd=repo, check=False)
+        if not local_mode and work_branch != original and work_branch != target:
+            _run(["git", "branch", "-D", work_branch], cwd=repo, check=False)
+    except SyncError:
+        pass
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    repo = _resolve_repo(args.repo_root)
+    manifest_path = args.manifest or (repo / "tools" / "min_sync" / MANIFEST_NAME)
+    manifest = _load_manifest(manifest_path, root=repo)
+
+    source = args.source or manifest.get("source_default") or "master"
+    target = args.target or manifest.get("target_default") or "min-devel"
+    into_min = _validate_sync_pair(source, target, manifest)
+
+    local_mode = bool(args.local)
+    if local_mode and args.branch_name:
         raise SyncError("--branch-name cannot be used with --local.")
 
     _ensure_clean(repo)
@@ -420,34 +591,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     source_ref = f"origin/{source}"
     origin_target_ref = f"origin/{target}"
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d")
-    local_mode = bool(args.local)
-    # Temp branch for dry-run; sync/* for PR path; target itself for --local
-    if local_mode and not args.dry_run:
-        work_branch = target
-    else:
-        work_branch = args.branch_name or f"sync/{source}-to-{target}-{stamp}"
-
-    if args.dry_run:
-        mode = "dry-run"
-    elif local_mode:
-        mode = "local (files only, no commit)"
-    elif args.create_pr:
-        mode = "commit + PR"
-    else:
-        mode = "commit (sync branch)"
+    work_branch = _resolve_work_branch(
+        source=source,
+        target=target,
+        stamp=stamp,
+        local_mode=local_mode,
+        dry_run=args.dry_run,
+        branch_name=args.branch_name,
+    )
 
     print(f"Repo:    {repo}")
     print(f"From:    {source_ref}")
     print(f"Into:    {origin_target_ref}")
     print(f"Branch:  {work_branch}")
-    print(f"Mode:    {mode}")
+    print(
+        f"Mode:    {_mode_label(dry_run=args.dry_run, local_mode=local_mode, create_pr=args.create_pr)}"
+    )
 
-    if local_mode and not args.dry_run:
-        _checkout_local_target(repo, target, origin_target_ref)
-        target_ref = "HEAD"
-    else:
-        _create_branch(repo, work_branch, origin_target_ref)
-        target_ref = origin_target_ref
+    target_ref = _prepare_worktree(
+        repo,
+        target=target,
+        work_branch=work_branch,
+        origin_target_ref=origin_target_ref,
+        local_mode=local_mode,
+        dry_run=args.dry_run,
+    )
 
     try:
         if into_min:
@@ -461,77 +629,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("No allowlisted differences to port.")
             raise SyncError("Nothing to sync.")
 
-        print("\n--- staged diff ---\n")
-        print(stat)
-        if stripped:
-            print("\nStripped/restored:")
-            for p in stripped:
-                print(f"  - {p}")
-
-        title = f"[sync] {source} → {target} ({stamp})"
-        body = "\n".join(
-            [
-                f"Automated allowlist sync from `{source}` into `{target}`.",
-                "",
-                "Review carefully. This does **not** promote `min-devel` → `min`.",
-                "",
-                "### Ported paths",
-                *[f"- `{p}`" for p in ported],
-                "",
-                "### Strip / restore",
-                *([f"- `{p}`" for p in stripped] if stripped else ["- (none)"]),
-                "",
-                f"Manifest: `tools/min_sync/{MANIFEST_NAME}`",
-            ]
+        _print_staged_summary(stat, stripped)
+        return _finalize_sync(
+            repo,
+            source=source,
+            target=target,
+            work_branch=work_branch,
+            stamp=stamp,
+            ported=ported,
+            stripped=stripped,
+            dry_run=args.dry_run,
+            local_mode=local_mode,
+            create_pr=args.create_pr,
+            original=original,
         )
-
-        if args.dry_run:
-            print("\nDry-run: discarding branch changes.")
-            _run(["git", "reset", "--hard"], cwd=repo)
-            _run(["git", "checkout", original], cwd=repo, capture=False)
-            if work_branch != original and work_branch != target:
-                _run(["git", "branch", "-D", work_branch], cwd=repo)
-            print("Done (dry-run).")
-            return 0
-
-        if local_mode:
-            print(
-                f"\nSynced files onto `{target}` (not committed, not pushed). "
-                f"Review, then commit when ready:"
-            )
-            print(f"  git commit -m '{title}'")
-            return 0
-
-        _commit(repo, title)
-        if args.create_pr:
-            _push(repo, work_branch)
-            url = _create_pr(repo, work_branch, target, title, body)
-            print(f"\nPR: {url}")
-        else:
-            print(
-                f"\nCommitted on `{work_branch}`. "
-                f"Push and open PR into `{target}` when ready:"
-            )
-            print(f"  git push -u origin {work_branch}")
-            print(
-                f"  gh pr create --base {target} --head {work_branch} "
-                f"--title '{title}'"
-            )
-        return 0
     except Exception:
-        # Best-effort cleanup back to original branch
-        try:
-            _run(["git", "reset", "--hard"], cwd=repo)
-            if original:
-                _run(["git", "checkout", original], cwd=repo, check=False)
-            if not local_mode and work_branch != original and work_branch != target:
-                _run(
-                    ["git", "branch", "-D", work_branch],
-                    cwd=repo,
-                    check=False,
-                )
-        except SyncError:
-            pass
+        _cleanup_failed_sync(
+            repo,
+            original=original,
+            work_branch=work_branch,
+            target=target,
+            local_mode=local_mode,
+        )
         raise
 
 
