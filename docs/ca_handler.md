@@ -133,7 +133,8 @@ class CAhandler:
         # Handlers that implement a real trigger must also set:
         #     supports_trigger = True
         # on the CAhandler class. Otherwise /trigger stays disabled even when
-        # [Trigger] enabled = True in acme_srv.cfg.
+        # [Trigger] enabled = True in acme_srv.cfg. Built-in handlers with
+        # supports_trigger=True: Certifier, OpenSSL.
 
         self.logger.debug("CAhandler.trigger()")
         ...

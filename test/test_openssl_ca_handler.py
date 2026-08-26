@@ -718,9 +718,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cfg.called)
 
     def test_069_trigger(self):
-        """test trigger"""
+        """test trigger without payload"""
         self.assertEqual(
-            ("Method not implemented.", None, None), self.cahandler.trigger("payload")
+            ("No payload given", None, None), self.cahandler.trigger("")
         )
 
     def test_070_poll(self):

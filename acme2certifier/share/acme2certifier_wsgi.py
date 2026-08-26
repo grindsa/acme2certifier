@@ -46,6 +46,7 @@ HTTP_CODE_DIC = {
     403: "Forbidden",
     404: "Not Found",
     405: "Method Not Allowed",
+    409: "Conflict",
     500: "serverInternal ",
 }
 
@@ -538,7 +539,7 @@ def trigger(environ, start_response):
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
         with Trigger(DEBUG, get_url(environ), LOGGER) as trigger_:
             request_body = get_request_body(environ)
-            response_dic = trigger_.parse(request_body)
+            response_dic = trigger_.parse(request_body, headers=environ)
 
             # create header
             headers = create_header(response_dic)

@@ -1,0 +1,184 @@
+name: Feature Tests - Trigger auth
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  guard:
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure Trigger + openssl"
+        run: |
+          set -euo pipefail
+          CFG=examples/Docker/data/acme_srv.cfg
+          sudo chmod 666 "${CFG}"
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" "${CFG}"
+          printf '\n[Trigger]\nenabled: True\nhmac_keys: ["trigger-key-new", "trigger-key-old"]\nca_cert: volume/acme_ca/sub-ca-cert.pem\n' \
+            | sudo tee -a "${CFG}" >/dev/null
+          # Stage example scripts into the volume for docker exec
+          sudo mkdir -p examples/Docker/data/trigger
+          sudo cp examples/trigger/certifier_trigger.sh examples/Docker/data/trigger/
+          sudo cp examples/trigger/ci_seed_processing_order.py examples/Docker/data/trigger/
+          sudo chmod 755 examples/Docker/data/trigger/certifier_trigger.sh
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Wait for directory"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: acme
+          ACME_SERVER: acme-srv
+          CHECK_HTTPS: "false"
+
+      - name: "Issue leaf for trigger payload + seed processing order"
+        run: |
+          set -euo pipefail
+          WORK=examples/Docker/data/trigger
+          CA=examples/Docker/data/acme_ca
+          openssl genrsa -out "${WORK}/ee.key" 2048
+          openssl req -new -key "${WORK}/ee.key" -out "${WORK}/ee.csr" \
+            -subj "/CN=trigger.ci.example"
+          openssl x509 -req -in "${WORK}/ee.csr" \
+            -CA "${CA}/sub-ca-cert.pem" \
+            -CAkey "${CA}/sub-ca-key.pem" \
+            -passin pass:Test1234 \
+            -CAcreateserial \
+            -out "${WORK}/ee.pem" \
+            -days 2
+          docker exec -w /var/www/acme2certifier acme-srv \
+            python3 /var/www/acme2certifier/volume/trigger/ci_seed_processing_order.py \
+            --csr /var/www/acme2certifier/volume/trigger/ee.csr
+
+      - name: "Reject unsigned trigger"
+        run: |
+          set -euo pipefail
+          BODY=$(printf '{"payload":"%s"}' "$(base64 -w 0 < examples/Docker/data/trigger/ee.pem)")
+          CODE=$(docker run --rm --network acme curlimages/curl:8.5.0 \
+            -sS -o /dev/null -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d "${BODY}" \
+            http://acme-srv/trigger)
+          echo "unsigned HTTP ${CODE}"
+          test "${CODE}" = "403"
+
+      - name: "Reject wrong HMAC"
+        run: |
+          set -euo pipefail
+          BODY=$(printf '{"payload":"%s"}' "$(base64 -w 0 < examples/Docker/data/trigger/ee.pem)")
+          CODE=$(docker run --rm --network acme curlimages/curl:8.5.0 \
+            -sS -o /dev/null -w '%{http_code}' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            -H 'X-A2C-Trigger-Signature: 0000000000000000000000000000000000000000000000000000000000000000' \
+            -d "${BODY}" \
+            http://acme-srv/trigger)
+          echo "wrong HMAC HTTP ${CODE}"
+          test "${CODE}" = "403"
+
+      - name: "Accept old key from hmac_keys list and complete order"
+        run: |
+          set -euo pipefail
+          docker exec \
+            -e ACME2CERTIFIER_URL=http://127.0.0.1/trigger \
+            -e TRIGGER_HMAC_KEY=trigger-key-old \
+            acme-srv \
+            /var/www/acme2certifier/volume/trigger/certifier_trigger.sh \
+            /var/www/acme2certifier/volume/trigger/ee.pem \
+            | tee /tmp/trigger_ok.json
+          grep -E '"status"[[:space:]]*:[[:space:]]*200|"type"[[:space:]]*:[[:space:]]*"OK"' /tmp/trigger_ok.json
+
+      - name: "Reject self-signed leaf (chain verify)"
+        run: |
+          set -euo pipefail
+          WORK=examples/Docker/data/trigger
+          openssl req -x509 -new -key "${WORK}/ee.key" -out "${WORK}/selfsigned.pem" \
+            -subj "/CN=trigger.ci.example" -days 1
+          # Re-seed a fresh processing order for a different cert name
+          openssl req -new -key "${WORK}/ee.key" -out "${WORK}/ee2.csr" \
+            -subj "/CN=trigger2.ci.example"
+          docker exec -w /var/www/acme2certifier acme-srv \
+            python3 /var/www/acme2certifier/volume/trigger/ci_seed_processing_order.py \
+            --csr /var/www/acme2certifier/volume/trigger/ee2.csr \
+            --account-name triggertstacct2 \
+            --order-name triggertstorder2 \
+            --cert-name triggertstcert2
+          docker exec \
+            -e ACME2CERTIFIER_URL=http://127.0.0.1/trigger \
+            -e TRIGGER_HMAC_KEY=trigger-key-new \
+            acme-srv \
+            /var/www/acme2certifier/volume/trigger/certifier_trigger.sh \
+            /var/www/acme2certifier/volume/trigger/selfsigned.pem \
+            | tee /tmp/trigger_selfsigned.json
+          grep -E 'certificate verification failed|"status"[[:space:]]*:[[:space:]]*400' /tmp/trigger_selfsigned.json
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container

@@ -441,7 +441,7 @@ def trigger(request):
             )
             return JsonResponse(status=403, data=ERR_TRIGGER_DISABLED)
         with Trigger(DEBUG, get_url(request.META), LOGGER) as trigger_:
-            response_dic = trigger_.parse(request.body)
+            response_dic = trigger_.parse(request.body, headers=request.META)
             # create the response
             if "data" in response_dic:
                 response = JsonResponse(

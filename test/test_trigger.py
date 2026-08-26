@@ -42,6 +42,21 @@ class TestACMEHandler(unittest.TestCase):
         self.trigger = Trigger(False, "http://tester.local", self.logger)
         # Unit tests exercise parse/process when endpoint is enabled
         self.trigger.enabled = True
+        self.trigger.auth_disabled = True
+        self.trigger.hmac_keys = ["unit-test-key"]
+        self.trigger.ca_cert = "/tmp/trigger-unit-ca.pem"
+        self._chain_verify_patcher = patch(
+            "acme2certifier.acme_srv.trigger.trigger_cert_chain_verify",
+            return_value=True,
+        )
+        self._chain_verify_patcher.start()
+
+    def tearDown(self):
+        """stop patches"""
+        try:
+            self._chain_verify_patcher.stop()
+        except RuntimeError:
+            pass
 
     @patch("importlib.import_module")
     @patch("acme2certifier.acme_srv.certificate.Certificate.certlist_search")
@@ -329,7 +344,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_020_trigger__payload_process(
         self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup
     ):
-        """Trigger._payload_process() without certificate_name"""
+        """Trigger._payload_process() rejects ambiguous pubkey matches"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
             "acme2certifier.cahandlers.skeleton_ca_handler"
@@ -343,14 +358,17 @@ class TestACMEHandler(unittest.TestCase):
             {"cert_name": "certificate_name1", "order_name": "order_name1"},
             {"cert_name": "certificate_name2", "order_name": "order_name2"},
         ]
-        self.assertEqual((200, "OK", None), self.trigger._payload_process(payload))
+        self.assertEqual(
+            (409, "ambiguous certificate match", None),
+            self.trigger._payload_process(payload),
+        )
 
+    @patch("acme2certifier.acme_srv.trigger.Trigger._certname_lookup")
     @patch("acme2certifier.acme_srv.trigger.b64_decode")
     @patch("acme2certifier.acme_srv.trigger.cert_der2pem")
-    @patch("acme2certifier.acme_srv.trigger.Trigger._certname_lookup")
     @patch("acme2certifier.acme_srv.trigger.convert_byte_to_string")
     def test_021_trigger__payload_process(
-        self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec
+        self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup
     ):
         """test Trigger._payload_process - dbstore.order_update() raises an exception"""
         ca_handler_module = importlib.import_module(
@@ -365,7 +383,6 @@ class TestACMEHandler(unittest.TestCase):
         mock_b64dec.return_value = "b64dec"
         mock_lookup.return_value = [
             {"cert_name": "certificate_name1", "order_name": "order_name1"},
-            {"cert_name": "certificate_name2", "order_name": "order_name2"},
         ]
         self.trigger.dbstore.certificate_add.return_value = True
         self.trigger.dbstore.order_update.side_effect = Exception(
@@ -378,14 +395,14 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+    @patch("acme2certifier.acme_srv.trigger.Trigger._certname_lookup")
     @patch("acme2certifier.acme_srv.trigger.b64_decode")
     @patch("acme2certifier.acme_srv.trigger.cert_der2pem")
-    @patch("acme2certifier.acme_srv.trigger.Trigger._certname_lookup")
     @patch("acme2certifier.acme_srv.trigger.convert_byte_to_string")
     def test_022_trigger__payload_process(
-        self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec
+        self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup
     ):
-        """test Trigger._payload_process - dbstore.order_update() raises an exception"""
+        """test Trigger._payload_process - dbstore.certificate_add() raises an exception"""
         ca_handler_module = importlib.import_module(
             "acme2certifier.cahandlers.skeleton_ca_handler"
         )
@@ -398,7 +415,6 @@ class TestACMEHandler(unittest.TestCase):
         mock_b64dec.return_value = "b64dec"
         mock_lookup.return_value = [
             {"cert_name": "certificate_name1", "order_name": "order_name1"},
-            {"cert_name": "certificate_name2", "order_name": "order_name2"},
         ]
         self.trigger.dbstore.certificate_add.side_effect = Exception(
             "exc_trigger_order_add"
@@ -406,7 +422,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.trigger._payload_process("payload")
         self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to update order status during trigger processing: exc_trigger_order_upd",
+            "CRITICAL:test_a2c:Database error: failed to add certificate during trigger processing: exc_trigger_order_add",
             lcm.output,
         )
 
@@ -422,15 +438,19 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(self.trigger.enabled)
 
+    @patch("acme2certifier.acme_srv.trigger.trigger_ca_cert_load")
+    @patch("acme2certifier.acme_srv.trigger.trigger_hmac_keys_load")
     @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
     @patch("acme2certifier.acme_srv.trigger.load_config")
     def test_024_config_load_trigger_enabled_with_support(
-        self, mock_load_cfg, mock_ca_load
+        self, mock_load_cfg, mock_ca_load, mock_keys, mock_ca_cert
     ):
-        """_config_load sets enabled when config+supports_trigger"""
+        """_config_load sets enabled when config+supports_trigger+auth+ca_cert"""
         parser = configparser.ConfigParser()
         parser["Trigger"] = {"enabled": "True"}
         mock_load_cfg.return_value = parser
+        mock_keys.return_value = (["k1"], False)
+        mock_ca_cert.return_value = "/tmp/ca.pem"
 
         class _Handler:
             supports_trigger = True
@@ -594,13 +614,19 @@ class TestACMEHandler(unittest.TestCase):
             )
         )
 
+    @patch("acme2certifier.acme_srv.trigger.trigger_ca_cert_load")
+    @patch("acme2certifier.acme_srv.trigger.trigger_hmac_keys_load")
     @patch("acme2certifier.acme_srv.trigger.ca_handler_load")
-    def test_038_resolve_trigger_endpoint_enabled(self, mock_cahandler_load):
+    def test_038_resolve_trigger_endpoint_enabled(
+        self, mock_cahandler_load, mock_keys, mock_ca_cert
+    ):
         """resolve_trigger_endpoint() logs info when endpoint enabled"""
         from acme2certifier.acme_srv.trigger import resolve_trigger_endpoint
 
         cahandler_cls = type("FakeCAhandler", (), {"supports_trigger": True})
         mock_cahandler_load.return_value = SimpleNamespace(CAhandler=cahandler_cls)
+        mock_keys.return_value = (["k1", "k2"], False)
+        mock_ca_cert.return_value = "/tmp/ca.pem"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(
                 resolve_trigger_endpoint(
@@ -612,6 +638,107 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(
             any("Trigger HTTP endpoint enabled" in line for line in lcm.output)
         )
+
+    def test_039_parse_hmac_missing_signature(self):
+        """parse() returns 403 when HMAC required and signature missing"""
+        self.trigger.auth_disabled = False
+        self.trigger.hmac_keys = ["secret"]
+        result = self.trigger.parse(b'{"payload":"Zm9v"}', headers={})
+        self.assertEqual(403, result["code"])
+        self.assertEqual("trigger authentication failed", result["data"]["detail"])
+
+    def test_040_parse_hmac_wrong_signature(self):
+        """parse() returns 403 for wrong HMAC"""
+        self.trigger.auth_disabled = False
+        self.trigger.hmac_keys = ["secret"]
+        body = b'{"payload":"Zm9v"}'
+        result = self.trigger.parse(
+            body, headers={"HTTP_X_A2C_TRIGGER_SIGNATURE": "00" * 32}
+        )
+        self.assertEqual(403, result["code"])
+
+    def test_041_parse_hmac_accepts_any_configured_key(self):
+        """parse() accepts HMAC from any key in hmac_keys list"""
+        import hashlib
+        import hmac as hm
+
+        self.trigger.auth_disabled = False
+        self.trigger.hmac_keys = ["new-key", "old-key"]
+        body = b'{"payload":"Zm9v"}'
+        sig = hm.new(b"old-key", body, hashlib.sha256).hexdigest()
+        with patch.object(
+            self.trigger, "_payload_process", return_value=(200, "OK", None)
+        ):
+            result = self.trigger.parse(
+                body, headers={"HTTP_X_A2C_TRIGGER_SIGNATURE": sig}
+            )
+        self.assertEqual(200, result["code"])
+
+    @patch("acme2certifier.acme_srv.helpers.trigger_auth.security_disable_acknowledged")
+    def test_042_auth_disable_requires_gate(self, mock_ack):
+        """auth_disable without gate keeps auth on"""
+        from acme2certifier.acme_srv.helpers.trigger_auth import trigger_hmac_keys_load
+
+        mock_ack.return_value = False
+        parser = configparser.ConfigParser()
+        parser["Trigger"] = {
+            "hmac_keys": '["k1"]',
+            "auth_disable": "True",
+        }
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            keys, disabled = trigger_hmac_keys_load(self.logger, parser)
+        self.assertEqual(["k1"], keys)
+        self.assertFalse(disabled)
+        self.assertTrue(any("auth_disable is set but ignored" in line for line in lcm.output))
+
+    @patch("acme2certifier.acme_srv.helpers.trigger_auth.security_disable_acknowledged")
+    def test_043_auth_disable_with_gate(self, mock_ack):
+        """auth_disable with gate disables HMAC"""
+        from acme2certifier.acme_srv.helpers.trigger_auth import trigger_hmac_keys_load
+
+        mock_ack.return_value = True
+        parser = configparser.ConfigParser()
+        parser["Trigger"] = {"auth_disable": "True"}
+        with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+            _keys, disabled = trigger_hmac_keys_load(self.logger, parser)
+        self.assertTrue(disabled)
+        self.assertTrue(any("auth_disable" in line for line in lcm.output))
+
+    def test_044_cert_store_rejects_failed_chain_verify(self):
+        """_cert_store rejects when ca_cert chain verify fails"""
+        self._chain_verify_patcher.stop()
+        with patch(
+            "acme2certifier.acme_srv.trigger.trigger_cert_chain_verify",
+            return_value=False,
+        ):
+            code, message, _detail = self.trigger._cert_store(
+                "bundle", "raw", "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
+            )
+        self.assertEqual(400, code)
+        self.assertEqual("certificate verification failed", message)
+        self._chain_verify_patcher = patch(
+            "acme2certifier.acme_srv.trigger.trigger_cert_chain_verify",
+            return_value=True,
+        )
+        self._chain_verify_patcher.start()
+
+    def test_045_trigger_hmac_keys_file_json(self):
+        """hmac_keys_file JSON list is loaded"""
+        import tempfile
+        import os
+        from acme2certifier.acme_srv.helpers.trigger_auth import trigger_hmac_keys_load
+
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write('["file-key-1", "file-key-2"]\n')
+            path = handle.name
+        try:
+            parser = configparser.ConfigParser()
+            parser["Trigger"] = {"hmac_keys_file": path}
+            keys, disabled = trigger_hmac_keys_load(self.logger, parser)
+            self.assertEqual(["file-key-1", "file-key-2"], keys)
+            self.assertFalse(disabled)
+        finally:
+            os.unlink(path)
 
 
 if __name__ == "__main__":

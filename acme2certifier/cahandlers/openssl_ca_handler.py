@@ -29,6 +29,10 @@ from acme2certifier.acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
     b64_url_recode,
+    b64_decode,
+    b64_encode,
+    cert_pem2der,
+    cert_der2pem,
     cert_serial_get,
     convert_string_to_byte,
     convert_byte_to_string,
@@ -43,6 +47,9 @@ ACME_ERR_SERVER_INTERNAL = "urn:ietf:params:acme:error:serverInternal"
 
 class CAhandler(object):
     """CA  handler"""
+
+    # Opt into the /trigger HTTP callback endpoint (see [Trigger] enabled).
+    supports_trigger = True
 
     def __init__(self, debug: bool = False, logger: object = None):
         self.debug = debug
@@ -1110,13 +1117,45 @@ class CAhandler(object):
         self.logger.debug("CAhandler.revoke() ended")
         return self._revoke_return(200)
 
-    def trigger(self, _payload: str) -> Tuple[str, str, str]:
+    def trigger(self, payload: str) -> Tuple[str, str, str]:
         """process trigger message and return certificate"""
         self.logger.debug("CAhandler.trigger()")
 
-        error = "Method not implemented."
+        error = None
         cert_bundle = None
         cert_raw = None
+
+        if not payload:
+            error = "No payload given"
+            self.logger.debug("CAhandler.trigger() ended with error: %s", error)
+            return (error, cert_bundle, cert_raw)
+
+        if not self.issuer_dict.get("issuing_ca_cert"):
+            self._config_load()
+
+        issuing_ca_cert = self.issuer_dict.get("issuing_ca_cert")
+        if not issuing_ca_cert or not os.path.exists(issuing_ca_cert):
+            error = "issuing_ca_cert missing or unreadable"
+            self.logger.debug("CAhandler.trigger() ended with error: %s", error)
+            return (error, cert_bundle, cert_raw)
+
+        cert = b64_decode(self.logger, payload)
+        try:
+            # payload is base64(PEM)
+            leaf_pem = (
+                cert if isinstance(cert, str) else convert_byte_to_string(cert)
+            )
+            cert_raw = b64_encode(self.logger, cert_pem2der(leaf_pem))
+        except Exception:
+            # payload is base64(DER)
+            der_bytes = (
+                convert_string_to_byte(cert) if isinstance(cert, str) else cert
+            )
+            cert_raw = b64_encode(self.logger, der_bytes)
+            leaf_pem = convert_byte_to_string(cert_der2pem(der_bytes))
+
+        with open(issuing_ca_cert, "r", encoding="utf8") as ca_fso:
+            cert_bundle = self._pemcertchain_generate(leaf_pem, ca_fso.read())
 
         self.logger.debug("CAhandler.trigger() ended with error: %s", error)
         return (error, cert_bundle, cert_raw)
