@@ -375,7 +375,7 @@ class TestACMEHandler(unittest.TestCase):
         config_dic = {
             "code": 403,
             "type": "urn:ietf:params:acme:error:unauthorized",
-            "detail": "EAB kid lookup failed",
+            "detail": "invalid eab credentials",
         }
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.message.prepare_response(data_dic, config_dic, account_name="acct-123")
@@ -383,7 +383,7 @@ class TestACMEHandler(unittest.TestCase):
             any(
                 "ACME problem code=403" in line
                 and "type=urn:ietf:params:acme:error:unauthorized" in line
-                and "detail=EAB kid lookup failed" in line
+                and "detail=invalid eab credentials" in line
                 and "account=acct-123" in line
                 for line in lcm.output
             )
@@ -643,38 +643,83 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
-    def test_037_config_load(self, mock_load_cfg, mock_eab):
-        """test _config_load"""
+    def test_037_config_load_eabkid_disable_ignored_without_ack(
+        self, mock_load_cfg, mock_eab
+    ):
+        """eabkid_check_disable is ignored without break-glass env; handler still loads"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {
             "eab_handler_file": "eab_handler_file",
             "eabkid_check_disable": True,
         }
         mock_load_cfg.return_value = parser
-        from acme2certifier.acme_srv.message import Message
+        mock_eab.return_value = MagicMock()
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        self.message = Message(False, "http://tester.local", self.logger)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
+        self.assertFalse(self.message.config.nonce_check_disable)
+        self.assertFalse(self.message.config.signature_check_disable)
+        self.assertFalse(self.message.config.eabkid_check_disable)
+        self.assertTrue(mock_eab.called)
+        self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertTrue(
+            any(
+                "Ignoring eabkid_check_disable" in line
+                and SECURITY_DISABLE_ACK_ENV in line
+                for line in lcm.output
+            )
+        )
+
+    @patch("acme2certifier.acme_srv.message.eab_handler_load")
+    @patch("acme2certifier.acme_srv.message.load_config")
+    def test_037b_config_load_eabkid_disable_with_ack(self, mock_load_cfg, mock_eab):
+        """eabkid_check_disable honored when break-glass env is set"""
+        parser = configparser.ConfigParser()
+        parser["EABhandler"] = {
+            "eab_handler_file": "eab_handler_file",
+            "eabkid_check_disable": True,
+        }
+        mock_load_cfg.return_value = parser
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
         self.assertFalse(self.message.config.nonce_check_disable)
         self.assertFalse(self.message.config.signature_check_disable)
         self.assertTrue(self.message.config.eabkid_check_disable)
         self.assertFalse(mock_eab.called)
         self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertTrue(
+            any(
+                "SECURITY DISABLE ACKNOWLEDGED" in line
+                and "eabkid_check_disable" in line
+                for line in lcm.output
+            )
+        )
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_038_config_load(self, mock_load_cfg, mock_eab):
-        """test _config_load"""
+        """incomplete EABhandler with eabkid_check_disable ignored without ack"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {"foo": "bar", "eabkid_check_disable": True}
         mock_load_cfg.return_value = parser
-        from acme2certifier.acme_srv.message import Message
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        self.message = Message(False, "http://tester.local", self.logger)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
         self.assertFalse(self.message.config.nonce_check_disable)
         self.assertFalse(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
+        self.assertFalse(self.message.config.eabkid_check_disable)
         self.assertFalse(mock_eab.called)
         self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertTrue(
+            any("Configuration error: EABHandler incomplete" in line for line in lcm.output)
+        )
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
@@ -714,7 +759,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_041_config_load(self, mock_load_cfg, mock_eab):
-        """test _config_load"""
+        """eabkid_check_disable without ack loads handler (handler returns None)"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {
             "eab_handler_file": "eab_handler_file",
@@ -722,16 +767,20 @@ class TestACMEHandler(unittest.TestCase):
         }
         mock_load_cfg.return_value = parser
         mock_eab.return_value = None
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
-        from acme2certifier.acme_srv.message import Message
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
 
-        self.message = Message(False, "http://tester.local", self.logger)
-        # self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler could not get loaded', lcm.output)
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
         self.assertFalse(self.message.config.nonce_check_disable)
         self.assertFalse(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
-        self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.config.eabkid_check_disable)
+        self.assertTrue(mock_eab.called)
         self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertIn(
+            "CRITICAL:test_a2c:EABHandler could not get loaded",
+            lcm.output,
+        )
 
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
@@ -780,7 +829,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.message.eab_handler_load")
     @patch("acme2certifier.acme_srv.message.load_config")
     def test_044_config_load(self, mock_load_cfg, mock_eab):
-        """test _config_load"""
+        """eabkid_check_disable without ack loads handler despite disable request"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {
             "eab_handler_file": "eab_handler_file",
@@ -789,14 +838,20 @@ class TestACMEHandler(unittest.TestCase):
         }
         mock_load_cfg.return_value = parser
         mock_eab.return_value = None
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
-        self.message._load_configuration()
-        # self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler could not get loaded', lcm.output)
+        from acme2certifier.acme_srv.message import Message, SECURITY_DISABLE_ACK_ENV
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.message = Message(False, "http://tester.local", self.logger)
         self.assertFalse(self.message.config.nonce_check_disable)
         self.assertFalse(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
-        self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.config.eabkid_check_disable)
+        self.assertTrue(mock_eab.called)
         self.assertFalse(self.message.config.invalid_eabkid_deactivate)
+        self.assertIn(
+            "CRITICAL:test_a2c:EABHandler could not get loaded",
+            lcm.output,
+        )
 
     @patch("acme2certifier.acme_srv.message.decode_message")
     def test_045_message_check(self, mock_decode):

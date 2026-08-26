@@ -2529,7 +2529,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             "data": {
                 "status": 403,
                 "type": "urn:ietf:params:acme:error:unauthorized",
-                "detail": "EAB kid lookup failed",
+                "detail": "invalid eab credentials",
             },
         }
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
@@ -2537,7 +2537,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertTrue(
             any(
                 line.startswith("DEBUG:test_a2c:addr /acme/newaccount")
-                and "EAB kid lookup failed" in line
+                and "invalid eab credentials" in line
                 for line in lcm.output
             )
         )

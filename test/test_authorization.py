@@ -2314,6 +2314,222 @@ class TestAuthorization(unittest.TestCase):
         )
         self.assertIsNone(self.authorization.config.prevalidated_domainlist)
 
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_dns_server_list_load",
+        return_value=(False, None),
+    )
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
+    @patch("acme2certifier.acme_srv.authorization.load_config")
+    def test_050b_load_unbounded_domain_prevalidation_ignored_without_ack(
+        self, mock_load_config, mock_eab_profile, mock_dns_list
+    ):
+        """Global prevalidated_domainlist=['*'] ignored without break-glass env"""
+        mock_config = Mock()
+        mock_config.get.side_effect = lambda section, key, fallback=None: (
+            json.dumps(["*"])
+            if (section, key) == ("Authorization", "prevalidated_domainlist")
+            else fallback
+        )
+        mock_config.getboolean.return_value = False
+        mock_load_config.return_value = mock_config
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            self.authorization._load_configuration()
+        self.assertIsNone(self.authorization.config.prevalidated_domainlist)
+        warning_messages = [
+            str(call.args[0]) % call.args[1:]
+            if len(call.args) > 1
+            else str(call.args[0])
+            for call in self.mock_logger.warning.call_args_list
+            if call.args
+        ]
+        self.assertTrue(
+            any(
+                "Ignoring prevalidated_domainlist=['*']" in msg
+                and SECURITY_DISABLE_ACK_ENV in msg
+                for msg in warning_messages
+            )
+        )
+
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_dns_server_list_load",
+        return_value=(False, None),
+    )
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
+    @patch("acme2certifier.acme_srv.authorization.load_config")
+    def test_050c_load_unbounded_domain_prevalidation_with_ack(
+        self, mock_load_config, mock_eab_profile, mock_dns_list
+    ):
+        """Global prevalidated_domainlist=['*'] honored with break-glass env"""
+        mock_config = Mock()
+        mock_config.get.side_effect = lambda section, key, fallback=None: (
+            json.dumps(["*"])
+            if (section, key) == ("Authorization", "prevalidated_domainlist")
+            else fallback
+        )
+        mock_config.getboolean.return_value = False
+        mock_load_config.return_value = mock_config
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            self.authorization._load_configuration()
+        self.assertEqual(self.authorization.config.prevalidated_domainlist, ["*"])
+        critical_messages = [
+            str(call.args[0]) % call.args[1:]
+            if len(call.args) > 1
+            else str(call.args[0])
+            for call in self.mock_logger.critical.call_args_list
+            if call.args
+        ]
+        self.assertTrue(
+            any(
+                "SECURITY DISABLE ACKNOWLEDGED" in msg
+                and "prevalidated_domainlist=['*']" in msg
+                for msg in critical_messages
+            )
+        )
+
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_dns_server_list_load",
+        return_value=(False, None),
+    )
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
+    @patch("acme2certifier.acme_srv.authorization.load_config")
+    def test_050d_load_scoped_domain_wildcard_not_gated(
+        self, mock_load_config, mock_eab_profile, mock_dns_list
+    ):
+        """Scoped '*.example.com' loads without break-glass env"""
+        mock_config = Mock()
+        domainlist = ["*.example.com", "host.example.org"]
+        mock_config.get.side_effect = lambda section, key, fallback=None: (
+            json.dumps(domainlist)
+            if (section, key) == ("Authorization", "prevalidated_domainlist")
+            else fallback
+        )
+        mock_config.getboolean.return_value = False
+        mock_load_config.return_value = mock_config
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            self.authorization._load_configuration()
+        self.assertEqual(self.authorization.config.prevalidated_domainlist, domainlist)
+        warning_messages = [
+            str(call.args[0]) % call.args[1:]
+            if len(call.args) > 1
+            else str(call.args[0])
+            for call in self.mock_logger.warning.call_args_list
+            if call.args
+        ]
+        self.assertFalse(
+            any("Ignoring prevalidated_domainlist=['*']" in msg for msg in warning_messages)
+        )
+        self.assertTrue(
+            any("prevalidated_domainlist loaded globally" in msg for msg in warning_messages)
+        )
+
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_dns_server_list_load",
+        return_value=(False, None),
+    )
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
+    @patch("acme2certifier.acme_srv.authorization.load_config")
+    def test_050e_load_unbounded_ip_prevalidation_ignored_without_ack(
+        self, mock_load_config, mock_eab_profile, mock_dns_list
+    ):
+        """Global 0.0.0.0/0 and ::/0 ignored without break-glass; scoped IPs kept"""
+        mock_config = Mock()
+        iplist = ["0.0.0.0/0", "10.0.0.0/8", "::/0"]
+        mock_config.get.side_effect = lambda section, key, fallback=None: (
+            json.dumps(iplist)
+            if (section, key) == ("Authorization", "prevalidated_iplist")
+            else fallback
+        )
+        mock_config.getboolean.return_value = False
+        mock_load_config.return_value = mock_config
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            self.authorization._load_configuration()
+        self.assertEqual(self.authorization.config.prevalidated_iplist, ["10.0.0.0/8"])
+        warning_messages = [
+            str(call.args[0]) % call.args[1:]
+            if len(call.args) > 1
+            else str(call.args[0])
+            for call in self.mock_logger.warning.call_args_list
+            if call.args
+        ]
+        self.assertTrue(
+            any(
+                "Ignoring unbounded IP prevalidation" in msg
+                and SECURITY_DISABLE_ACK_ENV in msg
+                for msg in warning_messages
+            )
+        )
+
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_dns_server_list_load",
+        return_value=(False, None),
+    )
+    @patch(
+        "acme2certifier.acme_srv.authorization.config_eab_profile_load",
+        return_value=(False, None),
+    )
+    @patch("acme2certifier.acme_srv.authorization.load_config")
+    def test_050f_load_unbounded_ip_prevalidation_with_ack(
+        self, mock_load_config, mock_eab_profile, mock_dns_list
+    ):
+        """Global 0.0.0.0/0 honored with break-glass env"""
+        mock_config = Mock()
+        iplist = ["0.0.0.0/0", "::/0"]
+        mock_config.get.side_effect = lambda section, key, fallback=None: (
+            json.dumps(iplist)
+            if (section, key) == ("Authorization", "prevalidated_iplist")
+            else fallback
+        )
+        mock_config.getboolean.return_value = False
+        mock_load_config.return_value = mock_config
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            self.authorization._load_configuration()
+        self.assertEqual(self.authorization.config.prevalidated_iplist, iplist)
+        critical_messages = [
+            str(call.args[0]) % call.args[1:]
+            if len(call.args) > 1
+            else str(call.args[0])
+            for call in self.mock_logger.critical.call_args_list
+            if call.args
+        ]
+        self.assertTrue(
+            any(
+                "SECURITY DISABLE ACKNOWLEDGED" in msg and "unbounded IP" in msg
+                for msg in critical_messages
+            )
+        )
+
     def test_051_eab_profile_prevalidated_domainlist_applied(self):
         """Test EAB profile sets prevalidated_domainlist from profile"""
         self.authorization.config.eab_profiling = True

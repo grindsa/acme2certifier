@@ -17,6 +17,15 @@ When enabled, any ACME authorization request for a matching domain, IP, or email
 
 **These features introduce significant security risks if misused.**
 
+### Full-universe wildcards (global config only)
+
+The following entries in `[Authorization]` disable DCV for *all* identifiers of that type and are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set (testing only); acknowledgement is logged at `CRITICAL`:
+
+- `prevalidated_domainlist = ["*"]` (sole entry; spaces around `*` are ignored)
+- `prevalidated_iplist` entries with prefix length 0 (`0.0.0.0/0`, `::/0`)
+
+Scoped patterns such as `*.example.com` or `10.0.0.0/8` are **not** gated. The same unbounded entries supplied via EAB profiling are also not gated.
+
 ## How It Works
 
 - When a new authorization request is processed, the Authorization class checks if the requested identifier matches any entry in the corresponding prevalidated list.
