@@ -121,7 +121,7 @@ is_main_rpm_basename() {
 infer_suffix_from_basename() {
   local base="$1"
   case "${base}" in
-    acme2certifier-min-[0-9]*) printf '%s' '-min' ;;
+    "${PKG_MIN}"-[0-9]*) printf '%s' '-min' ;;
     *) printf '' ;;
   esac
 }
