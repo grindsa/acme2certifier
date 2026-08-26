@@ -356,6 +356,20 @@ class DBstore(object):
         self.logger.debug("DBStore.certificate_add() ended with :%s", obj.id)
         return obj.id
 
+    def certificate_replaced_update(self, cert_name: str) -> int:
+        """Set replaced=True for an existing certificate; leave other columns unchanged."""
+        self.logger.debug("DBStore.certificate_replaced_update(%s)", cert_name)
+        cert = Certificate.objects.filter(name=cert_name).first()
+        if not cert:
+            self.logger.debug("DBStore.certificate_replaced_update() ended with: 0")
+            return 0
+        cert.replaced = True
+        cert.save(update_fields=["replaced"])
+        self.logger.debug(
+            "DBStore.certificate_replaced_update() ended with: %s", cert.id
+        )
+        return cert.id
+
     def certificate_account_check(self, account_name: str, certificate: str) -> str:
         """check issuer against certificate"""
         self.logger.debug("DBStore.certificate_account_check(%s)", account_name)
@@ -591,6 +605,13 @@ class DBstore(object):
         self.logger.debug("DBStore.nonce_delete(%s)", nonce)
         Nonce.objects.filter(nonce=nonce).delete()
 
+    def nonce_consume(self, nonce: str) -> int:
+        """Atomically delete a nonce if present; return affected row count."""
+        self.logger.debug("DBStore.nonce_consume(%s)", nonce)
+        deleted, _ = Nonce.objects.filter(nonce=nonce).delete()
+        self.logger.debug("DBStore.nonce_consume() ended with: %s", deleted)
+        return deleted
+
     def nonce_delete_bulk(self, nonce_list: List[str]) -> int:
         """Delete a list of nonces in a single cleanup run."""
         self.logger.debug("DBStore.nonce_delete_bulk with %s entries", len(nonce_list))
@@ -662,6 +683,21 @@ class DBstore(object):
             name=data_dic["name"], defaults=data_dic
         )
         obj.save()
+
+    def order_update_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> int:
+        """Update order status only when current status matches; return row count."""
+        self.logger.debug(
+            "order_update_if_status(%s, %s -> %s)", name, expected_status, new_status
+        )
+        new_inst = self._status_getinstance(new_status, "name")
+        expected_inst = self._status_getinstance(expected_status, "name")
+        updated = Order.objects.filter(name=name, status=expected_inst).update(
+            status=new_inst
+        )
+        self.logger.debug("DBStore.order_update_if_status() ended with: %s", updated)
+        return updated
 
     def orders_invalid_search(
         self,

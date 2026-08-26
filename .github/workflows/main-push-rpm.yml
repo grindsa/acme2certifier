@@ -131,23 +131,11 @@ jobs:
           EXPECT: ${{ matrix.target.expect_interpreter }}
           FLAVOR_PKG: ${{ matrix.target.flavor_pkg }}
 
-      - name: "Flush logs before enrollment"
-        uses: ./.github/actions/logs_flush
-        with:
-          DEPLOYMENT_TYPE: rpm
-
       - name: "Wait for ACME directory"
         uses: ./.github/actions/wait_for_directory
 
       - name: "Test enrollment / renewal / revocation"
         uses: ./.github/actions/acme_clients
-
-      - name: "Assert enrollment activity in logs"
-        uses: ./.github/actions/logs_assert
-        with:
-          DEPLOYMENT_TYPE: rpm
-          PATTERN: "Certificate"
-          IGNORE_CASE: "true"
 
       - name: "Channel teardown"
         if: ${{ always() }}

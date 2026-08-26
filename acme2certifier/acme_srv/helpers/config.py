@@ -12,6 +12,7 @@ import yaml
 
 from .plugin_loader import eab_handler_load
 from .global_variables import CONFIGURATION_ERROR_DETAIL, PARSING_ERR_MSG
+from .security_gate import SECURITY_DISABLE_ACK_ENV, security_disable_acknowledged
 
 # Emit acme_srv.cfg path deprecation warnings at most once per path per process.
 _ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
@@ -347,6 +348,35 @@ def legacy_acme_get_load(logger: logging.Logger, config_dic) -> bool:
         )
     logger.debug("Helper.legacy_acme_get_load() ended with: %s", enabled)
     return enabled
+
+
+def tnauthlist_configuration_validate(logger: logging.Logger, config_dic) -> None:
+    """Emit a startup message when ``tnauthlist_support`` is enabled.
+
+    tkauth-01 has no authority token verification, so the challenge is refused
+    unless the break-glass env var acknowledges the risk.
+    """
+    logger.debug("Helper.tnauthlist_configuration_validate()")
+    if not config_dic:
+        return
+    if not config_dic.getboolean("Order", "tnauthlist_support", fallback=False):
+        return
+
+    if security_disable_acknowledged():
+        logger.critical(
+            "**** SECURITY DISABLE ACKNOWLEDGED via %s: tkauth-01 challenges are "
+            "accepted without verifying the authority token. Any account can obtain "
+            "certificates for telephone number ranges it does not hold. ****",
+            SECURITY_DISABLE_ACK_ENV,
+        )
+    else:
+        logger.error(
+            "tnauthlist_support is enabled but tkauth-01 validation is not "
+            "implemented; TNAuthList authorizations will be marked invalid and "
+            "enrollment will fail. Set %s=1 to accept unverified authority tokens "
+            "for testing purposes only.",
+            SECURITY_DISABLE_ACK_ENV,
+        )
 
 
 def acme_get_method_not_allowed_problem() -> Dict[str, Any]:

@@ -30,7 +30,6 @@ sync_paths:
   - docs/
   - examples/
   - pyproject.toml
-  - tools/
   - MANIFEST.in
   - .pre-commit-config.yaml
   - README.md
@@ -55,11 +54,6 @@ min_owned:
 # Removed after a port into a min target (in addition to non-kept handlers)
 strip_into_min:
   - acme2certifier/cahandlers/ms_icpr
-  - .github/acme2certifier.pem
-  - .github/acme2certifier_cabundle.pem
-  - .github/acme2certifier_cert.pem
-  - .github/acme2certifier_csr.pem
-  - .github/acme2certifier_key.pem
   - .github/workflows/helper-dump-secrets.yml
   - .github/workflows/cahandler-asa.yml
   - .github/workflows/cahandler-certifier.yml

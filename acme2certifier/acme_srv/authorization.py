@@ -3,6 +3,7 @@
 
 # pylint: disable=R0913, R1705
 from __future__ import print_function
+import ipaddress
 import json
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
@@ -29,6 +30,16 @@ from acme2certifier.acme_srv.helpers.domain_utils import (
     is_email_whitelisted,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    log_ownership_denial,
+    ownership_lookup_failed,
+    ownership_unauthorized,
+    resource_owner_matches,
+)
+from acme2certifier.acme_srv.helpers.security_gate import (
+    SECURITY_DISABLE_ACK_ENV,
+    security_disable_acknowledged,
+)
 from acme2certifier.acme_srv.message import Message
 from acme2certifier.acme_srv.nonce import Nonce
 
@@ -472,6 +483,81 @@ class Authorization(object):
         # pylint: disable=unnecessary-pass
         pass
 
+    @staticmethod
+    def _is_unbounded_domain_prevalidation(domainlist: List[str]) -> bool:
+        """True when the list is solely the full-universe domain wildcard '*'."""
+        return (
+            len(domainlist) == 1
+            and isinstance(domainlist[0], str)
+            and domainlist[0].strip() == "*"
+        )
+
+    @staticmethod
+    def _is_unbounded_ip_network(entry: Any) -> bool:
+        """True for networks covering the entire address family (prefix length 0)."""
+        if not isinstance(entry, str):
+            return False
+        try:
+            return ipaddress.ip_network(entry.strip(), strict=False).prefixlen == 0
+        except ValueError:
+            return False
+
+    def _gate_unbounded_domain_prevalidation(
+        self, domainlist: List[str]
+    ) -> Optional[List[str]]:
+        """Require break-glass env for global prevalidated_domainlist=['*']."""
+        if not self._is_unbounded_domain_prevalidation(domainlist):
+            return domainlist
+
+        if not security_disable_acknowledged():
+            self.logger.warning(
+                "Ignoring prevalidated_domainlist=['*'] in [Authorization]; "
+                "challenge validation remains required for all DNS identifiers. "
+                "Set %s=1 only for testing if you intentionally need a full-universe "
+                "prevalidation wildcard. Scoped entries (e.g. '*.example.com') are "
+                "unaffected.",
+                SECURITY_DISABLE_ACK_ENV,
+            )
+            return None
+
+        self.logger.critical(
+            "**** SECURITY DISABLE ACKNOWLEDGED via %s: "
+            "prevalidated_domainlist=['*'] ****",
+            SECURITY_DISABLE_ACK_ENV,
+        )
+        return domainlist
+
+    def _gate_unbounded_ip_prevalidation(
+        self, iplist: List[str]
+    ) -> Optional[List[str]]:
+        """Require break-glass env for global 0.0.0.0/0 or ::/0 prevalidation entries."""
+        unbounded = [entry for entry in iplist if self._is_unbounded_ip_network(entry)]
+        if not unbounded:
+            return iplist
+
+        if not security_disable_acknowledged():
+            kept = [
+                entry for entry in iplist if not self._is_unbounded_ip_network(entry)
+            ]
+            self.logger.warning(
+                "Ignoring unbounded IP prevalidation %s in [Authorization]; "
+                "challenge validation remains required for those address spaces. "
+                "Set %s=1 only for testing if you intentionally need full-universe "
+                "IP prevalidation. Kept scoped entries: %s",
+                unbounded,
+                SECURITY_DISABLE_ACK_ENV,
+                kept if kept else "none",
+            )
+            return kept or None
+
+        self.logger.critical(
+            "**** SECURITY DISABLE ACKNOWLEDGED via %s: unbounded IP "
+            "prevalidation %s ****",
+            SECURITY_DISABLE_ACK_ENV,
+            unbounded,
+        )
+        return iplist
+
     def _load_json_config_param(
         self, config_dic, parameter_name: str
     ) -> Optional[List[str]]:
@@ -486,9 +572,14 @@ class Authorization(object):
                 config_dic.get("Authorization", parameter_name, fallback="null")
             )
             if value:
-                self.logger.warning(
-                    f"{parameter_name} loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
-                )
+                if parameter_name == "prevalidated_domainlist":
+                    value = self._gate_unbounded_domain_prevalidation(value)
+                elif parameter_name == "prevalidated_iplist":
+                    value = self._gate_unbounded_ip_prevalidation(value)
+                if value:
+                    self.logger.warning(
+                        f"{parameter_name} loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
+                    )
         except json.JSONDecodeError as err:
             value = None
             raise ConfigurationError(f"Invalid {parameter_name} parameter") from err
@@ -816,6 +907,30 @@ class Authorization(object):
                 err,
             )
 
+    def _apply_prevalidation_success(
+        self,
+        authz_name: str,
+        auth_details: Optional[Dict[str, str]],
+        id_type: str,
+        id_value: str,
+        authz_info: Dict[str, Any],
+    ) -> None:
+        """Mark authorization valid via prevalidation; log INFO once on state transition."""
+        if authz_info.get("status") == "valid":
+            return
+        self.logger.info(
+            "Prevalidation succeeded: authz=%s type=%s identifier=%s",
+            authz_name,
+            id_type,
+            id_value,
+        )
+        authz_info["status"] = "valid"
+        self.repository.mark_authorization_as_valid(authz_name)
+        if auth_details is not None:
+            self.repository.mark_order_as_ready(auth_details.get("order__name"))
+        else:
+            self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
+
     def _apply_prevalidation_whitelist(
         self, authz_name, auth_details, id_type, id_value, authz_info
     ):
@@ -860,12 +975,9 @@ class Authorization(object):
                 "Email %s is preauthorized, setting authorization status to 'valid'",
                 id_value,
             )
-            authz_info["status"] = "valid"
-            self.repository.mark_authorization_as_valid(authz_name)
-            if auth_details is not None:
-                self.repository.mark_order_as_ready(auth_details.get("order__name"))
-            else:
-                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
+            self._apply_prevalidation_success(
+                authz_name, auth_details, "email", id_value, authz_info
+            )
 
     def _handle_domain_prevalidation(
         self, authz_name, auth_details, id_value, authz_info
@@ -878,25 +990,24 @@ class Authorization(object):
         if not domainlist:
             return
 
-        wildcard_all = (
-            len(self.config.prevalidated_domainlist) == 1
-            and isinstance(self.config.prevalidated_domainlist[0], str)
-            and self.config.prevalidated_domainlist[0].strip() == "*"
+        wildcard_all = self._is_unbounded_domain_prevalidation(
+            self.config.prevalidated_domainlist
         )
 
         if wildcard_all:
-            self.logger.warning(
-                "Global wildcard prevalidation is active (prevalidated_domainlist contains '*'). Marking authorization %s as valid without challenge validation.",
-                authz_name,
-            )
-            authz_info["status"] = "valid"
-            self.repository.mark_authorization_as_valid(authz_name)
-            if auth_details is not None:
-                self.repository.mark_order_as_ready(auth_details.get("order__name"))
-            else:
-                self.logger.debug(
-                    "No order information found for authorization %s", authz_name
+            if authz_info.get("status") != "valid":
+                self.logger.warning(
+                    "Global wildcard prevalidation is active (prevalidated_domainlist contains '*'). Marking authorization %s as valid without challenge validation.",
+                    authz_name,
                 )
+                authz_info["status"] = "valid"
+                self.repository.mark_authorization_as_valid(authz_name)
+                if auth_details is not None:
+                    self.repository.mark_order_as_ready(auth_details.get("order__name"))
+                else:
+                    self.logger.debug(
+                        "No order information found for authorization %s", authz_name
+                    )
             return
 
         self.logger.debug(
@@ -948,12 +1059,9 @@ class Authorization(object):
                 "Domain %s is preauthorized, setting authorization status to 'valid'",
                 id_value,
             )
-            authz_info["status"] = "valid"
-            self.repository.mark_authorization_as_valid(authz_name)
-            if auth_details is not None:
-                self.repository.mark_order_as_ready(auth_details.get("order__name"))
-            else:
-                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
+            self._apply_prevalidation_success(
+                authz_name, auth_details, "dns", id_value, authz_info
+            )
 
     def _handle_ip_prevalidation(self, authz_name, auth_details, id_value, authz_info):
         """Handle IP identifier prevalidation based on whitelist configuration. If the IP is whitelisted, mark the authorization as valid and the order as ready."""
@@ -971,12 +1079,9 @@ class Authorization(object):
                 "IP %s is preauthorized, setting authorization status to 'valid'",
                 id_value,
             )
-            authz_info["status"] = "valid"
-            self.repository.mark_authorization_as_valid(authz_name)
-            if auth_details is not None:
-                self.repository.mark_order_as_ready(auth_details.get("order__name"))
-            else:
-                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
+            self._apply_prevalidation_success(
+                authz_name, auth_details, "ip", id_value, authz_info
+            )
         else:
             self.logger.debug(
                 "IP %s is not preauthorized, leaving authorization status unchanged",
@@ -1057,50 +1162,106 @@ class Authorization(object):
             self.logger.error("Authorization error: %s", err)
             return {"code": 404, "header": {}, "data": {"error": str(err)}}
 
+    def _lookup_authorization_owner_account(self, authz_name: str) -> Optional[str]:
+        """Return the account that owns an authorization."""
+        authz = self.repository.find_authorization_by_name(
+            authz_name, ["order__account__name"]
+        )
+        if not authz:
+            return None
+        return authz.get("order__account__name")
+
+    def _check_authorization_ownership(
+        self, authz_name: str, account_name: Optional[str]
+    ) -> Tuple[int, str, str]:
+        """Verify the requester owns the authorization."""
+        try:
+            owner = self._lookup_authorization_owner_account(authz_name)
+        except AuthorizationError:
+            return ownership_lookup_failed()
+        if not resource_owner_matches(account_name, owner):
+            log_ownership_denial(self.logger, account_name, "authorization", authz_name)
+            return ownership_unauthorized()
+        return (200, None, None)
+
+    def _expire_authorizations_if_enabled(self) -> None:
+        """Expire invalid authorizations unless expiry checks are disabled."""
+        if self.config.expiry_check_disable:
+            return
+        try:
+            self.invalidate()
+        except Exception as err:
+            self.logger.warning("Failed to expire authorizations: %s", err)
+
+    def _authorization_payload_from_url(
+        self, url: str, code: int, message: str, detail: str
+    ) -> Tuple[int, str, str, Dict[str, Any]]:
+        """Load authorization details for a POST body, or return an ACME error tuple."""
+        try:
+            auth_info = self.get_authorization_details(url)
+        except AuthorizationError as err:
+            self.logger.error("Authorization error: %s", err)
+            return (
+                403,
+                "urn:ietf:params:acme:error:unauthorized",
+                "authorization error",
+                {},
+            )
+        if not auth_info:
+            return (
+                403,
+                "urn:ietf:params:acme:error:unauthorized",
+                "authorization lookup failed",
+                {},
+            )
+        return code, message, detail, {"data": auth_info}
+
+    def _process_valid_post(
+        self,
+        protected: Dict[str, Any],
+        account_name: Optional[str],
+        code: int,
+        message: str,
+        detail: str,
+    ) -> Tuple[int, str, str, Dict[str, Any]]:
+        """Handle a successfully authenticated authorization POST."""
+        if "url" not in protected:
+            return (
+                400,
+                "urn:ietf:params:acme:error:malformed",
+                "url is missing in protected",
+                {},
+            )
+        authz_name = self.business_logic.extract_authorization_name_from_url(
+            protected["url"], self.server_name
+        )
+        own_code, own_message, own_detail = self._check_authorization_ownership(
+            authz_name, account_name
+        )
+        if own_code != 200:
+            return own_code, own_message, own_detail, {}
+        return self._authorization_payload_from_url(
+            protected["url"], code, message, detail
+        )
+
     def handle_post_request(self, content: str) -> Dict[str, str]:
         """Handle POST request for authorization"""
         self.logger.debug("Authorization.handle_post_request()")
+        self._expire_authorizations_if_enabled()
 
-        # Expire invalid authorizations if not disabled
-        if not self.config.expiry_check_disable:
-            try:
-                self.invalidate()  # Call public method for backward compatibility
-            except Exception as err:
-                self.logger.warning("Failed to expire authorizations: %s", err)
-                # Continue with processing - don't fail the request
-
-        # Validate message
         code, message, detail, protected, _payload, account_name = self.message.check(
             content
         )
-
-        response_dic = {}
+        response_dic: Dict[str, Any] = {}
         if code == 200:
-            if "url" not in protected:
-                code = 400
-                message = "urn:ietf:params:acme:error:malformed"
-                detail = "url is missing in protected"
-            else:
-                try:
-                    auth_info = self.get_authorization_details(protected["url"])
-                    if auth_info:
-                        response_dic["data"] = auth_info
-                    else:
-                        code = 403
-                        message = "urn:ietf:params:acme:error:unauthorized"
-                        detail = "authorization lookup failed"
-                except AuthorizationError as err:
-                    self.logger.error("Authorization error: %s", err)
-                    code = 403
-                    message = "urn:ietf:params:acme:error:unauthorized"
-                    detail = "authorization error"
+            code, message, detail, response_dic = self._process_valid_post(
+                protected, account_name, code, message, detail
+            )
 
-        # Prepare response
         status_dic = {"code": code, "type": message, "detail": detail}
         response_dic = self.message.prepare_response(
             response_dic, status_dic, account_name=account_name
         )
-
         self.logger.debug(
             "Authorization.handle_post_request() returns: %s", json.dumps(response_dic)
         )

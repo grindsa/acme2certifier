@@ -1521,6 +1521,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(wsgi_mod.HOUSEKEEPING_CLI_ENABLED)
         self.assertTrue(wsgi_mod.TRIGGER_ENDPOINT_ENABLED)
 
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.update")
+    @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.get")
+    def test_080_renewalinfo_post_error_body(
+        self, mock_get, mock_post, mock_url, mock_header, mock_body
+    ):
+        """renewalinfo POST with ACME problem returns JSON body"""
+        environ = {
+            "REQUEST_METHOD": "POST",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
+        mock_header.return_value = {"header": "foo"}
+        mock_post.return_value = {
+            "code": 403,
+            "data": {"type": "urn:ietf:params:acme:error:unauthorized"},
+        }
+        result = self.renewalinfo(environ, Mock())
+        self.assertEqual(
+            [b'{\n  "type": "urn:ietf:params:acme:error:unauthorized"\n}'],
+            result,
+        )
+        mock_header.assert_called_once_with(mock_post.return_value, True)
+        self.assertFalse(mock_get.called)
+        self.assertTrue(mock_post.called)
+        self.assertTrue(mock_body.called)
+
 
 if __name__ == "__main__":
 

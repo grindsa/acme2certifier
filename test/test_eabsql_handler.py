@@ -386,7 +386,7 @@ class TestEABHandler(unittest.TestCase):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value =  [('id1', 'profile1'), ('id2', 'profile2')]
+        mock_cursor.fetchall.return_value = [("id1", "profile1"), ("id2", "profile2")]
         mock_connect.return_value = mock_conn
         result = self.eabhandler._load_profiles("mssql", "SELECT ...")
         self.assertEqual(result, {"id1": "profile1", "id2": "profile2"})

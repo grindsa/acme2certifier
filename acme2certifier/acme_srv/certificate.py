@@ -4,7 +4,7 @@
 
 from __future__ import print_function
 import json
-from typing import List, Tuple, Dict, Union, Optional, Any
+from typing import List, Tuple, Dict, Union, Optional, Any, Set
 from dataclasses import dataclass
 from acme2certifier.acme_srv.helper import (
     b64_url_recode,
@@ -14,10 +14,13 @@ from acme2certifier.acme_srv.helper import (
     cert_dates_get,
     cert_extensions_get,
     cert_san_get,
+    cert_bound_names_get,
     cert_serial_get,
     certid_asn1_get,
     csr_san_get,
+    csr_bound_names_get,
     csr_extensions_get,
+    san_list_to_bound_names,
     date_to_uts_utc,
     error_dic_get,
     hooks_load,
@@ -29,6 +32,7 @@ from acme2certifier.acme_srv.helper import (
     config_async_mode_load,
     config_dryrun_load,
 )
+from acme2certifier.acme_srv.helpers.csr import _normalize_bound_name
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
 from acme2certifier.acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -38,6 +42,13 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
     ENROLLMENT_FAILED_DETAIL,
     DB_ERROR_MSG,
+)
+from acme2certifier.acme_srv.helpers.resource_ownership import (
+    ResourceOwnershipLookupError,
+    log_ownership_denial,
+    ownership_lookup_failed,
+    ownership_unauthorized,
+    resource_owner_matches,
 )
 
 
@@ -242,6 +253,8 @@ class CertificateConfiguration:
     cert_operations_log: Optional[Any] = None
     cert_reusage_timeframe: int = 0
     cn2san_add: bool = False
+    csr_binding_strict: bool = True
+    email_identifier_rewrite: bool = False
     dryrun: bool = False
     dryrun_profilename: Optional[str] = None
     enrollment_timeout: int = 5
@@ -336,53 +349,113 @@ class Certificate(object):
         )
         return result
 
+    def _lookup_certificate_owner_account(self, certificate_name: str) -> Optional[str]:
+        """Return the account that owns a certificate, or None if missing."""
+        self.logger.debug(
+            "Certificate._lookup_certificate_owner_account(%s)", certificate_name
+        )
+        try:
+            cert_dic = self.repository.certificate_lookup(
+                "name", certificate_name, ["order__account__name"]
+            )
+        except Exception as err_:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to look up certificate owner: %s", err_
+            )
+            raise ResourceOwnershipLookupError(
+                f"failed to look up certificate owner for {certificate_name}"
+            ) from err_
+        if not cert_dic:
+            return None
+        return cert_dic.get("order__account__name")
+
+    def _check_certificate_ownership(
+        self, certificate_name: str, account_name: Optional[str]
+    ) -> Tuple[int, str, str]:
+        """Verify the requester owns the certificate."""
+        try:
+            owner = self._lookup_certificate_owner_account(certificate_name)
+        except ResourceOwnershipLookupError:
+            return ownership_lookup_failed()
+        if not resource_owner_matches(account_name, owner):
+            log_ownership_denial(
+                self.logger, account_name, "certificate", certificate_name
+            )
+            return ownership_unauthorized()
+        return (200, None, None)
+
+    def _parse_order_identifiers(self, identifier_dic: Dict[str, str]) -> list:
+        """Load order identifiers JSON; return [] on parse failure."""
+        try:
+            return json.loads(identifier_dic["identifiers"].lower())
+        except Exception:
+            return []
+
+    def _validate_authorization_tnauthlist(
+        self, identifier_dic: Dict[str, str], certificate: str
+    ) -> List[str]:
+        """Match order identifiers against TNAuthList certificate extensions."""
+        try:
+            tnauthlist = cert_extensions_get(self.logger, certificate)
+            return self._validate_identifiers_against_tnauthlist(
+                identifier_dic, tnauthlist
+            )
+        except Exception as err:
+            self.logger.warning(
+                "Error while parsing certificate for TNAuthList identifier check: %s",
+                err,
+            )
+            return []
+
+    def _certificate_san_list(self, certificate: str) -> list:
+        """SANs from the certificate, optionally filling DNS from CN."""
+        san_list = cert_san_get(self.logger, certificate)
+        if self.config.cn2san_add:
+            cert_cn = cert_cn_get(self.logger, certificate)
+            if not san_list and cert_cn:
+                san_list.append(f"DNS:{cert_cn}")
+        return san_list
+
+    def _validate_authorization_sans(
+        self, identifiers: list, certificate: str
+    ) -> List[str]:
+        """Match order identifiers against certificate SANs / bound names."""
+        try:
+            if self.config.csr_binding_strict:
+                bound_names = cert_bound_names_get(
+                    self.logger,
+                    certificate,
+                    email_identifier_rewrite=self.config.email_identifier_rewrite,
+                )
+                return self._validate_identifiers_against_sans(
+                    identifiers, [], bound_names=bound_names
+                )
+            san_list = self._certificate_san_list(certificate)
+            return self._validate_identifiers_against_sans(identifiers, san_list)
+        except Exception as err:
+            self.logger.warning(
+                "Error while parsing certificate for SAN identifier check: %s",
+                err,
+            )
+            return []
+
     def _validate_certificate_authorization(
         self, identifier_dic: Dict[str, str], certificate: str
     ) -> List[str]:
         self.logger.debug("Certificate._validate_certificate_authorization()")
-        # load identifiers
-        try:
-            identifiers = json.loads(identifier_dic["identifiers"].lower())
-        except Exception:
-            identifiers = []
-
-        # check if we have a tnauthlist identifier
-        tnauthlist_identifer_in = self._check_for_tnauth_identifiers(identifiers)
-        if self.config.tnauthlist_support and tnauthlist_identifer_in:
-            try:
-                # get list of certextensions in base64 format and identifier status
-                tnauthlist = cert_extensions_get(self.logger, certificate)
-                identifier_status = self._validate_identifiers_against_tnauthlist(
-                    identifier_dic, tnauthlist
-                )
-            except Exception as err:
-                # enough to set identifier_list as empty list
-                identifier_status = []
-                self.logger.warning(
-                    "Error while parsing certificate for TNAuthList identifier check: %s",
-                    err,
-                )
+        identifiers = self._parse_order_identifiers(identifier_dic)
+        use_tnauthlist = (
+            self.config.tnauthlist_support
+            and self._check_for_tnauth_identifiers(identifiers)
+        )
+        if use_tnauthlist:
+            identifier_status = self._validate_authorization_tnauthlist(
+                identifier_dic, certificate
+            )
         else:
-            try:
-                # get sans
-                san_list = cert_san_get(self.logger, certificate)
-                if self.config.cn2san_add:
-                    # add common name to SANs
-                    cert_cn = cert_cn_get(self.logger, certificate)
-                    if not san_list and cert_cn:
-                        san_list.append(f"DNS:{cert_cn}")
-
-                identifier_status = self._validate_identifiers_against_sans(
-                    identifiers, san_list
-                )
-            except Exception as err:
-                # enough to set identifier_list as empty list
-                identifier_status = []
-                self.logger.warning(
-                    "Error while parsing certificate for SAN identifier check: %s",
-                    err,
-                )
-
+            identifier_status = self._validate_authorization_sans(
+                identifiers, certificate
+            )
         self.logger.debug("Certificate._validate_certificate_authorization() ended")
         return identifier_status
 
@@ -421,17 +494,44 @@ class Certificate(object):
         )
         return result
 
-    def _check_certificate_reusability(self, csr: str) -> Tuple[None, str, str, str]:
+    def _lookup_order_account_name(self, order_name: str) -> Optional[str]:
+        """Return the account that owns an order."""
+        self.logger.debug("Certificate._lookup_order_account_name(%s)", order_name)
+        try:
+            order_dic = self.repository.order_lookup(
+                "name", order_name, ["account__name"]
+            )
+        except Exception as err_:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to look up order owner: %s", err_
+            )
+            return None
+        if not order_dic:
+            return None
+        return order_dic.get("account__name")
+
+    def _check_certificate_reusability(
+        self, csr: str, account_name: Optional[str]
+    ) -> Tuple[None, str, str, str]:
         """Check if an existing certificate can be reused"""
         self.logger.debug(
-            "Certificate._check_certificate_reusability(%s)",
+            "Certificate._check_certificate_reusability(%s, account=%s)",
             self.config.cert_reusage_timeframe,
+            account_name,
         )
         try:
             result_dic = self.repository.search_certificates(
                 "csr",
                 csr,
-                ("cert", "cert_raw", "expire_uts", "issue_uts", "created_at", "id"),
+                (
+                    "cert",
+                    "cert_raw",
+                    "expire_uts",
+                    "issue_uts",
+                    "created_at",
+                    "id",
+                    "order__account__name",
+                ),
             )
         except Exception as err_:
             self.logger.critical(
@@ -471,9 +571,12 @@ class Certificate(object):
                     certificate["expire_uts"],
                 )
                 # check if there certificates within reusage timeframe
+                # Require same owning account; skip reuse when account is unknown.
                 if (
                     certificate["cert_raw"]
                     and certificate["cert"]
+                    and account_name
+                    and certificate.get("order__account__name") == account_name
                     and uts - self.config.cert_reusage_timeframe <= uts_create
                     and uts <= certificate["expire_uts"]
                 ):
@@ -561,10 +664,17 @@ class Certificate(object):
         if self.config.cert_operations_log:
             self.config.cert_operations_log = self.config.cert_operations_log.lower()
 
+        self.config.csr_binding_strict = config_dic.getboolean(
+            "Certificate", "csr_binding_strict", fallback=True
+        )
+
         # Order section
         if "Order" in config_dic:
             self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
+            )
+            self.config.email_identifier_rewrite = config_dic.getboolean(
+                "Order", "email_identifier_rewrite", fallback=False
             )
 
         # CAhandler section
@@ -657,12 +767,21 @@ class Certificate(object):
                     "Error while parsing CSR for TNAuthList identifier check: %s", err_
                 )
         else:
-            # get sans and compare identifiers against san
             try:
-                san_list = csr_san_get(self.logger, csr)
-                identifier_status = self._validate_identifiers_against_sans(
-                    identifiers, san_list
-                )
+                if self.config.csr_binding_strict:
+                    bound_names = csr_bound_names_get(
+                        self.logger,
+                        csr,
+                        email_identifier_rewrite=self.config.email_identifier_rewrite,
+                    )
+                    identifier_status = self._validate_identifiers_against_sans(
+                        identifiers, [], bound_names=bound_names
+                    )
+                else:
+                    san_list = csr_san_get(self.logger, csr)
+                    identifier_status = self._validate_identifiers_against_sans(
+                        identifiers, san_list
+                    )
             except Exception as err_:
                 identifier_status = []
                 self.logger.warning(
@@ -733,18 +852,23 @@ class Certificate(object):
         )
         return csr_check_result
 
-    def _process_certificate_enrollment(self, csr: str) -> Tuple[str, str, str, str]:
+    def _process_certificate_enrollment(
+        self, csr: str, order_name: Optional[str] = None
+    ) -> Tuple[str, str, str, str]:
         self.logger.debug("Certificate._process_certificate_enrollment()")
 
         poll_identifier = None
         error = None
+        account_name = (
+            self._lookup_order_account_name(order_name) if order_name else None
+        )
         if self.config.cert_reusage_timeframe:
             (
                 error,
                 certificate,
                 certificate_raw,
                 poll_identifier,
-            ) = self._check_certificate_reusability(csr)
+            ) = self._check_certificate_reusability(csr, account_name)
         else:
             certificate = None
             certificate_raw = None
@@ -958,7 +1082,7 @@ class Certificate(object):
             certificate_raw,
             poll_identifier,
             cert_reusage,
-        ) = self._process_certificate_enrollment(csr)
+        ) = self._process_certificate_enrollment(csr, order_name)
         if certificate:
             result, error = self._store_certificate_and_update_order(
                 certificate,
@@ -1025,26 +1149,70 @@ class Certificate(object):
         self.logger.debug("Certificate._check_identifier_match(%s)", san_is_in)
         return san_is_in
 
-    def _validate_identifiers_against_sans(
-        self, identifiers: List[str], san_list: List[str]
-    ) -> List[str]:
-        """Compare identifiers and check if each SAN is in identifier list"""
-        self.logger.debug("Certificate._validate_identifiers_against_sans()")
+    def _order_identifier_set(
+        self, identifiers: List[Dict[str, str]]
+    ) -> Set[Tuple[str, str]]:
+        """Build normalized set of order identifiers for binding comparison."""
+        order_set: Set[Tuple[str, str]] = set()
+        for identifier in identifiers:
+            if "type" not in identifier or "value" not in identifier:
+                continue
+            normalized = _normalize_bound_name(
+                identifier["type"],
+                identifier["value"],
+                email_identifier_rewrite=self.config.email_identifier_rewrite,
+            )
+            if normalized:
+                order_set.add(normalized)
+        return order_set
 
-        identifier_status = []
-        for san in san_list:
-            san_is_in = False
-            try:
-                cert_type, cert_value = san.lower().split(":", 1)
-            except Exception as err_:
-                self.logger.error("Error while splitting san %s: %s", san, err_)
-                cert_type = None
-                cert_value = None
-
-            san_is_in = self._check_identifier_match(
-                cert_type, cert_value, identifiers, san_is_in
+    def _compare_bound_name_sets(
+        self,
+        identifiers: List[Dict[str, str]],
+        san_list: List[str],
+        bound_names: Optional[Set[Tuple[str, str]]],
+    ) -> List[bool]:
+        """Strict mode: order identifier set must equal certificate bound names."""
+        order_set = self._order_identifier_set(identifiers)
+        if bound_names is None:
+            bound_names = san_list_to_bound_names(
+                self.logger,
+                san_list,
+                email_identifier_rewrite=self.config.email_identifier_rewrite,
             )
 
+        if not order_set and not bound_names:
+            self.logger.error("No identifiers or bound names to compare")
+            return [False]
+        if order_set == bound_names:
+            return [True]
+
+        self.logger.warning(
+            "CSR/order identifier mismatch: order_only=%s bound_only=%s",
+            order_set - bound_names,
+            bound_names - order_set,
+        )
+        return [False]
+
+    def _split_san_entry(self, san: str) -> Tuple[Optional[str], Optional[str]]:
+        """Split ``TYPE:value`` SAN; return (None, None) on parse failure."""
+        try:
+            cert_type, cert_value = san.lower().split(":", 1)
+            return cert_type, cert_value
+        except Exception as err_:
+            self.logger.error("Error while splitting san %s: %s", san, err_)
+            return None, None
+
+    def _match_sans_to_identifiers(
+        self, identifiers: List[Dict[str, str]], san_list: List[str]
+    ) -> List[bool]:
+        """Legacy mode: each SAN must match an order identifier."""
+        identifier_status: List[bool] = []
+        for san in san_list:
+            cert_type, cert_value = self._split_san_entry(san)
+            san_is_in = self._check_identifier_match(
+                cert_type, cert_value, identifiers, False
+            )
             self.logger.debug(
                 "SAN check for %s against identifiers returned %s",
                 san.lower(),
@@ -1055,6 +1223,23 @@ class Certificate(object):
         if not identifier_status:
             self.logger.error("No SANs found in certificate")
             identifier_status.append(False)
+        return identifier_status
+
+    def _validate_identifiers_against_sans(
+        self,
+        identifiers: List[Dict[str, str]],
+        san_list: List[str],
+        bound_names: Optional[Set[Tuple[str, str]]] = None,
+    ) -> List[bool]:
+        """Compare order identifiers against CSR/certificate names."""
+        self.logger.debug("Certificate._validate_identifiers_against_sans()")
+
+        if self.config.csr_binding_strict:
+            identifier_status = self._compare_bound_name_sets(
+                identifiers, san_list, bound_names
+            )
+        else:
+            identifier_status = self._match_sans_to_identifiers(identifiers, san_list)
 
         self.logger.debug(
             "Certificate._validate_identifiers_against_sans() ended with %s",
@@ -1634,10 +1819,73 @@ class Certificate(object):
                 "detail": "Response formatting failed",
             }
 
+    def _resolve_certificate_ownership(
+        self, certificate_name: str, account_name: Optional[str]
+    ) -> Tuple[int, str, str]:
+        """Run ownership check and map unexpected errors to a lookup failure."""
+        try:
+            return self._check_certificate_ownership(certificate_name, account_name)
+        except Exception as err:
+            self.logger.error("Error checking certificate ownership: %s", err)
+            return ownership_lookup_failed()
+
+    def _load_certificate_details_response(
+        self, url: str, code: int, message: str, detail: str
+    ) -> Tuple[int, str, str, Dict[str, str]]:
+        """Load certificate details, or return an ACME error tuple."""
+        try:
+            response_dic = self.get_certificate_details(url)
+        except Exception as err:
+            self.logger.error("Error getting certificate details: %s", err)
+            return (
+                500,
+                self.err_msg_dic["serverinternal"],
+                "Certificate retrieval failed",
+                {},
+            )
+        if response_dic["code"] in (400, 403, 500):
+            return (
+                response_dic["code"],
+                response_dic["data"],
+                response_dic.get("detail"),
+                response_dic,
+            )
+        return code, message, detail, response_dic
+
+    def _process_valid_certificate_request(
+        self,
+        protected: Dict[str, str],
+        account_name: Optional[str],
+        code: int,
+        message: str,
+        detail: str,
+    ) -> Tuple[int, str, str, Dict[str, str]]:
+        """Handle a successfully authenticated certificate POST."""
+        if "url" not in protected:
+            return (
+                400,
+                self.err_msg_dic["malformed"],
+                "url missing in protected header",
+                {},
+            )
+        certificate_name = string_sanitize(
+            self.logger,
+            protected["url"].replace(
+                f'{self.server_name}{self.path_dic["cert_path"]}', ""
+            ),
+        )
+        own_code, own_message, own_detail = self._resolve_certificate_ownership(
+            certificate_name, account_name
+        )
+        if own_code != 200:
+            return own_code, own_message, own_detail, {}
+        return self._load_certificate_details_response(
+            protected["url"], code, message, detail
+        )
+
     def process_certificate_request(self, content: str) -> Dict[str, str]:
         """Process certificate request with improved error handling and reduced complexity"""
         try:
-            # Validate input
             validation_errors = self._validate_input_parameters(content=content)
             if validation_errors:
                 self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
@@ -1646,8 +1894,6 @@ class Certificate(object):
                 )
 
             self.logger.debug("Certificate.process_certificate_request()")
-
-            # Validate and parse message
             (
                 code,
                 message,
@@ -1657,37 +1903,20 @@ class Certificate(object):
                 account_name,
             ) = self._validate_certificate_request_message(content)
 
-            response_dic = {}
-
+            response_dic: Dict[str, str] = {}
             if code == 200:
-                if "url" in protected:
-                    try:
-                        response_dic = self.get_certificate_details(protected["url"])
-                        # Update error details if certificate retrieval failed
-                        if response_dic["code"] in (400, 403, 500):
-                            code = response_dic["code"]
-                            message = response_dic["data"]
-                            detail = response_dic.get("detail")
-                    except Exception as err:
-                        self.logger.error("Error getting certificate details: %s", err)
-                        code = 500
-                        message = self.err_msg_dic["serverinternal"]
-                        detail = "Certificate retrieval failed"
-                        response_dic = {}
-                else:
-                    code = 400
-                    message = self.err_msg_dic["malformed"]
-                    detail = "url missing in protected header"
-                    response_dic = {}
+                code, message, detail, response_dic = (
+                    self._process_valid_certificate_request(
+                        protected, account_name, code, message, detail
+                    )
+                )
 
-            # Prepare final response
             final_response = self._prepare_certificate_response(
                 response_dic, code, message, detail, account_name=account_name
             )
-
-            result_code = final_response.get("code", "no code found")
             self.logger.debug(
-                "Certificate.process_certificate_request() ended with: %s", result_code
+                "Certificate.process_certificate_request() ended with: %s",
+                final_response.get("code", "no code found"),
             )
             return final_response
 

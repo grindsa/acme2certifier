@@ -425,7 +425,7 @@ class DBstore(object):
         # create nonce table
         self.logger.debug("create nonce")
         self.cursor.execute("""
-            CREATE TABLE "nonce" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "nonce" varchar(30) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "nonce" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "nonce" varchar(30) NOT NULL UNIQUE, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         """)
         self.logger.debug("create account")
         self.cursor.execute("""
@@ -663,6 +663,34 @@ class DBstore(object):
                         """INSERT INTO housekeeping(id, name, value, modified_at) SELECT id, name, value, modified_at  FROM tmp_hk"""
                     )  # pragma: no cover
                     self.cursor.execute("""DROP TABLE tmp_hk""")  # pragma: no cover
+
+    def _db_update_nonce(self):
+        """Ensure nonce values are unique; drop duplicate rows first."""
+        self.logger.debug("DBStore._db_update_nonce()")
+        self.cursor.execute(
+            "SELECT count(*) FROM sqlite_master WHERE type='index' "
+            "AND name='nonce_nonce_unique'"
+        )
+        if self.cursor.fetchone()[0]:
+            self.logger.debug("DBStore._db_update_nonce() unique index already present")
+            return
+
+        # Keep lowest id per nonce value; remove any other duplicates.
+        self.cursor.execute("""
+            DELETE FROM nonce
+            WHERE id NOT IN (
+                SELECT MIN(id) FROM nonce GROUP BY nonce
+            )
+            """)
+        deleted = self.cursor.rowcount
+        if deleted:
+            self.logger.info(
+                "alter nonce table - removed %s duplicate nonce row(s)", deleted
+            )
+        self.logger.info("alter nonce table - add unique index on nonce")
+        self.cursor.execute(
+            """CREATE UNIQUE INDEX IF NOT EXISTS nonce_nonce_unique ON nonce(nonce)"""
+        )
 
     def _db_update_orders(self):
         """alter orders table"""
@@ -1278,6 +1306,23 @@ class DBstore(object):
         self.logger.debug("DBStore.certificate_add() ended with: %s", rid)
         return rid
 
+    def certificate_replaced_update(self, cert_name: str) -> int:
+        """Set replaced=True for an existing certificate; leave other columns unchanged."""
+        self.logger.debug("DBStore.certificate_replaced_update(%s)", cert_name)
+        exists = self._certificate_search("name", cert_name)
+        if not exists:
+            self.logger.debug("DBStore.certificate_replaced_update() ended with: 0")
+            return 0
+        self._db_open()
+        self.cursor.execute(
+            """UPDATE Certificate SET replaced = 1 WHERE name = :name""",
+            {"name": cert_name},
+        )
+        self._db_close()
+        rid = dict_from_row(exists)["id"]
+        self.logger.debug("DBStore.certificate_replaced_update() ended with: %s", rid)
+        return rid
+
     def certificate_delete(self, mkey: str, string: str):
         """delete certificate from table"""
         self.logger.debug("DBStore.certificate_delete(%s:%s)", mkey, string)
@@ -1612,6 +1657,9 @@ class DBstore(object):
         # create cliaccount table
         self._db_update_cliaccount()
 
+        # ensure nonce uniqueness
+        self._db_update_nonce()
+
         # version update
         self.logger.info(f"update dbversion to {__dbversion__}")
         self.cursor.execute(
@@ -1735,6 +1783,18 @@ class DBstore(object):
         self._db_close()
         self.logger.debug("DBStore.nonce_delete() ended")
 
+    def nonce_consume(self, nonce: str) -> int:
+        """Atomically delete a nonce if present; return affected row count."""
+        self.logger.debug("DBStore.nonce_consume(%s)", nonce)
+        self._db_open()
+        self.cursor.execute(
+            """DELETE FROM nonce WHERE nonce=:nonce""", {"nonce": nonce}
+        )
+        deleted = self.cursor.rowcount
+        self._db_close()
+        self.logger.debug("DBStore.nonce_consume() ended with: %s", deleted)
+        return deleted
+
     def nonce_delete_bulk(self, nonce_list: List[str]) -> int:
         """Delete a list of nonces in a single cleanup run."""
         self.logger.debug(
@@ -1851,6 +1911,32 @@ class DBstore(object):
         )
         self._db_close()
         self.logger.debug("DBStore.order_update() ended")
+
+    def order_update_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> int:
+        """Update order status only when current status matches; return row count."""
+        self.logger.debug(
+            "order_update_if_status(%s, %s -> %s)", name, expected_status, new_status
+        )
+        new_status_id = dict_from_row(self._status_search("name", new_status))["id"]
+        expected_status_id = dict_from_row(
+            self._status_search("name", expected_status)
+        )["id"]
+        self._db_open()
+        self.cursor.execute(
+            """UPDATE orders SET status_id = :new_status
+               WHERE name = :name AND status_id = :expected_status""",
+            {
+                "name": name,
+                "new_status": new_status_id,
+                "expected_status": expected_status_id,
+            },
+        )
+        updated = self.cursor.rowcount
+        self._db_close()
+        self.logger.debug("DBStore.order_update_if_status() ended with: %s", updated)
+        return updated
 
     def orders_invalid_search(
         self,

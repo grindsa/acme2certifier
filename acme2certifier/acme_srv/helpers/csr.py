@@ -2,8 +2,9 @@
 """CSR utilities for acme2certifier"""
 
 import base64
+import ipaddress
 import logging
-from typing import List, Dict
+from typing import Dict, List, Optional, Set, Tuple
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from .encoding import (
@@ -102,12 +103,120 @@ def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
             sans_list = ext.value.get_values_for_type(x509.IPAddress)
             for san in sans_list:
                 sans.append(f"IP:{san}")
+            sans_list = ext.value.get_values_for_type(x509.RFC822Name)
+            for san in sans_list:
+                sans.append(f"EMAIL:{san}")
 
         except Exception as err:
             logger.error("Error while getting SANs from CSR: %s", err)
 
     logger.debug("Helper.csr_san_get() ended with: %s", str(sans))
     return sans
+
+
+def _normalize_bound_name(
+    name_type: str,
+    name_value: str,
+    email_identifier_rewrite: bool = False,
+) -> Optional[Tuple[str, str]]:
+    """Normalize a (type, value) pair for CSR/order binding comparison.
+
+    When email_identifier_rewrite is True (Order.email_identifier_rewrite),
+    values containing '@' are typed as email so dns:user@host and EMAIL SANs
+    for the same address compare equal (acme_email / RFC 8823 rewrite path).
+    """
+    if not name_type or name_value is None or name_value == "":
+        return None
+    normalized_type = name_type.lower()
+    normalized_value = name_value.lower()
+    if email_identifier_rewrite and "@" in normalized_value:
+        normalized_type = "email"
+    elif normalized_type == "ip":
+        try:
+            normalized_value = str(ipaddress.ip_address(name_value.strip()))
+        except ValueError:
+            pass
+    return (normalized_type, normalized_value)
+
+
+def _cn_bound_type(cn: str) -> str:
+    """Infer ACME identifier type for a CSR Common Name."""
+    if "@" in cn:
+        return "email"
+    try:
+        ipaddress.ip_address(cn)
+        return "ip"
+    except ValueError:
+        return "dns"
+
+
+def san_list_to_bound_names(
+    logger: logging.Logger,
+    san_list: List[str],
+    email_identifier_rewrite: bool = False,
+) -> Set[Tuple[str, str]]:
+    """Convert DNS:/IP:/EMAIL: SAN strings to normalized bound-name pairs."""
+    names: Set[Tuple[str, str]] = set()
+    for san in san_list:
+        try:
+            san_type, san_value = san.split(":", 1)
+        except ValueError as err:
+            logger.error("Error while splitting SAN %s: %s", san, err)
+            continue
+        normalized = _normalize_bound_name(
+            san_type, san_value, email_identifier_rewrite=email_identifier_rewrite
+        )
+        if normalized:
+            names.add(normalized)
+    return names
+
+
+def csr_bound_names_get(
+    logger: logging.Logger,
+    csr: str,
+    email_identifier_rewrite: bool = False,
+) -> Set[Tuple[str, str]]:
+    """
+    Return normalized (type, value) pairs from CSR SANs and subject CN.
+
+    SAN types map DNS/IP/EMAIL → dns/ip/email. A subject CN is included when
+    present (email if it contains '@', else ip if parseable, else dns) and
+    deduplicated against SANs. With email_identifier_rewrite, DNS SANs that
+    look like email addresses are typed as email.
+    """
+    logger.debug(
+        "Helper.csr_bound_names_get(email_identifier_rewrite=%s)",
+        email_identifier_rewrite,
+    )
+    names: Set[Tuple[str, str]] = set()
+    if not csr:
+        logger.debug("Helper.csr_bound_names_get() ended with: %s", names)
+        return names
+
+    for san in csr_san_get(logger, csr):
+        try:
+            san_type, san_value = san.split(":", 1)
+        except ValueError as err:
+            logger.error("Error while splitting SAN %s: %s", san, err)
+            continue
+        normalized = _normalize_bound_name(
+            san_type, san_value, email_identifier_rewrite=email_identifier_rewrite
+        )
+        if normalized:
+            names.add(normalized)
+
+    cn = csr_cn_get(logger, csr)
+    if cn:
+        normalized = _normalize_bound_name(
+            _cn_bound_type(cn),
+            cn,
+            email_identifier_rewrite=email_identifier_rewrite,
+        )
+        if normalized:
+            names.add(normalized)
+
+    logger.debug("Helper.csr_bound_names_get() ended with: %s", names)
+    return names
 
 
 def csr_san_byte_get(logger: logging.Logger, csr: str) -> bytes:

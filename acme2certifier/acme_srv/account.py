@@ -29,6 +29,8 @@ from acme2certifier.acme_srv.helpers.global_variables import (
 class ExternalAccountBinding:
     """Encapsulates EAB validation and signature verification logic."""
 
+    INVALID_EAB_CREDENTIALS_DETAIL = "invalid eab credentials"
+
     def __init__(self, logger, eab_handler, server_name=None):
         self.logger = logger
         self.eab_handler = eab_handler
@@ -114,16 +116,26 @@ class ExternalAccountBinding:
             else:
                 code = 403
                 message = err_msg_dic["unauthorized"]
-                detail = "EAB signature verification failed"
+                detail = self.INVALID_EAB_CREDENTIALS_DETAIL
                 self.logger.error(
                     "EAB signature verification failed kid=%s error=%s",
                     eab_kid,
                     error,
                 )
         else:
+            # Run a dummy verification to reduce timing signal between kid-miss
+            # and signature-miss branches. Ignore crypto errors from incomplete
+            # binding payloads — the client detail must stay generic.
+            try:
+                self.verify_signature(
+                    payload.get("externalaccountbinding", {}),
+                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                )
+            except Exception:
+                pass
             code = 403
             message = err_msg_dic["unauthorized"]
-            detail = "EAB kid lookup failed"
+            detail = self.INVALID_EAB_CREDENTIALS_DETAIL
             self.logger.error("EAB kid lookup failed kid=%s", eab_kid)
         self.logger.debug("ExternalAccountBinding.verify() ended with: %s", code)
         return (code, message, detail)
