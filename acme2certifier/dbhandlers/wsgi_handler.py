@@ -1278,6 +1278,23 @@ class DBstore(object):
         self.logger.debug("DBStore.certificate_add() ended with: %s", rid)
         return rid
 
+    def certificate_replaced_update(self, cert_name: str) -> int:
+        """Set replaced=True for an existing certificate; leave other columns unchanged."""
+        self.logger.debug("DBStore.certificate_replaced_update(%s)", cert_name)
+        exists = self._certificate_search("name", cert_name)
+        if not exists:
+            self.logger.debug("DBStore.certificate_replaced_update() ended with: 0")
+            return 0
+        self._db_open()
+        self.cursor.execute(
+            """UPDATE Certificate SET replaced = 1 WHERE name = :name""",
+            {"name": cert_name},
+        )
+        self._db_close()
+        rid = dict_from_row(exists)["id"]
+        self.logger.debug("DBStore.certificate_replaced_update() ended with: %s", rid)
+        return rid
+
     def certificate_delete(self, mkey: str, string: str):
         """delete certificate from table"""
         self.logger.debug("DBStore.certificate_delete(%s:%s)", mkey, string)

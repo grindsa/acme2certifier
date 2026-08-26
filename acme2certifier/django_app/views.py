@@ -482,6 +482,12 @@ def renewalinfo(request):
                 # generate additional header elements
                 for element in response_dic["header"]:
                     response[element] = response_dic["header"][element]
+            elif response_dic.get("code", 200) >= 400 and response_dic.get("data"):
+                response = JsonResponse(
+                    status=response_dic["code"], data=response_dic["data"]
+                )
+                for element in response_dic.get("header", {}):
+                    response[element] = response_dic["header"][element]
             else:
                 response = HttpResponse(status=response_dic["code"])
 
