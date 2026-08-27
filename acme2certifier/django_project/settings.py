@@ -6,6 +6,9 @@ production DB credentials (see examples/django for a MySQL template).
 """
 
 import os
+import warnings
+
+from django.core.exceptions import ImproperlyConfigured
 
 _DEFAULT_BASE = "/var/www/acme2certifier"
 BASE_DIR = os.environ.get(
@@ -13,18 +16,34 @@ BASE_DIR = os.environ.get(
     _DEFAULT_BASE if os.path.isdir(_DEFAULT_BASE) else os.getcwd(),
 )
 
-SECRET_KEY = os.environ.get(
-    "ACME2CERTIFIER_SECRET_KEY",
-    "django-insecure-change-me-run-a2c-django-secret-keygen",
-)
+_INSECURE_SECRET_KEY = "django-insecure-change-me-run-a2c-django-secret-keygen"
+SECRET_KEY = os.environ.get("ACME2CERTIFIER_SECRET_KEY", _INSECURE_SECRET_KEY)
 
 DEBUG = os.environ.get("ACME2CERTIFIER_DEBUG", "0") in ("1", "true", "True")
 
+if SECRET_KEY == _INSECURE_SECRET_KEY and not DEBUG:
+    raise ImproperlyConfigured(
+        "ACME2CERTIFIER_SECRET_KEY is unset or still the insecure default. "
+        "Set ACME2CERTIFIER_SECRET_KEY (e.g. via a2c-django-secret-keygen), "
+        "or set ACME2CERTIFIER_DEBUG=1 for local development only."
+    )
+
+_DEFAULT_ALLOWED_HOSTS = "127.0.0.1,*" if DEBUG else "127.0.0.1,localhost"
 ALLOWED_HOSTS = [
     h.strip()
-    for h in os.environ.get("ACME2CERTIFIER_ALLOWED_HOSTS", "127.0.0.1,*").split(",")
+    for h in os.environ.get(
+        "ACME2CERTIFIER_ALLOWED_HOSTS", _DEFAULT_ALLOWED_HOSTS
+    ).split(",")
     if h.strip()
 ]
+
+if "*" in ALLOWED_HOSTS and not DEBUG:
+    warnings.warn(
+        "ALLOWED_HOSTS contains '*'; Host header validation is disabled. "
+        "Set ACME2CERTIFIER_ALLOWED_HOSTS to explicit hostnames for production.",
+        UserWarning,
+        stacklevel=1,
+    )
 
 INSTALLED_APPS = [
     "django.contrib.admin",
