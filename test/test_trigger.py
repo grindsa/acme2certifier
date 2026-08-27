@@ -689,7 +689,9 @@ class TestACMEHandler(unittest.TestCase):
             keys, disabled = trigger_hmac_keys_load(self.logger, parser)
         self.assertEqual(["k1"], keys)
         self.assertFalse(disabled)
-        self.assertTrue(any("auth_disable is set but ignored" in line for line in lcm.output))
+        self.assertTrue(
+            any("auth_disable is set but ignored" in line for line in lcm.output)
+        )
 
     @patch("acme2certifier.acme_srv.helpers.trigger_auth.security_disable_acknowledged")
     def test_043_auth_disable_with_gate(self, mock_ack):
@@ -712,7 +714,9 @@ class TestACMEHandler(unittest.TestCase):
             return_value=False,
         ):
             code, message, _detail = self.trigger._cert_store(
-                "bundle", "raw", "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
+                "bundle",
+                "raw",
+                "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n",
             )
         self.assertEqual(400, code)
         self.assertEqual("certificate verification failed", message)
@@ -816,7 +820,9 @@ class TestACMEHandler(unittest.TestCase):
             keys, disabled = trigger_hmac_keys_load(self.logger, parser)
         self.assertEqual([], keys)
         self.assertFalse(disabled)
-        self.assertTrue(any("Failed to parse [Trigger] hmac_keys" in x for x in lcm.output))
+        self.assertTrue(
+            any("Failed to parse [Trigger] hmac_keys" in x for x in lcm.output)
+        )
 
         parser2 = configparser.ConfigParser()
         parser2["Trigger"] = {"hmac_keys_file": "/no/such/trigger_keys.json"}
@@ -845,7 +851,10 @@ class TestACMEHandler(unittest.TestCase):
                     keys, _d = trigger_hmac_keys_load(self.logger, parser)
                 self.assertEqual([], keys)
                 self.assertTrue(
-                    any("Failed to load [Trigger] hmac_keys_file" in x for x in lcm.output)
+                    any(
+                        "Failed to load [Trigger] hmac_keys_file" in x
+                        for x in lcm.output
+                    )
                 )
         finally:
             os.unlink(path)
@@ -889,7 +898,9 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertTrue(any("[Trigger] ca_cert" in x for x in lcm.output))
         with tempfile.NamedTemporaryFile("w", delete=False) as handle:
-            handle.write("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n")
+            handle.write(
+                "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
+            )
             path = handle.name
         try:
             parser = configparser.ConfigParser()
@@ -1068,9 +1079,7 @@ class TestACMEHandler(unittest.TestCase):
 
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             self.assertFalse(
-                trigger_cert_chain_verify(
-                    self.logger, "not-a-cert", None, "/no/ca.pem"
-                )
+                trigger_cert_chain_verify(self.logger, "not-a-cert", None, "/no/ca.pem")
             )
         self.assertTrue(any("Failed to load leaf or ca_cert" in x for x in lcm.output))
 
@@ -1078,12 +1087,15 @@ class TestACMEHandler(unittest.TestCase):
             handle.write(b"")
             empty_path = handle.name
         try:
-            with patch(
-                "acme2certifier.acme_srv.helpers.trigger_auth.x509.load_pem_x509_certificates",
-                return_value=[],
-            ), patch(
-                "acme2certifier.acme_srv.helpers.trigger_auth.x509.load_pem_x509_certificate",
-                return_value=leaf,
+            with (
+                patch(
+                    "acme2certifier.acme_srv.helpers.trigger_auth.x509.load_pem_x509_certificates",
+                    return_value=[],
+                ),
+                patch(
+                    "acme2certifier.acme_srv.helpers.trigger_auth.x509.load_pem_x509_certificate",
+                    return_value=leaf,
+                ),
             ):
                 with self.assertLogs("test_a2c", level="ERROR") as lcm:
                     self.assertFalse(
@@ -1091,9 +1103,7 @@ class TestACMEHandler(unittest.TestCase):
                             self.logger, leaf_pem, None, empty_path
                         )
                     )
-                self.assertTrue(
-                    any("No certificates found" in x for x in lcm.output)
-                )
+                self.assertTrue(any("No certificates found" in x for x in lcm.output))
         finally:
             os.unlink(empty_path)
 
@@ -1127,20 +1137,14 @@ class TestACMEHandler(unittest.TestCase):
             )
             with self.assertLogs("test_a2c", level="WARNING") as lcm:
                 self.assertFalse(
-                    trigger_cert_chain_verify(
-                        self.logger, leaf_pem, None, other_path
-                    )
+                    trigger_cert_chain_verify(self.logger, leaf_pem, None, other_path)
                 )
             self.assertTrue(any("no issuer for leaf/cert" in x for x in lcm.output))
             with self.assertLogs("test_a2c", level="WARNING") as lcm:
                 self.assertFalse(
-                    trigger_cert_chain_verify(
-                        self.logger, leaf_pem, bundle, other_path
-                    )
+                    trigger_cert_chain_verify(self.logger, leaf_pem, bundle, other_path)
                 )
-            self.assertTrue(
-                any("trust anchor not reached" in x for x in lcm.output)
-            )
+            self.assertTrue(any("trust anchor not reached" in x for x in lcm.output))
         finally:
             os.unlink(trust_path)
             os.unlink(other_path)

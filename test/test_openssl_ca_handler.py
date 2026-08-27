@@ -719,11 +719,9 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_069_trigger(self):
         """test trigger without payload"""
-        self.assertEqual(
-            ("No payload given", None, None), self.cahandler.trigger("")
-        )
+        self.assertEqual(("No payload given", None, None), self.cahandler.trigger(""))
 
-    def test_161_trigger_missing_issuing_ca(self):
+    def test_070_trigger_missing_issuing_ca(self):
         """trigger fails when issuing_ca_cert missing"""
         self.cahandler.issuer_dict = {
             "issuing_ca_key": None,
@@ -736,7 +734,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_load")
-    def test_162_trigger_loads_config_when_issuer_unset(self, mock_cfg):
+    def test_071_trigger_loads_config_when_issuer_unset(self, mock_cfg):
         """trigger calls _config_load when issuing_ca_cert unset"""
         self.cahandler.issuer_dict = {
             "issuing_ca_key": None,
@@ -754,7 +752,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(raw)
         self.assertTrue(mock_cfg.called)
 
-    def test_163_trigger_pem_and_der_payload(self):
+    def test_072_trigger_pem_and_der_payload(self):
         """trigger accepts base64 PEM and DER payloads"""
         import base64
         import os
@@ -803,28 +801,23 @@ class TestACMEHandler(unittest.TestCase):
         )
         pem = leaf.public_bytes(serialization.Encoding.PEM)
         der = leaf.public_bytes(serialization.Encoding.DER)
-        err, bundle, raw = self.cahandler.trigger(
-            base64.b64encode(pem).decode()
-        )
+        err, bundle, raw = self.cahandler.trigger(base64.b64encode(pem).decode())
         self.assertIsNone(err)
         self.assertIn("BEGIN CERTIFICATE", bundle)
         self.assertTrue(raw)
-        err2, bundle2, raw2 = self.cahandler.trigger(
-            base64.b64encode(der).decode()
-        )
+        err2, bundle2, raw2 = self.cahandler.trigger(base64.b64encode(der).decode())
         self.assertIsNone(err2)
         self.assertTrue(bundle2)
         self.assertTrue(raw2)
 
-
-    def test_070_poll(self):
+    def test_073_poll(self):
         """test poll"""
         self.assertEqual(
             ("Method not implemented.", None, None, "poll_identifier", False),
             self.cahandler.poll("cert_name", "poll_identifier", "csr"),
         )
 
-    def test_071_certificate_store(self):
+    def test_074_certificate_store(self):
         """_certificate_store()"""
         cert = Mock()
         cert.get_serial_number = Mock(return_value=42)
@@ -839,7 +832,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("builtins.open", mock_open(read_data="foo"))
     @patch("os.mkdir")
     @patch("os.path.isdir")
-    def test_072_certificate_store(self, mock_os, mock_mkdir, mock_dump):
+    def test_075_certificate_store(self, mock_os, mock_mkdir, mock_dump):
         """_certificate_store()"""
         mock_os.return_value = True
         mock_mkdir.return_value = Mock()
@@ -854,7 +847,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("builtins.open", mock_open(read_data="foo"))
     @patch("os.mkdir")
     @patch("os.path.isdir")
-    def test_073_certificate_store(self, mock_os, mock_mkdir, mock_dump):
+    def test_076_certificate_store(self, mock_os, mock_mkdir, mock_dump):
         """_certificate_store()"""
         mock_os.return_value = False
         mock_mkdir.return_value = Mock()
@@ -869,7 +862,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("builtins.open", mock_open(read_data="foo"))
     @patch("os.mkdir")
     @patch("os.path.isdir")
-    def test_074_certificate_store(self, mock_os, mock_mkdir, mock_dump):
+    def test_077_certificate_store(self, mock_os, mock_mkdir, mock_dump):
         """_certificate_store()"""
         mock_os.return_value = True
         mock_mkdir.return_value = Mock()
@@ -883,7 +876,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("DEBUG:test_a2c:Convert serial to hex: 42: 2A", lcm.output)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_075__config_load(self, mock_load_cfg):
+    def test_078__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"save_cert_as_hex": False}
@@ -892,7 +885,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.save_cert_as_hex)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_076__config_load(self, mock_load_cfg):
+    def test_079__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"save_cert_as_hex": True}
@@ -902,7 +895,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.loads")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_077__config_load(self, mock_load_cfg, mock_jl):
+    def test_080__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"blocked_domainlist": "foo.json"}
@@ -913,7 +906,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.loads")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_078__config_load(self, mock_load_cfg, mock_jl):
+    def test_081__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"blacklist": "foo.json"}
@@ -929,7 +922,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.loads")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_079__config_load(self, mock_load_cfg, mock_jl):
+    def test_082__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"whitelist": "foo.json"}
@@ -945,7 +938,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.loads")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_080__config_load(self, mock_load_cfg, mock_jl):
+    def test_083__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"allowed_domainlist": "foo.json"}
@@ -955,7 +948,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("allowed_domainlist", self.cahandler.allowed_domainlist)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_081__config_load(self, mock_load_cfg):
+    def test_084__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"allowed_domainlist": '["*.bar.local"]'}
@@ -965,7 +958,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.loads")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_082__config_load(self, mock_load_cfg, mock_jl):
+    def test_085__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"allowed_domainlist": '["*.bar.local"]'}
@@ -980,7 +973,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["block.all"], self.cahandler.allowed_domainlist)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_083__config_load(self, mock_load_cfg):
+    def test_086__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"blocked_domainlist": '["*.bar.local"]'}
@@ -990,7 +983,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.loads")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_084__config_load(self, mock_load_cfg, mock_jl):
+    def test_087__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"blocked_domainlist": '["*.bar.local"]'}
@@ -1005,7 +998,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["block.all"], self.cahandler.allowed_domainlist)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_085__config_load(self, mock_load_cfg):
+    def test_088__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"whitelist": '["*.bar.local"]'}
@@ -1015,7 +1008,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.loads")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_086__config_load(self, mock_load_cfg, mock_jl):
+    def test_089__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"whitelist": '["*.bar.local"]'}
@@ -1030,7 +1023,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["block.all"], self.cahandler.allowed_domainlist)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_087__config_load(self, mock_load_cfg):
+    def test_090__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"blacklist": '["*.bar.local"]'}
@@ -1040,7 +1033,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.loads")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_088__config_load(self, mock_load_cfg, mock_jl):
+    def test_091__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"blacklist": '["*.bar.local"]'}
@@ -1056,7 +1049,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.loads")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_089__config_load(self, mock_load_cfg, mock_jl):
+    def test_092__config_load(self, mock_load_cfg, mock_jl):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"openssl_conf": "openssl_conf"}
@@ -1066,7 +1059,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("openssl_conf", self.cahandler.openssl_conf)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_090__config_load(self, mock_load_cfg):
+    def test_093__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"issuing_ca_key": "issuing_ca_key"}
@@ -1075,7 +1068,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("issuing_ca_key", self.cahandler.issuer_dict["issuing_ca_key"])
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_091__config_load(self, mock_load_cfg):
+    def test_094__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"issuing_ca_cert": "issuing_ca_cert"}
@@ -1086,7 +1079,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_092__config_load(self, mock_load_cfg):
+    def test_095__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"issuing_ca_key_passphrase": "issuing_ca_key_passphrase"}
@@ -1097,7 +1090,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_093__config_load(self, mock_load_cfg):
+    def test_096__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_validity_days": 10}
@@ -1106,7 +1099,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.cert_validity_days)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_094__config_load(self, mock_load_cfg):
+    def test_097__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_save_path": "cert_save_path"}
@@ -1115,7 +1108,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("cert_save_path", self.cahandler.cert_save_path)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_095__config_load(self, mock_load_cfg):
+    def test_098__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_cert_chain_list": '["root_ca"]'}
@@ -1124,7 +1117,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["root_ca"], self.cahandler.ca_cert_chain_list)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_096__config_load(self, mock_load_cfg):
+    def test_099__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_cert_chain_list": '["root_ca", "sub_ca"]'}
@@ -1133,7 +1126,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(["root_ca", "sub_ca"], self.cahandler.ca_cert_chain_list)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_097__config_load(self, mock_load_cfg):
+    def test_100__config_load(self, mock_load_cfg):
         """config load"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"issuing_ca_crl": "issuing_ca_crl"}
@@ -1143,7 +1136,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict("os.environ", {"foo": "foo_var"})
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_098_config_load(self, mock_load_cfg):
+    def test_101_config_load(self, mock_load_cfg):
         """test _config_load - load template with passphrase variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"issuing_ca_key_passphrase_variable": "foo"}
@@ -1153,7 +1146,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict("os.environ", {"foo": "foo_var"})
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_099_config_load(self, mock_load_cfg):
+    def test_102_config_load(self, mock_load_cfg):
         """test _config_load - load template passpharese variable configured but does not exist"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"issuing_ca_key_passphrase_variable": "does_not_exist"}
@@ -1167,7 +1160,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict("os.environ", {"foo": "foo_var"})
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_100_config_load(self, mock_load_cfg):
+    def test_103_config_load(self, mock_load_cfg):
         """test _config_load - load template with passphrase variable  - overwritten bei cfg file"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -1184,7 +1177,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_101__config_load(self, mock_load_cfg):
+    def test_104__config_load(self, mock_load_cfg):
         """config load no cn_enforce"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar"}
@@ -1193,7 +1186,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.cn_enforce)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_102__config_load(self, mock_load_cfg):
+    def test_105__config_load(self, mock_load_cfg):
         """config load cn_enforce True"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cn_enforce": True}
@@ -1202,7 +1195,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.cahandler.cn_enforce)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_103__config_load(self, mock_load_cfg):
+    def test_106__config_load(self, mock_load_cfg):
         """config load cn_enforce True"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cn_enforce": False}
@@ -1211,7 +1204,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.cn_enforce)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_104__config_load(self, mock_load_cfg):
+    def test_107__config_load(self, mock_load_cfg):
         """config load cn_enforce True"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cn_enforce": "bar"}
@@ -1225,7 +1218,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_105__config_load(self, mock_load_cfg):
+    def test_108__config_load(self, mock_load_cfg):
         """config load cn_enforce True"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_validity_adjust": "bar"}
@@ -1239,7 +1232,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_106___certificate_extensions_load(self, mock_load_cfg):
+    def test_109___certificate_extensions_load(self, mock_load_cfg):
         """extension list load - empty list"""
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {"extensions": {"foo": "bar"}}
@@ -1247,7 +1240,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_107___certificate_extensions_load(self, mock_load_cfg):
+    def test_110___certificate_extensions_load(self, mock_load_cfg):
         """extension list load - empty list"""
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {"extensions": {"foo": "bar, foobar"}}
@@ -1255,7 +1248,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_108___certificate_extensions_load(self, mock_load_cfg):
+    def test_111___certificate_extensions_load(self, mock_load_cfg):
         """extension list load - empty list"""
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {"extensions": {"foo": "bar", "foo1": "bar1"}}
@@ -1266,14 +1259,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_109___certificate_extensions_load(self, mock_load_cfg):
+    def test_112___certificate_extensions_load(self, mock_load_cfg):
         """extension list load - empty list"""
         mock_load_cfg.return_value = {"extensions": {"foo": "critical, bar"}}
         result = {"foo": {"critical": True, "value": "bar"}}
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_110___certificate_extensions_load(self, mock_load_cfg):
+    def test_113___certificate_extensions_load(self, mock_load_cfg):
         """extension list load - empty list"""
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {"extensions": {"foo": " bar, foobar"}}
@@ -1281,7 +1274,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_111___certificate_extensions_load(self, mock_load_cfg):
+    def test_114___certificate_extensions_load(self, mock_load_cfg):
         """extension list load - empty list"""
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {"extensions": {"foo": " bar, issuer:"}}
@@ -1289,7 +1282,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_112___certificate_extensions_load(self, mock_load_cfg):
+    def test_115___certificate_extensions_load(self, mock_load_cfg):
         """extension list load - empty list"""
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {"extensions": {"foo": " bar, subject:"}}
@@ -1297,12 +1290,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_113_enroll(self, mock_chk):
+    def test_116_enroll(self, mock_chk):
         """enroll test error returned from config_check"""
         mock_chk.return_value = "error"
         self.assertEqual(("error", None, None, None), self.cahandler.enroll("csr"))
 
-    def test_114__cert_extension_ku_parse(self):
+    def test_117__cert_extension_ku_parse(self):
         """test _cert_extension_ku_parse()"""
         ext = ""
         result = {
@@ -1318,7 +1311,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.cahandler._cert_extension_ku_parse(ext))
 
-    def test_115__cert_extension_ku_parse(self):
+    def test_118__cert_extension_ku_parse(self):
         """test _cert_extension_ku_parse()"""
         ext = "digitalSignature"
         result = {
@@ -1334,7 +1327,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.cahandler._cert_extension_ku_parse(ext))
 
-    def test_116__cert_extension_ku_parse(self):
+    def test_119__cert_extension_ku_parse(self):
         """test _cert_extension_ku_parse()"""
         ext = "critical, digitalSignature"
         result = {
@@ -1350,7 +1343,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.cahandler._cert_extension_ku_parse(ext))
 
-    def test_117__cert_extension_ku_parse(self):
+    def test_120__cert_extension_ku_parse(self):
         """test _cert_extension_ku_parse()"""
         ext = "critical, digitalSignature,keyEncipherment"
         result = {
@@ -1366,7 +1359,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.cahandler._cert_extension_ku_parse(ext))
 
-    def test_118__cert_extension_ku_parse(self):
+    def test_121__cert_extension_ku_parse(self):
         """test _cert_extension_ku_parse()"""
         ext = "critical, digitalSignature,keyEncipherment, nonRepudiation"
         result = {
@@ -1382,28 +1375,28 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.cahandler._cert_extension_ku_parse(ext))
 
-    def test_119__cert_extension_eku_parse(self):
+    def test_122__cert_extension_eku_parse(self):
         """test _cert_extension_eku_parse()"""
         extension = "ekeyuse"
         self.assertEqual(
             ["eKeyUse"], self.cahandler._cert_extension_eku_parse(extension)
         )
 
-    def test_120__cert_extension_eku_parse(self):
+    def test_123__cert_extension_eku_parse(self):
         """test _cert_extension_eku_parse()"""
         extension = "ekeyUSE"
         self.assertEqual(
             ["eKeyUse"], self.cahandler._cert_extension_eku_parse(extension)
         )
 
-    def test_121__cert_extension_eku_parse(self):
+    def test_124__cert_extension_eku_parse(self):
         """test _cert_extension_eku_parse()"""
         extension = "ekeyUSE, ekeyUSE"
         self.assertEqual(
             ["eKeyUse", "eKeyUse"], self.cahandler._cert_extension_eku_parse(extension)
         )
 
-    def test_122__cert_extension_eku_parse(self):
+    def test_125__cert_extension_eku_parse(self):
         """test _cert_extension_eku_parse()"""
         extension = "ekeyUSE, unknown"
         self.assertEqual(
@@ -1415,7 +1408,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.KeyUsage")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_123__cert_extension_dic_parse(
+    def test_126__cert_extension_dic_parse(
         self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku
     ):
         """test _cert_extension_dic_parse()"""
@@ -1444,7 +1437,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.KeyUsage")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_124__cert_extension_dic_parse(
+    def test_127__cert_extension_dic_parse(
         self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku
     ):
         """test _cert_extension_dic_parse()"""
@@ -1468,7 +1461,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.AuthorityKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_125__cert_extension_dic_parse(
+    def test_128__cert_extension_dic_parse(
         self, mock_bc, mock_ski, mock_aki, mock_ku, mock_eku
     ):
         """test _cert_extension_dic_parse()"""
@@ -1492,7 +1485,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.AuthorityKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_126__cert_extension_dic_parse(
+    def test_129__cert_extension_dic_parse(
         self, mock_bc, mock_ski, mock_aki, mock_ku, mock_eku
     ):
         """test _cert_extension_dic_parse()"""
@@ -1516,7 +1509,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.AuthorityKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_127__cert_extension_dic_parse(
+    def test_130__cert_extension_dic_parse(
         self, mock_bc, mock_ski, mock_aki, mock_ku, mock_eku
     ):
         """test _cert_extension_dic_parse()"""
@@ -1538,7 +1531,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.AuthorityKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_128__cert_extension_dic_parse(
+    def test_131__cert_extension_dic_parse(
         self, mock_bc, mock_ski, mock_aki, mock_ku, mock_eku
     ):
         """test _cert_extension_dic_parse()"""
@@ -1556,7 +1549,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.xca_ca_handler.x509.CertificateBuilder")
-    def test_129__cert_signing_prep(self, mock_builder):
+    def test_132__cert_signing_prep(self, mock_builder):
         """test _cert_extension_dic_parse()"""
         req = cert = Mock()
         self.assertTrue(self.cahandler._cert_signing_prep(cert, req, "subject"))
@@ -1566,7 +1559,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.AuthorityKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_130__cert_extension_default(
+    def test_133__cert_extension_default(
         self, mock_bc, mock_ski, mock_aki, mock_ku, mock_eku
     ):
         """test _cert_extension_default()"""
@@ -1587,7 +1580,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.AuthorityKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_131__cert_extension_default(
+    def test_134__cert_extension_default(
         self, mock_bc, mock_ski, mock_aki, mock_ku, mock_eku
     ):
         """test _cert_extension_default()"""
@@ -1610,7 +1603,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.AuthorityKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_132__cert_extension_default(
+    def test_135__cert_extension_default(
         self, mock_bc, mock_ski, mock_aki, mock_ku, mock_eku
     ):
         """test _cert_extension_default()"""
@@ -1633,7 +1626,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.AuthorityKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.SubjectKeyIdentifier")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.BasicConstraints")
-    def test_133__cert_extension_default(
+    def test_136__cert_extension_default(
         self, mock_bc, mock_ski, mock_aki, mock_ku, mock_eku
     ):
         """test _cert_extension_default()"""
@@ -1662,7 +1655,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.CAhandler._certificate_extensions_load"
     )
-    def test_134__cert_extension_apply(self, mock_cel, mock_cep, mock_ced, mock_san):
+    def test_137__cert_extension_apply(self, mock_cel, mock_cep, mock_ced, mock_san):
         """test _cert_extension_apply()"""
 
         mock_cel.return_value = {"foo": "bar"}
@@ -1687,7 +1680,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.CAhandler._certificate_extensions_load"
     )
-    def test_135__cert_extension_apply(self, mock_cel, mock_cep, mock_ced, mock_san):
+    def test_138__cert_extension_apply(self, mock_cel, mock_cep, mock_ced, mock_san):
         """test _cert_extension_apply()"""
 
         mock_cel.return_value = {"foo": "bar"}
@@ -1713,7 +1706,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.CAhandler._certificate_extensions_load"
     )
-    def test_136__cert_extension_apply(self, mock_cel, mock_cep, mock_ced, mock_san):
+    def test_139__cert_extension_apply(self, mock_cel, mock_cep, mock_ced, mock_san):
         """test _cert_extension_apply()"""
         mock_cel.return_value = {"foo": "bar"}
         mock_cep.return_value = [{"name": "mock_cep", "critical": False}]
@@ -1753,7 +1746,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.b64_url_recode")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_137_enroll(
+    def test_140_enroll(
         self,
         mock_cfgchk,
         mock_csrchk,
@@ -1815,7 +1808,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.b64_url_recode")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_138_enroll(
+    def test_141_enroll(
         self,
         mock_cfgchk,
         mock_csrchk,
@@ -1875,7 +1868,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.b64_url_recode")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_139_enroll(
+    def test_142_enroll(
         self,
         mock_cfgchk,
         mock_csrchk,
@@ -1938,7 +1931,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.b64_url_recode")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_140_enroll(
+    def test_143_enroll(
         self,
         mock_cfgchk,
         mock_csrchk,
@@ -2005,7 +1998,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.b64_url_recode")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_141_enroll(
+    def test_144_enroll(
         self,
         mock_cfgchk,
         mock_csrchk,
@@ -2063,7 +2056,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._ca_load")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.uts_now")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.uts_to_date_utc")
-    def test_142_revoke(
+    def test_145_revoke(
         self,
         mock_uts,
         mock_now,
@@ -2111,7 +2104,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._ca_load")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.uts_now")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.uts_to_date_utc")
-    def test_143_revoke(
+    def test_146_revoke(
         self,
         mock_uts,
         mock_now,
@@ -2160,7 +2153,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._ca_load")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.uts_now")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.uts_to_date_utc")
-    def test_144_revoke(
+    def test_147_revoke(
         self,
         mock_uts,
         mock_now,
@@ -2209,7 +2202,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
     )
-    def test_145__cacert_expiry_get(
+    def test_148__cacert_expiry_get(
         self, mock_certload, mock_exists, mock_exp, mock_now
     ):
         """test _cacert_expiry_get()"""
@@ -2227,7 +2220,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
     )
-    def test_146__cacert_expiry_get(
+    def test_149__cacert_expiry_get(
         self, mock_certload, mock_exists, mock_exp, mock_now
     ):
         """test _cacert_expiry_get()"""
@@ -2248,7 +2241,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
     )
-    def test_147__cacert_expiry_get(
+    def test_150__cacert_expiry_get(
         self, mock_certload, mock_exists, mock_exp, mock_now
     ):
         """test _cacert_expiry_get()"""
@@ -2269,7 +2262,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
     )
-    def test_148__cacert_expiry_get(
+    def test_151__cacert_expiry_get(
         self, mock_certload, mock_exists, mock_exp, mock_now
     ):
         """test _cacert_expiry_get()"""
@@ -2291,7 +2284,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
     )
-    def test_149__cacert_expiry_get(
+    def test_152__cacert_expiry_get(
         self, mock_certload, mock_exists, mock_exp, mock_now
     ):
         """test _cacert_expiry_get()"""
@@ -2313,7 +2306,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
     )
-    def test_150__cacert_expiry_get(
+    def test_153__cacert_expiry_get(
         self, mock_certload, mock_exists, mock_exp, mock_now
     ):
         """test _cacert_expiry_get()"""
@@ -2332,14 +2325,14 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_151__cert_expiry_get(self):
+    def test_154__cert_expiry_get(self):
         """test _cert_expiry_get()"""
         cert = Mock()
         cert.not_valid_after = "not_valid_after"
         self.assertEqual("not_valid_after", self.cahandler._cert_expiry_get(cert))
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.datetime")
-    def test_152__certexpiry_date_default(self, mock_now):
+    def test_155__certexpiry_date_default(self, mock_now):
         """test _certexpiry_date_default()"""
         mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
         mock_now.timedelta.return_value = datetime.timedelta(days=2)
@@ -2352,7 +2345,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.CAhandler._certexpiry_date_default"
     )
-    def test_153__certexpiry_date_set(self, mock_default, mock_get):
+    def test_156__certexpiry_date_set(self, mock_default, mock_get):
         """test _certexpiry_date_set()"""
         mock_default.return_value = 365
         mock_get.return_value = (720, "cert")
@@ -2364,7 +2357,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.CAhandler._certexpiry_date_default"
     )
-    def test_154__certexpiry_date_set(self, mock_default, mock_get):
+    def test_157__certexpiry_date_set(self, mock_default, mock_get):
         """test _certexpiry_date_set()"""
         mock_default.return_value = 365
         mock_get.return_value = (720, "cert")
@@ -2378,7 +2371,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.CAhandler._certexpiry_date_default"
     )
-    def test_155__certexpiry_date_set(self, mock_default, mock_get):
+    def test_158__certexpiry_date_set(self, mock_default, mock_get):
         """test _certexpiry_date_set()"""
         mock_default.return_value = 365
         cert = Mock()
@@ -2395,7 +2388,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_default.called)
         self.assertTrue(mock_get.called)
 
-    def test_156_path_resolve_relative_without_base_dir(self):
+    def test_159_path_resolve_relative_without_base_dir(self):
         """relative paths stay relative when BASE_DIR is unset"""
         os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
         self.assertEqual(
@@ -2403,7 +2396,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._path_resolve("volume/acme_ca/sub-ca-key.pem"),
         )
 
-    def test_157_path_resolve_relative_with_base_dir(self):
+    def test_160_path_resolve_relative_with_base_dir(self):
         """relative paths are joined with ACME2CERTIFIER_BASE_DIR"""
         os.environ["ACME2CERTIFIER_BASE_DIR"] = "/var/www/acme2certifier"
         try:
@@ -2414,7 +2407,7 @@ class TestACMEHandler(unittest.TestCase):
         finally:
             os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
-    def test_158_path_resolve_absolute_unchanged(self):
+    def test_161_path_resolve_absolute_unchanged(self):
         """absolute paths are not rewritten"""
         os.environ["ACME2CERTIFIER_BASE_DIR"] = "/var/www/acme2certifier"
         try:
@@ -2426,7 +2419,7 @@ class TestACMEHandler(unittest.TestCase):
             os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_159_config_load_resolves_paths_with_base_dir(self, mock_load_cfg):
+    def test_162_config_load_resolves_paths_with_base_dir(self, mock_load_cfg):
         """_config_load applies BASE_DIR to CA path options"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -2469,7 +2462,7 @@ class TestACMEHandler(unittest.TestCase):
             os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_160__config_load_ca_cert_chain_list_invalid_json(self, mock_load_cfg):
+    def test_163__config_load_ca_cert_chain_list_invalid_json(self, mock_load_cfg):
         """_config_load logs error when ca_cert_chain_list is invalid JSON"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_cert_chain_list": "not-json"}

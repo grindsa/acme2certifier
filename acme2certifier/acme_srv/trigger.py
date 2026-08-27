@@ -197,9 +197,7 @@ class Trigger(object):
         if not trigger_cert_chain_verify(
             self.logger, cert_pem, cert_bundle, self.ca_cert
         ):
-            self.logger.warning(
-                "submitted certificate failed ca_cert chain verify"
-            )
+            self.logger.warning("submitted certificate failed ca_cert chain verify")
             return (400, "certificate verification failed", None)
 
         # lookup certificate_name by comparing public keys

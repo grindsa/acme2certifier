@@ -4895,7 +4895,10 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     )
                 )
         self.assertTrue(
-            any("Ignoring client-selected hi_field=hi_value" in msg for msg in lcm.output)
+            any(
+                "Ignoring client-selected hi_field=hi_value" in msg
+                for msg in lcm.output
+            )
         )
         self.assertEqual("pre_hi_field", cahandler.hi_field)
         self.assertTrue(mock_lookup.called)
@@ -4939,7 +4942,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
-    def test_412b_eab_profile_header_info_check_allowlist(
+    def test_413_eab_profile_header_info_check_allowlist(
         self, mock_lookup, mock_eab, mock_allowlist
     ):
         """header value applied when allowlist is non-empty and contains value"""
@@ -4966,7 +4969,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
-    def test_412c_eab_profile_header_info_check_risk_gate(
+    def test_414_eab_profile_header_info_check_risk_gate(
         self, mock_lookup, mock_eab, mock_allowlist
     ):
         """header value applied with empty allowlist when risk gate is set"""
@@ -5005,7 +5008,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
-    def test_412d_eab_profile_header_info_check_not_in_allowlist(
+    def test_415_eab_profile_header_info_check_not_in_allowlist(
         self, mock_lookup, mock_eab, mock_allowlist
     ):
         """header value ignored when not present in allowlist"""
@@ -5034,7 +5037,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
-    def test_413_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_416_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """test eab_profile_header_info_check()"""
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -5051,7 +5054,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
-    def test_414_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_417_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """test eab_profile_header_info_check()"""
         cahandler = FakeDBStore()
         cahandler.eab_profiling = True
@@ -5076,7 +5079,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
-    def test_415_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_418_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """test eab_profile_header_info_check()"""
         cahandler = FakeDBStore()
         cahandler.eab_profiling = True
@@ -5097,7 +5100,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_list_check")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_string_check")
-    def test_416_eab_profile_check(self, mock_string, mock_list):
+    def test_419_eab_profile_check(self, mock_string, mock_list):
         """test _eab_profile_check()"""
         self.cahandler = MagicMock()
         self.csr = "testCSR"
@@ -5115,7 +5118,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_list_check")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_string_check")
-    def test_417_eab_profile_check(self, mock_string, mock_list):
+    def test_420_eab_profile_check(self, mock_string, mock_list):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -5134,7 +5137,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_list_check")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_string_check")
-    def test_418_eab_profile_check(self, mock_string, mock_list, mock_hil):
+    def test_421_eab_profile_check(self, mock_string, mock_list, mock_hil):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -5155,7 +5158,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_list_check")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_string_check")
-    def test_419_eab_profile_check(self, mock_string, mock_list, mock_hil):
+    def test_422_eab_profile_check(self, mock_string, mock_list, mock_hil):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -5175,7 +5178,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_list_check")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_string_check")
-    def test_420_eab_profile_check(self, mock_string, mock_list):
+    def test_423_eab_profile_check(self, mock_string, mock_list):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -5196,7 +5199,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_subject_check")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_list_check")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_string_check")
-    def test_421_eab_profile_check(self, mock_string, mock_list, mock_subject):
+    def test_424_eab_profile_check(self, mock_string, mock_list, mock_subject):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = None
@@ -5218,7 +5221,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
     @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-    def test_422_cn_validate(self, mock_ip, mock_fqdn):
+    def test_425_cn_validate(self, mock_ip, mock_fqdn):
         """test cn_validate()"""
         mock_ip.return_value = True
         mock_fqdn.return_value = True
@@ -5227,7 +5230,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
     @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-    def test_423_cn_validate(self, mock_ip, mock_fqdn):
+    def test_426_cn_validate(self, mock_ip, mock_fqdn):
         """test cn_validate()"""
         mock_ip.return_value = False
         mock_fqdn.return_value = True
@@ -5236,7 +5239,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
     @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-    def test_424_cn_validate(self, mock_ip, mock_fqdn):
+    def test_427_cn_validate(self, mock_ip, mock_fqdn):
         """test cn_validate()"""
         mock_ip.return_value = False
         mock_fqdn.return_value = False
@@ -5248,7 +5251,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
     @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-    def test_425_cn_validate(self, mock_ip, mock_fqdn):
+    def test_428_cn_validate(self, mock_ip, mock_fqdn):
         """test cn_validate()"""
         mock_ip.return_value = False
         mock_fqdn.return_value = False
@@ -5258,7 +5261,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
         self.assertFalse(mock_fqdn.called)
 
-    def test_426_csr_subject_get(self):
+    def test_429_csr_subject_get(self):
         """test csr_subject_get()"""
         csr = "MIICwDCCAagCAQAwVDESMBAGA1UEAwwJbGVnby5hY21lMQ0wCwYDVQQKDARhY21lMQwwCgYDVQQLDANmb28xCzAJBgNVBAYTAlVTMRQwEgYDVQQFEwswMC0xMS0yMi0zMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM5AKMmB3o8LLEEGuHo0Ipl4K8z9m3EyM9teSVocQz39DK8s2dKpx8MrsVkTg6M3fuL4yPlim8v0+unPtB18dFeThkijHetxL5x08pVvMVwa7Cjk/22e5IRgBGSQYCO6KCUsNh2vhH93r7x71wlTV3sYe2t0HaEdGqBxdct76J9kyeCY06Br+4PMR7afRvHv4vFH6Y2+hSD4oOd5cSTZXnNWcWRbjNFY7aytzl4JpJiEK0ealDMSf/ZP0n8Sdx1vCx8amaozrLg5z3eLULiAUUgCtqOWOgNLQFNSqjyhZmMTZGGJcTgb43KAKWsO3bfM6rvNTZRbrM7dAsg/bQsK6mMCAwEAAaAnMCUGCSqGSIb3DQEJDjEYMBYwFAYDVR0RBA0wC4IJbGVnby5hY21lMA0GCSqGSIb3DQEBCwUAA4IBAQA19j8Lge9Vqxc/hvWYcU1Kx3KBx5TN97PK0wQFPIIWX20/JRoodzfrMSqO0EgZWB+czoRi8G+2ezbK13sV02dKovo8ISoSvgSZtt53UKBz+JmQd7Q7G1vONZ7d2PT0nTUN4fTA5YQs5nys3O8/2oOxJiJO6IyhmpiVqUbrlU6Harb4MfjNTb+teSQRSCOAX/8U9TdPwuAi6rXdWjXAUxBDQySWkW/B3pd77Ztt5nDFP2DT+7f7mAoWG4+XY6iXcXs1GsDA4XRTx2rCvhQtQomVGAKFwd8aTpHL/ZwNt1GOw6oMZkKKf+axVA1pvAYGhey/4x3uwKf654VB3e2iOCea"
         result_dic = {
@@ -5270,7 +5273,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         }
         self.assertEqual(result_dic, self.csr_subject_get(self.logger, csr))
 
-    def test_427_csr_subject_get(self):
+    def test_430_csr_subject_get(self):
         """test csr_subject_get()"""
         csr = "MIICtjCCAZ4CAQAwQjELMAkGA1UEBhMCREUxDjAMBgNVBAoMBXRlc3RPMQ8wDQYDVQQLDAZ0ZXN0T1UxEjAQBgNVBGEMCTEyMzQ1NjctODCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALs0a3qYQOIkpuRa34QEb+j9PzkMC8eA8bT9icRnpd1DO5LyQjc0OreV8ed3YeV1IVtcf1qX4AYKdIb1X1qa1pFkcneFZsX6B1i/ofRqEXrsN243V4LTjHFwIqwIecFX/Ml9rhCV+/tRTBrl3XIyI2xhZ4qtxIWkavmrvhNy4gY0YBjw4D67NzDJ9gm9Nx8VFzGZxXP0MgOtLOJ7BMCcqJmBwdItaotFCCkQfXC6S+n9sLP3GYrgyShaXMAebYmkNPZ4YJ0H28VfBGcWF2hpmSBgZ15Bj5P3PNYAnAocCUkwcifk3CZoJwcmC1Fm2mC8zOAEQ+GA/KqM6RHmMMKHexECAwEAAaAvMC0GCSqGSIb3DQEJDjEgMB4wHAYDVR0RBBUwE4IRYWNtZS1jbGllbnQubG9jYWwwDQYJKoZIhvcNAQELBQADggEBAB6HE9CMFKvyM4kwmKKeAoXzLhILTWmjDgI1+wBEq781CqXS3/rhTRYxFCjaU4WUFSHFUOo4+qlehwQzFRBLwEdgIylKXVT7etuto9lHU7xpf+wRth3c/PF/DsibC3S+fzlA7UBgxvhO0FbuqnV4pUUp/Y/jsaB4+IWhnwySh+378A98VkLU/1muSaM5AS9rboYyFPtevWzeSZJtz7CLAK2zWJ95ApOIBXHQdm6wsgJzwTTW1apXofNTX5AM6L0TPdieiPKUHPpH2AJZjzCVX9NuhDhLL5klzYwIrvcD2bxGy+xNWAYxXyLhPkGG8F954FAFa66sqiQBlmU92ndtG3Q="
         result_dic = {
@@ -5281,13 +5284,13 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         }
         self.assertEqual(result_dic, self.csr_subject_get(self.logger, csr))
 
-    def test_428_csr_subject_get(self):
+    def test_431_csr_subject_get(self):
         """test csr_subject_get()"""
         csr = "MIICcDCCAVgCAQAwADCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANOKk0E61QJ2K/NiGSO0aJyqrLfmHytPr35ptLwNdfKQ/8Vb2uoHYAvxVEO9weNTQVlZ9ApkJquBTRoSdqTy6p87inh8JwzFM/neJAsMg2ZiH3gRRRfmIb/4Kce0BUQ66DFSV8sWThyv13EcL+pZYdqRvONujVn7XVPbmB2ZI8qI4iXswRq45mFBW5Dyt3Rlw+KOBu1ejo0lqB2FGQiBONxQrFDyF4nVWN3R9BlhuybSF4Elhos7pkiEfrE+8EzYy+7yMEiDh1m+TmwZRNEdtSWNORF51CF3bYUz8pvpt66vKGi/F6k2iljelw1kNsswZAciNi2jG7S0M+MWMFi680sCAwEAAaArMCkGCSqGSIb3DQEJDjEcMBowGAYDVR0RBBEwD4INZm9vLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEAivCrcL+uVzDdykT87073atC4B2DHky5bzL+iI8C+BkPq0jRdcVkExMrUtTdtp8Ot1zQHtYc/c/Tj+aYDZ6SdMYtrtHUgxS5JyFh0p+MEvkgZHcWOVC+VlWA+lC9kdX3WetsGT6xqCG4l+BpgCUERghFJ5/+K0bbCI4jT/5ZCT7+pO0qZtw0eg6tQBLPSXzXN98x3nmuaw9PzO1rVG5IMItyU+TlX3pJRXKpqSOHEbeaGWHizMUlbDKzoIiUf+11I9RwTeLlp/HPG8uvRc/zZ1einZPLQgow5kU15jFQSgQtzFHV4ZxuYmWN7oMIruwBNP1hkoTNL1kJcPeOwtEdOMw=="
         self.assertFalse(self.csr_subject_get(self.logger, csr))
 
     @patch("acme2certifier.acme_srv.helpers.eab.cn_validate")
-    def test_429_eab_profile_subjet_string_check(self, mock_validate):
+    def test_432_eab_profile_subjet_string_check(self, mock_validate):
         """test eab_profile_subject_string_check()"""
         profile_dic = {"foo": "bar1"}
         self.assertEqual(
@@ -5299,7 +5302,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(mock_validate.called)
 
     @patch("acme2certifier.acme_srv.helpers.eab.cn_validate")
-    def test_430_eab_profile_subjet_string_check(self, mock_validate):
+    def test_433_eab_profile_subjet_string_check(self, mock_validate):
         """test eab_profile_subject_string_check()"""
         profile_dic = {"foo": "*"}
         self.assertFalse(
@@ -5310,7 +5313,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(mock_validate.called)
 
     @patch("acme2certifier.acme_srv.helpers.eab.cn_validate")
-    def test_431_eab_profile_subjet_string_check(self, mock_validate):
+    def test_434_eab_profile_subjet_string_check(self, mock_validate):
         """test eab_profile_subject_string_check()"""
         profile_dic = {"foo": "bar"}
         self.assertFalse(
@@ -5321,7 +5324,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(mock_validate.called)
 
     @patch("acme2certifier.acme_srv.helpers.eab.cn_validate")
-    def test_432_eab_profile_subjet_string_check(self, mock_validate):
+    def test_435_eab_profile_subjet_string_check(self, mock_validate):
         """test eab_profile_subject_string_check()"""
         profile_dic = {"foo": ["bar1", "bar2", "bar3"]}
         self.assertEqual(
@@ -5333,7 +5336,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(mock_validate.called)
 
     @patch("acme2certifier.acme_srv.helpers.eab.cn_validate")
-    def test_433_eab_profile_subjet_string_check(self, mock_validate):
+    def test_436_eab_profile_subjet_string_check(self, mock_validate):
         """test eab_profile_subject_string_check()"""
         profile_dic = {"foo": ["bar1", "bar2", "bar3"]}
         self.assertFalse(
@@ -5344,7 +5347,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(mock_validate.called)
 
     @patch("acme2certifier.acme_srv.helpers.eab.cn_validate")
-    def test_434_eab_profile_subjet_string_check(self, mock_validate):
+    def test_437_eab_profile_subjet_string_check(self, mock_validate):
         """test eab_profile_subject_string_check()"""
         profile_dic = {"foo": ["bar1", "bar2", "bar3"]}
         mock_validate.return_value = "error"
@@ -5357,7 +5360,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(mock_validate.called)
 
     @patch("acme2certifier.acme_srv.helpers.eab.cn_validate")
-    def test_435_eab_profile_subjet_string_check(self, mock_validate):
+    def test_438_eab_profile_subjet_string_check(self, mock_validate):
         """test eab_profile_subject_string_check()"""
         profile_dic = {"foo": ["bar1", "bar2", "bar3"]}
         mock_validate.return_value = "error"
@@ -5371,7 +5374,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_subject_string_check")
     @patch("acme2certifier.acme_srv.helpers.eab.csr_subject_get")
-    def test_436_eab_profile_subject_check(self, mock_cn, mock_strchk):
+    def test_439_eab_profile_subject_check(self, mock_cn, mock_strchk):
         """test eab_profile_subject_check()"""
         profile_dic = {"foo": "bar"}
         mock_cn.return_value = {"o": "o", "ou": "ou", "cn": "cn"}
@@ -5382,7 +5385,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_subject_string_check")
     @patch("acme2certifier.acme_srv.helpers.eab.csr_subject_get")
-    def test_437_eab_profile_subject_check(self, mock_cn, mock_strchk):
+    def test_440_eab_profile_subject_check(self, mock_cn, mock_strchk):
         """test eab_profile_subject_check()"""
         profile_dic = {"foo": "bar"}
         mock_cn.return_value = {"o": "o", "ou": "ou", "cn": "cn"}
@@ -5393,7 +5396,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_subject_string_check")
     @patch("acme2certifier.acme_srv.helpers.eab.csr_subject_get")
-    def test_438_eab_profile_subject_check(self, mock_cn, mock_strchk):
+    def test_441_eab_profile_subject_check(self, mock_cn, mock_strchk):
         """test eab_profile_subject_check()"""
         profile_dic = {"foo": "bar"}
         mock_cn.return_value = {"o": "o", "ou": "ou", "cn": "cn"}
@@ -5404,7 +5407,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_subject_string_check")
     @patch("acme2certifier.acme_srv.helpers.eab.csr_subject_get")
-    def test_439_eab_profile_subject_check(self, mock_cn, mock_strchk):
+    def test_442_eab_profile_subject_check(self, mock_cn, mock_strchk):
         """test eab_profile_subject_check()"""
         profile_dic = {"foo": "bar"}
         mock_cn.return_value = {"o": "o", "ou": "ou", "cn": "cn"}
@@ -5416,7 +5419,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
     @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
-    def test_440_csr_cn_lookup(self, mock_cnget, mock_san_get):
+    def test_443_csr_cn_lookup(self, mock_cnget, mock_san_get):
         """test _csr_cn_lookup()"""
         mock_cnget.return_value = "cn"
         mock_san_get.return_value = ["foo:san1", "foo:san2"]
@@ -5424,7 +5427,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
     @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
-    def test_441_csr_cn_lookup(self, mock_cnget, mock_san_get):
+    def test_444_csr_cn_lookup(self, mock_cnget, mock_san_get):
         """test _csr_cn_lookup()"""
         mock_cnget.return_value = None
         mock_san_get.return_value = ["foo:san1", "foo:san2"]
@@ -5432,7 +5435,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
     @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
-    def test_442_csr_cn_lookup(self, mock_cnget, mock_san_get):
+    def test_445_csr_cn_lookup(self, mock_cnget, mock_san_get):
         """test _csr_cn_lookup()"""
         mock_cnget.return_value = None
         mock_san_get.return_value = ["foosan1", "foo:san2"]
@@ -5444,7 +5447,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
     @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
-    def test_443_csr_cn_lookup(self, mock_cnget, mock_san_get):
+    def test_446_csr_cn_lookup(self, mock_cnget, mock_san_get):
         """test _csr_cn_lookup()"""
         mock_cnget.return_value = None
         mock_san_get.return_value = None
@@ -5455,7 +5458,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.network.requests.put")
     @patch("acme2certifier.acme_srv.helpers.network.requests.post")
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-    def test_444_request_operation(self, mock_get, mock_post, mock_put):
+    def test_447_request_operation(self, mock_get, mock_post, mock_put):
         """test request_operation()"""
         mockresponse_get = Mock()
         mockresponse_get.status_code = "status_code"
@@ -5480,7 +5483,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.network.requests.put")
     @patch("acme2certifier.acme_srv.helpers.network.requests.post")
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-    def test_445_request_operation(self, mock_get, mock_post, mock_put):
+    def test_448_request_operation(self, mock_get, mock_post, mock_put):
         """test request_operation()"""
         mockresponse_get = Mock()
         mockresponse_get.status_code = "status_code"
@@ -5505,7 +5508,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.network.requests.put")
     @patch("acme2certifier.acme_srv.helpers.network.requests.post")
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-    def test_446_request_operation(self, mock_get, mock_post, mock_put):
+    def test_449_request_operation(self, mock_get, mock_post, mock_put):
         """test request_operation()"""
         mockresponse_get = Mock()
         mockresponse_get.status_code = "status_code"
@@ -5530,7 +5533,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.network.requests.put")
     @patch("acme2certifier.acme_srv.helpers.network.requests.post")
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-    def test_447_request_operation(self, mock_get, mock_post, mock_put):
+    def test_450_request_operation(self, mock_get, mock_post, mock_put):
         """test request_operation()"""
         mockresponse_get = Mock()
         mockresponse_get.status_code = "status_code"
@@ -5547,7 +5550,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.network.requests.put")
     @patch("acme2certifier.acme_srv.helpers.network.requests.post")
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-    def test_448_request_operation(self, mock_get, mock_post, mock_put):
+    def test_451_request_operation(self, mock_get, mock_post, mock_put):
         """test request_operation()"""
         mockresponse_get = Mock()
         mockresponse_get.status_code = "status_code"
@@ -5565,7 +5568,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.network.requests.put")
     @patch("acme2certifier.acme_srv.helpers.network.requests.post")
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-    def test_449_request_operation(self, mock_get, mock_post, mock_put):
+    def test_452_request_operation(self, mock_get, mock_post, mock_put):
         """test request_operation()"""
         mockresponse_get = Mock()
         mockresponse_get.status_code = "status_code"
@@ -5585,7 +5588,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(mock_post.called)
         self.assertFalse(mock_put.called)
 
-    def test_450_enrollment_config_log(self):
+    def test_453_enrollment_config_log(self):
         """test enrollment_config_log()"""
 
         class myclass:
@@ -5602,7 +5605,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_451_kerberos_kinit_command_resolve_default(self):
+    def test_454_kerberos_kinit_command_resolve_default(self):
         """bare/default kinit is allowed for PATH lookup"""
         self.assertEqual(
             "kinit", self.kerberos_kinit_command_resolve(self.logger, None)
@@ -5614,7 +5617,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             "kinit", self.kerberos_kinit_command_resolve(self.logger, "  kinit  ")
         )
 
-    def test_452_kerberos_kinit_command_resolve_absolute(self):
+    def test_455_kerberos_kinit_command_resolve_absolute(self):
         """absolute path with basename kinit is accepted"""
         with TemporaryDirectory() as tmpdir:
             kinit_bin = os.path.join(tmpdir, "kinit")
@@ -5625,7 +5628,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.kerberos_kinit_command_resolve(self.logger, kinit_bin),
             )
 
-    def test_453_kerberos_kinit_command_resolve_debian_alternatives(self):
+    def test_456_kerberos_kinit_command_resolve_debian_alternatives(self):
         """Debian/Ubuntu kinit -> kinit.mit symlink is accepted"""
         with TemporaryDirectory() as tmpdir:
             kinit_mit = os.path.join(tmpdir, "kinit.mit")
@@ -5638,7 +5641,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.kerberos_kinit_command_resolve(self.logger, kinit_link),
             )
 
-    def test_454_kerberos_kinit_command_resolve_rejects_relative(self):
+    def test_457_kerberos_kinit_command_resolve_rejects_relative(self):
         """relative paths are rejected"""
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             self.assertIsNone(
@@ -5646,7 +5649,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         self.assertTrue(any("must be absolute" in msg for msg in lcm.output))
 
-    def test_455_kerberos_kinit_command_resolve_rejects_wrong_basename(self):
+    def test_458_kerberos_kinit_command_resolve_rejects_wrong_basename(self):
         """absolute paths not named kinit are rejected"""
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             self.assertIsNone(
@@ -5654,7 +5657,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         self.assertTrue(any("basename must be 'kinit'" in msg for msg in lcm.output))
 
-    def test_456_kerberos_kinit_command_resolve_rejects_bad_symlink_target(self):
+    def test_459_kerberos_kinit_command_resolve_rejects_bad_symlink_target(self):
         """kinit symlink pointing at a non-kinit binary is rejected"""
         with TemporaryDirectory() as tmpdir:
             evil = os.path.join(tmpdir, "evil.sh")
@@ -5670,7 +5673,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 any("resolved basename must be one of" in msg for msg in lcm.output)
             )
 
-    def test_457_enrollment_config_log(self):
+    def test_460_enrollment_config_log(self):
         """test enrollment_config_log()"""
 
         class myclass:
@@ -5689,7 +5692,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             "INFO:test_a2c:Enrollment configuration: ['foobar: foobar_val']", lcm.output
         )
 
-    def test_458_enrollment_config_log(self):
+    def test_461_enrollment_config_log(self):
         """test enrollment_config_log()"""
 
         class myclass:
@@ -5709,7 +5712,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_459_config_enroll_config_log_load(self):
+    def test_462_config_enroll_config_log_load(self):
         """test config_enroll_config_log_load()"""
         config_dic = configparser.ConfigParser()
         config_dic["CAhandler"] = {"enrollment_config_log": "True"}
@@ -5717,7 +5720,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             (True, []), self.config_enroll_config_log_load(self.logger, config_dic)
         )
 
-    def test_460_config_enroll_config_log_load(self):
+    def test_463_config_enroll_config_log_load(self):
         """test config_enroll_config_log_load()"""
         config_dic = configparser.ConfigParser()
         config_dic["CAhandler"] = {"enrollment_config_log": "False"}
@@ -5725,7 +5728,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             (False, []), self.config_enroll_config_log_load(self.logger, config_dic)
         )
 
-    def test_461_config_enroll_config_log_load(self):
+    def test_464_config_enroll_config_log_load(self):
         """test config_enroll_config_log_load()"""
         config_dic = configparser.ConfigParser()
         config_dic["CAhandler"] = {"enrollment_config_log": "aaa"}
@@ -5738,7 +5741,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_462_config_enroll_config_log_load(self):
+    def test_465_config_enroll_config_log_load(self):
         """test config_enroll_config_log_load()"""
         config_dic = configparser.ConfigParser()
         config_dic["CAhandler"] = {
@@ -5750,7 +5753,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.config_enroll_config_log_load(self.logger, config_dic),
         )
 
-    def test_463_config_enroll_config_log_load(self):
+    def test_466_config_enroll_config_log_load(self):
         """test config_enroll_config_log_load()"""
         config_dic = configparser.ConfigParser()
         config_dic["CAhandler"] = {
@@ -5767,7 +5770,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_464_config_allowed_domainlist_load(self):
+    def test_467_config_allowed_domainlist_load(self):
         """test config_allowed_domainlist_load()"""
         config_dic = {"CAhandler": {"allowed_domainlist": '["foo", "bar", "foobar"]'}}
         self.assertEqual(
@@ -5775,14 +5778,14 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.config_allowed_domainlist_load(self.logger, config_dic),
         )
 
-    def test_465_config_allowed_domainlist_load(self):
+    def test_468_config_allowed_domainlist_load(self):
         """test config_allowed_domainlist_load()"""
         config_dic = {"CAhandler": {"allowed_domainlist": '["foo"]'}}
         self.assertEqual(
             ["foo"], self.config_allowed_domainlist_load(self.logger, config_dic)
         )
 
-    def test_466_config_allowed_domainlist_load(self):
+    def test_469_config_allowed_domainlist_load(self):
         """test config_allowed_domainlist_load()"""
         config_dic = {"CAhandler": {"allowed_domainlist": "foo"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -5795,79 +5798,79 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_467_domainlist_check(self):
+    def test_470_domainlist_check(self):
         """domainlist_check failed check as empty entry"""
         list_ = ["bar.foo", "foo.bar"]
         entry = None
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_468_is_domain_whitelisted(self):
+    def test_471_is_domain_whitelisted(self):
         """is_domain_whitelisted failed check as empty entry"""
         list_ = ["bar.foo$", "foo.bar$"]
         entry = None
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_469_is_domain_whitelisted(self):
+    def test_472_is_domain_whitelisted(self):
         """is_domain_whitelisted check against empty list"""
         list_ = []
         entry = "host.bar.foo"
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_470_is_domain_whitelisted(self):
+    def test_473_is_domain_whitelisted(self):
         """is_domain_whitelisted successful check against 1st element of a list"""
         list_ = ["*.bar.foo", "*.foo.bar"]
         entry = "host.bar.foo"
         self.assertTrue(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_471_is_domain_whitelisted(self):
+    def test_474_is_domain_whitelisted(self):
         """is_domain_whitelisted unsuccessful as endcheck failed"""
         list_ = ["bar.foo", "foo.bar"]
         entry = "host.bar.foo.bar1"
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_472_is_domain_whitelisted(self):
+    def test_475_is_domain_whitelisted(self):
         """is_domain_whitelisted wildcard check"""
         list_ = ["*.bar.foo", "foo.bar"]
         entry = "*.bar.foo"
         self.assertTrue(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_473_is_domain_whitelisted(self):
+    def test_476_is_domain_whitelisted(self):
         """is_domain_whitelisted failed wildcard check"""
         list_ = ["bar.foo$", "foo.bar$"]
         entry = "*.bar.foo_"
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_474_is_domain_whitelisted(self):
+    def test_477_is_domain_whitelisted(self):
         """is_domain_whitelisted not end check"""
         list_ = ["bar.foo$", "foo.bar$"]
         entry = "bar.foo gna"
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_475_is_domain_whitelisted(self):
+    def test_478_is_domain_whitelisted(self):
         """is_domain_whitelisted $ at the end"""
         list_ = ["bar.foo$", "foo.bar$"]
         entry = "bar.foo$"
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_476_is_domain_whitelisted(self):
+    def test_479_is_domain_whitelisted(self):
         """is_domain_whitelisted unsuccessful whildcard check"""
         list_ = ["foo.bar$", r"\*.bar.foo"]
         entry = "host.bar.foo"
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_477_is_domain_whitelisted(self):
+    def test_480_is_domain_whitelisted(self):
         """is_domain_whitelisted successful whildcard check"""
         list_ = ["foo.bar$", r"*.bar.foo"]
         entry = "*.bar.foo"
         self.assertTrue(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_478_is_domain_whitelisted(self):
+    def test_481_is_domain_whitelisted(self):
         """is_domain_whitelisted successful whildcard in list but not in string"""
         list_ = ["foo.bar$", "*.bar.foo"]
         entry = "foo.bar.foo"
         self.assertTrue(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_479_is_domain_whitelisted(self):
+    def test_482_is_domain_whitelisted(self):
         """ip address check NOne in whitelist"""
         list_ = [None, "*.bar.foo"]
         entry = "foo.bar.foo"
@@ -5879,7 +5882,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
 
     @patch("idna.encode")
-    def test_480_is_domain_whitelisted(self, mock_idna):
+    def test_483_is_domain_whitelisted(self, mock_idna):
         """exception"""
         list_ = ["example.com", "*.bar.foo"]
         entry = "foo.bar.foo"
@@ -5890,26 +5893,26 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             "ERROR:test_a2c:Invalid domain format in csr: idna error", lcm.output
         )
 
-    def test_481_is_domain_whitelisted(self):
+    def test_484_is_domain_whitelisted(self):
         """whitelist"""
         list_ = ["example.com", "bar.foo"]
         entry = "*.bar.foo"
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_482_is_domain_whitelisted(self):
+    def test_485_is_domain_whitelisted(self):
         """exact domain name"""
         list_ = ["example.com", "bar.foo"]
         entry = "bar.foo"
         self.assertTrue(self.is_domain_whitelisted(self.logger, entry, list_))
 
-    def test_483_is_domain_whitelisted(self):
+    def test_486_is_domain_whitelisted(self):
         """wildcard domain name"""
         list_ = ["*.example.com", "*.bar.foo"]
         entry = "*.example.com"
         self.assertTrue(self.is_domain_whitelisted(self.logger, entry, list_))
 
     @patch("idna.encode")
-    def test_484_is_domain_whitelisted(self, mock_idna):
+    def test_487_is_domain_whitelisted(self, mock_idna):
         """exception"""
         list_ = ["example.com", "*.bar.foo"]
         entry = "foo.bar.foo"
@@ -5923,7 +5926,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_cn_get")
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
-    def test_485_allowed_domainlist_check(self, mock_san, mock_cn):
+    def test_488_allowed_domainlist_check(self, mock_san, mock_cn):
         """CAhandler._check_csr with empty allowed_domainlist"""
         allowed_domainlist = []
         mock_san.return_value = ["DNS:host.foo.bar"]
@@ -5935,7 +5938,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_cn_get")
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
-    def test_486_allowed_domainlist_check(self, mock_san, mock_cn):
+    def test_489_allowed_domainlist_check(self, mock_san, mock_cn):
         """CAhandler._check_csr with empty allowed_domainlist"""
         allowed_domainlist = ["*.foo.bar"]
         mock_san.return_value = ["DNS:host.foo.bar"]
@@ -5947,7 +5950,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_cn_get")
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
-    def test_487_allowed_domainlist_check(self, mock_san, mock_cn):
+    def test_490_allowed_domainlist_check(self, mock_san, mock_cn):
         """CAhandler._check_csr with allowd allowed_domainlist"""
         allowed_domainlist = ["*.bar.bar"]
         mock_san.return_value = ["DNS:host.foo.bar"]
@@ -5960,7 +5963,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_cn_get")
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
-    def test_488_allowed_domainlist_check(self, mock_san, mock_cn):
+    def test_491_allowed_domainlist_check(self, mock_san, mock_cn):
         """CAhandler._check_csr with allowed allowed_domainlist"""
         allowed_domainlist = ["*.foo.bar"]
         mock_san.return_value = ["invalidhostname"]
@@ -5973,7 +5976,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_cn_get")
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
-    def test_489_allowed_domainlist_check(self, mock_san, mock_cn):
+    def test_492_allowed_domainlist_check(self, mock_san, mock_cn):
         """CAhandler._check_csr with empty allowed_domainlist"""
         allowed_domainlist = ["*.foo.bar"]
         mock_san.return_value = ["email:user@bar.foo.bar"]
@@ -5984,7 +5987,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
 
     @patch("acme2certifier.acme_srv.helpers.utils.secrets.randbelow")
-    def test_490_radomize_parameter_list(self, mock_rand):
+    def test_493_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
 
         class myclass:
@@ -5997,7 +6000,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("bar2", myclass.bar)
 
     @patch("acme2certifier.acme_srv.helpers.utils.secrets.randbelow")
-    def test_491_radomize_parameter_list(self, mock_rand):
+    def test_494_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
 
         class myclass:
@@ -6010,7 +6013,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("bar2", myclass.bar)
 
     @patch("acme2certifier.acme_srv.helpers.utils.secrets.randbelow")
-    def test_492_radomize_parameter_list(self, mock_rand):
+    def test_495_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
 
         class myclass:
@@ -6022,7 +6025,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("foo1", myclass.foo)
         self.assertEqual("bar1", myclass.bar)
 
-    def test_493_config_profile_load(self):
+    def test_496_config_profile_load(self):
         """test _config_load with unknown values config"""
         parser = configparser.ConfigParser()
         parser["Order"] = {"profiles": '{"foo": "bar", "bar": "foo"}'}
@@ -6030,7 +6033,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             {"foo": "bar", "bar": "foo"}, self.config_profile_load(self.logger, parser)
         )
 
-    def test_494_config_profile_load(self):
+    def test_497_config_profile_load(self):
         """test _config_load with unknown values config"""
         parser = configparser.ConfigParser()
         parser["Order"] = {"profiles": "foo"}
@@ -6041,7 +6044,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_495_profile_lookup(self):
+    def test_498_profile_lookup(self):
         """profile_lookup ()"""
         models_mock = MagicMock()
         models_mock.DBstore().certificates_search.return_value = [
@@ -6051,7 +6054,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         patch.dict("sys.modules", modules).start()
         self.assertEqual("order_profile", self.profile_lookup(self.logger, "csr"))
 
-    def test_496_profile_lookup(self):
+    def test_499_profile_lookup(self):
         """profile_lookup ()"""
         models_mock = MagicMock()
         models_mock.DBstore().certificates_search.return_value = None
@@ -6059,7 +6062,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.profile_lookup(self.logger, "csr"))
 
-    def test_497_profile_lookup(self):
+    def test_500_profile_lookup(self):
         """profile_lookup ()"""
         models_mock = MagicMock()
         models_mock.DBstore().certificates_search.return_value = [{"foo": "bar"}]
@@ -6067,7 +6070,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.profile_lookup(self.logger, "csr"))
 
-    def test_498_profile_lookup(self):
+    def test_501_profile_lookup(self):
         """profile_lookup ()"""
         models_mock = MagicMock()
         models_mock.DBstore().certificates_search.side_effect = Exception("mock_search")
@@ -6080,25 +6083,25 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_499_b64_url_decode(self):
+    def test_502_b64_url_decode(self):
         """test b64_url_decode()"""
         self.assertEqual("foo", self.b64_url_decode(self.logger, "Zm9v"))
 
-    def test_500_b64_url_decode(self):
+    def test_503_b64_url_decode(self):
         """test b64_url_decode()"""
         self.assertEqual(
             "thisisateststring",
             self.b64_url_decode(self.logger, "dGhpc2lzYXRlc3RzdHJpbmc"),
         )
 
-    def test_501_b64_url_decode(self):
+    def test_504_b64_url_decode(self):
         """test b64_url_decode()"""
         self.assertEqual(
             "thisisateststring",
             self.b64_url_decode(self.logger, "dGhpc2lzYXRlc3RzdHJpbmc="),
         )
 
-    def test_502_b64_url_decode(self):
+    def test_505_b64_url_decode(self):
         """test b64_url_decode()"""
         self.assertEqual(
             "thisisateststring",
@@ -6109,7 +6112,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         "acme2certifier.acme_srv.helpers.encoding.b64_url_recode",
         return_value="encoded_cert",
     )
-    def test_503_eab_profile_revocation_check_str_value(self, mock_b64_url_recode):
+    def test_506_eab_profile_revocation_check_str_value(self, mock_b64_url_recode):
         """eab_profile_dic with a string value"""
         self.cahandler = MagicMock()
         self.cahandler.eab_handler.return_value.__enter__.return_value = MagicMock()
@@ -6131,7 +6134,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         "acme2certifier.acme_srv.helpers.encoding.b64_url_recode",
         return_value="encoded_cert",
     )
-    def test_504_eab_profile_revocation_check_str_and_ignore_value(
+    def test_507_eab_profile_revocation_check_str_and_ignore_value(
         self, mock_b64_url_recode
     ):
         """eab_profile_dic with a string value"""
@@ -6158,7 +6161,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         "acme2certifier.acme_srv.helpers.encoding.b64_url_recode",
         return_value="encoded_cert",
     )
-    def test_505_eab_profile_revocation_check_list_value(self, mock_b64_url_recode):
+    def test_508_eab_profile_revocation_check_list_value(self, mock_b64_url_recode):
         """eab_profile_dic with a list value"""
         self.cahandler = MagicMock()
         self.cahandler.eab_handler.return_value.__enter__.return_value = MagicMock()
@@ -6176,7 +6179,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         "acme2certifier.acme_srv.helpers.encoding.b64_url_recode",
         return_value="encoded_cert",
     )
-    def test_506_eab_profile_revocation_check_list_value_fallback(
+    def test_509_eab_profile_revocation_check_list_value_fallback(
         self, mock_b64_url_recode
     ):
         """eab_profile_dic with a list value, fallback to global function"""
@@ -6195,7 +6198,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
             mock_list_check.assert_called_once()
 
-    def test_507_missing_required_keys(self):
+    def test_510_missing_required_keys(self):
         """test handler_config_check() with missing required keys"""
 
         class DummyHandler(object):
@@ -6215,7 +6218,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_508_all_required_keys_present(self):
+    def test_511_all_required_keys_present(self):
         class DummyHandler(object):
             def __init__(self):
                 self.vault_url = "url"
@@ -6228,7 +6231,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.handler_config_check(self.logger, dummy_handler, required_keys)
         )
 
-    def test_509_empty_config(self):
+    def test_512_empty_config(self):
         class DummyHandler(object):
             def __init__(self):
                 self.vault_url = "url"
@@ -6242,7 +6245,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.network.proxy_check")
     @patch("acme2certifier.acme_srv.helpers.network.parse_url")
-    def test_510_config_proxy_load_valid_config(self, mock_parse_url, mock_proxy_check):
+    def test_513_config_proxy_load_valid_config(self, mock_parse_url, mock_proxy_check):
         """test config_proxy_load() with valid configuration"""
         config_dic = {
             "DEFAULT": {
@@ -6272,7 +6275,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             },
         )
 
-    def test_511_config_proxy_load_no_default_section(self):
+    def test_514_config_proxy_load_no_default_section(self):
         """test config_proxy_load() with no DEFAULT section"""
         config_dic = {"OTHER": {"some_setting": "value"}}
         host_name = "https://api.example.com:443/test"
@@ -6281,7 +6284,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
         self.assertEqual(result, {})
 
-    def test_512_config_proxy_load_no_proxy_server_list(self):
+    def test_515_config_proxy_load_no_proxy_server_list(self):
         """test config_proxy_load() with no proxy_server_list in DEFAULT section"""
         config_dic = {"DEFAULT": {"other_setting": "value"}}
         host_name = "https://api.example.com:443/test"
@@ -6290,7 +6293,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
         self.assertEqual(result, {})
 
-    def test_513_config_proxy_load_invalid_json(self):
+    def test_516_config_proxy_load_invalid_json(self):
         """test config_proxy_load() with invalid JSON in proxy_server_list"""
         config_dic = {"DEFAULT": {"proxy_server_list": "invalid json string"}}
         host_name = "https://api.example.com:443/test"
@@ -6308,7 +6311,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
 
     @patch("acme2certifier.acme_srv.helpers.network.parse_url")
-    def test_514_config_proxy_load_no_host_in_url(self, mock_parse_url):
+    def test_517_config_proxy_load_no_host_in_url(self, mock_parse_url):
         """test config_proxy_load() with parsed URL missing host information"""
         config_dic = {
             "DEFAULT": {
@@ -6327,7 +6330,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.network.proxy_check")
     @patch("acme2certifier.acme_srv.helpers.network.parse_url")
-    def test_515_config_proxy_load_proxy_check_returns_none(
+    def test_518_config_proxy_load_proxy_check_returns_none(
         self, mock_parse_url, mock_proxy_check
     ):
         """test config_proxy_load() when proxy_check returns None"""
@@ -6347,7 +6350,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual(result, expected)
 
     @patch("acme2certifier.acme_srv.helpers.network.parse_url")
-    def test_516_config_proxy_load_parse_url_exception(self, mock_parse_url):
+    def test_519_config_proxy_load_parse_url_exception(self, mock_parse_url):
         """test config_proxy_load() when parse_url raises exception"""
         config_dic = {
             "DEFAULT": {
@@ -6374,7 +6377,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.network.proxy_check")
     @patch("acme2certifier.acme_srv.helpers.network.parse_url")
-    def test_517_config_proxy_load_host_without_port(
+    def test_520_config_proxy_load_host_without_port(
         self, mock_parse_url, mock_proxy_check
     ):
         """test config_proxy_load() with host that doesn't contain port"""
@@ -6405,7 +6408,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.network.proxy_check")
     @patch("acme2certifier.acme_srv.helpers.network.parse_url")
-    def test_518_config_proxy_load_empty_proxy_list(
+    def test_521_config_proxy_load_empty_proxy_list(
         self, mock_parse_url, mock_proxy_check
     ):
         """test config_proxy_load() with empty proxy_server_list"""
@@ -6425,7 +6428,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_parse_url.assert_called_once_with(self.logger, host_name)
         mock_proxy_check.assert_called_once_with(self.logger, "api.example.com", {})
 
-    def test_519_config_async_mode_load_true_with_django(self):
+    def test_522_config_async_mode_load_true_with_django(self):
         """test config_async_mode_load() with async_mode True and django db"""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"async_mode": "True"}
@@ -6433,7 +6436,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         result = self.config_async_mode_load(self.logger, config_dic, db_type)
         self.assertTrue(result)
 
-    def test_520_config_async_mode_load_true_non_django(self):
+    def test_523_config_async_mode_load_true_non_django(self):
         """test config_async_mode_load() with async_mode True and non-django db"""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"async_mode": "True"}
@@ -6443,27 +6446,27 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(result)
         self.assertIn("asynchronous Challenge validation disabled", log.output[0])
 
-    def test_521_config_async_mode_load_false_with_django(self):
+    def test_524_config_async_mode_load_false_with_django(self):
         """test config_async_mode_load() with async_mode False and django db"""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"async_mode": "False"}
         db_type = "django"
         self.assertFalse(self.config_async_mode_load(self.logger, config_dic, db_type))
 
-    def test_522_config_async_mode_load_default_fallback(self):
+    def test_525_config_async_mode_load_default_fallback(self):
         """test config_async_mode_load() with no async_mode setting (fallback)"""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {}
         db_type = "django"
         self.assertFalse(self.config_async_mode_load(self.logger, config_dic, db_type))
 
-    def test_523_config_async_mode_load_no_default_section(self):
+    def test_526_config_async_mode_load_no_default_section(self):
         """test config_async_mode_load() with no DEFAULT section"""
         config_dic = configparser.ConfigParser()
         db_type = "django"
         self.assertFalse(self.config_async_mode_load(self.logger, config_dic, db_type))
 
-    def test_524_config_async_mode_load_invalid_boolean(self):
+    def test_527_config_async_mode_load_invalid_boolean(self):
         """test config_async_mode_load() with invalid boolean value"""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"async_mode": "invalid"}
@@ -6473,7 +6476,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.config_async_mode_load(self.logger, config_dic, db_type)
         self.assertIn("Not a boolean: invalid", str(context.exception))
 
-    def test_525_config_async_mode_load_case_insensitive_true(self):
+    def test_528_config_async_mode_load_case_insensitive_true(self):
         """test config_async_mode_load() with case insensitive True values"""
         test_cases = ["true", "TRUE", "True", "1", "yes", "on"]
         for value in test_cases:
@@ -6484,7 +6487,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 result = self.config_async_mode_load(self.logger, config_dic, db_type)
                 self.assertTrue(result)
 
-    def test_526_config_async_mode_load_case_insensitive_false(self):
+    def test_529_config_async_mode_load_case_insensitive_false(self):
         """test config_async_mode_load() with case insensitive False values"""
         test_cases = ["false", "FALSE", "False", "0", "no", "off"]
         for value in test_cases:
@@ -6496,7 +6499,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     self.config_async_mode_load(self.logger, config_dic, db_type)
                 )
 
-    def test_527_config_async_mode_load_different_db_types(self):
+    def test_530_config_async_mode_load_different_db_types(self):
         """test config_async_mode_load() with various non-django db types"""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"async_mode": "True"}
@@ -6513,7 +6516,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     "asynchronous Challenge validation disabled", log.output[0]
                 )
 
-    def test_528_fqdn_resolve_successful_a_record_no_catch_all(self):
+    def test_531_fqdn_resolve_successful_a_record_no_catch_all(self):
         """Test successful A record resolution without catch_all"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6531,7 +6534,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertIsNone(error_msg)
         mock_resolver.resolve.assert_called_once_with("example.com", "A")
 
-    def test_529_fqdn_resolve_successful_aaaa_record_no_catch_all(self):
+    def test_532_fqdn_resolve_successful_aaaa_record_no_catch_all(self):
         """Test successful AAAA record resolution when A record fails"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6549,7 +6552,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(invalid)
         self.assertIsNone(error_msg)
 
-    def test_530_fqdn_resolve_successful_catch_all_both_records(self):
+    def test_533_fqdn_resolve_successful_catch_all_both_records(self):
         """Test successful resolution with catch_all returning both A and AAAA"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6571,7 +6574,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(invalid)
         self.assertIsNone(error_msg)
 
-    def test_531_fqdn_resolve_nxdomain_error(self):
+    def test_534_fqdn_resolve_nxdomain_error(self):
         """Test NXDOMAIN error handling"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6587,7 +6590,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(invalid)
         self.assertIn("NXDOMAIN: nonexistent.com does not exist", error_msg)
 
-    def test_532_fqdn_resolve_no_answer_error(self):
+    def test_535_fqdn_resolve_no_answer_error(self):
         """Test NoAnswer error handling"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6603,7 +6606,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(invalid)
         self.assertIn("No A record found for example.com", error_msg)
 
-    def test_533_fqdn_resolve_timeout_error(self):
+    def test_536_fqdn_resolve_timeout_error(self):
         """Test timeout error handling"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6619,7 +6622,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(invalid)
         self.assertIn("DNS query timeout for example.com", error_msg)
 
-    def test_534_fqdn_resolve_generic_error(self):
+    def test_537_fqdn_resolve_generic_error(self):
         """Test generic exception handling"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6635,7 +6638,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(invalid)
         self.assertIn("DNS resolution error: Connection refused", error_msg)
 
-    def test_535_fqdn_resolve_mixed_errors_catch_all(self):
+    def test_538_fqdn_resolve_mixed_errors_catch_all(self):
         """Test mixed errors across record types with catch_all"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6655,7 +6658,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertIn("A: NXDOMAIN: example.com does not exist", error_msg)
         self.assertIn("AAAA: DNS query timeout for example.com", error_msg)
 
-    def test_536_fqdn_resolve_empty_answers_no_catch_all(self):
+    def test_539_fqdn_resolve_empty_answers_no_catch_all(self):
         """Test empty answers without catch_all"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6672,7 +6675,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(invalid)
         self.assertIsNone(error_msg)
 
-    def test_537_fqdn_resolve_empty_answers_catch_all(self):
+    def test_540_fqdn_resolve_empty_answers_catch_all(self):
         """Test empty answers with catch_all"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6689,7 +6692,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(invalid)
         self.assertIsNone(error_msg)
 
-    def test_538_fqdn_resolve_partial_success_catch_all(self):
+    def test_541_fqdn_resolve_partial_success_catch_all(self):
         """Test partial success with catch_all (A succeeds, AAAA fails)"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6708,7 +6711,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(invalid)  # Should be valid since at least one succeeded
         self.assertIsNone(error_msg)
 
-    def test_539_fqdn_resolve_multiple_a_records_no_catch_all(self):
+    def test_542_fqdn_resolve_multiple_a_records_no_catch_all(self):
         """Test multiple A records without catch_all (should return first)"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6730,7 +6733,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         # Should only make one call since it breaks after first success
         mock_resolver.resolve.assert_called_once_with("example.com", "A")
 
-    def test_540_fqdn_resolve_a_fails_aaaa_succeeds_no_catch_all(self):
+    def test_543_fqdn_resolve_a_fails_aaaa_succeeds_no_catch_all(self):
         """Test A record failure but AAAA success without catch_all"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6749,7 +6752,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(invalid)
         self.assertIsNone(error_msg)
 
-    def test_541_fqdn_resolve_logging_verification(self):
+    def test_544_fqdn_resolve_logging_verification(self):
         """Test that appropriate logging occurs"""
         from acme2certifier.acme_srv.helpers.network import _fqdn_resolve
 
@@ -6786,7 +6789,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_542_ptr_resolve_successful_resolution(self):
+    def test_545_ptr_resolve_successful_resolution(self):
         """Test successful PTR record resolution"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6808,7 +6811,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 mock_reverse.assert_called_once_with("192.168.1.1")
                 mock_resolver.resolve.assert_called_once_with("reversed_ip", "PTR")
 
-    def test_543_ptr_resolve_successful_with_dns_servers(self):
+    def test_546_ptr_resolve_successful_with_dns_servers(self):
         """Test successful PTR resolution with custom DNS servers"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6830,7 +6833,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertFalse(invalid)
                 self.assertEqual(mock_resolver.nameservers, dns_servers)
 
-    def test_544_ptr_resolve_exception_handling(self):
+    def test_547_ptr_resolve_exception_handling(self):
         """Test PTR resolution exception handling"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6847,7 +6850,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertIsNone(result)
                 self.assertTrue(invalid)
 
-    def test_545_ptr_resolve_nxdomain_error(self):
+    def test_548_ptr_resolve_nxdomain_error(self):
         """Test PTR resolution with NXDOMAIN error"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6864,7 +6867,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertIsNone(result)
                 self.assertTrue(invalid)
 
-    def test_546_ptr_resolve_timeout_error(self):
+    def test_549_ptr_resolve_timeout_error(self):
         """Test PTR resolution with timeout error"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6881,7 +6884,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertIsNone(result)
                 self.assertTrue(invalid)
 
-    def test_547_ptr_resolve_invalid_address_format(self):
+    def test_550_ptr_resolve_invalid_address_format(self):
         """Test PTR resolution with invalid IP address format"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6897,7 +6900,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertIsNone(result)
                 self.assertTrue(invalid)
 
-    def test_548_ptr_resolve_empty_response(self):
+    def test_551_ptr_resolve_empty_response(self):
         """Test PTR resolution with empty response"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6914,7 +6917,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertIsNone(result)
                 self.assertTrue(invalid)
 
-    def test_549_ptr_resolve_logging_verification(self):
+    def test_552_ptr_resolve_logging_verification(self):
         """Test PTR resolution logging behavior"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6950,7 +6953,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     )
                 )
 
-    def test_550_ptr_resolve_error_logging_verification(self):
+    def test_553_ptr_resolve_error_logging_verification(self):
         """Test PTR resolution error logging behavior"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6977,7 +6980,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     )
                 )
 
-    def test_551_ptr_resolve_ipv6_address(self):
+    def test_554_ptr_resolve_ipv6_address(self):
         """Test PTR resolution with IPv6 address"""
         from acme2certifier.acme_srv.helpers.network import ptr_resolve
 
@@ -6999,7 +7002,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 mock_reverse.assert_called_once_with("2001:db8::1")
                 mock_resolver.resolve.assert_called_once_with("ipv6_reversed", "PTR")
 
-    def test_552_url_get_with_default_dns_successful_200(self):
+    def test_555_url_get_with_default_dns_successful_200(self):
         """Test successful HTTP request with 200 status code"""
         from acme2certifier.acme_srv.helpers.network import url_get_with_default_dns
 
@@ -7029,7 +7032,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     proxies={},
                 )
 
-    def test_553_url_get_with_default_dns_successful_non_200(self):
+    def test_556_url_get_with_default_dns_successful_non_200(self):
         """Test successful HTTP request with non-200 status code"""
         from acme2certifier.acme_srv.helpers.network import url_get_with_default_dns
 
@@ -7053,7 +7056,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertEqual(status_code, 404)
                 self.assertEqual(error_msg, "http://example.com Not Found")
 
-    def test_554_url_get_with_default_dns_exception_fallback_success(self):
+    def test_557_url_get_with_default_dns_exception_fallback_success(self):
         """Test exception in first request triggers IPv4 fallback - success"""
         from acme2certifier.acme_srv.helpers.network import url_get_with_default_dns
 
@@ -7094,7 +7097,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     # Verify old GAI family was restored
                     self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
 
-    def test_555_url_get_with_default_dns_fallback_read_timeout(self):
+    def test_558_url_get_with_default_dns_fallback_read_timeout(self):
         """Test ReadTimeout exception in IPv4 fallback"""
         from acme2certifier.acme_srv.helpers.network import url_get_with_default_dns
 
@@ -7128,7 +7131,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     # Verify old GAI family was restored
                     self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
 
-    def test_556_url_get_with_default_dns_fallback_connection_error(self):
+    def test_559_url_get_with_default_dns_fallback_connection_error(self):
         """Test ConnectionError exception in IPv4 fallback"""
         from acme2certifier.acme_srv.helpers.network import url_get_with_default_dns
 
@@ -7162,7 +7165,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     # Verify old GAI family was restored
                     self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
 
-    def test_557_url_get_with_default_dns_fallback_generic_exception(self):
+    def test_560_url_get_with_default_dns_fallback_generic_exception(self):
         """Test generic exception in IPv4 fallback"""
         from acme2certifier.acme_srv.helpers.network import url_get_with_default_dns
 
@@ -7195,7 +7198,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     # Verify old GAI family was restored
                     self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
 
-    def test_558_url_get_with_default_dns_fallback_non_200(self):
+    def test_561_url_get_with_default_dns_fallback_non_200(self):
         """Test non-200 status in IPv4 fallback"""
         from acme2certifier.acme_srv.helpers.network import url_get_with_default_dns
 
@@ -7233,7 +7236,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     # Verify old GAI family was restored
                     self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
 
-    def test_559_url_get_with_default_dns_with_proxy_config(self):
+    def test_562_url_get_with_default_dns_with_proxy_config(self):
         """Test request with proxy configuration"""
         from acme2certifier.acme_srv.helpers.network import url_get_with_default_dns
 
@@ -7268,7 +7271,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                     proxies=proxy_config,
                 )
 
-    def test_560_url_get_with_default_dns_logging_verification(self):
+    def test_563_url_get_with_default_dns_logging_verification(self):
         """Test logging behavior in url_get_with_default_dns"""
         from acme2certifier.acme_srv.helpers.network import url_get_with_default_dns
 
@@ -7322,7 +7325,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                         )
                     )
 
-    def test_561_allowed_gai_family(self):
+    def test_564_allowed_gai_family(self):
         """Test allowed_gai_family function returns IPv4"""
         from acme2certifier.acme_srv.helpers.network import allowed_gai_family
         import socket
@@ -7331,7 +7334,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
         self.assertEqual(result, socket.AF_INET)
 
-    def test_562_config_allowed_domainlist_load_deprecated_section(self):
+    def test_565_config_allowed_domainlist_load_deprecated_section(self):
         """Test config_allowed_domainlist_load loads from deprecated CAhandler section and logs warning."""
         from acme2certifier.acme_srv.helpers import config
 
@@ -7344,7 +7347,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual(result, PARSING_ERR_MSG)
         self.assertTrue(any("deprecated" in msg.lower() for msg in log_context.output))
 
-    def test_563_config_allowed_domainlist_load_invalid_json(self):
+    def test_566_config_allowed_domainlist_load_invalid_json(self):
         """Test config_allowed_domainlist_load handles invalid JSON and logs warning."""
         from acme2certifier.acme_srv.helpers import config
 
@@ -7362,7 +7365,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_564_pkcs7_to_pem(self):
+    def test_567_pkcs7_to_pem(self):
         """test pkcs7 to pem default output"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -7370,7 +7373,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             result = fso.read()
         self.assertEqual(result, self.pkcs7_to_pem(self.logger, file_content))
 
-    def test_565_pkcs7_to_pem(self):
+    def test_568_pkcs7_to_pem(self):
         """test pkcs7 to pem output string"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -7378,7 +7381,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             result = fso.read()
         self.assertEqual(result, self.pkcs7_to_pem(self.logger, file_content, "string"))
 
-    def test_566_pkcs7_to_pem(self):
+    def test_569_pkcs7_to_pem(self):
         """test pkcs7 to pem output list"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -7388,7 +7391,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         ]
         self.assertEqual(result, self.pkcs7_to_pem(self.logger, file_content, "list"))
 
-    def test_567_pkcs7_to_pem(self):
+    def test_570_pkcs7_to_pem(self):
         """test pkcs7 to pem output list"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -7397,7 +7400,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             result, self.pkcs7_to_pem(self.logger, file_content, "unknown")
         )
 
-    def test_568_pkcs7_to_pem(self):
+    def test_571_pkcs7_to_pem(self):
         """test pkcs7 to pem output list"""
 
         file_content = base64.b64decode(
@@ -7409,7 +7412,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         ]
         self.assertEqual(result, self.pkcs7_to_pem(self.logger, file_content, "list"))
 
-    def test_569_pkcs7_to_pem_tag_replacement_logs_error(self):
+    def test_572_pkcs7_to_pem_tag_replacement_logs_error(self):
         """Test pkcs7_to_pem logs error on tag replacement strategy (line 426)"""
         from acme2certifier.acme_srv.helpers.certificates import pkcs7_to_pem
 
@@ -7430,7 +7433,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
         self.assertIsInstance(result, list)
 
-    def test_570_pkcs7_to_pem_all_strategies_fail(self):
+    def test_573_pkcs7_to_pem_all_strategies_fail(self):
         """Test pkcs7_to_pem logs error and raises if all strategies fail (lines 436-437)"""
         from acme2certifier.acme_srv.helpers.certificates import pkcs7_to_pem
 
@@ -7456,10 +7459,10 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             "All PKCS7 loading strategies failed. Last error: %s", cm.exception
         )
 
-    def test_571_config_dryrun_load_not_set(self):
+    def test_574_config_dryrun_load_not_set(self):
         """Test config_dryrun_load with valid 'true' value."""
 
-    def test_572_config_dryrun_load_not_set(self):
+    def test_575_config_dryrun_load_not_set(self):
         """Test config_dryrun_load when dryrun is not set."""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"foo": "bar"}
@@ -7467,7 +7470,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             (False, None), self.config_dryrun_load(self.logger, config_dic)
         )
 
-    def test_573_config_dryrun_load_true(self):
+    def test_576_config_dryrun_load_true(self):
         """Test config_dryrun_load with valid 'true' value."""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"dryrun": "True"}
@@ -7478,7 +7481,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 (True, None), self.config_dryrun_load(self.logger, config_dic)
             )
 
-    def test_574_config_dryrun_load_false(self):
+    def test_577_config_dryrun_load_false(self):
         """Test config_dryrun_load with valid 'false' value."""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"dryrun": "False"}
@@ -7489,7 +7492,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 (False, None), self.config_dryrun_load(self.logger, config_dic)
             )
 
-    def test_575_config_dryrun_load_profile(self):
+    def test_578_config_dryrun_load_profile(self):
         """Test config_dryrun_load with invalid value."""
         config_dic = configparser.ConfigParser()
         profile_list = ["profile", "Profile", "PROFILE"]
@@ -7501,7 +7504,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.config_dryrun_load(self.logger, config_dic),
             )
 
-    def test_576_config_dryrun_load_profile_no_profilename(self):
+    def test_579_config_dryrun_load_profile_no_profilename(self):
         """Test config_dryrun_load with invalid value and no dryrun_profile set."""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"]["dryrun"] = "profile"
@@ -7514,11 +7517,11 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 lcm.output[0],
             )
 
-    def test_577_is_ip_whitelisted_empty(self):
+    def test_580_is_ip_whitelisted_empty(self):
         """Test is_ip_whitelisted with empty IP list."""
         self.assertFalse(self.is_ip_whitelisted(self.logger, "1.2.3.4", []))
 
-    def test_578_is_ip_whitelisted_noip(self):
+    def test_581_is_ip_whitelisted_noip(self):
         """Test is_ip_whitelisted with no IP provided."""
         self.assertFalse(
             self.is_ip_whitelisted(
@@ -7526,7 +7529,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_579_is_ip_whitelisted_invalid(self):
+    def test_582_is_ip_whitelisted_invalid(self):
         """Test is_ip_whitelisted with invalid IP list."""
         self.assertFalse(
             self.is_ip_whitelisted(
@@ -7536,7 +7539,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_580_is_ip_whitelisted_invalid(self):
+    def test_583_is_ip_whitelisted_invalid(self):
         """Test is_ip_whitelisted with invalid IP list."""
         self.assertFalse(
             self.is_ip_whitelisted(
@@ -7546,7 +7549,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_581_is_ip_whitelisted_no_match(self):
+    def test_584_is_ip_whitelisted_no_match(self):
         """Test is_ip_whitelisted with no matching IP."""
         self.assertFalse(
             self.is_ip_whitelisted(
@@ -7556,7 +7559,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_582_is_ip_whitelisted_exact_match(self):
+    def test_585_is_ip_whitelisted_exact_match(self):
         """Test is_ip_whitelisted with exact matching IP."""
         self.assertTrue(
             self.is_ip_whitelisted(
@@ -7566,7 +7569,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_583_is_ip_whitelisted_cidr_match(self):
+    def test_586_is_ip_whitelisted_cidr_match(self):
         """Test is_ip_whitelisted with CIDR matching IP."""
         self.assertTrue(
             self.is_ip_whitelisted(
@@ -7576,7 +7579,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_584_is_ip_whitelisted_cidr_32match(self):
+    def test_587_is_ip_whitelisted_cidr_32match(self):
         """Test is_ip_whitelisted with CIDR /32 matching IP."""
         self.assertTrue(
             self.is_ip_whitelisted(
@@ -7586,7 +7589,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_585_is_ip_whitelisted_invalid_network(self):
+    def test_588_is_ip_whitelisted_invalid_network(self):
         """Test is_ip_whitelisted with invalid network."""
         with self.assertLogs(self.logger, level="ERROR") as lcm:
             self.assertTrue(
@@ -7601,7 +7604,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output[0],
         )
 
-    def test_586_config_allowed_iplist_load(self):
+    def test_589_config_allowed_iplist_load(self):
         """test config_allowed_iplist_load()"""
         config_dic = {"Order": {"allowed_iplist": '["foo", "bar", "foobar"]'}}
         self.assertEqual(
@@ -7609,14 +7612,14 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.config_allowed_iplist_load(self.logger, config_dic),
         )
 
-    def test_587_config_allowed_iplist_load(self):
+    def test_590_config_allowed_iplist_load(self):
         """test config_allowed_iplist_load()"""
         config_dic = {"Order": {"allowed_iplist": '["foo"]'}}
         self.assertEqual(
             ["foo"], self.config_allowed_iplist_load(self.logger, config_dic)
         )
 
-    def test_588_config_allowed_iplist_load(self):
+    def test_591_config_allowed_iplist_load(self):
         """test config_allowed_iplist_load()"""
         config_dic = {"Order": {"allowed_iplist": "foo"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -7629,7 +7632,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_589_is_email_whitelisted_exact_match(self):
+    def test_592_is_email_whitelisted_exact_match(self):
         """Test is_email_whitelisted with exact match"""
         from acme2certifier.acme_srv.helpers.domain_utils import is_email_whitelisted
 
@@ -7641,7 +7644,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             is_email_whitelisted(self.logger, "admin@domain.com", email_list)
         )
 
-    def test_590_is_email_whitelisted_case_insensitive(self):
+    def test_593_is_email_whitelisted_case_insensitive(self):
         """Test is_email_whitelisted is case-insensitive"""
         from acme2certifier.acme_srv.helpers.domain_utils import is_email_whitelisted
 
@@ -7653,13 +7656,13 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             is_email_whitelisted(self.logger, "ADMIN@DOMAIN.COM", email_list)
         )
 
-    def test_591_is_email_whitelisted_not_in_list(self):
+    def test_594_is_email_whitelisted_not_in_list(self):
         """Test is_email_whitelisted returns False for non-matching email"""
         from acme2certifier.acme_srv.helpers.domain_utils import is_email_whitelisted
 
         email_list = ["user@example.com", "admin@domain.com"]
 
-    def test_592_is_email_whitelisted_with_whitespace(self):
+    def test_595_is_email_whitelisted_with_whitespace(self):
         """Test is_email_whitelisted trims whitespace"""
         from acme2certifier.acme_srv.helpers.domain_utils import is_email_whitelisted
 
@@ -7671,7 +7674,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             is_email_whitelisted(self.logger, "admin@domain.com", email_list)
         )
 
-    def test_593_email_whitelisted_empty_list(self):
+    def test_596_email_whitelisted_empty_list(self):
         """Test is_email_whitelisted with empty list returns False"""
         from acme2certifier.acme_srv.helpers.domain_utils import is_email_whitelisted
 
@@ -7680,7 +7683,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             is_email_whitelisted(self.logger, "user@example.com", email_list)
         )
 
-    def test_594_is_email_whitelisted_exact_match(self):
+    def test_597_is_email_whitelisted_exact_match(self):
         """Test is_email_whitelisted returns True for exact match."""
         from acme2certifier.acme_srv.helpers.domain_utils import is_email_whitelisted
 
@@ -7693,7 +7696,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             is_email_whitelisted(self.logger, "other@example.com", email_list)
         )
 
-    def test_595_is_email_whitelisted_wildcard(self):
+    def test_598_is_email_whitelisted_wildcard(self):
         """Test is_email_whitelisted returns True for wildcard *@example.com."""
         from acme2certifier.acme_srv.helpers.domain_utils import is_email_whitelisted
 
@@ -7708,7 +7711,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             is_email_whitelisted(self.logger, "user@other.com", email_list)
         )
 
-    def test_596_is_email_whitelisted_mixed_patterns(self):
+    def test_599_is_email_whitelisted_mixed_patterns(self):
         """Test is_email_whitelisted with mixed exact and wildcard patterns."""
         from acme2certifier.acme_srv.helpers.domain_utils import is_email_whitelisted
 
@@ -7723,7 +7726,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             is_email_whitelisted(self.logger, "nobody@bar.com", email_list)
         )
 
-    def test_597_is_email_whitelisted_strip_and_case(self):
+    def test_600_is_email_whitelisted_strip_and_case(self):
         """Test is_email_whitelisted is case and whitespace insensitive."""
         from acme2certifier.acme_srv.helpers.domain_utils import is_email_whitelisted
 
@@ -7733,7 +7736,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
         self.assertTrue(is_email_whitelisted(self.logger, "ADMIN@FOO.COM", email_list))
 
-    def test_598_cert_aki_asn1_get_success_and_missing(self):
+    def test_601_cert_aki_asn1_get_success_and_missing(self):
         """_cert_aki_asn1_get returns hex or None when AKI absent"""
         from acme2certifier.acme_srv.helpers.certificates import _cert_aki_asn1_get
 
@@ -7768,7 +7771,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.assertIsNone(_cert_aki_asn1_get(self.logger, cert))
         self.assertIn("WARNING:test_a2c:No AKI found in certificate", lcm.output)
 
-    def test_599_cert_ski_asn1_get_success_and_missing(self):
+    def test_602_cert_ski_asn1_get_success_and_missing(self):
         """_cert_ski_asn1_get returns hex or None when SKI absent"""
         from acme2certifier.acme_srv.helpers.certificates import _cert_ski_asn1_get
 
@@ -7803,7 +7806,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.assertIsNone(_cert_ski_asn1_get(self.logger, cert))
         self.assertIn("WARNING:test_a2c:No SKI found in certificate", lcm.output)
 
-    def test_600_cert_aki_asn1_get_missing_key_identifier(self):
+    def test_603_cert_aki_asn1_get_missing_key_identifier(self):
         """_cert_aki_asn1_get warns when AKI has no keyIdentifier"""
         from acme2certifier.acme_srv.helpers.certificates import _cert_aki_asn1_get
 
@@ -7826,7 +7829,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_601_cert_extension_raw_get_no_extensions(self):
+    def test_604_cert_extension_raw_get_no_extensions(self):
         """_cert_extension_raw_get returns None when extensions absent or OID missing"""
         from acme2certifier.acme_srv.helpers.certificates import (
             _cert_extension_raw_get,
@@ -7873,7 +7876,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.certificates._cert_aki_asn1_get")
     @patch("acme2certifier.acme_srv.helpers.certificates.x509.Certificate.extensions")
-    def test_602_cert_aki_get_falls_back_to_asn1(self, mock_ext, mock_aki_get):
+    def test_605_cert_aki_get_falls_back_to_asn1(self, mock_ext, mock_aki_get):
         """cert_aki_get falls back to ASN.1 helper on cryptography failure"""
         cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
                 LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
@@ -7897,7 +7900,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("asn1-aki", self.cert_aki_get(self.logger, cert))
         mock_aki_get.assert_called_once()
 
-    def test_603_default_deploy_base_dir_and_resolve_config_path(self):
+    def test_606_default_deploy_base_dir_and_resolve_config_path(self):
         """default_deploy_base_dir and resolve_config_path cover env/dir/empty paths"""
         from acme2certifier.acme_srv.helpers import config as config_mod
 
@@ -7936,7 +7939,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
             self.assertEqual(config_mod.resolve_config_path("rel.cfg"), "rel.cfg")
 
-    def test_604_warn_acme_srv_cfg_path_once(self):
+    def test_607_warn_acme_srv_cfg_path_once(self):
         """_warn_acme_srv_cfg_path warns once per path"""
         from acme2certifier.acme_srv.helpers import config as config_mod
 
@@ -7958,7 +7961,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
         self.assertTrue(any(issubclass(w.category, DeprecationWarning) for w in caught))
 
-    def test_605_default_acme_srv_cfg_file_path_priority(self):
+    def test_608_default_acme_srv_cfg_file_path_priority(self):
         """_default_acme_srv_cfg_file covers nested/packaged/legacy/fallback"""
         from acme2certifier.acme_srv.helpers import config as config_mod
 
@@ -8007,7 +8010,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 "/var/www/acme2certifier/acme_srv.cfg",
             )
 
-    def test_606_plugin_loader_gap_coverage(self):
+    def test_609_plugin_loader_gap_coverage(self):
         """Cover remaining plugin_loader branches"""
         from acme2certifier.acme_srv.helpers import plugin_loader
         from acme2certifier.acme_srv.helpers.plugin_loader import (
@@ -8097,7 +8100,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertEqual("dbmod", db_handler_load(self.logger, {}))
             self.assertTrue(any("Loaded DB handler" in line for line in lcm.output))
 
-    def test_607_generate_random_string_charset_and_secrets(self):
+    def test_610_generate_random_string_charset_and_secrets(self):
         """generate_random_string uses secrets and alphanumeric charset"""
         from string import ascii_letters, digits
 
@@ -8111,7 +8114,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         for char in self.generate_random_string(self.logger, 64):
             self.assertIn(char, digits + ascii_letters)
 
-    def test_608_normalize_resolved_ips(self):
+    def test_611_normalize_resolved_ips(self):
         """normalize_resolved_ips handles str/list/None"""
         from acme2certifier.acme_srv.helpers.network import normalize_resolved_ips
 
@@ -8123,7 +8126,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             normalize_resolved_ips(["1.2.3.4", "2001:db8::1", ""]),
         )
 
-    def test_609_filter_http01_target_ips_permissive(self):
+    def test_612_filter_http01_target_ips_permissive(self):
         """Default filter keeps private and public addresses"""
         from acme2certifier.acme_srv.helpers.network import filter_http01_target_ips
 
@@ -8135,7 +8138,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertIsNone(err)
         self.assertEqual(["10.0.0.1", "127.0.0.1", "8.8.8.8"], allowed)
 
-    def test_610_filter_http01_target_ips_strict(self):
+    def test_613_filter_http01_target_ips_strict(self):
         """Strict filter keeps only global addresses and prefers IPv4"""
         from acme2certifier.acme_srv.helpers.network import filter_http01_target_ips
 
@@ -8161,7 +8164,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("No allowed address for HTTP-01 validation", err)
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-    def test_611_url_get_dns_pinned_success(self, mock_get):
+    def test_614_url_get_dns_pinned_success(self, mock_get):
         """url_get_dns_pinned keeps hostname URL and pins TCP via create_connection"""
         from acme2certifier.acme_srv.helpers import network as network_mod
         from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
@@ -8206,7 +8209,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual([("8.8.8.8", 80)], dialed)
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-    def test_612_url_get_dns_pinned_ipv6_host_and_peer(self, mock_get):
+    def test_615_url_get_dns_pinned_ipv6_host_and_peer(self, mock_get):
         """FQDN stays in URL; IPv6 identifier is bracketed; peer is pinned"""
         from acme2certifier.acme_srv.helpers import network as network_mod
         from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
@@ -8252,7 +8255,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("http://[2606:4700:4700::1111]/path", args[0])
         self.assertEqual([("2606:4700:4700::1111", 80)], dialed)
 
-    def test_613_legacy_acme_get_load_default_false(self):
+    def test_616_legacy_acme_get_load_default_false(self):
         """legacy_acme_get defaults to False"""
         from configparser import ConfigParser
         from acme2certifier.acme_srv.helpers.config import legacy_acme_get_load
@@ -8260,7 +8263,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         config_dic = ConfigParser()
         self.assertFalse(legacy_acme_get_load(self.logger, config_dic))
 
-    def test_614_legacy_acme_get_load_true_warns(self):
+    def test_617_legacy_acme_get_load_true_warns(self):
         """legacy_acme_get True logs a warning"""
         from configparser import ConfigParser
         from acme2certifier.acme_srv.helpers.config import (
@@ -8279,21 +8282,21 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual(405, problem["status"])
         self.assertIn("malformed", problem["type"])
 
-    def test_615_response_http_code_non_dict(self):
+    def test_618_response_http_code_non_dict(self):
         """_response_http_code returns None for non-dict payloads"""
         from acme2certifier.acme_srv.helpers.logging_utils import _response_http_code
 
         self.assertIsNone(_response_http_code("not-a-dict"))
         self.assertIsNone(_response_http_code(None))
 
-    def test_616_response_http_code_invalid_code(self):
+    def test_619_response_http_code_invalid_code(self):
         """_response_http_code returns None when code cannot be converted to int"""
         from acme2certifier.acme_srv.helpers.logging_utils import _response_http_code
 
         self.assertIsNone(_response_http_code({"code": "not-an-int"}))
         self.assertIsNone(_response_http_code({"code": object()}))
 
-    def test_617_log_response_success_with_code_200(self):
+    def test_620_log_response_success_with_code_200(self):
         """log_response INFO path for successful HTTP codes (< 400)"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.log_response(
@@ -8304,7 +8307,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
-    def test_618_syslog_address_host_port_and_fallbacks(self):
+    def test_621_syslog_address_host_port_and_fallbacks(self):
         """_syslog_address parses host:port and falls back for invalid forms"""
         from acme2certifier.acme_srv.helpers.logging_utils import _syslog_address
 
@@ -8316,7 +8319,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         "acme2certifier.acme_srv.helpers.logging_utils.logging.handlers.SysLogHandler"
     )
     @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
-    def test_619_logger_setup_syslog_empty_address(self, mock_load_cfg, mock_syslog):
+    def test_622_logger_setup_syslog_empty_address(self, mock_load_cfg, mock_syslog):
         """empty syslog_address does not attach SysLogHandler"""
         mock_cfg = configparser.RawConfigParser()
         mock_cfg["Helper"] = {"syslog_address": "   ", "log_format": "%(message)s"}
@@ -8324,7 +8327,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.logger_setup(False)
         mock_syslog.assert_not_called()
 
-    def test_620_logger_setup_syslog_already_attached(self):
+    def test_623_logger_setup_syslog_already_attached(self):
         """existing SysLogHandler is not duplicated"""
         import logging as logging_mod
         from acme2certifier.acme_srv.helpers.logging_utils import _attach_syslog_handler
@@ -8345,7 +8348,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         finally:
             logger.handlers.clear()
 
-    def test_621_logger_setup_syslog_oserror(self):
+    def test_624_logger_setup_syslog_oserror(self):
         """SysLogHandler OSError is logged and does not raise"""
         import logging as logging_mod
         from acme2certifier.acme_srv.helpers.logging_utils import _attach_syslog_handler
@@ -8370,7 +8373,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.logging_utils.logging.FileHandler")
     @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
-    def test_622_logger_setup_log_file_empty_path(
+    def test_625_logger_setup_log_file_empty_path(
         self, mock_load_cfg, mock_file_handler
     ):
         """empty log_file does not attach FileHandler"""
@@ -8380,7 +8383,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.logger_setup(False)
         mock_file_handler.assert_not_called()
 
-    def test_623_logger_setup_log_file_already_attached(self):
+    def test_626_logger_setup_log_file_already_attached(self):
         """existing FileHandler for same path is not duplicated"""
         import logging as logging_mod
         import os
@@ -8405,7 +8408,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             logger.handlers.clear()
 
     @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
-    def test_624_log_cert_content_enabled_missing_helper_section(
+    def test_627_log_cert_content_enabled_missing_helper_section(
         self, mock_load_config
     ):
         """_log_cert_content_enabled returns False when Helper section is absent"""
@@ -8418,7 +8421,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(_log_cert_content_enabled())
 
     @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
-    def test_625_log_cert_content_enabled_invalid_boolean(self, mock_load_config):
+    def test_628_log_cert_content_enabled_invalid_boolean(self, mock_load_config):
         """_log_cert_content_enabled returns False when log_cert_content is not a bool"""
         from configparser import ConfigParser
         from acme2certifier.acme_srv.helpers.logging_utils import (
@@ -8431,7 +8434,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_load_config.return_value = cfg
         self.assertFalse(_log_cert_content_enabled())
 
-    def test_626_kerberos_kinit_command_resolve_rejects_null_byte(self):
+    def test_629_kerberos_kinit_command_resolve_rejects_null_byte(self):
         """paths containing a NUL byte are rejected"""
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             self.assertIsNone(
@@ -8441,7 +8444,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         self.assertTrue(any("null byte in path" in msg for msg in lcm.output))
 
-    def test_627_tnauthlist_configuration_validate_disabled(self):
+    def test_630_tnauthlist_configuration_validate_disabled(self):
         """no message when tnauthlist_support is off"""
         from configparser import ConfigParser
         from acme2certifier.acme_srv.helpers.config import (
@@ -8456,7 +8459,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         error_mock.assert_not_called()
         critical_mock.assert_not_called()
 
-    def test_628_tnauthlist_configuration_validate_enabled_not_acknowledged(self):
+    def test_631_tnauthlist_configuration_validate_enabled_not_acknowledged(self):
         """tnauthlist_support without acknowledgement logs an error"""
         from configparser import ConfigParser
         from acme2certifier.acme_srv.helpers.config import (
@@ -8479,7 +8482,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_629_tnauthlist_configuration_validate_enabled_acknowledged(self):
+    def test_632_tnauthlist_configuration_validate_enabled_acknowledged(self):
         """tnauthlist_support with acknowledgement logs a critical message"""
         from configparser import ConfigParser
         from acme2certifier.acme_srv.helpers.config import (
@@ -8498,7 +8501,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             any("SECURITY DISABLE ACKNOWLEDGED" in line for line in lcm.output)
         )
 
-    def test_630_tnauthlist_configuration_validate_empty_config(self):
+    def test_633_tnauthlist_configuration_validate_empty_config(self):
         """tnauthlist_configuration_validate returns early when config_dic is falsy"""
         from acme2certifier.acme_srv.helpers.config import (
             tnauthlist_configuration_validate,
@@ -8510,7 +8513,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         error_mock.assert_not_called()
         critical_mock.assert_not_called()
 
-    def test_631_default_wsgi_dbfile(self):
+    def test_634_default_wsgi_dbfile(self):
         """default_wsgi_dbfile joins deploy base dir with acme_srv.db"""
         from acme2certifier.acme_srv.helpers import config as config_mod
 
@@ -8522,7 +8525,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 os.path.join("/custom/base", "acme_srv.db"),
             )
 
-    def test_632_default_acme_srv_cfg_file_preferred_deploy(self):
+    def test_635_default_acme_srv_cfg_file_preferred_deploy(self):
         """_default_acme_srv_cfg_file returns first existing preferred deploy path"""
         from acme2certifier.acme_srv.helpers import config as config_mod
 
@@ -8532,14 +8535,14 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 config_mod._default_acme_srv_cfg_file(self.logger), preferred
             )
 
-    def test_633_cert_bound_names_get_empty(self):
+    def test_636_cert_bound_names_get_empty(self):
         """cert_bound_names_get returns empty set for empty certificate"""
         from acme2certifier.acme_srv.helpers.certificates import cert_bound_names_get
 
         self.assertEqual(set(), cert_bound_names_get(self.logger, None))
         self.assertEqual(set(), cert_bound_names_get(self.logger, ""))
 
-    def test_634_cert_bound_names_get_sans_and_cn(self):
+    def test_637_cert_bound_names_get_sans_and_cn(self):
         """cert_bound_names_get unions SAN types and subject CN"""
         import ipaddress
         from cryptography import x509
@@ -8588,7 +8591,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             cert_bound_names_get(self.logger, cert),
         )
 
-    def test_635_cert_bound_names_get_malformed_san(self):
+    def test_638_cert_bound_names_get_malformed_san(self):
         """cert_bound_names_get skips malformed SAN strings and logs error"""
         from acme2certifier.acme_srv.helpers.certificates import cert_bound_names_get
 
@@ -8609,7 +8612,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             any("Error while splitting SAN not-a-san" in msg for msg in lcm.output)
         )
 
-    def test_636_cert_bound_names_get_email_rewrite(self):
+    def test_639_cert_bound_names_get_email_rewrite(self):
         """cert_bound_names_get rewrites DNS SANs containing @ when enabled"""
         from cryptography import x509
         from cryptography.hazmat.primitives import hashes, serialization
@@ -8649,7 +8652,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             cert_bound_names_get(self.logger, cert, email_identifier_rewrite=True),
         )
 
-    def test_637_normalize_bound_name_empty_and_invalid_ip(self):
+    def test_640_normalize_bound_name_empty_and_invalid_ip(self):
         """_normalize_bound_name handles empty values and invalid IP strings"""
         from acme2certifier.acme_srv.helpers.csr import _normalize_bound_name
 
@@ -8661,7 +8664,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             _normalize_bound_name("ip", "not-an-ip"),
         )
 
-    def test_638_cn_bound_type_ip(self):
+    def test_641_cn_bound_type_ip(self):
         """_cn_bound_type returns ip for parseable IP common names"""
         from acme2certifier.acme_srv.helpers.csr import _cn_bound_type
 
@@ -8669,7 +8672,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("email", _cn_bound_type("a@b.c"))
         self.assertEqual("dns", _cn_bound_type("example.com"))
 
-    def test_639_san_list_to_bound_names(self):
+    def test_642_san_list_to_bound_names(self):
         """san_list_to_bound_names converts and skips malformed entries"""
         from acme2certifier.acme_srv.helpers.csr import san_list_to_bound_names
 
@@ -8690,7 +8693,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             any("Error while splitting SAN bad" in msg for msg in lcm.output)
         )
 
-    def test_640_csr_bound_names_get_malformed_san(self):
+    def test_643_csr_bound_names_get_malformed_san(self):
         """csr_bound_names_get skips malformed SAN strings from csr_san_get"""
         with (
             patch(
@@ -8709,7 +8712,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             any("Error while splitting SAN malformed" in msg for msg in lcm.output)
         )
 
-    def test_641_unique_key_loader_duplicate_and_mapping(self):
+    def test_644_unique_key_loader_duplicate_and_mapping(self):
         """_UniqueKeyLoader rejects duplicate keys and loads mappings"""
         import yaml
         from acme2certifier.acme_srv.helpers.config import _UniqueKeyLoader
@@ -8737,7 +8740,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         _set_yaml_option(config, "Sec", "opt", "val", self.logger)
         self.assertEqual("val", config.get("Sec", "opt"))
 
-    def test_642_log_loaded_acme_srv_cfg_flushes_last(self):
+    def test_646_log_loaded_acme_srv_cfg_flushes_last(self):
         """log_loaded_acme_srv_cfg emits pending load info"""
         import acme2certifier.acme_srv.helpers.config as cfgmod
 
@@ -8751,7 +8754,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         finally:
             cfgmod._LAST_LOADED_CFG = prev
 
-    def test_643_detect_config_format_variants(self):
+    def test_647_detect_config_format_variants(self):
         """_detect_config_format covers empty, comments, ini, yaml markers, ext"""
         from acme2certifier.acme_srv.helpers.config import _detect_config_format
 
@@ -8765,7 +8768,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("yaml", _detect_config_format("weird\n", "x.yaml"))
         self.assertEqual("ini", _detect_config_format("weird\n", "x.cfg"))
 
-    def test_644_yaml_value_and_parse_yaml(self):
+    def test_648_yaml_value_and_parse_yaml(self):
         """YAML value normalization and _parse_yaml edge cases"""
         from acme2certifier.acme_srv.helpers.config import (
             _yaml_value_to_option,
@@ -8776,9 +8779,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         import configparser
 
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
-            self.assertIsNone(
-                _yaml_value_to_option(None, self.logger, "S", "o")
-            )
+            self.assertIsNone(_yaml_value_to_option(None, self.logger, "S", "o"))
         self.assertTrue(any("Ignoring null YAML option" in x for x in lcm.output))
         self.assertEqual("True", _yaml_value_to_option(True, self.logger, "S", "o"))
         self.assertEqual("False", _yaml_value_to_option(False, self.logger, "S", "o"))
@@ -8817,12 +8818,15 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("5", cfg2.get("Order", "validity"))
 
         # INI fail then YAML retry
-        with patch(
-            "acme2certifier.acme_srv.helpers.config._detect_config_format",
-            return_value="ini",
-        ), patch(
-            "acme2certifier.acme_srv.helpers.config._parse_ini",
-            side_effect=configparser.Error("bad"),
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.config._detect_config_format",
+                return_value="ini",
+            ),
+            patch(
+                "acme2certifier.acme_srv.helpers.config._parse_ini",
+                side_effect=configparser.Error("bad"),
+            ),
         ):
             cfg4, fmt4 = _parse_config_content(
                 "Order:\n  validity: 7\n", "x.cfg", self.logger
@@ -8830,7 +8834,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.assertEqual("yaml", fmt4)
             self.assertEqual("7", cfg4.get("Order", "validity"))
 
-    def test_646_config_allowed_header_values_load(self):
+    def test_649_config_allowed_header_values_load(self):
         """config_allowed_header_values_load covers missing, valid, invalid, non-list"""
         from acme2certifier.acme_srv.helpers.config import (
             config_allowed_header_values_load,
@@ -8873,7 +8877,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
 
     @patch("acme2certifier.acme_srv.helpers.config.load_config")
-    def test_647_header_value_allowlist_resolve(self, mock_load_cfg):
+    def test_650_header_value_allowlist_resolve(self, mock_load_cfg):
         """header_value_allowlist_resolve prefers Order then allowed_templates"""
         from acme2certifier.acme_srv.helpers.config import (
             header_value_allowlist_resolve,

@@ -172,7 +172,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(error_buffer, lcm.output)
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_007b_config_load_ca_bundle_false(self, mock_load_cfg):
+    def test_008_config_load_ca_bundle_false(self, mock_load_cfg):
         """explicit ca_bundle False keeps warning"""
         mock_load_cfg.return_value = {"CAhandler": {"ca_bundle": False}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -185,7 +185,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_008_config_load(self, mock_load_cfg, mock_file):
+    def test_009_config_load(self, mock_load_cfg, mock_file):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = False
         mock_load_cfg.return_value = {"CAhandler": {"signing_cert": "signing_cert"}}
@@ -211,7 +211,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.x509.load_pem_x509_certificate")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_009_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_010_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_cert"
@@ -235,7 +235,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_010_config_load(self, mock_load_cfg, mock_file):
+    def test_011_config_load(self, mock_load_cfg, mock_file):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = False
         mock_load_cfg.return_value = {"CAhandler": {"password": "password"}}
@@ -251,7 +251,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_011_config_load(self, mock_load_cfg, mock_file):
+    def test_012_config_load(self, mock_load_cfg, mock_file):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = False
         mock_load_cfg.return_value = {"CAhandler": {"signing_key": "signing_key"}}
@@ -277,7 +277,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_012_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_013_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -303,7 +303,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_013_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_014_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -334,7 +334,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_014_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_015_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -370,7 +370,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_015_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_016_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -409,7 +409,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_016_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_017_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -448,7 +448,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_017_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_018_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -485,7 +485,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_018_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_019_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -525,7 +525,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_019_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_020_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -562,38 +562,38 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(error_buffer, lcm.output)
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._config_load")
-    def test_020_enter(self, mock_cfgload):
+    def test_021_enter(self, mock_cfgload):
         """enter - no soap server configured"""
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._config_load")
-    def test_021_enter(self, mock_cfgload):
+    def test_022_enter(self, mock_cfgload):
         """enter soap server configured"""
         self.cahandler.soap_srv = "mock_srv"
         self.cahandler.__enter__()
         self.assertFalse(mock_cfgload.called)
 
-    def test_022_exit(self):
+    def test_023_exit(self):
         """enter - no soap server configured"""
         self.cahandler.__exit__()
 
     @patch("pyasn1.codec.der.decoder.decode")
-    def test_023_cert_decode(self, mock_der):
+    def test_024_cert_decode(self, mock_der):
         """test _cert_decode()"""
         mock_der.return_value = "decode"
         cert = Mock()
         cert.public_bytes = Mock()
         self.assertEqual("decode", self.cahandler._cert_decode(cert))
 
-    def test_024_poll(self):
+    def test_025_poll(self):
         """test poll"""
         self.assertEqual(
             (None, None, None, "poll_identifier", False),
             self.cahandler.poll("cert_name", "poll_identifier", "csr"),
         )
 
-    def test_025_revoke(self):
+    def test_026_revoke(self):
         """test revoke"""
         self.assertEqual(
             (
@@ -604,11 +604,11 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert_name", "reason", "date"),
         )
 
-    def test_026_trigger(self):
+    def test_027_trigger(self):
         """test revoke"""
         self.assertEqual((None, None, None), self.cahandler.trigger("identifier"))
 
-    def test_027_soaprequest_build(self):
+    def test_028_soaprequest_build(self):
         """test soap request build"""
         self.cahandler.profilename = "profilename"
         self.cahandler.email = "email"
@@ -631,26 +631,26 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_028_binary_read(self, mock_isfile):
+    def test_029_binary_read(self, mock_isfile):
         """test read binary file"""
         mock_isfile.return_value = True
         self.assertEqual("foo", self.binary_read(self.logger, "filename"))
 
     @patch("os.path.isdir")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_029_binary_write(self, mock_isdir):
+    def test_030_binary_write(self, mock_isdir):
         """test wrote binary file"""
         mock_isdir.return_value = True
         self.assertFalse(self.binary_write(self.logger, "filename", "content"))
 
-    def test_030_sign(self):
+    def test_031_sign(self):
         """test _sign unkown key format"""
         key = "key"
         payload = "foo"
         self.assertEqual((None, None), self.cahandler._sign(key, payload))
 
     @patch("cryptography.hazmat.primitives.asymmetric.rsa")
-    def test_031_sign(self, mock_rsa):
+    def test_032_sign(self, mock_rsa):
         """test _sign rsa key"""
         keyph = b"Test1234"
         with open(self.dir_path + "/ca/sub-ca-key.pem", "rb") as open_file:
@@ -665,7 +665,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(alg, str(result[1]))
 
     @patch("cryptography.hazmat.primitives.asymmetric.rsa")
-    def test_032_sign(self, mock_rsa):
+    def test_033_sign(self, mock_rsa):
         """test _sign ecc key"""
         ecc_key = b"-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIGCu1fYGkqMdPtsNH7xVc8QBjCWCkcUTVKX6f8vLhtkvoAoGCCqGSM49\nAwEHoUQDQgAEan72++swi7J5B1HVYp1CjXPqckkQquiMIQhz5xYesv9f4KK/ouKS\n1uJ3ZYwPbWUsDd8/03vf9VdlfZzL3W3ZQw==\n-----END EC PRIVATE KEY-----"
         key = serialization.load_pem_private_key(
@@ -676,14 +676,14 @@ class TestACMEHandler(unittest.TestCase):
         alg = """AlgorithmIdentifier:\n algorithm=1.2.840.10045.4.3.2\n"""
         self.assertEqual(alg, str(result[1]))
 
-    def test_033_certraw_get(self):
+    def test_034_certraw_get(self):
         """ test _certraw_get """ ""
         with open(self.dir_path + "/ca/sub-ca-client.pem", "r") as fso:
             pem_data = fso.read()
         result = "MIIEGDCCAgCgAwIBAgIJALL8aztMPfV2MA0GCSqGSIb3DQEBCwUAMEgxCzAJBgNVBAYTAkRFMQ8wDQYDVQQIDAZCZXJsaW4xFzAVBgNVBAoMDkFjbWUyQ2VydGlmaWVyMQ8wDQYDVQQDDAZzdWItY2EwHhcNMTkwNjI1MDEyNTAwWhcNMjAwNjI1MDEyNTAwWjBPMQswCQYDVQQGEwJERTEPMA0GA1UEBxMGQmVybGluMRcwFQYDVQQKEw5BY21lMkNlcnRpZmllcjEWMBQGA1UEAwwNY2xpZW50X3N1Yi1jYTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALvoKKg3ciBVWZtquiWyMogWU6ydEfmLbXktK6T+owxzxHVaoePVGH9DZvTZD2pHS8xJ6fpFr3pZYiuqiUHuxdMpj9gVxik5ivBrSJIkZXLxwvNJWpMa1o1Hxz1By3Hrlm3ebKIzfQPqRRcdjWtJgCFbcTpalwhE1RQFMp4Icb08aAE9uEaZQ4uZ8Ls30J6IHC4PG63lGI1tkAtLIoUWupRAmnWDx0ysXzXeN7m+Lff9ols9MZNgzRMgY/zGUq0LzZfi+L+Iev3sztCdoIOBA/K63jv0hOPyYg331L05XIwbLeUoUG41J4pZzafx6MAFp4Zam1w+aafCzEw7ZPHQvn0CAwEAATANBgkqhkiG9w0BAQsFAAOCAgEABPgWo4KAXJNXNfEBbixDuCxtwO1JuphSOTcpIlEp+uNOSDzgNEbrhUXTNM8SPshzFjBpudc29okiyC62CfLD/X+EvIeKo/oa477kN6MuNfqLGZ42a935ES3S00Wy8rbwyIoPCsKWT/6VsHRHUn8XhFNFUBKZ8FGxwXcAVpPanyikURqVH1MgAk62hJQdYjSxdga/GKS1dS39fyxQz7uBPt5WIQZPzL6dr2Yn/4lQUvTUVus2e1cTh3z02yB5EDlEAcMMvMNpfYvNdU5H6QEPwysbkW9E/Ep84aq21zwuPxICh0KdjHWKkHtCqDoEYIADDl1AD5UdJTMQ9LIzUjsBvtB5I6yT7jgsx/iqTDrkJVK/zRf4NeKRa3AW57jsPUIcUstUFnVJbg+MM4fYmapx8Hqm/Aq+II9ip80AM6hXvierTQn4MNQivL0ZJfj0Ro9KEIDAHN3IAfIlFovbkBPLMi9PtfyhuVmXpthE9OaDlgUguWb45LAKwgfu1TFGPPpf5jTw2qVx0F+iCiUwK8ZgnakkXOKE5+KIb8ejL+3pPd5Wt+45w/7gEFOjT6XAzZGnUtcMH/lpxmgbl3/SKkyrW4h7PnF2FEEVC4XnZuQm+ZwD/PpXfmAA52ygKHBzUr9V33CkW0FhvjqkAUya5x9CqWlHoal0RVvFavnw+4ImqbE="
         self.assertEqual(result, self.cahandler._certraw_get(pem_data))
 
-    def test_034_pkcs7_create(self):
+    def test_035_pkcs7_create(self):
         """test pkcs7_create"""
         keyph = b"Test1234"
         with open(self.dir_path + "/ca/csr.der", "rb") as open_file:
@@ -705,7 +705,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(expected_result, base64.b64encode(result))
 
     @patch("requests.post")
-    def test_035_soaprequest_send(self, mock_post):
+    def test_036_soaprequest_send(self, mock_post):
         """soaprequest_send() - request exception"""
         mock_post.side_effect = Exception("exc_api_post")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -718,7 +718,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("xmltodict.parse")
     @patch("requests.post")
-    def test_036_soaprequest_send(self, mock_post, mock_xml_parse):
+    def test_037_soaprequest_send(self, mock_post, mock_xml_parse):
         """soaprequest_send() - 200 xml-parsing error"""
         mock_post.return_value = Mock(status_code=200)
         mock_xml_parse.return_value = {"foo": "bar"}
@@ -733,7 +733,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("xmltodict.parse")
     @patch("requests.post")
-    def test_037_soaprequest_send(self, mock_post, mock_xml_parse):
+    def test_038_soaprequest_send(self, mock_post, mock_xml_parse):
         """soaprequest_send() - 200 xml-parsing successful"""
         mock_post.return_value = Mock(status_code=200)
         mock_xml_parse.return_value = {
@@ -749,7 +749,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("xmltodict.parse")
     @patch("requests.post")
-    def test_038_soaprequest_send(self, mock_post, mock_xml_parse):
+    def test_039_soaprequest_send(self, mock_post, mock_xml_parse):
         """soaprequest_send() - 400 xml-parsing error"""
         mock_post.return_value = Mock(status_code=400)
         mock_xml_parse.return_value = {"foo": "bar"}
@@ -768,7 +768,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("xmltodict.parse")
     @patch("requests.post")
-    def test_039_soaprequest_send(self, mock_post, mock_xml_parse):
+    def test_040_soaprequest_send(self, mock_post, mock_xml_parse):
         """soaprequest_send() - 400 xml-parsing successful"""
         mock_post.return_value = Mock(status_code=400)
         mock_xml_parse.return_value = {
@@ -795,7 +795,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_040_get_certificates(self):
+    def test_041_get_certificates(self):
         """test pkcs7_create"""
         with open(self.dir_path + "/ca/certs_der.p7b", "rb") as open_file:
             pkcs7_bundle = open_file.read()
@@ -805,7 +805,7 @@ class TestACMEHandler(unittest.TestCase):
         ]
         self.assertEqual(result, self.cahandler._get_certificate(pkcs7_bundle))
 
-    def test_041_pkcs7_signing_config_verify(self):
+    def test_042_pkcs7_signing_config_verify(self):
         """test _pkcs7_signing_config_verify()"""
         self.cahandler.signing_script_dic = {}
         self.assertEqual(
@@ -813,7 +813,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._pkcs7_signing_config_verify(),
         )
 
-    def test_042_pkcs7_signing_config_verify(self):
+    def test_043_pkcs7_signing_config_verify(self):
         """test _pkcs7_signing_config_verify()"""
         self.cahandler.signing_script_dic = {"signing_script": "signing_script"}
         self.assertEqual(
@@ -821,7 +821,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._pkcs7_signing_config_verify(),
         )
 
-    def test_043_pkcs7_signing_config_verify(self):
+    def test_044_pkcs7_signing_config_verify(self):
         """test _pkcs7_signing_config_verify()"""
         self.cahandler.signing_script_dic = {
             "signing_script": "signing_script",
@@ -833,7 +833,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("os.path.isdir")
-    def test_044_pkcs7_signing_config_verify(self, mock_path):
+    def test_045_pkcs7_signing_config_verify(self, mock_path):
         """test _pkcs7_signing_config_verify()"""
         mock_path.return_value = False
         self.cahandler.signing_script_dic = {
@@ -847,7 +847,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("os.path.isdir")
-    def test_045_pkcs7_signing_config_verify(self, mock_path):
+    def test_046_pkcs7_signing_config_verify(self, mock_path):
         """test _pkcs7_signing_config_verify()"""
         mock_path.return_value = True
         self.cahandler.signing_script_dic = {
@@ -861,7 +861,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("os.path.isdir")
-    def test_046_pkcs7_signing_config_verify(self, mock_path):
+    def test_047_pkcs7_signing_config_verify(self, mock_path):
         """test _pkcs7_signing_config_verify()"""
         mock_path.return_value = True
         self.cahandler.signing_script_dic = {
@@ -872,13 +872,6 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(None, self.cahandler._pkcs7_signing_config_verify())
 
-    def test_047_signing_command_build(self):
-        """test _signing_command_build()"""
-        self.cahandler.signing_script_dic = {}
-        self.assertEqual(
-            [], self.cahandler._signing_command_build("csr_unsigned", "csr_signed")
-        )
-
     def test_048_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {}
@@ -888,12 +881,19 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_049_signing_command_build(self):
         """test _signing_command_build()"""
-        self.cahandler.signing_script_dic = {"signing_user": "signing_user"}
+        self.cahandler.signing_script_dic = {}
         self.assertEqual(
             [], self.cahandler._signing_command_build("csr_unsigned", "csr_signed")
         )
 
     def test_050_signing_command_build(self):
+        """test _signing_command_build()"""
+        self.cahandler.signing_script_dic = {"signing_user": "signing_user"}
+        self.assertEqual(
+            [], self.cahandler._signing_command_build("csr_unsigned", "csr_signed")
+        )
+
+    def test_051_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_user": "signing_user",
@@ -904,7 +904,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._signing_command_build("csr_unsigned", "csr_signed"),
         )
 
-    def test_051_signing_command_build(self):
+    def test_052_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_user": "signing_user",
@@ -923,7 +923,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._signing_command_build("csr_unsigned", "csr_signed"),
         )
 
-    def test_052_signing_command_build(self):
+    def test_053_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_script": "signing_script",
@@ -934,7 +934,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._signing_command_build("csr_unsigned", "csr_signed"),
         )
 
-    def test_053_signing_command_build(self):
+    def test_054_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_script": "signing_script",
@@ -946,7 +946,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._signing_command_build("csr_unsigned", "csr_signed"),
         )
 
-    def test_054_signing_command_build(self):
+    def test_055_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_script": "signing_script",
@@ -978,7 +978,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
     )
-    def test_055_pkcs7_sign_external(
+    def test_056_pkcs7_sign_external(
         self,
         mock_vrf,
         mock_rand,
@@ -1020,7 +1020,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
     )
-    def test_056_pkcs7_sign_external(
+    def test_057_pkcs7_sign_external(
         self,
         mock_vrf,
         mock_rand,
@@ -1060,7 +1060,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
     )
-    def test_057_pkcs7_sign_external(
+    def test_058_pkcs7_sign_external(
         self,
         mock_vrf,
         mock_rand,
@@ -1098,7 +1098,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
     )
-    def test_058_pkcs7_sign_external(
+    def test_059_pkcs7_sign_external(
         self,
         mock_vrf,
         mock_rand,
@@ -1145,7 +1145,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_059_enroll(
+    def test_060_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1193,7 +1193,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_060_enroll(
+    def test_061_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1242,7 +1242,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_061_enroll(
+    def test_062_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1293,7 +1293,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_062_enroll(
+    def test_063_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1344,7 +1344,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_063_enroll(
+    def test_064_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1378,7 +1378,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cert_get.called)
         self.assertTrue(mock_cert_raw.called)
 
-    def test_064_validate_binary_path_invalid_input(self):
+    def test_065_validate_binary_path_invalid_input(self):
         """_validate_binary_path rejects empty, null-byte, and traversal paths"""
         from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
             _validate_binary_path,
@@ -1398,7 +1398,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("Path traversal detected", str(err.exception))
 
     @patch("os.path.isdir", return_value=False)
-    def test_065_validate_binary_path_write_missing_dir(self, _mock_isdir):
+    def test_066_validate_binary_path_write_missing_dir(self, _mock_isdir):
         """_validate_binary_path rejects write targets with missing directories"""
         from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
             _validate_binary_path,
@@ -1408,7 +1408,7 @@ class TestACMEHandler(unittest.TestCase):
             _validate_binary_path("/tmp/missing-dir/file.bin", for_write=True)
         self.assertEqual("Target directory does not exist", str(err.exception))
 
-    def test_066_sanitize_config_file_path_invalid_input(self):
+    def test_067_sanitize_config_file_path_invalid_input(self):
         """_sanitize_config_file_path rejects empty, null-byte, and traversal paths"""
         from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
             _sanitize_config_file_path,
@@ -1427,7 +1427,7 @@ class TestACMEHandler(unittest.TestCase):
             _sanitize_config_file_path("..")
         self.assertEqual("Path traversal detected", str(err.exception))
 
-    def test_067_sanitize_signing_path_logs_error(self):
+    def test_068_sanitize_signing_path_logs_error(self):
         """_sanitize_signing_path returns None and logs on invalid path"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertIsNone(
@@ -1440,7 +1440,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_068_validated_signing_file_path_sanitize_failure(self):
+    def test_069_validated_signing_file_path_sanitize_failure(self):
         """_validated_signing_file_path returns None when sanitize fails"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertIsNone(
@@ -1463,7 +1463,7 @@ class TestACMEHandler(unittest.TestCase):
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler._sanitize_config_file_path",
         return_value="/abs/path",
     )
-    def test_069_validated_signing_file_path_validate_failure(
+    def test_070_validated_signing_file_path_validate_failure(
         self, _mock_sanitize, _mock_validate
     ):
         """_validated_signing_file_path logs non-missing validation errors"""
@@ -1481,7 +1481,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_070_config_load_ca_bundle_string_false(self, mock_load_cfg):
+    def test_071_config_load_ca_bundle_string_false(self, mock_load_cfg):
         """ca_bundle string 'False' disables TLS verify and warns"""
         mock_load_cfg.return_value = {"CAhandler": {"ca_bundle": "False"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1493,7 +1493,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_071_config_load_ca_bundle_string_true(self, mock_load_cfg):
+    def test_072_config_load_ca_bundle_string_true(self, mock_load_cfg):
         """ca_bundle string 'True' enables system trust without warning"""
         mock_load_cfg.return_value = {"CAhandler": {"ca_bundle": "True"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:

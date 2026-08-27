@@ -667,7 +667,7 @@ class TestCsrBinding:
 class TestClientHeaderParameterGate:
     """Client-selected CA template/profile via header_info without allowlist."""
 
-    def test_001_empty_allowlist_ignored_without_ack(self) -> None:
+    def test_029_empty_allowlist_ignored_without_ack(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
             with patch.object(logger, "warning") as mock_warn:
@@ -677,7 +677,7 @@ class TestClientHeaderParameterGate:
         assert result == "WebServer"
         mock_warn.assert_called_once()
 
-    def test_002_empty_allowlist_permitted_with_ack(self) -> None:
+    def test_030_empty_allowlist_permitted_with_ack(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
             with patch.object(logger, "critical") as mock_crit:
@@ -687,14 +687,14 @@ class TestClientHeaderParameterGate:
         assert result == "Privileged"
         mock_crit.assert_called_once()
 
-    def test_003_nonempty_allowlist_applies_listed_value(self) -> None:
+    def test_031_nonempty_allowlist_applies_listed_value(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         result = client_header_parameter_decide(
             logger, "template", "WebServer", ["WebServer", "User"], "User"
         )
         assert result == "WebServer"
 
-    def test_003b_nonempty_allowlist_ignores_unlisted_value(self) -> None:
+    def test_032_nonempty_allowlist_ignores_unlisted_value(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         with patch.object(logger, "warning") as mock_warn:
             result = client_header_parameter_decide(
@@ -703,7 +703,7 @@ class TestClientHeaderParameterGate:
         assert result == "User"
         mock_warn.assert_called_once()
 
-    def test_004_header_info_path_ignores_without_ack(self) -> None:
+    def test_033_header_info_path_ignores_without_ack(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_header_info_check
 
         cahandler = MagicMock()
@@ -728,7 +728,7 @@ class TestClientHeaderParameterGate:
         assert err is None
         assert cahandler.template == "WebServer"
 
-    def test_005_empty_client_value_keeps_default(self) -> None:
+    def test_034_empty_client_value_keeps_default(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         result = client_header_parameter_decide(
             logger, "template", None, ["WebServer"], "WebServer"

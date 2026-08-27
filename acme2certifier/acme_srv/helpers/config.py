@@ -174,9 +174,7 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return header_info_field
 
 
-def config_allowed_header_values_load(
-    logger: logging.Logger, config_dic
-) -> List[str]:
+def config_allowed_header_values_load(logger: logging.Logger, config_dic) -> List[str]:
     """Load [Order] allowed_header_values JSON list from config."""
     logger.debug("Helper.config_allowed_header_values_load()")
     result: List[str] = []

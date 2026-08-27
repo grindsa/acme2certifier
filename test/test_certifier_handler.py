@@ -1762,7 +1762,7 @@ class TestACMEHandler(unittest.TestCase):
         result = self.cahandler._loop_poll("request_url")
         self.assertEqual((None, None, None, "request_url"), result)
 
-    def test_113_poll_url_allowed(self):
+    def test_112_poll_url_allowed(self):
         """poll URL must be under configured api_host"""
         self.cahandler.api_host = "https://ca.example.com"
         self.assertTrue(
@@ -1777,7 +1777,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(self.cahandler._poll_url_allowed("file:///etc/passwd"))
 
-    def test_114_request_poll_rejects_foreign_host(self):
+    def test_113_request_poll_rejects_foreign_host(self):
         """_request_poll refuses URLs outside api_host"""
         self.cahandler.api_host = "https://ca.example.com"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1794,7 +1794,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(any("Rejecting poll URL" in line for line in lcm.output))
 
-    def test_115_poll_url_allowed_missing_api_host_or_url(self):
+    def test_114_poll_url_allowed_missing_api_host_or_url(self):
         """_poll_url_allowed fails closed when api_host or URL is empty"""
         self.cahandler.api_host = None
         self.assertFalse(
@@ -1804,7 +1804,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler._poll_url_allowed(""))
         self.assertFalse(self.cahandler._poll_url_allowed(None))
 
-    def test_116_loop_poll_rejects_foreign_host(self):
+    def test_115_loop_poll_rejects_foreign_host(self):
         """_loop_poll refuses URLs outside api_host"""
         self.cahandler.api_host = "https://ca.example.com"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1821,7 +1821,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(any("Rejecting poll URL" in line for line in lcm.output))
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
-    def test_112__pem_list_cert_get(self, mock_req_op):
+    def test_116__pem_list_cert_get(self, mock_req_op):
         """CAhandler._pem_list_cert_get() - second request_operation returns non-dict"""
         self.cahandler.session = requests
         cert_dic = {"issuerCa": "issuer_url"}

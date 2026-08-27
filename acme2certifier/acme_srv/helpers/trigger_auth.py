@@ -119,9 +119,7 @@ def trigger_hmac_keys_load(
         keys_file = get("Trigger", "hmac_keys_file", fallback=None)
     except TypeError:
         section = config_dic.get("Trigger") if callable(get) else None
-        keys_file = (
-            section.get("hmac_keys_file") if isinstance(section, dict) else None
-        )
+        keys_file = section.get("hmac_keys_file") if isinstance(section, dict) else None
     if keys_file:
         resolved = resolve_config_path(str(keys_file).strip())
         if not resolved or not os.path.isfile(resolved):
@@ -196,9 +194,7 @@ def trigger_ca_cert_load(logger: logging.Logger, config_dic: Any) -> Optional[st
     return resolved
 
 
-def trigger_hmac_verify(
-    body: bytes, signature: Optional[str], keys: List[str]
-) -> bool:
+def trigger_hmac_verify(body: bytes, signature: Optional[str], keys: List[str]) -> bool:
     """Return True if signature is hex HMAC-SHA256 of body under any key."""
     if not signature or not keys or body is None:
         return False
@@ -256,9 +252,7 @@ def trigger_cert_chain_verify(
     try:
         with open(ca_cert_path, "rb") as handle:
             trust_certs = list(x509.load_pem_x509_certificates(handle.read()))
-        leaf_bytes = (
-            leaf_pem.encode("utf-8") if isinstance(leaf_pem, str) else leaf_pem
-        )
+        leaf_bytes = leaf_pem.encode("utf-8") if isinstance(leaf_pem, str) else leaf_pem
         leaf = x509.load_pem_x509_certificate(leaf_bytes)
     except Exception as err:
         logger.error("Failed to load leaf or ca_cert for trigger verify: %s", err)

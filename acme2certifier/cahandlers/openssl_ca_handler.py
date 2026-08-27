@@ -1142,15 +1142,11 @@ class CAhandler(object):
         cert = b64_decode(self.logger, payload)
         try:
             # payload is base64(PEM)
-            leaf_pem = (
-                cert if isinstance(cert, str) else convert_byte_to_string(cert)
-            )
+            leaf_pem = cert if isinstance(cert, str) else convert_byte_to_string(cert)
             cert_raw = b64_encode(self.logger, cert_pem2der(leaf_pem))
         except Exception:
             # payload is base64(DER)
-            der_bytes = (
-                convert_string_to_byte(cert) if isinstance(cert, str) else cert
-            )
+            der_bytes = convert_string_to_byte(cert) if isinstance(cert, str) else cert
             cert_raw = b64_encode(self.logger, der_bytes)
             leaf_pem = convert_byte_to_string(cert_der2pem(der_bytes))
 
