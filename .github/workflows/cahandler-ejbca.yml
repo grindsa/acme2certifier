@@ -203,7 +203,7 @@ jobs:
           DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"acmeca1\", \"acmeca2\", \"acmeca3\"]/g" examples/Docker/data/acme_srv.cfg
 
           cd examples/Docker/
           docker compose restart
@@ -492,7 +492,7 @@ jobs:
           DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"acmeca1\", \"acmeca2\", \"acmeca3\"]/g" data/volume/acme_srv.cfg
 
         env:
           SAEC: ${{ env.SAEC }}
@@ -763,7 +763,7 @@ jobs:
           DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"acmeca1\", \"acmeca2\", \"acmeca3\"]/g" data/volume/acme_srv.cfg
 
         env:
           SAEC: ${{ env.SAEC }}

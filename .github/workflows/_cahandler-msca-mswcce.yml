@@ -89,6 +89,7 @@ jobs:
             enrollment_timeout: 40
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["WebServer-07-C", "WebServer-07-S"]
           OPTIONS: |
             host: ${{ env.RUNNER_IP }}
             user: ${{ env.MSCA_USER }}
@@ -114,6 +115,46 @@ jobs:
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "NTLM deprecated allowed_templates - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.msicpr_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            host: ${{ env.RUNNER_IP }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            template: ${{ env.MSCA_TEMPLATE }}
+            allowed_templates: ["WebServer-07-C", "WebServer-07-S"]
+            ca_name: ${{ env.MSCA_NAME }}
+            target_domain: ${{ env.MSCA_ADS_DOMAIN }}
+            ca_bundle: volume/ca_certs.pem
+            timeout: 20
+            ssh_host: ${{ inputs.public_ip || env.SSH_HOST }}:${{ env.SSH_PORT }}
+
+      - name: "NTLM deprecated allowed_templates - assert migration warning"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "allowed_templates is deprecated for header allowlisting"
+          FLUSH: "true"
+
+      - name: "NTLM deprecated allowed_templates - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -168,6 +209,7 @@ jobs:
             enrollment_timeout: 40
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["WebServer-07-C", "WebServer-07-S"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -354,6 +396,7 @@ jobs:
             enrollment_timeout: 40
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["WebServer-07-C", "WebServer-07-S"]
           EXTRA_SECTIONS: |
             [EABhandler]
             eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
@@ -529,6 +572,7 @@ jobs:
             enrollment_timeout: 40
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["WebServer-07-C", "WebServer-07-S"]
           OPTIONS: |
             host: ${{ env.RUNNER_IP }}
             user: ${{ env.MSCA_USER }}
@@ -564,6 +608,7 @@ jobs:
             enrollment_timeout: 40
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["WebServer-07-C", "WebServer-07-S"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -746,6 +791,7 @@ jobs:
             enrollment_timeout: 40
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["WebServer-07-C", "WebServer-07-S"]
           EXTRA_SECTIONS: |
             [EABhandler]
             eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
@@ -914,6 +960,7 @@ jobs:
             enrollment_timeout: 40
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["WebServer-07-C", "WebServer-07-S"]
           OPTIONS: |
             host: ${{ env.RUNNER_IP }}
             user: ${{ env.MSCA_USER }}
@@ -951,6 +998,7 @@ jobs:
             enrollment_timeout: 40
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["WebServer-07-C", "WebServer-07-S"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}

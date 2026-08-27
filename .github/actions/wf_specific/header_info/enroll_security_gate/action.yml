@@ -1,0 +1,182 @@
+name: "enroll_security_gate"
+description: "Assert header_info allowlist / break-glass gate (stock XCA handler)"
+inputs:
+  VOLUME_DIR:
+    description: "Directory containing acme_srv.cfg"
+    required: true
+    default: "examples/Docker/data"
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+    default: "container"
+  WEBSRV:
+    description: "Web server (deb restarts)"
+    required: false
+    default: "nginx"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Gate 01 - empty allowlist ignores client template"
+    run: |
+      set -euo pipefail
+      sudo rm -rf lego/*
+      docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network acme \
+        goacme/lego run --tls-skip-verify -s https://acme-srv -a \
+        --email "lego@example.com" --user-agent template_name=template \
+        -d lego.acme --http
+      sudo cat lego/certificates/lego.acme.issuer.crt | \
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+      # Default XCA template (not "template") includes Key Agreement
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | \
+        grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
+    shell: bash
+
+  - name: "Gate 01 - assert ignore warning"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "Ignoring client-selected template_name=template; empty allowlist"
+      FLUSH: "true"
+
+  - name: "Gate 02 - configure allowed_header_values"
+    run: |
+      set -euo pipefail
+      cfg="${VOLUME_DIR}/acme_srv.cfg"
+      if grep -q '^allowed_header_values:' "$cfg"; then
+        sudo sed -i 's/^allowed_header_values:.*/allowed_header_values: ["template"]/' "$cfg"
+      else
+        sudo sed -i 's/^header_info_list:.*/header_info_list: ["HTTP_USER_AGENT"]\nallowed_header_values: ["template"]/' "$cfg"
+      fi
+      if [ "$DEPLOYMENT_TYPE" = "container" ]; then
+        cd examples/Docker && docker compose restart
+      elif [ "$DEPLOYMENT_TYPE" = "rpm" ]; then
+        docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+      else
+        docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "$WEBSRV"
+      fi
+    shell: bash
+    env:
+      VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      WEBSRV: ${{ inputs.WEBSRV }}
+
+  - name: "Wait for ACME directory after allowlist"
+    uses: ./.github/actions/wait_for_directory
+
+  - name: "Gate 02 - allowlisted value is applied"
+    run: |
+      set -euo pipefail
+      sudo rm -rf lego/*
+      docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network acme \
+        goacme/lego run --tls-skip-verify -s https://acme-srv -a \
+        --email "lego@example.com" --user-agent template_name=template \
+        -d lego.acme --http
+      sudo cat lego/certificates/lego.acme.issuer.crt | \
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | \
+        grep "Digital Signature, Non Repudiation"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | \
+        grep "TLS Web Client Authentication, Code Signing"
+    shell: bash
+
+  - name: "Gate 03 - configure allowlist miss"
+    run: |
+      set -euo pipefail
+      cfg="${VOLUME_DIR}/acme_srv.cfg"
+      sudo sed -i 's/^allowed_header_values:.*/allowed_header_values: ["other-only"]/' "$cfg"
+      if [ "$DEPLOYMENT_TYPE" = "container" ]; then
+        cd examples/Docker && docker compose restart
+      elif [ "$DEPLOYMENT_TYPE" = "rpm" ]; then
+        docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+      else
+        docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "$WEBSRV"
+      fi
+    shell: bash
+    env:
+      VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      WEBSRV: ${{ inputs.WEBSRV }}
+
+  - name: "Wait for ACME directory after allowlist miss"
+    uses: ./.github/actions/wait_for_directory
+
+  - name: "Gate 03 - unlisted value ignored"
+    run: |
+      set -euo pipefail
+      sudo rm -rf lego/*
+      docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network acme \
+        goacme/lego run --tls-skip-verify -s https://acme-srv -a \
+        --email "lego@example.com" --user-agent template_name=template \
+        -d lego.acme --http
+      sudo cat lego/certificates/lego.acme.issuer.crt | \
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | \
+        grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
+    shell: bash
+
+  - name: "Gate 03 - assert not-in-allowlist warning"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "Ignoring client-selected template_name=template; value is not in the allowlist"
+      FLUSH: "true"
+
+  - name: "Gate 04 - empty allowlist with break-glass env"
+    run: |
+      set -euo pipefail
+      cfg="${VOLUME_DIR}/acme_srv.cfg"
+      sudo sed -i '/^allowed_header_values:/d' "$cfg"
+      if [ "$DEPLOYMENT_TYPE" = "container" ]; then
+        printf '%s\n' \
+          'services:' \
+          '  acme-srv:' \
+          '    environment:' \
+          '      ACME2CERTIFIER_I_KNOW_THE_RISK: "1"' \
+          > examples/Docker/docker-compose.override.yml
+        cd examples/Docker
+        docker compose up -d --force-recreate --no-build
+      elif [ "$DEPLOYMENT_TYPE" = "rpm" ] || [ "$DEPLOYMENT_TYPE" = "deb" ]; then
+        docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+          printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+            > /etc/systemd/system.conf.d/a2c-header-gate.conf && \
+          systemctl daemon-reexec'
+        if [ "$DEPLOYMENT_TYPE" = "rpm" ]; then
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        else
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "$WEBSRV"
+        fi
+      fi
+    shell: bash
+    env:
+      VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      WEBSRV: ${{ inputs.WEBSRV }}
+
+  - name: "Wait for ACME directory after break-glass"
+    uses: ./.github/actions/wait_for_directory
+
+  - name: "Gate 04 - break-glass applies client template"
+    run: |
+      set -euo pipefail
+      sudo rm -rf lego/*
+      docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network acme \
+        goacme/lego run --tls-skip-verify -s https://acme-srv -a \
+        --email "lego@example.com" --user-agent template_name=template \
+        -d lego.acme --http
+      sudo cat lego/certificates/lego.acme.issuer.crt | \
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | \
+        grep "TLS Web Client Authentication, Code Signing"
+    shell: bash
+
+  - name: "Gate 04 - assert CRITICAL break-glass log"
+    uses: ./.github/actions/logs_assert
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "Client-selected template_name=template permitted with empty allowlist"
+      FLUSH: "true"

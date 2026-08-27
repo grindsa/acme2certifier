@@ -168,6 +168,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False
@@ -237,6 +238,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False
@@ -536,6 +538,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False
@@ -603,6 +606,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False
@@ -880,6 +884,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False
