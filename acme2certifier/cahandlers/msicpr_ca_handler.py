@@ -295,15 +295,37 @@ class CAhandler(object):
         self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
 
     def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
-        """Load allowed_templates allowlist from config."""
+        """Load template allowlist from Order.allowed_header_values or CAhandler.allowed_templates."""
         self.logger.debug("CAhandler._config_allowed_templates_load()")
+        from acme2certifier.acme_srv.helpers.config import (  # pylint: disable=C0415
+            config_allowed_header_values_load,
+        )
+
+        order_values = config_allowed_header_values_load(self.logger, config_dic)
+        if order_values:
+            self.allowed_templates = order_values
+            self.logger.debug(
+                "CAhandler._config_allowed_templates_load() ended with %s entries "
+                "from Order.allowed_header_values",
+                len(self.allowed_templates),
+            )
+            return
+
         if "allowed_templates" not in config_dic["CAhandler"]:
             self.logger.warning(
-                "allowed_templates is empty; any client-selected template is permitted. "
-                "Configure allowed_templates to restrict enrollment templates."
+                "No [Order] allowed_header_values configured; client-selected "
+                "templates are ignored unless %s is set. Configure "
+                "allowed_header_values to restrict enrollment templates without "
+                "the break-glass env.",
+                "ACME2CERTIFIER_I_KNOW_THE_RISK",
             )
             self.logger.debug("CAhandler._config_allowed_templates_load() ended")
             return
+
+        self.logger.warning(
+            "CAhandler allowed_templates is deprecated for header allowlisting; "
+            "move the list to [Order] allowed_header_values"
+        )
 
         try:
             loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
@@ -320,8 +342,10 @@ class CAhandler(object):
 
         if not self.allowed_templates:
             self.logger.warning(
-                "allowed_templates is empty; any client-selected template is permitted. "
-                "Configure allowed_templates to restrict enrollment templates."
+                "allowed_templates is empty; client-selected templates are ignored "
+                "unless %s is set. Configure [Order] allowed_header_values to "
+                "restrict enrollment templates without the break-glass env.",
+                "ACME2CERTIFIER_I_KNOW_THE_RISK",
             )
         self.logger.debug(
             "CAhandler._config_allowed_templates_load() ended with %s entries",

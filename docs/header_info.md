@@ -12,7 +12,13 @@ The header attributes, including the payload, must be specified in `acme_srv.cfg
 ```config
 [Order]
 header_info_list: ["HTTP_USER_AGENT", "CONTENT_TYPE", "REMOTE_ADDR"]
+allowed_header_values: ["WebServer", "profile-a"]
 ```
+
+- **`header_info_list`** – HTTP header fields to capture and store with the certificate row.
+- **`allowed_header_values`** – JSON list of client-selected enrollment parameter values (template, profile id, …) that may be applied from those headers. When non-empty, values not in the list are ignored (handler default kept). When empty or unset, client-selected header values are ignored unless the break-glass environment variable `ACME2CERTIFIER_I_KNOW_THE_RISK` is set.
+
+For Microsoft CA handlers, `[CAhandler] allowed_templates` remains supported as a deprecated compatibility alias; migrate that list to `[Order] allowed_header_values`.
 
 The headers will be added to the `header_info` column of the certificates table. The CA handler can retrieve this information using the `header_info_get()` function from `helper.py` as serialized JSON.
 

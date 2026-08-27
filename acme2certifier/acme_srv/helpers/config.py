@@ -174,6 +174,70 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return header_info_field
 
 
+def config_allowed_header_values_load(
+    logger: logging.Logger, config_dic
+) -> List[str]:
+    """Load [Order] allowed_header_values JSON list from config."""
+    logger.debug("Helper.config_allowed_header_values_load()")
+    result: List[str] = []
+    if (
+        "Order" not in config_dic
+        or "allowed_header_values" not in config_dic["Order"]
+        or not config_dic["Order"]["allowed_header_values"]
+    ):
+        logger.debug("Helper.config_allowed_header_values_load() ended with 0 entries")
+        return result
+
+    try:
+        loaded = json.loads(config_dic.get("Order", "allowed_header_values"))
+        if not isinstance(loaded, list):
+            raise ValueError("allowed_header_values must be a JSON list")
+        result = [str(item) for item in loaded]
+    except Exception as err_:
+        logger.warning(
+            "Failed to parse allowed_header_values from configuration: %s. "
+            "Treating as empty allowlist.",
+            err_,
+        )
+        result = []
+
+    logger.debug(
+        "Helper.config_allowed_header_values_load() ended with %s entries",
+        len(result),
+    )
+    return result
+
+
+def header_value_allowlist_resolve(logger: logging.Logger, cahandler) -> List[str]:
+    """Resolve header-value allowlist for client-selected enrollment parameters.
+
+    Prefer ``[Order] allowed_header_values``. Fall back to handler
+    ``allowed_templates`` (MS compatibility alias).
+    """
+    logger.debug("Helper.header_value_allowlist_resolve()")
+    config_dic = load_config(logger)
+    order_values = config_allowed_header_values_load(logger, config_dic)
+    if order_values:
+        logger.debug(
+            "Helper.header_value_allowlist_resolve() ended with Order list (%s)",
+            len(order_values),
+        )
+        return order_values
+
+    templates = getattr(cahandler, "allowed_templates", None) or []
+    if templates:
+        result = [str(item) for item in templates]
+        logger.debug(
+            "Helper.header_value_allowlist_resolve() ended with allowed_templates "
+            "fallback (%s)",
+            len(result),
+        )
+        return result
+
+    logger.debug("Helper.header_value_allowlist_resolve() ended with empty list")
+    return []
+
+
 def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
     """load parameters"""
     logger.debug("Helper.config_enroll_config_log_load()")

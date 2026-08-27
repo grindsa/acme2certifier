@@ -5,7 +5,13 @@ import logging
 from typing import Any, Optional
 from .csr import csr_subject_get
 from .encoding import b64_url_recode
-from .config import client_parameter_validate, profile_lookup, header_info_lookup
+from .config import (
+    client_parameter_validate,
+    profile_lookup,
+    header_info_lookup,
+    header_value_allowlist_resolve,
+)
+from .security_gate import client_header_parameter_decide
 from .validation import cn_validate
 from .domain_utils import allowed_domainlist_check
 
@@ -64,17 +70,33 @@ def _handle_header_info_profiling(
         logger, csr, cahandler.header_info_field, handler_hifield
     )
     if hil_value:
-        logger.debug(
-            "Helper.eab_profile_header_info_check(): setting %s to %s",
+        default_value = getattr(cahandler, handler_hifield, None)
+        allowlist = header_value_allowlist_resolve(logger, cahandler)
+        value_to_set = client_header_parameter_decide(
+            logger,
             handler_hifield,
             hil_value,
+            allowlist,
+            default_value,
         )
-        logger.info(
-            "Received enrollment parameter: %s value: %s via headerinfo field",
-            handler_hifield,
-            hil_value,
-        )
-        setattr(cahandler, handler_hifield, hil_value)
+        if value_to_set == hil_value:
+            logger.debug(
+                "Helper.eab_profile_header_info_check(): setting %s to %s",
+                handler_hifield,
+                hil_value,
+            )
+            logger.info(
+                "Received enrollment parameter: %s value: %s via headerinfo field",
+                handler_hifield,
+                hil_value,
+            )
+            setattr(cahandler, handler_hifield, hil_value)
+        else:
+            logger.debug(
+                "Helper._handle_header_info_profiling(): kept default %s=%s",
+                handler_hifield,
+                default_value,
+            )
     else:
         logger.debug("eab_profile_header_info_check(): no header_info field found")
 

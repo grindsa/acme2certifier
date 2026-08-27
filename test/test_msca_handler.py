@@ -2452,6 +2452,32 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_password_backend())
         self.assertTrue(mock_cleanup.called)
 
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_156_config_load_prefers_order_allowed_header_values(self, mock_load_cfg):
+        """Order.allowed_header_values takes precedence over CAhandler.allowed_templates"""
+        parser = configparser.ConfigParser()
+        parser["Order"] = {"allowed_header_values": '["FromOrder", "AlsoOrder"]'}
+        parser["CAhandler"] = {"allowed_templates": '["FromCA"]'}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual(["FromOrder", "AlsoOrder"], self.cahandler.allowed_templates)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_157_config_load_allowed_templates_deprecation_warning(self, mock_load_cfg):
+        """reading CAhandler allowed_templates logs migration warning"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"allowed_templates": '["WebServer"]'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+        self.assertEqual(["WebServer"], self.cahandler.allowed_templates)
+        self.assertTrue(
+            any(
+                "allowed_templates is deprecated for header allowlisting" in msg
+                for msg in lcm.output
+            )
+        )
+
 
 if __name__ == "__main__":
 

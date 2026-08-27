@@ -4871,14 +4871,82 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.profile_lookup")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
+    @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
     def test_411_eab_profile_header_info_check(
-        self, mock_lookup, mock_eab, mock_profile
+        self, mock_lookup, mock_allowlist, mock_eab, mock_profile
     ):
-        """test eab_profile_header_info_check()"""
+        """header value ignored when allowlist empty and risk gate unset"""
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
         cahandler.header_info_field = "hi_field"
+        mock_allowlist.return_value = []
+        mock_lookup.return_value = "hi_value"
+        cahandler.hi_field = "pre_hi_field"
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.assertFalse(
+                    self.eab_profile_header_info_check(
+                        self.logger, cahandler, "csr", "hi_field"
+                    )
+                )
+        self.assertTrue(
+            any("Ignoring client-selected hi_field=hi_value" in msg for msg in lcm.output)
+        )
+        self.assertEqual("pre_hi_field", cahandler.hi_field)
+        self.assertTrue(mock_lookup.called)
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(mock_profile.called)
+
+    @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
+    @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
+    @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
+    def test_412_eab_profile_header_info_check(
+        self, mock_lookup, mock_allowlist, mock_eab
+    ):
+        """default profile_name kept when allowlist empty and risk gate unset"""
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = False
+        cahandler.header_info_field = "hi_field"
+        mock_allowlist.return_value = []
+        mock_lookup.return_value = "hi_value"
+        cahandler.hi_field = "pre_hi_field"
+        cahandler.profile_name = "profile_name"
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.assertFalse(
+                    self.eab_profile_header_info_check(self.logger, cahandler, "csr")
+                )
+        self.assertTrue(
+            any(
+                "Ignoring client-selected profile_name=hi_value" in msg
+                for msg in lcm.output
+            )
+        )
+        self.assertEqual("pre_hi_field", cahandler.hi_field)
+        self.assertEqual("profile_name", cahandler.profile_name)
+        self.assertTrue(mock_lookup.called)
+        self.assertFalse(mock_eab.called)
+
+    @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
+    @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
+    @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
+    def test_412b_eab_profile_header_info_check_allowlist(
+        self, mock_lookup, mock_eab, mock_allowlist
+    ):
+        """header value applied when allowlist is non-empty and contains value"""
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = False
+        cahandler.header_info_field = "hi_field"
+        mock_allowlist.return_value = ["hi_value", "other"]
         mock_lookup.return_value = "hi_value"
         cahandler.hi_field = "pre_hi_field"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -4894,28 +4962,73 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual("hi_value", cahandler.hi_field)
         self.assertTrue(mock_lookup.called)
         self.assertFalse(mock_eab.called)
-        self.assertFalse(mock_profile.called)
 
+    @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
-    def test_412_eab_profile_header_info_check(self, mock_lookup, mock_eab):
-        """test eab_profile_header_info_check()"""
+    def test_412c_eab_profile_header_info_check_risk_gate(
+        self, mock_lookup, mock_eab, mock_allowlist
+    ):
+        """header value applied with empty allowlist when risk gate is set"""
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            SECURITY_DISABLE_ACK_ENV,
+        )
+
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
         cahandler.header_info_field = "hi_field"
+        mock_allowlist.return_value = []
         mock_lookup.return_value = "hi_value"
         cahandler.hi_field = "pre_hi_field"
-        cahandler.profile_name = "profile_name"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(
-                self.eab_profile_header_info_check(self.logger, cahandler, "csr")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                self.assertFalse(
+                    self.eab_profile_header_info_check(
+                        self.logger, cahandler, "csr", "hi_field"
+                    )
+                )
+        self.assertTrue(
+            any(
+                "Client-selected hi_field=hi_value permitted with empty allowlist"
+                in msg
+                for msg in lcm.output
             )
+        )
         self.assertIn(
-            "INFO:test_a2c:Received enrollment parameter: profile_name value: hi_value via headerinfo field",
+            "INFO:test_a2c:Received enrollment parameter: hi_field value: hi_value via headerinfo field",
             lcm.output,
         )
+        self.assertEqual("hi_value", cahandler.hi_field)
+        self.assertTrue(mock_lookup.called)
+        self.assertFalse(mock_eab.called)
+
+    @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
+    @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
+    @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
+    def test_412d_eab_profile_header_info_check_not_in_allowlist(
+        self, mock_lookup, mock_eab, mock_allowlist
+    ):
+        """header value ignored when not present in allowlist"""
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = False
+        cahandler.header_info_field = "hi_field"
+        mock_allowlist.return_value = ["allowed"]
+        mock_lookup.return_value = "hi_value"
+        cahandler.hi_field = "pre_hi_field"
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(
+                self.eab_profile_header_info_check(
+                    self.logger, cahandler, "csr", "hi_field"
+                )
+            )
+        self.assertTrue(
+            any(
+                "Ignoring client-selected hi_field=hi_value; value is not in the allowlist"
+                in msg
+                for msg in lcm.output
+            )
+        )
         self.assertEqual("pre_hi_field", cahandler.hi_field)
-        self.assertEqual("hi_value", cahandler.profile_name)
         self.assertTrue(mock_lookup.called)
         self.assertFalse(mock_eab.called)
 
@@ -8716,6 +8829,78 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
             self.assertEqual("yaml", fmt4)
             self.assertEqual("7", cfg4.get("Order", "validity"))
+
+    def test_646_config_allowed_header_values_load(self):
+        """config_allowed_header_values_load covers missing, valid, invalid, non-list"""
+        from acme2certifier.acme_srv.helpers.config import (
+            config_allowed_header_values_load,
+        )
+        import configparser
+
+        empty = configparser.ConfigParser()
+        self.assertEqual([], config_allowed_header_values_load(self.logger, empty))
+
+        parser = configparser.ConfigParser()
+        parser["Order"] = {"allowed_header_values": '["a", "b"]'}
+        self.assertEqual(
+            ["a", "b"], config_allowed_header_values_load(self.logger, parser)
+        )
+
+        parser_bad = configparser.ConfigParser()
+        parser_bad["Order"] = {"allowed_header_values": "not-json"}
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                [], config_allowed_header_values_load(self.logger, parser_bad)
+            )
+        self.assertTrue(
+            any("Failed to parse allowed_header_values" in msg for msg in lcm.output)
+        )
+
+        parser_obj = configparser.ConfigParser()
+        parser_obj["Order"] = {"allowed_header_values": '{"a": true}'}
+        with self.assertLogs("test_a2c", level="WARNING") as lcm2:
+            self.assertEqual(
+                [], config_allowed_header_values_load(self.logger, parser_obj)
+            )
+        self.assertTrue(
+            any("Failed to parse allowed_header_values" in msg for msg in lcm2.output)
+        )
+
+        parser_blank = configparser.ConfigParser()
+        parser_blank["Order"] = {"allowed_header_values": ""}
+        self.assertEqual(
+            [], config_allowed_header_values_load(self.logger, parser_blank)
+        )
+
+    @patch("acme2certifier.acme_srv.helpers.config.load_config")
+    def test_647_header_value_allowlist_resolve(self, mock_load_cfg):
+        """header_value_allowlist_resolve prefers Order then allowed_templates"""
+        from acme2certifier.acme_srv.helpers.config import (
+            header_value_allowlist_resolve,
+        )
+        import configparser
+
+        parser_order = configparser.ConfigParser()
+        parser_order["Order"] = {"allowed_header_values": '["from-order"]'}
+        mock_load_cfg.return_value = parser_order
+        cahandler = FakeDBStore()
+        cahandler.allowed_templates = ["from-templates"]
+        self.assertEqual(
+            ["from-order"], header_value_allowlist_resolve(self.logger, cahandler)
+        )
+
+        parser_empty = configparser.ConfigParser()
+        mock_load_cfg.return_value = parser_empty
+        cahandler.allowed_templates = ["from-templates"]
+        self.assertEqual(
+            ["from-templates"],
+            header_value_allowlist_resolve(self.logger, cahandler),
+        )
+
+        cahandler_empty = FakeDBStore()
+        self.assertEqual(
+            [], header_value_allowlist_resolve(self.logger, cahandler_empty)
+        )
 
 
 if __name__ == "__main__":
