@@ -568,6 +568,16 @@ class CAhandler(object):
         self.logger.debug("CAhandler._poll_cert_get() ended")
         return (error, cert_bundle, cert_raw, poll_identifier, break_loop)
 
+    def _poll_url_allowed(self, request_url: str) -> bool:
+        """True when *request_url* is under the configured api_host base URL."""
+        if not self.api_host or not request_url:
+            return False
+        candidate = parse_url(self.logger, request_url)
+        if candidate.get("proto") and candidate["proto"] not in ("http", "https"):
+            return False
+        base = self.api_host.rstrip("/")
+        return request_url == base or request_url.startswith(base + "/")
+
     def _loop_poll(self, request_url: str) -> Tuple[str, str, str, str]:
         """poll request"""
         self.logger.debug("CAhandler._loop_poll(%s)", request_url)
@@ -575,6 +585,14 @@ class CAhandler(object):
         error = None
         cert_bundle = None
         cert_raw = None
+        poll_identifier = request_url
+
+        if request_url and not self._poll_url_allowed(request_url):
+            error = "poll URL host does not match configured api_host"
+            self.logger.warning(
+                "Rejecting poll URL %s (api_host=%s)", request_url, self.api_host
+            )
+            return (error, cert_bundle, cert_raw, poll_identifier)
 
         if request_url:
             # calculate iterations based on timeout
@@ -714,6 +732,13 @@ class CAhandler(object):
         cert_raw = None
         poll_identifier = request_url
         rejected = False
+
+        if not self._poll_url_allowed(request_url):
+            error = "poll URL host does not match configured api_host"
+            self.logger.warning(
+                "Rejecting poll URL %s (api_host=%s)", request_url, self.api_host
+            )
+            return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
         _code, request_dic = request_operation(
             self.logger,

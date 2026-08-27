@@ -738,9 +738,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("json.dumps")
     @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._key_generate")
-    @patch("builtins.open", mock_open(read_data="csv_dump"), create=True)
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._keyfile_write")
     @patch("os.path.exists")
-    def test_036__user_key_load(self, mock_file, mock_key, mock_json):
+    def test_036__user_key_load(self, mock_file, mock_write, mock_key, mock_json):
         """test user_key_load for an existing file"""
         mock_file.return_value = False
         mock_key.to_json.return_value = {"foo": "generate_key"}
@@ -748,12 +748,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.cahandler._user_key_load())
         self.assertTrue(mock_key.called)
         self.assertTrue(mock_json.called)
+        self.assertTrue(mock_write.called)
 
     @patch("json.dumps")
     @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._key_generate")
-    @patch("builtins.open", mock_open(read_data="csv_dump"), create=True)
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._keyfile_write")
     @patch("os.path.exists")
-    def test_037__user_key_load(self, mock_file, mock_key, mock_json):
+    def test_037__user_key_load(self, mock_file, mock_write, mock_key, mock_json):
         """test user_key_load for an existing file"""
         mock_file.return_value = False
         mock_key.to_json.return_value = {"foo": "generate_key"}
@@ -763,6 +764,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("ERROR:test_a2c:Error during key dumping: ex_dump", lcm.output)
         self.assertTrue(mock_key.called)
         self.assertTrue(mock_json.called)
+        self.assertFalse(mock_write.called)
 
     @patch("acme.messages")
     def test_038__account_register(self, mock_messages):
@@ -2040,13 +2042,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_chk.called)
         self.assertFalse(eab_handler.allowed_domains_check.called)
 
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._keyfile_write")
     @patch("builtins.open", new_callable=mock_open, read_data="{}")
-    def test_091_account_to_keyfile(self, mock_file):
+    def test_091_account_to_keyfile(self, mock_file, mock_write):
         """test account_to_keyfile"""
         self.cahandler.acme_keyfile = "dummy_keyfile_path"
         self.cahandler.account = "dummy_account"
         self.cahandler._account_to_keyfile()
         self.assertTrue(mock_file.called)
+        self.assertTrue(mock_write.called)
 
     @patch("builtins.open", new_callable=mock_open, read_data="{}")
     def test_092_account_to_keyfile(self, mock_file):
@@ -2064,19 +2068,20 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._account_to_keyfile()
         self.assertFalse(mock_file.called)
 
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._keyfile_write")
     @patch("builtins.open", new_callable=mock_open, read_data="{}")
-    def test_094_account_to_keyfile(self, mock_file):
+    def test_094_account_to_keyfile(self, mock_file, mock_write):
         """test account_to_keyfile"""
         self.cahandler.acme_keyfile = "dummy_keyfile_path"
         self.cahandler.account = "dummy_account"
         mock_file.side_effect = Exception("ex_json_dump")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._account_to_keyfile()
-        self.assertTrue(mock_file.called)
         self.assertIn(
-            "ERROR:test_a2c:Could not map account to keyfile: ex_json_dump",
-            lcm.output,
+            "ERROR:test_a2c:Could not map account to keyfile: ex_json_dump", lcm.output
         )
+        self.assertFalse(mock_write.called)
+        self.assertTrue(mock_file.called)
 
     def test_095_accountname_get(self):
         """test accountname_get"""
@@ -3492,6 +3497,23 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Enrollment error: CSR rejected. CSR rejected by profile",
             lcm.output,
         )
+
+    def test_164_keyfile_write_mode_0600(self):
+        """_keyfile_write creates/replaces file with mode 0600"""
+        import stat
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "acme_account.json")
+            self.cahandler._keyfile_write(path, '{"k":1}')
+            self.assertTrue(os.path.exists(path))
+            self.assertEqual(0o600, stat.S_IMODE(os.stat(path).st_mode))
+            with open(path, encoding="utf8") as fso:
+                self.assertEqual('{"k":1}', fso.read())
+            self.cahandler._keyfile_write(path, '{"k":2}')
+            self.assertEqual(0o600, stat.S_IMODE(os.stat(path).st_mode))
+            with open(path, encoding="utf8") as fso:
+                self.assertEqual('{"k":2}', fso.read())
 
 
 if __name__ == "__main__":

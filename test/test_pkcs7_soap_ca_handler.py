@@ -69,12 +69,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
@@ -93,12 +92,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("email", self.cahandler.email)
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
             "ERROR:test_a2c:Signing key option is missing in configuration file.",
@@ -116,11 +114,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
@@ -139,12 +136,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
             "ERROR:test_a2c:Signing key option is missing in configuration file.",
@@ -175,6 +171,18 @@ class TestACMEHandler(unittest.TestCase):
         ]
         self.assertEqual(error_buffer, lcm.output)
 
+    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
+    def test_007b_config_load_ca_bundle_false(self, mock_load_cfg):
+        """explicit ca_bundle False keeps warning"""
+        mock_load_cfg.return_value = {"CAhandler": {"ca_bundle": False}}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertIn(
+            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
+            lcm.output,
+        )
+
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
     def test_008_config_load(self, mock_load_cfg, mock_file):
@@ -192,7 +200,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate file not found: signing_cert",
@@ -220,7 +227,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing key option is missing in configuration file.",
@@ -260,7 +266,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
@@ -288,7 +293,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
@@ -318,7 +322,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -356,7 +359,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_csr_path option is missing in configuration file.",
@@ -396,7 +398,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -436,7 +437,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -473,7 +473,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -514,7 +513,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -555,7 +553,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -1480,6 +1477,30 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertIn(
             "ERROR:test_a2c:Invalid signing certificate path: Path traversal detected",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
+    def test_070_config_load_ca_bundle_string_false(self, mock_load_cfg):
+        """ca_bundle string 'False' disables TLS verify and warns"""
+        mock_load_cfg.return_value = {"CAhandler": {"ca_bundle": "False"}}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertIn(
+            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
+    def test_071_config_load_ca_bundle_string_true(self, mock_load_cfg):
+        """ca_bundle string 'True' enables system trust without warning"""
+        mock_load_cfg.return_value = {"CAhandler": {"ca_bundle": "True"}}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertTrue(self.cahandler.ca_bundle)
+        self.assertNotIn(
+            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             lcm.output,
         )
 

@@ -6,9 +6,18 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
-## Changes in 0.45.1
+## Changes in 0.46
 
 **Bug Fixes and Improvements**:
+
+- CA handler hardening: `pkcs7_soap` defaults `ca_bundle` to system trust (`True`);
+- NCLM/acme-CA redact tokens/CSR/DNS TXT from DEBUG logs
+- Certifier poll URLs must match configured `api_host`
+- acme-CA account key files are written mode `0600`
+- Django packaged settings refuse the insecure default `SECRET_KEY` and drop `*` from default `ALLOWED_HOSTS` unless `ACME2CERTIFIER_DEBUG=1`; warn when `ALLOWED_HOSTS` contains `*` outside debug
+
+## Changes in 0.45.1
+
 
 - [tkauth-01](docs/tnauthlist.md) challenges are rejected instead of succeeding unconditionally; the authority token is never verified, so `tnauthlist_support` no longer grants authorizations. Accepting unverified tokens requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (testing only) and is logged at `CRITICAL`
 - `eabkid_check_disable` is ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set (EAB kid checks stay enabled and a warning is logged); acknowledgement is logged at `CRITICAL`

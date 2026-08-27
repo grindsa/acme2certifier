@@ -6,7 +6,7 @@ from __future__ import print_function
 # pylint: disable= e0401, w0105, w0212
 import json
 import textwrap
-import os.path
+import os
 from typing import Tuple, Dict
 import requests
 import josepy
@@ -362,7 +362,7 @@ class CAhandler(object):
         )
 
         fqdn = f"_acme-challenge.{fqdn}"
-        self.logger.debug("fqdn: %s, txt_record_value: %s", fqdn, txt_record_value)
+        self.logger.debug("fqdn: %s, txt_record_value: <redacted>", fqdn)
 
         basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[0]
 
@@ -415,7 +415,11 @@ class CAhandler(object):
                 # wait for dns update
                 time.sleep(sleep_interval)
                 query_record_value = txt_get(self.logger, fqdn)
-                self.logger.debug("%s txt_record_value: %s", cnt, query_record_value)
+                self.logger.debug(
+                    "%s txt_record_lookup: found=%s",
+                    cnt,
+                    bool(query_record_value),
+                )
                 cnt += 1
                 if query_record_value and txt_record_value in query_record_value:
                     # stop waiting if we found the record in DNS
@@ -555,13 +559,20 @@ class CAhandler(object):
             user_key = self._key_generate()
             # dump keyfile to file
             try:
-                with open(self.acme_keyfile, "w", encoding="utf8") as keyf:
-                    keyf.write(json.dumps(user_key.to_json()))
+                self._keyfile_write(self.acme_keyfile, json.dumps(user_key.to_json()))
             except Exception as err:
                 self.logger.error("Error during key dumping: %s", err)
 
         self.logger.debug("CAhandler._user_key_load() ended with: %s", bool(user_key))
         return user_key
+
+    def _keyfile_write(self, path: str, content: str) -> None:
+        """Write *content* to *path* with mode 0600 (create or replace)."""
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        fd = os.open(path, flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf8") as keyf:
+            keyf.write(content)
+        os.chmod(path, 0o600)
 
     def _order_authorization(
         self,
@@ -660,7 +671,10 @@ class CAhandler(object):
         self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str
     ) -> Tuple[str, str, str]:
         """isuse order"""
-        self.logger.debug("CAhandler._order_issue() csr: " + str(csr_pem))
+        self.logger.debug(
+            "CAhandler._order_issue() csr_len=%s",
+            len(csr_pem) if csr_pem is not None else 0,
+        )
 
         # create new order
         order = self._order_new(acmeclient, csr_pem)
@@ -899,8 +913,7 @@ class CAhandler(object):
                     key_dic = json.loads(keyf.read())
                     key_dic["account"] = self.account
 
-                with open(self.acme_keyfile, "w", encoding="utf8") as keyf:
-                    keyf.write(json.dumps(key_dic))
+                self._keyfile_write(self.acme_keyfile, json.dumps(key_dic))
             except Exception as err:
                 self.logger.error("Could not map account to keyfile: %s", err)
 

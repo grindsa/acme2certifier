@@ -111,7 +111,7 @@ class CAhandler(object):
         self.password = None
         self.signing_cert = None
         self.signing_key = None
-        self.ca_bundle = False
+        self.ca_bundle = True
         self.email = None
         self.signing_script_dic = {}
 
@@ -240,7 +240,11 @@ class CAhandler(object):
 
         if "ca_bundle" in config_dic["CAhandler"]:
             self.ca_bundle = config_dic["CAhandler"]["ca_bundle"]
-        else:
+            if isinstance(self.ca_bundle, str) and self.ca_bundle.lower() == "false":
+                self.ca_bundle = False
+            elif isinstance(self.ca_bundle, str) and self.ca_bundle.lower() == "true":
+                self.ca_bundle = True
+        if self.ca_bundle is False:
             self.logger.warning("SOAP server certificate validation is disabled.")
 
         if "profilename" in config_dic["CAhandler"]:

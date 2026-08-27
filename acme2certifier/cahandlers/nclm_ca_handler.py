@@ -737,9 +737,8 @@ class CAhandler(object):
             _username = json_dic.get("username", None)
             _realms = json_dic.get("realms", None)
             self.logger.debug(
-                "login response:\n user: %s\n token: %s\n realms: %s\n",
+                "login response:\n user: %s\n token: <redacted>\n realms: %s\n",
                 _username,
-                json_dic["access_token"],
                 _realms,
             )
             return

@@ -36,7 +36,7 @@ email: <email address>
 - **soap_srv** – URL of the SOAP server.
 - **signing_key** – Private key of the certificate used to sign the PKCS#7 structure (`/path/to/key.pem`).
 - **signing_cert** – Certificate attached to the PKCS#7 message sent to the SOAP server (`/path/to/certificate.pem`).
-- **ca_bundle** – CA certificate bundle needed to validate the SOAP server certificate (`/path/to/ca_bundle.pem`). Set to `False` to disable certificate validation.
+- **ca_bundle** – CA certificate bundle used to validate the SOAP server certificate (`/path/to/ca_bundle.pem`). Defaults to system trust (`True`). Set to `False` to disable certificate validation (not recommended).
 - **profilename** – Name of the certificate profile to be inserted into the SOAP request.
 - **email** – Email address to be included in the SOAP request.
 

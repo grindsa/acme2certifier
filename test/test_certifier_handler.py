@@ -860,6 +860,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 5
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -876,6 +877,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 5
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -891,6 +893,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -907,6 +910,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -924,6 +928,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -952,6 +957,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -1596,6 +1602,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_100_request_poll(self, mock_get):
         """test request poll request returned exception"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         self.cahandler.request_retries = 0
         mock_get.side_effect = Exception("exc_api_get")
         result = ('"status" field not found in response.', None, None, "url", False)
@@ -1609,6 +1616,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_101_request_poll(self, mock_get):
         """test request poll request returned unknown status"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "unknown"}
         mock_get.return_value = mockresponse
@@ -1619,6 +1627,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_102_request_poll(self, mock_get):
         """test request poll request returned status rejected"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "rejected"}
         mock_get.return_value = mockresponse
@@ -1629,6 +1638,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_103_request_poll(self, mock_get):
         """test request poll request returned status accepted but no certinformation in"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "accepted", "foo": "bar"}
         mock_get.return_value = mockresponse
@@ -1645,6 +1655,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_104_request_poll(self, mock_get):
         """test request poll request returned status accepted but no certinformation in"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "accepted", "certificate": "certificate"}
         mock_get.return_value = mockresponse
@@ -1664,6 +1675,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_105_request_poll(self, mock_get, mock_pemgen):
         """test request poll request returned status accepted but no certinformation in"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
         mockresponse.json = lambda: {
             "status": "accepted",
@@ -1745,9 +1757,68 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - request_operation returns non-dict"""
         self.cahandler.polling_timeout = 5
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         mock_req_op.return_value = (200, "not_a_dict")
         result = self.cahandler._loop_poll("request_url")
         self.assertEqual((None, None, None, "request_url"), result)
+
+    def test_113_poll_url_allowed(self):
+        """poll URL must be under configured api_host"""
+        self.cahandler.api_host = "https://ca.example.com"
+        self.assertTrue(
+            self.cahandler._poll_url_allowed("https://ca.example.com/v1/requests/1")
+        )
+        self.assertTrue(self.cahandler._poll_url_allowed("https://ca.example.com"))
+        self.assertFalse(
+            self.cahandler._poll_url_allowed("https://evil.example.com/v1/requests/1")
+        )
+        self.assertFalse(
+            self.cahandler._poll_url_allowed("https://ca.example.com.evil/x")
+        )
+        self.assertFalse(self.cahandler._poll_url_allowed("file:///etc/passwd"))
+
+    def test_114_request_poll_rejects_foreign_host(self):
+        """_request_poll refuses URLs outside api_host"""
+        self.cahandler.api_host = "https://ca.example.com"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._request_poll("https://evil.example.com/x")
+        self.assertEqual(
+            (
+                "poll URL host does not match configured api_host",
+                None,
+                None,
+                "https://evil.example.com/x",
+                False,
+            ),
+            result,
+        )
+        self.assertTrue(any("Rejecting poll URL" in line for line in lcm.output))
+
+    def test_115_poll_url_allowed_missing_api_host_or_url(self):
+        """_poll_url_allowed fails closed when api_host or URL is empty"""
+        self.cahandler.api_host = None
+        self.assertFalse(
+            self.cahandler._poll_url_allowed("https://ca.example.com/v1/x")
+        )
+        self.cahandler.api_host = "https://ca.example.com"
+        self.assertFalse(self.cahandler._poll_url_allowed(""))
+        self.assertFalse(self.cahandler._poll_url_allowed(None))
+
+    def test_116_loop_poll_rejects_foreign_host(self):
+        """_loop_poll refuses URLs outside api_host"""
+        self.cahandler.api_host = "https://ca.example.com"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._loop_poll("https://evil.example.com/x")
+        self.assertEqual(
+            (
+                "poll URL host does not match configured api_host",
+                None,
+                None,
+                "https://evil.example.com/x",
+            ),
+            result,
+        )
+        self.assertTrue(any("Rejecting poll URL" in line for line in lcm.output))
 
     @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
     def test_112__pem_list_cert_get(self, mock_req_op):
