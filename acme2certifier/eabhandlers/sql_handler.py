@@ -243,7 +243,7 @@ class EABhandler(object):
         self.logger.debug("EABhandler.key_file.load() ended: {%s}", bool(data_dic))
         return data_dic
 
-    def _load_profiles(self, db_driver, sql_query: str) -> Dict[str,str]:
+    def _load_profiles(self, db_driver, sql_query: str) -> Dict[str, str]:
         """Helper to load eab profiles from database"""
         self.logger.debug("EABhandler._load_profiles()")
 

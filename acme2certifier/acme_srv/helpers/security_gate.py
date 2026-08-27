@@ -5,8 +5,6 @@ Kept free of DB/message imports so low-level modules (challenge validators,
 registry setup) can import it without pulling in those layers.
 """
 
-from __future__ import annotations
-
 import logging
 import os
 from typing import Any, List, Optional, Sequence
