@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Authentication and certificate trust helpers for the /trigger endpoint."""
 
-from __future__ import annotations
-
 import binascii
 import hashlib
 import hmac

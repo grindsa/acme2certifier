@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 """Seed a processing order + CSR for /trigger CI (run inside a2c container)."""
 
-from __future__ import annotations
-
 import argparse
 import base64
 import logging
