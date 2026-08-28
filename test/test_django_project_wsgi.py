@@ -34,6 +34,9 @@ class TestDjangoProjectWsgi(unittest.TestCase):
                 if tmp in sys.path:
                     sys.path.remove(tmp)
                 with (
+                    patch(
+                        "acme2certifier.tools.a2c_django_deploy_env.load_deploy_env"
+                    ),
                     patch.dict(
                         os.environ,
                         {
@@ -59,6 +62,9 @@ class TestDjangoProjectWsgi(unittest.TestCase):
         mock_app = MagicMock(name="wsgi_app2")
         try:
             with (
+                patch(
+                    "acme2certifier.tools.a2c_django_deploy_env.load_deploy_env"
+                ),
                 patch.dict(
                     os.environ,
                     {
@@ -85,6 +91,9 @@ class TestDjangoProjectWsgi(unittest.TestCase):
                     sys.path.insert(0, tmp)
                 before = list(sys.path)
                 with (
+                    patch(
+                        "acme2certifier.tools.a2c_django_deploy_env.load_deploy_env"
+                    ),
                     patch.dict(
                         os.environ,
                         {

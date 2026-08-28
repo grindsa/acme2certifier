@@ -246,7 +246,8 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     ACME2CERTIFIER_SECRET_KEY="$("${VENV}/bin/a2c-django-secret-keygen")"
   fi
   if [[ -z "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
-    ACME2CERTIFIER_ALLOWED_HOSTS="127.0.0.1,localhost,$(hostname)"
+    _a2c_host="$(hostname 2>/dev/null || uname -n 2>/dev/null || echo "${HOSTNAME:-acme-srv}")"
+    ACME2CERTIFIER_ALLOWED_HOSTS="127.0.0.1,localhost,${_a2c_host}"
   fi
   # Persist Django env for the uWSGI service
   if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' "${UWSGI_INI}"; then

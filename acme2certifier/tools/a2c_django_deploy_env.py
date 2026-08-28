@@ -1,14 +1,12 @@
 #!/usr/bin/python3
 """Load ACME2CERTIFIER_* from uWSGI ini / Apache envvars when unset in os.environ."""
 
-from __future__ import annotations
-
 import os
 import re
 import shlex
 import socket
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 _UWSGI_ENV_RE = re.compile(r"^env\s*=\s*(ACME2CERTIFIER_[A-Z_]+)=(.*)$")
 _APACHE_EXPORT_PREFIX = "export ACME2CERTIFIER_"
@@ -37,7 +35,7 @@ def _read_uwsgi_env(ini_path: Path) -> Dict[str, str]:
     return out
 
 
-def _parse_apache_export(line: str) -> Optional[tuple[str, str]]:
+def _parse_apache_export(line: str) -> Optional[Tuple[str, str]]:
     stripped = line.strip()
     if not stripped.startswith(_APACHE_EXPORT_PREFIX):
         return None
