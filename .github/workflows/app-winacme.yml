@@ -532,7 +532,12 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          Install-Module -Name Posh-ACME -Scope CurrentUser -Force
+          # PSGallery is intermittently unregistered on GHA windows runners (runner-images#13758).
+          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
+            Register-PSRepository -Default
+          }
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Posh-ACME -Scope CurrentUser -Force -Repository PSGallery
 
       - name: "Create account via Posh-ACME"
         shell: pwsh
