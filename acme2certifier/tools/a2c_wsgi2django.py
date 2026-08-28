@@ -632,6 +632,9 @@ def setup_django_orm() -> None:
     """Bootstrap Django for ORM wipe/import (same pattern as a2c-django-update)."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", DEFAULT_DJANGO_SETTINGS)
     try:
+        from acme2certifier.tools.a2c_django_deploy_env import load_deploy_env
+
+        load_deploy_env()
         import django
         from django.apps import apps
         from django.conf import settings

@@ -36,6 +36,9 @@ def setup_django():
     global django, call_command, Status, Housekeeping, __dbversion__
 
     try:
+        from acme2certifier.tools.a2c_django_deploy_env import load_deploy_env
+
+        load_deploy_env()
         import django as django_module  # nopep8
 
         django = django_module
