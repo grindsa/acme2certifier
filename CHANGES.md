@@ -6,6 +6,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.45.2
+
+**Bug Fixes and Improvements**:
+
+- Remove Django admin URL mount; `django.contrib.admin` was already absent from `INSTALLED_APPS`, so 0.45.1 Django deployments failed at startup with `LookupError: No installed app with label 'admin'` (nginx/uWSGI 502 on `/directory`)
+
 ## Changes in 0.45.1
 
 **Bug Fixes and Improvements**:
