@@ -86,6 +86,19 @@ class TestDjangoProjectSettings(unittest.TestCase):
             mod = self._reload()
             self.assertTrue(mod.DEBUG)
 
+    def test_005_admin_not_installed(self) -> None:
+        """django.contrib.admin is not enabled (unused browser UI)"""
+        with patch.dict(
+            os.environ,
+            {
+                "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                "ACME2CERTIFIER_DEBUG": "1",
+            },
+            clear=False,
+        ):
+            mod = self._reload()
+            self.assertNotIn("django.contrib.admin", mod.INSTALLED_APPS)
+
 
 if __name__ == "__main__":
     unittest.main()

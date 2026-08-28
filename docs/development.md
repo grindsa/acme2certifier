@@ -121,7 +121,6 @@ In `local_settings.py`, add `"django_extensions"` to `INSTALLED_APPS` and set `D
 DEBUG = True
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
