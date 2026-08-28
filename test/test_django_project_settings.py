@@ -153,6 +153,19 @@ class TestDjangoProjectSettings(unittest.TestCase):
                     any("ALLOWED_HOSTS contains '*'" in str(w.message) for w in caught)
                 )
 
+    def test_008_admin_not_installed(self) -> None:
+        """django.contrib.admin is not enabled (unused browser UI)"""
+        with patch.dict(
+            os.environ,
+            {
+                "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                "ACME2CERTIFIER_DEBUG": "1",
+            },
+            clear=False,
+        ):
+            mod = self._reload()
+            self.assertNotIn("django.contrib.admin", mod.INSTALLED_APPS)
+
 
 if __name__ == "__main__":
     unittest.main()

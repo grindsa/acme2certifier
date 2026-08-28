@@ -22,7 +22,6 @@ def _bootstrap_django() -> None:
         INSTALLED_APPS=[
             "django.contrib.contenttypes",
             "django.contrib.auth",
-            "django.contrib.admin",
             "django.contrib.sessions",
             "django.contrib.messages",
             "django.contrib.staticfiles",
@@ -101,12 +100,7 @@ class TestDjangoProjectUrls(unittest.TestCase):
 
         django_app_pkg.views = mock_views
         django_app_pkg.urls = mock_app_urls
-        fake_admin_site = MagicMock()
-        fake_admin_site.urls = ([], "admin", "admin")
-        with (
-            patch("acme2certifier.acme_srv.helper.load_config", return_value=config),
-            patch("django.contrib.admin.site", fake_admin_site),
-        ):
+        with patch("acme2certifier.acme_srv.helper.load_config", return_value=config):
             return importlib.import_module(_URLS)
 
     def test_001_no_prefix_no_acme_challenge(self) -> None:
@@ -151,6 +145,12 @@ class TestDjangoProjectUrls(unittest.TestCase):
         )
         names = [getattr(p, "name", None) for p in mod.urlpatterns]
         self.assertIn("acmechallenge_serve", names)
+
+    def test_007_no_admin_route(self) -> None:
+        """Django admin is not mounted (unused; avoids CSRF exposure)"""
+        mod = self._reload_urls(_cfg())
+        patterns = [str(getattr(p, "pattern", "")) for p in mod.urlpatterns]
+        self.assertFalse(any("admin" in pattern for pattern in patterns))
 
 
 if __name__ == "__main__":

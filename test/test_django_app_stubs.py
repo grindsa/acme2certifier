@@ -20,7 +20,6 @@ def _bootstrap_django() -> None:
         INSTALLED_APPS=[
             "django.contrib.contenttypes",
             "django.contrib.auth",
-            "django.contrib.admin",
             "acme2certifier.django_app.apps.AcmeSrvConfig",
         ],
         DATABASES={
