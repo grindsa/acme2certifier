@@ -421,6 +421,7 @@ class ChallengeSetManager:
         id_type: str = None,
         id_value: str = None,
         is_wildcard: bool = False,
+        eab_kid: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Get challenge set for authorization"""
         self.logger.debug(
@@ -441,6 +442,7 @@ class ChallengeSetManager:
                 id_type,
                 id_value,
                 is_wildcard,
+                eab_kid=eab_kid,
             )
 
 
@@ -839,6 +841,11 @@ class Authorization(object):
                 )
             # Get challenge set
             try:
+                eab_kid = (
+                    auth_details.get("order__account__eab_kid")
+                    if auth_details
+                    else None
+                )
                 authz_info["challenges"] = (
                     self.challenge_manager.get_challenge_set_for_authorization(
                         authz_name,
@@ -849,6 +856,7 @@ class Authorization(object):
                         id_type,
                         id_value,
                         is_wildcard,
+                        eab_kid=eab_kid,
                     )
                 )
             except Exception as err:

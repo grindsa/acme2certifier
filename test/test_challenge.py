@@ -2157,6 +2157,106 @@ class TestChallenge(unittest.TestCase):
         self.assertFalse(self.challenge.config.forward_address_check)
         self.assertFalse(self.challenge.config.reverse_address_check)
 
+    def test_096a_get_challenge_profile_settings_challenge_types(self):
+        """Test challenge type keys are extracted when present in EAB profile."""
+        profile_dic = {
+            "test_kid": {
+                "challenge": {
+                    "http_01_support": "False",
+                    "dns_01_support": "True",
+                    "tls_alpn_01_support": "False",
+                }
+            }
+        }
+
+        result = self.challenge._get_challenge_profile_settings(profile_dic, "test_kid")
+
+        self.assertFalse(result["http_01_support"])
+        self.assertTrue(result["dns_01_support"])
+        self.assertFalse(result["tls_alpn_01_support"])
+
+        result_default = self.challenge._get_challenge_profile_settings(
+            {"test_kid": {"challenge": {}}}, "test_kid"
+        )
+        self.assertNotIn("http_01_support", result_default)
+
+    def test_096b_apply_eab_profile_settings_challenge_types(self):
+        """Test challenge type overrides refresh factory and validator registry."""
+        settings = {
+            "challenge_validation_disable": False,
+            "forward_address_check": False,
+            "reverse_address_check": False,
+            "http_01_support": False,
+            "tls_alpn_01_support": False,
+        }
+        self.challenge.config.http_01_support = True
+        self.challenge.config.dns_01_support = True
+        self.challenge.config.tls_alpn_01_support = True
+        self.challenge.factory = Mock()
+        self.challenge.factory.http_01_support = True
+        self.challenge.factory.dns_01_support = True
+        self.challenge.factory.tls_alpn_01_support = True
+        mock_registry = Mock()
+        mock_registry.get_supported_types.return_value = ["dns-01"]
+
+        with patch.object(
+            self.challenge,
+            "_refresh_challenge_type_components",
+            wraps=self.challenge._refresh_challenge_type_components,
+        ) as refresh_mock:
+            with patch(
+                "acme2certifier.acme_srv.challenge.create_challenge_validator_registry",
+                return_value=mock_registry,
+            ):
+                self.challenge._apply_eab_profile_settings(settings, "test_kid")
+
+        refresh_mock.assert_called_once()
+        self.assertFalse(self.challenge.config.http_01_support)
+        self.assertFalse(self.challenge.config.tls_alpn_01_support)
+        self.assertTrue(self.challenge.config.dns_01_support)
+        self.assertEqual(self.challenge.validator_registry, mock_registry)
+
+    def test_096c_apply_eab_challenge_profile(self):
+        """Test _apply_eab_challenge_profile loads and applies kid challenge section."""
+        self.challenge.config.eab_profiling = True
+        mock_ctx = Mock(
+            key_file_load=Mock(
+                return_value={
+                    "kid-01": {
+                        "challenge": {
+                            "http_01_support": "False",
+                            "tls_alpn_01_support": "False",
+                        }
+                    }
+                }
+            )
+        )
+        mock_handler_instance = Mock()
+        mock_handler_instance.__enter__ = Mock(return_value=mock_ctx)
+        mock_handler_instance.__exit__ = Mock(return_value=False)
+        self.challenge.config.eab_handler = Mock(return_value=mock_handler_instance)
+        self.challenge._apply_eab_profile_settings = Mock()
+
+        self.challenge._apply_eab_challenge_profile("kid-01")
+
+        self.challenge._apply_eab_profile_settings.assert_called_once()
+        settings_arg = self.challenge._apply_eab_profile_settings.call_args[0][0]
+        self.assertFalse(settings_arg["http_01_support"])
+        self.assertFalse(settings_arg["tls_alpn_01_support"])
+
+    def test_096d_retrieve_challenge_set_applies_eab_profile(self):
+        """Test retrieve_challenge_set applies EAB challenge profile before creation."""
+        self.challenge._ensure_components_initialized = Mock()
+        self.challenge._apply_eab_challenge_profile = Mock()
+        self.challenge.service = Mock()
+        self.challenge.service.get_challenge_set_for_authorization.return_value = []
+
+        self.challenge.retrieve_challenge_set(
+            "authz", "valid", "tok", False, eab_kid="kid-01"
+        )
+
+        self.challenge._apply_eab_challenge_profile.assert_called_once_with("kid-01")
+
     def test_097_check_challenge_validation_eabprofile_disabled(self):
         """Test _check_challenge_validation_eabprofile when EAB profiling is disabled"""
         # Ensure EAB profiling is disabled

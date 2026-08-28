@@ -128,6 +128,35 @@ jobs:
           EXPECT_TYPES: "dns-01"
           FORBID_TYPES: "http-01,tls-alpn-01"
 
+      - name: "Configure EAB challenge type profiling"
+        run: |
+          cfg=examples/Docker/data/acme_srv.cfg
+          sudo sed -i '/http_01_support:/d;/tls_alpn_01_support:/d' "$cfg"
+          {
+            echo
+            echo "[EABhandler]"
+            echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler"
+            echo "key_file: volume/kid_profiles.json"
+            echo "eab_profiling: True"
+          } | sudo tee -a "$cfg" >/dev/null
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Stage kid_profiles for challenge type EAB test"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/challenge_type_eab.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Test challenge type filtering (EAB profile)"
+        uses: ./.github/actions/wf_specific/error_tests/challenge_type_support_checks
+        with:
+          EXPECT_TYPES: "dns-01"
+          FORBID_TYPES: "http-01,tls-alpn-01"
+          IDENTIFIER: "chal-types-eab.bar.local"
+          EAB_KID: "keyid_chaltypes"
+          EAB_HMAC: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
+
       - name: "Flush logs before certificate error checks"
         uses: ./.github/actions/logs_flush
         with:

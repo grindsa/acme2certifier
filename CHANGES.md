@@ -10,7 +10,7 @@ and pick the appropriate release branch.
 
 **New Features**:
 
-- Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377))
+- Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377)); per-account overrides via EAB profile `challenge` section
 
 **Bug Fixes and Improvements**:
 
