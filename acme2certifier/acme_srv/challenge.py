@@ -1084,7 +1084,10 @@ class Challenge:
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
                 profile_dic = eab_handler.key_file_load()
-                if eab_kid not in profile_dic or "challenge" not in profile_dic[eab_kid]:
+                if (
+                    eab_kid not in profile_dic
+                    or "challenge" not in profile_dic[eab_kid]
+                ):
                     return
                 settings = self._get_challenge_profile_settings(profile_dic, eab_kid)
                 self._apply_eab_profile_settings(settings, eab_kid)
