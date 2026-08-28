@@ -17,6 +17,7 @@ and pick the appropriate release branch.
 - Django packaged settings refuse the insecure default `SECRET_KEY` and drop `*` from default `ALLOWED_HOSTS` unless `ACME2CERTIFIER_DEBUG=1`; warn when `ALLOWED_HOSTS` contains `*` outside debug
 - email-reply-00 (RFC 8823): reply validation binds the responder to the email identifier — `From` must match the authorization value (with punycode-normalized domain comparison); responses with `List-*` headers are rejected; outbound challenge emails carry a stored `Message-ID`, and `In-Reply-To`/`References` are verified when present (advisory when absent)
 - `enrollment_config_log` redacts PKCS#12 passphrases and other credential attributes by default (expanded skiplist plus secret-like name matching); redundant per-handler skip lists removed
+- Email hook: SMTP wire debug off by default (`smtp_debug`); port-aware TLS/STARTTLS defaults; cleartext SMTP AUTH refused unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1`
 
 ## Changes in 0.45.1
 

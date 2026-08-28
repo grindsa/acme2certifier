@@ -288,6 +288,35 @@ class TestHooks(unittest.TestCase):
         self.assertEqual(self.hooks.smtp_timeout, 30)
         self.assertIsNone(self.hooks.smtp_username)
         self.assertIsNone(self.hooks.smtp_password)
+        self.assertFalse(self.hooks.smtp_use_tls)
+        self.assertFalse(self.hooks.smtp_use_starttls)
+        self.assertFalse(self.hooks.smtp_debug)
+
+    def test_016a_load_configuration_smtp_port_587_defaults(self):
+        """Port 587 defaults to STARTTLS when TLS flags are unset"""
+        self.hooks.config_dic["Hooks"].update(
+            {
+                "appname": "TestApp",
+                "sender": "test@example.com",
+                "rcpt": "rcpt@example.com",
+                "smtp_port": "587",
+            }
+        )
+        self.hooks._load_configuration()
+        self.assertFalse(self.hooks.smtp_use_tls)
+        self.assertTrue(self.hooks.smtp_use_starttls)
+
+    def test_016b_load_configuration_smtp_port_465_defaults(self):
+        """Port 465 defaults to implicit TLS when TLS flags are unset"""
+        self.hooks.config_dic["Hooks"].update(
+            {
+                "appname": "TestApp",
+                "sender": "test@example.com",
+                "rcpt": "rcpt@example.com",
+                "smtp_port": "465",
+            }
+        )
+        self.hooks._load_configuration()
         self.assertTrue(self.hooks.smtp_use_tls)
         self.assertFalse(self.hooks.smtp_use_starttls)
 
@@ -1280,9 +1309,9 @@ class TestHooks(unittest.TestCase):
     def test_064_done_logs_debug_info(self, mock_smtp):
         """_done logs detailed debug information about SMTP connection"""
         self.hooks.smtp_use_tls = False
-        self.hooks.smtp_use_starttls = False
+        self.hooks.smtp_use_starttls = True
         self.hooks.smtp_server = "smtp.example.com"
-        self.hooks.smtp_port = 25
+        self.hooks.smtp_port = 587
         self.hooks.smtp_timeout = 30
         self.hooks.smtp_username = "testuser"
         self.hooks.smtp_password = "testpass"
@@ -1303,6 +1332,76 @@ class TestHooks(unittest.TestCase):
         self.assertIn("Authentication - username: testuser", log_output)
         self.assertIn("password: ***", log_output)
         self.assertTrue(self.hooks.done)
+        mock_smtp.return_value.set_debuglevel.assert_not_called()
+
+    @patch("acme2certifier.hookhandlers.email_hooks.smtplib.SMTP")
+    def test_064a_done_refuses_cleartext_auth(self, mock_smtp):
+        """_done refuses SMTP AUTH when transport is not encrypted"""
+        self.hooks.smtp_use_tls = False
+        self.hooks.smtp_use_starttls = False
+        self.hooks.smtp_server = "smtp.example.com"
+        self.hooks.smtp_port = 25
+        self.hooks.smtp_username = "testuser"
+        self.hooks.smtp_password = "testpass"
+        self.hooks.envelope["Subject"] = "Test Subject"
+        self.hooks.msg = ["Test message"]
+
+        smtp_instance = MagicMock()
+        mock_smtp.return_value.__enter__.return_value = smtp_instance
+
+        with self.assertLogs(self.logger, level="ERROR") as cm:
+            self.hooks._done()
+
+        self.assertTrue(
+            any("Refusing SMTP AUTH without TLS/STARTTLS" in msg for msg in cm.output)
+        )
+        mock_smtp.return_value.login.assert_not_called()
+        mock_smtp.return_value.sendmail.assert_not_called()
+
+    @patch.dict("os.environ", {"ACME2CERTIFIER_I_KNOW_THE_RISK": "1"})
+    @patch("acme2certifier.hookhandlers.email_hooks.smtplib.SMTP")
+    def test_064b_done_allows_cleartext_auth_with_break_glass(self, mock_smtp):
+        """_done permits cleartext SMTP AUTH when break-glass env is set"""
+        self.hooks.smtp_use_tls = False
+        self.hooks.smtp_use_starttls = False
+        self.hooks.smtp_server = "smtp.example.com"
+        self.hooks.smtp_port = 25
+        self.hooks.smtp_username = "testuser"
+        self.hooks.smtp_password = "testpass"
+        self.hooks.sender = "sender@example.com"
+        self.hooks.rcpt = "rcpt@example.com"
+        self.hooks.envelope["Subject"] = "Test Subject"
+        self.hooks.msg = ["Test message"]
+
+        smtp_instance = MagicMock()
+        mock_smtp.return_value.__enter__.return_value = smtp_instance
+
+        with self.assertLogs(self.logger, level="CRITICAL") as cm:
+            self.hooks._done()
+
+        self.assertTrue(
+            any("SMTP AUTH over cleartext permitted" in msg for msg in cm.output)
+        )
+        mock_smtp.return_value.login.assert_called_once()
+
+    @patch("acme2certifier.hookhandlers.email_hooks.smtplib.SMTP")
+    def test_064c_done_smtp_debug_enables_set_debuglevel(self, mock_smtp):
+        """_done enables smtplib debug output only when smtp_debug is True"""
+        self.hooks.smtp_debug = True
+        self.hooks.smtp_use_tls = False
+        self.hooks.smtp_use_starttls = False
+        self.hooks.smtp_server = "smtp.example.com"
+        self.hooks.smtp_port = 25
+        self.hooks.sender = "sender@example.com"
+        self.hooks.rcpt = "rcpt@example.com"
+        self.hooks.envelope["Subject"] = "Test Subject"
+        self.hooks.msg = ["Test message"]
+
+        smtp_instance = MagicMock()
+        mock_smtp.return_value.__enter__.return_value = smtp_instance
+
+        self.hooks._done()
+        mock_smtp.return_value.set_debuglevel.assert_called_once_with(1)
 
     @patch(
         "acme2certifier.hookhandlers.email_hooks.smtplib.SMTP_SSL",
