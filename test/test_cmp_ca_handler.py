@@ -616,6 +616,43 @@ class TestACMEHandler(unittest.TestCase):
         ]
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
+    def test_054_opensslcmd_log_repr(self):
+        """test _opensslcmd_log_repr() redacts -secret and -ref values"""
+        cmd = [
+            "openssl",
+            "cmp",
+            "-ref",
+            "1234",
+            "-secret",
+            "pass:sekrit",
+            "-server",
+            "ca.example:8080",
+        ]
+        self.assertEqual(
+            "openssl cmp -ref *** -secret *** -server ca.example:8080",
+            self.cahandler._opensslcmd_log_repr(cmd),
+        )
+
+    def test_055_opensslcmd_build_debug_log_redacted(self):
+        """test _opensslcmd_build() debug log omits raw secret and ref"""
+        import logging
+
+        self.cahandler.logger.setLevel(logging.DEBUG)
+        self.cahandler.openssl_bin = "openssl_bin"
+        self.cahandler.ref = "cmp_ref_value"
+        self.cahandler.secret = "cmp_secret_value"
+        self.cahandler.tmp_dir = "/tmp"
+        self.cahandler.ca_pubs_file = "/tmp/capubs.pem"
+        self.cahandler.cert_file = "/tmp/cert.pem"
+        with self.assertLogs("test_a2c", level="DEBUG") as log_ctx:
+            cmd = self.cahandler._opensslcmd_build()
+        log_output = "\n".join(log_ctx.output)
+        self.assertIn("-ref ***", log_output)
+        self.assertIn("-secret ***", log_output)
+        self.assertNotIn("cmp_ref_value", log_output)
+        self.assertNotIn("cmp_secret_value", log_output)
+        self.assertEqual("cmp_secret_value", cmd[cmd.index("-secret") + 1])
+
     def test_049_enroll(self):
         """test enroll without openssl_bin"""
         self.assertEqual(

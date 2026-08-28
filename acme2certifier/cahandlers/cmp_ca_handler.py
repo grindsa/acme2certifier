@@ -186,6 +186,22 @@ class CAhandler(object):
         self.profiles = config_profile_load(self.logger, config_dic)
         self.logger.debug("CAhandler._config_load() ended")
 
+    @staticmethod
+    def _opensslcmd_log_repr(cmd_list: List[str]) -> str:
+        """Return cmd_list as a log-safe string (redact values after -secret/-ref)."""
+        parts: List[str] = []
+        redact_next = False
+        for arg in cmd_list:
+            if redact_next:
+                parts.append("***")
+                redact_next = False
+            elif arg in ("-secret", "-ref"):
+                parts.append(arg)
+                redact_next = True
+            else:
+                parts.append(arg)
+        return " ".join(parts)
+
     def _opensslcmd_build(self) -> List[str]:
         """build openssl command"""
         self.logger.debug("CAhandler._opensslcmd_build()")
@@ -214,12 +230,11 @@ class CAhandler(object):
             cmd_list.extend(["-total_timeout", "10"])
 
         if self.secret and self.ref:
-            cmd_list.extend(["-ref", self.ref])
-        if self.secret and self.ref:
-            cmd_list.extend(["-secret", self.secret])
+            cmd_list.extend(["-ref", self.ref, "-secret", self.secret])
 
         self.logger.debug(
-            "CAhandler._opensslcmd_build() ended with: %s", " ".join(cmd_list)
+            "CAhandler._opensslcmd_build() ended with: %s",
+            self._opensslcmd_log_repr(cmd_list),
         )
         return cmd_list
 
