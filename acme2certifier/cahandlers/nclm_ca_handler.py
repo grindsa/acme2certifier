@@ -665,7 +665,6 @@ class CAhandler(object):
         cert_id = None
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["headers", "credential_dic"])
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )

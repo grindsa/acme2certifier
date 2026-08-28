@@ -561,9 +561,6 @@ class CAhandler(object):
         poll_indentifier = None
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(
-                ["cert_passphrase", "client_key"]
-            )
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )

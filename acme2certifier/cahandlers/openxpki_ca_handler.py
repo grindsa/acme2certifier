@@ -319,7 +319,6 @@ class CAhandler(object):
         break_loop = False
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["cert_passphrase"])
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )

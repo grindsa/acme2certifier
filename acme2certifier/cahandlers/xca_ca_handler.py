@@ -338,7 +338,7 @@ class CAhandler(object):
         self.logger.debug("Certificate._cert_sign()")
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["dbs", "passphrase", "cursor"])
+            self.enrollment_config_log_skip_list.extend(["dbs", "cursor"])
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )

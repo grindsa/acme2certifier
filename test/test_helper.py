@@ -5627,10 +5627,26 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         myclass.bar = "bar_val"
         myclass.password = "password_val"
         myclass.secret = "secret_val"
+        myclass.cert_passphrase = "pkcs12_secret"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.enrollment_config_log(self.logger, myclass))
         self.assertIn(
             "INFO:test_a2c:Enrollment configuration: ['foo: foo_val', 'bar: bar_val']",
+            lcm.output,
+        )
+
+    def test_453a_enrollment_config_log_sensitive_name_fragment(self):
+        """test enrollment_config_log() skips secret-like attribute name fragments"""
+
+        class myclass:
+            pass
+
+        myclass.visible = "ok"
+        myclass.client_passphrase_backup = "hidden"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.enrollment_config_log(self.logger, myclass)
+        self.assertIn(
+            "INFO:test_a2c:Enrollment configuration: ['visible: ok']",
             lcm.output,
         )
 

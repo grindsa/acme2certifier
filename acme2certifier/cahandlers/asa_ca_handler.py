@@ -569,7 +569,6 @@ class CAhandler(object):
         )
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["api_password", "auth"])
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )

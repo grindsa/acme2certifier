@@ -212,7 +212,6 @@ class CAhandler(object):
         cert_dic = {}
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["auth", "api_password"])
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )

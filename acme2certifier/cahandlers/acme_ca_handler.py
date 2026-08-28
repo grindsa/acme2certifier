@@ -1120,7 +1120,6 @@ class CAhandler(object):
         )
         if not error:
             if self.enrollment_config_log:
-                self.enrollment_config_log_skip_list.extend(["dbstore", "eab_mac_key"])
                 enrollment_config_log(
                     self.logger, self, self.enrollment_config_log_skip_list
                 )
