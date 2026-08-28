@@ -16,6 +16,9 @@ class TestA2CManage(unittest.TestCase):
         mock_exec = MagicMock()
         with (
             patch.dict("os.environ", {}, clear=False),
+            patch(
+                "acme2certifier.tools.a2c_django_deploy_env.load_deploy_env"
+            ),
             patch.dict(
                 "sys.modules",
                 {
@@ -52,7 +55,12 @@ class TestA2CManage(unittest.TestCase):
 
         from acme2certifier.tools import a2c_manage
 
-        with patch("builtins.__import__", side_effect=_import):
+        with (
+            patch(
+                "acme2certifier.tools.a2c_django_deploy_env.load_deploy_env"
+            ),
+            patch("builtins.__import__", side_effect=_import),
+        ):
             with self.assertRaises(ImportError) as cm:
                 a2c_manage.main()
         self.assertIn("acme2certifier[django]", str(cm.exception))
@@ -62,7 +70,12 @@ class TestA2CManage(unittest.TestCase):
         import runpy
 
         sys.modules.pop("acme2certifier.tools.a2c_manage", None)
-        with patch("django.core.management.execute_from_command_line") as mock_exec:
+        with (
+            patch(
+                "acme2certifier.tools.a2c_django_deploy_env.load_deploy_env"
+            ),
+            patch("django.core.management.execute_from_command_line") as mock_exec,
+        ):
             runpy.run_module(
                 "acme2certifier.tools.a2c_manage",
                 run_name="__main__",
