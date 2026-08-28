@@ -21,8 +21,12 @@ def _logger() -> logging.Logger:
 
 
 def test_001_network_caaidentities_parse_empty_and_fallback_csv() -> None:
-    assert _caaidentities_parse("") == []
-    assert _caaidentities_parse("not-json,still-valid") == ["not-json", "still-valid"]
+    logger = _logger()
+    assert _caaidentities_parse(logger, "") == []
+    assert _caaidentities_parse(logger, "not-json,still-valid") == [
+        "not-json",
+        "still-valid",
+    ]
 
 
 def test_002_network_configured_server_name_directory_fallback() -> None:

@@ -298,8 +298,14 @@ jobs:
           certutil -addstore -enterprise -f -v root (Join-Path $repoRoot "volume\acme_ca\root-ca-cert.pem")
           certutil -addstore -enterprise -f -v root (Join-Path $repoRoot "volume\acme_ca\sub-ca-cert.pem")
 
+          $secretKey = (python -m acme2certifier.tools.a2c_django_secret_keygen).Trim()
+          if (-not $secretKey) { throw "a2c_django_secret_keygen produced an empty key" }
+          $allowedHosts = "127.0.0.1,localhost,$env:COMPUTERNAME"
+
           "ACME_SRV_CONFIGFILE=$repoRoot\volume\acme_srv.cfg" >> $env:GITHUB_ENV
           "ACME2CERTIFIER_BASE_DIR=$repoRoot" >> $env:GITHUB_ENV
+          "ACME2CERTIFIER_SECRET_KEY=$secretKey" >> $env:GITHUB_ENV
+          "ACME2CERTIFIER_ALLOWED_HOSTS=$allowedHosts" >> $env:GITHUB_ENV
           "PYTHONPATH=$repoRoot;$repoRoot\volume" >> $env:GITHUB_ENV
           "DJANGO_SETTINGS_MODULE=winacme_django_settings" >> $env:GITHUB_ENV
 
@@ -326,6 +332,8 @@ jobs:
             "set DJANGO_SETTINGS_MODULE=$($env:DJANGO_SETTINGS_MODULE)"
             "set ACME_SRV_CONFIGFILE=$($env:ACME_SRV_CONFIGFILE)"
             "set ACME2CERTIFIER_BASE_DIR=$($env:ACME2CERTIFIER_BASE_DIR)"
+            "set ACME2CERTIFIER_SECRET_KEY=$($env:ACME2CERTIFIER_SECRET_KEY)"
+            "set ACME2CERTIFIER_ALLOWED_HOSTS=$($env:ACME2CERTIFIER_ALLOWED_HOSTS)"
             "`"$python`" -u -m acme2certifier.tools.a2c_manage runserver 127.0.0.1:8080 --noreload > `"$log`" 2> `"$err`""
           ) | Set-Content -Encoding ascii -Path $launcher
 
@@ -465,6 +473,8 @@ jobs:
             "set DJANGO_SETTINGS_MODULE=$($env:DJANGO_SETTINGS_MODULE)"
             "set ACME_SRV_CONFIGFILE=$($env:ACME_SRV_CONFIGFILE)"
             "set ACME2CERTIFIER_BASE_DIR=$($env:ACME2CERTIFIER_BASE_DIR)"
+            "set ACME2CERTIFIER_SECRET_KEY=$($env:ACME2CERTIFIER_SECRET_KEY)"
+            "set ACME2CERTIFIER_ALLOWED_HOSTS=$($env:ACME2CERTIFIER_ALLOWED_HOSTS)"
             "`"$python`" -u -m acme2certifier.tools.a2c_manage runsslserver 127.0.0.1:443 --noreload --certificate acme2certifier/acme2certifier_cert.pem --key acme2certifier/acme2certifier_key.pem > `"$log`" 2> `"$err`""
           ) | Set-Content -Encoding ascii -Path $launcher
 
