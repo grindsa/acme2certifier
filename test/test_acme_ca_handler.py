@@ -1899,18 +1899,23 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._order_authorization("acmeclient", order, "user_key")
         )
 
-    def test_082_eab_profile_list_check(self):
-        """test eab_profile_list_check denies acme_keyfile from profile"""
-        with self.assertLogs("test_a2c", level="WARNING") as lcm:
-            self.assertFalse(
-                self.cahandler.eab_profile_list_check(
-                    "eab_handler", "csr", "acme_keyfile", "key_file"
-                )
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
+    def test_082_eab_profile_list_check(self, mock_hiv):
+        """test eab_profile_list_check applies acme_keyfile from list profiles"""
+        mock_hiv.return_value = ("/var/www/acme2certifier/volume/key.json", None)
+        self.cahandler.acme_keyfile = "default.json"
+        self.assertFalse(
+            self.cahandler.eab_profile_list_check(
+                "eab_handler",
+                "csr",
+                "acme_keyfile",
+                ["/var/www/acme2certifier/volume/key.json"],
             )
-        self.assertIn(
-            "WARNING:test_a2c:EAB profile: ignoring denied attribute: key: acme_keyfile",
-            lcm.output,
         )
+        self.assertEqual(
+            "/var/www/acme2certifier/volume/key.json", self.cahandler.acme_keyfile
+        )
+        mock_hiv.assert_called_once()
 
     def test_083_eab_profile_list_check(self):
         """test eab_profile_list_check denies acme_url from profile"""
