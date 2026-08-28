@@ -641,6 +641,73 @@ class TestChallengeFactory(unittest.TestCase):
         self.assertEqual(len(challenges), 1)
         self.assertEqual(challenges[0]["type"], "dns-01")
 
+    def test_005a_create_standard_challenge_set_dns_only(self):
+        """Test creating challenge set with http-01 and tls-alpn-01 disabled."""
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeFactory
+
+        factory = ChallengeFactory(
+            repository=self.repository,
+            logger=self.logger,
+            server_name="https://example.com",
+            challenge_path="/acme/chall/",
+            http_01_support=False,
+            tls_alpn_01_support=False,
+        )
+
+        challenges = factory.create_standard_challenge_set(
+            authorization_name="test-auth",
+            token="test-token",
+            id_type="dns",
+            value="example.com",
+        )
+
+        self.assertEqual(len(challenges), 1)
+        self.assertEqual(challenges[0]["type"], "dns-01")
+
+    def test_005b_create_standard_challenge_set_wildcard_dns_disabled(self):
+        """Test wildcard identifier when dns_01_support is disabled."""
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeFactory
+
+        factory = ChallengeFactory(
+            repository=self.repository,
+            logger=self.logger,
+            server_name="https://example.com",
+            challenge_path="/acme/chall/",
+            dns_01_support=False,
+        )
+
+        challenges = factory.create_standard_challenge_set(
+            authorization_name="test-auth",
+            token="test-token",
+            id_type="dns",
+            value="*.example.com",
+        )
+
+        self.assertEqual(len(challenges), 0)
+
+    def test_005c_create_standard_challenge_set_ip_http_only(self):
+        """Test IP identifier with only http-01 enabled."""
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeFactory
+
+        factory = ChallengeFactory(
+            repository=self.repository,
+            logger=self.logger,
+            server_name="https://example.com",
+            challenge_path="/acme/chall/",
+            dns_01_support=False,
+            tls_alpn_01_support=False,
+        )
+
+        challenges = factory.create_standard_challenge_set(
+            authorization_name="test-auth",
+            token="test-token",
+            id_type="ip",
+            value="192.168.1.1",
+        )
+
+        self.assertEqual(len(challenges), 1)
+        self.assertEqual(challenges[0]["type"], "http-01")
+
     def test_006_create_standard_challenge_set_repository_failure(self):
         """Test standard challenge set creation when repository fails"""
         self.repository.create_challenge = Mock(return_value=None)

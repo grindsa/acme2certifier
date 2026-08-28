@@ -116,6 +116,18 @@ jobs:
       - name: "Test for Challenge Resource"
         uses: ./.github/actions/wf_specific/error_tests/challenge_checks
 
+      - name: "Configure DNS-only RFC 8555 challenges"
+        run: |
+          sudo sed -i '/^\[Challenge\]/a http_01_support: False\ntls_alpn_01_support: False' examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Test challenge type filtering (global cfg)"
+        uses: ./.github/actions/wf_specific/error_tests/challenge_type_support_checks
+        with:
+          EXPECT_TYPES: "dns-01"
+          FORBID_TYPES: "http-01,tls-alpn-01"
+
       - name: "Flush logs before certificate error checks"
         uses: ./.github/actions/logs_flush
         with:

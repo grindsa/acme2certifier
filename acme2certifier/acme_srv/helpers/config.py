@@ -412,6 +412,33 @@ def legacy_acme_get_load(logger: logging.Logger, config_dic) -> bool:
     return enabled
 
 
+def challenge_type_configuration_validate(logger: logging.Logger, config_dic) -> None:
+    """Emit a startup warning when all RFC 8555 challenge types are disabled."""
+    logger.debug("Helper.challenge_type_configuration_validate()")
+    if not config_dic:
+        return
+
+    std_enabled = any(
+        [
+            config_dic.getboolean("Challenge", "http_01_support", fallback=True),
+            config_dic.getboolean("Challenge", "dns_01_support", fallback=True),
+            config_dic.getboolean("Challenge", "tls_alpn_01_support", fallback=True),
+        ]
+    )
+    opt_enabled = config_dic.getboolean(
+        "Challenge", "dns_persist_01_support", fallback=False
+    )
+    if std_enabled or opt_enabled:
+        return
+
+    logger.warning(
+        "All RFC 8555 challenge types are disabled and dns_persist_01_support "
+        "is off; new authorizations will have no challenges unless identifiers "
+        "are prevalidated or challenge validation is disabled "
+        "(globally, via EAB profile, or with forward/reverse address checks)."
+    )
+
+
 def tnauthlist_configuration_validate(logger: logging.Logger, config_dic) -> None:
     """Emit a startup message when ``tnauthlist_support`` is enabled.
 

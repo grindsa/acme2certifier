@@ -16,6 +16,9 @@ class MockConfig:
     """Mock configuration object for testing"""
 
     def __init__(self, **kwargs):
+        self.http_01_support = kwargs.get("http_01_support", True)
+        self.dns_01_support = kwargs.get("dns_01_support", True)
+        self.tls_alpn_01_support = kwargs.get("tls_alpn_01_support", True)
         self.email_identifier_support = kwargs.get("email_identifier_support", False)
         self.tnauthlist_support = kwargs.get("tnauthlist_support", False)
         self.dns_persist_01_support = kwargs.get("dns_persist_01_support", False)
@@ -452,6 +455,67 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             create_challenge_validator_registry(self.logger, config)
 
             mock_dns_persist_validator.assert_not_called()
+
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
+        },
+    )
+    def test_005a_create_challenge_validator_registry_http_disabled(self):
+        """Test registry creation with http-01 support disabled."""
+
+        mock_registry = Mock()
+        mock_registry_instance = Mock()
+        mock_registry_instance.get_supported_types.return_value = [
+            "dns-01",
+            "tls-alpn-01",
+        ]
+        mock_registry.return_value = mock_registry_instance
+
+        mock_http_validator = Mock()
+        mock_dns_validator = Mock()
+        mock_tls_validator = Mock()
+        mock_email_validator = Mock()
+        mock_tkauth_validator = Mock()
+        mock_source_validator = Mock()
+
+        with (
+            patch.multiple(
+                "acme2certifier.acme_srv.challenge_validators",
+                ChallengeValidatorRegistry=mock_registry,
+                HttpChallengeValidator=mock_http_validator,
+                DnsChallengeValidator=mock_dns_validator,
+                TlsAlpnChallengeValidator=mock_tls_validator,
+                EmailReplyChallengeValidator=mock_email_validator,
+                TkauthChallengeValidator=mock_tkauth_validator,
+                SourceAddressValidator=mock_source_validator,
+            ),
+            patch.multiple(
+                "acme2certifier.acme_srv.challenge_registry_setup",
+                ChallengeValidatorRegistry=mock_registry,
+                HttpChallengeValidator=mock_http_validator,
+                DnsChallengeValidator=mock_dns_validator,
+                TlsAlpnChallengeValidator=mock_tls_validator,
+                EmailReplyChallengeValidator=mock_email_validator,
+                TkauthChallengeValidator=mock_tkauth_validator,
+                SourceAddressValidator=mock_source_validator,
+            ),
+        ):
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
+
+            config = MockConfig(http_01_support=False)
+            create_challenge_validator_registry(self.logger, config)
+
+            mock_http_validator.assert_not_called()
+            mock_dns_validator.assert_called_once_with(self.logger)
+            mock_tls_validator.assert_called_once_with(self.logger)
 
     @patch.dict(
         "sys.modules",

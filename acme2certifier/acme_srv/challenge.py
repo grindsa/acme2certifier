@@ -72,6 +72,9 @@ class ChallengeConfiguration:
     tnauthlist_support: bool = False
     email_identifier_support: bool = False
     email_address: Optional[str] = None
+    http_01_support: bool = True
+    dns_01_support: bool = True
+    tls_alpn_01_support: bool = True
     dns_persist_01_support: bool = False
     dns_persist_allow_policy_wildcard: bool = False
     dns_persist_jit_validation: bool = False
@@ -866,6 +869,15 @@ class Challenge:
                 "Challenge", "sectigo_sim", fallback=False
             )
             self._load_dns_persist_configuration(config_dic)
+            self.config.http_01_support = config_dic.getboolean(
+                "Challenge", "http_01_support", fallback=True
+            )
+            self.config.dns_01_support = config_dic.getboolean(
+                "Challenge", "dns_01_support", fallback=True
+            )
+            self.config.tls_alpn_01_support = config_dic.getboolean(
+                "Challenge", "tls_alpn_01_support", fallback=True
+            )
 
             self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
@@ -920,6 +932,9 @@ class Challenge:
             self.config.dns_persist_01_support,
             self.config.caaidentities,
             acct_path,
+            http_01_support=self.config.http_01_support,
+            dns_01_support=self.config.dns_01_support,
+            tls_alpn_01_support=self.config.tls_alpn_01_support,
         )
         self.service = ChallengeService(
             self.repository, self.state_manager, self.factory, self.logger

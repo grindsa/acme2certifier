@@ -8,6 +8,10 @@ and pick the appropriate release branch.
 
 ## Changes in 0.46
 
+**New Features**:
+
+- Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377))
+
 **Bug Fixes and Improvements**:
 
 - CA handler hardening: `pkcs7_soap` defaults `ca_bundle` to system trust (`True`);
