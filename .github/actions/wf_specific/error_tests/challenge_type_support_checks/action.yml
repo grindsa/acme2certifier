@@ -1,0 +1,76 @@
+name: "challenge_type_support_checks"
+description: "Verify RFC 8555 challenge types offered match acme_srv.cfg support flags"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  EXPECT_TYPES:
+    description: "Comma-separated challenge types that must appear in authorization"
+    required: true
+  FORBID_TYPES:
+    description: "Comma-separated challenge types that must not appear"
+    required: false
+    default: ""
+  IDENTIFIER:
+    description: "DNS identifier for the test order"
+    required: false
+    default: "chal-types-01.bar.local"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Create acmeshell script for challenge type check"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.chaltypes.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=chal-types@bar.local,
+        newOrder -identifiers=${{ inputs.IDENTIFIER }}
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell and capture authorization response"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.chaltypes.log'
+        cat acmeshell.chaltypes.log
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Assert expected challenge types are present"
+      working-directory: acmeshell
+      run: |
+        IFS=',' read -ra EXPECTED <<< "${{ inputs.EXPECT_TYPES }}"
+        for challenge_type in "${EXPECTED[@]}"; do
+          challenge_type="$(echo "$challenge_type" | xargs)"
+          if ! grep -q "\"type\": \"${challenge_type}\"" acmeshell.chaltypes.log; then
+            echo "Expected challenge type '${challenge_type}' not found in acmeshell output"
+            exit 1
+          fi
+        done
+      shell: bash
+
+    - name: "Assert forbidden challenge types are absent"
+      if: ${{ inputs.FORBID_TYPES != '' }}
+      working-directory: acmeshell
+      run: |
+        IFS=',' read -ra FORBIDDEN <<< "${{ inputs.FORBID_TYPES }}"
+        for challenge_type in "${FORBIDDEN[@]}"; do
+          challenge_type="$(echo "$challenge_type" | xargs)"
+          if grep -q "\"type\": \"${challenge_type}\"" acmeshell.chaltypes.log; then
+            echo "Forbidden challenge type '${challenge_type}' found in acmeshell output"
+            exit 1
+          fi
+        done
+      shell: bash

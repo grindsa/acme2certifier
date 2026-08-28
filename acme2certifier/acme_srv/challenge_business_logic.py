@@ -215,6 +215,9 @@ class ChallengeFactory:
         dns_persist_01_support: bool = False,
         issuer_domain_names: Optional[List[str]] = None,
         account_path: str = "/acme/acct/",
+        http_01_support: bool = True,
+        dns_01_support: bool = True,
+        tls_alpn_01_support: bool = True,
     ):
         self.repository = repository
         self.logger = logger
@@ -224,6 +227,20 @@ class ChallengeFactory:
         self.dns_persist_01_support = dns_persist_01_support
         self.issuer_domain_names = issuer_domain_names or []
         self.account_path = account_path
+        self.http_01_support = http_01_support
+        self.dns_01_support = dns_01_support
+        self.tls_alpn_01_support = tls_alpn_01_support
+
+    def _enabled_standard_challenge_types(self) -> List[str]:
+        """Return RFC 8555 challenge types enabled via configuration."""
+        challenge_types: List[str] = []
+        if self.http_01_support:
+            challenge_types.append("http-01")
+        if self.dns_01_support:
+            challenge_types.append("dns-01")
+        if self.tls_alpn_01_support:
+            challenge_types.append("tls-alpn-01")
+        return challenge_types
 
     def create_standard_challenge_set(
         self,
@@ -244,12 +261,21 @@ class ChallengeFactory:
         )
 
         if is_wildcard_identifier:
-            self.logger.debug(
-                "ChallengeFactory.create_standard_challenge_set(): Detected wildcard identifier, only creating dns-01 challenge"
-            )
-            challenge_types = ["dns-01"]
+            if self.dns_01_support:
+                self.logger.debug(
+                    "ChallengeFactory.create_standard_challenge_set(): "
+                    "Detected wildcard identifier, only creating dns-01 challenge"
+                )
+                challenge_types = ["dns-01"]
+            else:
+                self.logger.debug(
+                    "ChallengeFactory.create_standard_challenge_set(): "
+                    "Wildcard identifier but dns_01_support is disabled; "
+                    "no standard challenges will be created"
+                )
+                challenge_types = []
         else:
-            challenge_types = ["http-01", "dns-01", "tls-alpn-01"]
+            challenge_types = self._enabled_standard_challenge_types()
             # Skip DNS challenge for IP identifiers
             if id_type and id_type.lower() == "ip" and "dns-01" in challenge_types:
                 self.logger.debug(

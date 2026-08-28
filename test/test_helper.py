@@ -8397,7 +8397,63 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         error_mock.assert_not_called()
         critical_mock.assert_not_called()
 
-    def test_631_default_wsgi_dbfile(self):
+    def test_630a_challenge_type_configuration_validate_all_disabled(self):
+        """challenge_type_configuration_validate warns when all std types are off."""
+        from configparser import ConfigParser
+
+        from acme2certifier.acme_srv.helpers.config import (
+            challenge_type_configuration_validate,
+        )
+
+        config_dic = ConfigParser()
+        config_dic.add_section("Challenge")
+        config_dic.set("Challenge", "http_01_support", "False")
+        config_dic.set("Challenge", "dns_01_support", "False")
+        config_dic.set("Challenge", "tls_alpn_01_support", "False")
+
+        with patch.object(self.logger, "warning") as warning_mock:
+            challenge_type_configuration_validate(self.logger, config_dic)
+
+        warning_mock.assert_called_once()
+        self.assertIn("All RFC 8555 challenge types are disabled", warning_mock.call_args[0][0])
+
+    def test_630b_challenge_type_configuration_validate_dns_persist_enabled(self):
+        """No warning when dns_persist_01_support is enabled."""
+        from configparser import ConfigParser
+
+        from acme2certifier.acme_srv.helpers.config import (
+            challenge_type_configuration_validate,
+        )
+
+        config_dic = ConfigParser()
+        config_dic.add_section("Challenge")
+        config_dic.set("Challenge", "http_01_support", "False")
+        config_dic.set("Challenge", "dns_01_support", "False")
+        config_dic.set("Challenge", "tls_alpn_01_support", "False")
+        config_dic.set("Challenge", "dns_persist_01_support", "True")
+
+        with patch.object(self.logger, "warning") as warning_mock:
+            challenge_type_configuration_validate(self.logger, config_dic)
+
+        warning_mock.assert_not_called()
+
+    def test_630c_challenge_type_configuration_validate_default_enabled(self):
+        """No warning when standard challenge types use default (enabled)."""
+        from configparser import ConfigParser
+
+        from acme2certifier.acme_srv.helpers.config import (
+            challenge_type_configuration_validate,
+        )
+
+        config_dic = ConfigParser()
+        config_dic.add_section("Challenge")
+
+        with patch.object(self.logger, "warning") as warning_mock:
+            challenge_type_configuration_validate(self.logger, config_dic)
+
+        warning_mock.assert_not_called()
+
+    def test_634_default_wsgi_dbfile(self):
         """default_wsgi_dbfile joins deploy base dir with acme_srv.db"""
         from acme2certifier.acme_srv.helpers import config as config_mod
 
