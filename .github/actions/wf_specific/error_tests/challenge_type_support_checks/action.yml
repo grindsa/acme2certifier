@@ -24,11 +24,20 @@ inputs:
     description: "DNS identifier for the test order"
     required: false
     default: "chal-types-01.bar.local"
+  EAB_KID:
+    description: "Optional EAB key id for account registration"
+    required: false
+    default: ""
+  EAB_HMAC:
+    description: "Optional EAB HMAC key for account registration"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
   steps:
     - name: "Create acmeshell script for challenge type check"
+      if: ${{ inputs.EAB_KID == '' }}
       working-directory: acmeshell
       run: |
         rm -f acmeshell.chaltypes.log
@@ -39,6 +48,7 @@ runs:
       shell: bash
 
     - name: "Run acmeshell and capture authorization response"
+      if: ${{ inputs.EAB_KID == '' }}
       working-directory: acmeshell
       run: |
         docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.chaltypes.log'
@@ -47,6 +57,15 @@ runs:
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Register EAB account and request authorization"
+      if: ${{ inputs.EAB_KID != '' }}
+      run: |
+        rm -f acmeshell/acmeshell.chaltypes.log
+        docker exec alma bash -c "/root/.acme.sh/acme.sh --register-account --server http://${{ inputs.ACME_SERVER }} --accountemail 'chal-types@bar.local' --eab-kid '${{ inputs.EAB_KID }}' --eab-hmac-key '${{ inputs.EAB_HMAC }}' --debug 2" | tee acmeshell/acmeshell.chaltypes.log
+        docker exec alma bash -c "/root/.acme.sh/acme.sh --issue --server http://${{ inputs.ACME_SERVER }} -d '${{ inputs.IDENTIFIER }}' --standalone --debug 2 --output-insecure" >> acmeshell/acmeshell.chaltypes.log || true
+        cat acmeshell/acmeshell.chaltypes.log
+      shell: bash
 
     - name: "Assert expected challenge types are present"
       working-directory: acmeshell

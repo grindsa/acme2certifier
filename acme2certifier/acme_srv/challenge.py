@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_async_mode_load,
     config_dns_server_list_load,
+    eab_profile_as_bool,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
@@ -57,6 +58,12 @@ from acme2certifier.acme_srv.challenge_error_handling import (
 )
 
 ACCOUNT_URI_PREFIX = "/acme/acct/"
+
+CHALLENGE_TYPE_SUPPORT_KEYS = (
+    "http_01_support",
+    "dns_01_support",
+    "tls_alpn_01_support",
+)
 
 
 @dataclass
@@ -937,6 +944,17 @@ class Challenge:
 
         self.logger.debug("Challenge._initialize_business_logic_components() ended")
 
+    def _refresh_challenge_type_components(self) -> None:
+        """Rebuild validator registry and factory after challenge-type cfg changes."""
+        self.logger.debug("Challenge._refresh_challenge_type_components()")
+        self.validator_registry = create_challenge_validator_registry(
+            self.logger, self.config
+        )
+        if self.factory is not None:
+            self.factory.http_01_support = self.config.http_01_support
+            self.factory.dns_01_support = self.config.dns_01_support
+            self.factory.tls_alpn_01_support = self.config.tls_alpn_01_support
+
     def _ensure_components_initialized(self):
         """Ensure factory and service components are initialized."""
         if self.factory is None or self.service is None:
@@ -989,16 +1007,19 @@ class Challenge:
         challenge_profile = profile_dic.get(eab_kid, {}).get("challenge", {})
 
         settings = {
-            "challenge_validation_disable": challenge_profile.get(
-                "challenge_validation_disable", False
+            "challenge_validation_disable": eab_profile_as_bool(
+                challenge_profile.get("challenge_validation_disable"), False
             ),
-            "forward_address_check": challenge_profile.get(
-                "forward_address_check", False
+            "forward_address_check": eab_profile_as_bool(
+                challenge_profile.get("forward_address_check"), False
             ),
-            "reverse_address_check": challenge_profile.get(
-                "reverse_address_check", False
+            "reverse_address_check": eab_profile_as_bool(
+                challenge_profile.get("reverse_address_check"), False
             ),
         }
+        for key in CHALLENGE_TYPE_SUPPORT_KEYS:
+            if key in challenge_profile:
+                settings[key] = eab_profile_as_bool(challenge_profile[key])
 
         self.logger.debug(
             "Challenge._get_challenge_profile_settings(): extracted settings for kid %s: %s",
@@ -1035,6 +1056,44 @@ class Challenge:
                 eab_kid,
             )
             self.config.reverse_address_check = True
+
+        challenge_types_changed = False
+        for key in CHALLENGE_TYPE_SUPPORT_KEYS:
+            if key not in settings:
+                continue
+            if getattr(self.config, key) != settings[key]:
+                self.logger.info(
+                    "%s is set to %s via EAB profiling (eab_kid: %s).",
+                    key,
+                    settings[key],
+                    eab_kid,
+                )
+                setattr(self.config, key, settings[key])
+                challenge_types_changed = True
+        if challenge_types_changed:
+            self._refresh_challenge_type_components()
+
+    def _apply_eab_challenge_profile(self, eab_kid: Optional[str]) -> None:
+        """Apply per-account challenge settings from EAB profiling."""
+        self.logger.debug(
+            "Challenge._apply_eab_challenge_profile() for kid: %s", eab_kid
+        )
+        if not eab_kid or not (self.config.eab_profiling and self.config.eab_handler):
+            return
+
+        try:
+            with self.config.eab_handler(self.logger) as eab_handler:
+                profile_dic = eab_handler.key_file_load()
+                if eab_kid not in profile_dic or "challenge" not in profile_dic[eab_kid]:
+                    return
+                settings = self._get_challenge_profile_settings(profile_dic, eab_kid)
+                self._apply_eab_profile_settings(settings, eab_kid)
+        except Exception as err:
+            self.logger.error(
+                "Failed to process EAB challenge profile (kid: %s): %s",
+                eab_kid,
+                err,
+            )
 
     def _check_challenge_validation_eabprofile(self, challenge_name: str):
         """Check and apply challenge validation settings from EAB profiling."""
@@ -1478,6 +1537,7 @@ class Challenge:
         id_type: str = "dns",
         id_value: str = None,
         is_wildcard: bool = False,
+        eab_kid: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Retrieve existing or create new challenge set (replaces challengeset_get)."""
         self.logger.debug(
@@ -1485,6 +1545,7 @@ class Challenge:
         )
 
         self._ensure_components_initialized()
+        self._apply_eab_challenge_profile(eab_kid)
 
         result = []
         try:
