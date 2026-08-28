@@ -69,7 +69,9 @@ def normalize_email_address(logger: logging.Logger, raw: str) -> Optional[str]:
     try:
         domain_ascii = idna.encode(domain).decode("ascii").lower()
     except idna.IDNAError as err:
-        logger.debug("Helper.normalize_email_address(): invalid domain %s: %s", domain, err)
+        logger.debug(
+            "Helper.normalize_email_address(): invalid domain %s: %s", domain, err
+        )
         return None
 
     result = f"{local.lower()}@{domain_ascii}"

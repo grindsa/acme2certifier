@@ -742,7 +742,9 @@ class TestClientHeaderParameterGate:
 
 class TestEabProfileDenylist:
     def test_001_exact_and_suffix_denied(self) -> None:
-        from acme2certifier.acme_srv.helpers.security_gate import eab_profile_attr_denied
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            eab_profile_attr_denied,
+        )
 
         assert eab_profile_attr_denied("ca_bundle") is True
         assert eab_profile_attr_denied("api_host") is True

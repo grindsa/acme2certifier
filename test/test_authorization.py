@@ -759,7 +759,14 @@ class TestChallengeSetManager(unittest.TestCase):
 
         self.assertEqual(result, [])
         mock_challenge_instance.challengeset_get.assert_called_once_with(
-            "test_authz", "pending", "test_token", False, None, None, False, eab_kid=None
+            "test_authz",
+            "pending",
+            "test_token",
+            False,
+            None,
+            None,
+            False,
+            eab_kid=None,
         )
 
 

@@ -42,9 +42,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
             )
 
     def test_003_parse_apache_export(self) -> None:
-        parsed = _parse_apache_export(
-            "export ACME2CERTIFIER_SECRET_KEY='a$b(c)d'"
-        )
+        parsed = _parse_apache_export("export ACME2CERTIFIER_SECRET_KEY='a$b(c)d'")
         self.assertEqual(
             ("ACME2CERTIFIER_SECRET_KEY", "a$b(c)d"),
             parsed,

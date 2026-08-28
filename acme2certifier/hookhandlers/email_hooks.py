@@ -294,7 +294,9 @@ class Hooks:
         else:
             self.smtp_use_tls = False
         if self._smtp_use_starttls_explicit:
-            self.smtp_use_starttls = self._get_config_boolean("smtp_use_starttls", False)
+            self.smtp_use_starttls = self._get_config_boolean(
+                "smtp_use_starttls", False
+            )
         else:
             self.smtp_use_starttls = False
         self._apply_smtp_port_security_defaults()

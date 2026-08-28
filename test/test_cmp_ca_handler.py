@@ -616,7 +616,7 @@ class TestACMEHandler(unittest.TestCase):
         ]
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
-    def test_054_opensslcmd_log_repr(self):
+    def test_049_opensslcmd_log_repr(self):
         """test _opensslcmd_log_repr() redacts -secret and -ref values"""
         cmd = [
             "openssl",
@@ -633,7 +633,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._opensslcmd_log_repr(cmd),
         )
 
-    def test_055_opensslcmd_build_debug_log_redacted(self):
+    def test_050_opensslcmd_build_debug_log_redacted(self):
         """test _opensslcmd_build() debug log omits raw secret and ref"""
         import logging
 
@@ -653,7 +653,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertNotIn("cmp_secret_value", log_output)
         self.assertEqual("cmp_secret_value", cmd[cmd.index("-secret") + 1])
 
-    def test_049_enroll(self):
+    def test_051_enroll(self):
         """test enroll without openssl_bin"""
         self.assertEqual(
             ("Configuration error", None, None, None), self.cahandler.enroll("csr")
@@ -665,7 +665,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("subprocess.call")
     @patch("acme2certifier.cahandlers.cmp_ca_handler.CAhandler._opensslcmd_build")
     @patch("acme2certifier.cahandlers.cmp_ca_handler.CAhandler._file_save")
-    def test_050_enroll(
+    def test_052_enroll(
         self,
         mock_save,
         mock_build,
@@ -698,7 +698,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("subprocess.call")
     @patch("acme2certifier.cahandlers.cmp_ca_handler.CAhandler._opensslcmd_build")
     @patch("acme2certifier.cahandlers.cmp_ca_handler.CAhandler._file_save")
-    def test_051_enroll(
+    def test_053_enroll(
         self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle
     ):
         """test enroll subprocess.call returns other than 0"""
@@ -728,7 +728,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("subprocess.call")
     @patch("acme2certifier.cahandlers.cmp_ca_handler.CAhandler._opensslcmd_build")
     @patch("acme2certifier.cahandlers.cmp_ca_handler.CAhandler._file_save")
-    def test_052_enroll(
+    def test_054_enroll(
         self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle
     ):
         """test enroll tmp_dir does not exists"""
@@ -752,7 +752,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_bundle.called)
 
     @patch("builtins.open")
-    def test_053__file_save(self, mock_op):
+    def test_055__file_save(self, mock_op):
         """test file save"""
         self.assertFalse(self.cahandler._file_save("filename", "content"))
         self.assertTrue(mock_op.called)
