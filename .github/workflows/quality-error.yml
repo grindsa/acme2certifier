@@ -122,6 +122,14 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
+      - name: "Wait for ACME directory after DNS-only challenge config"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: acme
+          ACME_SERVER: acme-srv
+          CHECK_HTTPS: "false"
+          HTTP_PORT: "80"
+
       - name: "Test challenge type filtering (global cfg)"
         uses: ./.github/actions/wf_specific/error_tests/challenge_type_support_checks
         with:
@@ -141,6 +149,14 @@ jobs:
           } | sudo tee -a "$cfg" >/dev/null
           cd examples/Docker/
           docker compose restart
+
+      - name: "Wait for ACME directory after EAB challenge type config"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: acme
+          ACME_SERVER: acme-srv
+          CHECK_HTTPS: "false"
+          HTTP_PORT: "80"
 
       - name: "Stage kid_profiles for challenge type EAB test"
         uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles

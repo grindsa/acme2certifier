@@ -50,9 +50,11 @@ runs:
     - name: "Run acmeshell and capture authorization response"
       if: ${{ inputs.EAB_KID == '' }}
       working-directory: acmeshell
+      continue-on-error: true
+      id: acmeshell_chaltypes
       run: |
         docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.chaltypes.log'
-        cat acmeshell.chaltypes.log
+        cat acmeshell.chaltypes.log || true
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -65,6 +67,13 @@ runs:
         docker exec alma bash -c "/root/.acme.sh/acme.sh --register-account --server http://${{ inputs.ACME_SERVER }} --accountemail 'chal-types@bar.local' --eab-kid '${{ inputs.EAB_KID }}' --eab-hmac-key '${{ inputs.EAB_HMAC }}' --debug 2" | tee acmeshell/acmeshell.chaltypes.log
         docker exec alma bash -c "/root/.acme.sh/acme.sh --issue --server http://${{ inputs.ACME_SERVER }} -d '${{ inputs.IDENTIFIER }}' --standalone --debug 2 --output-insecure" >> acmeshell/acmeshell.chaltypes.log || true
         cat acmeshell/acmeshell.chaltypes.log
+      shell: bash
+
+    - name: "Assert acmeshell enrollment succeeded"
+      if: ${{ inputs.EAB_KID == '' && steps.acmeshell_chaltypes.outcome == 'failure' }}
+      run: |
+        echo "acmeshell enrollment failed; see acmeshell.chaltypes.log above"
+        exit 1
       shell: bash
 
     - name: "Assert expected challenge types are present"
