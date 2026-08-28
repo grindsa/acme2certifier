@@ -273,6 +273,8 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 data_dic["keyauthorization"] = request.keyauthorization
             if request.validation_error:
                 data_dic["validation_error"] = request.validation_error
+            if request.challenge_message_id:
+                data_dic["challenge_message_id"] = request.challenge_message_id
             self.dbstore.challenge_update(data_dic)
             self.logger.debug(
                 "DatabaseChallengeRepository.update_challenge() ended: updated challenge %s",
@@ -508,6 +510,7 @@ class Challenge:
                 "issuer_domain_names": self.config.caaidentities or [],
                 "allow_policy_wildcard": self.config.dns_persist_allow_policy_wildcard,
                 "http01_block_private_ips": self.config.http01_block_private_ips,
+                "challenge_message_id": challenge_details.get("challenge_message_id"),
             },
         )
 
@@ -544,6 +547,7 @@ class Challenge:
                     "authorization__value",
                     "authorization__token",
                     "authorization__order__account__name",
+                    "challenge_message_id",
                 ],
             )
 
@@ -588,6 +592,7 @@ class Challenge:
                 "jwk_thumbprint": jwk_thumbprint,
                 "keyauthorization": challenge_dic["keyauthorization"],
                 "accounturi": accounturi,
+                "challenge_message_id": challenge_dic.get("challenge_message_id"),
             }
 
         except Exception as err:

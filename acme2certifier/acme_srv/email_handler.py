@@ -7,6 +7,7 @@ import imaplib
 import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import make_msgid
 from typing import Dict, List, Callable, Optional, Any
 from acme2certifier.acme_srv.helper import load_config
 
@@ -134,8 +135,10 @@ class EmailHandler:
 
         self.logger.debug("EmailHandler._config_load() ended")
 
-    def send_email_challenge(self, to_address: str = None, token1: str = None):
-        """send challenge email"""
+    def send_email_challenge(
+        self, to_address: str = None, token1: str = None
+    ) -> Optional[str]:
+        """send challenge email and return the outbound Message-ID on success."""
         self.logger.debug("Challenge._email_send(%s)", to_address)
         message_text = f"""
 This is an automatically generated ACME challenge for the email address
@@ -148,7 +151,7 @@ this challenge automatically. Alternatively, you may need to manually
 copy the first token and paste it into the designated verification tool
 or application."""
 
-        self.send(
+        return self.send(
             to_address=to_address, subject=f"ACME: {token1}", message=message_text
         )
 
@@ -159,12 +162,12 @@ or application."""
         message: str,
         from_address: Optional[str] = None,
         html_message: Optional[str] = None,
-    ) -> bool:
-        """Send email via SMTP"""
+    ) -> Optional[str]:
+        """Send email via SMTP; return Message-ID on success, None on failure."""
         self.logger.debug("EmailHandler.send()")
 
         if not self._smtp_config_validate():
-            return False
+            return None
 
         try:
             # Create message
@@ -172,6 +175,7 @@ or application."""
             msg["Subject"] = subject
             msg["From"] = from_address or self.email_address
             msg["To"] = to_address
+            msg["Message-ID"] = make_msgid(domain=self._message_id_domain())
 
             if html_message:
                 # Add both plain text and HTML parts
@@ -198,12 +202,13 @@ or application."""
             server.send_message(msg)
             server.quit()
 
+            message_id = msg.get("Message-ID")
             self.logger.info("Email sent successfully to %s", to_address)
-            return True
+            return message_id
 
         except Exception as err:
             self.logger.error("Failed to send email: %s", err)
-            return False
+            return None
 
     def receive(
         self,
@@ -351,10 +356,19 @@ or application."""
             "from": email_message.get("From", ""),
             "to": email_message.get("To", ""),
             "date": email_message.get("Date", ""),
+            "message_id": email_message.get("Message-ID", ""),
+            "in_reply_to": email_message.get("In-Reply-To", ""),
+            "references": email_message.get("References", ""),
+            "has_list_headers": False,
             "body": "",
             "html_body": "",
             "attachments": [],
         }
+
+        for header_name in email_message.keys():
+            if header_name.lower().startswith("list-"):
+                parsed["has_list_headers"] = True
+                break
 
         # Extract body content
         if email_message.is_multipart():
@@ -393,6 +407,14 @@ or application."""
 
         self.logger.debug("EmailHandler._email_parse() ended")
         return parsed
+
+    def _message_id_domain(self) -> str:
+        """Derive a domain for generated Message-ID headers."""
+        if self.email_address and "@" in self.email_address:
+            return self.email_address.rsplit("@", 1)[1]
+        if self.smtp_server:
+            return self.smtp_server
+        return "localhost"
 
     def _smtp_config_validate(self) -> bool:
         """Validate SMTP configuration"""

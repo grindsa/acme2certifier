@@ -48,6 +48,7 @@ class ChallengeUpdateRequest:
     validated: Optional[int] = None
     keyauthorization: Optional[str] = None
     validation_error: Optional[str] = None
+    challenge_message_id: Optional[str] = None
 
 
 class ChallengeRepository(ABC):
@@ -357,10 +358,22 @@ class ChallengeFactory:
                 from acme2certifier.acme_srv.email_handler import EmailHandler
 
                 with EmailHandler(logger=self.logger) as email_handler:
-                    email_handler.send_email_challenge(
+                    message_id = email_handler.send_email_challenge(
                         to_address=result["authorization__value"],
                         token1=result["keyauthorization"],
                     )
+                    if message_id:
+                        self.repository.update_challenge(
+                            ChallengeUpdateRequest(
+                                name=challenge_name,
+                                challenge_message_id=message_id,
+                            )
+                        )
+                    else:
+                        self.logger.warning(
+                            "Failed to send email-reply challenge or obtain Message-ID for %s",
+                            challenge_name,
+                        )
 
         elif challenge_type == "tkauth-01":
             challenge_dict["tkauth-type"] = "atc"

@@ -15,6 +15,7 @@ and pick the appropriate release branch.
 - Certifier poll URLs must match configured `api_host`
 - acme-CA account key files are written mode `0600`
 - Django packaged settings refuse the insecure default `SECRET_KEY` and drop `*` from default `ALLOWED_HOSTS` unless `ACME2CERTIFIER_DEBUG=1`; warn when `ALLOWED_HOSTS` contains `*` outside debug
+- email-reply-00 (RFC 8823): reply validation binds the responder to the email identifier — `From` must match the authorization value (with punycode-normalized domain comparison); responses with `List-*` headers are rejected; outbound challenge emails carry a stored `Message-ID`, and `In-Reply-To`/`References` are verified when present (advisory when absent)
 
 ## Changes in 0.45.1
 

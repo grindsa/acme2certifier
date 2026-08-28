@@ -54,6 +54,7 @@ class TestACMEHandler(unittest.TestCase):
             generate_random_string,
             signature_check,
             validate_email,
+            normalize_email_address,
             uts_to_date_utc,
             date_to_uts_utc,
             duration_to_seconds,
@@ -229,6 +230,7 @@ class TestACMEHandler(unittest.TestCase):
         self.uts_to_date_utc = uts_to_date_utc
         self.duration_to_seconds = duration_to_seconds
         self.validate_email = validate_email
+        self.normalize_email_address = normalize_email_address
         self.validate_ip = validate_ip
         self.validate_fqdn = validate_fqdn
         self.validate_identifier = validate_identifier
@@ -362,6 +364,33 @@ class TestACMEHandler(unittest.TestCase):
                 self.logger, ["mailto: foo@example.com", "mailto: bar@exa,mple.com"]
             )
         )
+
+    def test_013a_helper_normalize_email_address_ascii(self):
+        """normalize ASCII email addresses for comparison"""
+        self.assertEqual(
+            self.normalize_email_address(self.logger, "User@Example.COM"),
+            "user@example.com",
+        )
+        self.assertEqual(
+            self.normalize_email_address(
+                self.logger, '"Display Name" <user@example.com>'
+            ),
+            "user@example.com",
+        )
+
+    def test_013b_helper_normalize_email_address_punycode(self):
+        """normalize U-label and A-label domains to the same form"""
+        u_label = "user@münchen.de"
+        a_label = "user@xn--mnchen-3ya.de"
+        normalized_u = self.normalize_email_address(self.logger, u_label)
+        normalized_a = self.normalize_email_address(self.logger, a_label)
+        self.assertEqual(normalized_u, normalized_a)
+        self.assertEqual(normalized_u, "user@xn--mnchen-3ya.de")
+
+    def test_013c_helper_normalize_email_address_invalid(self):
+        """normalize_email_address returns None for invalid input"""
+        self.assertIsNone(self.normalize_email_address(self.logger, ""))
+        self.assertIsNone(self.normalize_email_address(self.logger, "not-an-email"))
 
     def test_014_helper_signature_check(self):
         """successful validation of singature"""

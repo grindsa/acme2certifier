@@ -1723,7 +1723,10 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         mock_extract.return_value = "expected_keyauth"
 
         mock_handler_instance = Mock()
-        mock_handler_instance.receive.return_value = {"body": "email_body_content"}
+        mock_handler_instance.receive.return_value = {
+            "body": "email_body_content",
+            "from": "test@example.com",
+        }
         mock_email_handler.return_value.__enter__.return_value = mock_handler_instance
 
         context = ChallengeContext(
@@ -1823,7 +1826,10 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         mock_extract.return_value = "wrong_keyauth"
 
         mock_handler_instance = Mock()
-        mock_handler_instance.receive.return_value = {"body": "email_body_content"}
+        mock_handler_instance.receive.return_value = {
+            "body": "email_body_content",
+            "from": "test@example.com",
+        }
         mock_email_handler.return_value.__enter__.return_value = mock_handler_instance
 
         context = ChallengeContext(
@@ -1876,10 +1882,16 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
     def test_009_filter_email_matching_subject(self):
         """Test _filter_email with matching subject"""
-        email_data = {"subject": "ACME: token123", "body": "test email body"}
+        email_data = {
+            "subject": "ACME: token123",
+            "body": "test email body",
+            "from": "user@example.com",
+        }
         rfc_token1 = "token123"
 
-        result = self.validator._filter_email(email_data, rfc_token1)
+        result = self.validator._filter_email(
+            email_data, rfc_token1, "user@example.com"
+        )
 
         self.assertEqual(result, email_data)
 
@@ -1888,7 +1900,9 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         email_data = {"subject": "Different subject", "body": "test email body"}
         rfc_token1 = "token123"
 
-        result = self.validator._filter_email(email_data, rfc_token1)
+        result = self.validator._filter_email(
+            email_data, rfc_token1, "user@example.com"
+        )
 
         self.assertIsNone(result)
 
@@ -1897,9 +1911,150 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         email_data = {"body": "test email body"}
         rfc_token1 = "token123"
 
-        result = self.validator._filter_email(email_data, rfc_token1)
+        result = self.validator._filter_email(
+            email_data, rfc_token1, "user@example.com"
+        )
 
         self.assertIsNone(result)
+
+    def test_011a_filter_email_wrong_sender(self):
+        """Test _filter_email rejects matching subject from wrong sender"""
+        email_data = {
+            "subject": "ACME: token123",
+            "from": "attacker@example.com",
+        }
+
+        result = self.validator._filter_email(
+            email_data, "token123", "user@example.com"
+        )
+
+        self.assertIsNone(result)
+
+    @patch("acme2certifier.acme_srv.email_handler.EmailHandler")
+    @patch.object(EmailReplyChallengeValidator, "_generate_email_keyauth")
+    def test_011b_perform_validation_from_mismatch(
+        self, mock_generate, mock_email_handler
+    ):
+        """Test validation rejects reply From that does not match identifier"""
+        mock_generate.return_value = ("expected_keyauth", "rfc_token1")
+
+        mock_handler_instance = Mock()
+        mock_handler_instance.receive.return_value = {
+            "body": "email body",
+            "from": "attacker@example.com",
+        }
+        mock_email_handler.return_value.__enter__.return_value = mock_handler_instance
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="email",
+            authorization_value="user@example.com",
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertEqual(result.error_message, "Reply From does not match email identifier")
+
+    @patch("acme2certifier.acme_srv.email_handler.EmailHandler")
+    @patch.object(EmailReplyChallengeValidator, "_generate_email_keyauth")
+    @patch.object(EmailReplyChallengeValidator, "_extract_email_keyauth")
+    def test_011c_perform_validation_list_headers_rejected(
+        self, mock_extract, mock_generate, mock_email_handler
+    ):
+        """Test validation rejects replies with List-* headers"""
+        mock_generate.return_value = ("expected_keyauth", "rfc_token1")
+        mock_extract.return_value = "expected_keyauth"
+
+        mock_handler_instance = Mock()
+        mock_handler_instance.receive.return_value = {
+            "body": "email body",
+            "from": "user@example.com",
+            "has_list_headers": True,
+        }
+        mock_email_handler.return_value.__enter__.return_value = mock_handler_instance
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="email",
+            authorization_value="user@example.com",
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertEqual(result.error_message, "List-* headers not allowed in response")
+
+    @patch("acme2certifier.acme_srv.email_handler.EmailHandler")
+    @patch.object(EmailReplyChallengeValidator, "_generate_email_keyauth")
+    @patch.object(EmailReplyChallengeValidator, "_extract_email_keyauth")
+    def test_011d_perform_validation_threading_mismatch(
+        self, mock_extract, mock_generate, mock_email_handler
+    ):
+        """Test validation rejects wrong In-Reply-To when threading headers present"""
+        mock_generate.return_value = ("expected_keyauth", "rfc_token1")
+        mock_extract.return_value = "expected_keyauth"
+
+        mock_handler_instance = Mock()
+        mock_handler_instance.receive.return_value = {
+            "body": "email body",
+            "from": "user@example.com",
+            "in_reply_to": "<wrong@example.com>",
+        }
+        mock_email_handler.return_value.__enter__.return_value = mock_handler_instance
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="email",
+            authorization_value="user@example.com",
+            options={"challenge_message_id": "<challenge@example.com>"},
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertIn("Message-ID", result.error_message)
+
+    @patch("acme2certifier.acme_srv.email_handler.EmailHandler")
+    @patch.object(EmailReplyChallengeValidator, "_generate_email_keyauth")
+    @patch.object(EmailReplyChallengeValidator, "_extract_email_keyauth")
+    def test_011e_perform_validation_threading_match(
+        self, mock_extract, mock_generate, mock_email_handler
+    ):
+        """Test validation accepts matching In-Reply-To header"""
+        mock_generate.return_value = ("expected_keyauth", "rfc_token1")
+        mock_extract.return_value = "expected_keyauth"
+
+        mock_handler_instance = Mock()
+        mock_handler_instance.receive.return_value = {
+            "body": "email body",
+            "from": "user@example.com",
+            "in_reply_to": "<challenge@example.com>",
+        }
+        mock_email_handler.return_value.__enter__.return_value = mock_handler_instance
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="email",
+            authorization_value="user@example.com",
+            options={"challenge_message_id": "<challenge@example.com>"},
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertTrue(result.success)
+        self.assertFalse(result.invalid)
 
     def test_012_extract_email_keyauth_valid_format(self):
         """Test _extract_email_keyauth with valid format"""

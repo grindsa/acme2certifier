@@ -763,6 +763,9 @@ class TestChallengeFactory(unittest.TestCase):
 
         # Create a mock EmailHandler class and instance
         mock_email_handler_instance = Mock()
+        mock_email_handler_instance.send_email_challenge.return_value = (
+            "<challenge@example.com>"
+        )
         mock_email_handler_class = Mock()
         mock_email_handler_class.return_value.__enter__ = Mock(
             return_value=mock_email_handler_instance
@@ -799,6 +802,14 @@ class TestChallengeFactory(unittest.TestCase):
         # Verify send_email_challenge was called with correct parameters
         mock_email_handler_instance.send_email_challenge.assert_called_once_with(
             to_address="user@example.com", token1="keyauthorization-value"
+        )
+
+        update_calls = [
+            call for call in self.repository.call_log if call[0] == "update_challenge"
+        ]
+        self.assertEqual(len(update_calls), 1)
+        self.assertEqual(
+            update_calls[0][1].challenge_message_id, "<challenge@example.com>"
         )
 
     def test_015_create_single_challenge_repository_failure(self):

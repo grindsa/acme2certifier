@@ -158,6 +158,7 @@ def _create_wsgi_schema(conn: sqlite3.Connection) -> None:
         '"type" varchar(15) NOT NULL, '
         '"keyauthorization" varchar(128), '
         '"source" varchar(128), '
+        '"challenge_message_id" varchar(255), '
         '"status_id" integer NOT NULL REFERENCES "status" ("id"), '
         '"validated" integer DEFAULT 0, '
         '"validation_error" text, '

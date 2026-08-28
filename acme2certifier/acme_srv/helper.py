@@ -84,6 +84,7 @@ from .helpers.validation import (
     fqdn_in_san_check,
     validate_csr,
     validate_email,
+    normalize_email_address,
     validate_identifier,
     validate_ip,
     validate_fqdn,

@@ -898,33 +898,29 @@ class TestEmailHandler(unittest.TestCase):
         message = call_args[1]["message"]
         self.assertIn('"None"', message)  # None gets formatted into the message
 
-    @patch.object(EmailHandler, "send", return_value=True)
+    @patch.object(EmailHandler, "send", return_value="<msg-id@example.com>")
     def test_044_send_email_challenge_integration_success(self, mock_send):
         """Test send_email_challenge integration when send succeeds"""
         to_address = "success@example.com"
         token1 = "success_token"
 
-        # The function doesn't return anything, but we can verify it calls send
         result = self.email_handler.send_email_challenge(
             to_address=to_address, token1=token1
         )
 
-        # send_email_challenge doesn't return anything
-        self.assertIsNone(result)
+        self.assertEqual(result, "<msg-id@example.com>")
         mock_send.assert_called_once()
 
-    @patch.object(EmailHandler, "send", return_value=False)
+    @patch.object(EmailHandler, "send", return_value=None)
     def test_045_send_email_challenge_integration_failure(self, mock_send):
         """Test send_email_challenge integration when send fails"""
         to_address = "fail@example.com"
         token1 = "fail_token"
 
-        # The function doesn't return anything, even if send fails
         result = self.email_handler.send_email_challenge(
             to_address=to_address, token1=token1
         )
 
-        # send_email_challenge doesn't return anything
         self.assertIsNone(result)
         mock_send.assert_called_once()
 
