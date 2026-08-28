@@ -14,10 +14,10 @@ SECURITY_DISABLE_ACK_ENV = "ACME2CERTIFIER_I_KNOW_THE_RISK"
 _SECURITY_DISABLE_ACK_VALUES = frozenset({"1", "true", "yes", "on"})
 
 # EAB profile cahandler keys that must not be overridden from kid_profiles (exact match).
+# acme_url is intentionally allowed: acme_ca_handler EAB profiling selects upstream
 _EAB_PROFILE_DENY_EXACT = frozenset(
     {
         "acme_keypath",
-        "acme_url",
         "ca_bundle",
         "config_dic",
         "dbstore",

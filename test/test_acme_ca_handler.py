@@ -1917,18 +1917,22 @@ class TestACMEHandler(unittest.TestCase):
         )
         mock_hiv.assert_called_once()
 
-    def test_083_eab_profile_list_check(self):
-        """test eab_profile_list_check denies acme_url from profile"""
-        with self.assertLogs("test_a2c", level="WARNING") as lcm:
-            self.assertFalse(
-                self.cahandler.eab_profile_list_check(
-                    "eab_handler", "csr", "acme_url", "acme_url"
-                )
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
+    def test_083_eab_profile_list_check(self, mock_hiv):
+        """test eab_profile_list_check applies acme_url from list profiles"""
+        mock_hiv.return_value = ("http://acme-le-sim-2.acme", None)
+        self.cahandler.acme_keypath = "/var/www/acme2certifier/volume/"
+        self.cahandler.acme_url = "http://acme-le-sim-1.acme"
+        self.assertFalse(
+            self.cahandler.eab_profile_list_check(
+                "eab_handler",
+                "csr",
+                "acme_url",
+                ["http://acme-le-sim-2.acme", "http://acme-le-sim-1.acme"],
             )
-        self.assertIn(
-            "WARNING:test_a2c:EAB profile: ignoring denied attribute: key: acme_url",
-            lcm.output,
         )
+        self.assertEqual("http://acme-le-sim-2.acme", self.cahandler.acme_url)
+        mock_hiv.assert_called_once()
 
     @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_084_eab_profile_list_check(self, mock_hiv):
@@ -1944,21 +1948,19 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_085_eab_profile_list_check(self, mock_hiv):
-        """test eab_profile_list_check denies acme_url before validation"""
-        mock_hiv.return_value = (None, "error")
+        """test eab_profile_list_check validates acme_url list profiles"""
+        mock_hiv.return_value = (None, "acme_url not allowed")
         self.cahandler.acme_keypath = "acme_keypath"
         self.cahandler.acme_keyfile = "acme_keyfile"
-        with self.assertLogs("test_a2c", level="WARNING") as lcm:
-            self.assertFalse(
-                self.cahandler.eab_profile_list_check(
-                    "eab_handler", "csr", "acme_url", "http://acme_url"
-                )
-            )
-        self.assertIn(
-            "WARNING:test_a2c:EAB profile: ignoring denied attribute: key: acme_url",
-            lcm.output,
+        self.cahandler.acme_url = "http://default.acme"
+        self.assertEqual(
+            "acme_url not allowed",
+            self.cahandler.eab_profile_list_check(
+                "eab_handler", "csr", "acme_url", ["http://acme_url"]
+            ),
         )
-        mock_hiv.assert_not_called()
+        mock_hiv.assert_called_once()
+        self.assertEqual("http://default.acme", self.cahandler.acme_url)
         self.assertEqual("acme_keyfile", self.cahandler.acme_keyfile)
 
     @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")

@@ -747,7 +747,7 @@ class TestEabProfileDenylist:
         )
 
         assert eab_profile_attr_denied("ca_bundle") is True
-        assert eab_profile_attr_denied("acme_url") is True
+        assert eab_profile_attr_denied("acme_url") is False
         assert eab_profile_attr_denied("acme_keypath") is True
         assert eab_profile_attr_denied("acme_keyfile") is False
         assert eab_profile_attr_denied("eab_handler") is True
