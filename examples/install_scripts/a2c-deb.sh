@@ -409,6 +409,17 @@ else
   SUDO="sudo"
 fi
 
+a2c_uwsgi_env_set() {
+  local ini="$1" key="$2" value="$3" escaped
+  escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/$$/g')"
+  printf 'env = %s="%s"\n' "$key" "$escaped" | ${SUDO} tee -a "$ini" >/dev/null
+}
+
+a2c_apache_envvar_set() {
+  local key="$1" value="$2"
+  printf 'export %s=%q\n' "$key" "$value" | ${SUDO} tee -a /etc/apache2/envvars >/dev/null
+}
+
 resolve_defaults
 
 if [[ "${ACTION}" == "restart" ]]; then
@@ -664,18 +675,42 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$(a2c-django-secret-keygen)"
   fi
+  if [[ -z "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
+    export ACME2CERTIFIER_ALLOWED_HOSTS="127.0.0.1,localhost,$(hostname)"
+  fi
+  UWSGI_INI="${APP_ROOT}/acme2certifier.ini"
+  if [[ "${WEBSRV}" == "${WEBSRV_NGINX}" ]]; then
+    if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' "${UWSGI_INI}"; then
+      a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
+    fi
+    if ! grep -q 'ACME2CERTIFIER_ALLOWED_HOSTS=' "${UWSGI_INI}"; then
+      a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
+    fi
+  elif [[ "${WEBSRV}" == "${WEBSRV_APACHE2}" ]]; then
+    if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' /etc/apache2/envvars 2>/dev/null; then
+      a2c_apache_envvar_set ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
+    fi
+    if ! grep -q 'ACME2CERTIFIER_ALLOWED_HOSTS=' /etc/apache2/envvars 2>/dev/null; then
+      a2c_apache_envvar_set ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
+    fi
+  fi
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_ALLOWED_HOSTS="${ACME2CERTIFIER_ALLOWED_HOSTS}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-django-update
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_ALLOWED_HOSTS="${ACME2CERTIFIER_ALLOWED_HOSTS}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-manage loaddata status
+  if [[ "${WEBSRV}" == "${WEBSRV_NGINX}" ]]; then
+    ${SUDO} systemctl restart acme2certifier
+  fi
 fi
 
 echo "==> Ownership and start ${WEBSRV}"

@@ -86,6 +86,13 @@ else
   SUDO="sudo"
 fi
 
+# uWSGI ini env lines: quote values so $ and (plugin) in secrets are not interpreted.
+a2c_uwsgi_env_set() {
+  local ini="$1" key="$2" value="$3" escaped
+  escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/$$/g')"
+  printf 'env = %s="%s"\n' "$key" "$escaped" | ${SUDO} tee -a "$ini" >/dev/null
+}
+
 if command -v dnf >/dev/null 2>&1; then
   PKG="dnf"
 else
@@ -263,19 +270,27 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     ACME2CERTIFIER_SECRET_KEY="$("${VENV}/bin/a2c-django-secret-keygen")"
   fi
+  if [[ -z "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
+    ACME2CERTIFIER_ALLOWED_HOSTS="127.0.0.1,localhost,$(hostname)"
+  fi
   if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' "${UWSGI_INI}"; then
-    echo "env = ACME2CERTIFIER_SECRET_KEY=${ACME2CERTIFIER_SECRET_KEY}" | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
+    a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
+  fi
+  if ! grep -q 'ACME2CERTIFIER_ALLOWED_HOSTS=' "${UWSGI_INI}"; then
+    a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
   fi
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_ALLOWED_HOSTS="${ACME2CERTIFIER_ALLOWED_HOSTS}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" migrate
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_ALLOWED_HOSTS="${ACME2CERTIFIER_ALLOWED_HOSTS}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" loaddata status
 fi

@@ -81,6 +81,11 @@ else
   SUDO="sudo"
 fi
 
+a2c_apache_envvar_set() {
+  local key="$1" value="$2"
+  printf 'export %s=%q\n' "$key" "$value" | ${SUDO} tee -a /etc/apache2/envvars >/dev/null
+}
+
 echo "==> Installing system packages"
 ${SUDO} apt-get update
 ${SUDO} apt-get install -y \
@@ -225,16 +230,27 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$("${VENV}/bin/a2c-django-secret-keygen")"
   fi
+  if [[ -z "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
+    export ACME2CERTIFIER_ALLOWED_HOSTS="127.0.0.1,localhost,$(hostname)"
+  fi
+  if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' /etc/apache2/envvars 2>/dev/null; then
+    a2c_apache_envvar_set ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
+  fi
+  if ! grep -q 'ACME2CERTIFIER_ALLOWED_HOSTS=' /etc/apache2/envvars 2>/dev/null; then
+    a2c_apache_envvar_set ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
+  fi
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_ALLOWED_HOSTS="${ACME2CERTIFIER_ALLOWED_HOSTS}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" migrate
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_ALLOWED_HOSTS="${ACME2CERTIFIER_ALLOWED_HOSTS}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" loaddata status
 fi
