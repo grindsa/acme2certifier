@@ -44,6 +44,7 @@ from acme2certifier.acme_srv.helper import (
     uts_to_date_utc,
     handler_config_check,
 )
+from acme2certifier.acme_srv.helpers.security_gate import eab_profile_warn_if_denied
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 
@@ -947,6 +948,8 @@ class CAhandler(object):
         result = None
         new_value, error = client_parameter_validate(self.logger, csr, self, key, value)
         if new_value:
+            if eab_profile_warn_if_denied(self.logger, key):
+                return result
             self.logger.debug(
                 "CAhandler._eab_profile_list_set(): setting attribute: %s to %s",
                 key,
@@ -974,13 +977,7 @@ class CAhandler(object):
         )
 
         result = None
-        if hasattr(self, key) and key != "allowed_domainlist":
-            if key == "acme_keyfile":
-                self.logger.error("acme_keyfile is not allowed in profile")
-            else:
-                result = self._eab_profile_list_set(csr, key, value)
-
-        elif key == "allowed_domainlist":
+        if key == "allowed_domainlist":
             # check if csr contains allowed domains
             if "allowed_domains_check" in dir(eab_handler):
                 # execute a function from eab_handler
@@ -994,6 +991,9 @@ class CAhandler(object):
                 error = allowed_domainlist_check(self.logger, csr, value)
             if error:
                 result = error
+        elif hasattr(self, key):
+            if not eab_profile_warn_if_denied(self.logger, key):
+                result = self._eab_profile_list_set(csr, key, value)
         else:
             self.logger.error(
                 "handler specific EAB profile list checking: ignore list attribute: key: %s value: %s",

@@ -11,7 +11,7 @@ from .config import (
     header_info_lookup,
     header_value_allowlist_resolve,
 )
-from .security_gate import client_header_parameter_decide
+from .security_gate import client_header_parameter_decide, eab_profile_warn_if_denied
 from .validation import cn_validate
 from .domain_utils import allowed_domainlist_check
 
@@ -285,18 +285,7 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
     )
 
     result = None
-    if hasattr(cahandler, key) and key != "allowed_domainlist":
-        new_value, error = client_parameter_validate(logger, csr, cahandler, key, value)
-        if new_value:
-            logger.debug(
-                "Helper.eab_profile_list_check(): setting attribute: %s to %s",
-                key,
-                new_value,
-            )
-            setattr(cahandler, key, new_value)
-        else:
-            result = error
-    elif key == "allowed_domainlist":
+    if key == "allowed_domainlist":
         # check if csr contains allowed domains
         if "allowed_domains_check" in dir(eab_handler):
             # execute a function from eab_handler
@@ -310,6 +299,20 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
             error = allowed_domainlist_check(logger, csr, value)
         if error:
             result = error
+    elif hasattr(cahandler, key):
+        if not eab_profile_warn_if_denied(logger, key):
+            new_value, error = client_parameter_validate(
+                logger, csr, cahandler, key, value
+            )
+            if new_value:
+                logger.debug(
+                    "Helper.eab_profile_list_check(): setting attribute: %s to %s",
+                    key,
+                    new_value,
+                )
+                setattr(cahandler, key, new_value)
+            else:
+                result = error
     else:
         logger.warning(
             "EAP profile list checking: ignoring unrecognized list attribute: key: %s value: %s",
@@ -328,10 +331,15 @@ def eab_profile_string_check(logger, cahandler, key, value):
     )
 
     if hasattr(cahandler, key):
-        logger.debug(
-            "Helper.eab_profile_string_check(): setting attribute: %s to %s", key, value
-        )
-        setattr(cahandler, key, value)
+        if eab_profile_warn_if_denied(logger, key):
+            pass
+        else:
+            logger.debug(
+                "Helper.eab_profile_string_check(): setting attribute: %s to %s",
+                key,
+                value,
+            )
+            setattr(cahandler, key, value)
     else:
         logger.warning(
             "EAB profile string checking: ignoring unrecognized string attribute: key: %s value: %s",

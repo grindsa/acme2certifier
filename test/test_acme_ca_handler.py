@@ -1900,44 +1900,42 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     def test_082_eab_profile_list_check(self):
-        """test eab_profile_list_check"""
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        """test eab_profile_list_check denies acme_keyfile from profile"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.assertFalse(
                 self.cahandler.eab_profile_list_check(
                     "eab_handler", "csr", "acme_keyfile", "key_file"
                 )
             )
         self.assertIn(
-            "ERROR:test_a2c:acme_keyfile is not allowed in profile",
+            "WARNING:test_a2c:EAB profile: ignoring denied attribute: key: acme_keyfile",
             lcm.output,
         )
 
     def test_083_eab_profile_list_check(self):
-        """test eab_profile_list_check"""
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                "acme_keypath is missing in config",
+        """test eab_profile_list_check denies acme_url from profile"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertFalse(
                 self.cahandler.eab_profile_list_check(
                     "eab_handler", "csr", "acme_url", "acme_url"
-                ),
+                )
             )
         self.assertIn(
-            "ERROR:test_a2c:acme_keypath is missing in config",
+            "WARNING:test_a2c:EAB profile: ignoring denied attribute: key: acme_url",
             lcm.output,
         )
 
     @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_084_eab_profile_list_check(self, mock_hiv):
-        """test eab_profile_list_check"""
-        mock_hiv.return_value = ("http://acme_url", None)
-        self.cahandler.acme_keypath = "acme_keypath"
-        self.cahandler.acme_keyfile = "acme_keyfile"
+        """test eab_profile_list_check applies allowed list attributes"""
+        mock_hiv.return_value = ("profile_a", None)
+        self.cahandler.profile = "default"
         self.assertFalse(
             self.cahandler.eab_profile_list_check(
-                "eab_handler", "csr", "acme_url", "http://acme_url"
+                "eab_handler", "csr", "profile", ["profile_a", "profile_b"]
             )
         )
-        self.assertEqual("acme_keypath/acme_url.json", self.cahandler.acme_keyfile)
+        self.assertEqual("profile_a", self.cahandler.profile)
 
     @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_085_eab_profile_list_check(self, mock_hiv):
