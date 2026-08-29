@@ -233,6 +233,10 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' /etc/apache2/envvars 2>/dev/null; then
     a2c_apache_envvar_set ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
   fi
+  if [[ -n "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
+    ${SUDO} sed -i '/^export ACME2CERTIFIER_ALLOWED_HOSTS=/d' /etc/apache2/envvars
+    a2c_apache_envvar_set ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
+  fi
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \

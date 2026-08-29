@@ -450,14 +450,9 @@ jobs:
             SCRIPT=examples/install_scripts/a2c-ubuntu-nginx.sh
           fi
           docker exec acme-srv chmod a+rx "/data/acme2certifier/${SCRIPT}"
-          docker exec acme-srv bash -lc \
+          docker exec -e "ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv" acme-srv bash -lc \
             "cd /data/acme2certifier && ./${SCRIPT} --mode django --from-source"
         env:
-          WEBSRV: ${{ matrix.websrv }}
-
-      - name: Configure Django ALLOWED_HOSTS for CI
-        uses: ./.github/actions/django_ci_allowed_hosts
-        with:
           WEBSRV: ${{ matrix.websrv }}
 
       - name: Migrate DB schema to Django
