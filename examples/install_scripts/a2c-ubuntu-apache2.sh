@@ -231,8 +231,7 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$("${VENV}/bin/a2c-django-secret-keygen")"
   fi
   if [[ -z "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
-    _a2c_host="$(hostname 2>/dev/null || uname -n 2>/dev/null || echo "${HOSTNAME:-acme-srv}")"
-    export ACME2CERTIFIER_ALLOWED_HOSTS="127.0.0.1,localhost,${_a2c_host}"
+    export ACME2CERTIFIER_ALLOWED_HOSTS="acme-srv"
   fi
   if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' /etc/apache2/envvars 2>/dev/null; then
     a2c_apache_envvar_set ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
