@@ -8,10 +8,7 @@ production DB credentials (see examples/django for a MySQL template).
 import os
 import warnings
 
-from acme2certifier.tools.a2c_django_deploy_env import load_deploy_env
 from django.core.exceptions import ImproperlyConfigured
-
-load_deploy_env()
 
 _DEFAULT_BASE = "/var/www/acme2certifier"
 BASE_DIR = os.environ.get(

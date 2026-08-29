@@ -9,11 +9,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from acme2certifier.tools.a2c_django_deploy_env import (
-    _ensure_allowed_hosts,
-    _host_from_server_name,
     _parse_apache_export,
     _read_uwsgi_env,
-    _server_name_host_from_cfg,
     _unquote_uwsgi_value,
     load_deploy_env,
 )
@@ -55,7 +52,8 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
             (base / "acme2certifier.ini").write_text(
-                'env = ACME2CERTIFIER_SECRET_KEY="from-ini"\n',
+                'env = ACME2CERTIFIER_SECRET_KEY="from-ini"\n'
+                "env = ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv\n",
                 encoding="utf-8",
             )
             env = dict(os.environ)
@@ -68,59 +66,10 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
             with patch.dict(os.environ, env, clear=True):
                 load_deploy_env(str(base))
                 self.assertEqual("from-ini", os.environ["ACME2CERTIFIER_SECRET_KEY"])
-                self.assertIn("127.0.0.1", os.environ["ACME2CERTIFIER_ALLOWED_HOSTS"])
-
-    def test_005_merge_loopback_into_partial_allowed_hosts(self) -> None:
-        with patch.dict(
-            os.environ,
-            {"ACME2CERTIFIER_ALLOWED_HOSTS": "acme-srv"},
-            clear=False,
-        ):
-            _ensure_allowed_hosts()
-            allowed = os.environ["ACME2CERTIFIER_ALLOWED_HOSTS"].split(",")
-            self.assertEqual(["127.0.0.1", "localhost", "acme-srv"], allowed)
-
-    def test_006_default_deploy_host_when_unset(self) -> None:
-        env = dict(os.environ)
-        env.pop("ACME2CERTIFIER_ALLOWED_HOSTS", None)
-        with patch.dict(os.environ, env, clear=False):
-            _ensure_allowed_hosts()
-            allowed = os.environ["ACME2CERTIFIER_ALLOWED_HOSTS"].split(",")
-            self.assertEqual(["127.0.0.1", "localhost", "acme-srv"], allowed)
-
-    def test_007_host_from_server_name_url(self) -> None:
-        self.assertEqual("acme.example.com", _host_from_server_name("https://acme.example.com/acme/directory"))
-
-    def test_008_server_name_from_cfg_merged_into_allowed_hosts(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            base = Path(tmp)
-            (base / "acme_srv.cfg").write_text(
-                "[DEFAULT]\nserver_name: acme.example.com\n",
-                encoding="utf-8",
-            )
-            with patch.dict(
-                os.environ,
-                {"ACME2CERTIFIER_ALLOWED_HOSTS": "acme-srv"},
-                clear=False,
-            ):
-                _ensure_allowed_hosts(base)
-                allowed = os.environ["ACME2CERTIFIER_ALLOWED_HOSTS"].split(",")
                 self.assertEqual(
-                    ["127.0.0.1", "localhost", "acme-srv", "acme.example.com"],
-                    allowed,
+                    "127.0.0.1,localhost,acme-srv",
+                    os.environ["ACME2CERTIFIER_ALLOWED_HOSTS"],
                 )
-
-    def test_009_server_name_host_from_cfg_directory_section(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            base = Path(tmp)
-            (base / "acme_srv.cfg").write_text(
-                "[Directory]\nserver_name: directory.example.com\n",
-                encoding="utf-8",
-            )
-            self.assertEqual(
-                "directory.example.com",
-                _server_name_host_from_cfg(base),
-            )
 
 
 if __name__ == "__main__":

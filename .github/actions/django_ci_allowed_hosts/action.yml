@@ -1,0 +1,74 @@
+name: "django_ci_allowed_hosts"
+description: "Set ACME2CERTIFIER_ALLOWED_HOSTS in the test container for Django pip installs (CI-only acme-srv hostname)"
+inputs:
+  CONTAINER_NAME:
+    description: "Docker container name / ACME server hostname"
+    required: false
+    default: "acme-srv"
+  WEBSRV:
+    description: "nginx or apache2"
+    required: true
+  APP_ROOT:
+    description: "Install root (auto-detected inside container when empty)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Configure Django ALLOWED_HOSTS for CI"
+      shell: bash
+      env:
+        CONTAINER_NAME: ${{ inputs.CONTAINER_NAME }}
+        WEBSRV: ${{ inputs.WEBSRV }}
+        APP_ROOT: ${{ inputs.APP_ROOT }}
+      run: |
+        set -euo pipefail
+        docker exec \
+          -e "WEBSRV=${WEBSRV}" \
+          -e "CONTAINER_NAME=${CONTAINER_NAME}" \
+          -e "APP_ROOT=${APP_ROOT}" \
+          "${CONTAINER_NAME}" \
+          bash -lc '
+        set -euo pipefail
+        if [[ -z "${APP_ROOT}" ]]; then
+          for cand in /var/www/acme2certifier /opt/acme2certifier; do
+            if [[ -d "${cand}" ]]; then
+              APP_ROOT="${cand}"
+              break
+            fi
+          done
+        fi
+        if [[ -z "${APP_ROOT}" || ! -d "${APP_ROOT}" ]]; then
+          echo "ERROR: could not locate acme2certifier install root" >&2
+          exit 1
+        fi
+        ALLOWED="127.0.0.1,localhost,${CONTAINER_NAME}"
+        a2c_uwsgi_env_set() {
+          local ini="$1" key="$2" value="$3" escaped
+          escaped="$(printf "%s" "$value" | sed "s/\\\\/\\\\\\\\/g; s/\"/\\\\\"/g; s/\\$/\\$\\$/g")"
+          printf "env = %s=\"%s\"\n" "$key" "$escaped" | tee -a "$ini" >/dev/null
+        }
+        a2c_apache_envvar_set() {
+          local key="$1" value="$2"
+          printf "export %s=%q\n" "$key" "$value" | tee -a /etc/apache2/envvars >/dev/null
+        }
+        if [[ "${WEBSRV}" == "nginx" ]]; then
+          UWSGI_INI="${APP_ROOT}/acme2certifier.ini"
+          if [[ ! -f "${UWSGI_INI}" ]]; then
+            echo "ERROR: missing ${UWSGI_INI}" >&2
+            exit 1
+          fi
+          sed -i "/^env = ACME2CERTIFIER_ALLOWED_HOSTS=/d" "${UWSGI_INI}"
+          a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_ALLOWED_HOSTS "${ALLOWED}"
+          systemctl restart acme2certifier
+        elif [[ "${WEBSRV}" == "apache2" ]]; then
+          sed -i "/^export ACME2CERTIFIER_ALLOWED_HOSTS=/d" /etc/apache2/envvars
+          a2c_apache_envvar_set ACME2CERTIFIER_ALLOWED_HOSTS "${ALLOWED}"
+          systemctl restart apache2
+        else
+          echo "ERROR: unsupported WEBSRV=${WEBSRV}" >&2
+          exit 1
+        fi
+        echo "ACME2CERTIFIER_ALLOWED_HOSTS=${ALLOWED}"
+        '

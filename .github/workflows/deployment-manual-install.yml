@@ -79,6 +79,12 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           DBHANDLER: ${{ matrix.dbhandler }}
 
+      - name: Configure Django ALLOWED_HOSTS for CI
+        if: matrix.dbhandler == 'django'
+        uses: ./.github/actions/django_ci_allowed_hosts
+        with:
+          WEBSRV: ${{ matrix.websrv }}
+
       - name: Test enrollment
         uses: ./.github/actions/acme_clients_enroll
         with:
@@ -157,6 +163,13 @@ jobs:
             "cd /data/acme2certifier && ./${SCRIPT} --mode ${DBHANDLER} --from-source"
         env:
           DBHANDLER: ${{ matrix.dbhandler }}
+
+      - name: Configure Django ALLOWED_HOSTS for CI
+        if: matrix.dbhandler == 'django'
+        uses: ./.github/actions/django_ci_allowed_hosts
+        with:
+          WEBSRV: nginx
+          APP_ROOT: /opt/acme2certifier
 
       - name: Test enrollment
         uses: ./.github/actions/acme_clients_enroll

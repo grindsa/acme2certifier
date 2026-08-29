@@ -45,9 +45,6 @@ class TestDjangoProjectSettings(unittest.TestCase):
         with (
             patch.dict(os.environ, env, clear=True),
             patch("os.path.isdir", return_value=False),
-            patch(
-                "acme2certifier.tools.a2c_django_deploy_env.load_deploy_env",
-            ),
         ):
             with self.assertRaises(ImproperlyConfigured):
                 self._reload()
@@ -71,7 +68,6 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 self.assertTrue(mod.DEBUG)
                 self.assertIn("example.com", mod.ALLOWED_HOSTS)
                 self.assertIn("localhost", mod.ALLOWED_HOSTS)
-                self.assertIn("127.0.0.1", mod.ALLOWED_HOSTS)
 
     def test_003_debug_allows_insecure_secret_and_star_hosts(self) -> None:
         """DEBUG=1 allows insecure SECRET_KEY; default ALLOWED_HOSTS keeps *"""
@@ -83,9 +79,6 @@ class TestDjangoProjectSettings(unittest.TestCase):
         with (
             patch.dict(os.environ, env, clear=True),
             patch("os.path.isdir", return_value=True),
-            patch(
-                "acme2certifier.tools.a2c_django_deploy_env.load_deploy_env",
-            ),
         ):
             mod = self._reload()
             self.assertEqual("/var/www/acme2certifier", mod.BASE_DIR)
@@ -123,7 +116,6 @@ class TestDjangoProjectSettings(unittest.TestCase):
             self.assertFalse(mod.DEBUG)
             self.assertIn("127.0.0.1", mod.ALLOWED_HOSTS)
             self.assertIn("localhost", mod.ALLOWED_HOSTS)
-            self.assertIn("acme-srv", mod.ALLOWED_HOSTS)
             self.assertNotIn("*", mod.ALLOWED_HOSTS)
 
     def test_006_star_hosts_warns_when_not_debug(self) -> None:
@@ -160,8 +152,6 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 warnings.simplefilter("always")
                 mod = self._reload()
                 self.assertIn("*", mod.ALLOWED_HOSTS)
-                self.assertIn("127.0.0.1", mod.ALLOWED_HOSTS)
-                self.assertIn("localhost", mod.ALLOWED_HOSTS)
                 self.assertFalse(
                     any("ALLOWED_HOSTS contains '*'" in str(w.message) for w in caught)
                 )

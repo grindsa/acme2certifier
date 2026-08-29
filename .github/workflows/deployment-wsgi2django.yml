@@ -455,6 +455,11 @@ jobs:
         env:
           WEBSRV: ${{ matrix.websrv }}
 
+      - name: Configure Django ALLOWED_HOSTS for CI
+        uses: ./.github/actions/django_ci_allowed_hosts
+        with:
+          WEBSRV: ${{ matrix.websrv }}
+
       - name: Migrate DB schema to Django
         uses: ./.github/actions/wf_specific/wsgi2django/django_migrate
         with:
