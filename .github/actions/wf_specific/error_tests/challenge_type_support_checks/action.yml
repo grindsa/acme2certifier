@@ -65,8 +65,9 @@ runs:
       if: ${{ inputs.EAB_KID != '' }}
       run: |
         rm -f acmeshell/acmeshell.chaltypes.log
-        docker exec alma bash -c "/root/.acme.sh/acme.sh --register-account --server http://${{ inputs.ACME_SERVER }} --accountemail 'chal-types@bar.local' --eab-kid '${{ inputs.EAB_KID }}' --eab-hmac-key '${{ inputs.EAB_HMAC }}' --debug 2" | tee acmeshell/acmeshell.chaltypes.log
-        docker exec alma bash -c "/root/.acme.sh/acme.sh --issue --server http://${{ inputs.ACME_SERVER }} -d '${{ inputs.IDENTIFIER }}' --standalone --debug 2 --output-insecure" >> acmeshell/acmeshell.chaltypes.log || true
+        docker exec alma bash -c "cp /root/.acme.sh/acme.sh.bup /root/.acme.sh/acme.sh"
+        docker exec alma bash -c "/root/.acme.sh/acme.sh --register-account --server http://${{ inputs.ACME_SERVER }} --accountemail 'chal-types@bar.local' --eab-kid '${{ inputs.EAB_KID }}' --eab-hmac-key '${{ inputs.EAB_HMAC }}' --debug 2" 2>&1 | tee acmeshell/acmeshell.chaltypes.log
+        docker exec alma bash -c "/root/.acme.sh/acme.sh --issue --server http://${{ inputs.ACME_SERVER }} -d '${{ inputs.IDENTIFIER }}' --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please --debug 2 --output-insecure" >> acmeshell/acmeshell.chaltypes.log 2>&1 || true
         cat acmeshell/acmeshell.chaltypes.log
       shell: bash
 
@@ -83,7 +84,7 @@ runs:
         IFS=',' read -ra EXPECTED <<< "${{ inputs.EXPECT_TYPES }}"
         for challenge_type in "${EXPECTED[@]}"; do
           challenge_type="$(echo "$challenge_type" | xargs)"
-          if ! grep -q "\"type\": \"${challenge_type}\"" acmeshell.chaltypes.log; then
+          if ! grep -qE "\"type\"[[:space:]]*:[[:space:]]*\"${challenge_type}\"" acmeshell.chaltypes.log; then
             echo "Expected challenge type '${challenge_type}' not found in acmeshell output"
             exit 1
           fi
@@ -97,7 +98,7 @@ runs:
         IFS=',' read -ra FORBIDDEN <<< "${{ inputs.FORBID_TYPES }}"
         for challenge_type in "${FORBIDDEN[@]}"; do
           challenge_type="$(echo "$challenge_type" | xargs)"
-          if grep -q "\"type\": \"${challenge_type}\"" acmeshell.chaltypes.log; then
+          if grep -qE "\"type\"[[:space:]]*:[[:space:]]*\"${challenge_type}\"" acmeshell.chaltypes.log; then
             echo "Forbidden challenge type '${challenge_type}' found in acmeshell output"
             exit 1
           fi

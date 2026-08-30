@@ -173,6 +173,21 @@ jobs:
           EAB_KID: "keyid_chaltypes"
           EAB_HMAC: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
 
+      - name: "Restore cfg after EAB challenge type profiling"
+        run: |
+          cfg=examples/Docker/data/acme_srv.cfg
+          sudo sed -i '/^\[EABhandler\]/,$d' "$cfg"
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Wait for ACME directory after EAB cfg restore"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: acme
+          ACME_SERVER: acme-srv
+          CHECK_HTTPS: "false"
+          HTTP_PORT: "80"
+
       - name: "Flush logs before certificate error checks"
         uses: ./.github/actions/logs_flush
         with:

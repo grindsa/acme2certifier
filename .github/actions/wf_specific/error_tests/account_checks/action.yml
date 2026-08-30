@@ -445,3 +445,8 @@ runs:
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Restore acme.sh after TOS error tests"
+      run: |
+        docker exec alma bash -c "cp /root/.acme.sh/acme.sh.bup /root/.acme.sh/acme.sh"
+      shell: bash
