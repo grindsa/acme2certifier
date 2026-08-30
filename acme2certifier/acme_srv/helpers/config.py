@@ -23,6 +23,8 @@ _LAST_LOADED_CFG: Optional[Tuple[str, str, str]] = None
 ACME_SRV_CFG_FILENAME = "acme_srv.cfg"
 ACME_SRV_YAML_FILENAMES = ("acme_srv.yaml", "acme_srv.yml")
 _YAML_CONFIG_EXTENSIONS = {".yaml", ".yml"}
+DEB_DEPLOY_BASE_DIR = "/var/www/acme2certifier"
+RPM_DEPLOY_BASE_DIR = "/opt/acme2certifier"
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -527,17 +529,17 @@ def default_deploy_base_dir() -> str:
 
     Order:
     1. ``ACME2CERTIFIER_BASE_DIR`` when set
-    2. ``/var/www/acme2certifier`` if that directory exists (DEB / Ubuntu pip)
-    3. ``/opt/acme2certifier`` if that directory exists (RPM)
-    4. ``/var/www/acme2certifier`` as the default install layout
+    2. ``DEB_DEPLOY_BASE_DIR`` if that directory exists (DEB / Ubuntu pip)
+    3. ``RPM_DEPLOY_BASE_DIR`` if that directory exists (RPM)
+    4. ``DEB_DEPLOY_BASE_DIR`` as the default install layout
     """
     env_base = os.environ.get("ACME2CERTIFIER_BASE_DIR")
     if env_base:
         return env_base
-    for candidate in ("/var/www/acme2certifier", "/opt/acme2certifier"):
+    for candidate in (DEB_DEPLOY_BASE_DIR, RPM_DEPLOY_BASE_DIR):
         if os.path.isdir(candidate):
             return candidate
-    return "/var/www/acme2certifier"
+    return DEB_DEPLOY_BASE_DIR
 
 
 def default_wsgi_dbfile() -> str:
@@ -583,14 +585,14 @@ def _default_acme_srv_cfg_file(
     Candidates (first existing file wins). At each location ``acme_srv.cfg``
     is tried before ``acme_srv.yaml`` then ``acme_srv.yml``:
 
-    1. Preferred OS deploy roots: ``/var/www/acme2certifier/`` (DEB) or
-       ``/opt/acme2certifier/`` (RPM)
+    1. Preferred OS deploy roots: ``DEB_DEPLOY_BASE_DIR/`` (DEB) or
+       ``RPM_DEPLOY_BASE_DIR/`` (RPM)
     2. Checkout / install root: ``<repo>/``
     3. Nested deploy paths under ``.../acme_srv/`` (warn)
     4. Next to the package module: ``.../acme_srv/``
     5. Legacy repo layout: ``<repo>/acme_srv/`` (warn)
 
-    If nothing exists, fall back to ``/var/www/acme2certifier/acme_srv.cfg``.
+    If nothing exists, fall back to ``DEB_DEPLOY_BASE_DIR/acme_srv.cfg``.
     """
     log = logger or logging.getLogger(__name__)
     log.debug("Helper._default_acme_srv_cfg_file() start")
@@ -598,16 +600,16 @@ def _default_acme_srv_cfg_file(
     helpers_dir = os.path.dirname(os.path.abspath(__file__))
     pkg_dir = os.path.dirname(helpers_dir)  # .../acme_srv (new or install tree)
     install_or_repo_root = os.path.dirname(os.path.dirname(pkg_dir))
-    fallback_cfg = os.path.join("/var/www/acme2certifier", ACME_SRV_CFG_FILENAME)
+    fallback_cfg = os.path.join(DEB_DEPLOY_BASE_DIR, ACME_SRV_CFG_FILENAME)
 
     preferred_dirs = (
-        "/var/www/acme2certifier",
-        "/opt/acme2certifier",
+        DEB_DEPLOY_BASE_DIR,
+        RPM_DEPLOY_BASE_DIR,
         install_or_repo_root,
     )
     nested_dirs = (
-        ("/var/www/acme2certifier/acme_srv", "/var/www/acme2certifier"),
-        ("/opt/acme2certifier/acme_srv", "/opt/acme2certifier"),
+        (os.path.join(DEB_DEPLOY_BASE_DIR, "acme_srv"), DEB_DEPLOY_BASE_DIR),
+        (os.path.join(RPM_DEPLOY_BASE_DIR, "acme_srv"), RPM_DEPLOY_BASE_DIR),
     )
     legacy_dir = os.path.join(install_or_repo_root, "acme_srv")
     log.debug(
@@ -689,7 +691,7 @@ def _detect_config_format(content: str, path: str) -> str:
     first_line = ""
     for line in text.splitlines():
         stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.startswith(";"):
+        if not stripped or stripped.startswith(("#", ";")):
             continue
         first_line = stripped
         break
@@ -698,11 +700,7 @@ def _detect_config_format(content: str, path: str) -> str:
 
     if first_line.startswith("["):
         return "ini"
-    if (
-        first_line.startswith("{")
-        or first_line.startswith("---")
-        or first_line.startswith("-")
-    ):
+    if first_line.startswith(("{", "---", "-")):
         return "yaml"
     if ":" in first_line:
         return "yaml"

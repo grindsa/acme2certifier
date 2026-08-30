@@ -331,9 +331,7 @@ def eab_profile_string_check(logger, cahandler, key, value):
     )
 
     if hasattr(cahandler, key):
-        if eab_profile_warn_if_denied(logger, key):
-            pass
-        else:
+        if not eab_profile_warn_if_denied(logger, key):
             logger.debug(
                 "Helper.eab_profile_string_check(): setting attribute: %s to %s",
                 key,

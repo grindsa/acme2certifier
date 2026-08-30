@@ -975,6 +975,49 @@ class TestChallengeFactory(unittest.TestCase):
         self.assertIsNotNone(challenge)
         self.assertNotIn("from", challenge)
 
+    @patch.dict("sys.modules", {"acme2certifier.acme_srv.email_handler": Mock()})
+    def test_086_create_single_challenge_email_send_failure(self):
+        """Test email-reply challenge when send_email_challenge returns no Message-ID"""
+        import logging
+
+        self.factory.logger = logging.getLogger("test_a2c")
+        self.factory.email_address = "foo@example.com"
+        self.repository.get_challengeinfo_by_challengename = Mock(
+            return_value={
+                "name": "email-reply-00-test-auth-1",
+                "keyauthorization": "keyauthorization-value",
+                "authorization__value": "user@example.com",
+            }
+        )
+        mock_email_handler_instance = Mock()
+        mock_email_handler_instance.send_email_challenge.return_value = None
+        mock_email_handler_class = Mock()
+        mock_email_handler_class.return_value.__enter__ = Mock(
+            return_value=mock_email_handler_instance
+        )
+        mock_email_handler_class.return_value.__exit__ = Mock(return_value=None)
+        sys.modules["acme2certifier.acme_srv.email_handler"].EmailHandler = (
+            mock_email_handler_class
+        )
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            challenge = self.factory.create_single_challenge(
+                authorization_name="test-auth",
+                challenge_type="email-reply-00",
+                token="test-token",
+            )
+
+        self.assertIsNotNone(challenge)
+        self.assertIn(
+            "WARNING:test_a2c:Failed to send email-reply challenge or obtain "
+            "Message-ID for email-reply-00-test-auth-1",
+            lcm.output,
+        )
+        update_calls = [
+            call for call in self.repository.call_log if call[0] == "update_challenge"
+        ]
+        self.assertEqual(len(update_calls), 0)
+
 
 class MockConfig:
     """Mock configuration object for testing"""

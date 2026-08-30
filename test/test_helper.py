@@ -9009,6 +9009,33 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             [], header_value_allowlist_resolve(self.logger, cahandler_empty)
         )
 
+    def test_658_challenge_type_configuration_validate_empty_config(self):
+        """challenge_type_configuration_validate returns early when config_dic is falsy"""
+        from acme2certifier.acme_srv.helpers.config import (
+            challenge_type_configuration_validate,
+        )
+
+        with patch.object(self.logger, "warning") as warning_mock:
+            challenge_type_configuration_validate(self.logger, None)
+        warning_mock.assert_not_called()
+
+    def test_659_normalize_email_address_empty_local_or_domain(self):
+        """normalize_email_address returns None when local or domain is empty"""
+        self.assertIsNone(self.normalize_email_address(self.logger, "@example.com"))
+        self.assertIsNone(self.normalize_email_address(self.logger, "user@"))
+
+    def test_660_normalize_email_address_idna_error(self):
+        """normalize_email_address returns None when IDNA encoding fails"""
+        import idna
+
+        with patch(
+            "acme2certifier.acme_srv.helpers.validation.idna.encode",
+            side_effect=idna.IDNAError("bad domain"),
+        ):
+            self.assertIsNone(
+                self.normalize_email_address(self.logger, "user@example.com")
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

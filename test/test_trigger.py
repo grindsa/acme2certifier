@@ -1204,6 +1204,32 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("certificate verification failed", message)
         self.assertTrue(any("ca_cert not configured" in x for x in lcm.output))
 
+    def test_058_trigger_section_present_no_contains(self):
+        """_trigger_section_present is False when config has no section API"""
+        from acme2certifier.acme_srv.helpers.trigger_auth import (
+            _trigger_section_present,
+        )
+
+        self.assertFalse(_trigger_section_present(object()))
+
+    def test_059_trigger_option_get_non_callable_get(self):
+        """_trigger_option_get returns fallback when get is not callable"""
+        from acme2certifier.acme_srv.helpers.trigger_auth import _trigger_option_get
+
+        class NoGet:
+            get = "not-callable"
+
+        self.assertEqual("fb", _trigger_option_get(NoGet(), "hmac_keys", fallback="fb"))
+
+    def test_060_cahandler_class_load_none_module(self):
+        """_cahandler_class_load returns None when ca_handler_load yields None"""
+        from acme2certifier.acme_srv.trigger import _cahandler_class_load
+
+        with patch(
+            "acme2certifier.acme_srv.trigger.ca_handler_load", return_value=None
+        ):
+            self.assertIsNone(_cahandler_class_load(self.logger, {}))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3498,6 +3498,54 @@ class TestChallenge(unittest.TestCase):
         args = self.challenge._create_error_response.call_args
         self.assertEqual(args[0][0], 500)
 
+    def test_171_check_challenge_ownership_denied(self):
+        """_check_challenge_ownership returns 403 when account does not own challenge"""
+        self.challenge.repository.get_challenge_owner_account_name.return_value = (
+            "other_acc"
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            code, err_type, detail = self.challenge._check_challenge_ownership(
+                "c1", "acc"
+            )
+        self.assertEqual(code, 403)
+        self.assertEqual(err_type, "urn:ietf:params:acme:error:unauthorized")
+        self.assertEqual(detail, "Unauthorized")
+        self.assertIn(
+            "WARNING:test_a2c:resource access denied: unauthorized account=acc "
+            "resource=challenge name=c1",
+            lcm.output,
+        )
+
+    def test_172_apply_eab_challenge_profile_kid_missing(self):
+        """_apply_eab_challenge_profile returns when kid has no challenge section"""
+        self.challenge.config.eab_profiling = True
+        mock_ctx = Mock(key_file_load=Mock(return_value={"kid-01": {}}))
+        mock_handler_instance = Mock()
+        mock_handler_instance.__enter__ = Mock(return_value=mock_ctx)
+        mock_handler_instance.__exit__ = Mock(return_value=False)
+        self.challenge.config.eab_handler = Mock(return_value=mock_handler_instance)
+        self.challenge._apply_eab_profile_settings = Mock()
+
+        self.challenge._apply_eab_challenge_profile("kid-01")
+
+        self.challenge._apply_eab_profile_settings.assert_not_called()
+
+    def test_173_apply_eab_challenge_profile_exception(self):
+        """_apply_eab_challenge_profile logs ERROR when handler raises"""
+        self.challenge.config.eab_profiling = True
+        mock_handler_instance = Mock()
+        mock_handler_instance.__enter__ = Mock(side_effect=RuntimeError("eab boom"))
+        mock_handler_instance.__exit__ = Mock(return_value=False)
+        self.challenge.config.eab_handler = Mock(return_value=mock_handler_instance)
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.challenge._apply_eab_challenge_profile("kid-01")
+        self.assertIn(
+            "ERROR:test_a2c:Failed to process EAB challenge profile (kid: kid-01): "
+            "eab boom",
+            lcm.output,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -193,6 +193,79 @@ class Hooks:
             return True
         return starttls_negotiated
 
+    def _smtp_client_create(self):
+        """Create an SMTP or SMTP_SSL client for the configured security mode."""
+        self.logger.debug("Hooks._smtp_client_create()")
+        if self.smtp_use_tls:
+            self.logger.debug(
+                "Hooks._smtp_client_create() - Using SMTP_SSL for implicit TLS"
+            )
+            return smtplib.SMTP_SSL(
+                self.smtp_server, self.smtp_port, timeout=self.smtp_timeout
+            )
+        self.logger.debug(
+            "Hooks._smtp_client_create() - Using SMTP for plain or STARTTLS"
+        )
+        return smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=self.smtp_timeout)
+
+    def _smtp_enable_starttls(self, smtp) -> bool:
+        """Negotiate STARTTLS when configured; return True if negotiated."""
+        self.logger.debug("Hooks._smtp_enable_starttls()")
+        if not (self.smtp_use_starttls and not self.smtp_use_tls):
+            return False
+        self.logger.debug("Hooks._smtp_enable_starttls() - Enabling STARTTLS")
+        smtp.starttls()
+        smtp.ehlo()
+        return True
+
+    def _smtp_authenticate_if_configured(self, smtp, starttls_negotiated: bool) -> bool:
+        """Authenticate when credentials exist. False if cleartext AUTH refused."""
+        self.logger.debug("Hooks._smtp_authenticate_if_configured()")
+        if not (self.smtp_username and self.smtp_password):
+            self.logger.debug(
+                "Hooks._smtp_authenticate_if_configured() - No SMTP authentication"
+            )
+            return True
+
+        if not self._smtp_transport_encrypted(starttls_negotiated):
+            if security_disable_acknowledged():
+                self.logger.critical(
+                    "SMTP AUTH over cleartext permitted because %s is set",
+                    SECURITY_DISABLE_ACK_ENV,
+                )
+            else:
+                self.logger.error(
+                    "Refusing SMTP AUTH without TLS/STARTTLS; set "
+                    "smtp_use_tls or smtp_use_starttls, or %s for "
+                    "intentional cleartext (testing only)",
+                    SECURITY_DISABLE_ACK_ENV,
+                )
+                return False
+
+        self.logger.debug(
+            "Hooks._smtp_authenticate_if_configured() - Authenticating as %s",
+            self.smtp_username,
+        )
+        smtp.login(self.smtp_username, self.smtp_password)
+        self.logger.debug(
+            "Hooks._smtp_authenticate_if_configured() - SMTP authentication successful"
+        )
+        return True
+
+    def _smtp_deliver(self, smtp) -> str:
+        """Attach message body, send mail, and return the subject for logging."""
+        self.logger.debug("Hooks._smtp_deliver()")
+        self.envelope.attach(MIMEText("\n\n".join(self.msg), "plain"))
+        subject = self.envelope["Subject"]
+        self.logger.debug(
+            "Hooks._smtp_deliver() - From: %s, To: %s, Subject: %s",
+            self.sender,
+            self.rcpt,
+            subject,
+        )
+        smtp.sendmail(self.sender, self.rcpt, self.envelope.as_string())
+        return subject
+
     def _validate_smtp_configuration(self) -> None:
         """Validate SMTP-specific configuration"""
         self.logger.debug("Hooks._validate_smtp_configuration()")
@@ -327,94 +400,48 @@ class Hooks:
 
         try:
             self.logger.debug(
-                f"Hooks._done() - Attempting to send email notification via {self.smtp_server}:{self.smtp_port} (timeout: {self.smtp_timeout}s)"
+                "Hooks._done() - Attempting to send email notification via "
+                "%s:%s (timeout: %ss)",
+                self.smtp_server,
+                self.smtp_port,
+                self.smtp_timeout,
             )
             self.logger.debug(
-                f"Hooks._done() - TLS settings - use_tls: {self.smtp_use_tls}, use_starttls: {self.smtp_use_starttls}"
+                "Hooks._done() - TLS settings - use_tls: %s, use_starttls: %s",
+                self.smtp_use_tls,
+                self.smtp_use_starttls,
             )
             self.logger.debug(
-                f"Hooks._done() - Authentication - username: {self.smtp_username}, password: {'***' if self.smtp_password else 'None'}"
+                "Hooks._done() - Authentication - username: %s, password: %s",
+                self.smtp_username,
+                "***" if self.smtp_password else "None",
             )
 
-            # Choose appropriate SMTP class based on TLS configuration
-            if self.smtp_use_tls:
-                # Use SMTP_SSL for implicit TLS (usually port 465)
-                self.logger.debug(
-                    "Hooks._done() - Using SMTP_SSL for implicit TLS connection"
-                )
-                smtp = smtplib.SMTP_SSL(
-                    self.smtp_server, self.smtp_port, timeout=self.smtp_timeout
-                )
-            else:
-                # Use regular SMTP (usually port 25 or 587)
-                self.logger.debug(
-                    "Hooks._done() - Using SMTP for plain or STARTTLS connection"
-                )
-                smtp = smtplib.SMTP(
-                    self.smtp_server, self.smtp_port, timeout=self.smtp_timeout
-                )
-
+            smtp = self._smtp_client_create()
             with smtp:
                 if self.smtp_debug:
                     smtp.set_debuglevel(1)
 
                 self.logger.debug("Hooks._done() - Sending HELO/EHLO")
-                smtp.ehlo()  # Use EHLO instead of HELO for better compatibility
+                smtp.ehlo()
 
-                starttls_negotiated = False
-                # Enable STARTTLS if configured (for port 587 typically)
-                if self.smtp_use_starttls and not self.smtp_use_tls:
-                    self.logger.debug("Hooks._done() - Enabling STARTTLS encryption")
-                    smtp.starttls()
-                    smtp.ehlo()  # Re-identify after STARTTLS
-                    starttls_negotiated = True
+                starttls_negotiated = self._smtp_enable_starttls(smtp)
+                if not self._smtp_authenticate_if_configured(smtp, starttls_negotiated):
+                    return
 
-                # Authenticate if credentials are provided
-                if self.smtp_username and self.smtp_password:
-                    if not self._smtp_transport_encrypted(starttls_negotiated):
-                        if security_disable_acknowledged():
-                            self.logger.critical(
-                                "SMTP AUTH over cleartext permitted because %s is set",
-                                SECURITY_DISABLE_ACK_ENV,
-                            )
-                        else:
-                            self.logger.error(
-                                "Refusing SMTP AUTH without TLS/STARTTLS; set "
-                                "smtp_use_tls or smtp_use_starttls, or %s for "
-                                "intentional cleartext (testing only)",
-                                SECURITY_DISABLE_ACK_ENV,
-                            )
-                            return
-                    self.logger.debug(
-                        f"Hooks._done() - Authenticating with username: {self.smtp_username}"
-                    )
-                    smtp.login(self.smtp_username, self.smtp_password)
-                    self.logger.debug("Hooks._done() - SMTP authentication successful")
-                else:
-                    self.logger.debug(
-                        "Hooks._done() - No SMTP authentication configured"
-                    )
-
-                # Prepare and send the email
-                self.envelope.attach(MIMEText("\n\n".join(self.msg), "plain"))
-
-                # Log email details before sending
-                subject = self.envelope["Subject"]
-                self.logger.debug(
-                    f"Hooks._done() - Sending email - From: {self.sender}, To: {self.rcpt}, Subject: {subject}"
-                )
-
-                smtp.sendmail(self.sender, self.rcpt, self.envelope.as_string())
+                subject = self._smtp_deliver(smtp)
 
             self.logger.info(
-                f"Email notification sent successfully to {self.rcpt} - Subject: {subject}"
+                "Email notification sent successfully to %s - Subject: %s",
+                self.rcpt,
+                subject,
             )
 
         except Exception as e:
             error_msg = (
                 f"Failed to send email notification: {type(e).__name__} - {str(e)}"
             )
-            self.logger.error(f"Email sending failed: {error_msg}")
+            self.logger.error("Email sending failed: %s", error_msg)
             return
 
         self.logger.debug("Hooks._done() ended")

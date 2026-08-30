@@ -2126,6 +2126,22 @@ abc-DEF_123.xyz==
         result = self.validator._extract_email_keyauth(email_body)
         self.assertIsNone(result)
 
+    def test_147_sender_matches_identifier_empty_after_normalize(self):
+        """_sender_matches_identifier returns False when normalize yields empty"""
+        self.assertFalse(
+            self.validator._sender_matches_identifier("", "user@example.com")
+        )
+        self.assertFalse(
+            self.validator._sender_matches_identifier("user@example.com", "")
+        )
+        self.assertFalse(self.validator._sender_matches_identifier("not-an-email", "x"))
+
+    def test_148_thread_matches_challenge_no_stored_message_id(self):
+        """_thread_matches_challenge skips when headers present but no stored Message-ID"""
+        email_data = {"in_reply_to": "<challenge@example.com>", "references": ""}
+        self.assertIsNone(self.validator._thread_matches_challenge(email_data, None))
+        self.assertIsNone(self.validator._thread_matches_challenge(email_data, ""))
+
 
 class TestTkauthChallengeValidator(unittest.TestCase):
     """Test cases for TkauthChallengeValidator"""
