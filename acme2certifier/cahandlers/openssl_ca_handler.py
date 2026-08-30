@@ -43,6 +43,7 @@ from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR
 
 BLOCK_ALL_DOMAIN = "block.all"
 ACME_ERR_SERVER_INTERNAL = "urn:ietf:params:acme:error:serverInternal"
+_TRIGGER_ENDED_WITH_ERROR = "CAhandler.trigger() ended with error: %s"
 
 
 class CAhandler(object):
@@ -1117,41 +1118,49 @@ class CAhandler(object):
         self.logger.debug("CAhandler.revoke() ended")
         return self._revoke_return(200)
 
+    def _trigger_error_return(
+        self, error: str
+    ) -> Tuple[str, Optional[str], Optional[str]]:
+        """Log a trigger failure and return the standard error triple."""
+        self.logger.debug(_TRIGGER_ENDED_WITH_ERROR, error)
+        return (error, None, None)
+
+    def _trigger_leaf_from_payload(self, payload: str) -> Tuple[str, str]:
+        """Decode trigger payload as PEM or DER; return (leaf_pem, cert_raw_b64)."""
+        cert = b64_decode(self.logger, payload)
+        try:
+            leaf_pem = cert if isinstance(cert, str) else convert_byte_to_string(cert)
+            cert_raw = b64_encode(self.logger, cert_pem2der(leaf_pem))
+            return (leaf_pem, cert_raw)
+        except Exception:
+            der_bytes = convert_string_to_byte(cert) if isinstance(cert, str) else cert
+            cert_raw = b64_encode(self.logger, der_bytes)
+            leaf_pem = convert_byte_to_string(cert_der2pem(der_bytes))
+            return (leaf_pem, cert_raw)
+
+    def _trigger_issuing_ca_path(self) -> Optional[str]:
+        """Ensure issuing CA cert is configured and exists on disk."""
+        if not self.issuer_dict.get("issuing_ca_cert"):
+            self._config_load()
+        issuing_ca_cert = self.issuer_dict.get("issuing_ca_cert")
+        if issuing_ca_cert and os.path.exists(issuing_ca_cert):
+            return issuing_ca_cert
+        return None
+
     def trigger(self, payload: str) -> Tuple[str, str, str]:
         """process trigger message and return certificate"""
         self.logger.debug("CAhandler.trigger()")
 
-        error = None
-        cert_bundle = None
-        cert_raw = None
-
         if not payload:
-            error = "No payload given"
-            self.logger.debug("CAhandler.trigger() ended with error: %s", error)
-            return (error, cert_bundle, cert_raw)
+            return self._trigger_error_return("No payload given")
 
-        if not self.issuer_dict.get("issuing_ca_cert"):
-            self._config_load()
+        issuing_ca_cert = self._trigger_issuing_ca_path()
+        if not issuing_ca_cert:
+            return self._trigger_error_return("issuing_ca_cert missing or unreadable")
 
-        issuing_ca_cert = self.issuer_dict.get("issuing_ca_cert")
-        if not issuing_ca_cert or not os.path.exists(issuing_ca_cert):
-            error = "issuing_ca_cert missing or unreadable"
-            self.logger.debug("CAhandler.trigger() ended with error: %s", error)
-            return (error, cert_bundle, cert_raw)
-
-        cert = b64_decode(self.logger, payload)
-        try:
-            # payload is base64(PEM)
-            leaf_pem = cert if isinstance(cert, str) else convert_byte_to_string(cert)
-            cert_raw = b64_encode(self.logger, cert_pem2der(leaf_pem))
-        except Exception:
-            # payload is base64(DER)
-            der_bytes = convert_string_to_byte(cert) if isinstance(cert, str) else cert
-            cert_raw = b64_encode(self.logger, der_bytes)
-            leaf_pem = convert_byte_to_string(cert_der2pem(der_bytes))
-
+        leaf_pem, cert_raw = self._trigger_leaf_from_payload(payload)
         with open(issuing_ca_cert, "r", encoding="utf8") as ca_fso:
             cert_bundle = self._pemcertchain_generate(leaf_pem, ca_fso.read())
 
-        self.logger.debug("CAhandler.trigger() ended with error: %s", error)
-        return (error, cert_bundle, cert_raw)
+        self.logger.debug(_TRIGGER_ENDED_WITH_ERROR, None)
+        return (None, cert_bundle, cert_raw)

@@ -7,7 +7,7 @@ from __future__ import print_function
 import json
 import textwrap
 import os
-from typing import Tuple, Dict
+from typing import Any, Dict, Optional, Tuple
 import requests
 import josepy
 import subprocess
@@ -940,62 +940,84 @@ class CAhandler(object):
                 "Could not get eab credentials from ZeroSSL: %s", response.text
             )
 
-    def _eab_profile_list_set(self, csr: str, key: str, value: str) -> str:
+    def _eab_remember_paired_acme_urls(self, key: str, value: Any) -> None:
+        """Cache acme_url list so a later acme_keyfile list can be index-paired."""
+        self.logger.debug("CAhandler._eab_remember_paired_acme_urls(%s)", key)
+        if key == "acme_url":
+            self._eab_paired_acme_url_list = value if isinstance(value, list) else None
+
+    def _eab_try_set_paired_acme_keyfile(self, key: str, value: Any) -> bool:
+        """Set acme_keyfile from a list paired by current acme_url index.
+
+        Returns True when the paired value was applied (caller should skip
+        client_parameter_validate).
+        """
+        self.logger.debug("CAhandler._eab_try_set_paired_acme_keyfile(%s)", key)
+        if key != "acme_keyfile" or not isinstance(value, list):
+            return False
+        if eab_profile_warn_if_denied(self.logger, key):
+            return False
+
+        paired_urls = getattr(self, "_eab_paired_acme_url_list", None)
+        if not (
+            paired_urls
+            and self.acme_url
+            and self.acme_url in paired_urls
+            and len(paired_urls) == len(value)
+        ):
+            return False
+
+        new_value = value[paired_urls.index(self.acme_url)]
+        self.logger.debug(
+            "CAhandler._eab_try_set_paired_acme_keyfile(): paired acme_keyfile "
+            "for acme_url %s to %s",
+            self.acme_url,
+            new_value,
+        )
+        setattr(self, key, new_value)
+        return True
+
+    def _eab_apply_acme_url_side_effects(self, new_value: str) -> Optional[str]:
+        """Update URL-derived state after an allowed acme_url profile change."""
+        self.logger.debug("CAhandler._eab_apply_acme_url_side_effects(%s)", new_value)
+        if not self.acme_keypath:
+            self.logger.error("acme_keypath is missing in config")
+            return "acme_keypath is missing in config"
+        self.acme_url_dic = parse_url(self.logger, new_value)
+        self.acme_keyfile = (
+            f"{self.acme_keypath.rstrip('/')}/"
+            f"{self.acme_url_dic['host'].replace(':', '.')}.json"
+        )
+        return None
+
+    def _eab_profile_list_set(self, csr: str, key: str, value: str) -> Optional[str]:
         self.logger.debug(
             "CAhandler._acme_keyfile_set(): list: key: %s, value: %s", key, value
         )
 
-        result = None
-        if key == "acme_url":
-            self._eab_paired_acme_url_list = value if isinstance(value, list) else None
-
-        if (
-            key == "acme_keyfile"
-            and isinstance(value, list)
-            and not eab_profile_warn_if_denied(self.logger, key)
-        ):
-            paired_urls = getattr(self, "_eab_paired_acme_url_list", None)
-            if (
-                paired_urls
-                and self.acme_url
-                and self.acme_url in paired_urls
-                and len(paired_urls) == len(value)
-            ):
-                new_value = value[paired_urls.index(self.acme_url)]
-                self.logger.debug(
-                    "CAhandler._eab_profile_list_set(): paired acme_keyfile "
-                    "for acme_url %s to %s",
-                    self.acme_url,
-                    new_value,
-                )
-                setattr(self, key, new_value)
-                return result
+        self._eab_remember_paired_acme_urls(key, value)
+        if self._eab_try_set_paired_acme_keyfile(key, value):
+            return None
 
         new_value, error = client_parameter_validate(self.logger, csr, self, key, value)
-        if new_value:
-            if eab_profile_warn_if_denied(self.logger, key):
-                return result
-            self.logger.debug(
-                "CAhandler._eab_profile_list_set(): setting attribute: %s to %s",
-                key,
-                new_value,
-            )
-            setattr(self, key, new_value)
-            if key == "acme_url":
-                if not self.acme_keypath:
-                    result = "acme_keypath is missing in config"
-                    self.logger.error("acme_keypath is missing in config")
-                else:
-                    self.acme_url_dic = parse_url(self.logger, new_value)
-                    self.acme_keyfile = f"{self.acme_keypath.rstrip('/')}/{self.acme_url_dic['host'].replace(':', '.')}.json"
-        else:
-            result = error
+        if not new_value:
+            return error
+        if eab_profile_warn_if_denied(self.logger, key):
+            return None
 
-        return result
+        self.logger.debug(
+            "CAhandler._eab_profile_list_set(): setting attribute: %s to %s",
+            key,
+            new_value,
+        )
+        setattr(self, key, new_value)
+        if key == "acme_url":
+            return self._eab_apply_acme_url_side_effects(new_value)
+        return None
 
     def eab_profile_list_check(
         self, eab_handler: str, csr: str, key: str, value: str
-    ) -> str:
+    ) -> Optional[str]:
         """check eab profile list"""
         self.logger.debug(
             "CAhandler._eab_profile_list_check(): list: key: %s, value: %s", key, value

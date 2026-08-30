@@ -243,6 +243,77 @@ class ChallengeFactory:
             challenge_types.append("tls-alpn-01")
         return challenge_types
 
+    @staticmethod
+    def _normalized_id_type(id_type: Optional[str]) -> str:
+        """Return lower-cased identifier type, or empty string if unset."""
+        return id_type.lower() if id_type else ""
+
+    def _is_wildcard_identifier(
+        self, id_type: str, value: str, is_wildcard: bool
+    ) -> bool:
+        """True when the identifier is a DNS wildcard (flag or ``*.`` prefix)."""
+        self.logger.debug(
+            "ChallengeFactory._is_wildcard_identifier(%s, %s, %s)",
+            id_type,
+            value,
+            is_wildcard,
+        )
+        return self._normalized_id_type(id_type) == "dns" and (
+            is_wildcard or bool(value and value.startswith("*."))
+        )
+
+    def _challenge_types_for_wildcard(self) -> List[str]:
+        """RFC 8555: wildcards only support dns-01."""
+        self.logger.debug("ChallengeFactory._challenge_types_for_wildcard()")
+        if self.dns_01_support:
+            self.logger.debug(
+                "ChallengeFactory._challenge_types_for_wildcard(): "
+                "Detected wildcard identifier, only creating dns-01 challenge"
+            )
+            return ["dns-01"]
+        self.logger.debug(
+            "ChallengeFactory._challenge_types_for_wildcard(): "
+            "Wildcard identifier but dns_01_support is disabled; "
+            "no standard challenges will be created"
+        )
+        return []
+
+    def _challenge_types_for_identifier(self, id_type: str) -> List[str]:
+        """Enabled standard challenges, excluding dns-01 for IP identifiers."""
+        self.logger.debug(
+            "ChallengeFactory._challenge_types_for_identifier(%s)", id_type
+        )
+        challenge_types = self._enabled_standard_challenge_types()
+        if self._normalized_id_type(id_type) == "ip" and "dns-01" in challenge_types:
+            self.logger.debug(
+                "ChallengeFactory._challenge_types_for_identifier(): "
+                "Skipping dns-01 challenge for IP identifier"
+            )
+            challenge_types.remove("dns-01")
+        return challenge_types
+
+    def _resolve_standard_challenge_types(
+        self,
+        id_type: str,
+        value: str,
+        is_wildcard: bool,
+    ) -> List[str]:
+        """Select challenge types for an identifier (incl. optional dns-persist-01)."""
+        self.logger.debug(
+            "ChallengeFactory._resolve_standard_challenge_types(%s, %s, %s)",
+            id_type,
+            value,
+            is_wildcard,
+        )
+        if self._is_wildcard_identifier(id_type, value, is_wildcard):
+            challenge_types = self._challenge_types_for_wildcard()
+        else:
+            challenge_types = self._challenge_types_for_identifier(id_type)
+
+        if self.dns_persist_01_support and self._normalized_id_type(id_type) == "dns":
+            challenge_types.append("dns-persist-01")
+        return challenge_types
+
     def create_standard_challenge_set(
         self,
         authorization_name: str,
@@ -256,38 +327,10 @@ class ChallengeFactory:
             "ChallengeFactory.create_standard_challenge_set(%s)", authorization_name
         )
 
-        is_dns = bool(id_type and id_type.lower() == "dns")
-        is_wildcard_identifier = bool(
-            is_dns and (is_wildcard or (value and value.startswith("*.")))
+        challenge_types = self._resolve_standard_challenge_types(
+            id_type, value, is_wildcard
         )
-
-        if is_wildcard_identifier:
-            if self.dns_01_support:
-                self.logger.debug(
-                    "ChallengeFactory.create_standard_challenge_set(): "
-                    "Detected wildcard identifier, only creating dns-01 challenge"
-                )
-                challenge_types = ["dns-01"]
-            else:
-                self.logger.debug(
-                    "ChallengeFactory.create_standard_challenge_set(): "
-                    "Wildcard identifier but dns_01_support is disabled; "
-                    "no standard challenges will be created"
-                )
-                challenge_types = []
-        else:
-            challenge_types = self._enabled_standard_challenge_types()
-            # Skip DNS challenge for IP identifiers
-            if id_type and id_type.lower() == "ip" and "dns-01" in challenge_types:
-                self.logger.debug(
-                    "ChallengeFactory.create_standard_challenge_set(): Skipping dns-01 challenge for IP identifier"
-                )
-                challenge_types.remove("dns-01")
-
-        if self.dns_persist_01_support and id_type and id_type.lower() == "dns":
-            challenge_types.append("dns-persist-01")
-
-        challenges = []
+        challenges: List[Dict[str, Any]] = []
         for challenge_type in challenge_types:
             challenge_dict = self.create_single_challenge(
                 authorization_name, challenge_type, token, value

@@ -26,6 +26,8 @@ from acme2certifier.acme_srv.helpers.trigger_auth import (
     trigger_signature_from_headers,
 )
 
+_PARSE_RETURNS_MSG = "Trigger.parse() returns: %s"
+
 
 def trigger_config_enabled(config_dic) -> bool:
     """Return True when [Trigger] enabled is set in acme_srv.cfg."""
@@ -45,6 +47,22 @@ def handler_supports_trigger(cahandler_cls) -> bool:
     return bool(getattr(cahandler_cls, "supports_trigger", False))
 
 
+def _cahandler_class_load(logger, config_dic):
+    """Load CAhandler class from the configured CA handler module."""
+    ca_handler_module = ca_handler_load(logger, config_dic)
+    if ca_handler_module is None:
+        return None
+    return getattr(ca_handler_module, "CAhandler", None)
+
+
+def _trigger_status_log(
+    logger, log_status: bool, level: str, message: str, *args
+) -> None:
+    """Emit a trigger-enablement status log when requested."""
+    if log_status:
+        getattr(logger, level)(message, *args)
+
+
 def resolve_trigger_endpoint(logger, config_dic, *, log_status: bool = False) -> bool:
     """
     Decide whether the /trigger HTTP endpoint should be active.
@@ -53,51 +71,53 @@ def resolve_trigger_endpoint(logger, config_dic, *, log_status: bool = False) ->
     a readable ca_cert, and either hmac_keys or gated auth_disable.
     Missing supports_trigger defaults to False. Does not raise on misconfig.
     """
-    config_enabled = trigger_config_enabled(config_dic)
-    if not config_enabled:
+    if not trigger_config_enabled(config_dic):
         return False
 
-    ca_handler_module = ca_handler_load(logger, config_dic)
-    cahandler_cls = None
-    if ca_handler_module is not None:
-        cahandler_cls = getattr(ca_handler_module, "CAhandler", None)
-
+    cahandler_cls = _cahandler_class_load(logger, config_dic)
     if cahandler_cls is None:
-        if log_status:
-            logger.warning(
-                "Trigger enabled in config but CA handler could not be loaded; "
-                "leaving /trigger disabled"
-            )
+        _trigger_status_log(
+            logger,
+            log_status,
+            "warning",
+            "Trigger enabled in config but CA handler could not be loaded; "
+            "leaving /trigger disabled",
+        )
         return False
 
     if not handler_supports_trigger(cahandler_cls):
-        if log_status:
-            logger.warning(
-                "Trigger enabled in config but CA handler %s does not set "
-                "supports_trigger=True; leaving /trigger disabled",
-                getattr(cahandler_cls, "__module__", cahandler_cls),
-            )
+        _trigger_status_log(
+            logger,
+            log_status,
+            "warning",
+            "Trigger enabled in config but CA handler %s does not set "
+            "supports_trigger=True; leaving /trigger disabled",
+            getattr(cahandler_cls, "__module__", cahandler_cls),
+        )
         return False
 
     hmac_keys, auth_disabled = trigger_hmac_keys_load(logger, config_dic)
     ca_cert = trigger_ca_cert_load(logger, config_dic)
     if not ca_cert:
-        if log_status:
-            logger.error(
-                "Trigger enabled but [Trigger] ca_cert is missing or unreadable; "
-                "leaving /trigger disabled"
-            )
+        _trigger_status_log(
+            logger,
+            log_status,
+            "error",
+            "Trigger enabled but [Trigger] ca_cert is missing or unreadable; "
+            "leaving /trigger disabled",
+        )
         return False
     if not hmac_keys and not auth_disabled:
-        if log_status:
-            logger.error(
-                "Trigger enabled but no hmac_keys/hmac_keys_file configured "
-                "(and auth_disable is not acknowledged); leaving /trigger disabled"
-            )
+        _trigger_status_log(
+            logger,
+            log_status,
+            "error",
+            "Trigger enabled but no hmac_keys/hmac_keys_file configured "
+            "(and auth_disable is not acknowledged); leaving /trigger disabled",
+        )
         return False
 
-    if log_status:
-        logger.info("Trigger HTTP endpoint enabled")
+    _trigger_status_log(logger, log_status, "info", "Trigger HTTP endpoint enabled")
     return True
 
 
@@ -184,6 +204,40 @@ class Trigger(object):
         self.logger.debug("ca_handler: %s", ca_handler_module)
         self.logger.debug("Certificate._config_load() ended.")
 
+    def _certificate_record_add(
+        self, cert_bundle: str, cert_name: str, cert_raw: str
+    ) -> None:
+        """Persist certificate bundle for a processing order."""
+        try:
+            self.dbstore.certificate_add(
+                {"cert": cert_bundle, "name": cert_name, "cert_raw": cert_raw}
+            )
+        except Exception as err_:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to add certificate during trigger processing: %s",
+                err_,
+            )
+
+    def _order_status_valid_set(self, order_name: str) -> None:
+        """Mark the matching order as valid after certificate store."""
+        try:
+            self.dbstore.order_update({"name": order_name, "status": "valid"})
+        except Exception as err_:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to update order status during trigger processing: %s",
+                err_,
+            )
+
+    def _matched_certificates_store(
+        self, cert_name_list: List[Dict[str, str]], cert_bundle: str, cert_raw: str
+    ) -> None:
+        """Store certificates and mark related orders valid."""
+        for cert in cert_name_list:
+            self._certificate_record_add(cert_bundle, cert["cert_name"], cert_raw)
+            order_name = cert.get("order_name")
+            if order_name:
+                self._order_status_valid_set(order_name)
+
     def _cert_store(
         self, cert_bundle: str, cert_raw: str, cert_pem: str
     ) -> Tuple[int, str, str]:
@@ -200,9 +254,7 @@ class Trigger(object):
             self.logger.warning("submitted certificate failed ca_cert chain verify")
             return (400, "certificate verification failed", None)
 
-        # lookup certificate_name by comparing public keys
         cert_name_list = self._certname_lookup(cert_pem)
-
         if len(cert_name_list) > 1:
             self.logger.warning(
                 "ambiguous pubkey match for %s processing orders",
@@ -210,41 +262,13 @@ class Trigger(object):
             )
             return (409, "ambiguous certificate match", None)
 
-        if cert_name_list:
-            for cert in cert_name_list:
-                data_dic = {
-                    "cert": cert_bundle,
-                    "name": cert["cert_name"],
-                    "cert_raw": cert_raw,
-                }
-                try:
-                    self.dbstore.certificate_add(data_dic)
-                except Exception as err_:
-                    self.logger.critical(
-                        f"{DB_ERROR_MSG}: failed to add certificate during trigger processing: %s",
-                        err_,
-                    )
-                if "order_name" in cert and cert["order_name"]:
-                    try:
-                        # update order status to 5 (valid)
-                        self.dbstore.order_update(
-                            {"name": cert["order_name"], "status": "valid"}
-                        )
-                    except Exception as err_:
-                        self.logger.critical(
-                            f"{DB_ERROR_MSG}: failed to update order status during trigger processing: %s",
-                            err_,
-                        )
-            code = 200
-            message = "OK"
-            detail = None
-        else:
-            code = 400
-            message = "certificate_name lookup failed"
-            detail = None
+        if not cert_name_list:
+            self.logger.debug("Trigger._cert_store() ended")
+            return (400, "certificate_name lookup failed", None)
 
+        self._matched_certificates_store(cert_name_list, cert_bundle, cert_raw)
         self.logger.debug("Trigger._cert_store() ended")
-        return (code, message, detail)
+        return (200, "OK", None)
 
     def _payload_process(self, payload: str) -> Tuple[int, str, str]:
         """process payload"""
@@ -307,7 +331,7 @@ class Trigger(object):
                     "detail": "trigger endpoint disabled",
                 },
             }
-            self.logger.debug("Trigger.parse() returns: %s", json.dumps(response_dic))
+            self.logger.debug(_PARSE_RETURNS_MSG, json.dumps(response_dic))
             return response_dic
 
         if isinstance(content, (bytes, bytearray)):
@@ -325,7 +349,7 @@ class Trigger(object):
                     "detail": "trigger authentication failed",
                 },
             }
-            self.logger.debug("Trigger.parse() returns: %s", json.dumps(response_dic))
+            self.logger.debug(_PARSE_RETURNS_MSG, json.dumps(response_dic))
             return response_dic
 
         # convert to json structure
@@ -354,5 +378,5 @@ class Trigger(object):
         if detail:
             response_dic["data"]["detail"] = detail
 
-        self.logger.debug("Trigger.parse() returns: %s", json.dumps(response_dic))
+        self.logger.debug(_PARSE_RETURNS_MSG, json.dumps(response_dic))
         return response_dic

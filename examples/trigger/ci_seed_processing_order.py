@@ -5,8 +5,28 @@
 import argparse
 import base64
 import logging
+import os
 import sys
 import time
+
+
+def _validate_csr_path(path_value: str) -> str:
+    """Resolve ``path_value`` and require it stays under the process CWD (S8707)."""
+    if not path_value:
+        raise ValueError("CSR path is empty")
+
+    base_dir = os.path.realpath(os.getcwd())
+    candidate = os.path.realpath(os.path.abspath(path_value))
+
+    if candidate != base_dir and not candidate.startswith(base_dir + os.sep):
+        raise ValueError(
+            f"Invalid CSR path '{path_value}'. Path must be within '{base_dir}'."
+        )
+
+    if not os.path.isfile(candidate):
+        raise ValueError(f"Invalid CSR path '{path_value}'. File does not exist.")
+
+    return candidate
 
 
 def _b64url_der_from_pem(pem_path: str) -> str:
@@ -37,9 +57,15 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger("trigger_ci_seed")
 
+    try:
+        csr_path = _validate_csr_path(args.csr)
+    except ValueError as err:
+        logger.error("%s", err)
+        return 1
+
     from acme2certifier.acme_srv.db_handler import DBstore
 
-    csr = _b64url_der_from_pem(args.csr)
+    csr = _b64url_der_from_pem(csr_path)
     dbstore = DBstore(False, logger)
 
     jwk = '{"kty":"RSA","n":"trigger-ci-n-%s","e":"AQAB"}' % args.account_name

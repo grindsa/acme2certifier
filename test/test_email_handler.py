@@ -939,6 +939,63 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(str(context.exception), "SMTP error")
         mock_send.assert_called_once()
 
+    def test_047_email_parse_headers_list_headers(self):
+        """_email_parse_headers flags mailing-list List-* headers"""
+        msg = MIMEText("body", "plain")
+        msg["Subject"] = "List mail"
+        msg["From"] = "sender@example.com"
+        msg["List-Id"] = "<list.example.com>"
+        parsed = self.email_handler._email_parse_headers(msg)
+        self.assertTrue(parsed["has_list_headers"])
+
+    def test_048_email_parse_attachment_without_filename(self):
+        """_email_parse_attachment skips parts with no filename"""
+        parsed = {"attachments": []}
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(b"data")
+        part.add_header("Content-Disposition", "attachment")
+        self.email_handler._email_parse_attachment(
+            parsed, part, "application/octet-stream"
+        )
+        self.assertEqual(parsed["attachments"], [])
+
+    def test_049_message_id_domain_fallbacks(self):
+        """_message_id_domain uses smtp_server then localhost"""
+        self.email_handler.email_address = "no-at-sign"
+        self.email_handler.smtp_server = "smtp.example.com"
+        self.assertEqual("smtp.example.com", self.email_handler._message_id_domain())
+        self.email_handler.smtp_server = None
+        self.assertEqual("localhost", self.email_handler._message_id_domain())
+        self.email_handler.email_address = "user@mail.example.com"
+        self.assertEqual("mail.example.com", self.email_handler._message_id_domain())
+
+    @patch.object(EmailHandler, "_smtp_config_validate", return_value=True)
+    @patch("acme2certifier.acme_srv.email_handler.smtplib.SMTP")
+    def test_050_send_email_skips_login_without_credentials(
+        self, mock_smtp, _mock_validate
+    ):
+        """send() skips SMTP login when username/password are unset"""
+        self.email_handler.smtp_server = "smtp.test.com"
+        self.email_handler.smtp_port = 587
+        self.email_handler.smtp_use_tls = True
+        self.email_handler.email_address = "test@test.com"
+        self.email_handler.username = None
+        self.email_handler.password = None
+
+        mock_server = MagicMock()
+        mock_smtp.return_value = mock_server
+
+        result = self.email_handler.send(
+            to_address="recipient@test.com",
+            subject="Test Subject",
+            message="Test Message",
+        )
+
+        self.assertTrue(result)
+        mock_server.login.assert_not_called()
+        mock_server.send_message.assert_called_once()
+        mock_server.quit.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
