@@ -75,13 +75,19 @@ jobs:
           docker exec acme-srv chmod a+rx "/data/acme2certifier/${SCRIPT}"
           EXEC_ENV=()
           if [ "${DBHANDLER}" = "django" ]; then
-            EXEC_ENV=(-e "ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv")
+            EXEC_ENV=(-e "ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv,*")
           fi
           docker exec "${EXEC_ENV[@]}" acme-srv bash -lc \
             "cd /data/acme2certifier && ./${SCRIPT} --mode ${DBHANDLER} --from-source"
         env:
           WEBSRV: ${{ matrix.websrv }}
           DBHANDLER: ${{ matrix.dbhandler }}
+
+      - name: Configure Django ALLOWED_HOSTS for CI
+        if: matrix.dbhandler == 'django'
+        uses: ./.github/actions/django_ci_allowed_hosts
+        with:
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: Test enrollment
         uses: ./.github/actions/acme_clients_enroll
@@ -159,12 +165,16 @@ jobs:
           docker exec acme-srv chmod a+rx "/data/acme2certifier/${SCRIPT}"
           EXEC_ENV=()
           if [ "${DBHANDLER}" = "django" ]; then
-            EXEC_ENV=(-e "ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv")
+            EXEC_ENV=(-e "ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv,*")
           fi
           docker exec "${EXEC_ENV[@]}" acme-srv bash -lc \
             "cd /data/acme2certifier && ./${SCRIPT} --mode ${DBHANDLER} --from-source"
         env:
           DBHANDLER: ${{ matrix.dbhandler }}
+
+      - name: Configure Django ALLOWED_HOSTS for CI
+        if: matrix.dbhandler == 'django'
+        uses: ./.github/actions/django_ci_allowed_hosts
 
       - name: Test enrollment
         uses: ./.github/actions/acme_clients_enroll
