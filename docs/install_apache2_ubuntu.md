@@ -181,12 +181,13 @@ sudo sh -c 'cat /var/www/acme2certifier/volume/acme2certifier-cert.pem \
 
 If `handler: django`:
 
-1. Configure `acme2certifier.django_project.settings` (or env `ACME2CERTIFIER_SECRET_KEY` / `ACME2CERTIFIER_ALLOWED_HOSTS`). MySQL template: `examples/django/settings.py`.
-1. Apply schema and fixtures:
+1. Set Django env vars — see **[Django deployment environment variables](django_deploy_env.md)**. On Apache, export `ACME2CERTIFIER_ALLOWED_HOSTS` **before** install (or edit `/etc/apache2/envvars` afterward); the install script persists both `ACME2CERTIFIER_SECRET_KEY` and `ACME2CERTIFIER_ALLOWED_HOSTS` into envvars.
+1. Apply schema and fixtures (manual install; the automated script does this when `--mode django`):
 
 ```bash
 export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
 export ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier
+export ACME2CERTIFIER_ALLOWED_HOSTS="acme.example.com,127.0.0.1"
 export ACME2CERTIFIER_SECRET_KEY="$(/var/www/acme2certifier/venv/bin/a2c-django-secret-keygen)"
 sudo -E /var/www/acme2certifier/venv/bin/a2c-manage migrate
 sudo -E /var/www/acme2certifier/venv/bin/a2c-manage loaddata status
@@ -237,4 +238,5 @@ sudo systemctl restart apache2
 - [acme_srv.cfg options](acme_srv.md)
 - [Upgrading](upgrading.md)
 - [Support for External Databases (Django)](external_database_support.md)
+- [Django deployment environment variables](django_deploy_env.md)
 - [DEB installation](install_deb.md)

@@ -80,9 +80,12 @@ sudo cp "$SHARE/acme2certifier_wsgi.py" /var/www/acme2certifier/
 
 **Django mode:**
 
+Export hostnames before migrate (or use the install script — see [Django deployment environment variables](django_deploy_env.md)):
+
 ```bash
 sudo ln -sfn "$A2C" /var/www/acme2certifier/acme2certifier
 # uWSGI module = acme2certifier.django_project.wsgi:application
+export ACME2CERTIFIER_ALLOWED_HOSTS="acme.example.com,127.0.0.1"
 sudo /var/www/acme2certifier/venv/bin/a2c-manage migrate
 sudo /var/www/acme2certifier/venv/bin/a2c-manage loaddata status
 ```
@@ -113,7 +116,12 @@ disable-logging = true
 enable-threads = true
 env = ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
 env = ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier
+# django only (or set ACME2CERTIFIER_ALLOWED_HOSTS before a2c-ubuntu-nginx.sh --mode django):
+# env = ACME2CERTIFIER_SECRET_KEY="…"
+# env = ACME2CERTIFIER_ALLOWED_HOSTS="acme.example.com,127.0.0.1"
 ```
+
+See [Django deployment environment variables](django_deploy_env.md) for persistence and post-install edits.
 
 ## 6. Nginx HTTP + SSL sites
 
@@ -176,5 +184,6 @@ curl -sS http://127.0.0.1/directory
 - [Apache2 + mod_wsgi (Ubuntu / PyPI)](install_apache2_ubuntu.md)
 - [Nginx on Alma / RHEL](install_nginx_alma.md)
 - [Support for External Databases (Django)](external_database_support.md)
+- [Django deployment environment variables](django_deploy_env.md)
 - [acme_srv.cfg options](acme_srv.md)
 - [Upgrading](upgrading.md)

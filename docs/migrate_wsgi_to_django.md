@@ -13,7 +13,7 @@ Use this guide to migrate runtime data from the WSGI SQLite backend (`acme_srv.d
 - Keep the **same a2c version** before and after migration.
 - Plan a maintenance window (stop ACME services while exporting/importing).
 - Back up configuration (`acme_srv.cfg`), database (`acme_srv.db`), and CA/runtime material before changes.
-- **Django env (0.46+):** before manual `a2c-manage` or `a2c-wsgi2django` commands, set `ACME2CERTIFIER_SECRET_KEY` and `ACME2CERTIFIER_ALLOWED_HOSTS` (see [Apache2 pip install — Django mode extras](install_apache2_ubuntu.md#8-django-mode-extras)). Django install scripts persist both into uWSGI `acme2certifier.ini` or Apache `/etc/apache2/envvars`; `a2c-django-update` and `a2c-wsgi2django import`/`check` load them from those files. If you run `a2c-manage migrate` or `loaddata` directly from a shell, export the variables explicitly (or use `a2c-django-update` instead of separate migrate + loaddata).
+- **Django env (0.46+):** before manual `a2c-manage` or `a2c-wsgi2django` commands, set `ACME2CERTIFIER_SECRET_KEY` and `ACME2CERTIFIER_ALLOWED_HOSTS` — see **[Django deployment environment variables](django_deploy_env.md)**. Install scripts persist both into uWSGI `acme2certifier.ini` or Apache `/etc/apache2/envvars`; `a2c-django-update` and `a2c-wsgi2django import`/`check` load them from those files. If you run `a2c-manage migrate` or `loaddata` directly from a shell, export the variables explicitly (or use `a2c-django-update` instead of separate migrate + loaddata).
 
 ## What Is Migrated
 
@@ -267,6 +267,6 @@ If migration fails:
 - Django startup/migration errors:
   - verify Django WSGI module path and settings (`INSTALLED_APPS`, `ROOT_URLCONF`, `WSGI_APPLICATION`).
 - `ImproperlyConfigured: ACME2CERTIFIER_SECRET_KEY`:
-  - export `ACME2CERTIFIER_SECRET_KEY` (e.g. via `a2c-django-secret-keygen`) and `ACME2CERTIFIER_ALLOWED_HOSTS` before `a2c-manage`; or run `a2c-django-update` / use install-script persistence — see [Prerequisites](#prerequisites) and [Apache2 pip install — Django mode extras](install_apache2_ubuntu.md#8-django-mode-extras).
+  - export `ACME2CERTIFIER_SECRET_KEY` (e.g. via `a2c-django-secret-keygen`) and `ACME2CERTIFIER_ALLOWED_HOSTS` before `a2c-manage`; or run `a2c-django-update` / use install-script persistence — see [Prerequisites](#prerequisites) and [Django deployment environment variables](django_deploy_env.md).
 - Docker runs wrong backend after migration:
   - ensure both image tag (`*-django`) and cfg (`handler: django`) match.
