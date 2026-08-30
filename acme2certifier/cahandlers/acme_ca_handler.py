@@ -946,6 +946,31 @@ class CAhandler(object):
         )
 
         result = None
+        if key == "acme_url":
+            self._eab_paired_acme_url_list = value if isinstance(value, list) else None
+
+        if (
+            key == "acme_keyfile"
+            and isinstance(value, list)
+            and not eab_profile_warn_if_denied(self.logger, key)
+        ):
+            paired_urls = getattr(self, "_eab_paired_acme_url_list", None)
+            if (
+                paired_urls
+                and self.acme_url
+                and self.acme_url in paired_urls
+                and len(paired_urls) == len(value)
+            ):
+                new_value = value[paired_urls.index(self.acme_url)]
+                self.logger.debug(
+                    "CAhandler._eab_profile_list_set(): paired acme_keyfile "
+                    "for acme_url %s to %s",
+                    self.acme_url,
+                    new_value,
+                )
+                setattr(self, key, new_value)
+                return result
+
         new_value, error = client_parameter_validate(self.logger, csr, self, key, value)
         if new_value:
             if eab_profile_warn_if_denied(self.logger, key):

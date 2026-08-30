@@ -1935,6 +1935,30 @@ class TestACMEHandler(unittest.TestCase):
         mock_hiv.assert_called_once()
 
     @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
+    def test_083b_eab_profile_list_check_paired_acme_keyfile(self, mock_hiv):
+        """test paired acme_keyfile follows selected acme_url list index"""
+        url_list = ["http://acme-le-sim-2.acme", "http://acme-le-sim-1.acme"]
+        keyfile_list = [
+            "/var/www/acme2certifier/volume/acme/acme-le-sim-2.json",
+            "/var/www/acme2certifier/volume/acme/acme-le-sim-1.json",
+        ]
+        mock_hiv.return_value = ("http://acme-le-sim-1.acme", None)
+        self.cahandler.acme_keypath = "/var/www/acme2certifier/volume/acme"
+        self.assertFalse(
+            self.cahandler.eab_profile_list_check(
+                "eab_handler", "csr", "acme_url", url_list
+            )
+        )
+        self.assertEqual("http://acme-le-sim-1.acme", self.cahandler.acme_url)
+        self.assertFalse(
+            self.cahandler.eab_profile_list_check(
+                "eab_handler", "csr", "acme_keyfile", keyfile_list
+            )
+        )
+        self.assertEqual(keyfile_list[1], self.cahandler.acme_keyfile)
+        mock_hiv.assert_called_once()
+
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_084_eab_profile_list_check(self, mock_hiv):
         """test eab_profile_list_check applies allowed list attributes"""
         mock_hiv.return_value = ("profile_a", None)

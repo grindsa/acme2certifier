@@ -44,6 +44,7 @@ runs:
         cat <<EOT > commands.shell
         newAccount -contacts=chal-types@bar.local,
         newOrder -identifiers=${{ inputs.IDENTIFIER }}
+        getAuthz -order=0 -identifier=${{ inputs.IDENTIFIER }}
         EOT
       shell: bash
 

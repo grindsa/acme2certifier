@@ -11,6 +11,10 @@ inputs:
     description: "If true, run envsubst on the fixture before writing DEST"
     required: false
     default: "false"
+  ACME_KEYPATH:
+    description: "Substituted for ${ACME_KEYPATH} when ENVSUBST is true"
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -35,3 +39,4 @@ runs:
         SOURCE: ${{ inputs.SOURCE }}
         DEST: ${{ inputs.DEST }}
         ENVSUBST: ${{ inputs.ENVSUBST }}
+        ACME_KEYPATH: ${{ inputs.ACME_KEYPATH }}
