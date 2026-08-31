@@ -12,6 +12,7 @@ Currently the following ca-handlers have been modified and support this feature:
 - [generic ACME](acme_ca.md)
 - [Digicert](digicert.md)
 - [EJBCA](ejbca.md)
+- [HARICA CertManager](harica.md)
 - [Insta ActiveCMS](asa.md)
 - [Insta certifier/NetGuard Certificate manager](certifier.md)
 - [Microsoft Certificate Enrollment Web Services](mscertsrv.md)
