@@ -5,6 +5,7 @@
 
 from __future__ import print_function
 
+import json
 from logging import Logger
 import pyodbc
 import re
@@ -222,6 +223,24 @@ class EABhandler(object):
             "EABhandler._eab_profile_get() ended with: %s", bool(profile_dic)
         )
         return profile_dic
+
+    def cahandler_name_get(self, csr: str, revocation=False):
+        """Return per-kid ``cahandler_name`` registry selector, if configured."""
+        self.logger.debug("EABhandler.cahandler_name_get()")
+        name = None
+        profiles_dic = self.key_file_load()
+        eab_kid = self.eab_kid_get(csr, revocation=revocation)
+        if profiles_dic and eab_kid and eab_kid in profiles_dic:
+            entry = profiles_dic[eab_kid]
+            if isinstance(entry, str):
+                try:
+                    entry = json.loads(entry)
+                except Exception:
+                    entry = {}
+            if isinstance(entry, dict) and "cahandler_name" in entry:
+                name = entry["cahandler_name"]
+        self.logger.debug("EABhandler.cahandler_name_get() ended with: %s", name)
+        return name
 
     def key_file_load(self) -> Dict[str, str]:
         """Load profiles from eab credentials database"""
