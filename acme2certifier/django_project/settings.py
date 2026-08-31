@@ -8,6 +8,7 @@ production DB credentials (see examples/django for a MySQL template).
 import os
 import warnings
 
+import django
 from django.core.exceptions import ImproperlyConfigured
 from acme2certifier.acme_srv.helpers.config import load_config  # noqa: E402
 from acme2certifier.acme_srv.helpers.logging_utils import logger_setup  # noqa: E402
@@ -97,10 +98,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
 
+_SQLITE_BUSY_TIMEOUT = int(os.environ.get("ACME2CERTIFIER_SQLITE_TIMEOUT", "30"))
+_SQLITE_OPTIONS: dict = {"timeout": _SQLITE_BUSY_TIMEOUT}
+if django.VERSION >= (5, 1):
+    _SQLITE_OPTIONS["transaction_mode"] = "IMMEDIATE"
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+        "OPTIONS": _SQLITE_OPTIONS,
     }
 }
 

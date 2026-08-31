@@ -76,6 +76,9 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(BASE_DIR, "/var/www/acme2certifier/volume/db.sqlite3"),
+        "OPTIONS": {
+            "timeout": 30,
+        },
     }
 }
 

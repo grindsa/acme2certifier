@@ -14,6 +14,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- Django + SQLite under multi-worker uWSGI: set SQLite `busy_timeout` (30s default, overridable via `ACME2CERTIFIER_SQLITE_TIMEOUT`), use `BEGIN IMMEDIATE` for hot write paths (authorization, challenge, order, nonce) on Django 3.x/4.2–5.0, and `OPTIONS.transaction_mode = IMMEDIATE` on Django 5.1+ (fixes intermittent `database is locked` / 403 during parallel ACME authz updates, e.g. EAB prevalidation CI on EL8)
 - CA handler hardening: `pkcs7_soap` defaults `ca_bundle` to system trust (`True`);
 - NCLM/acme-CA redact tokens/CSR/DNS TXT from DEBUG logs
 - Certifier poll URLs must match configured `api_host`

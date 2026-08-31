@@ -269,6 +269,50 @@ class TestDjangoProjectSettings(unittest.TestCase):
             mod = self._reload()
             self.assertIn("acme.example.com:8443", mod.ALLOWED_HOSTS)
 
+    def test_014_sqlite_busy_timeout_default(self) -> None:
+        """default SQLite busy_timeout is 30 seconds"""
+        env = dict(os.environ)
+        env.pop("ACME2CERTIFIER_SQLITE_TIMEOUT", None)
+        env["ACME2CERTIFIER_SECRET_KEY"] = "sekrit"
+        env["ACME2CERTIFIER_DEBUG"] = "1"
+        with patch.dict(os.environ, env, clear=True):
+            mod = self._reload()
+            self.assertEqual(30, mod.DATABASES["default"]["OPTIONS"]["timeout"])
+
+    def test_015_sqlite_busy_timeout_from_env(self) -> None:
+        """ACME2CERTIFIER_SQLITE_TIMEOUT overrides busy_timeout"""
+        with patch.dict(
+            os.environ,
+            {
+                "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                "ACME2CERTIFIER_DEBUG": "1",
+                "ACME2CERTIFIER_SQLITE_TIMEOUT": "45",
+            },
+            clear=False,
+        ):
+            mod = self._reload()
+            self.assertEqual(45, mod.DATABASES["default"]["OPTIONS"]["timeout"])
+
+    def test_016_sqlite_transaction_mode_on_django_51_plus(self) -> None:
+        """Django 5.1+ uses OPTIONS.transaction_mode IMMEDIATE for SQLite"""
+        import django
+
+        env = dict(os.environ)
+        env.pop("ACME2CERTIFIER_SQLITE_TIMEOUT", None)
+        env["ACME2CERTIFIER_SECRET_KEY"] = "sekrit"
+        env["ACME2CERTIFIER_DEBUG"] = "1"
+        with patch.dict(os.environ, env, clear=True):
+            mod = self._reload()
+            if django.VERSION >= (5, 1):
+                self.assertEqual(
+                    "IMMEDIATE",
+                    mod.DATABASES["default"]["OPTIONS"]["transaction_mode"],
+                )
+            else:
+                self.assertNotIn(
+                    "transaction_mode", mod.DATABASES["default"]["OPTIONS"]
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
