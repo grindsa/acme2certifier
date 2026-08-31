@@ -146,6 +146,9 @@ jobs:
             timeout: 20
             ssh_host: ${{ inputs.public_ip || env.SSH_HOST }}:${{ env.SSH_PORT }}
 
+      - name: "NTLM deprecated allowed_templates - wait for handler load"
+        uses: ./.github/actions/wait_for_directory
+
       - name: "NTLM deprecated allowed_templates - assert migration warning"
         uses: ./.github/actions/logs_assert
         with:

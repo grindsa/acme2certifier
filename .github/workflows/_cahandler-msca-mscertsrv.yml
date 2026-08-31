@@ -142,6 +142,11 @@ jobs:
             verify: False
             request_timeout: 30
 
+      - name: "KRB deprecated allowed_templates - wait for handler load"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: local
+
       - name: "KRB deprecated allowed_templates - assert migration warning"
         uses: ./.github/actions/logs_assert
         with:
