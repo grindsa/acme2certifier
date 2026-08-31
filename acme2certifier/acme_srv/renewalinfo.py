@@ -20,6 +20,7 @@ from acme2certifier.acme_srv.helper import (
     b64_decode,
     duration_to_seconds,
 )
+from acme2certifier.acme_srv.helpers.cahandler_registry import CAHandlerRegistry
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
@@ -226,12 +227,23 @@ class Renewalinfo(object):
         self.logger.debug("Directory._parse_cahandler_section() ended")
 
     def _load_ca_handler(self, config_dic: object) -> None:
-        """Load the CA handler module as configured."""
-        ca_handler_module = ca_handler_load(self.logger, config_dic)
-        if ca_handler_module:
-            self.cahandler = ca_handler_module.CAhandler
+        """Load the CA handler registry as configured."""
+        self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
+        default_bound = self.cahandler_registry.default_handler()
+        if default_bound is not None:
+            self.cahandler = default_bound
         else:
-            self.logger.critical("No ca_handler loaded")
+            ca_handler_module = ca_handler_load(self.logger, config_dic)
+            if ca_handler_module:
+                from acme2certifier.acme_srv.helpers.cahandler_registry import (
+                    BoundCAHandler,
+                )
+
+                self.cahandler = BoundCAHandler(
+                    ca_handler_module.CAhandler, "CAhandler", "default"
+                )
+            else:
+                self.logger.critical("No ca_handler loaded")
 
     def __enter__(self):
         self._load_configuration()

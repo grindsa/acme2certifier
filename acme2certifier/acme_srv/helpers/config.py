@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import warnings
+from contextvars import ContextVar, Token
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
@@ -20,6 +21,9 @@ _ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
 _ACME_SRV_CFG_LOADED: Set[str] = set()
 # Last successful load (path, source, format); used after logger_setup.
 _LAST_LOADED_CFG: Optional[Tuple[str, str, str]] = None
+_CAHANDLER_CONFIG_SECTION: ContextVar[Optional[str]] = ContextVar(
+    "cahandler_config_section", default=None
+)
 ACME_SRV_CFG_FILENAME = "acme_srv.cfg"
 ACME_SRV_YAML_FILENAMES = ("acme_srv.yaml", "acme_srv.yml")
 _YAML_CONFIG_EXTENSIONS = {".yaml", ".yml"}
@@ -822,6 +826,59 @@ def _parse_config_content(
         return _parse_yaml(content, logger), "yaml"
 
 
+def cahandler_config_section_set(section: str) -> Token:
+    """Bind ``load_config()`` reads of ``[CAhandler]`` to a named handler section."""
+    return _CAHANDLER_CONFIG_SECTION.set(section)
+
+
+def cahandler_config_section_reset(token: Token) -> None:
+    """Clear a ``cahandler_config_section_set()`` binding."""
+    _CAHANDLER_CONFIG_SECTION.reset(token)
+
+
+def cahandler_config_section_get() -> Optional[str]:
+    """Return the active bound CAhandler config section, if any."""
+    return _CAHANDLER_CONFIG_SECTION.get()
+
+
+def _cahandler_section_merged_config(
+    config: configparser.ConfigParser,
+    section: str,
+    logger: logging.Logger,
+) -> configparser.ConfigParser:
+    """Overlay ``section`` onto ``[CAhandler]`` for handler config reads."""
+    if section == "CAhandler":
+        return config
+
+    if not config.has_section(section):
+        logger.debug(
+            "_cahandler_section_merged_config: section %s missing, using CAhandler",
+            section,
+        )
+        return config
+
+    merged = _new_config_parser()
+    for sec in config.sections():
+        if not merged.has_section(sec):
+            merged.add_section(sec)
+        for key, value in config.items(sec, raw=True):
+            merged.set(sec, key, value)
+
+    if config.has_section("CAhandler"):
+        if not merged.has_section("CAhandler"):
+            merged.add_section("CAhandler")
+        for key, value in config.items("CAhandler", raw=True):
+            if not merged.has_option("CAhandler", key):
+                merged.set("CAhandler", key, value)
+
+    if not merged.has_section("CAhandler"):
+        merged.add_section("CAhandler")
+    for key, value in config.items(section, raw=True):
+        merged.set("CAhandler", key, value)
+
+    return merged
+
+
 def load_config(
     logger: logging.Logger = None, mfilter: str = None, cfg_file: str = None
 ) -> configparser.ConfigParser:
@@ -829,6 +886,7 @@ def load_config(
     global _LAST_LOADED_CFG  # pylint: disable=global-statement
 
     log = logger or logging.getLogger(__name__)
+    explicit_cfg_file = cfg_file is not None
     log.debug(
         "Helper.load_config() start mfilter=%r cfg_file=%r",
         mfilter,
@@ -875,11 +933,48 @@ def load_config(
         _log_cfg_loaded_once(logger, abs_path, source, cfg_format)
     else:
         log.debug("Loaded acme_srv.cfg %s (%s, %s)", abs_path, source, cfg_format)
+    if not explicit_cfg_file:
+        bound_section = _CAHANDLER_CONFIG_SECTION.get()
+        if bound_section and bound_section != "CAhandler":
+            config = _cahandler_section_merged_config(config, bound_section, log)
     log.debug(
         "Helper.load_config() ended sections=%s",
         list(config.sections()),
     )
     return config
+
+
+def load_config_section(
+    logger: logging.Logger = None,
+    section: str = "CAhandler",
+) -> configparser.ConfigParser:
+    """Load config and expose a named handler section under ``CAhandler``."""
+    log = logger or logging.getLogger(__name__)
+    log.debug("load_config_section(%s)", section)
+    if section == "CAhandler":
+        return load_config(log)
+    token = cahandler_config_section_set(section)
+    try:
+        return load_config(log)
+    finally:
+        cahandler_config_section_reset(token)
+
+
+def load_cahandler_config(
+    logger: logging.Logger,
+    handler: Any = None,
+    section: Optional[str] = None,
+) -> configparser.ConfigParser:
+    """Deprecated: use ``load_config()`` inside a bound handler context."""
+    if section is None and handler is not None:
+        section = getattr(
+            handler,
+            "config_section",
+            getattr(handler, "CONFIG_SECTION", "CAhandler"),
+        )
+    elif section is None:
+        section = "CAhandler"
+    return load_config_section(logger, section)
 
 
 def header_info_jsonify(logger: logging.Logger, header_info: str) -> Dict[str, str]:

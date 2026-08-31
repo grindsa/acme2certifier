@@ -32,6 +32,7 @@ from acme2certifier.acme_srv.helper import (
     config_async_mode_load,
     config_dryrun_load,
 )
+from acme2certifier.acme_srv.helpers.cahandler_registry import CAHandlerRegistry
 from acme2certifier.acme_srv.helpers.csr import _normalize_bound_name
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
@@ -293,6 +294,7 @@ class Certificate(object):
 
         # Legacy properties for backward compatibility
         self.cahandler = None
+        self.cahandler_registry = None
         self.err_msg_dic = error_dic_get(self.logger)
         self.hooks = None
         self.message = Message(self.debug, self.server_name, self.logger)
@@ -715,14 +717,22 @@ class Certificate(object):
         self.logger.debug("Certificate._load_configuration()")
         config_dic = load_config()
 
-        # load ca_handler according to configuration
-        ca_handler_module = ca_handler_load(self.logger, config_dic)
-
-        if ca_handler_module:
-            # store handler in variable
-            self.cahandler = ca_handler_module.CAhandler
+        self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
+        default_bound = self.cahandler_registry.default_handler()
+        if default_bound is not None:
+            self.cahandler = default_bound
         else:
-            self.logger.critical("No ca_handler loaded")
+            ca_handler_module = ca_handler_load(self.logger, config_dic)
+            if ca_handler_module:
+                from acme2certifier.acme_srv.helpers.cahandler_registry import (
+                    BoundCAHandler,
+                )
+
+                self.cahandler = BoundCAHandler(
+                    ca_handler_module.CAhandler, "CAhandler", "default"
+                )
+            else:
+                self.logger.critical("No ca_handler loaded")
 
         # load hooks
         self._load_hooks_configuration(config_dic)
@@ -738,7 +748,7 @@ class Certificate(object):
             self.logger, config_dic
         )
 
-        self.logger.debug("ca_handler: %s", ca_handler_module)
+        self.logger.debug("ca_handler: %s", self.cahandler)
         self.logger.debug("Certificate._load_configuration() ended.")
 
     def _load_and_validate_identifiers(

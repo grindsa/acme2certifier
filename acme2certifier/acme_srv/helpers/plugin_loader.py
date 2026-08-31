@@ -134,49 +134,64 @@ def _loaded_identity(loaded: Any) -> str:
     return str(path or name or loaded)
 
 
-def ca_handler_load(
-    logger: logging.Logger, config_dic: Dict
-) -> importlib.import_module:
-    """load and return ca_handler"""
-    logger.debug("Helper.plugin_loader.ca_handler_load() start")
+def ca_handler_load_from_section(
+    logger: logging.Logger,
+    config_dic: Dict,
+    section_name: str,
+    *,
+    allow_default_fallback: bool = True,
+) -> Optional[Any]:
+    """Load a CAhandler module from a config section (``CAhandler`` or ``CAhandler:<name>``)."""
+    logger.debug(
+        "Helper.plugin_loader.ca_handler_load_from_section(%s)", section_name
+    )
 
-    if "CAhandler" not in config_dic:
+    if section_name not in config_dic:
         logger.error(
-            "%s: CAhandler configuration missing in config file",
+            "%s: section %s missing in config file",
             CONFIGURATION_ERROR_DETAIL,
+            section_name,
         )
         return None
 
-    section = config_dic["CAhandler"]
+    section = config_dic[section_name]
     handler_module = _section_option(section, "handler_module")
     handler_file = _section_option(section, "handler_file")
+    sys_module_name = section_name.replace(":", "_")
     logger.debug(
-        "CA handler configuration: handler_module=%r handler_file=%r",
+        "CA handler [%s]: handler_module=%r handler_file=%r",
+        section_name,
         handler_module,
         handler_file,
     )
 
     if handler_module and handler_file:
         logger.warning(
-            "Both handler_module and handler_file set; using handler_module, "
-            "ignoring handler_file"
+            "[%s] both handler_module and handler_file set; using handler_module",
+            section_name,
         )
 
     if handler_module:
-        logger.debug("Loading CA handler via handler_module=%s", handler_module)
         loaded = _load_plugin_ref(
             logger,
             handler_module,
-            sys_module_name="CAhandler",
-            error_prefix="Loading CAhandler via handler_module",
+            sys_module_name=sys_module_name,
+            error_prefix=f"Loading CAhandler via handler_module in [{section_name}]",
         )
         if loaded is not None:
             _log_once_info(
-                logger, "ca_handler", "Loaded CA handler %s", _loaded_identity(loaded)
+                logger,
+                f"ca_handler:{section_name}",
+                "Loaded CA handler %s from [%s]",
+                _loaded_identity(loaded),
+                section_name,
             )
             return loaded
+        if not allow_default_fallback:
+            return None
         logger.warning(
-            "CA handler_module load failed; falling back to default CAhandler"
+            "CA handler_module load failed for [%s]; falling back to default CAhandler",
+            section_name,
         )
     elif handler_file:
         warn_file_config_deprecated(
@@ -187,19 +202,32 @@ def ca_handler_load(
         )
         loaded = _load_from_file(
             logger,
-            "CAhandler",
+            sys_module_name,
             handler_file,
-            "Loading CAhandler configured in cfg",
+            f"Loading CAhandler configured in [{section_name}]",
         )
         if loaded is not None:
             _log_once_info(
-                logger, "ca_handler", "Loaded CA handler %s", _loaded_identity(loaded)
+                logger,
+                f"ca_handler:{section_name}",
+                "Loaded CA handler %s from [%s]",
+                _loaded_identity(loaded),
+                section_name,
             )
             return loaded
-        logger.warning("CA handler_file load failed; falling back to default CAhandler")
+        if not allow_default_fallback:
+            return None
+        logger.warning(
+            "CA handler_file load failed for [%s]; falling back to default CAhandler",
+            section_name,
+        )
+    elif not allow_default_fallback:
+        logger.error("[%s] has no handler_module or handler_file", section_name)
+        return None
     else:
         logger.debug(
-            "Neither handler_module nor handler_file set; using default CAhandler"
+            "[%s] has no handler_module/handler_file; using default CAhandler",
+            section_name,
         )
 
     logger.debug("Attempting default CA handler acme_srv.ca_handler")
@@ -216,6 +244,22 @@ def ca_handler_load(
     except Exception as err_:
         logger.critical("Loading default CAhandler failed with err: %s", err_)
         return None
+
+
+def ca_handler_load(
+    logger: logging.Logger, config_dic: Dict
+) -> importlib.import_module:
+    """load and return ca_handler"""
+    logger.debug("Helper.plugin_loader.ca_handler_load() start")
+
+    if "CAhandler" not in config_dic:
+        logger.error(
+            "%s: CAhandler configuration missing in config file",
+            CONFIGURATION_ERROR_DETAIL,
+        )
+        return None
+
+    return ca_handler_load_from_section(logger, config_dic, "CAhandler")
 
 
 def eab_handler_load(

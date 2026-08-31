@@ -221,23 +221,30 @@ class TestDirectory(unittest.TestCase):
 
     def test_017_load_ca_handler_success(self):
         config_dic = {}
-        ca_handler_module = MagicMock()
-        ca_handler_module.CAhandler = MagicMock()
+        bound = MagicMock()
         with patch(
-            "acme2certifier.acme_srv.directory.ca_handler_load",
-            return_value=ca_handler_module,
-        ):
+            "acme2certifier.acme_srv.directory.CAHandlerRegistry"
+        ) as mock_registry_cls:
+            registry = mock_registry_cls.return_value
+            registry.load.return_value = registry
+            registry.default_handler.return_value = bound
             self.directory._load_ca_handler(config_dic)
-            self.assertEqual(self.directory.cahandler, ca_handler_module.CAhandler)
+            self.assertEqual(self.directory.cahandler, bound)
 
     def test_018_load_ca_handler_failure(self):
         config_dic = {}
         with patch(
-            "acme2certifier.acme_srv.directory.ca_handler_load", return_value=None
-        ):
-            with patch.object(self.mock_logger, "critical") as mock_critical:
-                self.directory._load_ca_handler(config_dic)
-                mock_critical.assert_called()
+            "acme2certifier.acme_srv.directory.CAHandlerRegistry"
+        ) as mock_registry_cls:
+            registry = mock_registry_cls.return_value
+            registry.load.return_value = registry
+            registry.default_handler.return_value = None
+            with patch(
+                "acme2certifier.acme_srv.directory.ca_handler_load", return_value=None
+            ):
+                with patch.object(self.mock_logger, "critical") as mock_critical:
+                    self.directory._load_ca_handler(config_dic)
+                    mock_critical.assert_called()
 
     def test_019_build_meta_information(self):
         self.directory.config.suppress_product_information = False

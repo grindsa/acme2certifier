@@ -15,6 +15,7 @@ from .helper import (
     config_profile_load,
     config_async_mode_load,
 )
+from acme2certifier.acme_srv.helpers.cahandler_registry import CAHandlerRegistry
 from .db_handler import DBstore
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
@@ -101,6 +102,7 @@ class Directory:
         self.repository = DirectoryRepository(self.dbstore, self.logger)
         self.config = DirectoryConfig()
         self.cahandler = None
+        self.cahandler_registry = None
         self.version = __version__
         self.dbversion = __dbversion__
 
@@ -280,12 +282,23 @@ class Directory:
         )
 
     def _load_ca_handler(self, config_dic: object) -> None:
-        """Load the CA handler module as configured."""
-        ca_handler_module = ca_handler_load(self.logger, config_dic)
-        if ca_handler_module:
-            self.cahandler = ca_handler_module.CAhandler
+        """Load the CA handler registry as configured."""
+        self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
+        default_bound = self.cahandler_registry.default_handler()
+        if default_bound is not None:
+            self.cahandler = default_bound
         else:
-            self.logger.critical("No ca_handler loaded")
+            ca_handler_module = ca_handler_load(self.logger, config_dic)
+            if ca_handler_module:
+                from acme2certifier.acme_srv.helpers.cahandler_registry import (
+                    BoundCAHandler,
+                )
+
+                self.cahandler = BoundCAHandler(
+                    ca_handler_module.CAhandler, "CAhandler", "default"
+                )
+            else:
+                self.logger.critical("No ca_handler loaded")
 
     def _build_meta_information(self) -> Dict[str, object]:
         """Build the meta information dictionary for the directory response."""
