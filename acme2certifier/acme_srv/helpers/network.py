@@ -24,7 +24,7 @@ from .global_variables import USER_AGENT
 urllib3_cn = connection
 
 
-def _caaidentities_parse(value: str) -> List[str]:
+def _caaidentities_parse(logger: logging.Logger, value: str) -> List[str]:
     """Parse caaidentities from JSON list or comma-separated string."""
     if not value:
         return []
@@ -33,7 +33,7 @@ def _caaidentities_parse(value: str) -> List[str]:
         if isinstance(parsed, list):
             return [str(item).strip() for item in parsed if str(item).strip()]
     except Exception:
-        pass
+        logger.debug("Error parsing caaidentities as json: %s", value)
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
@@ -59,7 +59,7 @@ def server_name_configuration_validate(logger: logging.Logger, config_dic) -> No
         return
 
     caa_raw = config_dic.get("Directory", "caaidentities", fallback=None)
-    caaidentities = _caaidentities_parse(caa_raw) if caa_raw else []
+    caaidentities = _caaidentities_parse(logger, caa_raw) if caa_raw else []
     if caaidentities and server_name not in caaidentities:
         logger.warning(
             "Configured server_name '%s' is not listed in Directory.caaidentities %s",

@@ -659,3 +659,155 @@ class TestCsrBinding:
                 "identifiers": identifiers,
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
+
+
+class TestClientHeaderParameterGate:
+    """Client-selected CA template/profile via header_info without allowlist."""
+
+    def test_029_empty_allowlist_ignored_without_ack(self) -> None:
+        logger = logging.getLogger("test_hardening_header_param")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with patch.object(logger, "warning") as mock_warn:
+                result = client_header_parameter_decide(
+                    logger, "template", "Privileged", [], "WebServer"
+                )
+        assert result == "WebServer"
+        mock_warn.assert_called_once()
+
+    def test_030_empty_allowlist_permitted_with_ack(self) -> None:
+        logger = logging.getLogger("test_hardening_header_param")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            with patch.object(logger, "critical") as mock_crit:
+                result = client_header_parameter_decide(
+                    logger, "template", "Privileged", [], "WebServer"
+                )
+        assert result == "Privileged"
+        mock_crit.assert_called_once()
+
+    def test_031_nonempty_allowlist_applies_listed_value(self) -> None:
+        logger = logging.getLogger("test_hardening_header_param")
+        result = client_header_parameter_decide(
+            logger, "template", "WebServer", ["WebServer", "User"], "User"
+        )
+        assert result == "WebServer"
+
+    def test_032_nonempty_allowlist_ignores_unlisted_value(self) -> None:
+        logger = logging.getLogger("test_hardening_header_param")
+        with patch.object(logger, "warning") as mock_warn:
+            result = client_header_parameter_decide(
+                logger, "template", "Privileged", ["WebServer", "User"], "User"
+            )
+        assert result == "User"
+        mock_warn.assert_called_once()
+
+    def test_033_header_info_path_ignores_without_ack(self) -> None:
+        from acme2certifier.acme_srv.helpers.eab import eab_profile_header_info_check
+
+        cahandler = MagicMock()
+        cahandler.eab_profiling = False
+        cahandler.profiles = None
+        cahandler.header_info_field = "HTTP_X_TEMPLATE"
+        cahandler.allowed_templates = []
+        cahandler.template = "WebServer"
+        logger = logging.getLogger("test_hardening_header_param")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with patch(
+                "acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve",
+                return_value=[],
+            ):
+                with patch(
+                    "acme2certifier.acme_srv.helpers.eab.header_info_lookup",
+                    return_value="Privileged",
+                ):
+                    err = eab_profile_header_info_check(
+                        logger, cahandler, "csr", "template"
+                    )
+        assert err is None
+        assert cahandler.template == "WebServer"
+
+    def test_034_empty_client_value_keeps_default(self) -> None:
+        logger = logging.getLogger("test_hardening_header_param")
+        result = client_header_parameter_decide(
+            logger, "template", None, ["WebServer"], "WebServer"
+        )
+        assert result == "WebServer"
+        result_empty = client_header_parameter_decide(
+            logger, "template", "", ["WebServer"], "WebServer"
+        )
+        assert result_empty == "WebServer"
+
+
+class TestEabProfileDenylist:
+    def test_001_exact_and_suffix_denied(self) -> None:
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            eab_profile_attr_denied,
+        )
+
+        assert eab_profile_attr_denied("ca_bundle") is True
+        assert eab_profile_attr_denied("acme_url") is True
+        assert eab_profile_attr_denied("acme_keypath") is True
+        assert eab_profile_attr_denied("acme_keyfile") is False
+        assert eab_profile_attr_denied("eab_handler") is True
+        assert eab_profile_attr_denied("config_dic") is True
+        assert eab_profile_attr_denied("api_host") is False
+        assert eab_profile_attr_denied("api_user") is False
+        assert eab_profile_attr_denied("vault_path") is False
+        assert eab_profile_attr_denied("profile_id") is False
+
+    def test_002_string_check_skips_denied_attr(self) -> None:
+        from acme2certifier.acme_srv.helpers.eab import eab_profile_string_check
+
+        class _Handler:
+            ca_bundle = True
+            api_user = "default"
+
+        cahandler = _Handler()
+        logger = logging.getLogger("test_hardening_eab_deny")
+        with patch.object(logger, "warning") as mock_warn:
+            eab_profile_string_check(logger, cahandler, "ca_bundle", "False")
+            eab_profile_string_check(logger, cahandler, "api_user", "kid_user")
+        assert cahandler.ca_bundle is True
+        assert cahandler.api_user == "kid_user"
+        assert mock_warn.call_count == 1
+
+    def test_003_list_check_skips_denied_attr(self) -> None:
+        from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
+
+        class _Handler:
+            verify = True
+            profile_id = "default"
+
+        cahandler = _Handler()
+        logger = logging.getLogger("test_hardening_eab_deny_list")
+        eab_handler = MagicMock()
+        with patch(
+            "acme2certifier.acme_srv.helpers.eab.client_parameter_validate",
+            return_value=("p1", None),
+        ) as mock_validate:
+            with patch.object(logger, "warning") as mock_warn:
+                assert (
+                    eab_profile_list_check(
+                        logger,
+                        cahandler,
+                        eab_handler,
+                        "csr",
+                        "verify",
+                        ["False"],
+                    )
+                    is None
+                )
+                assert (
+                    eab_profile_list_check(
+                        logger,
+                        cahandler,
+                        eab_handler,
+                        "csr",
+                        "profile_id",
+                        ["p1", "p2"],
+                    )
+                    is None
+                )
+        assert cahandler.verify is True
+        assert cahandler.profile_id == "p1"
+        mock_warn.assert_called_once()
+        mock_validate.assert_called_once()

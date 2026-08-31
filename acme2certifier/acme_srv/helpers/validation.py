@@ -43,6 +43,40 @@ def validate_csr(logger: logging.Logger, order_dic: Dict[str, str], _csr) -> boo
     return True
 
 
+def normalize_email_address(logger: logging.Logger, raw: str) -> Optional[str]:
+    """Parse and normalize an email address for identity comparison.
+
+    Returns a canonical form with a lowercased local part and an A-label domain,
+    or None if the address cannot be parsed or the domain is not valid IDNA.
+    """
+    logger.debug("Helper.normalize_email_address()")
+    if not raw or not isinstance(raw, str):
+        return None
+
+    _display, addr = parseaddr(raw.strip())
+    if not addr or "@" not in addr:
+        logger.debug("Helper.normalize_email_address(): unparseable From header")
+        return None
+
+    local, _, domain = addr.rpartition("@")
+    local = local.strip()
+    domain = domain.strip()
+    if not local or not domain:
+        return None
+
+    try:
+        domain_ascii = idna.encode(domain).decode("ascii").lower()
+    except idna.IDNAError as err:
+        logger.debug(
+            "Helper.normalize_email_address(): invalid domain %s: %s", domain, err
+        )
+        return None
+
+    result = f"{local.lower()}@{domain_ascii}"
+    logger.debug("Helper.normalize_email_address() ended with: %s", result)
+    return result
+
+
 def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
     """validate contact against RFC608"""
     logger.debug("Helper.validate_email()")

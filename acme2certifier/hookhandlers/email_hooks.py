@@ -254,8 +254,20 @@ class Hooks:
             )
 
         # SMTP Security configuration
-        self.smtp_use_tls = self._get_config_boolean("smtp_use_tls", True)
-        self.smtp_use_starttls = self._get_config_boolean("smtp_use_starttls", False)
+        self._smtp_use_tls_explicit = self._config_key_present("smtp_use_tls")
+        self._smtp_use_starttls_explicit = self._config_key_present("smtp_use_starttls")
+        if self._smtp_use_tls_explicit:
+            self.smtp_use_tls = self._get_config_boolean("smtp_use_tls", False)
+        else:
+            self.smtp_use_tls = False
+        if self._smtp_use_starttls_explicit:
+            self.smtp_use_starttls = self._get_config_boolean(
+                "smtp_use_starttls", False
+            )
+        else:
+            self.smtp_use_starttls = False
+        self._apply_smtp_port_security_defaults()
+        self.smtp_debug = self._get_config_boolean("smtp_debug", False)
 
         self._setup_email_envelope()
         self.logger.debug("Hooks._load_configuration() ended")

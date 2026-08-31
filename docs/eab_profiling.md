@@ -74,6 +74,13 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
   "hmac": "hmac-key",
   "authorization": {
     "prevalidated_domainlist": ["www.example.fi", "*.acme"]
+  },
+  "keyid_04": {
+    "hmac": "hmac-key",
+    "challenge": {
+      "http_01_support": "False",
+      "tls_alpn_01_support": "False"
+    }
   }
 }
 ```
@@ -82,6 +89,7 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
 - ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg. Furthermore the challenge validation got disabled for this user which means that acme2certifier will accept any CN/SAN matching the pattern "*.example.fi" or "*.acme".
 - ACME accounts created with keyid "keyid_02" do not have any special enrollment configuration as all parameters will be taken from the \[CAhandler\] section in ´acme_srv.cfg´. Furthermore, challenge validation got disabled, ACME profile-name validation is skipped (`order.profiles_check_disable`), and both forward and reverse address checking gets activated.
 - ACME accounts created with keyid "keyid_03" can use the [pre-validation domainlist](identifier_prevalidation.md) feature to enroll certificates for `www.example.fi` and `*.acme` without challenge-validation
+- ACME accounts created with keyid "keyid_04" are restricted to [dns-01](https://tools.ietf.org/html/rfc8555#section-8.4) challenges only (`http_01_support` and `tls_alpn_01_support` disabled in the EAB profile), regardless of global `[Challenge]` settings
 
 Starting from v0.36 acme2certifier does support profile configuration in yaml format. Below a configuration example providing the same level of functionality as the above JSON configuration
 
@@ -127,6 +135,11 @@ keyid_03:
     prevalidated_domainlist:
     - "www.example.fi"
     - "*.acme"
+keyid_04:
+  hmac: "hmac-key"
+  challenge:
+    http_01_support: False
+    tls_alpn_01_support: False
 ```
 
 An optional desktop helper to create and edit `kid_profiles` YAML is available in the [a2c-eab-profile-editor](https://github.com/grindsa/a2c-eab-profile-editor) repository.

@@ -735,6 +735,7 @@ class TestChallengeSetManager(unittest.TestCase):
             "dns",
             "example.com",
             False,
+            eab_kid=None,
         )
 
     @patch("acme2certifier.acme_srv.authorization.Challenge")
@@ -758,7 +759,14 @@ class TestChallengeSetManager(unittest.TestCase):
 
         self.assertEqual(result, [])
         mock_challenge_instance.challengeset_get.assert_called_once_with(
-            "test_authz", "pending", "test_token", False, None, None, False
+            "test_authz",
+            "pending",
+            "test_token",
+            False,
+            None,
+            None,
+            False,
+            eab_kid=None,
         )
 
 
@@ -1077,6 +1085,7 @@ class TestAuthorization(unittest.TestCase):
             None,
             None,
             False,
+            eab_kid=None,
         )
 
     @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
