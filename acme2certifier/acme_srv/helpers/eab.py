@@ -218,7 +218,7 @@ def eab_profile_revocation_check(
             b64_url_recode(logger, certificate_raw), revocation=True
         )
         for key, value in eab_profile_dic.items():
-            if key in ["subject", "allowed_domainlist"]:
+            if key in ["subject", "allowed_domainlist", "cahandler_name"]:
                 continue
             elif isinstance(value, str):
                 eab_profile_string_check(logger, cahandler, key, value)
@@ -246,6 +246,8 @@ def eab_profile_check(
     with cahandler.eab_handler(logger) as eab_handler:
         eab_profile_dic = eab_handler.eab_profile_get(csr)
         for key, value in eab_profile_dic.items():
+            if key == "cahandler_name":
+                continue
             if key == "subject":
                 result = eab_profile_subject_check(logger, csr, value)
             elif isinstance(value, str):
@@ -329,6 +331,10 @@ def eab_profile_string_check(logger, cahandler, key, value):
     logger.debug(
         "Helper.eab_profile_string_check(): string: key: %s, value: %s", key, value
     )
+
+    if key == "cahandler_name":
+        logger.debug("Helper.eab_profile_string_check() skipping cahandler_name")
+        return
 
     if hasattr(cahandler, key):
         if not eab_profile_warn_if_denied(logger, key):

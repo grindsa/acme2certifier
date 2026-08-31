@@ -5,8 +5,9 @@ from __future__ import annotations
 
 import configparser
 import logging
+import sys
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -164,3 +165,115 @@ def test_bound_cahandler_load_config_in_context(logger: logging.Logger) -> None:
             handler._config_load()
 
     assert handler.api_host == "https://ejbca.example"
+
+
+def _multi_registry(logger: logging.Logger) -> CAHandlerRegistry:
+    """Build a loaded multi-handler registry with openssl + ejbca."""
+    config = _cfg(
+        {
+            "CAhandler": {
+                "multi_handler": "True",
+                "default_handler": "openssl",
+            },
+            "CAhandler:openssl": {
+                "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
+            },
+            "CAhandler:ejbca": {
+                "handler_module": "acme2certifier.cahandlers.ejbca_ca_handler",
+            },
+            "Order": {
+                "profile_cahandler": '{"long": "ejbca", "short": "openssl"}',
+            },
+        }
+    )
+    module = SimpleNamespace(CAhandler=_DummyHandler)
+    with patch(
+        "acme2certifier.acme_srv.helpers.cahandler_registry.ca_handler_load_from_section",
+        return_value=module,
+    ):
+        return CAHandlerRegistry(logger).load(config)
+
+
+def test_resolve_default_handler(logger: logging.Logger) -> None:
+    registry = _multi_registry(logger)
+    bound = registry.resolve(csr="dummy-csr-with-no-domain-match")
+    assert bound is not None
+    assert bound.name == "openssl"
+
+
+def test_resolve_profile_cahandler(logger: logging.Logger) -> None:
+    registry = _multi_registry(logger)
+    bound = registry.resolve(order_profile="long", csr="dummy")
+    assert bound is not None
+    assert bound.name == "ejbca"
+
+
+def test_resolve_eab_cahandler_name(logger: logging.Logger) -> None:
+    registry = _multi_registry(logger)
+    bound = registry.resolve(cahandler_name="ejbca", csr="dummy")
+    assert bound is not None
+    assert bound.name == "ejbca"
+
+
+def test_resolve_unknown_eab_name_returns_none(logger: logging.Logger) -> None:
+    registry = _multi_registry(logger)
+    assert registry.resolve(cahandler_name="missing", csr="dummy") is None
+
+
+def test_resolve_stored_name(logger: logging.Logger) -> None:
+    registry = _multi_registry(logger)
+    bound = registry.resolve(stored_name="ejbca", csr="dummy")
+    assert bound is not None
+    assert bound.name == "ejbca"
+
+
+@patch(
+    "acme2certifier.acme_srv.helper.csr_cn_get",
+    return_value="host.internal.example",
+)
+@patch(
+    "acme2certifier.acme_srv.helper.csr_san_get",
+    return_value=["dns:host.internal.example"],
+)
+def test_resolve_domain_routing(
+    _mock_san,
+    _mock_cn,
+    logger: logging.Logger,
+) -> None:
+    config = _cfg(
+        {
+            "CAhandler": {
+                "multi_handler": "True",
+                "default_handler": "openssl",
+            },
+            "CAhandler:openssl": {
+                "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
+            },
+            "CAhandler:internal": {
+                "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
+                "allowed_domainlist": '["\\\\.internal\\\\.example$"]',
+            },
+        }
+    )
+    module = SimpleNamespace(CAhandler=_DummyHandler)
+    with patch(
+        "acme2certifier.acme_srv.helpers.cahandler_registry.ca_handler_load_from_section",
+        return_value=module,
+    ):
+        registry = CAHandlerRegistry(logger).load(config)
+
+    bound = registry.resolve(csr="dummy-csr")
+    assert bound is not None
+    assert bound.name == "internal"
+
+
+def test_cahandler_lookup_from_csr(logger: logging.Logger) -> None:
+    models_mock = MagicMock()
+    models_mock.DBstore.return_value.certificates_search.return_value = [
+        {"order__cahandler": "ejbca"}
+    ]
+    modules = {"acme2certifier.acme_srv.db_handler": models_mock}
+    with patch.dict(sys.modules, modules):
+        from acme2certifier.acme_srv.helpers.config import cahandler_lookup
+
+        assert cahandler_lookup(logger, csr="test-csr") == "ejbca"

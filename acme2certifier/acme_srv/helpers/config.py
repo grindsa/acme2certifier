@@ -1083,6 +1083,40 @@ def profile_lookup(logger: logging.Logger, csr: str) -> str:
     return profile_name
 
 
+def cahandler_lookup(
+    logger: logging.Logger,
+    csr: Optional[str] = None,
+    cert_raw: Optional[str] = None,
+) -> Optional[str]:
+    """Return the handler name stored on the order linked to a CSR or certificate."""
+    logger.debug("Helper.cahandler_lookup()")
+
+    from acme2certifier.acme_srv.db_handler import DBstore  # pylint: disable=c0415
+
+    dbstore = DBstore(logger=logger)
+    if cert_raw:
+        search_key, value = "cert_raw", cert_raw
+    elif csr:
+        search_key, value = "csr", csr
+    else:
+        return None
+
+    try:
+        result = dbstore.certificates_search(
+            search_key, value, ["id", "order_id", "order__cahandler"]
+        )
+    except Exception as err:
+        logger.warning("CAhandler lookup failed with: %s", err)
+        result = None
+
+    cahandler_name = None
+    if result and result[0].get("order__cahandler"):
+        cahandler_name = result[0]["order__cahandler"]
+
+    logger.debug("Helper.cahandler_lookup() ended with: %s", cahandler_name)
+    return cahandler_name
+
+
 def client_parameter_validate(
     logger, csr: str, cahandler, value: str, value_list: List[str]
 ) -> Tuple[str, str]:
