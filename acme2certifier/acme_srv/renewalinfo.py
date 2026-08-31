@@ -430,15 +430,24 @@ class Renewalinfo(object):
                 self.logger.error("Error when getting renewal information: %s", err_)
                 renewalinfo_dic = {}
                 rc_code = 400
-        response_dic = {"code": rc_code}
         if renewalinfo_dic:
-            response_dic["data"] = renewalinfo_dic
-            response_dic["header"] = {
-                "Retry-After": f"{self.config.retry_after_timeout}"
+            return {
+                "code": rc_code,
+                "data": renewalinfo_dic,
+                "header": {
+                    "Retry-After": f"{self.config.retry_after_timeout}"
+                },
             }
-        else:
-            response_dic["data"] = self.err_msg_dic["malformed"]
-        return response_dic
+        if not rc_code or rc_code < 400:
+            rc_code = 404
+        detail = (
+            "certificate not found"
+            if rc_code == 404
+            else "failed to get renewal information"
+        )
+        return self._problem_response(
+            (rc_code, self.err_msg_dic["malformed"], detail)
+        )
 
     def _problem_response(
         self,

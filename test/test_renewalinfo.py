@@ -208,7 +208,14 @@ class TestRenewalinfo(unittest.TestCase):
         ):
             result = self.renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 404)
-            self.assertEqual(result["data"], "malf")
+            self.assertEqual(
+                result["data"],
+                {
+                    "status": 404,
+                    "type": "malf",
+                    "detail": "certificate not found",
+                },
+            )
 
     def test_017_get_returns_400_on_exception(self):
         self.mock_repository.get_housekeeping_param.return_value = True
@@ -220,7 +227,14 @@ class TestRenewalinfo(unittest.TestCase):
         ):
             result = self.renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 400)
-            self.assertEqual(result["data"], "malf")
+            self.assertEqual(
+                result["data"],
+                {
+                    "status": 400,
+                    "type": "malf",
+                    "detail": "failed to get renewal information",
+                },
+            )
 
     def test_018_update_success(self):
         self.mock_message.check.return_value = (
@@ -684,7 +698,14 @@ class TestRenewalinfo(unittest.TestCase):
         ):
             result = renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 404)
-            self.assertEqual(result["data"], "malf")
+            self.assertEqual(
+                result["data"],
+                {
+                    "status": 404,
+                    "type": "malf",
+                    "detail": "certificate not found",
+                },
+            )
 
     def test_045_get_compat_400(self):
         renewalinfo = self.renewalinfo
@@ -698,7 +719,14 @@ class TestRenewalinfo(unittest.TestCase):
         ):
             result = renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 400)
-            self.assertEqual(result["data"], "malf")
+            self.assertEqual(
+                result["data"],
+                {
+                    "status": 400,
+                    "type": "malf",
+                    "detail": "failed to get renewal information",
+                },
+            )
 
     def test_046_update_compat_success(self):
         renewalinfo = self.renewalinfo

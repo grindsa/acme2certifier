@@ -661,6 +661,37 @@ class TestDjangoViews(unittest.TestCase):
         self.assertTrue(inst.update.called)
         self.assertTrue(mock_log.called)
 
+    @patch(f"{_VIEWS}.log_response")
+    @patch(f"{_VIEWS}.get_url", return_value="http://srv")
+    def test_045_renewalinfo_get_404_problem_document_issue380(
+        self, _url, mock_log
+    ) -> None:
+        """GET ARI 404 serializes an ACME problem document (issue #380)."""
+        cm, inst = self._cm(
+            get={
+                "code": 404,
+                "data": {
+                    "status": 404,
+                    "type": "urn:ietf:params:acme:error:malformed",
+                    "detail": "certificate not found",
+                },
+            }
+        )
+        with patch(f"{_VIEWS}.Renewalinfo", return_value=cm):
+            resp = self.views.renewalinfo(
+                self._meta(
+                    self.rf.get(
+                        "/acme/renewal-info/42Z0u3BojSxdTg6mSo-bNyKcgpI.AOpUG6fnb-IW4i8A52l4K28"
+                    )
+                )
+            )
+        self.assertEqual(404, resp.status_code)
+        body = json.loads(resp.content)
+        self.assertEqual("urn:ietf:params:acme:error:malformed", body["type"])
+        self.assertEqual("certificate not found", body["detail"])
+        self.assertTrue(inst.get.called)
+        self.assertTrue(mock_log.called)
+
 
 if __name__ == "__main__":
     unittest.main()
