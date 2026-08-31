@@ -25,16 +25,30 @@ class _BoundCAHandlerInstance:
         self._token = None
 
     def __enter__(self) -> Any:
-        self._token = cahandler_config_section_set(self._section)
+        logger = getattr(self._handler, "logger", None)
+        self.logger.debug(
+            "BoundCAHandlerInstance.__enter__() binding config section %r",
+            self._section,
+        )
+        self._token = cahandler_config_section_set(self._section, logger)
         return self._handler.__enter__()
 
     def __exit__(self, *args: Any) -> Any:
+        logger = getattr(self._handler, "logger", None)
         try:
             return self._handler.__exit__(*args)
         finally:
             if self._token is not None:
-                cahandler_config_section_reset(self._token)
+                self.logger.debug(
+                    "BoundCAHandlerInstance.__exit__() clearing config section %r",
+                    self._section,
+                )
+                cahandler_config_section_reset(self._token, logger)
                 self._token = None
+
+    @property
+    def logger(self) -> logging.Logger:
+        return getattr(self._handler, "logger", None) or logging.getLogger(__name__)
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self._handler, item)
@@ -67,6 +81,12 @@ class BoundCAHandler:
         self.name = name
 
     def __call__(self, debug: bool, logger: logging.Logger) -> Any:
+        logger.debug(
+            "BoundCAHandler.__call__() name=%r section=%r handler=%s",
+            self.name,
+            self.section,
+            getattr(self.handler_cls, "__name__", self.handler_cls),
+        )
         inst = self.handler_cls(debug, logger)
         inst.config_section = self.section
         inst.cahandler_registry_name = self.name
@@ -117,6 +137,18 @@ class CAHandlerRegistry:
                 self._single_bound = BoundCAHandler(
                     module.CAhandler, "CAhandler", "default"
                 )
+                self.logger.debug(
+                    "CAHandlerRegistry.load() classical mode handler=%s",
+                    getattr(module, "__name__", module),
+                )
+            else:
+                self.logger.debug(
+                    "CAHandlerRegistry.load() classical mode: no handler loaded"
+                )
+            self.logger.debug(
+                "CAHandlerRegistry.load() ended multi_handler=False bound=%s",
+                self._single_bound is not None,
+            )
             return self
 
         if config_dic.get("CAhandler", "handler_module", fallback=None) or config_dic.get(
@@ -137,6 +169,11 @@ class CAHandlerRegistry:
             self.logger.error("%s", self._startup_error)
             return self
 
+        self.logger.debug(
+            "CAHandlerRegistry.load() multi_handler=True default_handler=%r",
+            self.default_name,
+        )
+
         if "Order" in config_dic and config_dic.get(
             "Order", "profile_cahandler", fallback=None
         ):
@@ -147,6 +184,12 @@ class CAHandlerRegistry:
             except Exception as err:
                 self.logger.warning("Failed to parse profile_cahandler: %s", err)
                 self.profile_cahandler = {}
+
+        if self.profile_cahandler:
+            self.logger.debug(
+                "CAHandlerRegistry.load() profile_cahandler=%s",
+                self.profile_cahandler,
+            )
 
         for section in config_dic.sections():
             if not section.startswith(self.SECTION_PREFIX):
@@ -191,12 +234,22 @@ class CAHandlerRegistry:
         return self
 
     def _allowed_domainlist_load(self, config_dic: Any, section: str) -> List[str]:
+        self.logger.debug(
+            "CAHandlerRegistry._allowed_domainlist_load() section=%s", section
+        )
         raw = config_dic.get(section, "allowed_domainlist", fallback=None)
         if not raw:
+            self.logger.debug(
+                "CAHandlerRegistry._allowed_domainlist_load() ended with []"
+            )
             return []
         try:
             parsed = json.loads(raw)
             if isinstance(parsed, list):
+                self.logger.debug(
+                    "CAHandlerRegistry._allowed_domainlist_load() ended with %s",
+                    parsed,
+                )
                 return parsed
         except Exception as err:
             self.logger.warning(
@@ -204,6 +257,9 @@ class CAHandlerRegistry:
                 section,
                 err,
             )
+        self.logger.debug(
+            "CAHandlerRegistry._allowed_domainlist_load() ended with []"
+        )
         return []
 
     def resolve(
@@ -224,11 +280,20 @@ class CAHandlerRegistry:
         )
 
         if not self.multi_handler:
+            self.logger.debug(
+                "CAHandlerRegistry.resolve() ended with classical handler %r",
+                getattr(self._single_bound, "name", None),
+            )
             return self._single_bound
 
         if stored_name:
             if stored_name in self.handlers:
-                return self._bind(stored_name)
+                bound = self._bind(stored_name)
+                self.logger.debug(
+                    "CAHandlerRegistry.resolve() ended with stored handler %r",
+                    stored_name,
+                )
+                return bound
             self.logger.warning(
                 "Stored cahandler '%s' is not registered; re-resolving",
                 stored_name,
@@ -236,7 +301,12 @@ class CAHandlerRegistry:
 
         if cahandler_name:
             if cahandler_name in self.handlers:
-                return self._bind(cahandler_name)
+                bound = self._bind(cahandler_name)
+                self.logger.debug(
+                    "CAHandlerRegistry.resolve() ended with EAB handler %r",
+                    cahandler_name,
+                )
+                return bound
             self.logger.error(
                 "Unknown EAB cahandler_name '%s'; refusing silent fallback",
                 cahandler_name,
@@ -273,9 +343,14 @@ class CAHandlerRegistry:
                 order_profile,
                 self.default_name,
             )
+            self.logger.debug("CAHandlerRegistry.resolve() ended with None")
             return None
 
-        return self._bind(name)
+        bound = self._bind(name)
+        self.logger.debug(
+            "CAHandlerRegistry.resolve() ended with handler %r", name
+        )
+        return bound
 
     def _resolve_by_csr(self, csr: str) -> Optional[str]:
         from acme2certifier.acme_srv.helper import (  # pylint: disable=c0415
@@ -305,8 +380,14 @@ class CAHandlerRegistry:
             return None
 
         if not identifiers:
+            self.logger.debug(
+                "CAHandlerRegistry._resolve_by_csr() ended with no identifiers"
+            )
             return None
 
+        self.logger.debug(
+            "CAHandlerRegistry._resolve_by_csr() identifiers=%s", identifiers
+        )
         matches: List[str] = []
         for name, entry in self.handlers.items():
             patterns = entry.get("allowed_domainlist") or []
@@ -323,40 +404,75 @@ class CAHandlerRegistry:
                 matches[0],
             )
         if matches:
+            self.logger.debug(
+                "CAHandlerRegistry._resolve_by_csr() ended with %r", matches[0]
+            )
             return matches[0]
+        self.logger.debug("CAHandlerRegistry._resolve_by_csr() ended with None")
         return None
 
     def _bind(self, name: str) -> BoundCAHandler:
+        self.logger.debug("CAHandlerRegistry._bind() name=%r", name)
         entry = self.handlers[name]
-        return BoundCAHandler(
+        bound = BoundCAHandler(
             entry["module"].CAhandler,
             entry["config_section"],
             name,
         )
+        self.logger.debug(
+            "CAHandlerRegistry._bind() ended section=%r handler=%s",
+            entry["config_section"],
+            getattr(entry["module"], "__name__", entry["module"]),
+        )
+        return bound
 
     def default_handler(self) -> Optional[BoundCAHandler]:
         """Return the default handler for directory/trigger/renewalinfo."""
+        self.logger.debug("CAHandlerRegistry.default_handler()")
         if not self.multi_handler:
+            self.logger.debug(
+                "CAHandlerRegistry.default_handler() ended with classical handler %r",
+                getattr(self._single_bound, "name", None),
+            )
             return self._single_bound
         if self.default_name and self.default_name in self.handlers:
-            return self._bind(self.default_name)
+            bound = self._bind(self.default_name)
+            self.logger.debug(
+                "CAHandlerRegistry.default_handler() ended with %r",
+                self.default_name,
+            )
+            return bound
+        self.logger.debug("CAHandlerRegistry.default_handler() ended with None")
         return None
 
     def all_handlers(self) -> List[BoundCAHandler]:
         """Return every registered handler (multi mode) or the single handler."""
+        self.logger.debug("CAHandlerRegistry.all_handlers()")
         if not self.multi_handler:
-            return [self._single_bound] if self._single_bound else []
-        return [self._bind(name) for name in self.handlers]
+            handlers = [self._single_bound] if self._single_bound else []
+        else:
+            handlers = [self._bind(name) for name in self.handlers]
+        self.logger.debug(
+            "CAHandlerRegistry.all_handlers() ended with %d handler(s)",
+            len(handlers),
+        )
+        return handlers
 
     def referenced_handlers(self) -> List[BoundCAHandler]:
         """Handlers that must pass handler_check: default + profile map targets."""
+        self.logger.debug("CAHandlerRegistry.referenced_handlers()")
         names: List[str] = []
         if self.default_name and self.default_name in self.handlers:
             names.append(self.default_name)
         for handler_name in self.profile_cahandler.values():
             if handler_name in self.handlers and handler_name not in names:
                 names.append(handler_name)
-        return [self._bind(name) for name in names]
+        handlers = [self._bind(name) for name in names]
+        self.logger.debug(
+            "CAHandlerRegistry.referenced_handlers() ended with %s",
+            names,
+        )
+        return handlers
 
     @property
     def startup_error(self) -> Optional[str]:

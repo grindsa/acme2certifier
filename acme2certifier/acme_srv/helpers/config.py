@@ -826,19 +826,53 @@ def _parse_config_content(
         return _parse_yaml(content, logger), "yaml"
 
 
-def cahandler_config_section_set(section: str) -> Token:
+def cahandler_config_section_set(
+    section: str,
+    logger: logging.Logger = None,
+) -> Token:
     """Bind ``load_config()`` reads of ``[CAhandler]`` to a named handler section."""
-    return _CAHANDLER_CONFIG_SECTION.set(section)
+    log = logger or logging.getLogger(__name__)
+    previous = _CAHANDLER_CONFIG_SECTION.get()
+    log.debug(
+        "Helper.cahandler_config_section_set() start section=%r previous=%r",
+        section,
+        previous,
+    )
+    token = _CAHANDLER_CONFIG_SECTION.set(section)
+    log.debug(
+        "Helper.cahandler_config_section_set() ended active=%r",
+        section,
+    )
+    return token
 
 
-def cahandler_config_section_reset(token: Token) -> None:
+def cahandler_config_section_reset(
+    token: Token,
+    logger: logging.Logger = None,
+) -> None:
     """Clear a ``cahandler_config_section_set()`` binding."""
+    log = logger or logging.getLogger(__name__)
+    previous = _CAHANDLER_CONFIG_SECTION.get()
+    log.debug(
+        "Helper.cahandler_config_section_reset() start previous=%r",
+        previous,
+    )
     _CAHANDLER_CONFIG_SECTION.reset(token)
+    log.debug(
+        "Helper.cahandler_config_section_reset() ended active=%r",
+        _CAHANDLER_CONFIG_SECTION.get(),
+    )
 
 
-def cahandler_config_section_get() -> Optional[str]:
+def cahandler_config_section_get(
+    logger: logging.Logger = None,
+) -> Optional[str]:
     """Return the active bound CAhandler config section, if any."""
-    return _CAHANDLER_CONFIG_SECTION.get()
+    log = logger or logging.getLogger(__name__)
+    log.debug("Helper.cahandler_config_section_get()")
+    section = _CAHANDLER_CONFIG_SECTION.get()
+    log.debug("Helper.cahandler_config_section_get() ended with %r", section)
+    return section
 
 
 def _cahandler_section_merged_config(
@@ -934,8 +968,13 @@ def load_config(
     else:
         log.debug("Loaded acme_srv.cfg %s (%s, %s)", abs_path, source, cfg_format)
     if not explicit_cfg_file:
-        bound_section = _CAHANDLER_CONFIG_SECTION.get()
+        bound_section = cahandler_config_section_get(log)
         if bound_section and bound_section != "CAhandler":
+            log.debug(
+                "Helper.load_config(): merging bound CAhandler section %r "
+                "into [CAhandler]",
+                bound_section,
+            )
             config = _cahandler_section_merged_config(config, bound_section, log)
     log.debug(
         "Helper.load_config() ended sections=%s",
@@ -953,11 +992,11 @@ def load_config_section(
     log.debug("load_config_section(%s)", section)
     if section == "CAhandler":
         return load_config(log)
-    token = cahandler_config_section_set(section)
+    token = cahandler_config_section_set(section, log)
     try:
         return load_config(log)
     finally:
-        cahandler_config_section_reset(token)
+        cahandler_config_section_reset(token, log)
 
 
 def load_cahandler_config(
