@@ -12,11 +12,15 @@ When `[DBhandler] handler: django`, Django uses `acme2certifier.django_project.s
 | Variable | Required | Notes |
 | --- | --- | --- |
 | `ACME2CERTIFIER_SECRET_KEY` | yes (production) | Install scripts generate one via `a2c-django-secret-keygen` when unset and persist it. |
-| `ACME2CERTIFIER_ALLOWED_HOSTS` | recommended | Comma-separated hostnames/IPs Django accepts in the `Host` header. Default without override: `127.0.0.1,localhost`. |
+| `ACME2CERTIFIER_ALLOWED_HOSTS` | recommended | Comma-separated hostnames/IPs Django accepts in the `Host` header. Default without override: `127.0.0.1,localhost`. When `[DEFAULT] server_name` is set in `acme_srv.cfg`, that hostname is merged into `ALLOWED_HOSTS` at worker startup (see below). |
 | `ACME2CERTIFIER_BASE_DIR` | no | Application root (default `/var/www/acme2certifier` or `/opt/acme2certifier`). |
 | `ACME2CERTIFIER_DEBUG` | no | Set to `1` for local development only. |
 
 MySQL / external DB templates: [`examples/django/settings.py`](../examples/django/settings.py).
+
+### `server_name` from `acme_srv.cfg`
+
+When `[DEFAULT] server_name` is configured in `acme_srv.cfg` (or YAML equivalent), Django merges that hostname into `ALLOWED_HOSTS` at worker startup. This uses the same config file resolution as the ACME stack (`ACME_SRV_CONFIGFILE` or default search paths). Use `ACME2CERTIFIER_ALLOWED_HOSTS` for additional hosts such as `127.0.0.1` for local health checks; both sources are combined without duplicates.
 
 ## Set at install time (recommended)
 

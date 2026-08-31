@@ -3,6 +3,7 @@
 """unittests for django_project.settings"""
 
 # pylint: disable=C0415
+import configparser
 import importlib
 import logging
 import os
@@ -16,6 +17,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 _SETTINGS = "acme2certifier.django_project.settings"
 _INSECURE = "django-insecure-change-me-run-a2c-django-secret-keygen"
+_LOAD_CONFIG = "acme2certifier.acme_srv.helpers.config.load_config"
 
 
 class TestDjangoProjectSettings(unittest.TestCase):
@@ -31,6 +33,16 @@ class TestDjangoProjectSettings(unittest.TestCase):
 
     def _reload(self):
         return importlib.import_module(_SETTINGS)
+
+    @staticmethod
+    def _cfg_server_name(server_name: str) -> configparser.ConfigParser:
+        cfg = configparser.ConfigParser()
+        cfg["DEFAULT"] = {"server_name": server_name}
+        return cfg
+
+    @staticmethod
+    def _empty_cfg() -> configparser.ConfigParser:
+        return configparser.ConfigParser()
 
     def test_001_default_without_secret_key_raises(self) -> None:
         """without SECRET_KEY and DEBUG off → ImproperlyConfigured"""
@@ -168,6 +180,94 @@ class TestDjangoProjectSettings(unittest.TestCase):
         ):
             mod = self._reload()
             self.assertNotIn("django.contrib.admin", mod.INSTALLED_APPS)
+
+    def test_009_server_name_from_cfg_merged_into_allowed_hosts(self) -> None:
+        """DEFAULT.server_name in acme_srv.cfg is added to ALLOWED_HOSTS"""
+        env = dict(os.environ)
+        env.pop("ACME2CERTIFIER_ALLOWED_HOSTS", None)
+        env["ACME2CERTIFIER_SECRET_KEY"] = "sekrit"
+        env["ACME2CERTIFIER_DEBUG"] = "0"
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("os.path.isdir", return_value=False),
+            patch(_LOAD_CONFIG, return_value=self._cfg_server_name("acme.example.com")),
+        ):
+            mod = self._reload()
+            self.assertIn("acme.example.com", mod.ALLOWED_HOSTS)
+            self.assertIn("127.0.0.1", mod.ALLOWED_HOSTS)
+            self.assertIn("localhost", mod.ALLOWED_HOSTS)
+
+    def test_010_server_name_merged_alongside_env_allowed_hosts(self) -> None:
+        """cfg server_name supplements ACME2CERTIFIER_ALLOWED_HOSTS"""
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                    "ACME2CERTIFIER_DEBUG": "0",
+                    "ACME2CERTIFIER_ALLOWED_HOSTS": "other.example.com",
+                },
+                clear=False,
+            ),
+            patch(_LOAD_CONFIG, return_value=self._cfg_server_name("acme.example.com")),
+        ):
+            mod = self._reload()
+            self.assertIn("other.example.com", mod.ALLOWED_HOSTS)
+            self.assertIn("acme.example.com", mod.ALLOWED_HOSTS)
+
+    def test_011_server_name_not_duplicated_when_already_in_env(self) -> None:
+        """no duplicate when server_name already listed in env"""
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                    "ACME2CERTIFIER_DEBUG": "0",
+                    "ACME2CERTIFIER_ALLOWED_HOSTS": "acme.example.com,127.0.0.1",
+                },
+                clear=False,
+            ),
+            patch(_LOAD_CONFIG, return_value=self._cfg_server_name("acme.example.com")),
+        ):
+            mod = self._reload()
+            self.assertEqual(
+                mod.ALLOWED_HOSTS.count("acme.example.com"),
+                1,
+            )
+
+    def test_012_no_server_name_in_cfg_leaves_allowed_hosts_unchanged(self) -> None:
+        """empty cfg does not alter default ALLOWED_HOSTS"""
+        env = dict(os.environ)
+        env.pop("ACME2CERTIFIER_ALLOWED_HOSTS", None)
+        env["ACME2CERTIFIER_SECRET_KEY"] = "sekrit"
+        env["ACME2CERTIFIER_DEBUG"] = "0"
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("os.path.isdir", return_value=False),
+            patch(_LOAD_CONFIG, return_value=self._empty_cfg()),
+        ):
+            mod = self._reload()
+            self.assertEqual(["127.0.0.1", "localhost"], mod.ALLOWED_HOSTS)
+
+    def test_013_server_name_url_with_scheme_and_port_normalized(self) -> None:
+        """URL-shaped server_name is normalized to host:port for ALLOWED_HOSTS"""
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                    "ACME2CERTIFIER_DEBUG": "0",
+                    "ACME2CERTIFIER_ALLOWED_HOSTS": "127.0.0.1",
+                },
+                clear=False,
+            ),
+            patch(
+                _LOAD_CONFIG,
+                return_value=self._cfg_server_name("https://acme.example.com:8443"),
+            ),
+        ):
+            mod = self._reload()
+            self.assertIn("acme.example.com:8443", mod.ALLOWED_HOSTS)
 
 
 if __name__ == "__main__":

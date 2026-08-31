@@ -9,6 +9,12 @@ import os
 import warnings
 
 from django.core.exceptions import ImproperlyConfigured
+from acme2certifier.acme_srv.helpers.config import load_config  # noqa: E402
+from acme2certifier.acme_srv.helpers.logging_utils import logger_setup  # noqa: E402
+from acme2certifier.acme_srv.helpers.network import (  # noqa: E402
+    configured_server_name_get,
+    server_name_allowed_host,
+)
 
 _DEFAULT_BASE = "/var/www/acme2certifier"
 BASE_DIR = os.environ.get(
@@ -44,6 +50,14 @@ if "*" in ALLOWED_HOSTS and not DEBUG:
         UserWarning,
         stacklevel=1,
     )
+
+_cfg = load_config()
+_host = server_name_allowed_host(configured_server_name_get(_cfg) or "")
+if _host and _host not in ALLOWED_HOSTS:
+    logger_setup(DEBUG).info(
+        "Adding %s to ALLOWED_HOSTS from acme_srv.cfg server_name", _host
+    )
+    ALLOWED_HOSTS.append(_host)
 
 INSTALLED_APPS = [
     "django.contrib.auth",
