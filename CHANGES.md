@@ -13,6 +13,22 @@ and pick the appropriate release branch.
 - Multi-CAhandler support: configure several CA handler plugins in one instance (`multi_handler`, named `[CAhandler:<name>]` sections, EAB `cahandler_name`, `profile_cahandler`, domain-based routing, `orders.cahandler` persistence); INI and YAML config; see [`docs/multi_cahandler.md`](docs/multi_cahandler.md)
 - Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377)); per-account overrides via EAB profile `challenge` section
 
+## Changes in 0.45.3
+
+**Bug Fixes and Improvements**:
+
+- #380 - Unknown or empty ARI lookups now return an ACME problem document instead of a bare malformed string.
+- #381 - Extract ARI certid from the URL path (last path segment), so GET /acme/renewal-info/{certid} still works when the request scheme/host does not match server_name (typical reverse-proxy http vs https mismatch).
+- CA lookup that returns 2xx with an empty body is treated as certificate not found (404).
+
+## Changes in 0.45.2
+
+**Bug Fixes and Improvements**:
+
+- Remove Django admin URL mount; `django.contrib.admin` was already absent from `INSTALLED_APPS`, so 0.45.1 Django deployments failed at startup with `LookupError: No installed app with label 'admin'` (nginx/uWSGI 502 on `/directory`)
+
+## Changes in 0.45.1
+
 **Bug Fixes and Improvements**:
 
 - Django + SQLite under multi-worker uWSGI: set SQLite `busy_timeout` (30s default, overridable via `ACME2CERTIFIER_SQLITE_TIMEOUT`), use `BEGIN IMMEDIATE` for hot write paths (authorization, challenge, order, nonce) on Django 3.x/4.2–5.0, and `OPTIONS.transaction_mode = IMMEDIATE` on Django 5.1+ (fixes intermittent `database is locked` / 403 during parallel ACME authz updates, e.g. EAB prevalidation CI on EL8)
