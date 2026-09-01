@@ -85,6 +85,30 @@ class DBstore(object):
         self.logger.debug("DBStore._status_getinstance(%s:%s)", mkey, value)
         return Status.objects.get(**{mkey: value})
 
+    def _sqlite_backend(self) -> bool:
+        """True when the default database backend is SQLite."""
+        return (
+            settings.DATABASES["default"]["ENGINE"]
+            == "django.db.backends.sqlite3"
+        )
+
+    def _sqlite_immediate_write(self, fn):
+        """Run fn inside BEGIN IMMEDIATE when using SQLite (all Django versions)."""
+        if not self._sqlite_backend():
+            return fn()
+        import django
+
+        if django.VERSION >= (5, 1):
+            # Django 5.1+: immediate= removed; use OPTIONS.transaction_mode instead.
+            with transaction.atomic():
+                return fn()
+        try:
+            with transaction.atomic(immediate=True):
+                return fn()
+        except TypeError:
+            with transaction.atomic():
+                return fn()
+
     def account_add(self, data_dic: Dict[str, str]) -> Tuple[str, bool]:
         """add account in database"""
         self.logger.debug("DBStore.account_add(%s)", data_dic)
@@ -257,25 +281,14 @@ class DBstore(object):
         if "status" in data_dic:
             data_dic["status"] = self._status_getinstance(data_dic["status"], "name")
 
-        if (
-            DJANGO_VERSION < 4
-            and settings.DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3"
-        ):
-            self.logger.debug(
-                "DBStore.authorization_update(): patching transaction to transform all atomic blocks into immediate transactions"
-            )
-            with transaction.atomic(immediate=True):
-                # update authorization
-                obj, _created = Authorization.objects.update_or_create(
-                    name=data_dic["name"], defaults=data_dic
-                )
-                obj.save()
-        else:
-            # update authorization
+        def _update_authorization():
             obj, _created = Authorization.objects.update_or_create(
                 name=data_dic["name"], defaults=data_dic
             )
             obj.save()
+            return obj
+
+        obj = self._sqlite_immediate_write(_update_authorization)
 
         self.logger.debug("auth_id(%s)", obj.id)
         return obj.id
@@ -319,23 +332,14 @@ class DBstore(object):
         # replace orderstatus with an instance
         data_dic["status"] = self._status_getinstance(data_dic["status"])
 
-        if (
-            DJANGO_VERSION < 4
-            and settings.DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3"
-        ):
-            self.logger.debug(
-                "DBStore.challenge_add(): patching transaction to transform all atomic blocks into immediate transactions"
-            )
-            with transaction.atomic(immediate=True):
-                obj, _created = Challenge.objects.update_or_create(
-                    name=data_dic["name"], defaults=data_dic
-                )
-                obj.save()
-        else:
+        def _add_challenge():
             obj, _created = Challenge.objects.update_or_create(
                 name=data_dic["name"], defaults=data_dic
             )
             obj.save()
+            return obj
+
+        obj = self._sqlite_immediate_write(_add_challenge)
 
         self.logger.debug("cid(%s)", obj.id)
         self.logger.debug("DBStore.challenge_add(%s:%s:%s)", value, mtype, obj.id)
@@ -502,10 +506,15 @@ class DBstore(object):
         # replace orderstatus with an instance
         if "status" in data_dic:
             data_dic["status"] = self._status_getinstance(data_dic["status"], "name")
-        obj, _created = Challenge.objects.update_or_create(
-            name=data_dic["name"], defaults=data_dic
-        )
-        obj.save()
+
+        def _update_challenge():
+            obj, _created = Challenge.objects.update_or_create(
+                name=data_dic["name"], defaults=data_dic
+            )
+            obj.save()
+            return obj
+
+        self._sqlite_immediate_write(_update_challenge)
 
     def cli_jwk_load(self, aname: str) -> Dict[str, str]:
         """looad account informatino and build jwk key dictionary from cliaccounts teable"""
@@ -587,8 +596,13 @@ class DBstore(object):
         in: nonce
         return: rowid"""
         self.logger.debug("DBStore.nonce_add(%s)", nonce)
-        obj = Nonce(nonce=nonce)
-        obj.save()
+
+        def _add_nonce():
+            obj = Nonce(nonce=nonce)
+            obj.save()
+            return obj
+
+        obj = self._sqlite_immediate_write(_add_nonce)
         return obj.id
 
     def nonce_check(self, nonce: str) -> bool:
@@ -608,7 +622,12 @@ class DBstore(object):
     def nonce_consume(self, nonce: str) -> int:
         """Atomically delete a nonce if present; return affected row count."""
         self.logger.debug("DBStore.nonce_consume(%s)", nonce)
-        deleted, _ = Nonce.objects.filter(nonce=nonce).delete()
+
+        def _consume_nonce():
+            deleted, _ = Nonce.objects.filter(nonce=nonce).delete()
+            return deleted
+
+        deleted = self._sqlite_immediate_write(_consume_nonce)
         self.logger.debug("DBStore.nonce_consume() ended with: %s", deleted)
         return deleted
 
@@ -679,10 +698,15 @@ class DBstore(object):
         # replace orderstatus with an instance
         if "status" in data_dic:
             data_dic["status"] = self._status_getinstance(data_dic["status"], "name")
-        obj, _created = Order.objects.update_or_create(
-            name=data_dic["name"], defaults=data_dic
-        )
-        obj.save()
+
+        def _update_order():
+            obj, _created = Order.objects.update_or_create(
+                name=data_dic["name"], defaults=data_dic
+            )
+            obj.save()
+            return obj
+
+        self._sqlite_immediate_write(_update_order)
 
     def order_update_if_status(
         self, name: str, new_status: str, expected_status: str

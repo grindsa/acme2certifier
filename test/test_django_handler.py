@@ -35,6 +35,14 @@ def _bootstrap_django() -> None:
             "default": {
                 "ENGINE": "django.db.backends.sqlite3",
                 "NAME": str(_TEST_DJANGO_DB),
+                "OPTIONS": {
+                    "timeout": 30,
+                    **(
+                        {"transaction_mode": "IMMEDIATE"}
+                        if django.VERSION >= (5, 1)
+                        else {}
+                    ),
+                },
             }
         },
         USE_TZ=True,
@@ -133,6 +141,16 @@ class TestDjangoHandler(unittest.TestCase):
             status_id=2,
             expires=9999999999,
         )
+
+    def _immediate_atomic_calls(self, mock_atomic: MagicMock) -> list:
+        return [
+            call
+            for call in mock_atomic.call_args_list
+            if call.kwargs.get("immediate") is True
+        ]
+
+    def _assert_sqlite_immediate_writes(self, mock_write: MagicMock, count: int) -> None:
+        self.assertEqual(count, mock_write.call_count)
 
     def test_001_default(self) -> None:
         """default test which always passes"""
@@ -371,23 +389,42 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIn("azPend", names)
         self.assertNotIn("azExp", names)
 
-    def test_023_authorization_update_django3_sqlite(self) -> None:
-        """test authorization_update Django<4 sqlite immediate branch"""
+    def test_023_authorization_update_sqlite_immediate(self) -> None:
+        """test authorization_update uses immediate SQLite transactions"""
         acct = self._seed_account("acctAz3")
         order = self._seed_order(acct, "ordAz3")
         self._seed_authz(order, "az3")
-        mock_atomic = MagicMock()
-        mock_atomic.return_value.__enter__ = MagicMock(return_value=None)
-        mock_atomic.return_value.__exit__ = MagicMock(return_value=False)
-        with (
-            patch.object(dh_mod, "DJANGO_VERSION", 3),
-            patch.object(dh_mod.transaction, "atomic", mock_atomic),
-        ):
+        with patch.object(
+            self.dbstore,
+            "_sqlite_immediate_write",
+            wraps=self.dbstore._sqlite_immediate_write,
+        ) as mock_write:
             rid = self.dbstore.authorization_update(
                 {"name": "az3", "status": "valid", "token": "tok"}
             )
         self.assertIsInstance(rid, int)
-        mock_atomic.assert_any_call(immediate=True)
+        self._assert_sqlite_immediate_writes(mock_write, 1)
+
+    def test_023b_authorization_update_non_sqlite_skips_immediate(self) -> None:
+        """test authorization_update skips immediate when backend is not SQLite"""
+        acct = self._seed_account("acctAz3b")
+        order = self._seed_order(acct, "ordAz3b")
+        self._seed_authz(order, "az3b")
+        mock_atomic = MagicMock()
+        with (
+            patch.object(self.dbstore, "_sqlite_backend", return_value=False),
+            patch.object(dh_mod.transaction, "atomic", mock_atomic),
+        ):
+            rid = self.dbstore.authorization_update(
+                {"name": "az3b", "status": "valid", "token": "tok"}
+            )
+        self.assertIsInstance(rid, int)
+        immediate_calls = [
+            call
+            for call in mock_atomic.call_args_list
+            if call.kwargs.get("immediate") is True
+        ]
+        self.assertEqual([], immediate_calls)
 
     def test_024_cahandler_add_lookup(self) -> None:
         """test cahandler_add / cahandler_lookup"""
@@ -443,18 +480,16 @@ class TestDjangoHandler(unittest.TestCase):
         )
         self.assertEqual(1, len(rows))
 
-    def test_026_challenge_add_django3_sqlite(self) -> None:
-        """test challenge_add Django<4 sqlite immediate branch"""
+    def test_026_challenge_add_sqlite_immediate(self) -> None:
+        """test challenge_add uses immediate SQLite transactions"""
         acct = self._seed_account("acctCh3")
         order = self._seed_order(acct, "ordCh3")
         self._seed_authz(order, "azCh3")
-        mock_atomic = MagicMock()
-        mock_atomic.return_value.__enter__ = MagicMock(return_value=None)
-        mock_atomic.return_value.__exit__ = MagicMock(return_value=False)
-        with (
-            patch.object(dh_mod, "DJANGO_VERSION", 3),
-            patch.object(dh_mod.transaction, "atomic", mock_atomic),
-        ):
+        with patch.object(
+            self.dbstore,
+            "_sqlite_immediate_write",
+            wraps=self.dbstore._sqlite_immediate_write,
+        ) as mock_write:
             cid = self.dbstore.challenge_add(
                 "ex.com",
                 "http-01",
@@ -468,7 +503,31 @@ class TestDjangoHandler(unittest.TestCase):
                 },
             )
         self.assertIsInstance(cid, int)
-        mock_atomic.assert_any_call(immediate=True)
+        self._assert_sqlite_immediate_writes(mock_write, 1)
+
+    def test_026b_sqlite_immediate_on_hot_write_paths(self) -> None:
+        """nonce, order, and challenge updates use immediate SQLite transactions"""
+        acct = self._seed_account("acctHot")
+        order = self._seed_order(acct, "ordHot")
+        az = self._seed_authz(order, "azHot")
+        Challenge.objects.create(
+            name="chHot",
+            authorization=az,
+            type="http-01",
+            token="t",
+            status_id=2,
+        )
+        Nonce.objects.create(nonce="nHot")
+        with patch.object(
+            self.dbstore,
+            "_sqlite_immediate_write",
+            wraps=self.dbstore._sqlite_immediate_write,
+        ) as mock_write:
+            self.dbstore.nonce_consume("nHot")
+            self.dbstore.nonce_add("nHot2")
+            self.dbstore.order_update({"name": "ordHot", "status": "ready"})
+            self.dbstore.challenge_update({"name": "chHot", "keyauthorization": "ka"})
+        self._assert_sqlite_immediate_writes(mock_write, 4)
 
     def test_027_certificate_add_lookup_delete_list(self) -> None:
         """test certificate_add / lookup / delete / list / search / account_check"""

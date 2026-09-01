@@ -48,6 +48,19 @@ def configured_server_name_get(config_dic) -> Optional[str]:
     return None
 
 
+def server_name_allowed_host(server_name: str) -> Optional[str]:
+    """Return host[:port] from configured server_name for Django ALLOWED_HOSTS."""
+    raw = str(server_name).strip()
+    if not raw:
+        return None
+    if "://" in raw:
+        host = urlparse(raw).netloc
+    else:
+        host = raw.split("/", 1)[0]
+    host = host.strip()
+    return host or None
+
+
 def server_name_configuration_validate(logger: logging.Logger, config_dic) -> None:
     """Emit startup warnings for server_name fallback and CAA alignment."""
     server_name = configured_server_name_get(config_dic)

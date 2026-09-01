@@ -8,7 +8,14 @@ production DB credentials (see examples/django for a MySQL template).
 import os
 import warnings
 
+import django
 from django.core.exceptions import ImproperlyConfigured
+from acme2certifier.acme_srv.helpers.config import load_config  # noqa: E402
+from acme2certifier.acme_srv.helpers.logging_utils import logger_setup  # noqa: E402
+from acme2certifier.acme_srv.helpers.network import (  # noqa: E402
+    configured_server_name_get,
+    server_name_allowed_host,
+)
 
 _DEFAULT_BASE = "/var/www/acme2certifier"
 BASE_DIR = os.environ.get(
@@ -44,6 +51,14 @@ if "*" in ALLOWED_HOSTS and not DEBUG:
         UserWarning,
         stacklevel=1,
     )
+
+_cfg = load_config()
+_host = server_name_allowed_host(configured_server_name_get(_cfg) or "")
+if _host and _host not in ALLOWED_HOSTS:
+    logger_setup(DEBUG).info(
+        "Adding %s to ALLOWED_HOSTS from acme_srv.cfg server_name", _host
+    )
+    ALLOWED_HOSTS.append(_host)
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -83,10 +98,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
 
+_SQLITE_BUSY_TIMEOUT = int(os.environ.get("ACME2CERTIFIER_SQLITE_TIMEOUT", "30"))
+_SQLITE_OPTIONS: dict = {"timeout": _SQLITE_BUSY_TIMEOUT}
+if django.VERSION >= (5, 1):
+    _SQLITE_OPTIONS["transaction_mode"] = "IMMEDIATE"
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+        "OPTIONS": _SQLITE_OPTIONS,
     }
 }
 
