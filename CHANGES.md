@@ -6,6 +6,14 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.45.3
+
+**Bug Fixes and Improvements**:
+
+- #380 - Unknown or empty ARI lookups now return an ACME problem document instead of a bare malformed string.
+- #381 - Extract ARI certid from the URL path (last path segment), so GET /acme/renewal-info/{certid} still works when the request scheme/host does not match server_name (typical reverse-proxy http vs https mismatch).
+- CA lookup that returns 2xx with an empty body is treated as certificate not found (404).
+
 ## Changes in 0.45.2
 
 **Bug Fixes and Improvements**:
