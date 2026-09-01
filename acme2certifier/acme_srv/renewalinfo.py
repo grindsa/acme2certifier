@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     b64_decode,
     duration_to_seconds,
+    parse_url,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
@@ -364,12 +365,13 @@ class Renewalinfo(object):
         return renewalinfo_dic
 
     def _parse_renewalinfo_string_from_url(self, url: str) -> str:
+        """Extract ARI certid from a request URL, ignoring scheme and host."""
         self.logger.debug("Renewalinfo._parse_renewalinfo_string_from_url()")
-        url = url.replace(
-            f'{self.server_name}{self.path_dic["renewalinfo"].rstrip("/")}', ""
+        url_dic = parse_url(self.logger, url)
+        path = url_dic.get("path") or url
+        renewalinfo_string = string_sanitize(
+            self.logger, path.rstrip("/").rsplit("/", 1)[-1]
         )
-        url = url.lstrip("/")
-        renewalinfo_string = string_sanitize(self.logger, url)
         self.logger.debug(
             "Renewalinfo._parse_renewalinfo_string_from_url() - renewalinfo_string: %s",
             renewalinfo_string,
@@ -434,9 +436,7 @@ class Renewalinfo(object):
             return {
                 "code": rc_code,
                 "data": renewalinfo_dic,
-                "header": {
-                    "Retry-After": f"{self.config.retry_after_timeout}"
-                },
+                "header": {"Retry-After": f"{self.config.retry_after_timeout}"},
             }
         if not rc_code or rc_code < 400:
             rc_code = 404
@@ -445,9 +445,7 @@ class Renewalinfo(object):
             if rc_code == 404
             else "failed to get renewal information"
         )
-        return self._problem_response(
-            (rc_code, self.err_msg_dic["malformed"], detail)
-        )
+        return self._problem_response((rc_code, self.err_msg_dic["malformed"], detail))
 
     def _problem_response(
         self,
