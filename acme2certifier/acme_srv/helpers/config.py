@@ -1088,7 +1088,7 @@ def cahandler_lookup(
     csr: Optional[str] = None,
     cert_raw: Optional[str] = None,
 ) -> Optional[str]:
-    """Return the handler name stored on the order linked to a CSR or certificate."""
+    """Return the handler name stored in order table linked to a CSR or certificate."""
     logger.debug("Helper.cahandler_lookup()")
 
     from acme2certifier.acme_srv.db_handler import DBstore  # pylint: disable=c0415

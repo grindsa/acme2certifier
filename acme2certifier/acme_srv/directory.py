@@ -6,7 +6,7 @@
 from __future__ import print_function
 import uuid
 import json
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple, Any
 from dataclasses import dataclass, field
 from .version import __version__, __dbversion__
 from .helper import (
@@ -283,6 +283,7 @@ class Directory:
 
     def _load_ca_handler(self, config_dic: object) -> None:
         """Load the CA handler registry as configured."""
+        self.logger.debug("Directory._load_ca_handler()")
         self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
         default_bound = self.cahandler_registry.default_handler()
         if default_bound is not None:
@@ -299,6 +300,7 @@ class Directory:
                 )
             else:
                 self.logger.critical("No ca_handler loaded")
+        self.logger.debug("Directory._load_ca_handler() ended")
 
     def _build_meta_information(self) -> Dict[str, object]:
         """Build the meta information dictionary for the directory response."""
@@ -364,30 +366,82 @@ class Directory:
         self.logger.debug("Directory._build_directory_response() ended")
         return d_dic
 
+    def _directory_handlers(self) -> List[Any]:
+        """Return handler factories that must pass directory health checks."""
+        if self.cahandler_registry:
+            if self.cahandler_registry.multi_handler:
+                handlers = self.cahandler_registry.referenced_handlers()
+                if handlers:
+                    return handlers
+            elif self.cahandler:
+                return [self.cahandler]
+        elif self.cahandler:
+            return [self.cahandler]
+        return []
+
+    def _merge_synced_profiles(
+        self,
+        merged_profiles: Dict[str, object],
+        synced: Dict[str, object],
+        handler_name: str,
+    ) -> None:
+        """Merge profiles from one handler into the directory profile map."""
+        for key, value in synced.items():
+            if key in merged_profiles and merged_profiles[key] != value:
+                self.logger.warning(
+                    "profiles_sync: profile '%s' conflict from handler '%s' "
+                    "(existing=%s, new=%s); keeping new value",
+                    key,
+                    handler_name,
+                    merged_profiles[key],
+                    value,
+                )
+            merged_profiles[key] = value
+
     def get_directory_response(self) -> Dict[str, object]:
         """Public method to get the ACME directory response, including CA handler checks."""
         self.logger.debug("Directory.get_directory_response()")
         error = None
 
-        if self.cahandler:
+        if self.cahandler_registry and self.cahandler_registry.startup_error:
+            error = self.cahandler_registry.startup_error
 
-            with self.cahandler(None, self.logger) as ca_handler:
+        handlers = self._directory_handlers()
+        if not handlers and not error:
+            error = "No handler loaded"
+
+        merged_profiles = dict(self.config.profiles or {})
+        for bound in handlers:
+            handler_name = getattr(bound, "name", "unknown")
+            with bound(None, self.logger) as ca_handler:
                 if hasattr(ca_handler, "handler_check"):
-                    error = ca_handler.handler_check()
+                    check_error = ca_handler.handler_check()
+                    if check_error:
+                        self.logger.critical(
+                            "CA handler '%s' failed handler_check: %s",
+                            handler_name,
+                            check_error,
+                        )
+                        error = check_error
+                        break
                 if (
                     self.config.profiles_sync
                     and hasattr(ca_handler, "synchronize_profiles")
                     and not error
                 ):
-                    self.config.profiles = ca_handler.synchronize_profiles(
+                    synced = ca_handler.synchronize_profiles(
                         self.repository,
                         self.config.acme_url,
                         self.config.profiles_sync_interval,
                         self.config.async_mode,
                     )
+                    if synced:
+                        self._merge_synced_profiles(
+                            merged_profiles, synced, handler_name
+                        )
 
-        else:
-            error = "No handler loaded"
+        if merged_profiles:
+            self.config.profiles = merged_profiles
 
         if not error:
             d_dic = self._build_directory_response()

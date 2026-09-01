@@ -121,44 +121,46 @@ class CAHandlerRegistry:
             self.logger.error("%s", self._startup_error)
             return self
 
+        self.multi_handler = self._multi_handler_parse(config_dic)
+        if self.multi_handler:
+            self._multi_load(config_dic)
+        else:
+            self._classical_load(config_dic)
+        return self
+
+    def _multi_handler_parse(self, config_dic: Any) -> bool:
+        """Return the ``multi_handler`` flag from ``[CAhandler]``."""
+        self.logger.debug("CAHandlerRegistry._multi_handler_parse()")
         try:
-            self.multi_handler = config_dic.getboolean(
-                "CAhandler", "multi_handler", fallback=False
-            )
+            return config_dic.getboolean("CAhandler", "multi_handler", fallback=False)
         except Exception as err:
             self.logger.warning("Failed to parse multi_handler: %s", err)
-            self.multi_handler = False
+            return False
 
-        if not self.multi_handler:
-            module = ca_handler_load_from_section(
-                self.logger, config_dic, "CAhandler"
+    def _classical_load(self, config_dic: Any) -> None:
+        """Load the single handler from ``[CAhandler]``."""
+        module = ca_handler_load_from_section(self.logger, config_dic, "CAhandler")
+        if module is not None:
+            self._single_bound = BoundCAHandler(
+                module.CAhandler, "CAhandler", "default"
             )
-            if module is not None:
-                self._single_bound = BoundCAHandler(
-                    module.CAhandler, "CAhandler", "default"
-                )
-                self.logger.debug(
-                    "CAHandlerRegistry.load() classical mode handler=%s",
-                    getattr(module, "__name__", module),
-                )
-            else:
-                self.logger.debug(
-                    "CAHandlerRegistry.load() classical mode: no handler loaded"
-                )
             self.logger.debug(
-                "CAHandlerRegistry.load() ended multi_handler=False bound=%s",
-                self._single_bound is not None,
+                "CAHandlerRegistry.load() classical mode handler=%s",
+                getattr(module, "__name__", module),
             )
-            return self
-
-        if config_dic.get("CAhandler", "handler_module", fallback=None) or config_dic.get(
-            "CAhandler", "handler_file", fallback=None
-        ):
-            self.logger.warning(
-                "multi_handler enabled: handler_module/handler_file on [CAhandler] "
-                "are ignored; use [CAhandler:<name>] sections"
+        else:
+            self.logger.debug(
+                "CAHandlerRegistry.load() classical mode: no handler loaded"
             )
+        self.logger.debug(
+            "CAHandlerRegistry.load() ended multi_handler=False bound=%s",
+            self._single_bound is not None,
+        )
 
+    def _multi_load(self, config_dic: Any) -> None:
+        """Load named handlers and profile mapping for multi-handler mode."""
+        self.logger.debug("CAHandlerRegistry._multi_load()")
+        self._legacy_handler_keys_warn(config_dic)
         self.default_name = config_dic.get(
             "CAhandler", "default_handler", fallback=None
         )
@@ -167,30 +169,52 @@ class CAHandlerRegistry:
                 "multi_handler enabled but no default_handler configured"
             )
             self.logger.error("%s", self._startup_error)
-            return self
+            return
 
         self.logger.debug(
             "CAHandlerRegistry.load() multi_handler=True default_handler=%r",
             self.default_name,
         )
+        self.profile_cahandler = self._profile_cahandler_load(config_dic)
+        self._named_handlers_register(config_dic)
+        self._multi_references_validate()
+        self.logger.debug(
+            "CAHandlerRegistry.load() ended with %d handlers", len(self.handlers)
+        )
 
-        if "Order" in config_dic and config_dic.get(
+    def _legacy_handler_keys_warn(self, config_dic: Any) -> None:
+        """Warn if classical handler keys are set while multi_handler is on."""
+        self.logger.debug("CAHandlerRegistry._legacy_handler_keys_warn()")
+        if config_dic.get("CAhandler", "handler_module", fallback=None) or config_dic.get(
+            "CAhandler", "handler_file", fallback=None
+        ):
+            self.logger.warning(
+                "multi_handler enabled: handler_module/handler_file on [CAhandler] "
+                "are ignored; use [CAhandler:<name>] sections"
+            )
+        self.logger.debug("CAHandlerRegistry._legacy_handler_keys_warn() ended")
+
+    def _profile_cahandler_load(self, config_dic: Any) -> Dict[str, str]:
+        """Parse ``[Order] profile_cahandler`` JSON mapping."""
+        self.logger.debug("CAHandlerRegistry._profile_cahandler_load()")
+        if "Order" not in config_dic or not config_dic.get(
             "Order", "profile_cahandler", fallback=None
         ):
-            try:
-                self.profile_cahandler = json.loads(
-                    config_dic["Order"]["profile_cahandler"]
-                )
-            except Exception as err:
-                self.logger.warning("Failed to parse profile_cahandler: %s", err)
-                self.profile_cahandler = {}
-
-        if self.profile_cahandler:
+            return {}
+        try:
+            mapping = json.loads(config_dic["Order"]["profile_cahandler"])
+        except Exception as err:
+            self.logger.warning("Failed to parse profile_cahandler: %s", err)
+            return {}
+        if mapping:
             self.logger.debug(
-                "CAHandlerRegistry.load() profile_cahandler=%s",
-                self.profile_cahandler,
+                "CAHandlerRegistry.load() profile_cahandler=%s", mapping
             )
+        self.logger.debug("CAHandlerRegistry._profile_cahandler_load() ended")
+        return mapping
 
+    def _named_handlers_register(self, config_dic: Any) -> None:
+        """Register each ``[CAhandler:<name>]`` section."""
         for section in config_dic.sections():
             if not section.startswith(self.SECTION_PREFIX):
                 continue
@@ -214,6 +238,8 @@ class CAHandlerRegistry:
                 section,
             )
 
+    def _multi_references_validate(self) -> None:
+        """Ensure ``default_handler`` and profile map targets are registered."""
         if self.default_name not in self.handlers:
             self._startup_error = (
                 f"default_handler '{self.default_name}' is not registered"
@@ -227,11 +253,6 @@ class CAHandlerRegistry:
                     profile_name,
                     handler_name,
                 )
-
-        self.logger.debug(
-            "CAHandlerRegistry.load() ended with %d handlers", len(self.handlers)
-        )
-        return self
 
     def _allowed_domainlist_load(self, config_dic: Any, section: str) -> List[str]:
         self.logger.debug(

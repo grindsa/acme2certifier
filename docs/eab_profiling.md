@@ -7,6 +7,8 @@
 
 Starting with version 0.34 acme2certifier supports the configuration of account specific enrollment configuration. Depending on the handler to be used the feature allows the definition of individual authentication credentials, enrollment profiles or certificate authorities.
 
+When [multi-CAhandler mode](multi_cahandler.md) is enabled, a kid-level `cahandler_name` selects which registered handler serves that account (see the multi-handler doc for precedence vs `profile_cahandler` and domain routing).
+
 Currently the following ca-handlers have been modified and support this feature:
 
 - [generic ACME](acme_ca.md)
