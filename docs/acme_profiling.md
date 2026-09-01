@@ -9,6 +9,8 @@ The [Automated Certificate Management Environment (ACME) Profiles Extension draf
 
 acme2certifier supports acme profiling starting from version v0.38.
 
+With [multi-CAhandler mode](multi_cahandler.md), `[Order] profile_cahandler` maps each advertised ACME profile to a named handler registry entry (for example `{"short": "openssl", "long": "ejbca"}`).
+
 ACME profiling must be specified in `acme_srv.cfg`:
 
 ```config
