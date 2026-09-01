@@ -546,9 +546,7 @@ def _finalize_sync(
             f"Push and open PR into `{target}` when ready:"
         )
         print(f"  git push -u origin {work_branch}")
-        print(
-            f"  gh pr create --base {target} --head {work_branch} --title '{title}'"
-        )
+        print(f"  gh pr create --base {target} --head {work_branch} --title '{title}'")
     return 0
 
 

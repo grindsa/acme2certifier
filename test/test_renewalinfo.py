@@ -208,7 +208,14 @@ class TestRenewalinfo(unittest.TestCase):
         ):
             result = self.renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 404)
-            self.assertEqual(result["data"], "malf")
+            self.assertEqual(
+                result["data"],
+                {
+                    "status": 404,
+                    "type": "malf",
+                    "detail": "certificate not found",
+                },
+            )
 
     def test_017_get_returns_400_on_exception(self):
         self.mock_repository.get_housekeeping_param.return_value = True
@@ -220,7 +227,14 @@ class TestRenewalinfo(unittest.TestCase):
         ):
             result = self.renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 400)
-            self.assertEqual(result["data"], "malf")
+            self.assertEqual(
+                result["data"],
+                {
+                    "status": 400,
+                    "type": "malf",
+                    "detail": "failed to get renewal information",
+                },
+            )
 
     def test_018_update_success(self):
         self.mock_message.check.return_value = (
@@ -684,7 +698,14 @@ class TestRenewalinfo(unittest.TestCase):
         ):
             result = renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 404)
-            self.assertEqual(result["data"], "malf")
+            self.assertEqual(
+                result["data"],
+                {
+                    "status": 404,
+                    "type": "malf",
+                    "detail": "certificate not found",
+                },
+            )
 
     def test_045_get_compat_400(self):
         renewalinfo = self.renewalinfo
@@ -698,7 +719,14 @@ class TestRenewalinfo(unittest.TestCase):
         ):
             result = renewalinfo.get("/acme/renewal-info/foo")
             self.assertEqual(result["code"], 400)
-            self.assertEqual(result["data"], "malf")
+            self.assertEqual(
+                result["data"],
+                {
+                    "status": 400,
+                    "type": "malf",
+                    "detail": "failed to get renewal information",
+                },
+            )
 
     def test_046_update_compat_success(self):
         renewalinfo = self.renewalinfo
@@ -970,6 +998,52 @@ class TestRenewalinfo(unittest.TestCase):
         result = self.renewalinfo.update("content")
         self.assertEqual(result["code"], 400)
         self.assertEqual(result["data"]["detail"], "certificate update failed")
+
+    def test_062_parse_renewalinfo_string_from_url_path_only(self):
+        result = self.renewalinfo._parse_renewalinfo_string_from_url(
+            "/acme/renewal-info/foo"
+        )
+        self.assertEqual(result, "foo")
+
+    def test_063_parse_renewalinfo_string_from_url_scheme_mismatch(self):
+        """Reverse proxy: request is http while server_name is https (#381)."""
+        self.renewalinfo.server_name = "https://127.0.0.1:8001"
+        ident = "42Z0u3BojSxdTg6mSo-bNyKcgpI.AOpUG6fnb-IW4i8A52l4K28"
+        result = self.renewalinfo._parse_renewalinfo_string_from_url(
+            f"http://127.0.0.1:8001/acme/renewal-info/{ident}"
+        )
+        self.assertEqual(result, ident)
+
+    def test_064_parse_renewalinfo_string_from_url_query_and_slash(self):
+        ident = "42Z0u3BojSxdTg6mSo-bNyKcgpI.AOpUG6fnb-IW4i8A52l4K28"
+        result = self.renewalinfo._parse_renewalinfo_string_from_url(
+            f"https://acme.example.com/acme/renewal-info/{ident}/?x=1"
+        )
+        self.assertEqual(result, ident)
+
+    def test_065_parse_renewalinfo_string_from_url_bare_ident(self):
+        ident = "42Z0u3BojSxdTg6mSo-bNyKcgpI.AOpUG6fnb-IW4i8A52l4K28"
+        result = self.renewalinfo._parse_renewalinfo_string_from_url(ident)
+        self.assertEqual(result, ident)
+
+    def test_066_get_cahandler_empty_result_forces_404(self):
+        """CA lookup with 2xx and empty body is treated as certificate not found."""
+        self.renewalinfo.config.renewalinfo_lookup = True
+        self.renewalinfo.config.acme_url = "https://acme.example.com"
+        mock_cahandler_instance = MagicMock()
+        mock_cahandler_instance.lookup_renewalinfo.return_value = (200, {})
+        mock_cahandler_class = MagicMock()
+        mock_cahandler_class.return_value.__enter__.return_value = (
+            mock_cahandler_instance
+        )
+        mock_cahandler_class.return_value.__exit__.return_value = None
+        self.renewalinfo.cahandler = mock_cahandler_class
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.string_sanitize", return_value="foo"
+        ):
+            result = self.renewalinfo.get("/acme/renewal-info/foo")
+        self.assertEqual(result["code"], 404)
+        self.assertEqual(result["data"]["detail"], "certificate not found")
 
 
 if __name__ == "__main__":
