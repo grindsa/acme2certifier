@@ -7,8 +7,6 @@
 
 Starting with acme2certifier 0.46, a single instance can load **several CA handler plugins** and select one per certificate lifecycle (enroll, poll, revoke) based on EAB kid profile, ACME order profile, CSR domain patterns, or a configured default.
 
-Design reference: [`architecture/multi-cahandler-design.md`](architecture/multi-cahandler-design.md).
-
 ## When to use it
 
 Use multi-handler mode when one ACME endpoint must talk to more than one backend CA — for example a local OpenSSL sub-CA for internal names and XCA/EJBCA for production templates.
