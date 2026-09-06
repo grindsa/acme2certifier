@@ -11,13 +11,15 @@ and pick the appropriate release branch.
 **New Features**:
 
 - Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377)); per-account overrides via EAB profile `challenge` section
+- [HARICA CertManager](docs/harica.md) REST CA handler (`harica_ca_handler`) for SSL enrollment against prevalidated domains (login/2FA, poll, optional `auto_approve`, revoke); credentials via `requester_*` / `approver_*` or matching `*_variable` environment variable names
+- [`a2c-harica-totp`](docs/harica.md) CLI to print the current CertManager TOTP code from configured seeds (portal login / troubleshooting)
 
 ## Changes in 0.45.3
 
 **Bug Fixes and Improvements**:
 
-- #380 - Unknown or empty ARI lookups now return an ACME problem document instead of a bare malformed string.
-- #381 - Extract ARI certid from the URL path (last path segment), so GET /acme/renewal-info/{certid} still works when the request scheme/host does not match server_name (typical reverse-proxy http vs https mismatch).
+- [#380 - Unknown or empty ARI lookups now return an ACME problem document instead of a bare malformed string](https://github.com/grindsa/acme2certifier/issues/380)
+- [#381 - Extract ARI certid from the URL path (last path segment), so GET /acme/renewal-info/{certid} still works when the request scheme/host does not match server_name (typical reverse-proxy http vs https mismatch)](https://github.com/grindsa/acme2certifier/issues/381).
 - CA lookup that returns 2xx with an empty body is treated as certificate not found (404).
 
 ## Changes in 0.45.2
@@ -39,9 +41,6 @@ and pick the appropriate release branch.
 - email-reply-00 (RFC 8823): reply validation binds the responder to the email identifier — `From` must match the authorization value (with punycode-normalized domain comparison); responses with `List-*` headers are rejected; outbound challenge emails carry a stored `Message-ID`, and `In-Reply-To`/`References` are verified when present (advisory when absent)
 - `enrollment_config_log` redacts PKCS#12 passphrases and other credential attributes by default (expanded skiplist plus secret-like name matching); redundant per-handler skip lists removed
 - Email hook: SMTP wire debug off by default (`smtp_debug`); port-aware TLS/STARTTLS defaults; cleartext SMTP AUTH refused unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1`
-
-## Changes in 0.45.1
-
 - [tkauth-01](docs/tnauthlist.md) challenges are rejected instead of succeeding unconditionally; the authority token is never verified, so `tnauthlist_support` no longer grants authorizations. Accepting unverified tokens requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (testing only) and is logged at `CRITICAL`
 - `eabkid_check_disable` is ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set (EAB kid checks stay enabled and a warning is logged); acknowledgement is logged at `CRITICAL`
 - Global full-universe prevalidation `prevalidated_domainlist=["*"]` and IP networks with prefix length 0 (`0.0.0.0/0`, `::/0`) are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1`; scoped patterns (e.g. `*.example.com`, `10.0.0.0/8`) and EAB-profile lists are unchanged

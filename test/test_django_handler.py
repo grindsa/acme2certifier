@@ -149,7 +149,9 @@ class TestDjangoHandler(unittest.TestCase):
             if call.kwargs.get("immediate") is True
         ]
 
-    def _assert_sqlite_immediate_writes(self, mock_write: MagicMock, count: int) -> None:
+    def _assert_sqlite_immediate_writes(
+        self, mock_write: MagicMock, count: int
+    ) -> None:
         self.assertEqual(count, mock_write.call_count)
 
     def test_001_default(self) -> None:
@@ -405,7 +407,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIsInstance(rid, int)
         self._assert_sqlite_immediate_writes(mock_write, 1)
 
-    def test_023b_authorization_update_non_sqlite_skips_immediate(self) -> None:
+    def test_024_authorization_update_non_sqlite_skips_immediate(self) -> None:
         """test authorization_update skips immediate when backend is not SQLite"""
         acct = self._seed_account("acctAz3b")
         order = self._seed_order(acct, "ordAz3b")
@@ -426,7 +428,7 @@ class TestDjangoHandler(unittest.TestCase):
         ]
         self.assertEqual([], immediate_calls)
 
-    def test_024_cahandler_add_lookup(self) -> None:
+    def test_025_cahandler_add_lookup(self) -> None:
         """test cahandler_add / cahandler_lookup"""
         cname, created = self.dbstore.cahandler_add(
             {"name": "ca1", "value1": "v1", "value2": "v2"}
@@ -442,7 +444,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual("v1", result["value1"])
         self.assertIsNone(self.dbstore.cahandler_lookup("name", "missing"))
 
-    def test_025_challenge_add_lookup_update_search(self) -> None:
+    def test_026_challenge_add_lookup_update_search(self) -> None:
         """test challenge_add / lookup / update / search"""
         acct = self._seed_account("acctCh")
         order = self._seed_order(acct, "ordCh")
@@ -480,7 +482,7 @@ class TestDjangoHandler(unittest.TestCase):
         )
         self.assertEqual(1, len(rows))
 
-    def test_026_challenge_add_sqlite_immediate(self) -> None:
+    def test_027_challenge_add_sqlite_immediate(self) -> None:
         """test challenge_add uses immediate SQLite transactions"""
         acct = self._seed_account("acctCh3")
         order = self._seed_order(acct, "ordCh3")
@@ -505,7 +507,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertIsInstance(cid, int)
         self._assert_sqlite_immediate_writes(mock_write, 1)
 
-    def test_026b_sqlite_immediate_on_hot_write_paths(self) -> None:
+    def test_028_sqlite_immediate_on_hot_write_paths(self) -> None:
         """nonce, order, and challenge updates use immediate SQLite transactions"""
         acct = self._seed_account("acctHot")
         order = self._seed_order(acct, "ordHot")
@@ -529,7 +531,7 @@ class TestDjangoHandler(unittest.TestCase):
             self.dbstore.challenge_update({"name": "chHot", "keyauthorization": "ka"})
         self._assert_sqlite_immediate_writes(mock_write, 4)
 
-    def test_027_certificate_add_lookup_delete_list(self) -> None:
+    def test_029_certificate_add_lookup_delete_list(self) -> None:
         """test certificate_add / lookup / delete / list / search / account_check"""
         acct = self._seed_account("acctCert")
         order = self._seed_order(acct, "ordCert")
@@ -567,7 +569,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.dbstore.certificate_delete("name", "cert1")
         self.assertFalse(Certificate.objects.filter(name="cert1").exists())
 
-    def test_028_cli_jwk_and_permissions(self) -> None:
+    def test_030_cli_jwk_and_permissions(self) -> None:
         """test cli_jwk_load / cli_permissions_get"""
         self.assertEqual({}, self.dbstore.cli_jwk_load("missing"))
         self.assertEqual({}, self.dbstore.cli_permissions_get("missing"))
@@ -585,7 +587,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertTrue(perms["cliadmin"])
         self.assertFalse(perms["reportadmin"])
 
-    def test_029_cli_jwk_load_bytes(self) -> None:
+    def test_031_cli_jwk_load_bytes(self) -> None:
         """test cli_jwk_load bytes.decode path via mocked ORM row"""
         values_qs = MagicMock()
         values_qs.__getitem__.return_value = [{"jwk": b'{"kty":"EC","crv":"P-256"}'}]
@@ -594,7 +596,7 @@ class TestDjangoHandler(unittest.TestCase):
             jwk = self.dbstore.cli_jwk_load("cliBytes")
         self.assertEqual("EC", jwk["kty"])
 
-    def test_030_cli_jwk_load_decode_error(self) -> None:
+    def test_032_cli_jwk_load_decode_error(self) -> None:
         """test cli_jwk_load logs ERROR then falls back to json.loads(str)"""
         Cliaccount.objects.create(
             name="cliBad",
@@ -611,7 +613,7 @@ class TestDjangoHandler(unittest.TestCase):
             )
         )
 
-    def test_031_dbversion_and_hkparameter(self) -> None:
+    def test_033_dbversion_and_hkparameter(self) -> None:
         """test dbversion_get / hkparameter_add / hkparameter_get"""
         version, tool = self.dbstore.dbversion_get()
         self.assertEqual("a2c-django-update", tool)
@@ -622,7 +624,7 @@ class TestDjangoHandler(unittest.TestCase):
         Housekeeping.objects.filter(name="dbversion").delete()
         self.assertEqual((None, "a2c-django-update"), self.dbstore.dbversion_get())
 
-    def test_032_jwk_load(self) -> None:
+    def test_034_jwk_load(self) -> None:
         """test DBstore.jwk_load() str and bytes paths"""
         self.assertEqual({}, self.dbstore.jwk_load("missing"))
         self._seed_account("acctJwk", _jwk_str("jwk"))
@@ -637,7 +639,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual("EC", jwk2["kty"])
         self.assertEqual("ES256", jwk2["alg"])
 
-    def test_033_nonce_ops(self) -> None:
+    def test_035_nonce_ops(self) -> None:
         """test nonce_add / check / delete / consume / delete_bulk / search_by_timestamp"""
         rid = self.dbstore.nonce_add("n1")
         self.assertIsInstance(rid, int)
@@ -662,13 +664,13 @@ class TestDjangoHandler(unittest.TestCase):
         found_empty = self.dbstore.nonce_search_by_timestamp(0)
         self.assertEqual([], found_empty)
 
-    def test_034_nonce_unique(self) -> None:
+    def test_036_nonce_unique(self) -> None:
         """test duplicate nonce insert is rejected after unique constraint"""
         self.dbstore.nonce_add("unique-n")
         with self.assertRaises(Exception):
             self.dbstore.nonce_add("unique-n")
 
-    def test_035_certificate_add_without_order(self) -> None:
+    def test_037_certificate_add_without_order(self) -> None:
         """test certificate_add without order key"""
         # order FK is required by model; create with order via ORM then update path
         # covers branch where "order" not in data_dic by mocking update_or_create
@@ -689,7 +691,7 @@ class TestDjangoHandler(unittest.TestCase):
             ),
         )
 
-    def test_036_challenge_update_without_status(self) -> None:
+    def test_038_challenge_update_without_status(self) -> None:
         """test challenge_update without status key"""
         acct = self._seed_account("acctCu")
         order = self._seed_order(acct, "ordCu")
@@ -704,14 +706,14 @@ class TestDjangoHandler(unittest.TestCase):
         self.dbstore.challenge_update({"name": "chCu", "keyauthorization": "ka2"})
         self.assertEqual("ka2", Challenge.objects.get(name="chCu").keyauthorization)
 
-    def test_037_order_update_without_status(self) -> None:
+    def test_039_order_update_without_status(self) -> None:
         """test order_update without status key"""
         acct = self._seed_account("acctOu2")
         self._seed_order(acct, "ordOu2")
         self.dbstore.order_update({"name": "ordOu2", "expires": 42})
         self.assertEqual(42, Order.objects.get(name="ordOu2").expires)
 
-    def test_038_authorization_add_without_optional(self) -> None:
+    def test_040_authorization_add_without_optional(self) -> None:
         """test authorization_add without order/status keys"""
         acct = self._seed_account("acctAzO")
         order = self._seed_order(acct, "ordAzO")
@@ -730,7 +732,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual(77, rid)
         self.assertEqual(order.name, "ordAzO")  # keep seed referenced
 
-    def test_039_modify_key_lte_branch_in_search(self) -> None:
+    def test_041_modify_key_lte_branch_in_search(self) -> None:
         """test certificates_search with <= operant"""
         acct = self._seed_account("acctLte")
         order = self._seed_order(acct, "ordLte")
@@ -747,7 +749,7 @@ class TestDjangoHandler(unittest.TestCase):
         )
         self.assertTrue(any(r["name"] == "certLte" for r in rows))
 
-    def test_040_model_unicode_methods(self) -> None:
+    def test_042_model_unicode_methods(self) -> None:
         """test Django model __unicode__() helpers"""
         nonce = Nonce.objects.create(nonce="n-unicode")
         self.assertEqual("n-unicode", nonce.__unicode__())
@@ -770,7 +772,7 @@ class TestDjangoHandler(unittest.TestCase):
         cert = Certificate.objects.create(name="cert-uni", order=order)
         self.assertEqual("cert-uni", cert.__unicode__())
 
-    def test_042_certificate_replaced_update(self) -> None:
+    def test_043_certificate_replaced_update(self) -> None:
         """certificate_replaced_update sets replaced and returns 0 when missing"""
         acct = self._seed_account("acctRepl")
         self._seed_order(acct, "ordRepl")
@@ -786,11 +788,45 @@ class TestDjangoHandler(unittest.TestCase):
         cert = Certificate.objects.get(name="certRepl")
         self.assertTrue(cert.replaced)
 
+    def test_044_sqlite_immediate_write_django_lt_51(self) -> None:
+        """Django < 5.1: immediate=True success and TypeError fallback"""
+        import django
+
+        cm = MagicMock()
+        cm.__enter__ = MagicMock(return_value=None)
+        cm.__exit__ = MagicMock(return_value=False)
+
+        with patch.object(django, "VERSION", (4, 2, 0)):
+            with patch.object(self.dbstore, "_sqlite_backend", return_value=True):
+                with patch.object(
+                    dh_mod.transaction, "atomic", return_value=cm
+                ) as mock_atomic:
+                    result = self.dbstore._sqlite_immediate_write(lambda: "ok-imm")
+        self.assertEqual("ok-imm", result)
+        mock_atomic.assert_called_once_with(immediate=True)
+
+        def atomic_side_effect(*args, **kwargs):
+            if kwargs.get("immediate") is True:
+                raise TypeError("immediate unsupported")
+            return cm
+
+        with patch.object(django, "VERSION", (4, 2, 0)):
+            with patch.object(self.dbstore, "_sqlite_backend", return_value=True):
+                with patch.object(
+                    dh_mod.transaction, "atomic", side_effect=atomic_side_effect
+                ) as mock_atomic:
+                    result = self.dbstore._sqlite_immediate_write(lambda: "ok-fb")
+        self.assertEqual("ok-fb", result)
+        self.assertEqual(2, mock_atomic.call_count)
+        self.assertEqual({"immediate": True}, mock_atomic.call_args_list[0].kwargs)
+        self.assertEqual((), mock_atomic.call_args_list[1].args)
+        self.assertEqual({}, mock_atomic.call_args_list[1].kwargs)
+
 
 class TestDjangoHandlerInitializeReload(unittest.TestCase):
     """cover initialize monkey_patches import for Django < 4 via reload"""
 
-    def test_041_initialize_loads_monkey_patches_on_django3(self) -> None:
+    def test_045_initialize_loads_monkey_patches_on_django3(self) -> None:
         """reload django_handler with Django major < 4 to hit monkey_patches import"""
         saved = {
             key: sys.modules.get(key)

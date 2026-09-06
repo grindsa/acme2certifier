@@ -128,6 +128,7 @@ from .helpers.config import (
     config_eab_profile_load,
     config_headerinfo_load,
     config_enroll_config_log_load,
+    config_option_load,
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_async_mode_load,
