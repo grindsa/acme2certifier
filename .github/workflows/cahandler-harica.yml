@@ -1,31 +1,27 @@
 name: CA-Handler Tests - Harica
-# Temporarily disabled; re-enable by restoring workflow_dispatch.
 on:
-  push:
-    branches: [ 'disabled']
-
-#  workflow_dispatch:
-#    inputs:
-#      branch:
-#        description: 'Branch to run the workflow on'
-#        required: true
-#        default: 'main'
-#      run_id:
-#        description: 'Run ID of the producing workflow'
-#        required: true
-#        default: '0'
-#      sha:
-#        description: 'SHA of the commit to run the workflow on'
-#        required: true
-#        default: ''
-#      called_by_workflow:
-#        description: 'Name of the producing workflow'
-#        required: true
-#        default: 'manual-trigger'
-#      full_ref:
-#        description: 'Full git ref of the commit to run the workflow on'
-#        required: false
-#        default: ''
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
@@ -44,7 +40,7 @@ jobs:
       branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
-  # Test container images (matrix from payload)
+  # HARICA native ACME via acme_ca_handler
   # ---------------------------------------------------------
   acme-test-containers:
     permissions:
@@ -75,14 +71,14 @@ jobs:
           REPO: ${{ github.repository }}
           NAME_SPACE: acme
 
-      - name: Parse HARICA config
+      - name: "Parse HARICA config"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.HARICA_CFG }}
 
       - name: "Generate UUID"
         run: |
-          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+          echo "UUID=$(uuidgen | cut -d "-" -f1)" >> "$GITHUB_ENV"
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup acme_ca_handler"
@@ -107,8 +103,6 @@ jobs:
           sudo chmod -R 777 examples/Docker/data/acme
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
-        env:
-          ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -116,11 +110,13 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Test enrollment"
+      - name: "Test enrollment and revocation"
         uses: ./.github/actions/wf_specific/harica/acme_enroll
         with:
           DEPLOYMENT_TYPE: "container"
           HOSTNAME_SUFFIX: -${{ env.UUID }}
+          WARMUP_ENROLL: "true"
+          CERT_TIMEOUT: "60"
 
       - name: "Check acme account found in keyfile"
         uses: ./.github/actions/logs_assert
@@ -143,6 +139,111 @@ jobs:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: acme-test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
+  # ---------------------------------------------------------
+  # CertManager REST via harica_ca_handler
+  # ---------------------------------------------------------
+  rest-test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['nginx']
+        dbhandler: ['wsgi']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Parse HARICA config"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.HARICA_CFG }}
+
+      - name: "Generate UUID"
+        run: |
+          echo "UUID=$(uuidgen | cut -d "-" -f1)" >> "$GITHUB_ENV"
+      - run: echo "UUID ${{ env.UUID }}"
+
+      - name: "Setup harica_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.harica_ca_handler
+          OPTIONS: |
+            api_url: ${{ env.API_URL }}
+            requester_email: ${{ env.REQUESTER_EMAIL }}
+            requester_password: ${{ env.REQUESTER_PASSWORD }}
+            requester_totp_seed: ${{ env.REQUESTER_TOTP_SEED }}
+            transaction_type: OV
+            consent_same_key: True
+            organization_id: ${{ env.ORGANIZATION_ID }}
+            auto_approve: True
+            approver_email: ${{ env.APPROVER_EMAIL }}
+            approver_password: ${{ env.APPROVER_PASSWORD }}
+            approver_totp_seed: ${{ env.APPROVER_TOTP_SEED }}
+            request_timeout: 120
+            allowed_domainlist: ["*.${{ env.DOMAIN }}", "*.acme"]
+
+      - name: "Setup harica_ca_handler (post-cfg)"
+        run: |
+          set -euo pipefail
+          if [ -z "${ORGANIZATION_ID:-}" ]; then
+            sudo sed -i '/^organization_id:[[:space:]]*$/d' examples/Docker/data/acme_srv.cfg
+          fi
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 120\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Test enrollment and revocation"
+        uses: ./.github/actions/wf_specific/harica/acme_enroll
+        with:
+          DEPLOYMENT_TYPE: "container"
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          CERT_TIMEOUT: "180"
+
+      - name: "Check revocation logged"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Certificate revoked"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: rest-test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+
   test-rpm:
     permissions:
       contents: read
@@ -161,7 +262,6 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v7
 
-
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
         with:
@@ -171,14 +271,14 @@ jobs:
           RH_VERSION: ${{ matrix.rhversion }}
           JSON_SECRET: ${{ secrets.GH_CFG }}
 
-      - name: Parse HARICA config
+      - name: "Parse HARICA config"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.HARICA_CFG }}
 
       - name: "Generate UUID"
         run: |
-          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+          echo "UUID=$(uuidgen | cut -d "-" -f1)" >> "$GITHUB_ENV"
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup acme_ca_handler"
@@ -203,8 +303,6 @@ jobs:
           sudo chmod -R 777 data/volume/acme
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
-        env:
-          ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
 
       - name: "Execute install script"
         run: |
@@ -212,11 +310,13 @@ jobs:
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Test enrollment"
+      - name: "Test enrollment and revocation"
         uses: ./.github/actions/wf_specific/harica/acme_enroll
         with:
           DEPLOYMENT_TYPE: "rpm"
           HOSTNAME_SUFFIX: -${{ env.UUID }}
+          WARMUP_ENROLL: "true"
+          CERT_TIMEOUT: "60"
 
       - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
@@ -231,11 +331,6 @@ jobs:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
 
-  # ---------------------------------------------------------
-  # Test DEB downloaded from the producer run
-  # ---------------------------------------------------------
-
-
   test-deb:
     permissions:
       contents: read
@@ -243,7 +338,6 @@ jobs:
     needs: [guard, acme-test-containers, test-rpm]
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # if: github.repository == 'grindsa/acme2certifier'
     if: github.repository == 'grindsa/disabled'
     strategy:
       fail-fast: false
@@ -264,14 +358,14 @@ jobs:
           REPO: ${{ github.repository }}
           DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
 
-      - name: Parse HARICA config
+      - name: "Parse HARICA config"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.HARICA_CFG }}
 
       - name: "Generate UUID"
         run: |
-          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+          echo "UUID=$(uuidgen | cut -d "-" -f1)" >> "$GITHUB_ENV"
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup acme_ca_handler"
@@ -296,8 +390,6 @@ jobs:
           sudo chmod -R 777 data/volume/acme
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
-        env:
-          ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
 
       - name: "Execute install script"
         run: |
@@ -306,11 +398,13 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           MODE: ${{ matrix.mode }}
 
-      - name: "Test enrollment"
+      - name: "Test enrollment and revocation"
         uses: ./.github/actions/wf_specific/harica/acme_enroll
         with:
           DEPLOYMENT_TYPE: "deb"
           HOSTNAME_SUFFIX: -${{ env.UUID }}
+          WARMUP_ENROLL: "true"
+          CERT_TIMEOUT: "60"
 
       - name: "Channel teardown"
         if: ${{ always() }}
