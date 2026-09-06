@@ -516,6 +516,10 @@ class TestHaricaCAhandler(unittest.TestCase):
         code, message, detail = self.cahandler.revoke("cert-raw")
         self.assertEqual(code, 200)
         self.assertIsNone(message)
+        mock_api.assert_called_once()
+        self.assertEqual(
+            mock_api.call_args[0][0], "/api/Certificate/RevokeCertificate"
+        )
 
     def test_028_trigger_not_implemented(self):
         error, cert_bundle, cert_raw = self.cahandler.trigger("payload")
@@ -1136,6 +1140,9 @@ class TestHaricaCAhandler(unittest.TestCase):
         )
         self.assertEqual(self.cahandler._transaction_id_by_serial("01ab"), "txn-a")
         self.assertFalse(mock_fetch.called)
+        mock_api.assert_called_once_with(
+            "/api/ServerCertificate/GetMyTransactions", {}
+        )
 
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch")
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json")
@@ -1149,31 +1156,44 @@ class TestHaricaCAhandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch")
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json")
-    def test_071_transaction_id_by_serial_my_transactions(self, mock_api, mock_fetch):
+    def test_071_transaction_id_by_serial_validator_fallback(self, mock_api, mock_fetch):
         mock_api.side_effect = [
-            (404, None),
+            (200, []),
             (
                 200,
                 [
                     {"id": None},
                     {"transactionId": "txn-skip"},
-                    {"transactionId": "txn-c"},
+                    {"transactionId": "txn-c", "serialNumber": "99"},
                 ],
             ),
         ]
-        mock_fetch.side_effect = [None, {"serial": "99"}]
         self.assertEqual(self.cahandler._transaction_id_by_serial("99"), "txn-c")
-        self.assertEqual(mock_fetch.call_count, 2)
+        self.assertEqual(mock_api.call_count, 2)
+        self.assertEqual(
+            mock_api.call_args_list[1][0][0],
+            "/api/OrganizationValidatorSSL/GetSSLTransactions",
+        )
 
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch")
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json")
     def test_072_transaction_id_by_serial_not_found(self, mock_api, mock_fetch):
         mock_api.side_effect = [
-            (200, []),
             (200, [{"id": "txn-x"}, {"id": "txn-y"}]),
+            (200, []),
         ]
         mock_fetch.side_effect = [None, {"serial": "nope"}]
         self.assertIsNone(self.cahandler._transaction_id_by_serial("dead"))
+
+    @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch")
+    @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json")
+    def test_072b_transaction_id_skips_validator_302(self, mock_api, mock_fetch):
+        mock_api.side_effect = [
+            (200, []),
+            PermissionError("HARICA API redirected to login"),
+        ]
+        self.assertIsNone(self.cahandler._transaction_id_by_serial("dead"))
+        self.assertEqual(mock_api.call_count, 2)
 
     @patch(
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._config_check",

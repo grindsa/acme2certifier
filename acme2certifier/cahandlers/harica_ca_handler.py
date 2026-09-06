@@ -935,9 +935,11 @@ class CAhandler(object):
         """Lookup HARICA transaction id by certificate serial."""
         self.logger.debug("CAhandler._transaction_id_by_serial()")
         serial_norm = self._serial_normalize(serial)
-        payload = {"startIndex": 0, "status": "Completed", "filterPostDTOs": []}
+
+        # Requester session first — OrganizationValidatorSSL/* redirects (302) for
+        # non-validator accounts (same issue as GetSSLCertificate vs GetCertificate).
         code, transactions = self._api_post_json(
-            "/api/OrganizationValidatorSSL/GetSSLTransactions", payload
+            "/api/ServerCertificate/GetMyTransactions", {}
         )
         if code in (200, 201) and isinstance(transactions, list):
             found = self._transaction_id_from_list(
@@ -945,15 +947,23 @@ class CAhandler(object):
             )
             if found:
                 return found
-        code, transactions = self._api_post_json(
-            "/api/ServerCertificate/GetMyTransactions", {}
-        )
-        if code in (200, 201) and isinstance(transactions, list):
-            found = self._transaction_id_from_list(
-                transactions, serial_norm, check_item_serial=False
+
+        try:
+            payload = {"startIndex": 0, "status": "Completed", "filterPostDTOs": []}
+            code, transactions = self._api_post_json(
+                "/api/OrganizationValidatorSSL/GetSSLTransactions", payload
             )
-            if found:
-                return found
+            if code in (200, 201) and isinstance(transactions, list):
+                found = self._transaction_id_from_list(
+                    transactions, serial_norm, check_item_serial=True
+                )
+                if found:
+                    return found
+        except PermissionError as err_:
+            self.logger.debug(
+                "GetSSLTransactions unavailable for this session: %s", err_
+            )
+
         self.logger.debug("CAhandler._transaction_id_by_serial() ended")
         return None
 
@@ -1124,8 +1134,10 @@ class CAhandler(object):
                 "notes": "Revoked via acme2certifier",
                 "message": "",
             }
+            # Requester path — OrganizationValidatorSSL/RevokeCertificate 302s for
+            # non-validator accounts (tcs-garr revoke_user_certificate).
             rev_code, rev_content = self._api_post_json(
-                "/api/OrganizationValidatorSSL/RevokeCertificate", payload
+                "/api/Certificate/RevokeCertificate", payload
             )
             if rev_code in (200, 201, 204):
                 code = 200

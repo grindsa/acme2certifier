@@ -123,7 +123,7 @@ Most ACME clients time out quickly on `processing`. For long approval delays, ke
 
 ## Revocation
 
-Revocation looks up the HARICA transaction by certificate serial and calls `RevokeCertificate`.
+Revocation looks up the HARICA transaction via `GetMyTransactions` (requester) and calls `/api/Certificate/RevokeCertificate`. Validator-only `OrganizationValidatorSSL/*` endpoints are not used for requester sessions (they return login redirects).
 
 ## EAB Profiling and ACME Profiles
 
