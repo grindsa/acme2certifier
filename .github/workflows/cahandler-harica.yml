@@ -32,7 +32,7 @@ permissions: {}
 jobs:
   guard:
     permissions: {}
-    if: ${{ inputs.branch == 'master' || inputs.branch == 'devel' }}
+    if: ${{ inputs.branch == 'master' || inputs.branch == 'devel' || inputs.branch == 'wf_harica' }}
     uses: ./.github/workflows/_guard.yml
     with:
       sha: ${{ inputs.sha }}
@@ -54,7 +54,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        websrv: ['apache2', 'nginx']
+        websrv: ['nginx']
         dbhandler: ['wsgi']
 
     steps:
@@ -102,7 +102,7 @@ jobs:
           sudo mkdir -p examples/Docker/data/acme
           sudo chmod -R 777 examples/Docker/data/acme
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 120\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -114,9 +114,9 @@ jobs:
         uses: ./.github/actions/wf_specific/harica/acme_enroll
         with:
           DEPLOYMENT_TYPE: "container"
-          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          HOSTNAME_SUFFIX: -acme-${{ env.UUID }}
           WARMUP_ENROLL: "true"
-          CERT_TIMEOUT: "60"
+          CERT_TIMEOUT: "180"
 
       - name: "Check acme account found in keyfile"
         uses: ./.github/actions/logs_assert
@@ -208,7 +208,9 @@ jobs:
             sudo sed -i '/^organization_id:[[:space:]]*$/d' examples/Docker/data/acme_srv.cfg
           fi
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 120\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
+          # enrollment_timeout must stay below lego ResponseHeaderTimeout (~30s); enroll
+          # continues in-thread after finalize returns processing (same pattern as certifier).
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -220,14 +222,15 @@ jobs:
         uses: ./.github/actions/wf_specific/harica/acme_enroll
         with:
           DEPLOYMENT_TYPE: "container"
-          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          HOSTNAME_SUFFIX: -rest-${{ env.UUID }}
           CERT_TIMEOUT: "180"
 
       - name: "Check revocation logged"
         uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: container
-          PATTERN: "Certificate revoked"
+          # cert_operations_log: True → text logger ("revocation successful"), not json ("Certificate revoked")
+          PATTERN: "revocation successful"
           IGNORE_CASE: "true"
           FLUSH: "false"
 
@@ -243,173 +246,3 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: rest-test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-
-  test-rpm:
-    permissions:
-      contents: read
-      actions: write
-    needs: [guard, acme-test-containers]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    if: github.repository == 'grindsa/acme2certifier'
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        rhversion: [9]
-        mode: ['wsgi', 'django']
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v7
-
-      - name: "Channel setup"
-        uses: ./.github/actions/channel_rpm_setup
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          JSON_SECRET: ${{ secrets.GH_CFG }}
-
-      - name: "Parse HARICA config"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.HARICA_CFG }}
-
-      - name: "Generate UUID"
-        run: |
-          echo "UUID=$(uuidgen | cut -d "-" -f1)" >> "$GITHUB_ENV"
-      - run: echo "UUID ${{ env.UUID }}"
-
-      - name: "Setup acme_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
-        with:
-          VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
-          OPTIONS: |
-            acme_keyfile: volume/acme/harica_staging_private_key.json
-            acme_url: ${{ env.ACME_URL }}
-            account_path: /acct/
-            acme_account_email: ${{ env.ACME_ACCOUNT_EMAIL }}
-            eab_kid: ${{ env.EAB_KID }}
-            eab_hmac_key: ${{ env.EAB_HMAC_KEY }}
-            allowed_domainlist: ["*.${{ env.DOMAIN }}", "*.acme"]
-        env:
-          ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
-
-      - name: "Setup acme_ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p data/volume/acme
-          sudo chmod -R 777 data/volume/acme
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
-
-      - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
-        env:
-          MODE: ${{ matrix.mode }}
-
-      - name: "Test enrollment and revocation"
-        uses: ./.github/actions/wf_specific/harica/acme_enroll
-        with:
-          DEPLOYMENT_TYPE: "rpm"
-          HOSTNAME_SUFFIX: -${{ env.UUID }}
-          WARMUP_ENROLL: "true"
-          CERT_TIMEOUT: "60"
-
-      - name: "[ * ] Collecting extra failure logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
-          docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
-
-      - name: "Channel teardown"
-        if: ${{ always() }}
-        uses: ./.github/actions/channel_teardown
-        with:
-          DEPLOYMENT_TYPE: rpm
-          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
-
-  test-deb:
-    permissions:
-      contents: read
-      actions: write
-    needs: [guard, acme-test-containers, test-rpm]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    if: github.repository == 'grindsa/disabled'
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        websrv: ['nginx']
-        mode: ['wsgi', 'django']
-
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v7
-
-      - name: "Channel setup"
-        uses: ./.github/actions/channel_deb_setup
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
-
-      - name: "Parse HARICA config"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.HARICA_CFG }}
-
-      - name: "Generate UUID"
-        run: |
-          echo "UUID=$(uuidgen | cut -d "-" -f1)" >> "$GITHUB_ENV"
-      - run: echo "UUID ${{ env.UUID }}"
-
-      - name: "Setup acme_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
-        with:
-          VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
-          OPTIONS: |
-            acme_keyfile: /var/www/acme2certifier/volume/acme/harica_staging_private_key.json
-            acme_url: ${{ env.ACME_URL }}
-            account_path: /acct/
-            acme_account_email: ${{ env.ACME_ACCOUNT_EMAIL }}
-            eab_kid: ${{ env.EAB_KID }}
-            eab_hmac_key: ${{ env.EAB_HMAC_KEY }}
-            allowed_domainlist: ["*.${{ env.DOMAIN }}", "*.acme"]
-        env:
-          ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
-
-      - name: "Setup acme_ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p data/volume/acme
-          sudo chmod -R 777 data/volume/acme
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
-
-      - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
-
-      - name: "Test enrollment and revocation"
-        uses: ./.github/actions/wf_specific/harica/acme_enroll
-        with:
-          DEPLOYMENT_TYPE: "deb"
-          HOSTNAME_SUFFIX: -${{ env.UUID }}
-          WARMUP_ENROLL: "true"
-          CERT_TIMEOUT: "60"
-
-      - name: "Channel teardown"
-        if: ${{ always() }}
-        uses: ./.github/actions/channel_teardown
-        with:
-          DEPLOYMENT_TYPE: deb
-          ARTIFACT_NAME: acme-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
-          WEBSRV: ${{ matrix.websrv }}

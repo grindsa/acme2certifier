@@ -10,7 +10,7 @@ inputs:
     required: true
     default: "-unknown"
   CERT_TIMEOUT:
-    description: "Client certificate issuance timeout in seconds"
+    description: "Client certificate issuance timeout in seconds (lego --cert.timeout / certbot --issuance-timeout)"
     required: true
     default: "180"
   NAME_SPACE:
@@ -50,11 +50,11 @@ runs:
         exit 1
       fi
       FQDN="lego${HOSTNAME_SUFFIX}.${DOMAIN}"
-      echo "Warm-up enroll ${FQDN}"
+      echo "Warm-up enroll ${FQDN} (cert.timeout=${CERT_TIMEOUT}s)"
       docker run -i -v "$PWD/lego:/.lego/" --rm --name "lego${HOSTNAME_SUFFIX}" \
         --network "${NAME_SPACE}" goacme/lego run --tls-skip-verify \
         -s https://acme-srv -a --email "lego@example.com" \
-        -d "${FQDN}" --cert.timeout "${CERT_TIMEOUT}" --http
+        -d "${FQDN}" --cert.timeout "${CERT_TIMEOUT}" --http-timeout "${CERT_TIMEOUT}" --http
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
@@ -77,11 +77,11 @@ runs:
       sudo rm -rf lego/*
       mkdir -p lego
       FQDN="lego${HOSTNAME_SUFFIX}.${DOMAIN}"
-      echo "Enrolling ${FQDN}"
+      echo "Enrolling ${FQDN} (cert.timeout=${CERT_TIMEOUT}s)"
       docker run -i -v "$PWD/lego:/.lego/" --rm --name "lego${HOSTNAME_SUFFIX}" \
         --network "${NAME_SPACE}" goacme/lego run --tls-skip-verify \
         -s https://acme-srv -a --email "lego@example.com" \
-        -d "${FQDN}" --cert.timeout "${CERT_TIMEOUT}" --http
+        -d "${FQDN}" --cert.timeout "${CERT_TIMEOUT}" --http-timeout "${CERT_TIMEOUT}" --http
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}

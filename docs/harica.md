@@ -119,11 +119,13 @@ Staging credentials and enterprises are **not** mirrored from production. Use se
 5. An approver accepts the request in CertManager (or `auto_approve` runs `UpdateReviews` with the approver’s 2FA login).
 6. Cron [`a2c_cert_poll.py`](poll.md) calls `poll()` until the certificate is downloaded.
 
+With `auto_approve`, CertManager approval often exceeds ~30s. Lego’s HTTP transport uses a fixed **ResponseHeaderTimeout** of ~30s (raising `--http-timeout` does **not** change that). Set `[Certificate] enrollment_timeout` below that limit (e.g. `15`) so finalize returns **processing** while enrollment continues in the background; the client then polls the order until the cert is stored. See [Certificate options](acme_srv.md).
+
 Most ACME clients time out quickly on `processing`. For long approval delays, keep polling the **same** order URL or use [acmeshell](acme-clients.md).
 
 ## Revocation
 
-Revocation looks up the HARICA transaction via `GetMyTransactions` (requester) and calls `/api/Certificate/RevokeCertificate`. Validator-only `OrganizationValidatorSSL/*` endpoints are not used for requester sessions (they return login redirects).
+Revocation looks up the HARICA transaction by certificate serial and calls `RevokeCertificate`.
 
 ## EAB Profiling and ACME Profiles
 
