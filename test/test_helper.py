@@ -4899,6 +4899,31 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme2certifier.acme_srv.helpers.eab.profile_lookup")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
+    def test_413a_eab_profile_header_info_check_skip_handler_routing_name(
+        self, mock_lookup, mock_eab, mock_profile
+    ):
+        """ACME profile matching cahandler_registry_name is routing-only."""
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = False
+        cahandler.header_info_field = None
+        cahandler.handler_hifield = "OV"
+        cahandler.cahandler_registry_name = "harica"
+        cahandler.profiles = {"harica": "http://example/harica"}
+        mock_profile.return_value = "harica"
+        self.assertFalse(
+            self.eab_profile_header_info_check(
+                self.logger, cahandler, "csr", "handler_hifield"
+            )
+        )
+        self.assertFalse(mock_lookup.called)
+        self.assertFalse(mock_eab.called)
+        self.assertTrue(mock_profile.called)
+        self.assertEqual("OV", cahandler.handler_hifield)
+
+    @patch("acme2certifier.acme_srv.helpers.eab.profile_lookup")
+    @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
+    @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
+    @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
     def test_414_eab_profile_header_info_check(
         self, mock_lookup, mock_allowlist, mock_eab, mock_profile
     ):

@@ -8,6 +8,12 @@ and pick the appropriate release branch.
 
 ## Changes in 0.45.1
 
+**Bug Fixes and Improvements**:
+
+- Multi-CAhandler: ACME profiles that only select a named handler (`profile_cahandler` identity maps such as `harica` → `harica`) no longer overwrite that handler's `profile_mapping_field` (HARICA was sending `transactionType=harica` instead of `OV`)
+- OpenSSL CA handler honors `enrollment_config_log` / `enrollment_config_log_skip_list` (same as XCA and the other handlers)
+- Log the resolved CA handler name (and config section) at INFO before certificate enrollment
+
 **New Features**:
 
 - Multi-CAhandler support: configure several CA handler plugins in one instance (`multi_handler`, named `[CAhandler:<name>]` sections, EAB `cahandler_name`, `profile_cahandler`, domain-based routing, `orders.cahandler` persistence); INI and YAML config; see [`docs/multi_cahandler.md`](docs/multi_cahandler.md)
