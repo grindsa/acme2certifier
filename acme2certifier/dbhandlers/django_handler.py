@@ -87,10 +87,7 @@ class DBstore(object):
 
     def _sqlite_backend(self) -> bool:
         """True when the default database backend is SQLite."""
-        return (
-            settings.DATABASES["default"]["ENGINE"]
-            == "django.db.backends.sqlite3"
-        )
+        return settings.DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3"
 
     def _sqlite_immediate_write(self, fn):
         """Run fn inside BEGIN IMMEDIATE when using SQLite (all Django versions)."""

@@ -1,57 +1,141 @@
-name: "enroll_acmeprofile"
-description: "enroll_acmeprofile‚"
+name: "harica_acme_enroll"
+description: "Enroll and revoke certificates against HARICA via lego and certbot"
 inputs:
   DEPLOYMENT_TYPE:
-    description: "Deployment type"
+    description: "Deployment type (container, rpm, deb)"
     required: true
-    default: "rpm"
+    default: "container"
   HOSTNAME_SUFFIX:
-    description: "Hostname suffix for the domain"
+    description: "Hostname suffix for the domain (e.g. -abc123)"
     required: true
     default: "-unknown"
   CERT_TIMEOUT:
-    description: "Certificate timeout"
+    description: "Client certificate issuance timeout in seconds (lego --cert.timeout / certbot --issuance-timeout)"
     required: true
-    default: "60"
+    default: "180"
+  NAME_SPACE:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+  WARMUP_ENROLL:
+    description: "Run a best-effort first enroll (HARICA ACME account warm-up)"
+    required: false
+    default: "false"
+  REVOKE:
+    description: "Revoke enrolled certificates after success"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
   steps:
   - name: "Wait for ACME directory"
     uses: ./.github/actions/wait_for_directory
+    with:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-  - name: "Enroll lego - might fail"
+  - name: "Create client directories"
+    run: |
+      sudo rm -rf lego certbot
+      mkdir -p lego certbot
+    shell: bash
+
+  - name: "Warm-up enroll lego (may fail)"
+    if: ${{ inputs.WARMUP_ENROLL == 'true' }}
     continue-on-error: true
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$DOMAIN --cert.timeout $CERT_TIMEOUT --http
+      set -euo pipefail
+      if [ -z "${DOMAIN:-}" ]; then
+        echo "DOMAIN env is required (from HARICA_CFG)"
+        exit 1
+      fi
+      FQDN="lego${HOSTNAME_SUFFIX}.${DOMAIN}"
+      echo "Warm-up enroll ${FQDN} (cert.timeout=${CERT_TIMEOUT}s)"
+      docker run -i -v "$PWD/lego:/.lego/" --rm --name "lego${HOSTNAME_SUFFIX}" \
+        --network "${NAME_SPACE}" goacme/lego run --tls-skip-verify \
+        -s https://acme-srv -a --email "lego@example.com" \
+        -d "${FQDN}" --cert.timeout "${CERT_TIMEOUT}" --http-timeout "${CERT_TIMEOUT}" --http
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
       CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-  - name: "Sleep for 15s"
+  - name: "Sleep after warm-up"
+    if: ${{ inputs.WARMUP_ENROLL == 'true' }}
     uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
     with:
       time: 15s
 
   - name: "Enroll lego"
     run: |
+      set -euo pipefail
+      if [ -z "${DOMAIN:-}" ]; then
+        echo "DOMAIN env is required (from HARICA_CFG)"
+        exit 1
+      fi
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$DOMAIN --cert.timeout $CERT_TIMEOUT --http
-      # sudo chmod -R a+rw lego
-      # sudo cp lego/certificates/lego$HOSTNAME_SUFFIX.$DOMAIN.crt lego/certificates/lego$HOSTNAME_SUFFIX.$DOMAIN.issuer.crt ./
-      # sudo awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < lego$HOSTNAME_SUFFIX.$DOMAIN.issuer.crt
-      # sudo openssl x509 -in lego$HOSTNAME_SUFFIX.$DOMAIN.crt -text -noout
-      # sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego$HOSTNAME_SUFFIX.$DOMAIN.crt
+      mkdir -p lego
+      FQDN="lego${HOSTNAME_SUFFIX}.${DOMAIN}"
+      echo "Enrolling ${FQDN} (cert.timeout=${CERT_TIMEOUT}s)"
+      docker run -i -v "$PWD/lego:/.lego/" --rm --name "lego${HOSTNAME_SUFFIX}" \
+        --network "${NAME_SPACE}" goacme/lego run --tls-skip-verify \
+        -s https://acme-srv -a --email "lego@example.com" \
+        -d "${FQDN}" --cert.timeout "${CERT_TIMEOUT}" --http-timeout "${CERT_TIMEOUT}" --http
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
       CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-  - name: "Enroll Certbot"
+  - name: "Revoke lego"
+    if: ${{ inputs.REVOKE == 'true' }}
     run: |
-      docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --standalone --preferred-challenges http --server  https://acme-srv --email grindsa@foo.bar --agree-tos --no-eff-email --no-verify-ssl -d "certbot$HOSTNAME_SUFFIX.acme.dynamop.de" --issuance-timeout $CERT_TIMEOUT
+      set -euo pipefail
+      FQDN="lego${HOSTNAME_SUFFIX}.${DOMAIN}"
+      echo "Revoking ${FQDN}"
+      docker run -i -v "$PWD/lego:/.lego/" --rm --name "lego${HOSTNAME_SUFFIX}" \
+        --network "${NAME_SPACE}" goacme/lego certificates revoke --tls-skip-verify \
+        -s https://acme-srv --email "lego@example.com" --cert.name "${FQDN}"
+    shell: bash
+    env:
+      HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll certbot"
+    run: |
+      set -euo pipefail
+      if [ -z "${DOMAIN:-}" ]; then
+        echo "DOMAIN env is required (from HARICA_CFG)"
+        exit 1
+      fi
+      FQDN="certbot${HOSTNAME_SUFFIX}.${DOMAIN}"
+      CERT_NAME="certbot${HOSTNAME_SUFFIX}"
+      echo "Enrolling ${FQDN}"
+      docker run -i --rm --name "certbot${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
+        -v "$PWD/certbot:/etc/letsencrypt/" certbot/certbot certonly \
+        --standalone --preferred-challenges http --server https://acme-srv \
+        --email grindsa@foo.bar --agree-tos --no-eff-email --no-verify-ssl \
+        -d "${FQDN}" --cert-name "${CERT_NAME}" \
+        --issuance-timeout "${CERT_TIMEOUT}"
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
       CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Revoke certbot"
+    if: ${{ inputs.REVOKE == 'true' }}
+    run: |
+      set -euo pipefail
+      FQDN="certbot${HOSTNAME_SUFFIX}.${DOMAIN}"
+      CERT_NAME="certbot${HOSTNAME_SUFFIX}"
+      echo "Revoking ${FQDN}"
+      docker run -i --rm --name "certbot${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
+        -v "$PWD/certbot:/etc/letsencrypt/" certbot/certbot revoke \
+        --delete-after-revoke --server https://acme-srv \
+        --no-verify-ssl --cert-name "${CERT_NAME}"
+    shell: bash
+    env:
+      HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}

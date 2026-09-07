@@ -277,6 +277,57 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
     return enrollment_cfg_log, enrollment_cfg_log_skip_list
 
 
+def config_option_load(
+    logger: logging.Logger,
+    config_dic: Dict[str, str],
+    option: str,
+    *,
+    section: str = "CAhandler",
+    variable_option: Optional[str] = None,
+    current: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Load a config option from ``{option}_variable`` (environment) and/or ``option``.
+
+    Semantics (shared by CA handlers):
+    - If ``variable_option`` (default ``f"{option}_variable"``) is set, read
+      ``os.environ[env_name]``. Missing env vars are logged and leave ``current``.
+    - If ``option`` is also set in the config section, it overwrites the env value
+      (INFO: ``Overwrite {option}`` when a prior value exists).
+    - If neither key is present, return ``current`` unchanged.
+
+    Returns:
+        Resolved string value, or ``current`` / ``None``.
+    """
+    logger.debug("Helper.config_option_load(%s)", option)
+    if section not in config_dic:
+        logger.debug("Helper.config_option_load(%s) ended (no section)", option)
+        return current
+
+    var_option = (
+        variable_option if variable_option is not None else f"{option}_variable"
+    )
+    section_dic = config_dic[section]
+    if option not in section_dic and var_option not in section_dic:
+        logger.debug("Helper.config_option_load(%s) ended (unset)", option)
+        return current
+
+    value = current
+    if var_option in section_dic:
+        try:
+            value = os.environ[config_dic.get(section, var_option)]
+        except Exception as err:
+            logger.error("Could not load %s:%s", var_option, err)
+
+    if option in section_dic:
+        if value:
+            logger.info("Overwrite %s", option)
+        value = config_dic.get(section, option)
+
+    logger.debug("Helper.config_option_load(%s) ended", option)
+    return value
+
+
 def config_dns_server_list_load(
     logger: logging.Logger, config_dic: Dict[str, str]
 ) -> Tuple[List[str], int]:
