@@ -32,7 +32,7 @@ permissions: {}
 jobs:
   guard:
     permissions: {}
-    if: ${{ inputs.branch == 'master' || inputs.branch == 'devel' || inputs.branch == 'wf_harica' }}
+    if: ${{ inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'harica') }}
     uses: ./.github/workflows/_guard.yml
     with:
       sha: ${{ inputs.sha }}
