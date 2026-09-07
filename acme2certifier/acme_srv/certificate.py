@@ -993,6 +993,18 @@ class Certificate(object):
             self._persist_order_cahandler(
                 order_name, getattr(handler_factory, "name", None)
             )
+            handler_name = getattr(handler_factory, "name", None)
+            handler_section = getattr(handler_factory, "section", None)
+            if not isinstance(handler_name, str):
+                handler_name = "unknown"
+            extra = (
+                f" ({handler_section})" if isinstance(handler_section, str) else ""
+            )
+            self.logger.info(
+                "Certificate enrollment via CA handler '%s'%s",
+                handler_name,
+                extra,
+            )
             with handler_factory(self.debug, self.logger) as ca_handler:
                 (
                     error,

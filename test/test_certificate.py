@@ -446,8 +446,30 @@ class TestCertificate(unittest.TestCase):
         mock_ca.__enter__.return_value = mock_ca
         mock_ca.enroll.return_value = (None, "cert", "raw", "poll")
         self.cert.cahandler = MagicMock(return_value=mock_ca)
-        result = self.cert._process_certificate_enrollment("csr")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cert._process_certificate_enrollment("csr")
         self.assertEqual(result, (None, "cert", "raw", "poll", False))
+        self.assertIn(
+            "INFO:test_a2c:Certificate enrollment via CA handler 'unknown'",
+            lcm.output,
+        )
+
+    def test_023a_process_certificate_enrollment_logs_handler_name(self):
+        self.cert.config.cert_reusage_timeframe = False
+        mock_ca = MagicMock()
+        mock_ca.__enter__.return_value = mock_ca
+        mock_ca.enroll.return_value = (None, "cert", "raw", "poll")
+        factory = MagicMock(return_value=mock_ca)
+        factory.name = "openssl"
+        factory.section = "CAhandler:openssl"
+        self.cert.cahandler_registry = None
+        self.cert.cahandler = factory
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cert._process_certificate_enrollment("csr")
+        self.assertIn(
+            "INFO:test_a2c:Certificate enrollment via CA handler 'openssl' (CAhandler:openssl)",
+            lcm.output,
+        )
 
     def test_024_get_certificate_renewal_info(self):
         with (

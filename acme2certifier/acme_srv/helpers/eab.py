@@ -51,13 +51,29 @@ def _handle_acme_profiling(
     logger.debug("Helper._handle_acme_profiling()")
 
     profile = profile_lookup(logger, csr)
-    if profile:
+    if not profile:
+        return
+
+    # Multi-handler routing keys (profile_cahandler identity maps such as
+    # {"harica": "harica"}) must not overwrite handler parameters
+    # (HARICA transaction_type, XCA template_name, ...).
+    registry_name = getattr(cahandler, "cahandler_registry_name", None)
+    if registry_name and profile == registry_name:
         logger.debug(
-            "Helper.profile_lookup(): setting %s to %s",
+            "Helper._handle_acme_profiling(): skipping %s overwrite; "
+            "profile %r selects handler %r",
             handler_hifield,
             profile,
+            registry_name,
         )
-        setattr(cahandler, handler_hifield, profile)
+        return
+
+    logger.debug(
+        "Helper.profile_lookup(): setting %s to %s",
+        handler_hifield,
+        profile,
+    )
+    setattr(cahandler, handler_hifield, profile)
 
 
 def _handle_header_info_profiling(

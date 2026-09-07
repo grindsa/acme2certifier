@@ -38,6 +38,8 @@ from acme2certifier.acme_srv.helper import (
     convert_byte_to_string,
     csr_cn_get,
     csr_san_get,
+    config_enroll_config_log_load,
+    enrollment_config_log,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -69,6 +71,8 @@ class CAhandler(object):
         self.allowed_domainlist = []
         self.blocked_domainlist = []
         self.cn_enforce = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -540,6 +544,11 @@ class CAhandler(object):
             "CAhandler", "save_cert_as_hex", fallback=False
         )
 
+        (
+            self.enrollment_config_log,
+            self.enrollment_config_log_skip_list,
+        ) = config_enroll_config_log_load(self.logger, config_dic)
+
         # relative volume/... paths → $ACME2CERTIFIER_BASE_DIR when set
         self._config_paths_resolve()
 
@@ -910,6 +919,12 @@ class CAhandler(object):
         error = self._config_check()
 
         if not error:
+            if self.enrollment_config_log:
+                # passphrase lives inside issuer_dict
+                skip_list = self.enrollment_config_log_skip_list
+                if isinstance(skip_list, list):
+                    skip_list = skip_list + ["issuer_dict"]
+                enrollment_config_log(self.logger, self, skip_list)
             try:
                 # check CN and SAN against black/whitlist
                 result, enforce_cn = self._csr_check(csr)

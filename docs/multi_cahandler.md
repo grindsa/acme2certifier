@@ -75,6 +75,18 @@ Order:
 
 Top-level keys such as `CAhandler:openssl:` map to INI sections `[CAhandler:openssl]`. Do **not** nest handlers under `CAhandler.openssl:` — that stays inside section `[CAhandler]`.
 
+## ACME profile names vs handler parameters
+
+`[Order] profiles` keys still feed each handler's `profile_mapping_field` (HARICA `transaction_type`, XCA `template_name`, EJBCA `cert_profile_name`, …). Identity maps such as `{"harica": "harica"}` are routing-only and do **not** overwrite that field.
+
+To select OV vs EV on HARICA, name the ACME profiles after the CA parameter:
+
+```ini
+[Order]
+profiles: {"OV": "https://example/p/ov", "EV": "https://example/p/ev", "openssl": "https://example/p/openssl"}
+profile_cahandler: {"OV": "harica", "EV": "harica", "openssl": "openssl"}
+```
+
 ## Handler selection (precedence)
 
 1. **Stored** `orders.cahandler` (revoke / poll stickiness after first enroll)

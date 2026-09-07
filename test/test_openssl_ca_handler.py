@@ -2477,6 +2477,46 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual([], self.cahandler.ca_cert_chain)
 
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.config_enroll_config_log_load")
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
+    def test_164_config_load_enrollment_config_log(self, mock_load_cfg, mock_enroll):
+        """_config_load stores enrollment_config_log settings"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"save_cert_as_hex": False}
+        mock_load_cfg.return_value = parser
+        mock_enroll.return_value = (True, ["foo"])
+        self.cahandler._config_load()
+        self.assertTrue(self.cahandler.enrollment_config_log)
+        self.assertEqual(["foo"], self.cahandler.enrollment_config_log_skip_list)
+
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
+    def test_165_enroll_skips_enrollment_config_log(
+        self, mock_chk, mock_csr, mock_ecl
+    ):
+        """enroll does not dump config when enrollment_config_log is False"""
+        mock_chk.return_value = None
+        mock_csr.return_value = (False, None)
+        self.cahandler.enrollment_config_log = False
+        self.cahandler.enroll("csr")
+        self.assertFalse(mock_ecl.called)
+
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
+    def test_166_enroll_calls_enrollment_config_log(
+        self, mock_chk, mock_csr, mock_ecl
+    ):
+        """enroll dumps config when enrollment_config_log is True"""
+        mock_chk.return_value = None
+        mock_csr.return_value = (False, None)
+        self.cahandler.enrollment_config_log = True
+        self.cahandler.enrollment_config_log_skip_list = ["foo"]
+        self.cahandler.enroll("csr")
+        self.assertTrue(mock_ecl.called)
+        self.assertIn("issuer_dict", mock_ecl.call_args[0][2])
+
 
 if __name__ == "__main__":
 
