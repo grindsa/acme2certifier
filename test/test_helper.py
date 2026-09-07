@@ -1220,7 +1220,11 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         value = None
         self.assertFalse(self.convert_string_to_byte(value))
 
-    def test_097_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_097_helper_get_url(self, _mock_load_cfg):
         """get_url https"""
         data_dic = {
             "HTTP_HOST": "http_host",
@@ -1229,7 +1233,11 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         }
         self.assertEqual("https://http_host", self.get_url(data_dic, False))
 
-    def test_098_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_098_helper_get_url(self, _mock_load_cfg):
         """get_url http"""
         data_dic = {
             "HTTP_HOST": "http_host",
@@ -1238,7 +1246,11 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         }
         self.assertEqual("http://http_host", self.get_url(data_dic, False))
 
-    def test_099_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_099_helper_get_url(self, _mock_load_cfg):
         """get_url http wsgi.scheme"""
         data_dic = {
             "HTTP_HOST": "http_host",
@@ -1248,12 +1260,20 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         }
         self.assertEqual("wsgi.url_scheme://http_host", self.get_url(data_dic, False))
 
-    def test_100_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_100_helper_get_url(self, _mock_load_cfg):
         """get_url https include_path true bot no pathinfo"""
         data_dic = {"HTTP_HOST": "http_host", "SERVER_PORT": "443"}
         self.assertEqual("https://http_host", self.get_url(data_dic, True))
 
-    def test_101_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_101_helper_get_url(self, _mock_load_cfg):
         """get_url https and path info"""
         data_dic = {
             "HTTP_HOST": "http_host",
@@ -1262,7 +1282,11 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         }
         self.assertEqual("https://http_hostpath_info", self.get_url(data_dic, True))
 
-    def test_102_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_102_helper_get_url(self, _mock_load_cfg):
         """get_url wsgi.url and pathinfo"""
         data_dic = {
             "HTTP_HOST": "http_host",
@@ -1274,7 +1298,11 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             "wsgi.url_scheme://http_hostpath_info", self.get_url(data_dic, True)
         )
 
-    def test_103_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_103_helper_get_url(self, _mock_load_cfg):
         """get_url http and pathinfo"""
         data_dic = {
             "HTTP_HOST": "http_host",
@@ -1283,12 +1311,20 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         }
         self.assertEqual("http://http_hostpath_info", self.get_url(data_dic, True))
 
-    def test_104_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_104_helper_get_url(self, _mock_load_cfg):
         """get_url without hostinfo"""
         data_dic = {"SERVER_PORT": "80", "PATH_INFO": "path_info"}
         self.assertEqual("http://localhost", self.get_url(data_dic, False))
 
-    def test_105_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_105_helper_get_url(self, _mock_load_cfg):
         """get_url without SERVER_PORT"""
         data_dic = {"HTTP_HOST": "http_host"}
         self.assertEqual("http://http_host", self.get_url(data_dic, True))
@@ -1909,7 +1945,11 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """validate email containing "-" in user"""
         self.assertTrue(self.validate_email(self.logger, "foo-foo@example.com"))
 
-    def test_149_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_149_helper_get_url(self, _mock_load_cfg):
         """get_url with xforwarded https"""
         data_dic = {
             "HTTP_X_FORWARDED_PROTO": "https",
@@ -1919,7 +1959,11 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         }
         self.assertEqual("https://http_host", self.get_url(data_dic, False))
 
-    def test_150_helper_get_url(self):
+    @patch(
+        "acme2certifier.acme_srv.helpers.network.load_config",
+        return_value=configparser.ConfigParser(),
+    )
+    def test_150_helper_get_url(self, _mock_load_cfg):
         """get_url with xforwarded http"""
         data_dic = {
             "HTTP_X_FORWARDED_PROTO": "http",
