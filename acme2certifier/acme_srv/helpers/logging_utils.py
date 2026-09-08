@@ -225,8 +225,16 @@ def logger_setup(debug: bool) -> logging.Logger:
         log_format = config_dic["Helper"]["log_format"]
 
     logging.basicConfig(format=log_format, datefmt="%Y-%m-%d %H:%M:%S", level=log_mode)
+    # basicConfig is a no-op when handlers already exist; still apply the
+    # requested level so urllib3/requests do not keep DEBUG from an earlier setup.
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_mode)
     logger = logging.getLogger("acme2certifier")
     logger.setLevel(log_mode)
+
+    http_level = logging.DEBUG if debug else logging.WARNING
+    logging.getLogger("urllib3").setLevel(http_level)
+    logging.getLogger("requests").setLevel(http_level)
 
     formatter = logging.Formatter(fmt=log_format, datefmt="%Y-%m-%d %H:%M:%S")
     _attach_syslog_handler(logger, config_dic, formatter)

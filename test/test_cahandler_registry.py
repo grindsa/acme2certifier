@@ -251,7 +251,7 @@ def test_resolve_domain_routing(
             },
             "CAhandler:internal": {
                 "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
-                "allowed_domainlist": '["\\\\.internal\\\\.example$"]',
+                "route_domainlist": '["\\\\.internal\\\\.example$"]',
             },
         }
     )

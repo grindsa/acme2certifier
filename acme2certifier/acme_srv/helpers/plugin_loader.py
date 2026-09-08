@@ -134,6 +134,26 @@ def _loaded_identity(loaded: Any) -> str:
     return str(path or name or loaded)
 
 
+def _section_flag_true(config_dic: Any, section: str, key: str) -> bool:
+    """Return True if *key* in *section* is a boolean true (dict or ConfigParser)."""
+    if section not in config_dic:
+        return False
+    if hasattr(config_dic, "getboolean"):
+        try:
+            return bool(config_dic.getboolean(section, key, fallback=False))
+        except (ValueError, TypeError, AttributeError):
+            return False
+    section_obj = config_dic[section]
+    raw = None
+    if hasattr(section_obj, "get"):
+        raw = section_obj.get(key)
+    elif key in section_obj:
+        raw = section_obj[key]
+    if raw is None:
+        return False
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def ca_handler_load_from_section(
     logger: logging.Logger,
     config_dic: Dict,
@@ -229,6 +249,15 @@ def ca_handler_load_from_section(
             "[%s] has no handler_module/handler_file; using default CAhandler",
             section_name,
         )
+
+    # [CAhandler] in multi-handler mode is a registry, not a plugin. Named
+    # [CAhandler:<name>] sections already loaded the real handlers.
+    if _section_flag_true(config_dic, "CAhandler", "multi_handler"):
+        logger.debug(
+            "Helper.plugin_loader.ca_handler_load_from_section(): "
+            "multi_handler enabled; skipping default acme_srv.ca_handler"
+        )
+        return None
 
     logger.debug("Attempting default CA handler acme_srv.ca_handler")
     warn_default_ca_handler(logger)

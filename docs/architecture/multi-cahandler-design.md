@@ -234,7 +234,7 @@ if eab_profiling enabled and eab_kid present:
 if order.profile and profile in profile_cahandler:
     return registry[profile_cahandler[profile]]
 
-# 3) Domain routing (allowed_domainlist on named sections)
+# 3) Domain routing (route_domainlist on named sections)
 # 4) default_handler
 return registry[default_handler]
 ```
