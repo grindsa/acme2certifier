@@ -3495,7 +3495,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("foo", self.ca_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:Loading CAhandler configured in cfg failed with err: exc_mock_util",
+            "CRITICAL:test_a2c:Loading CAhandler configured in [CAhandler] failed with err: exc_mock_util",
             lcm.output,
         )
 
@@ -3655,7 +3655,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 "from_module", self.ca_handler_load(self.logger, config_dic)
             )
         self.assertFalse(mock_util.spec_from_file_location.called)
-        self.assertTrue(any("ignoring handler_file" in line for line in lcm.output))
+        self.assertTrue(any("using handler_module" in line for line in lcm.output))
 
     @patch("importlib.import_module")
     def test_305_ca_handler_load_info_once(self, mock_imp):

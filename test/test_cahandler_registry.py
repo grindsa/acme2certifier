@@ -378,3 +378,17 @@ def test_cahandler_lookup_from_csr(logger: logging.Logger) -> None:
         from acme2certifier.acme_srv.helpers.config import cahandler_lookup
 
         assert cahandler_lookup(logger, csr="test-csr") == "ejbca"
+
+
+def test_cahandler_lookup_recodes_cert_raw(logger: logging.Logger) -> None:
+    models_mock = MagicMock()
+    search = models_mock.DBstore.return_value.certificates_search
+    search.return_value = [{"order__cahandler": "harica"}]
+    modules = {"acme2certifier.acme_srv.db_handler": models_mock}
+    with patch.dict(sys.modules, modules):
+        from acme2certifier.acme_srv.helpers.config import cahandler_lookup
+
+        assert cahandler_lookup(logger, cert_raw="abc-def_ghi") == "harica"
+    search.assert_called_once()
+    assert search.call_args[0][0] == "cert_raw"
+    assert search.call_args[0][1] == "abc+def/ghi="
