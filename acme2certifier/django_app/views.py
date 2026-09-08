@@ -12,6 +12,8 @@ from acme2certifier.acme_srv.certificate import Certificate
 from acme2certifier.acme_srv.challenge import Challenge
 from acme2certifier.acme_srv.directory import Directory
 from acme2certifier.acme_srv.helper import (
+    apply_log_levels,
+    config_debug_get,
     get_url,
     load_config,
     log_loaded_acme_srv_cfg,
@@ -36,9 +38,12 @@ from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 from acme2certifier.acme_srv.acmechallenge import Acmechallenge
 
+# Quiet Helper.load_config() until DEFAULT.debug / ACME2CERTIFIER_DEBUG is known.
+apply_log_levels(False)
+
 # load config to set debug mode
 CONFIG = load_config()
-DEBUG = CONFIG.getboolean("DEFAULT", "debug", fallback=False)
+DEBUG = config_debug_get(CONFIG)
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)

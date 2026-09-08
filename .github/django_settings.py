@@ -3,6 +3,16 @@ Django settings for acme2certifier project.
 """
 
 import os
+from acme2certifier.acme_srv.helpers.config import load_config  # noqa: E402
+from acme2certifier.acme_srv.helpers.logging_utils import (  # noqa: E402
+    apply_log_levels,
+    config_debug_get,
+    logger_setup,
+)
+from acme2certifier.acme_srv.helpers.network import (  # noqa: E402
+    configured_server_name_get,
+    server_name_allowed_host,
+)
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,6 +26,16 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEBUG = False
 
 ALLOWED_HOSTS = ["127.0.0.1", "*"]
+
+
+apply_log_levels(False)
+_cfg = load_config()
+_host = server_name_allowed_host(configured_server_name_get(_cfg) or "")
+if _host and _host not in ALLOWED_HOSTS:
+    logger_setup(config_debug_get(_cfg)).info(
+        "Adding %s to ALLOWED_HOSTS from acme_srv.cfg server_name", _host
+    )
+    ALLOWED_HOSTS.append(_host)
 
 
 # Application definition

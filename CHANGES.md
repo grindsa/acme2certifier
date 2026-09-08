@@ -16,6 +16,7 @@ and pick the appropriate release branch.
 - Log the resolved CA handler name (and config section) at INFO before certificate enrollment
 - Multi-CAhandler: do not fall back to deprecated `acme_srv.ca_handler` (or log CRITICAL) when `multi_handler` is enabled; `[CAhandler]` is a registry, not a plugin
 - `logger_setup(False)` applies INFO to the root logger and quiets urllib3/requests so HTTP wire traces are not emitted when `debug` is off
+- ACME Helper debug: explicit `[DEFAULT] debug` in `acme_srv.cfg` overrides `ACME2CERTIFIER_DEBUG`; the env var is used only when `debug` is unset. Django `DEBUG` stays independent.
 
 **New Features**:
 

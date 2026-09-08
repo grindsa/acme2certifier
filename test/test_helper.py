@@ -9508,6 +9508,89 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             lcm.output,
         )
 
+    def test_687_config_debug_get_cfg_overrides_env(self):
+        """DEFAULT.debug overrides ACME2CERTIFIER_DEBUG when set"""
+        from acme2certifier.acme_srv.helpers.logging_utils import (
+            config_debug_get,
+            env_debug_get,
+        )
+
+        empty = configparser.ConfigParser()
+        with patch.dict(os.environ, {"ACME2CERTIFIER_DEBUG": "1"}):
+            self.assertTrue(env_debug_get())
+            self.assertTrue(config_debug_get(empty))
+            cfg_off = configparser.ConfigParser()
+            cfg_off.set("DEFAULT", "debug", "False")
+            self.assertFalse(config_debug_get(cfg_off))
+
+        cfg_on = configparser.ConfigParser()
+        cfg_on.set("DEFAULT", "debug", "True")
+        with patch.dict(os.environ, {"ACME2CERTIFIER_DEBUG": "0"}):
+            self.assertFalse(env_debug_get())
+            self.assertTrue(config_debug_get(cfg_on))
+            self.assertFalse(config_debug_get(empty))
+
+        cfg_bad = configparser.ConfigParser()
+        cfg_bad.set("DEFAULT", "debug", "not-a-bool")
+        with patch.dict(os.environ, {"ACME2CERTIFIER_DEBUG": "1"}):
+            self.assertTrue(config_debug_get(cfg_bad))
+            self.assertTrue(config_debug_get({"DEFAULT": {"debug": True}}))
+            self.assertFalse(
+                config_debug_get({"DEFAULT": {"debug": "False"}}),
+            )
+            self.assertTrue(config_debug_get({"DEFAULT": {"debug": "yes"}}))
+            self.assertTrue(config_debug_get(object()))
+
+        with patch(
+            "acme2certifier.acme_srv.helpers.logging_utils.load_config",
+            return_value=cfg_on,
+        ):
+            self.assertTrue(config_debug_get(None))
+
+    def test_688_logger_setup_false_filters_load_config_debug(self):
+        """logger_setup(False) applies INFO before load_config DEBUG"""
+        import logging
+
+        cfg = configparser.RawConfigParser()
+        cfg["Helper"] = {"log_format": "%(message)s"}
+
+        def _load():
+            logging.getLogger("acme2certifier").debug("Helper.load_config() start")
+            return cfg
+
+        with patch(
+            "acme2certifier.acme_srv.helpers.logging_utils.load_config",
+            side_effect=_load,
+        ):
+            with self.assertLogs("acme2certifier", level="DEBUG") as lcm:
+                logging.getLogger("acme2certifier").info("marker")
+                self.logger_setup(False)
+        self.assertTrue(any("marker" in msg for msg in lcm.output))
+        self.assertFalse(any("Helper.load_config" in msg for msg in lcm.output))
+
+    def test_689_apply_log_levels_and_dict_debug_invalid(self):
+        """apply_log_levels and non-ConfigParser DEFAULT.debug parsing"""
+        import logging
+        from acme2certifier.acme_srv.helpers.logging_utils import (
+            apply_log_levels,
+            config_debug_get,
+            _explicit_default_debug,
+        )
+
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger("urllib3").setLevel(logging.DEBUG)
+        apply_log_levels(False)
+        self.assertGreaterEqual(logging.getLogger().level, logging.INFO)
+        self.assertGreaterEqual(logging.getLogger("urllib3").level, logging.WARNING)
+
+        with patch.dict(os.environ, {"ACME2CERTIFIER_DEBUG": "0"}):
+            self.assertFalse(config_debug_get({"DEFAULT": {"debug": "maybe"}}))
+            self.assertFalse(config_debug_get({"DEFAULT": {}}))
+            self.assertFalse(config_debug_get({"Helper": {}}))
+            self.assertIsNone(_explicit_default_debug(None))
+            self.assertIsNone(_explicit_default_debug({"DEFAULT": {"debug": "maybe"}}))
+            self.assertFalse(_explicit_default_debug({"DEFAULT": {"debug": False}}))
+
 
 if __name__ == "__main__":
     unittest.main()
