@@ -219,7 +219,12 @@ class CAHandlerRegistry:
             if not section.startswith(self.SECTION_PREFIX):
                 continue
             name = section[len(self.SECTION_PREFIX) :]
-            module = ca_handler_load_from_section(self.logger, config_dic, section)
+            module = ca_handler_load_from_section(
+                self.logger,
+                config_dic,
+                section,
+                allow_default_fallback=False,
+            )
             if module is None:
                 self.logger.error(
                     "CAHandlerRegistry: failed to load handler for [%s]", section
@@ -228,7 +233,7 @@ class CAHandlerRegistry:
             self.handlers[name] = {
                 "module": module,
                 "config_section": section,
-                "allowed_domainlist": self._allowed_domainlist_load(
+                "route_domainlist": self._route_domainlist_load(
                     config_dic, section
                 ),
             }
@@ -254,32 +259,32 @@ class CAHandlerRegistry:
                     handler_name,
                 )
 
-    def _allowed_domainlist_load(self, config_dic: Any, section: str) -> List[str]:
+    def _route_domainlist_load(self, config_dic: Any, section: str) -> List[str]:
         self.logger.debug(
-            "CAHandlerRegistry._allowed_domainlist_load() section=%s", section
+            "CAHandlerRegistry._route_domainlist_load() section=%s", section
         )
-        raw = config_dic.get(section, "allowed_domainlist", fallback=None)
+        raw = config_dic.get(section, "route_domainlist", fallback=None)
         if not raw:
             self.logger.debug(
-                "CAHandlerRegistry._allowed_domainlist_load() ended with []"
+                "CAHandlerRegistry._route_domainlist_load() ended with []"
             )
             return []
         try:
             parsed = json.loads(raw)
             if isinstance(parsed, list):
                 self.logger.debug(
-                    "CAHandlerRegistry._allowed_domainlist_load() ended with %s",
+                    "CAHandlerRegistry._route_domainlist_load() ended with %s",
                     parsed,
                 )
                 return parsed
         except Exception as err:
             self.logger.warning(
-                "CAHandlerRegistry: failed to parse allowed_domainlist in [%s]: %s",
+                "CAHandlerRegistry: failed to parse route_domainlist in [%s]: %s",
                 section,
                 err,
             )
         self.logger.debug(
-            "CAHandlerRegistry._allowed_domainlist_load() ended with []"
+            "CAHandlerRegistry._route_domainlist_load() ended with []"
         )
         return []
 
@@ -411,7 +416,7 @@ class CAHandlerRegistry:
         )
         matches: List[str] = []
         for name, entry in self.handlers.items():
-            patterns = entry.get("allowed_domainlist") or []
+            patterns = entry.get("route_domainlist") or []
             if not patterns:
                 continue
             if all(_domain_matches(ident, patterns) for ident in identifiers):

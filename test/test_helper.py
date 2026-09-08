@@ -2583,6 +2583,18 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         """logger setup"""
         self.assertTrue(self.logger_setup(True))
 
+    def test_218a_logger_setup_false_quiets_http_loggers(self):
+        """debug=False must not leave urllib3/requests at DEBUG"""
+        import logging
+
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger("urllib3").setLevel(logging.DEBUG)
+        logging.getLogger("requests").setLevel(logging.DEBUG)
+        self.logger_setup(False)
+        self.assertGreaterEqual(logging.getLogger().level, logging.INFO)
+        self.assertGreaterEqual(logging.getLogger("urllib3").level, logging.WARNING)
+        self.assertGreaterEqual(logging.getLogger("requests").level, logging.WARNING)
+
     @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
     def test_218_logger_setup(self, mock_load_cfg):
         """logger setup"""
@@ -3449,6 +3461,15 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             "CRITICAL:test_a2c:Loading default CAhandler failed with err: exc_mock_imp",
             lcm.output,
         )
+
+    def test_285a_ca_handler_load_skips_default_when_multi_handler(self):
+        """multi_handler registry section must not import acme_srv.ca_handler"""
+        config_dic = {
+            "CAhandler": {"multi_handler": "True", "default_handler": "openssl"}
+        }
+        with patch("importlib.import_module") as mock_imp:
+            self.assertFalse(self.ca_handler_load(self.logger, config_dic))
+        mock_imp.assert_not_called()
 
     @patch("importlib.import_module")
     def test_286_ca_handler_load(self, mock_imp):

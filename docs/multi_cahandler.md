@@ -22,7 +22,7 @@ Classical single-handler setups are unchanged: omit `multi_handler` or set it to
 | `handler_module` | `[CAhandler:<name>]` | Handler class for each named entry |
 | `profile_cahandler` | `[Order]` | Map ACME profile → registry name |
 | `cahandler_name` | EAB kid profile | Per-account handler override (kid level) |
-| `allowed_domainlist` | `[CAhandler:<name>]` | Optional CSR domain routing (regex list) |
+| `route_domainlist` | `[CAhandler:<name>]` | Optional CSR domain routing (regex list). Not an enrollment allow-list; a miss falls through to `default_handler`. Handler `allowed_domainlist` remains a post-selection policy. |
 
 Process-wide flags (`profiles_sync`, `ca_error_details_forward`, …) stay on `[CAhandler]`, not on each named section.
 
@@ -42,7 +42,7 @@ issuing_ca_cert: acme_srv/ca/sub-ca-cert.pem
 [CAhandler:ejbca]
 handler_module: acme2certifier.cahandlers.ejbca_ca_handler
 api_host: https://ejbca.example
-allowed_domainlist: ["\\.corp\\.example$"]
+route_domainlist: ["\\.corp\\.example$"]
 
 [Order]
 profiles: {"short": "https://example/p/short", "long": "https://example/p/long"}
@@ -92,7 +92,7 @@ profile_cahandler: {"OV": "harica", "EV": "harica", "openssl": "openssl"}
 1. **Stored** `orders.cahandler` (revoke / poll stickiness after first enroll)
 2. **EAB** `cahandler_name` on the kid profile (hard error if unknown)
 3. **`profile_cahandler`** map for the order's ACME profile
-4. **Domain routing** — every DNS identifier in the CSR must match the handler's `allowed_domainlist`
+4. **Domain routing** — every DNS identifier in the CSR must match the handler's `route_domainlist`
 5. **`default_handler`**
 
 ## EAB kid profile
