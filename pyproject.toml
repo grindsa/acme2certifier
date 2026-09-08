@@ -98,7 +98,6 @@ acme2certifier = [
     "share/skeletons/ca_handler/*",
     "share/skeletons/eab_handler/*",
     "share/skeletons/hooks/*",
-    "django_app/fixture/*",
     "django_app/fixtures/*",
     "django_app/migrations/*",
 ]

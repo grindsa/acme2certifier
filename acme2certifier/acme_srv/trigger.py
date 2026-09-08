@@ -57,9 +57,12 @@ def _cahandler_class_load(logger, config_dic):
     ca_handler_module = ca_handler_load(logger, config_dic)
     if ca_handler_module is None:
         return None
+    handler_cls = getattr(ca_handler_module, "CAhandler", None)
+    if handler_cls is None:
+        return None
     from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
 
-    return BoundCAHandler(ca_handler_module.CAhandler, "CAhandler", "default")
+    return BoundCAHandler(handler_cls, "CAhandler", "default")
 
 
 def _trigger_status_log(
@@ -202,9 +205,14 @@ class Trigger(object):
                     BoundCAHandler,
                 )
 
-                self.cahandler = BoundCAHandler(
-                    ca_handler_module.CAhandler, "CAhandler", "default"
-                )
+                try:
+                    self.cahandler = BoundCAHandler(
+                        ca_handler_module.CAhandler, "CAhandler", "default"
+                    )
+                except Exception as err:
+                    self.logger.critical(
+                        "Failed to load CA handler module: %s", err
+                    )
 
         self.hmac_keys, self.auth_disabled = trigger_hmac_keys_load(
             self.logger, config_dic

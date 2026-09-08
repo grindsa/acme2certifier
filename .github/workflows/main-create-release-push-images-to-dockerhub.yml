@@ -47,7 +47,7 @@ jobs:
           APP_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
           TAG_N=$(grep -i '__version__' acme2certifier/acme_srv/version.py | head -n 1 | sed 's/__version__ = //g' | sed 's/"//g' | tr -d "[:space:]")
           DB_VERSION=$(grep -i '__dbversion__' acme2certifier/acme_srv/version.py | head -n 1 | sed "s/__dbversion__ = //g" | sed "s/'//g" | tr -d "[:space:]")
-          FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' acme2certifier/django_app/fixture/status.yaml | tr -d "'")
+          FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' acme2certifier/django_app/fixtures/status.yaml | tr -d "'")
 
           echo "app_name=${APP_NAME}" >> "${GITHUB_OUTPUT}"
           echo "tag_n=${TAG_N}" >> "${GITHUB_OUTPUT}"

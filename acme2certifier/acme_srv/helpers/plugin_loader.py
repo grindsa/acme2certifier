@@ -141,7 +141,7 @@ def _section_flag_true(config_dic: Any, section: str, key: str) -> bool:
     if hasattr(config_dic, "getboolean"):
         try:
             return bool(config_dic.getboolean(section, key, fallback=False))
-        except (ValueError, TypeError, AttributeError):
+        except Exception:
             return False
     section_obj = config_dic[section]
     raw = None

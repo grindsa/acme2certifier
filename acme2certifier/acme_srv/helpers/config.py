@@ -11,8 +11,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
-from .plugin_loader import eab_handler_load
+from .encoding import b64_url_recode
 from .global_variables import CONFIGURATION_ERROR_DETAIL, PARSING_ERR_MSG
+from .plugin_loader import eab_handler_load
 from .security_gate import SECURITY_DISABLE_ACK_ENV, security_disable_acknowledged
 
 # Emit acme_srv.cfg path deprecation warnings at most once per path per process.
@@ -1146,7 +1147,7 @@ def cahandler_lookup(
 
     dbstore = DBstore(logger=logger)
     if cert_raw:
-        search_key, value = "cert_raw", cert_raw
+        search_key, value = "cert_raw", b64_url_recode(logger, cert_raw)
     elif csr:
         search_key, value = "csr", csr
     else:
