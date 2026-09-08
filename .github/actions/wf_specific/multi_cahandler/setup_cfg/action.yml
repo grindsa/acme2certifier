@@ -1,0 +1,81 @@
+name: "setup_cfg"
+description: "Write multi-CAhandler acme_srv.cfg (openssl + xca + vault)"
+inputs:
+  VOLUME_DIR:
+    description: "Target volume directory"
+    required: true
+  XCA_DB_NAME:
+    description: "XCA database filename"
+    required: true
+  XCA_ISSUING_CA:
+    description: "XCA issuing CA name"
+    required: true
+  XCA_PASSPHRASE:
+    description: "XCA database passphrase"
+    required: true
+  XCA_TEMPLATE:
+    description: "Default XCA template_name"
+    required: true
+  VAULT_TOKEN:
+    description: "HashiCorp Vault token"
+    required: true
+  PATH_REWRITE_FROM:
+    description: "Optional substring to rewrite in the finished cfg"
+    required: false
+    default: ""
+  PATH_REWRITE_TO:
+    description: "Replacement for PATH_REWRITE_FROM"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Write multi-CAhandler acme_srv.cfg"
+      uses: ./.github/actions/setup_cahandler_cfg
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        HANDLER_MODULE: ""
+        PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
+        PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
+        OPTIONS: |
+          multi_handler: True
+          default_handler: openssl
+        ORDER_OPTIONS: |
+          profiles: {"openssl": "http://foo.bar/openssl", "acme": "http://foo.bar/acme", "template": "http://foo.bar/template", "hashi-corp": "http://foo.bar/hashi-corp"}
+          profile_cahandler: {"openssl": "openssl", "acme": "xca", "template": "xca", "hashi-corp": "hashi-corp"}
+        EXTRA_SECTIONS: |
+          [CAhandler:openssl]
+          handler_module: acme2certifier.cahandlers.openssl_ca_handler
+          ca_cert_chain_list: ["volume/acme_ca/root-ca-cert.pem"]
+          issuing_ca_key: volume/acme_ca/sub-ca-key.pem
+          issuing_ca_key_passphrase: Test1234
+          issuing_ca_cert: volume/acme_ca/sub-ca-cert.pem
+          issuing_ca_crl: volume/acme_ca/sub-ca-crl.pem
+          cert_validity_days: 30
+          cert_save_path: volume/acme_ca/certs
+          route_domainlist: ["*.openssl.acme"]
+
+          [CAhandler:xca]
+          handler_module: acme2certifier.cahandlers.xca_ca_handler
+          xdb_file: volume/acme_ca/${{ inputs.XCA_DB_NAME }}
+          issuing_ca_name: ${{ inputs.XCA_ISSUING_CA }}
+          passphrase: ${{ inputs.XCA_PASSPHRASE }}
+          ca_cert_chain_list: ["root-ca"]
+          template_name: ${{ inputs.XCA_TEMPLATE }}
+          route_domainlist: ["*.xca.acme"]
+
+          [CAhandler:hashi-corp]
+          handler_module: acme2certifier.cahandlers.vault_ca_handler
+          vault_url: https://vault.acme:8200
+          vault_path: pki_int
+          vault_role: serverauth
+          vault_token: ${{ inputs.VAULT_TOKEN }}
+          ca_bundle: False
+          route_domainlist: ["*.hashi-corp.acme"]
+
+          [EABhandler]
+          eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+          key_file: volume/acme_ca/kid_profiles.json
+          eab_profiling: True
+          eab_strict_mode: False

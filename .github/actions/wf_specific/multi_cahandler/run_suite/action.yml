@@ -1,0 +1,120 @@
+name: "run_suite"
+description: "Multi-CAhandler profile, domain, and EAB enroll/revoke suite"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Pull lego image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: goacme/lego
+
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+
+    # --- 1. ACME profile routing (lego.acme does not match route_domainlist) ---
+    - name: "Profile — openssl"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.acme
+        HANDLER: openssl
+        PROFILE: openssl
+        CERT_CHECK: openssl
+        ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with handler 'openssl'"
+
+    - name: "Profile — xca / acme template"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.acme
+        HANDLER: xca
+        PROFILE: acme
+        CERT_CHECK: xca-acme
+        ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with handler 'xca'"
+
+    - name: "Profile — xca / template template"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.acme
+        HANDLER: xca
+        PROFILE: template
+        CERT_CHECK: xca-template
+        ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with handler 'xca'"
+
+    - name: "Profile — hashi-corp / vault"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.acme
+        HANDLER: hashi-corp
+        PROFILE: hashi-corp
+        CERT_CHECK: vault
+        ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with handler 'hashi-corp'"
+
+    # --- 2. Domain routing via route_domainlist ---
+    - name: "Domain — *.openssl.acme"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.openssl.acme
+        HANDLER: openssl
+        CERT_CHECK: openssl
+        ENROLL_PATTERN: "CAHandlerRegistry._resolve_by_csr() ended with 'openssl'"
+
+    - name: "Domain — *.xca.acme"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.xca.acme
+        HANDLER: xca
+        CERT_CHECK: xca-acme
+        ENROLL_PATTERN: "CAHandlerRegistry._resolve_by_csr() ended with 'xca'"
+
+    - name: "Domain — *.hashi-corp.acme"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.hashi-corp.acme
+        HANDLER: hashi-corp
+        CERT_CHECK: vault
+        ENROLL_PATTERN: "CAHandlerRegistry._resolve_by_csr() ended with 'hashi-corp'"
+
+    # --- 3. EAB kid profiling (cahandler_name; xca also sets template_name) ---
+    - name: "EAB — openssl (keyid_00)"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.acme
+        HANDLER: openssl
+        CERT_CHECK: openssl
+        ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with EAB handler 'openssl'"
+        EAB_KID: keyid_00
+        EAB_HMAC: V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw
+
+    - name: "EAB — xca + template_name (keyid_01)"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.acme
+        HANDLER: xca
+        CERT_CHECK: xca-template
+        ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with EAB handler 'xca'"
+        EAB_KID: keyid_01
+        EAB_HMAC: YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg
+
+    - name: "EAB — hashi-corp / vault (keyid_02)"
+      uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        DOMAIN: lego.acme
+        HANDLER: hashi-corp
+        CERT_CHECK: vault
+        ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with EAB handler 'hashi-corp'"
+        EAB_KID: keyid_02
+        EAB_HMAC: dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM

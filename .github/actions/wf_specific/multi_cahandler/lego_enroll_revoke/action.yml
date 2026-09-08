@@ -1,0 +1,176 @@
+name: "lego_enroll_revoke"
+description: "Flush logs, enroll and revoke with lego, assert the selected CAhandler after each"
+inputs:
+  DOMAIN:
+    description: "FQDN to enroll"
+    required: true
+  HANDLER:
+    description: "Expected registry name (openssl | xca | hashi-corp)"
+    required: true
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+  NETWORK_ALIAS:
+    description: "Docker network alias (defaults to DOMAIN)"
+    required: false
+    default: ""
+  PROFILE:
+    description: "Optional ACME profile (--profile)"
+    required: false
+    default: ""
+  EAB_KID:
+    description: "Optional EAB key id"
+    required: false
+    default: ""
+  EAB_HMAC:
+    description: "Optional EAB HMAC key"
+    required: false
+    default: ""
+  ENROLL_PATTERN:
+    description: "Log substring that must appear after enroll"
+    required: true
+  CERT_CHECK:
+    description: "none | openssl | xca-acme | xca-template | vault"
+    required: false
+    default: "none"
+  NAME_SPACE:
+    description: "Docker network"
+    required: false
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Flush logs before enroll"
+      working-directory: examples/Docker/
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      run: |
+        set -euo pipefail
+        case "${DEPLOYMENT_TYPE}" in
+          container)
+            sudo truncate -s 0 "$(docker inspect --format='{{.LogPath}}' acme-srv)"
+            ;;
+          rpm)
+            docker exec acme-srv sh -c '
+              for f in /var/log/messages /var/log/httpd/error_log /var/log/apache2/error.log /var/log/nginx/error.log /var/log/syslog; do
+                if [ -f "$f" ]; then truncate -s 0 "$f"; fi
+              done
+            '
+            ;;
+          deb)
+            docker exec acme-srv sh -c '
+              if [ -f /var/log/apache2/error.log ]; then truncate -s 0 /var/log/apache2/error.log; fi
+              if [ -f /var/log/nginx/error.log ]; then truncate -s 0 /var/log/nginx/error.log; fi
+              if [ -f /var/log/syslog ]; then truncate -s 0 /var/log/syslog; fi
+            '
+            ;;
+          *)
+            echo "ERROR: unsupported DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+
+    - name: "Enroll ${{ inputs.DOMAIN }} via ${{ inputs.HANDLER }}"
+      shell: bash
+      env:
+        DOMAIN: ${{ inputs.DOMAIN }}
+        NETWORK_ALIAS: ${{ inputs.NETWORK_ALIAS }}
+        PROFILE: ${{ inputs.PROFILE }}
+        EAB_KID: ${{ inputs.EAB_KID }}
+        EAB_HMAC: ${{ inputs.EAB_HMAC }}
+        CERT_CHECK: ${{ inputs.CERT_CHECK }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      run: |
+        set -euo pipefail
+        alias="${NETWORK_ALIAS:-${DOMAIN}}"
+        cname="lego-$(echo "${alias}" | tr '.-' '__')"
+        sudo rm -rf lego
+        mkdir -p lego
+        extra=()
+        if [[ -n "${PROFILE}" ]]; then
+          extra+=(--profile "${PROFILE}")
+        fi
+        if [[ -n "${EAB_KID}" ]]; then
+          extra+=(--eab --eab.kid "${EAB_KID}" --eab.hmac "${EAB_HMAC}")
+        fi
+        docker run -i --rm \
+          -v "${PWD}/lego:/.lego/" \
+          --name "${cname}" \
+          --network "${NAME_SPACE}" \
+          --network-alias "${alias}" \
+          goacme/lego run --tls-skip-verify \
+          -s "https://acme-srv" -a \
+          --email "lego@example.com" \
+          -d "${DOMAIN}" \
+          --http \
+          "${extra[@]}"
+        crt="lego/certificates/${DOMAIN}.crt"
+        sudo openssl x509 -in "${crt}" -text -noout
+        case "${CERT_CHECK}" in
+          openssl)
+            sudo openssl x509 -in "${crt}" -issuer -noout | grep -i "sub-ca"
+            ;;
+          xca-acme)
+            sudo openssl x509 -in "${crt}" -text -ext keyUsage | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
+            sudo openssl x509 -in "${crt}" -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, TLS Web Client Authentication"
+            ;;
+          xca-template)
+            sudo openssl x509 -in "${crt}" -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
+            sudo openssl x509 -in "${crt}" -text -ext extendedKeyUsage | grep "TLS Web Client Authentication, Code Signing"
+            ;;
+          vault)
+            sudo openssl x509 -in "${crt}" -issuer -noout | grep -i "ACME Intermediate Authority"
+            ;;
+          none) ;;
+          *)
+            echo "ERROR: unknown CERT_CHECK=${CERT_CHECK}" >&2
+            exit 1
+            ;;
+        esac
+
+    - name: "Assert enroll resolve → ${{ inputs.HANDLER }}"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        FLUSH: "false"
+        PATTERN: ${{ inputs.ENROLL_PATTERN }}
+
+    - name: "Assert enroll handler ${{ inputs.HANDLER }}"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: ${{ format("Certificate._resolve_cahandler() -> {0}", inputs.HANDLER) }}
+
+    - name: "Revoke ${{ inputs.DOMAIN }} via ${{ inputs.HANDLER }}"
+      shell: bash
+      env:
+        DOMAIN: ${{ inputs.DOMAIN }}
+        NETWORK_ALIAS: ${{ inputs.NETWORK_ALIAS }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      run: |
+        set -euo pipefail
+        alias="${NETWORK_ALIAS:-${DOMAIN}}"
+        cname="lego-$(echo "${alias}" | tr '.-' '__')"
+        docker run -i --rm \
+          -v "${PWD}/lego:/.lego/" \
+          --name "${cname}" \
+          --network "${NAME_SPACE}" \
+          goacme/lego certificates revoke --tls-skip-verify \
+          -s "https://acme-srv" \
+          --email "lego@example.com" \
+          --cert.name "${DOMAIN}"
+
+    - name: "Assert revoke stored handler ${{ inputs.HANDLER }}"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        FLUSH: "false"
+        PATTERN: ${{ format("CAHandlerRegistry.resolve() ended with stored handler '{0}'", inputs.HANDLER) }}
+
+    - name: "Assert revoke handler ${{ inputs.HANDLER }}"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: ${{ format("Certificate._resolve_cahandler() -> {0}", inputs.HANDLER) }}
