@@ -141,7 +141,7 @@ runs:
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-        PATTERN: ${{ format("Certificate._resolve_cahandler() -> {0}", inputs.HANDLER) }}
+        PATTERN: "Certificate._resolve_cahandler() -> ${{ inputs.HANDLER }}"
 
     - name: "Revoke ${{ inputs.DOMAIN }} via ${{ inputs.HANDLER }}"
       shell: bash
@@ -167,10 +167,10 @@ runs:
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         FLUSH: "false"
-        PATTERN: ${{ format("CAHandlerRegistry.resolve() ended with stored handler '{0}'", inputs.HANDLER) }}
+        PATTERN: "CAHandlerRegistry.resolve() ended with stored handler '${{ inputs.HANDLER }}'"
 
     - name: "Assert revoke handler ${{ inputs.HANDLER }}"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-        PATTERN: ${{ format("Certificate._resolve_cahandler() -> {0}", inputs.HANDLER) }}
+        PATTERN: "Certificate._resolve_cahandler() -> ${{ inputs.HANDLER }}"
