@@ -517,9 +517,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertIsNone(message)
         mock_api.assert_called_once()
-        self.assertEqual(
-            mock_api.call_args[0][0], "/api/Certificate/RevokeCertificate"
-        )
+        self.assertEqual(mock_api.call_args[0][0], "/api/Certificate/RevokeCertificate")
 
     def test_028_trigger_not_implemented(self):
         error, cert_bundle, cert_raw = self.cahandler.trigger("payload")
@@ -1140,9 +1138,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         )
         self.assertEqual(self.cahandler._transaction_id_by_serial("01ab"), "txn-a")
         self.assertFalse(mock_fetch.called)
-        mock_api.assert_called_once_with(
-            "/api/ServerCertificate/GetMyTransactions", {}
-        )
+        mock_api.assert_called_once_with("/api/ServerCertificate/GetMyTransactions", {})
 
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch")
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json")
@@ -1156,7 +1152,9 @@ class TestHaricaCAhandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch")
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json")
-    def test_071_transaction_id_by_serial_validator_fallback(self, mock_api, mock_fetch):
+    def test_071_transaction_id_by_serial_validator_fallback(
+        self, mock_api, mock_fetch
+    ):
         mock_api.side_effect = [
             (200, []),
             (
@@ -1187,7 +1185,7 @@ class TestHaricaCAhandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch")
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json")
-    def test_072b_transaction_id_skips_validator_302(self, mock_api, mock_fetch):
+    def test_073_transaction_id_skips_validator_302(self, mock_api, mock_fetch):
         mock_api.side_effect = [
             (200, []),
             PermissionError("HARICA API redirected to login"),
@@ -1199,7 +1197,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._config_check",
         return_value="cfg error",
     )
-    def test_073_enroll_config_error(self, mock_cfg):
+    def test_074_enroll_config_error(self, mock_cfg):
         error, *_ = self.cahandler.enroll("csr")
         self.assertEqual(error, "cfg error")
 
@@ -1211,7 +1209,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._csr_check",
         return_value="csr error",
     )
-    def test_074_enroll_csr_error(self, mock_csr, mock_cfg):
+    def test_075_enroll_csr_error(self, mock_csr, mock_cfg):
         error, *_ = self.cahandler.enroll("csr")
         self.assertEqual(error, "csr error")
 
@@ -1232,7 +1230,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         return_value=None,
     )
     @patch("acme2certifier.cahandlers.harica_ca_handler.enrollment_config_log")
-    def test_075_enroll_no_domains(
+    def test_076_enroll_no_domains(
         self, mock_log, mock_cn, mock_san, mock_csr, mock_cfg
     ):
         self.cahandler.enrollment_config_log = True
@@ -1279,7 +1277,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch",
         return_value={"transactionStatus": "Rejected"},
     )
-    def test_076_enroll_auto_approve_rejected(
+    def test_077_enroll_auto_approve_rejected(
         self,
         mock_fetch,
         mock_approve,
@@ -1302,7 +1300,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         self.assertEqual(mock_login.call_count, 3)
         self.assertTrue(mock_approve.called)
 
-    def test_077_poll_missing_identifier(self):
+    def test_078_poll_missing_identifier(self):
         error, bundle, raw, poll_id, rejected = self.cahandler.poll("c", None, "csr")
         self.assertEqual(error, "Missing poll_identifier")
         self.assertFalse(rejected)
@@ -1312,7 +1310,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch",
         return_value=None,
     )
-    def test_078_poll_fetch_none(self, mock_fetch, mock_login):
+    def test_079_poll_fetch_none(self, mock_fetch, mock_login):
         error, bundle, raw, poll_id, rejected = self.cahandler.poll("c", "txn", "csr")
         self.assertIsNone(error)
         self.assertIsNone(bundle)
@@ -1330,7 +1328,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_parse",
         return_value=(None, None),
     )
-    def test_079_poll_parse_fail(self, mock_parse, mock_fetch, mock_login):
+    def test_080_poll_parse_fail(self, mock_parse, mock_fetch, mock_login):
         error, bundle, raw, poll_id, rejected = self.cahandler.poll("c", "txn", "csr")
         self.assertEqual(error, "Certificate response did not contain PEM data")
 
@@ -1338,7 +1336,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._login",
         side_effect=RuntimeError("poll boom"),
     )
-    def test_080_poll_exception(self, mock_login):
+    def test_081_poll_exception(self, mock_login):
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             error, *_ = self.cahandler.poll("c", "txn", "csr")
         self.assertEqual(error, "poll boom")
@@ -1348,7 +1346,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.cert_serial_get",
         return_value=None,
     )
-    def test_081_revoke_no_serial(self, mock_serial):
+    def test_082_revoke_no_serial(self, mock_serial):
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             code, message, detail = self.cahandler.revoke("cert")
         self.assertEqual(code, 400)
@@ -1363,7 +1361,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._config_check",
         return_value="bad cfg",
     )
-    def test_082_revoke_config_error(self, mock_cfg, mock_serial):
+    def test_083_revoke_config_error(self, mock_cfg, mock_serial):
         code, message, detail = self.cahandler.revoke("cert")
         self.assertEqual(code, 500)
         self.assertEqual(detail, "bad cfg")
@@ -1381,7 +1379,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._transaction_id_by_serial",
         return_value=None,
     )
-    def test_083_revoke_txn_not_found(
+    def test_084_revoke_txn_not_found(
         self, mock_txn, mock_login, mock_cfg, mock_serial
     ):
         code, message, detail = self.cahandler.revoke("cert")
@@ -1405,7 +1403,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json",
         return_value=(400, "denied"),
     )
-    def test_084_revoke_api_fail(
+    def test_085_revoke_api_fail(
         self, mock_api, mock_txn, mock_login, mock_cfg, mock_serial
     ):
         code, message, detail = self.cahandler.revoke("cert")
@@ -1424,25 +1422,25 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._login",
         side_effect=RuntimeError("rev boom"),
     )
-    def test_085_revoke_exception(self, mock_login, mock_cfg, mock_serial):
+    def test_086_revoke_exception(self, mock_login, mock_cfg, mock_serial):
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             code, message, detail = self.cahandler.revoke("cert")
         self.assertEqual(code, 500)
         self.assertEqual(detail, "rev boom")
         self.assertIn("Certificate revoke failed", lcm.output[0])
 
-    def test_086_handler_check(self):
+    def test_087_handler_check(self):
         with patch.object(
             self.cahandler, "_config_check", return_value="missing requester_email"
         ) as mock_chk:
             self.assertEqual(self.cahandler.handler_check(), "missing requester_email")
             mock_chk.assert_called_once()
 
-    def test_087_domains_rows_from_groups_empty_ids(self):
+    def test_088_domains_rows_from_groups_empty_ids(self):
         """groups without ids hit the empty fallback return."""
         self.assertEqual(self.cahandler._domains_rows_from_groups([{}], "org-1"), [])
 
-    def test_088_transaction_id_from_list_skips_non_dict(self):
+    def test_089_transaction_id_from_list_skips_non_dict(self):
         found = self.cahandler._transaction_id_from_list(
             ["skip-me", {"id": "txn-x", "serialNumber": "aa"}],
             "aa",
@@ -1458,7 +1456,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_parse",
         return_value=(None, None),
     )
-    def test_089_enroll_issued_get_keeps_poll_when_no_pem(self, mock_parse, mock_fetch):
+    def test_090_enroll_issued_get_keeps_poll_when_no_pem(self, mock_parse, mock_fetch):
         error, bundle, raw, poll = self.cahandler._enroll_issued_get("txn-keep")
         self.assertIsNone(error)
         self.assertIsNone(bundle)

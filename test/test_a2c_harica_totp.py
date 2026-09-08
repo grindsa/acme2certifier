@@ -72,7 +72,7 @@ class TestA2cHaricaTotp(unittest.TestCase):
             "requester_totp_seed / requester_totp_seed_variable is missing", error
         )
 
-    def test_003b_seed_from_variable(self):
+    def test_004_seed_from_variable(self):
         from acme2certifier.tools import a2c_harica_totp
 
         parser = configparser.ConfigParser()
@@ -98,7 +98,7 @@ class TestA2cHaricaTotp(unittest.TestCase):
         self.assertEqual(seed, "JBSWY3DPEHPK3PXP")
         self.assertEqual(email, "env@example.com")
 
-    def test_003c_seed_direct_overwrites_variable(self):
+    def test_005_seed_direct_overwrites_variable(self):
         from acme2certifier.tools import a2c_harica_totp
 
         parser = configparser.ConfigParser()
@@ -122,7 +122,7 @@ class TestA2cHaricaTotp(unittest.TestCase):
         self.assertEqual(seed, "KRSXG5CTMVRXEZLU")
         self.assertEqual(email, "cfg@example.com")
 
-    def test_004_main_prints_code(self):
+    def test_006_main_prints_code(self):
         from acme2certifier.tools import a2c_harica_totp
 
         parser = configparser.ConfigParser()
@@ -144,7 +144,7 @@ class TestA2cHaricaTotp(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(mock_out.getvalue().strip(), "123456")
 
-    def test_005_seed_no_cahandler_section(self):
+    def test_007_seed_no_cahandler_section(self):
         from acme2certifier.tools import a2c_harica_totp
 
         parser = configparser.ConfigParser()
@@ -158,7 +158,7 @@ class TestA2cHaricaTotp(unittest.TestCase):
         self.assertIsNone(email)
         self.assertEqual("No [CAhandler] section in config file", error)
 
-    def test_006_main_configfile_missing(self):
+    def test_008_main_configfile_missing(self):
         from acme2certifier.tools import a2c_harica_totp
 
         argv = ["a2c-harica-totp", "-c", "/nonexistent/acme_srv.cfg"]
@@ -168,7 +168,7 @@ class TestA2cHaricaTotp(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("not found", mock_err.getvalue())
 
-    def test_007_main_seed_error(self):
+    def test_009_main_seed_error(self):
         from acme2certifier.tools import a2c_harica_totp
 
         argv = ["a2c-harica-totp"]
@@ -182,7 +182,7 @@ class TestA2cHaricaTotp(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("seed boom", mock_err.getvalue())
 
-    def test_008_main_totp_generate_raises(self):
+    def test_010_main_totp_generate_raises(self):
         from acme2certifier.tools import a2c_harica_totp
 
         argv = ["a2c-harica-totp"]
@@ -201,7 +201,7 @@ class TestA2cHaricaTotp(unittest.TestCase):
         self.assertIn("Failed to generate TOTP", mock_err.getvalue())
         self.assertIn("bad seed", mock_err.getvalue())
 
-    def test_009_main_verbose_prints_remaining(self):
+    def test_011_main_verbose_prints_remaining(self):
         from acme2certifier.tools import a2c_harica_totp
 
         argv = ["a2c-harica-totp", "-v"]
@@ -228,7 +228,7 @@ class TestA2cHaricaTotp(unittest.TestCase):
         self.assertIn("account=user@example.com", err)
         self.assertIn("remaining=20s", err)
 
-    def test_010_module_main_exits(self):
+    def test_012_module_main_exits(self):
         """cover if __name__ == '__main__' via runpy"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {

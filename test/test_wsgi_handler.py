@@ -3460,6 +3460,56 @@ class TestACMEHandler(unittest.TestCase):
         row = self.dbstore._certificate_search("name", "certRepl")
         self.assertEqual(1, dict_from_row(row)["replaced"])
 
+    def test_170_order_update_cahandler(self):
+        """order_update persists cahandler on the order row"""
+        data_dic = {
+            "alg": "alg1",
+            "jwk": '{"key11": "val11", "key12": "val12"}',
+            "contact": "contact1",
+            "name": "name1",
+        }
+        self.dbstore.account_add(data_dic)
+        self.assertEqual(
+            1,
+            self.dbstore.order_add(
+                {
+                    "name": "ordCh",
+                    "identifiers": "identifiers",
+                    "account": "name1",
+                    "status": 1,
+                    "expires": "25",
+                }
+            ),
+        )
+        self.dbstore.order_update({"name": "ordCh", "cahandler": "openssl"})
+        result = self.dbstore.order_lookup("name", "ordCh", ["cahandler"])
+        self.assertEqual({"cahandler": "openssl"}, result)
+
+    def test_171_order_update_no_changes(self):
+        """order_update with neither status nor cahandler is a no-op"""
+        data_dic = {
+            "alg": "alg1",
+            "jwk": '{"key11": "val11", "key12": "val12"}',
+            "contact": "contact1",
+            "name": "name1",
+        }
+        self.dbstore.account_add(data_dic)
+        self.assertEqual(
+            1,
+            self.dbstore.order_add(
+                {
+                    "name": "ordNoop",
+                    "identifiers": "identifiers",
+                    "account": "name1",
+                    "status": 1,
+                    "expires": "25",
+                }
+            ),
+        )
+        self.dbstore.order_update({"name": "ordNoop"})
+        result = self.dbstore.order_lookup("name", "ordNoop")
+        self.assertEqual("invalid", result["status"])
+
 
 if __name__ == "__main__":
 

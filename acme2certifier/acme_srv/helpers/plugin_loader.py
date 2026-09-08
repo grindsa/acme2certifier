@@ -58,6 +58,22 @@ def _load_from_file(
         module_name,
         file_path,
     )
+    abs_file = os.path.abspath(file_path)
+    existing = sys.modules.get(module_name)
+    existing_file = (
+        getattr(existing, "__file__", None) if existing is not None else None
+    )
+    if (
+        existing is not None
+        and existing_file
+        and os.path.abspath(existing_file) == abs_file
+    ):
+        logger.debug(
+            "Helper.plugin_loader._load_from_file() reuse loaded module_name=%s file=%s",
+            module_name,
+            existing_file,
+        )
+        return existing
     try:
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         if spec is None or spec.loader is None:
@@ -162,9 +178,7 @@ def ca_handler_load_from_section(
     allow_default_fallback: bool = True,
 ) -> Optional[Any]:
     """Load a CAhandler module from a config section (``CAhandler`` or ``CAhandler:<name>``)."""
-    logger.debug(
-        "Helper.plugin_loader.ca_handler_load_from_section(%s)", section_name
-    )
+    logger.debug("Helper.plugin_loader.ca_handler_load_from_section(%s)", section_name)
 
     if section_name not in config_dic:
         logger.error(

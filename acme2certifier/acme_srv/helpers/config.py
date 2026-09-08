@@ -5,6 +5,7 @@ import configparser
 import json
 import logging
 import os
+import threading
 import warnings
 from contextvars import ContextVar, Token
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -22,6 +23,10 @@ _ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
 _ACME_SRV_CFG_LOADED: Set[str] = set()
 # Last successful load (path, source, format); used after logger_setup.
 _LAST_LOADED_CFG: Optional[Tuple[str, str, str]] = None
+# Unmerged ConfigParser per absolute path (process lifetime). Merged
+# ContextVar views are never stored here.
+_CONFIG_CACHE: Dict[str, Tuple[configparser.ConfigParser, str]] = {}
+_CONFIG_CACHE_LOCK = threading.Lock()
 _CAHANDLER_CONFIG_SECTION: ContextVar[Optional[str]] = ContextVar(
     "cahandler_config_section", default=None
 )
@@ -965,6 +970,47 @@ def _cahandler_section_merged_config(
     return merged
 
 
+def load_config_cache_clear() -> None:
+    """Drop cached ConfigParser objects. For tests and worker-reload hooks."""
+    with _CONFIG_CACHE_LOCK:
+        _CONFIG_CACHE.clear()
+
+
+def resolve_config(
+    config_dic: Optional[configparser.ConfigParser] = None,
+    logger: logging.Logger = None,
+    mfilter: str = None,
+    cfg_file: str = None,
+) -> configparser.ConfigParser:
+    """Return *config_dic* if given, otherwise ``load_config()``.
+
+    ACME objects use this so a worker-start parser can be injected without
+    changing callers that omit it (tests, CLI).
+    """
+    if config_dic is not None:
+        return config_dic
+    return load_config(logger, mfilter, cfg_file)
+
+
+def _apply_bound_cahandler_merge(
+    config: configparser.ConfigParser,
+    explicit_cfg_file: bool,
+    logger: logging.Logger,
+) -> configparser.ConfigParser:
+    """Overlay the ContextVar-bound named section onto ``[CAhandler]``."""
+    if explicit_cfg_file:
+        return config
+    bound_section = cahandler_config_section_get(logger)
+    if bound_section and bound_section != "CAhandler":
+        logger.debug(
+            "Helper.load_config(): merging bound CAhandler section %r "
+            "into [CAhandler]",
+            bound_section,
+        )
+        return _cahandler_section_merged_config(config, bound_section, logger)
+    return config
+
+
 def load_config(
     logger: logging.Logger = None, mfilter: str = None, cfg_file: str = None
 ) -> configparser.ConfigParser:
@@ -994,6 +1040,23 @@ def load_config(
         source = "default"
 
     log.debug("load_config(%s:%s)", mfilter, cfg_file)
+    abs_path = os.path.abspath(cfg_file)
+    with _CONFIG_CACHE_LOCK:
+        cached = _CONFIG_CACHE.get(abs_path)
+    if cached is not None:
+        config, cfg_format = cached
+        _LAST_LOADED_CFG = (abs_path, source, cfg_format)
+        if logger is not None:
+            _log_cfg_loaded_once(logger, abs_path, source, cfg_format)
+        else:
+            log.debug("Loaded acme_srv.cfg %s (%s, %s)", abs_path, source, cfg_format)
+        config = _apply_bound_cahandler_merge(config, explicit_cfg_file, log)
+        log.debug(
+            "Helper.load_config() ended sections=%s (cache hit)",
+            list(config.sections()),
+        )
+        return config
+
     try:
         content = _read_config_file(cfg_file)
     except OSError:
@@ -1009,7 +1072,8 @@ def load_config(
         return _new_config_parser()
 
     config, cfg_format = _parse_config_content(content, cfg_file, log)
-    abs_path = os.path.abspath(cfg_file)
+    with _CONFIG_CACHE_LOCK:
+        _CONFIG_CACHE[abs_path] = (config, cfg_format)
     _LAST_LOADED_CFG = (abs_path, source, cfg_format)
 
     # Only emit INFO when a configured app logger was passed. Module-level
@@ -1019,15 +1083,7 @@ def load_config(
         _log_cfg_loaded_once(logger, abs_path, source, cfg_format)
     else:
         log.debug("Loaded acme_srv.cfg %s (%s, %s)", abs_path, source, cfg_format)
-    if not explicit_cfg_file:
-        bound_section = cahandler_config_section_get(log)
-        if bound_section and bound_section != "CAhandler":
-            log.debug(
-                "Helper.load_config(): merging bound CAhandler section %r "
-                "into [CAhandler]",
-                bound_section,
-            )
-            config = _cahandler_section_merged_config(config, bound_section, log)
+    config = _apply_bound_cahandler_merge(config, explicit_cfg_file, log)
     log.debug(
         "Helper.load_config() ended sections=%s",
         list(config.sections()),

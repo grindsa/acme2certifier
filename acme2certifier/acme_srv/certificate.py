@@ -281,10 +281,13 @@ class Certificate(object):
     # Error message constants
     INVALID_INPUT_PARAMS_MSG = "Invalid input parameters: %s"
 
-    def __init__(self, debug: bool = False, srv_name: str = None, logger=None):
+    def __init__(
+        self, debug: bool = False, srv_name: str = None, logger=None, config_dic=None
+    ):
         self.debug = debug
         self.logger = logger
         self.server_name = srv_name
+        self.config_dic = config_dic
 
         self.path_dic = {"cert_path": "/acme/cert/"}
 
@@ -302,7 +305,9 @@ class Certificate(object):
         self.eab_handler_class = None
         self.err_msg_dic = error_dic_get(self.logger)
         self.hooks = None
-        self.message = Message(self.debug, self.server_name, self.logger)
+        self.message = Message(
+            self.debug, self.server_name, self.logger, config_dic=config_dic
+        )
 
         # Initialize the new architecture components with configuration
         self.certificate_manager = CertificateManager(
@@ -720,7 +725,7 @@ class Certificate(object):
     def _load_configuration(self):
         """Load certificate configuration from file"""
         self.logger.debug("Certificate._load_configuration()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
 
         self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
         default_bound = self.cahandler_registry.default_handler()
@@ -821,9 +826,7 @@ class Certificate(object):
                 "Certificate._resolve_cahandler: no handler resolved; using default"
             )
             return self.cahandler
-        self.logger.debug(
-            "Certificate._resolve_cahandler() -> %s", bound.name
-        )
+        self.logger.debug("Certificate._resolve_cahandler() -> %s", bound.name)
         return bound
 
     def _persist_order_cahandler(
@@ -997,9 +1000,7 @@ class Certificate(object):
             handler_section = getattr(handler_factory, "section", None)
             if not isinstance(handler_name, str):
                 handler_name = "unknown"
-            extra = (
-                f" ({handler_section})" if isinstance(handler_section, str) else ""
-            )
+            extra = f" ({handler_section})" if isinstance(handler_section, str) else ""
             self.logger.info(
                 "Certificate enrollment via CA handler '%s'%s",
                 handler_name,

@@ -67,11 +67,16 @@ class Message(object):
     """Message handler"""
 
     def __init__(
-        self, debug: bool = False, srv_name: str = None, logger: object = None
+        self,
+        debug: bool = False,
+        srv_name: str = None,
+        logger: object = None,
+        config_dic=None,
     ):
         self.debug = debug
         self.logger = logger
-        self.nonce = Nonce(self.debug, self.logger)
+        self.config_dic = config_dic
+        self.nonce = Nonce(self.debug, self.logger, config_dic=config_dic)
         self.dbstore = DBstore(self.debug, self.logger)
         self.repo = AccountRepository(self.dbstore)
         self.server_name = srv_name
@@ -137,7 +142,7 @@ class Message(object):
     def _load_configuration(self) -> MessageConfiguration:
         """Load and parse config from file and return MessageConfiguration dataclass."""
         self.logger.debug("Message._load_configuration()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
         msg_config = MessageConfiguration()
         if "Nonce" in config_dic:
             nonce_check_disable = config_dic.getboolean(

@@ -454,7 +454,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_023a_process_certificate_enrollment_logs_handler_name(self):
+    def test_024_process_certificate_enrollment_logs_handler_name(self):
         self.cert.config.cert_reusage_timeframe = False
         mock_ca = MagicMock()
         mock_ca.__enter__.return_value = mock_ca
@@ -471,7 +471,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_024_get_certificate_renewal_info(self):
+    def test_025_get_certificate_renewal_info(self):
         with (
             patch(
                 "acme2certifier.acme_srv.certificate.pembundle_to_list",
@@ -485,7 +485,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._get_certificate_renewal_info("cert")
             self.assertEqual(result, "hex")
 
-    def test_025_store_certificate_and_update_order_success(self):
+    def test_026_store_certificate_and_update_order_success(self):
         with (
             patch.object(self.cert, "_store_certificate_in_database", return_value=1),
             patch.object(self.cert, "_update_order_status"),
@@ -496,7 +496,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, 1)
 
-    def test_026_certificate_and_update_order_error_handling(self):
+    def test_027_certificate_and_update_order_error_handling(self):
         with patch.object(
             self.cert,
             "_store_certificate_in_database",
@@ -516,12 +516,12 @@ class TestCertificate(unittest.TestCase):
                 lcm.output,
             )
 
-    def test_027_check_identifier_match(self):
+    def test_028_check_identifier_match(self):
         identifiers = [{"type": "dns", "value": "foo"}]
         result = self.cert._check_identifier_match("dns", "foo", identifiers, False)
         self.assertTrue(result)
 
-    def test_028_validate_identifiers_against_sans(self):
+    def test_029_validate_identifiers_against_sans(self):
         self.cert.config.csr_binding_strict = False
         with patch.object(
             self.cert, "_check_identifier_match", return_value=True
@@ -531,7 +531,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, [True])
 
-    def test_029_validate_identifiers_against_sans_strict_match(self):
+    def test_030_validate_identifiers_against_sans_strict_match(self):
         self.cert.config.csr_binding_strict = True
         result = self.cert._validate_identifiers_against_sans(
             [{"type": "dns", "value": "foo.example.com"}],
@@ -540,7 +540,7 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertEqual(result, [True])
 
-    def test_030_validate_identifiers_against_sans_strict_extra_bound(self):
+    def test_031_validate_identifiers_against_sans_strict_extra_bound(self):
         self.cert.config.csr_binding_strict = True
         with patch.object(self.cert.logger, "warning") as mock_warning:
             result = self.cert._validate_identifiers_against_sans(
@@ -554,7 +554,7 @@ class TestCertificate(unittest.TestCase):
         self.assertEqual(result, [False])
         mock_warning.assert_called_once()
 
-    def test_031_validate_identifiers_against_sans_strict_missing_order_id(self):
+    def test_032_validate_identifiers_against_sans_strict_missing_order_id(self):
         self.cert.config.csr_binding_strict = True
         result = self.cert._validate_identifiers_against_sans(
             [
@@ -566,7 +566,7 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertEqual(result, [False])
 
-    def test_032_validate_identifiers_against_sans_unknown(self):
+    def test_033_validate_identifiers_against_sans_unknown(self):
         self.cert.config.csr_binding_strict = False
         with (
             patch.object(
@@ -584,7 +584,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(args[1], "unkownsan")
             self.assertIsInstance(args[2], ValueError)
 
-    def test_033_validate_identifiers_against_nosans(self):
+    def test_034_validate_identifiers_against_nosans(self):
         self.cert.config.csr_binding_strict = False
         with (
             patch.object(self.cert, "_check_identifier_match") as mock_check,
@@ -598,13 +598,13 @@ class TestCertificate(unittest.TestCase):
             args, kwargs = mock_logger_error.call_args
             self.assertEqual(args[0], "No SANs found in certificate")
 
-    def test_034_check_tnauth_identifier_match(self):
+    def test_035_check_tnauth_identifier_match(self):
         identifier = {"type": "tnauthlist", "value": "abc"}
         tnauthlist = ["abc"]
         result = self.cert._check_tnauth_identifier_match(identifier, tnauthlist)
         self.assertTrue(result)
 
-    def test_035_validate_identifiers_against_tnauthlist(self):
+    def test_036_validate_identifiers_against_tnauthlist(self):
         identifier_dic = {"identifiers": '[{"type": "tnauthlist", "value": "abc"}]'}
         tnauthlist = ["abc"]
         result = self.cert._validate_identifiers_against_tnauthlist(
@@ -612,7 +612,7 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertEqual(result, [True])
 
-    def test_036_validate_identifiers_against_tnauthlist_tnauthlist_and_not_identifier_dic(
+    def test_037_validate_identifiers_against_tnauthlist_tnauthlist_and_not_identifier_dic(
         self,
     ):
         # Covers lines 1078-1079: tnauthlist and not identifier_dic
@@ -623,7 +623,7 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertEqual(result, [False])
 
-    def test_037_validate_identifiers_against_tnauthlist_identifiers_and_tnauthlist(
+    def test_038_validate_identifiers_against_tnauthlist_identifiers_and_tnauthlist(
         self,
     ):
         # Covers line 1082: identifiers and tnauthlist
@@ -637,7 +637,7 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertEqual(result, [True, False])
 
-    def test_038_validate_identifiers_against_tnauthlist_else_branch(self):
+    def test_039_validate_identifiers_against_tnauthlist_else_branch(self):
         # Covers line 1089: else branch (no identifiers, no tnauthlist)
         identifier_dic = {"identifiers": "[]"}
         tnauthlist = []
@@ -646,16 +646,16 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertEqual(result, [False])
 
-    def test_039_get_certificate_info_success(self):
+    def test_040_get_certificate_info_success(self):
         self.cert.repository.certificate_lookup.return_value = {"foo": "bar"}
         result = self.cert._get_certificate_info("cert")
         self.assertEqual(result, {"foo": "bar"})
 
-    def test_040_update_order_status(self):
+    def test_041_update_order_status(self):
         self.cert._update_order_status({"name": "order", "status": "valid"})
         self.cert.repository.order_update.assert_called()
 
-    def test_041_update_order_status_exception(self):
+    def test_042_update_order_status_exception(self):
         # Covers the exception branch in _update_order_status (lines 1118-1119)
         self.cert.repository.order_update.side_effect = Exception("fail")
         with patch.object(self.cert.logger, "critical") as mock_critical:
@@ -664,11 +664,11 @@ class TestCertificate(unittest.TestCase):
             args, _ = mock_critical.call_args
             self.assertIn("Database error: failed to update order", args[0])
 
-    def test_042_validate_revocation_reason(self):
+    def test_043_validate_revocation_reason(self):
         result = self.cert._validate_revocation_reason(0)
         self.assertEqual(result, "unspecified")
 
-    def test_043_validate_revocation_request_success(self):
+    def test_044_validate_revocation_request_success(self):
         self.cert.repository.certificate_account_check.return_value = "order"
         self.cert.repository.order_lookup.return_value = {"identifiers": "[]"}
         with patch.object(
@@ -678,7 +678,7 @@ class TestCertificate(unittest.TestCase):
             code, error = self.cert._validate_revocation_request("acc", payload)
             self.assertEqual(code, 200)
 
-    def test_044_store_certificate_in_database_success(self):
+    def test_045_store_certificate_in_database_success(self):
         with (
             patch(
                 "acme2certifier.acme_srv.certificate.cert_serial_get",
@@ -697,24 +697,24 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, 1)
 
-    def test_045_store_certificate_error_success(self):
+    def test_046_store_certificate_error_success(self):
         self.mock_repository.certificate_add.return_value = 1
         result = self.cert._store_certificate_error("cert", "err", "poll")
         self.assertEqual(result, 1)
 
-    def test_046_check_for_tnauth_identifiers(self):
+    def test_047_check_for_tnauth_identifiers(self):
         identifiers = [{"type": "tnauthlist", "value": "abc"}]
         result = self.cert._check_for_tnauth_identifiers(identifiers)
         self.assertTrue(result)
 
-    def test_047_certlist_search(self):
+    def test_048_certlist_search(self):
         self.mock_certificate_manager.search_certificates.return_value = {
             "certificates": [{"foo": "bar"}]
         }
         result = self.cert.certlist_search("name", "cert")
         self.assertEqual(result, [{"foo": "bar"}])
 
-    def test_048_cleanup(self):
+    def test_049_cleanup(self):
         self.mock_certificate_manager.cleanup_certificates.return_value = (
             ["field"],
             ["report"],
@@ -722,7 +722,7 @@ class TestCertificate(unittest.TestCase):
         result = self.cert.cleanup(123, True)
         self.assertEqual(result, (["field"], ["report"]))
 
-    def test_049_cleanup(self):
+    def test_050_cleanup(self):
         self.mock_certificate_manager.cleanup_certificates.return_value = (
             ["field"],
             ["report"],
@@ -734,7 +734,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, (["field"], ["report"]))
             mock_uts_now.assert_called()
 
-    def test_050_update_certificate_dates(self):
+    def test_051_update_certificate_dates(self):
         cert = {
             "name": "cert",
             "cert": "cert",
@@ -756,7 +756,7 @@ class TestCertificate(unittest.TestCase):
                 lcm.output,
             )
 
-    def test_051_dates_update(self):
+    def test_052_dates_update(self):
         with (
             patch.object(
                 self.cert,
@@ -776,29 +776,29 @@ class TestCertificate(unittest.TestCase):
             self.cert.dates_update()
             mock_update.assert_called()
 
-    def test_052_validate_input_parameters_all_valid(self):
+    def test_053_validate_input_parameters_all_valid(self):
         params = {"a": "x", "b": "y"}
         result = self.cert._validate_input_parameters(**params)
         self.assertEqual(result, {})
 
-    def test_053_validate_input_parameters_some_invalid(self):
+    def test_054_validate_input_parameters_some_invalid(self):
         params = {"a": "", "b": None, "c": "ok"}
         result = self.cert._validate_input_parameters(**params)
         self.assertIn("a", result)
         self.assertIn("b", result)
         self.assertNotIn("c", result)
 
-    def test_054_create_error_response(self):
+    def test_055_create_error_response(self):
         resp = self.cert._create_error_response(400, "msg", "detail")
         self.assertEqual(resp, {"code": 400, "data": "msg", "detail": "detail"})
 
-    def test_055_validate_certificate_account_ownership_success(self):
+    def test_056_validate_certificate_account_ownership_success(self):
         self.cert.repository.certificate_account_check.return_value = True
         self.assertTrue(
             self.cert._validate_certificate_account_ownership("acc", "cert")
         )
 
-    def test_056_validate_certificate_account_ownership_db_error(self):
+    def test_057_validate_certificate_account_ownership_db_error(self):
         self.cert.repository.certificate_account_check.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
             self.assertIsNone(
@@ -809,7 +809,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_057_validate_certificate_authorization_tnauthlist(self):
+    def test_058_validate_certificate_authorization_tnauthlist(self):
         self.cert.config.tnauthlist_support = True
         with (
             patch.object(self.cert, "_check_for_tnauth_identifiers", return_value=True),
@@ -828,7 +828,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, ["ok"])
 
-    def test_058_validate_certificate_authorization_sans(self):
+    def test_059_validate_certificate_authorization_sans(self):
         self.cert.config.tnauthlist_support = False
         with (
             patch(
@@ -844,7 +844,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, ["ok"])
 
-    def test_059_certificate_authorization_json_decode_error(self):
+    def test_060_certificate_authorization_json_decode_error(self):
         # Covers exception in json.loads(identifier_dic["identifiers"].lower()) (lines 454-455)
         self.cert.config.tnauthlist_support = False
         with (
@@ -865,7 +865,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, ["ok"])
 
-    def test_060_certificate_authorization_tnauthlist_cert_extensions_get_exception(
+    def test_061_certificate_authorization_tnauthlist_cert_extensions_get_exception(
         self,
     ):
         # Covers exception in cert_extensions_get (lines 466-469)
@@ -892,7 +892,7 @@ class TestCertificate(unittest.TestCase):
                 unittest.mock.ANY,
             )
 
-    def test_061_certificate_authorization_debug_log(self):
+    def test_062_certificate_authorization_debug_log(self):
         # Covers the debug log at the end (lines 479-481)
         self.cert.config.tnauthlist_support = False
         with (
@@ -909,21 +909,21 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, ["ok"])
 
-    def test_062_validate_order_authorization_success(self):
+    def test_063_validate_order_authorization_success(self):
         self.cert.repository.order_lookup.return_value = {"identifiers": "[]"}
         with patch.object(
             self.cert, "_validate_certificate_authorization", return_value=[True]
         ):
             self.assertTrue(self.cert._validate_order_authorization("order", "cert"))
 
-    def test_063_validate_order_authorization_failure(self):
+    def test_064_validate_order_authorization_failure(self):
         self.cert.repository.order_lookup.return_value = {"identifiers": "[]"}
         with patch.object(
             self.cert, "_validate_certificate_authorization", return_value=[False]
         ):
             self.assertFalse(self.cert._validate_order_authorization("order", "cert"))
 
-    def test_064_validate_order_authorization_db_error(self):
+    def test_065_validate_order_authorization_db_error(self):
         self.cert.repository.order_lookup.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
             self.assertFalse(self.cert._validate_order_authorization("order", "cert"))
@@ -932,7 +932,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_065_check_certificate_reusability_found(self):
+    def test_066_check_certificate_reusability_found(self):
         self.cert.repository.search_certificates.return_value = [
             {
                 "expire_uts": 9999999999,
@@ -948,7 +948,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._check_certificate_reusability("csr", "acct1")
             self.assertIsInstance(result, tuple)
 
-    def test_066_check_certificate_reusability_db_error(self):
+    def test_067_check_certificate_reusability_db_error(self):
         self.cert.repository.search_certificates.side_effect = Exception("fail")
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
@@ -959,18 +959,18 @@ class TestCertificate(unittest.TestCase):
                 lcm.output,
             )
 
-    def test_067_check_certificate_reusability_none_found(self):
+    def test_068_check_certificate_reusability_none_found(self):
         self.cert.repository.search_certificates.return_value = None
         with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
             result = self.cert._check_certificate_reusability("csr", None)
             self.assertIsInstance(result, tuple)
 
-    def test_068_handle_enrollment_error(self):
+    def test_069_handle_enrollment_error(self):
         # _handle_enrollment_error returns a tuple (None, msg, detail)
         result = self.cert._handle_enrollment_error("msg", "detail", "order", "cert")
         self.assertEqual(result, (None, "msg", "detail"))
 
-    def test_069_enrollment_error_poll_identifier(self):
+    def test_070_enrollment_error_poll_identifier(self):
         with patch.object(self.cert, "_store_certificate_error") as mock_store_error:
             result, error, detail = self.cert._handle_enrollment_error(
                 "error", "poll", "order", "cert_name"
@@ -979,13 +979,13 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(detail, "poll")
             mock_store_error.assert_called()
 
-    def test_070_execute_pre_enrollment_hooks(self):
+    def test_071_execute_pre_enrollment_hooks(self):
         self.cert.hook_handler = MagicMock()
         self.cert.hook_handler.execute_pre_enrollment_hooks.return_value = None
         result = self.cert._execute_pre_enrollment_hooks("order", "csr", None)
         self.assertIsNone(result)
 
-    def test_071_pre_enrollment_hooks_with_hooks(self):
+    def test_072_pre_enrollment_hooks_with_hooks(self):
         self.cert.hooks = MagicMock()
         self.cert.hooks.execute.side_effect = [None]
         hook_errors = self.cert._execute_pre_enrollment_hooks(
@@ -993,7 +993,7 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertIsNone(hook_errors)
 
-    def test_072_execute_post_enrollment_hooks(self):
+    def test_073_execute_post_enrollment_hooks(self):
         # Test normal post_hook execution logs debug (line 915)
         self.cert.hooks = MagicMock()
         self.cert.hooks.post_hook.return_value = True
@@ -1006,7 +1006,7 @@ class TestCertificate(unittest.TestCase):
                 "Certificate._execute_post_enrollment_hooks(): post_hook successful"
             )
 
-    def test_073_post_enrollment_hooks_with_error(self):
+    def test_074_post_enrollment_hooks_with_error(self):
         """Test _execute_post_enrollment_hooks with error - checks logger.error call"""
         self.cert.hooks = MagicMock()
         self.cert.hooks.post_hook.side_effect = Exception("Hook error")
@@ -1021,13 +1021,13 @@ class TestCertificate(unittest.TestCase):
             self.assertIn("Hook error", mock_logger_error.call_args[0][1].args[0])
             self.assertIsInstance(hook_errors, list)
 
-    def test_074_handle_processing_certificate(self):
+    def test_075_handle_processing_certificate(self):
         # Ensure 'ratelimited' key exists in err_msg_dic to avoid KeyError
         self.cert.err_msg_dic["ratelimited"] = "ratelimited"
         result = self.cert._handle_processing_certificate()
         self.assertIsInstance(result, dict)
 
-    def test_075_handle_valid_certificate(self):
+    def test_076_handle_valid_certificate(self):
         cert_info = {
             "certificate": "cert",
             "order_name": "order",
@@ -1037,7 +1037,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._handle_valid_certificate(cert_info)
             self.assertIsInstance(result, dict)
 
-    def test_076_handle_valid_certificate_db_error(self):
+    def test_077_handle_valid_certificate_db_error(self):
         cert_info = {
             "certificate": "cert",
             "order_name": "order",
@@ -1049,7 +1049,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._handle_valid_certificate(cert_info)
             self.assertIsInstance(result, dict)
 
-    def test_077_determine_certificate_response_valid(self):
+    def test_078_determine_certificate_response_valid(self):
         # Patch _handle_valid_certificate to return {'code': 200} for 'valid' status
         with patch.object(
             self.cert, "_handle_valid_certificate", return_value={"code": 200}
@@ -1063,7 +1063,7 @@ class TestCertificate(unittest.TestCase):
                     result, {"code": 500, "data": "serverinternal", "detail": None}
                 )
 
-    def test_078_determine_certificate_response_processing(self):
+    def test_079_determine_certificate_response_processing(self):
         # Patch _handle_processing_certificate to return {'code': 202} for 'processing' status
         with patch.object(
             self.cert, "_handle_processing_certificate", return_value={"code": 202}
@@ -1077,11 +1077,11 @@ class TestCertificate(unittest.TestCase):
                     result, {"code": 500, "data": "serverinternal", "detail": None}
                 )
 
-    def test_079_determine_certificate_response_invalid(self):
+    def test_080_determine_certificate_response_invalid(self):
         result = self.cert._determine_certificate_response({"status": "invalid"})
         self.assertIsInstance(result, dict)
 
-    def test_080_validate_input_parameters_invalid(self):
+    def test_081_validate_input_parameters_invalid(self):
         with patch.object(
             self.cert, "_validate_input_parameters", return_value=["error"]
         ):
@@ -1095,7 +1095,7 @@ class TestCertificate(unittest.TestCase):
                 lcm.output,
             )
 
-    def test_081_poll_certificate_status_success(self):
+    def test_082_poll_certificate_status_success(self):
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value=None),
             patch.object(self.cert, "cahandler") as mock_cahandler,
@@ -1110,7 +1110,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, 123)
             mock_success.assert_called()
 
-    def test_082_poll_certificate_status_failure(self):
+    def test_083_poll_certificate_status_failure(self):
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value=None),
             patch.object(self.cert, "cahandler") as mock_cahandler,
@@ -1123,7 +1123,7 @@ class TestCertificate(unittest.TestCase):
             self.assertIsNone(result)
             mock_failed.assert_called()
 
-    def test_083_poll_certificate_status_failure(self):
+    def test_084_poll_certificate_status_failure(self):
         # Patch logger.error to check the error message from line 1819
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value=None),
@@ -1142,7 +1142,7 @@ class TestCertificate(unittest.TestCase):
             args, _ = mock_logger_error.call_args
             self.assertIn("Error polling certificate from CA handler", args[0])
 
-    def test_084_store_certificate_signing_request_success(self):
+    def test_085_store_certificate_signing_request_success(self):
         self.mock_certificate_manager.validate_and_store_csr.return_value = (
             True,
             "cert",
@@ -1150,14 +1150,14 @@ class TestCertificate(unittest.TestCase):
         result = self.cert.store_certificate_signing_request("order", "csr", "header")
         self.assertEqual(result, "cert")
 
-    def test_085_store_certificate_signing_request_failure(self):
+    def test_086_store_certificate_signing_request_failure(self):
         self.mock_certificate_manager.validate_and_store_csr.return_value = (
             False,
             None,
         )
         self.cert.store_certificate_signing_request("order", "csr", "header")
 
-    def test_086_store_certificate_signing_request_exception(self):
+    def test_087_store_certificate_signing_request_exception(self):
         self.mock_certificate_manager.validate_and_store_csr.side_effect = Exception(
             "fail"
         )
@@ -1172,7 +1172,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_087_handle_successful_certificate_poll_db_error(self):
+    def test_088_handle_successful_certificate_poll_db_error(self):
         with patch.object(
             self.cert, "_store_certificate_in_database", side_effect=Exception("fail")
         ):
@@ -1186,7 +1186,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_088_handle_failed_certificate_poll_db_error(self):
+    def test_089_handle_failed_certificate_poll_db_error(self):
         with patch.object(
             self.cert, "_store_certificate_error", side_effect=Exception("fail")
         ):
@@ -1199,7 +1199,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_089_handle_failed_certificate_poll_order_update_error(self):
+    def test_090_handle_failed_certificate_poll_order_update_error(self):
         self.cert.repository.order_update.side_effect = Exception("fail")
         with self.assertLogs(self.cert.logger, level="WARNING") as log:
             self.cert._handle_failed_certificate_poll(
@@ -1214,7 +1214,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_090_enroll_and_store_legacy(self):
+    def test_091_enroll_and_store_legacy(self):
         with patch.object(
             self.cert,
             "process_certificate_enrollment_request",
@@ -1224,7 +1224,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, ("cert", "order"))
             mock_proc.assert_called()
 
-    def test_091_new_get_legacy(self):
+    def test_092_new_get_legacy(self):
         with patch.object(
             self.cert, "get_certificate_details", return_value={"foo": "bar"}
         ) as mock_get:
@@ -1232,7 +1232,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, {"foo": "bar"})
             mock_get.assert_called()
 
-    def test_092_new_post_legacy(self):
+    def test_093_new_post_legacy(self):
         with patch.object(
             self.cert, "process_certificate_request", return_value={"foo": "bar"}
         ) as mock_post:
@@ -1240,7 +1240,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, {"foo": "bar"})
             mock_post.assert_called()
 
-    def test_093_revoke_legacy(self):
+    def test_094_revoke_legacy(self):
         with patch.object(
             self.cert, "revoke_certificate", return_value={"foo": "bar"}
         ) as mock_revoke:
@@ -1248,7 +1248,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, {"foo": "bar"})
             mock_revoke.assert_called()
 
-    def test_094_poll_legacy(self):
+    def test_095_poll_legacy(self):
         with patch.object(
             self.cert, "poll_certificate_status", return_value=123
         ) as mock_poll:
@@ -1256,7 +1256,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, 123)
             mock_poll.assert_called()
 
-    def test_095_store_csr_legacy(self):
+    def test_096_store_csr_legacy(self):
         with patch.object(
             self.cert, "store_certificate_signing_request", return_value="cert"
         ) as mock_store:
@@ -1264,7 +1264,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, "cert")
             mock_store.assert_called()
 
-    def test_096_validate_certificate_account_ownership_exception(self):
+    def test_097_validate_certificate_account_ownership_exception(self):
         self.cert.repository.certificate_account_check.side_effect = Exception(
             "Database error"
         )
@@ -1277,7 +1277,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_097_validate_certificate_authorization_exception(self):
+    def test_098_validate_certificate_authorization_exception(self):
         with patch(
             "acme2certifier.acme_srv.certificate.cert_bound_names_get",
             side_effect=Exception("SAN error"),
@@ -1292,7 +1292,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_098_validate_order_authorization_exception(self):
+    def test_099_validate_order_authorization_exception(self):
         self.cert.repository.order_lookup.side_effect = Exception("Order lookup error")
         with self.assertLogs(self.cert.logger, level="CRITICAL") as log:
             result = self.cert._validate_order_authorization("order", "certificate")
@@ -1302,7 +1302,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_099_check_certificate_reusability_exception(self):
+    def test_100_check_certificate_reusability_exception(self):
         self.cert.repository.search_certificates.side_effect = Exception(
             "Reusability error"
         )
@@ -1314,7 +1314,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_100_process_certificate_enrollment_exception(self):
+    def test_101_process_certificate_enrollment_exception(self):
         self.cert.config.cert_reusage_timeframe = True
         with patch.object(
             self.cert,
@@ -1325,7 +1325,7 @@ class TestCertificate(unittest.TestCase):
                 self.cert._process_certificate_enrollment("csr")
             self.assertEqual(str(context.exception), "Enrollment error")
 
-    def test_101_store_certificate_and_update_order_exception(self):
+    def test_102_store_certificate_and_update_order_exception(self):
         with patch.object(
             self.cert,
             "_store_certificate_in_database",
@@ -1343,7 +1343,7 @@ class TestCertificate(unittest.TestCase):
             )
 
     # Tests for missing methods
-    def test_102_dates_update(self):
+    def test_103_dates_update(self):
         """Test dates_update method"""
         with (
             patch.object(
@@ -1364,7 +1364,7 @@ class TestCertificate(unittest.TestCase):
             self.cert.dates_update()
             mock_update.assert_called()
 
-    def test_103_update_certificate_dates_with_dates(self):
+    def test_104_update_certificate_dates_with_dates(self):
         """Test _update_certificate_dates with existing dates"""
         cert = {
             "name": "cert",
@@ -1380,7 +1380,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_104_update_certificate_dates_zero_dates(self):
+    def test_105_update_certificate_dates_zero_dates(self):
         """Test _update_certificate_dates with zero dates"""
         cert = {
             "name": "cert",
@@ -1403,7 +1403,7 @@ class TestCertificate(unittest.TestCase):
                 lcm.output,
             )
 
-    def test_105_handle_enrollment_thread_execution_success(self):
+    def test_106_handle_enrollment_thread_execution_success(self):
         """Test _handle_enrollment_thread_execution success case"""
         with patch(
             "acme2certifier.acme_srv.certificate.ThreadWithReturnValue"
@@ -1417,7 +1417,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, (None, "detail"))
 
-    def test_106_handle_enrollment_thread_execution_timeout(self):
+    def test_107_handle_enrollment_thread_execution_timeout(self):
         """Test _handle_enrollment_thread_execution timeout case"""
         with patch(
             "acme2certifier.acme_srv.certificate.ThreadWithReturnValue"
@@ -1431,7 +1431,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, ("timeout", "Enrollment process timed out"))
 
-    def test_107_handle_enrollment_thread_execution_exception(self):
+    def test_108_handle_enrollment_thread_execution_exception(self):
         """Test _handle_enrollment_thread_execution exception case"""
         with patch(
             "acme2certifier.acme_srv.certificate.ThreadWithReturnValue",
@@ -1442,17 +1442,17 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result[0], "serverinternal")
 
-    def test_108_parse_enrollment_result_valid_tuple(self):
+    def test_109_parse_enrollment_result_valid_tuple(self):
         """Test _parse_enrollment_result with valid tuple"""
         result = self.cert._parse_enrollment_result((1, "error", "detail"))
         self.assertEqual(result, ("error", "detail"))
 
-    def test_109_parse_enrollment_result_invalid_format(self):
+    def test_110_parse_enrollment_result_invalid_format(self):
         """Test _parse_enrollment_result with invalid format"""
         result = self.cert._parse_enrollment_result("invalid")
         self.assertEqual(result[0], "serverinternal")
 
-    def test_110_process_certificate_enrollment_request_invalid_input(self):
+    def test_111_process_certificate_enrollment_request_invalid_input(self):
         """Test process_certificate_enrollment_request with invalid input"""
         with patch.object(
             self.cert, "_validate_input_parameters", return_value={"cert": "error"}
@@ -1467,7 +1467,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_111_process_certificate_enrollment_request_csr_validation_error(self):
+    def test_112_process_certificate_enrollment_request_csr_validation_error(self):
         """Test process_certificate_enrollment_request with CSR validation error"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -1485,7 +1485,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_112_process_certificate_enrollment_request_csr_validation_failed(self):
+    def test_113_process_certificate_enrollment_request_csr_validation_failed(self):
         """Test process_certificate_enrollment_request with failed CSR validation"""
         self.cert.err_msg_dic["badcsr"] = "badcsr"
         with (
@@ -1502,7 +1502,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_113_process_certificate_enrollment_request_enrollment_success(self):
+    def test_114_process_certificate_enrollment_request_enrollment_success(self):
         """Test process_certificate_enrollment_request successful enrollment"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -1516,7 +1516,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.process_certificate_enrollment_request("cert", "csr")
             self.assertEqual(result, (None, "detail"))
 
-    def test_114_process_certificate_enrollment_request_unexpected_error(self):
+    def test_115_process_certificate_enrollment_request_unexpected_error(self):
         """Test process_certificate_enrollment_request with unexpected error"""
         with patch.object(
             self.cert, "_validate_input_parameters", side_effect=Exception("Unexpected")
@@ -1529,12 +1529,12 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_115_determine_certificate_response_no_cert_info(self):
+    def test_116_determine_certificate_response_no_cert_info(self):
         """Test _determine_certificate_response with no cert info"""
         result = self.cert._determine_certificate_response({})
         self.assertEqual(result["code"], 500)
 
-    def test_116_determine_certificate_response_valid_order(self):
+    def test_117_determine_certificate_response_valid_order(self):
         """Test _determine_certificate_response with valid order"""
         cert_info = {
             "order__status_id": self.cert.ORDER_STATUS_VALID,
@@ -1546,7 +1546,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._determine_certificate_response(cert_info)
             mock_handle.assert_called_with(cert_info)
 
-    def test_117_determine_certificate_response_processing_order(self):
+    def test_118_determine_certificate_response_processing_order(self):
         """Test _determine_certificate_response with processing order"""
         cert_info = {"order__status_id": self.cert.ORDER_STATUS_PROCESSING}
         with patch.object(
@@ -1555,7 +1555,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._determine_certificate_response(cert_info)
             mock_handle.assert_called()
 
-    def test_118_determine_certificate_response_invalid_order(self):
+    def test_119_determine_certificate_response_invalid_order(self):
         """Test _determine_certificate_response with invalid order"""
         cert_info = {"order__status_id": 99}
         self.cert.err_msg_dic["ordernotready"] = "order not ready"  # Add missing key
@@ -1569,14 +1569,14 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_119_handle_valid_certificate_with_cert(self):
+    def test_120_handle_valid_certificate_with_cert(self):
         """Test _handle_valid_certificate with certificate present"""
         cert_info = {"cert": "certificate_data"}
         result = self.cert._handle_valid_certificate(cert_info)
         self.assertEqual(result["code"], 200)
         self.assertEqual(result["data"], "certificate_data")
 
-    def test_120_and_validate_identifiers_json_decode_error(self):
+    def test_121_and_validate_identifiers_json_decode_error(self):
         """Covers identifiers JSON decode error (lines 663-664)."""
         identifier_dic = {"identifiers": "not-a-json"}
         csr = "irrelevant"
@@ -1592,7 +1592,7 @@ class TestCertificate(unittest.TestCase):
                 lcm.output,
             )
 
-    def test_121_and_validate_identifiers_tnauthlist_extension_error(self):
+    def test_122_and_validate_identifiers_tnauthlist_extension_error(self):
         """Covers tnauthlist extension error (lines 676-678)."""
 
         self.cert.config.tnauthlist_support = True
@@ -1613,7 +1613,7 @@ class TestCertificate(unittest.TestCase):
                 lcm.output,
             )
 
-    def test_122_and_validate_identifiers_san_extraction_error(self):
+    def test_123_and_validate_identifiers_san_extraction_error(self):
         """Covers SAN extraction error (lines 688-690)."""
         self.cert.config.tnauthlist_support = False
         identifier_dic = {"identifiers": '[{"type": "dns", "value": "example.com"}]'}
@@ -1635,13 +1635,13 @@ class TestCertificate(unittest.TestCase):
                 lcm.output,
             )
 
-    def test_123_handle_valid_certificate_no_cert(self):
+    def test_124_handle_valid_certificate_no_cert(self):
         """Test _handle_valid_certificate with no certificate"""
         cert_info = {}
         result = self.cert._handle_valid_certificate(cert_info)
         self.assertEqual(result["code"], 500)
 
-    def test_124_handle_processing_certificate(self):
+    def test_125_handle_processing_certificate(self):
         """Test _handle_processing_certificate"""
         self.cert.err_msg_dic["ratelimited"] = "rate_limited"
         result = self.cert._handle_processing_certificate()
@@ -1649,7 +1649,7 @@ class TestCertificate(unittest.TestCase):
         self.assertEqual(result["data"], "rate_limited")
         self.assertIn("Retry-After", result["header"])
 
-    def test_125_get_certificate_details_invalid_url(self):
+    def test_126_get_certificate_details_invalid_url(self):
         """Test get_certificate_details with invalid URL"""
         with patch.object(
             self.cert, "_validate_input_parameters", return_value={"url": "error"}
@@ -1657,7 +1657,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.get_certificate_details("")
             self.assertEqual(result["code"], 400)
 
-    def test_126_get_certificate_details_manager_error(self):
+    def test_127_get_certificate_details_manager_error(self):
         """Test get_certificate_details with manager error"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -1670,7 +1670,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.get_certificate_details("http://test.com/cert/123")
             self.assertEqual(result["code"], 500)
 
-    def test_127_get_certificate_details_success(self):
+    def test_128_get_certificate_details_success(self):
         """Test get_certificate_details success case"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -1686,7 +1686,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.get_certificate_details("http://test.com/cert/123")
             mock_determine.assert_called()
 
-    def test_128_get_certificate_details_unexpected_error(self):
+    def test_129_get_certificate_details_unexpected_error(self):
         """Test get_certificate_details with unexpected error"""
         with patch.object(
             self.cert, "_validate_input_parameters", side_effect=Exception("Unexpected")
@@ -1699,7 +1699,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_129_validate_certificate_request_message_success(self):
+    def test_130_validate_certificate_request_message_success(self):
         """Test _validate_certificate_request_message success"""
         with patch.object(
             self.cert.message,
@@ -1709,7 +1709,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._validate_certificate_request_message("content")
             self.assertEqual(result[0], 200)
 
-    def test_130_validate_certificate_request_message_error(self):
+    def test_131_validate_certificate_request_message_error(self):
         """Test _validate_certificate_request_message with error"""
         with patch.object(
             self.cert.message, "check", side_effect=Exception("Message error")
@@ -1717,7 +1717,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._validate_certificate_request_message("content")
             self.assertEqual(result[0], 400)
 
-    def test_131_prepare_certificate_response_success(self):
+    def test_132_prepare_certificate_response_success(self):
         """Test _prepare_certificate_response success"""
         with patch.object(
             self.cert.message,
@@ -1729,7 +1729,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result["code"], 200)
 
-    def test_132_prepare_certificate_response_with_dict_data(self):
+    def test_133_prepare_certificate_response_with_dict_data(self):
         """Test _prepare_certificate_response with dict data"""
         with patch.object(
             self.cert.message,
@@ -1741,7 +1741,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertIsInstance(result["data"], str)  # Should be JSON string
 
-    def test_133_prepare_certificate_response_error(self):
+    def test_134_prepare_certificate_response_error(self):
         """Test _prepare_certificate_response with error"""
         with patch.object(
             self.cert.message,
@@ -1753,7 +1753,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result["code"], 500)
 
-    def test_134_process_certificate_request_invalid_content(self):
+    def test_135_process_certificate_request_invalid_content(self):
         """Test process_certificate_request with invalid content"""
         with (
             patch.object(
@@ -1768,7 +1768,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.process_certificate_request("")
             self.assertEqual(result["code"], 400)
 
-    def test_135_process_certificate_request_message_validation_error(self):
+    def test_136_process_certificate_request_message_validation_error(self):
         """Test process_certificate_request with message validation error"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -1784,7 +1784,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.process_certificate_request("content")
             self.assertIn("code", result)
 
-    def test_136_process_certificate_request_success_with_url(self):
+    def test_137_process_certificate_request_success_with_url(self):
         """Test process_certificate_request success with URL in protected header"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -1805,7 +1805,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.process_certificate_request("content")
             mock_prepare.assert_called()
 
-    def test_137_process_certificate_request_success_with_url(self):
+    def test_138_process_certificate_request_success_with_url(self):
         """Test process_certificate_request success with URL in protected header"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -1835,7 +1835,7 @@ class TestCertificate(unittest.TestCase):
                 account_name="acc",
             )
 
-    def test_138_process_certificate_request_missing_url(self):
+    def test_139_process_certificate_request_missing_url(self):
         """Test process_certificate_request with missing URL in protected header"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -1851,7 +1851,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.process_certificate_request("content")
             mock_prepare.assert_called()
 
-    def test_139_process_certificate_request_get_details_error(self):
+    def test_140_process_certificate_request_get_details_error(self):
         """Test process_certificate_request with get_certificate_details error"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -1881,7 +1881,7 @@ class TestCertificate(unittest.TestCase):
             )
             mock_prepare.assert_called()
 
-    def test_140_process_certificate_request_unexpected_error(self):
+    def test_141_process_certificate_request_unexpected_error(self):
         """Test process_certificate_request with unexpected error"""
         with (
             patch.object(
@@ -1901,7 +1901,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_141_validate_revocation_message_success(self):
+    def test_142_validate_revocation_message_success(self):
         """Test _validate_revocation_message success"""
         with patch.object(
             self.cert.message,
@@ -1911,7 +1911,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._validate_revocation_message("content")
             self.assertEqual(result[0], 200)
 
-    def test_142_validate_revocation_message_error(self):
+    def test_143_validate_revocation_message_error(self):
         """Test _validate_revocation_message with error"""
         with patch.object(
             self.cert.message, "check", side_effect=Exception("Message error")
@@ -1919,7 +1919,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._validate_revocation_message("content")
             self.assertEqual(result[0], 400)
 
-    def test_143_process_certificate_revocation_validation_error(self):
+    def test_144_process_certificate_revocation_validation_error(self):
         """Test _process_certificate_revocation with validation error"""
         with patch.object(
             self.cert, "_validate_revocation_request", return_value=(400, "error")
@@ -1927,7 +1927,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._process_certificate_revocation("account", {})
             self.assertEqual(result, (400, "error", None))
 
-    def test_144_process_certificate_revocation_success(self):
+    def test_145_process_certificate_revocation_success(self):
         """Test _process_certificate_revocation success"""
         payload = {"certificate": "cert"}
         with (
@@ -1945,7 +1945,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._process_certificate_revocation("account", payload)
             self.assertEqual(result, (200, "revoked", "detail"))
 
-    def test_145_process_certificate_revocation_with_logging(self):
+    def test_146_process_certificate_revocation_with_logging(self):
         """Test _process_certificate_revocation with operations logging"""
         payload = {"certificate": "cert"}
         self.cert.config.cert_operations_log = "json"
@@ -1967,7 +1967,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._process_certificate_revocation("account", payload)
             mock_log.assert_called_with("cert", 200)
 
-    def test_146_process_certificate_revocation_logging_error(self):
+    def test_147_process_certificate_revocation_logging_error(self):
         """Test _process_certificate_revocation with logging error"""
         payload = {"certificate": "cert"}
         self.cert.config.cert_operations_log = "json"
@@ -1993,7 +1993,7 @@ class TestCertificate(unittest.TestCase):
                 result, (200, "revoked", "detail")
             )  # Should still succeed despite log error
 
-    def test_147_process_certificate_revocation_exception(self):
+    def test_148_process_certificate_revocation_exception(self):
         """Test _process_certificate_revocation with exception"""
         with patch.object(
             self.cert,
@@ -2003,7 +2003,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._process_certificate_revocation("account", {})
             self.assertEqual(result[0], 500)
 
-    def test_148_revoke_certificate_invalid_content(self):
+    def test_149_revoke_certificate_invalid_content(self):
         """Test revoke_certificate with invalid content"""
         with (
             patch.object(
@@ -2018,7 +2018,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.revoke_certificate("")
             self.assertIn("code", result)
 
-    def test_149_revoke_certificate_message_validation_error(self):
+    def test_150_revoke_certificate_message_validation_error(self):
         """Test revoke_certificate with message validation error"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -2034,7 +2034,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.revoke_certificate("content")
             self.assertIn("code", result)
 
-    def test_150_revoke_certificate_success(self):
+    def test_151_revoke_certificate_success(self):
         """Test revoke_certificate success"""
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -2055,7 +2055,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert.revoke_certificate("content")
             mock_prepare.assert_called()
 
-    def test_151_revoke_certificate_unexpected_error(self):
+    def test_152_revoke_certificate_unexpected_error(self):
         """Test revoke_certificate with unexpected error"""
         with (
             patch.object(
@@ -2075,7 +2075,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_152_process_enrollment_and_store_certificate_success(self):
+    def test_153_process_enrollment_and_store_certificate_success(self):
         # Pre-enrollment hooks return empty (no error)
         with (
             patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
@@ -2101,7 +2101,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, ("result", None, None))
             mock_log.assert_called_with("cert_name", "raw", "order_name", False)
 
-    def test_153_process_enrollment_and_store_certificate_enrollment_error(self):
+    def test_154_process_enrollment_and_store_certificate_enrollment_error(self):
         # Enrollment returns no certificate, triggers error handling
         with (
             patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
@@ -2128,7 +2128,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_154_process_enrollment_and_store_certificate_pre_hook_error(self):
+    def test_155_process_enrollment_and_store_certificate_pre_hook_error(self):
         # Pre-enrollment hook returns error, should return early
         with patch.object(
             self.cert,
@@ -2140,7 +2140,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, (None, "pre_hook_error", "hook failed"))
 
-    def test_155_process_enrollment_and_store_certificate_post_hook_error(self):
+    def test_156_process_enrollment_and_store_certificate_post_hook_error(self):
         # Post-enrollment hook returns error, should return early
         with (
             patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
@@ -2166,7 +2166,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, ["post_hook_error"])
 
-    def test_156_process_enrollment_and_store_certificate_store_error(self):
+    def test_157_process_enrollment_and_store_certificate_store_error(self):
         # _store_certificate_and_update_order returns error, should return error
         with (
             patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
@@ -2186,7 +2186,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, "error")
 
-    def test_157_process_enrollment_and_store_certificate_logger_exception(self):
+    def test_158_process_enrollment_and_store_certificate_logger_exception(self):
         # Exception in logger should not crash method
         with (
             patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
@@ -2212,7 +2212,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, ("result", None, None))
 
-    def test_158_get_certificate_info_success(self):
+    def test_159_get_certificate_info_success(self):
         # Covers: _get_certificate_info normal DB lookup (line 1106)
         cert = self.cert
         cert.repository.certificate_lookup.return_value = {"foo": "bar"}
@@ -2222,7 +2222,7 @@ class TestCertificate(unittest.TestCase):
             "name", "cert_name", ("name", "csr", "cert", "order__name")
         )
 
-    def test_159_get_certificate_info_db_error(self):
+    def test_160_get_certificate_info_db_error(self):
         # Covers: _get_certificate_info exception/critical branch (lines 1118-1119)
         self.cert.repository.certificate_lookup.side_effect = Exception("fail")
         with self.assertLogs(self.cert.logger, level="CRITICAL") as lcm:
@@ -2233,7 +2233,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_160_process_certificate_request_code_200_no_url(self):
+    def test_161_process_certificate_request_code_200_no_url(self):
         # Covers: process_certificate_request else branch for missing url in protected
         with patch(
             "acme2certifier.acme_srv.certificate.error_dic_get",
@@ -2260,7 +2260,7 @@ class TestCertificate(unittest.TestCase):
                 )
                 self.assertEqual(result, {"code": 400, "data": "error"})
 
-    def test_161_store_certificate_signing_request_unexpected_exception(self):
+    def test_162_store_certificate_signing_request_unexpected_exception(self):
         # Covers: store_certificate_signing_request exception branch (lines 1824-1826)
         with patch(
             "acme2certifier.acme_srv.certificate.error_dic_get",
@@ -2289,7 +2289,7 @@ class TestCertificate(unittest.TestCase):
                     log.output,
                 )
 
-    def test_162_poll_certificate_status_unexpected_exception(self):
+    def test_163_poll_certificate_status_unexpected_exception(self):
         # Covers: poll_certificate_status except branch for unexpected exception
         with (
             patch.object(
@@ -2303,7 +2303,7 @@ class TestCertificate(unittest.TestCase):
                 "Unexpected error in poll_certificate_status: %s", unittest.mock.ANY
             )
 
-    def test_163_handle_successful_certificate_poll_order_update_exception(self):
+    def test_164_handle_successful_certificate_poll_order_update_exception(self):
         # Covers: _handle_successful_certificate_poll except branch for order_update
         with (
             patch.object(self.cert, "_store_certificate_in_database", return_value=123),
@@ -2321,7 +2321,7 @@ class TestCertificate(unittest.TestCase):
                 unittest.mock.ANY,
             )
 
-    def test_164_process_certificate_request_get_certificate_details_exception(self):
+    def test_165_process_certificate_request_get_certificate_details_exception(self):
         # Covers: process_certificate_request except block for get_certificate_details
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -2341,7 +2341,7 @@ class TestCertificate(unittest.TestCase):
             mock_prepare.assert_called()
             self.assertEqual(result["code"], 500)
 
-    def test_165_process_certificate_request_outer_exception(self):
+    def test_166_process_certificate_request_outer_exception(self):
         # Covers: process_certificate_request outer except block
         with (
             patch.object(
@@ -2359,7 +2359,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_166_process_certificate_request_url_missing(self):
+    def test_167_process_certificate_request_url_missing(self):
         # Covers: process_certificate_request else branch for missing url in protected
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -2376,7 +2376,7 @@ class TestCertificate(unittest.TestCase):
             mock_prepare.assert_called()
             self.assertEqual(result["code"], 400)
 
-    def test_167_process_certificate_revocation_logger_warning(self):
+    def test_168_process_certificate_revocation_logger_warning(self):
         # Covers: _process_certificate_revocation logger.warning branch
         payload = {"certificate": "cert"}
         self.cert.config.cert_operations_log = "json"
@@ -2404,7 +2404,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_168_revoke_certificate_payload_missing_certificate(self):
+    def test_169_revoke_certificate_payload_missing_certificate(self):
         # Covers: revoke_certificate branch where payload is missing 'certificate'
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value={}),
@@ -2426,7 +2426,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_169_revoke_certificate_outer_exception(self):
+    def test_170_revoke_certificate_outer_exception(self):
         # Covers: revoke_certificate outer except block
         with (
             patch.object(
@@ -2444,7 +2444,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_170_store_certificate_signing_request_unexpected_exception(self):
+    def test_171_store_certificate_signing_request_unexpected_exception(self):
         # Covers: store_certificate_signing_request unexpected exception/critical
         # Patch logger.debug after the nested try/except to raise an exception
         self.cert.certificate_manager.validate_and_store_csr.side_effect = Exception(
@@ -2460,7 +2460,7 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertIn("ERROR:test_a2c:Failed to store CSR for order order", lcm.output)
 
-    def test_171_poll_certificate_status_unexpected_exception(self):
+    def test_172_poll_certificate_status_unexpected_exception(self):
         # Covers: poll_certificate_status exception/critical branch (line 1825)
         self.cert._validate_input_parameters = MagicMock(side_effect=Exception("fail"))
         with self.assertLogs(self.cert.logger, level="CRITICAL") as lcm:
@@ -2475,7 +2475,7 @@ class TestCertificate(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme2certifier.acme_srv.certificate.cert_aki_get", return_value="aki")
-    def test_172_store_certificate_in_database_exception(
+    def test_173_store_certificate_in_database_exception(
         self, mock_aki_get, mock_serial_get
     ):
         # Covers: _store_certificate_in_database exception/critical branch
@@ -2491,7 +2491,7 @@ class TestCertificate(unittest.TestCase):
                 lcm.output,
             )
 
-    def test_173_store_certificate_error_exception(self):
+    def test_174_store_certificate_error_exception(self):
         # Covers: _store_certificate_error exception/critical branch
         self.cert.repository.certificate_add.side_effect = Exception("fail")
 
@@ -2503,7 +2503,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_174_check_tnauth_identifier_match_true(self):
+    def test_175_check_tnauth_identifier_match_true(self):
         # Covers: _check_tnauth_identifier_match type/value match (lines 1245-1246)
         cert = self.cert
         identifier = {"type": "tnauthlist", "value": "abc"}
@@ -2511,7 +2511,7 @@ class TestCertificate(unittest.TestCase):
         result = cert._check_tnauth_identifier_match(identifier, tnauthlist)
         self.assertTrue(result)
 
-    def test_175_check_tnauth_identifier_match_false(self):
+    def test_176_check_tnauth_identifier_match_false(self):
         # Covers: _check_tnauth_identifier_match no match (lines 1245-1246)
         cert = self.cert
         identifier = {"type": "tnauthlist", "value": "xyz"}
@@ -2519,7 +2519,7 @@ class TestCertificate(unittest.TestCase):
         result = cert._check_tnauth_identifier_match(identifier, tnauthlist)
         self.assertFalse(result)
 
-    def test_176_check_identifier_match_true(self):
+    def test_177_check_identifier_match_true(self):
         # Covers: _check_identifier_match for-loop/if-branch (line 1221)
         cert = self.cert
         identifiers = [
@@ -2529,7 +2529,7 @@ class TestCertificate(unittest.TestCase):
         result = cert._check_identifier_match("dns", "foo", identifiers, False)
         self.assertTrue(result)
 
-    def test_177_check_identifier_match_false(self):
+    def test_178_check_identifier_match_false(self):
         # Covers: _check_identifier_match return (line 1223) when no match
         cert = self.cert
         identifiers = [
@@ -2539,7 +2539,7 @@ class TestCertificate(unittest.TestCase):
         result = cert._check_identifier_match("dns", "foo", identifiers, False)
         self.assertFalse(result)
 
-    def test_178_validate_revocation_request_unauthorized_forced(self):
+    def test_179_validate_revocation_request_unauthorized_forced(self):
         # Force coverage for line 1171 by using a custom err_msg_dic with a side effect
         self.cert.err_msg_dic = {
             "badrevocationreason": "badreason",
@@ -2571,7 +2571,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_179_validate_revocation_request_unauthorized_minimal(self):
+    def test_180_validate_revocation_request_unauthorized_minimal(self):
         # Isolated test to guarantee coverage for line 1171 (unauthorized branch)
         self.cert.err_msg_dic = {
             "badrevocationreason": "badreason",
@@ -2594,7 +2594,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(code, 403)
             self.assertEqual(error, "unauth")
 
-    def test_180_validate_revocation_request_bad_reason(self):
+    def test_181_validate_revocation_request_bad_reason(self):
         # Covers line 1159: error = self.err_msg_dic["badrevocationreason"]
         payload = {"reason": 99, "certificate": "cert"}  # 99 is not a valid reason
         self.cert.err_msg_dic = {
@@ -2611,7 +2611,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_181_validate_revocation_request_no_reason(self):
+    def test_182_validate_revocation_request_no_reason(self):
         # Covers line 1162: rev_reason = "unspecified"
         payload = {"certificate": "cert"}
         self.cert.err_msg_dic = {
@@ -2631,7 +2631,7 @@ class TestCertificate(unittest.TestCase):
                 log.output,
             )
 
-    def test_182_validate_revocation_request_unauthorized(self):
+    def test_183_validate_revocation_request_unauthorized(self):
         # Explicitly cover line 1171: error = self.err_msg_dic["unauthorized"]
         payload = {"reason": 0, "certificate": "cert"}
         self.cert.err_msg_dic = {
@@ -2657,7 +2657,7 @@ class TestCertificate(unittest.TestCase):
             mock_own.assert_called_once_with("acc", "cert")
             mock_auth.assert_called_once_with("order", "cert")
 
-    def test_183_validate_revocation_request_success(self):
+    def test_184_validate_revocation_request_success(self):
         # Covers line 1183: code = 200
         payload = {"reason": 0, "certificate": "cert"}
         self.cert.err_msg_dic = {
@@ -2677,7 +2677,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(code, 200)
             self.assertEqual(error, "unspecified")
 
-    def test_184_validate_revocation_request_nocert(self):
+    def test_185_validate_revocation_request_nocert(self):
         # Explicitly cover missing certificate field and WARNING logger
         payload = {"reason": 0, "foo": "bar"}
         self.cert.err_msg_dic = {
@@ -2695,7 +2695,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_185_validate_csr_against_order_order_lookup_exception(self):
+    def test_186_validate_csr_against_order_order_lookup_exception(self):
         # Covers exception branch at line 720 in _validate_csr_against_order
         cert_dic = {"order": "order1"}
         with (
@@ -2714,7 +2714,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertFalse(result)
 
-    def test_186_store_certificate_and_update_order_success_hook(self):
+    def test_187_store_certificate_and_update_order_success_hook(self):
         # Covers success_hook execution and debug log
         self.cert.hooks = MagicMock()
         self.cert.hooks.success_hook.return_value = None
@@ -2735,7 +2735,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, 1)
             self.assertIsNone(error)
 
-    def test_187_store_certificate_and_update_order_success_hook_exception(self):
+    def test_188_store_certificate_and_update_order_success_hook_exception(self):
         # Covers exception in success_hook and error logging
         self.cert.hooks = MagicMock()
         self.cert.hooks.success_hook.side_effect = Exception("success_hook failed")
@@ -2753,7 +2753,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(error, (None, "success_hook_error", "success_hook failed"))
 
-    def test_188_store_certificate_and_update_order_success_hook_exception_ignore(self):
+    def test_189_store_certificate_and_update_order_success_hook_exception_ignore(self):
         # Covers exception in success_hook with ignore_success_hook_failure True (no error returned)
         self.cert.hooks = MagicMock()
         self.cert.hooks.success_hook.side_effect = Exception("success_hook failed")
@@ -2772,7 +2772,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, 1)
             self.assertIsNone(error)
 
-    def test_189_execute_pre_enrollment_hooks_exception(self):
+    def test_190_execute_pre_enrollment_hooks_exception(self):
         # Covers exception branch when pre_hook raises and ignore_pre_hook_failure is False
         mock_hooks = MagicMock()
         mock_hooks.pre_hook.side_effect = Exception("pre_hook failed")
@@ -2787,7 +2787,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertEqual(result, (None, "pre_hook_error", "pre_hook failed"))
 
-    def test_190_handle_enrollment_error_no_poll_identifier(self):
+    def test_191_handle_enrollment_error_no_poll_identifier(self):
         # Covers branch where poll_identifier is None and error is not special string
         from acme2certifier.acme_srv.helpers.global_variables import (
             ENROLLMENT_FAILED_DETAIL,
@@ -2808,7 +2808,7 @@ class TestCertificate(unittest.TestCase):
             mock_store.assert_called_with("cert1", "some_error", None)
             self.assertEqual(result, (None, "serverinternal", ENROLLMENT_FAILED_DETAIL))
 
-    def test_191_handle_enrollment_error_with_poll_identifier(self):
+    def test_192_handle_enrollment_error_with_poll_identifier(self):
         # Covers branch where poll_identifier is set
         with (
             patch.object(self.cert, "_update_order_status") as mock_update,
@@ -2822,7 +2822,7 @@ class TestCertificate(unittest.TestCase):
             mock_store.assert_called_with("cert1", "some_error", "pollid")
             self.assertEqual(result, (None, "some_error", "pollid"))
 
-    def test_192_handle_enrollment_error_rejected_identifier(self):
+    def test_193_handle_enrollment_error_rejected_identifier(self):
         # Covers branch where error is 'Either CN or SANs are not allowed by configuration'
         self.cert.err_msg_dic = {
             "serverinternal": "serverinternal",
@@ -2851,7 +2851,7 @@ class TestCertificate(unittest.TestCase):
                 ),
             )
 
-    def test_193_handle_enrollment_error_exception(self):
+    def test_194_handle_enrollment_error_exception(self):
         # Covers exception branch
         from acme2certifier.acme_srv.helpers.global_variables import (
             ENROLLMENT_FAILED_DETAIL,
@@ -2879,7 +2879,7 @@ class TestCertificate(unittest.TestCase):
                 (None, "serverinternal", ENROLLMENT_FAILED_DETAIL),
             )
 
-    def test_194_handle_enrollment_error_forwards_ca_detail(self):
+    def test_195_handle_enrollment_error_forwards_ca_detail(self):
         from acme2certifier.acme_srv.helpers.global_variables import (
             ENROLLMENT_FAILED_DETAIL,
         )
@@ -2903,7 +2903,7 @@ class TestCertificate(unittest.TestCase):
                 (None, "serverinternal", "upstream CAA policy rejected"),
             )
 
-    def test_195_resolve_client_enrollment_error_empty_ca_error(self):
+    def test_196_resolve_client_enrollment_error_empty_ca_error(self):
         from acme2certifier.acme_srv.helpers.global_variables import (
             ENROLLMENT_FAILED_DETAIL,
         )
@@ -2914,7 +2914,7 @@ class TestCertificate(unittest.TestCase):
         self.assertEqual(error, "serverinternal")
         self.assertEqual(detail, ENROLLMENT_FAILED_DETAIL)
 
-    def test_196_validate_certificate_authorization_sans_exception(self):
+    def test_197_validate_certificate_authorization_sans_exception(self):
         # Explicitly covers exception in cert_bound_names_get triggers warning and returns []
         self.cert.config.tnauthlist_support = False
         with (
@@ -2937,14 +2937,14 @@ class TestCertificate(unittest.TestCase):
                 "Certificate._validate_certificate_authorization() ended"
             )
 
-    def test_197_enter_calls_load_configuration_and_returns_self(self):
+    def test_198_enter_calls_load_configuration_and_returns_self(self):
         cert = self.cert
         with patch.object(cert, "_load_configuration") as mock_load_config:
             result = cert.__enter__()
             mock_load_config.assert_called_once()
             self.assertIs(result, cert)
 
-    def test_198_validate_certificate_authorization_cn2san_add(self):
+    def test_199_validate_certificate_authorization_cn2san_add(self):
         # Covers the branch where tnauthlist_support is False and cn2san_add is True
         self.cert.config.tnauthlist_support = False
         self.cert.config.cn2san_add = True
@@ -2967,7 +2967,7 @@ class TestCertificate(unittest.TestCase):
             mock_validate.assert_called_with([], ["DNS:mycn"])
             self.assertEqual(result, ["ok"])
 
-    def test_199_validate_certificate_authorization_sans_exception(self):
+    def test_200_validate_certificate_authorization_sans_exception(self):
         # Covers exception in cert_bound_names_get triggers warning and returns []
         self.cert.config.tnauthlist_support = False
         with (
@@ -2990,7 +2990,7 @@ class TestCertificate(unittest.TestCase):
                 "Certificate._validate_certificate_authorization() ended"
             )
 
-    def test_200_handle_enrollment_thread_execution_async_mode(self):
+    def test_201_handle_enrollment_thread_execution_async_mode(self):
         """Test _handle_enrollment_thread_execution with async_mode True (lines 1305-1306)."""
         self.cert.config.async_mode = True
         self.cert.config.enrollment_timeout = 5
@@ -3006,7 +3006,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, (None, "asynchronous enrollment started"))
             mock_thread_instance.join.assert_not_called()
 
-    def test_201_check_certificate_reusability_reused_values(self):
+    def test_202_check_certificate_reusability_reused_values(self):
         """Test _check_certificate_reusability returns correct cert, cert_raw, and message when reused."""
         cert_data = {
             "expire_uts": 9999999999,
@@ -3027,7 +3027,7 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(cert_raw, "raw_value")
             self.assertIn("reused certificate from id: 42", message)
 
-    def test_202_check_certificate_reusability_account_scoped(self):
+    def test_203_check_certificate_reusability_account_scoped(self):
         """Reuse must be scoped to the requesting account."""
         cert_data = {
             "expire_uts": 9999999999,
@@ -3048,7 +3048,7 @@ class TestCertificate(unittest.TestCase):
         self.assertIsNone(cert_raw)
         self.assertIsNone(message)
 
-    def test_203_process_enrollment_and_store_certificate_log_exception(self):
+    def test_204_process_enrollment_and_store_certificate_log_exception(self):
         """Test _process_enrollment_and_store_certificate covers log_certificate_issuance exception branch (lines 930-933)."""
         self.cert._execute_pre_enrollment_hooks = MagicMock(return_value=None)
         self.cert._process_certificate_enrollment = MagicMock(
@@ -3073,7 +3073,7 @@ class TestCertificate(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_204_load_configuration_defaults(self):
+    def test_205_load_configuration_defaults(self):
         """Test _load_configuration uses defaults when config is empty."""
         config = configparser.ConfigParser()
         with patch(
@@ -3093,7 +3093,7 @@ class TestCertificate(unittest.TestCase):
                 self.assertFalse(self.cert.config.ignore_success_hook_failure)
             self.assertIn("CRITICAL:test_a2c:No ca_handler loaded", lcm.output)
 
-    def test_205_load_configuration_full_config(self):
+    def test_206_load_configuration_full_config(self):
         """Test _load_configuration with all config sections and values overridden."""
         config = configparser.ConfigParser()
         config.add_section("Certificate")
@@ -3129,7 +3129,7 @@ class TestCertificate(unittest.TestCase):
             self.assertFalse(self.cert.config.ignore_post_hook_failure)
             self.assertTrue(self.cert.config.ignore_success_hook_failure)
 
-    def test_206_configuration_partial_config(self):
+    def test_207_configuration_partial_config(self):
         """Test _load_configuration with some config sections missing."""
         config = configparser.ConfigParser()
         config.add_section("Certificate")
@@ -3147,7 +3147,7 @@ class TestCertificate(unittest.TestCase):
                 self.assertFalse(self.cert.config.cn2san_add)
             self.assertIn("CRITICAL:test_a2c:No ca_handler loaded", lcm.output)
 
-    def test_207_configuration_directory_url_prefix(self):
+    def test_208_configuration_directory_url_prefix(self):
         """Test _load_configuration applies url_prefix to path_dic."""
         config = configparser.ConfigParser()
         config.add_section("Directory")
@@ -3161,7 +3161,7 @@ class TestCertificate(unittest.TestCase):
                 self.assertEqual(self.cert.path_dic["cert_path"], "/api/acme/cert/")
             self.assertIn("CRITICAL:test_a2c:No ca_handler loaded", lcm.output)
 
-    def test_208_load_configuration_type_conversion_and_fallback(self):
+    def test_209_load_configuration_type_conversion_and_fallback(self):
         """Test _load_configuration handles type conversion and fallback logic."""
         config = configparser.ConfigParser()
         config.add_section("Certificate")
@@ -3190,7 +3190,7 @@ class TestCertificate(unittest.TestCase):
             )
             self.assertIn("CRITICAL:test_a2c:No ca_handler loaded", lcm.output)
 
-    def test_209_load_configuration_logging(self):
+    def test_210_load_configuration_logging(self):
         """Test _load_configuration logs debug message."""
         config = configparser.ConfigParser()
         with patch(
@@ -3202,7 +3202,7 @@ class TestCertificate(unittest.TestCase):
                 "DEBUG:test_a2c:Certificate._load_configuration()", lcm.output
             )
 
-    def test_210_cert_operations_log_config_applied_to_logger(self):
+    def test_211_cert_operations_log_config_applied_to_logger(self):
         """Test that cert_operations_log configuration is applied to CertificateLogger."""
         config = configparser.ConfigParser()
         config.add_section("Certificate")
@@ -3222,7 +3222,7 @@ class TestCertificate(unittest.TestCase):
                 "DEBUG:test_a2c:Certificate._load_configuration()", log.output
             )
 
-    def test_211_cert_operations_log_with_context_manager(self):
+    def test_212_cert_operations_log_with_context_manager(self):
         """Test that cert_operations_log is properly applied when using context manager."""
         config = configparser.ConfigParser()
         config.add_section("Certificate")
@@ -3242,7 +3242,7 @@ class TestCertificate(unittest.TestCase):
             )
 
     # Move the new tests after setUp to fix indentation
-    def test_212_validate_csr_against_order_profile_logging_and_dryrun(self):
+    def test_213_validate_csr_against_order_profile_logging_and_dryrun(self):
         # Setup: profile present, matches dryrun_profilename
         self.cert.config.dryrun_profilename = "dryrun-profile"
         self.cert.config.dryrun = False
@@ -3272,7 +3272,7 @@ class TestCertificate(unittest.TestCase):
         # Check that dryrun was set
         self.assertTrue(self.cert.config.dryrun)
 
-    def test_213_validate_csr_against_order_profile_logging_no_dryrun(self):
+    def test_214_validate_csr_against_order_profile_logging_no_dryrun(self):
         # Setup: profile present, does NOT match dryrun_profilename
         self.cert.config.dryrun_profilename = "dryrun-profile"
         self.cert.config.dryrun = False
@@ -3302,7 +3302,7 @@ class TestCertificate(unittest.TestCase):
         self.assertFalse(any(dryrun_msgs))
         self.assertFalse(self.cert.config.dryrun)
 
-    def test_214_process_certificate_enrollment_request_dryrun(self):
+    def test_215_process_certificate_enrollment_request_dryrun(self):
         # Setup: dryrun enabled
         self.cert.config.dryrun = True
         self.cert.err_msg_dic["unauthorized"] = "unauthorized"
@@ -3331,7 +3331,7 @@ class TestCertificate(unittest.TestCase):
             ),
         )
 
-    def test_215_process_certificate_revocation_ca_non_200(self):
+    def test_216_process_certificate_revocation_ca_non_200(self):
         """CA revoke non-200 must ERROR with account correlation."""
         payload = {"certificate": "cert"}
         with (
@@ -3353,7 +3353,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_216_handle_failed_certificate_poll_warning(self):
+    def test_217_handle_failed_certificate_poll_warning(self):
         """Poll failure must WARNING with CA detail and correlation."""
         with patch.object(self.cert, "_store_certificate_error", return_value=1):
             with self.assertLogs(self.cert.logger, level="WARNING") as log:
@@ -3365,7 +3365,7 @@ class TestCertificate(unittest.TestCase):
             log.output,
         )
 
-    def test_217_lookup_certificate_owner_account_success(self):
+    def test_218_lookup_certificate_owner_account_success(self):
         """_lookup_certificate_owner_account returns order__account__name"""
         self.cert.repository.certificate_lookup.return_value = {
             "order__account__name": "owner"
@@ -3375,12 +3375,12 @@ class TestCertificate(unittest.TestCase):
             "name", "cert1", ["order__account__name"]
         )
 
-    def test_218_lookup_certificate_owner_account_missing(self):
+    def test_219_lookup_certificate_owner_account_missing(self):
         """_lookup_certificate_owner_account returns None when cert is missing"""
         self.cert.repository.certificate_lookup.return_value = None
         self.assertIsNone(self.cert._lookup_certificate_owner_account("cert1"))
 
-    def test_219_lookup_certificate_owner_account_db_error(self):
+    def test_220_lookup_certificate_owner_account_db_error(self):
         """_lookup_certificate_owner_account logs critical and raises on DB error"""
         from acme2certifier.acme_srv.helpers.resource_ownership import (
             ResourceOwnershipLookupError,
@@ -3395,7 +3395,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_220_check_certificate_ownership_lookup_error(self):
+    def test_221_check_certificate_ownership_lookup_error(self):
         """_check_certificate_ownership maps lookup errors to 500"""
         from acme2certifier.acme_srv.helpers.resource_ownership import (
             ResourceOwnershipLookupError,
@@ -3412,7 +3412,7 @@ class TestCertificate(unittest.TestCase):
                 ownership_lookup_failed(),
             )
 
-    def test_221_resolve_certificate_ownership_unexpected_error(self):
+    def test_222_resolve_certificate_ownership_unexpected_error(self):
         """_resolve_certificate_ownership maps unexpected errors to lookup failure"""
         from acme2certifier.acme_srv.helpers.resource_ownership import (
             ownership_lookup_failed,
@@ -3433,7 +3433,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_222_lookup_order_account_name_success(self):
+    def test_223_lookup_order_account_name_success(self):
         """_lookup_order_account_name returns account__name when order exists"""
         self.cert.repository.order_lookup.return_value = {"account__name": "acc1"}
         self.assertEqual(self.cert._lookup_order_account_name("order1"), "acc1")
@@ -3441,12 +3441,12 @@ class TestCertificate(unittest.TestCase):
             "name", "order1", ["account__name"]
         )
 
-    def test_223_lookup_order_account_name_missing(self):
+    def test_224_lookup_order_account_name_missing(self):
         """_lookup_order_account_name returns None when order is missing"""
         self.cert.repository.order_lookup.return_value = None
         self.assertIsNone(self.cert._lookup_order_account_name("order1"))
 
-    def test_224_lookup_order_account_name_db_error(self):
+    def test_225_lookup_order_account_name_db_error(self):
         """_lookup_order_account_name logs critical and returns None on DB error"""
         self.cert.repository.order_lookup.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
@@ -3456,7 +3456,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_225_load_and_validate_identifiers_sans_non_strict(self):
+    def test_226_load_and_validate_identifiers_sans_non_strict(self):
         """Non-strict path uses csr_san_get"""
         self.cert.config.tnauthlist_support = False
         self.cert.config.csr_binding_strict = False
@@ -3476,7 +3476,7 @@ class TestCertificate(unittest.TestCase):
         mock_san.assert_called_once()
         mock_validate.assert_called_once()
 
-    def test_226_order_identifier_set_skips_incomplete(self):
+    def test_227_order_identifier_set_skips_incomplete(self):
         """_order_identifier_set skips identifiers missing type or value"""
         result = self.cert._order_identifier_set(
             [
@@ -3487,7 +3487,7 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertEqual(result, {("dns", "ok.example.com")})
 
-    def test_227_validate_identifiers_against_sans_strict_from_san_list(self):
+    def test_228_validate_identifiers_against_sans_strict_from_san_list(self):
         """Strict mode with bound_names=None converts san_list"""
         self.cert.config.csr_binding_strict = True
         with patch(
@@ -3501,7 +3501,7 @@ class TestCertificate(unittest.TestCase):
         self.assertEqual(result, [True])
         mock_convert.assert_called_once()
 
-    def test_228_load_certificate_details_response_success(self):
+    def test_229_load_certificate_details_response_success(self):
         """_load_certificate_details_response returns caller code on success"""
         with patch.object(
             self.cert,
@@ -3517,6 +3517,230 @@ class TestCertificate(unittest.TestCase):
         self.assertIsNone(message)
         self.assertIsNone(detail)
         self.assertEqual(response_dic, {"code": 200, "data": "pem"})
+
+    def test_230_resolve_cahandler_eab_csr_bound(self):
+        """EAB cahandler_name plus CSR lookups are passed to the registry."""
+        bound = MagicMock()
+        registry = MagicMock()
+        registry.resolve.return_value = bound
+        self.cert.cahandler_registry = registry
+        self.cert.eab_profiling = True
+        eab_handler = MagicMock()
+        eab_handler.cahandler_name_get.return_value = "ejbca"
+        eab_cls = MagicMock()
+        eab_cls.return_value.__enter__.return_value = eab_handler
+        self.cert.eab_handler_class = eab_cls
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.profile_lookup",
+                return_value="long",
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.cahandler_lookup",
+                return_value="stored",
+            ),
+        ):
+            result = self.cert._resolve_cahandler(csr="csr1")
+        self.assertIs(result, bound)
+        eab_handler.cahandler_name_get.assert_called_once_with("csr1", revocation=False)
+        registry.resolve.assert_called_once_with(
+            cahandler_name="ejbca",
+            order_profile="long",
+            csr="csr1",
+            stored_name="stored",
+        )
+
+    def test_231_resolve_cahandler_eab_exception(self):
+        """EAB lookup failures are logged and resolution continues."""
+        bound = MagicMock()
+        registry = MagicMock()
+        registry.resolve.return_value = bound
+        self.cert.cahandler_registry = registry
+        self.cert.eab_profiling = True
+        eab_cls = MagicMock(side_effect=Exception("eab fail"))
+        self.cert.eab_handler_class = eab_cls
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.profile_lookup",
+                return_value=None,
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.cahandler_lookup",
+                return_value=None,
+            ),
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            result = self.cert._resolve_cahandler(csr="csr1")
+        self.assertIs(result, bound)
+        self.assertIn(
+            "WARNING:test_a2c:Failed to look up cahandler_name via EAB handler: eab fail",
+            lcm.output,
+        )
+
+    def test_232_resolve_cahandler_revocation_cert_raw(self):
+        """Revocation resolves via stored cert_raw lookup."""
+        bound = MagicMock()
+        registry = MagicMock()
+        registry.resolve.return_value = bound
+        self.cert.cahandler_registry = registry
+        with patch(
+            "acme2certifier.acme_srv.certificate.cahandler_lookup",
+            return_value="openssl",
+        ) as mock_lookup:
+            result = self.cert._resolve_cahandler(cert_raw="certraw", revocation=True)
+        self.assertIs(result, bound)
+        mock_lookup.assert_called_once_with(self.logger, cert_raw="certraw")
+        registry.resolve.assert_called_once_with(
+            cahandler_name=None,
+            order_profile=None,
+            csr=None,
+            stored_name="openssl",
+        )
+
+    def test_233_resolve_cahandler_order_name(self):
+        """Order lookup supplies profile and stored handler name."""
+        bound = MagicMock()
+        registry = MagicMock()
+        registry.resolve.return_value = bound
+        self.cert.cahandler_registry = registry
+        self.cert.repository.order_lookup.return_value = {
+            "profile": "short",
+            "cahandler": "openssl",
+        }
+        result = self.cert._resolve_cahandler(order_name="ord1")
+        self.assertIs(result, bound)
+        self.cert.repository.order_lookup.assert_called_once_with(
+            "name", "ord1", ["profile", "cahandler"]
+        )
+        registry.resolve.assert_called_once_with(
+            cahandler_name=None,
+            order_profile="short",
+            csr=None,
+            stored_name="openssl",
+        )
+
+    def test_234_resolve_cahandler_order_lookup_exception(self):
+        """Order lookup failures are logged and resolve with empty stored name."""
+        bound = MagicMock()
+        registry = MagicMock()
+        registry.resolve.return_value = bound
+        self.cert.cahandler_registry = registry
+        self.cert.repository.order_lookup.side_effect = Exception("db fail")
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            result = self.cert._resolve_cahandler(order_name="ord1")
+        self.assertIs(result, bound)
+        self.assertIn(
+            "WARNING:test_a2c:Failed to load order profile/cahandler for ord1: db fail",
+            lcm.output,
+        )
+
+    def test_235_resolve_cahandler_unknown_eab_name_returns_none(self):
+        """Named EAB handler that does not resolve returns None."""
+        registry = MagicMock()
+        registry.resolve.return_value = None
+        self.cert.cahandler_registry = registry
+        self.cert.eab_profiling = True
+        eab_handler = MagicMock()
+        eab_handler.cahandler_name_get.return_value = "missing"
+        eab_cls = MagicMock()
+        eab_cls.return_value.__enter__.return_value = eab_handler
+        self.cert.eab_handler_class = eab_cls
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.profile_lookup",
+                return_value=None,
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.cahandler_lookup",
+                return_value=None,
+            ),
+        ):
+            self.assertIsNone(self.cert._resolve_cahandler(csr="csr1"))
+
+    def test_236_resolve_cahandler_none_falls_back_to_default(self):
+        """Unresolved registry without an EAB name uses the default handler."""
+        registry = MagicMock()
+        registry.resolve.return_value = None
+        self.cert.cahandler_registry = registry
+        default = MagicMock()
+        self.cert.cahandler = default
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            result = self.cert._resolve_cahandler()
+        self.assertIs(result, default)
+        self.assertIn(
+            "ERROR:test_a2c:Certificate._resolve_cahandler: no handler resolved; using default",
+            lcm.output,
+        )
+
+    def test_237_persist_order_cahandler_success(self):
+        """Persists the resolved handler name on the order in multi-handler mode."""
+        registry = MagicMock()
+        registry.multi_handler = True
+        self.cert.cahandler_registry = registry
+        self.cert._persist_order_cahandler("ord1", "openssl")
+        self.cert.repository.order_update.assert_called_once_with(
+            {"name": "ord1", "cahandler": "openssl"}
+        )
+
+    def test_238_persist_order_cahandler_exception(self):
+        """Order persist failures are logged as warnings."""
+        registry = MagicMock()
+        registry.multi_handler = True
+        self.cert.cahandler_registry = registry
+        self.cert.repository.order_update.side_effect = Exception("db fail")
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cert._persist_order_cahandler("ord1", "openssl")
+        self.assertIn(
+            "WARNING:test_a2c:Failed to persist cahandler 'openssl' on order ord1: db fail",
+            lcm.output,
+        )
+
+    def test_239_process_certificate_enrollment_handler_none(self):
+        """Enrollment returns a serverinternal error when no handler resolves."""
+        self.cert.config.cert_reusage_timeframe = False
+        with patch.object(self.cert, "_resolve_cahandler", return_value=None):
+            result = self.cert._process_certificate_enrollment("csr", "ord1")
+        self.assertEqual(
+            result,
+            (self.cert.err_msg_dic["serverinternal"], None, None, None, False),
+        )
+
+    def test_240_process_certificate_revocation_handler_none(self):
+        """Revocation returns 500 when no handler resolves."""
+        with (
+            patch.object(
+                self.cert, "_validate_revocation_request", return_value=(200, None)
+            ),
+            patch.object(self.cert, "_resolve_cahandler", return_value=None),
+        ):
+            code, message, detail = self.cert._process_certificate_revocation(
+                "account", {"certificate": "certraw"}
+            )
+        self.assertEqual(code, 500)
+        self.assertEqual(message, self.cert.err_msg_dic["serverinternal"])
+        self.assertIsNone(detail)
+
+    def test_241_poll_certificate_status_handler_none(self):
+        """Poll returns None when no handler resolves."""
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value=None),
+            patch.object(self.cert, "_resolve_cahandler", return_value=None),
+        ):
+            self.assertIsNone(
+                self.cert.poll_certificate_status("cert", "poll", "csr", "order")
+            )
+
+    def test_242_persist_order_cahandler_skips_classical(self):
+        """Classical mode does not persist cahandler on the order."""
+        self.cert.cahandler_registry = None
+        self.cert._persist_order_cahandler("ord1", "openssl")
+        self.cert.repository.order_update.assert_not_called()
+
+        registry = MagicMock()
+        registry.multi_handler = False
+        self.cert.cahandler_registry = registry
+        self.cert._persist_order_cahandler("ord1", "openssl")
+        self.cert.repository.order_update.assert_not_called()
 
 
 if __name__ == "__main__":

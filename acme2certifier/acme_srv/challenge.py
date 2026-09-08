@@ -410,9 +410,11 @@ class Challenge:
         logger=None,
         source: str = None,
         expiry: int = 3600,
+        config_dic=None,
     ):
         """Initialize the challenge handler."""
         self.logger = logger
+        self.config_dic = config_dic
         self.config = ChallengeConfiguration()
         self.expiry = expiry
         self.server_name = srv_name
@@ -425,7 +427,9 @@ class Challenge:
 
         # Initialize core components
         self.dbstore = DBstore(debug, self.logger)
-        self.message = Message(debug, self.server_name, self.logger)
+        self.message = Message(
+            debug, self.server_name, self.logger, config_dic=config_dic
+        )
 
         # Initialize error message dictionary for error responses
         self.err_msg_dic = error_dic_get(self.logger)
@@ -848,7 +852,11 @@ class Challenge:
         """Load configuration from file."""
         self.logger.debug("Challenge._load_configuration()")
 
-        config_dic = load_config(self.logger, "Challenge")
+        config_dic = (
+            self.config_dic
+            if self.config_dic is not None
+            else load_config(self.logger, "Challenge")
+        )
         if config_dic:
 
             try:

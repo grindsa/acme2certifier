@@ -136,14 +136,21 @@ class Renewalinfo(object):
     """Renewalinfo handler with business logic, config, and repository helpers."""
 
     def __init__(
-        self, debug: bool = False, srv_name: str = None, logger: object = None
+        self,
+        debug: bool = False,
+        srv_name: str = None,
+        logger: object = None,
+        config_dic=None,
     ):
         self.debug = debug
         self.logger = logger
         self.server_name = srv_name
+        self.config_dic = config_dic
         self.path_dic = {"renewalinfo": "/acme/renewal-info/"}
         self.dbstore = DBstore(self.debug, self.logger)
-        self.message = Message(self.debug, self.server_name, self.logger)
+        self.message = Message(
+            self.debug, self.server_name, self.logger, config_dic=config_dic
+        )
         self.err_msg_dic = error_dic_get(self.logger)
         self.config = RenewalinfoConfig()
         self.repository = RenewalinfoRepository(self.dbstore, self.logger)
@@ -153,7 +160,7 @@ class Renewalinfo(object):
         """Load renewalinfo configuration from file (harmonized approach)"""
         self.logger.debug("Renewalinfo._load_configuration()")
 
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
 
         if "Renewalinfo" in config_dic:
             try:

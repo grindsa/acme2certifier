@@ -116,7 +116,7 @@ HOUSEKEEPING_CLI_ENABLED = resolve_housekeeping_cli_endpoint(
     LOGGER, CONFIG, log_status=True
 )
 
-with Housekeeping(DEBUG, LOGGER) as housekeeping:
+with Housekeeping(DEBUG, LOGGER, config_dic=CONFIG) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
     housekeeping.nonce_cleanup()
 
@@ -161,7 +161,7 @@ def get_request_body(environ):
 
 def acct(environ, start_response):
     """account handling"""
-    with Account(DEBUG, get_url(environ), LOGGER) as account:
+    with Account(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as account:
         request_body = get_request_body(environ)
         response_dic = account.parse(request_body)
 
@@ -193,7 +193,9 @@ def acmechallenge_serve(environ, start_response):
 def authz(environ, start_response):
     """authorization handling"""
     if "REQUEST_METHOD" in environ and environ["REQUEST_METHOD"] == "POST":
-        with Authorization(DEBUG, get_url(environ), LOGGER) as authorization:
+        with Authorization(
+            DEBUG, get_url(environ), LOGGER, config_dic=CONFIG
+        ) as authorization:
             try:
                 request_body_size = int(environ.get("CONTENT_LENGTH", 0))
             except ValueError:
@@ -216,7 +218,9 @@ def authz(environ, start_response):
         if not LEGACY_ACME_GET:
             err_acme_get_not_allowed(start_response)
             return [ACME_GET_ERROR_MSG]
-        with Authorization(DEBUG, get_url(environ), LOGGER) as authorization:
+        with Authorization(
+            DEBUG, get_url(environ), LOGGER, config_dic=CONFIG
+        ) as authorization:
             response_dic = authorization.new_get(get_url(environ, True))
 
             headers = create_header(response_dic)
@@ -236,7 +240,7 @@ def newaccount(environ, start_response):
     """create new account"""
     if environ["REQUEST_METHOD"] == "POST":
 
-        with Account(DEBUG, get_url(environ), LOGGER) as account:
+        with Account(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as account:
             request_body = get_request_body(environ)
             response_dic = account.new(request_body)
 
@@ -259,7 +263,7 @@ def newaccount(environ, start_response):
 
 def directory(environ, start_response):
     """directory listing"""
-    with Directory(DEBUG, get_url(environ), LOGGER) as direct_tory:
+    with Directory(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as direct_tory:
 
         response_dic = direct_tory.directory_get()
         if "error" in response_dic:
@@ -285,7 +289,7 @@ def directory(environ, start_response):
 
 def cert(environ, start_response):
     """create new account"""
-    with Certificate(DEBUG, get_url(environ), LOGGER) as certificate:
+    with Certificate(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as certificate:
         if environ["REQUEST_METHOD"] == "POST":
             request_body = get_request_body(environ)
             response_dic = certificate.new_post(request_body)
@@ -330,6 +334,7 @@ def chall(environ, start_response):
         srv_name=get_url(environ),
         source=environ["REMOTE_ADDR"],
         logger=LOGGER,
+        config_dic=CONFIG,
     ) as challenge:
         if environ["REQUEST_METHOD"] == "POST":
 
@@ -377,7 +382,7 @@ def chall(environ, start_response):
 def newnonce(environ, start_response):
     """generate a new nonce"""
     if environ["REQUEST_METHOD"] in ["HEAD", "GET"]:
-        nonce = Nonce(DEBUG, LOGGER)
+        nonce = Nonce(DEBUG, LOGGER, config_dic=CONFIG)
         # do housekeeping and expire old nonces
         nonce.expire_nonces()
         headers = [
@@ -404,7 +409,7 @@ def newnonce(environ, start_response):
 def neworders(environ, start_response):
     """generate a new order"""
     if environ["REQUEST_METHOD"] == "POST":
-        with Order(DEBUG, get_url(environ), LOGGER) as norder:
+        with Order(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as norder:
             request_body = get_request_body(environ)
             response_dic = norder.new(request_body)
 
@@ -428,7 +433,7 @@ def neworders(environ, start_response):
 def order(environ, start_response):
     """order_handler"""
     if environ["REQUEST_METHOD"] == "POST":
-        with Order(DEBUG, get_url(environ), LOGGER) as eorder:
+        with Order(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as eorder:
             request_body = get_request_body(environ)
             response_dic = eorder.parse(request_body, environ)
 
@@ -451,7 +456,9 @@ def order(environ, start_response):
 
 def renewalinfo(environ, start_response):
     """renewalinfo handler"""
-    with Renewalinfo(DEBUG, get_url(environ), LOGGER) as renewalinfo_:
+    with Renewalinfo(
+        DEBUG, get_url(environ), LOGGER, config_dic=CONFIG
+    ) as renewalinfo_:
         if environ["REQUEST_METHOD"] == "POST":
             request_body = get_request_body(environ)
             response_dic = renewalinfo_.update(request_body)
@@ -498,7 +505,9 @@ def renewalinfo(environ, start_response):
 def revokecert(environ, start_response):
     """revocation_handler"""
     if environ["REQUEST_METHOD"] == "POST":
-        with Certificate(DEBUG, get_url(environ), LOGGER) as certificate:
+        with Certificate(
+            DEBUG, get_url(environ), LOGGER, config_dic=CONFIG
+        ) as certificate:
             request_body = get_request_body(environ)
             response_dic = certificate.revoke(request_body)
 
@@ -539,7 +548,7 @@ def trigger(environ, start_response):
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
-        with Trigger(DEBUG, get_url(environ), LOGGER) as trigger_:
+        with Trigger(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as trigger_:
             request_body = get_request_body(environ)
             response_dic = trigger_.parse(request_body, headers=environ)
 
@@ -581,7 +590,7 @@ def housekeeping(environ, start_response):
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
-        with Housekeeping(DEBUG, LOGGER) as housekeeping_:
+        with Housekeeping(DEBUG, LOGGER, config_dic=CONFIG) as housekeeping_:
             request_body = get_request_body(environ)
             response_dic = housekeeping_.parse(request_body)
 

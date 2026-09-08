@@ -203,7 +203,6 @@ Kid-level key (sibling of existing `cahandler` object — **not** inside it, so 
 
 YAML equivalent: top-level `cahandler_name` under the kid.
 
-
 ## YAML configuration
 
 Multi-handler works identically for `acme_srv.cfg` and `acme_srv.yaml`. Top-level YAML keys map to ConfigParser sections; `CAhandler:openssl:` produces section `CAhandler:openssl`.

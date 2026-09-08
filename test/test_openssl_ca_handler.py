@@ -2492,9 +2492,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_165_enroll_skips_enrollment_config_log(
-        self, mock_chk, mock_csr, mock_ecl
-    ):
+    def test_165_enroll_skips_enrollment_config_log(self, mock_chk, mock_csr, mock_ecl):
         """enroll does not dump config when enrollment_config_log is False"""
         mock_chk.return_value = None
         mock_csr.return_value = (False, None)
@@ -2505,9 +2503,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_166_enroll_calls_enrollment_config_log(
-        self, mock_chk, mock_csr, mock_ecl
-    ):
+    def test_166_enroll_calls_enrollment_config_log(self, mock_chk, mock_csr, mock_ecl):
         """enroll dumps config when enrollment_config_log is True"""
         mock_chk.return_value = None
         mock_csr.return_value = (False, None)

@@ -10,6 +10,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- Parse `acme_srv.cfg` once per worker and pass that ConfigParser into ACME objects; CAhandler still self-configures via `_config_load()` (named `[CAhandler:<name>]` overlay unchanged). Restart the process after config edits ([#384](https://github.com/grindsa/acme2certifier/issues/384))
 - Multi-CAhandler: ACME profiles that only select a named handler (`profile_cahandler` identity maps such as `harica` → `harica`) no longer overwrite that handler's `profile_mapping_field` (HARICA was sending `transactionType=harica` instead of `OV`)
 - OpenSSL CA handler honors `enrollment_config_log` / `enrollment_config_log_skip_list` (same as XCA and the other handlers)
 - Log the resolved CA handler name (and config section) at INFO before certificate enrollment

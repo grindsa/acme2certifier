@@ -406,10 +406,11 @@ class AuthorizationBusinessLogic:
 class ChallengeSetManager:
     """Manager for challenge set operations"""
 
-    def __init__(self, debug: bool, server_name: str, logger):
+    def __init__(self, debug: bool, server_name: str, logger, config_dic=None):
         self.debug = debug
         self.server_name = server_name
         self.logger = logger
+        self.config_dic = config_dic
 
     def get_challenge_set_for_authorization(
         self,
@@ -433,6 +434,7 @@ class ChallengeSetManager:
             srv_name=self.server_name,
             logger=self.logger,
             expiry=expires,
+            config_dic=self.config_dic,
         ) as challenge:
             return challenge.challengeset_get(
                 authz_name,
@@ -450,16 +452,23 @@ class Authorization(object):
     """Refactored Authorization class with clear separation of concerns"""
 
     def __init__(
-        self, debug: bool = False, srv_name: str = None, logger: object = None
+        self,
+        debug: bool = False,
+        srv_name: str = None,
+        logger: object = None,
+        config_dic=None,
     ):
         self.server_name = srv_name
         self.debug = debug
         self.logger = logger
+        self.config_dic = config_dic
 
         # Initialize dependencies
         self.dbstore = DBstore(debug, self.logger)
-        self.message = Message(debug, self.server_name, self.logger)
-        self.nonce = Nonce(debug, self.logger)
+        self.message = Message(
+            debug, self.server_name, self.logger, config_dic=config_dic
+        )
+        self.nonce = Nonce(debug, self.logger, config_dic=config_dic)
 
         # Initialize components immediately
         self.config = AuthorizationConfiguration()
@@ -468,7 +477,7 @@ class Authorization(object):
             self.config, self.repository, self.logger
         )
         self.challenge_manager = ChallengeSetManager(
-            self.debug, self.server_name, self.logger
+            self.debug, self.server_name, self.logger, config_dic=config_dic
         )
 
     def __enter__(self):
@@ -595,7 +604,7 @@ class Authorization(object):
         """Load configuration from file"""
         self.logger.debug("Authorization._load_configuration()")
 
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
 
         if config_dic:
 

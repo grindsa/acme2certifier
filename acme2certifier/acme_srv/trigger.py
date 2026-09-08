@@ -135,12 +135,17 @@ class Trigger(object):
     """Challenge handler"""
 
     def __init__(
-        self, debug: bool = False, srv_name: str = None, logger: object = None
+        self,
+        debug: bool = False,
+        srv_name: str = None,
+        logger: object = None,
+        config_dic=None,
     ):
         self.debug = debug
         self.server_name = srv_name
         self.cahandler = None
         self.logger = logger
+        self.config_dic = config_dic
         self.dbstore = DBstore(debug, self.logger)
         self.tnauthlist_support = False
         self.enabled = False
@@ -163,7 +168,9 @@ class Trigger(object):
         result_list = []
         # extract the public key form certificate
         cert_pubkey = cert_pubkey_get(self.logger, cert_pem)
-        with Certificate(self.debug, "foo", self.logger) as certificate:
+        with Certificate(
+            self.debug, "foo", self.logger, config_dic=self.config_dic
+        ) as certificate:
             # search certificates in status "processing"
             cert_list = certificate.certlist_search(
                 "order__status_id", 4, ["name", "csr", "order__name"]
@@ -187,7 +194,7 @@ class Trigger(object):
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("Certificate._config_load()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
         if "Order" in config_dic:
             self.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
@@ -210,9 +217,7 @@ class Trigger(object):
                         ca_handler_module.CAhandler, "CAhandler", "default"
                     )
                 except Exception as err:
-                    self.logger.critical(
-                        "Failed to load CA handler module: %s", err
-                    )
+                    self.logger.critical("Failed to load CA handler module: %s", err)
 
         self.hmac_keys, self.auth_disabled = trigger_hmac_keys_load(
             self.logger, config_dic

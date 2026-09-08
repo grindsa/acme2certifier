@@ -866,12 +866,15 @@ class TestRenewalinfo(unittest.TestCase):
         mock_registry = MagicMock()
         mock_registry.load.return_value = mock_registry
         mock_registry.default_handler.return_value = None
-        with patch(
-            "acme2certifier.acme_srv.renewalinfo.CAHandlerRegistry",
-            return_value=mock_registry,
-        ), patch(
-            "acme2certifier.acme_srv.renewalinfo.ca_handler_load",
-            return_value=mock_module,
+        with (
+            patch(
+                "acme2certifier.acme_srv.renewalinfo.CAHandlerRegistry",
+                return_value=mock_registry,
+            ),
+            patch(
+                "acme2certifier.acme_srv.renewalinfo.ca_handler_load",
+                return_value=mock_module,
+            ),
         ):
             self.renewalinfo.cahandler = None
             self.renewalinfo._load_ca_handler(
@@ -888,11 +891,14 @@ class TestRenewalinfo(unittest.TestCase):
         mock_registry = MagicMock()
         mock_registry.load.return_value = mock_registry
         mock_registry.default_handler.return_value = None
-        with patch(
-            "acme2certifier.acme_srv.renewalinfo.CAHandlerRegistry",
-            return_value=mock_registry,
-        ), patch(
-            "acme2certifier.acme_srv.renewalinfo.ca_handler_load", return_value=None
+        with (
+            patch(
+                "acme2certifier.acme_srv.renewalinfo.CAHandlerRegistry",
+                return_value=mock_registry,
+            ),
+            patch(
+                "acme2certifier.acme_srv.renewalinfo.ca_handler_load", return_value=None
+            ),
         ):
             self.renewalinfo.cahandler = None
             self.renewalinfo._load_ca_handler(
@@ -1059,6 +1065,20 @@ class TestRenewalinfo(unittest.TestCase):
             result = self.renewalinfo.get("/acme/renewal-info/foo")
         self.assertEqual(result["code"], 404)
         self.assertEqual(result["data"]["detail"], "certificate not found")
+
+    def test_067_load_ca_handler_uses_registry_default(self):
+        """Registry default_handler is used when present."""
+        bound = MagicMock()
+        mock_registry = MagicMock()
+        mock_registry.load.return_value = mock_registry
+        mock_registry.default_handler.return_value = bound
+        with patch(
+            "acme2certifier.acme_srv.renewalinfo.CAHandlerRegistry",
+            return_value=mock_registry,
+        ):
+            self.renewalinfo.cahandler = None
+            self.renewalinfo._load_ca_handler({})
+        self.assertIs(self.renewalinfo.cahandler, bound)
 
 
 if __name__ == "__main__":
