@@ -262,12 +262,17 @@ class AccountData:
 class Account:
     """Refactored ACME server class."""
 
-    def __init__(self, debug: bool = False, srv_name: str = None, logger=None):
+    def __init__(
+        self, debug: bool = False, srv_name: str = None, logger=None, config_dic=None
+    ):
         self.server_name = srv_name
         self.logger = logger
+        self.config_dic = config_dic
         self.dbstore = DBstore(debug, self.logger)
         self.repository = AccountRepository(self.dbstore, self.logger)
-        self.message = Message(debug, self.server_name, self.logger)
+        self.message = Message(
+            debug, self.server_name, self.logger, config_dic=config_dic
+        )
         self.config = AccountConfiguration()
         self.err_msg_dic = error_dic_get(self.logger)
 
@@ -284,7 +289,7 @@ class Account:
     def _load_configuration(self):
         """Load configuration into the AccountConfiguration dataclass."""
         self.logger.debug("Account._load_configuration()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
 
         self.config.inner_header_nonce_allow = config_dic.getboolean(
             "Account", "inner_header_nonce_allow", fallback=False

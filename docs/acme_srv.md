@@ -5,6 +5,8 @@
 
 # acme_srv.cfg
 
+`acme_srv.cfg` is parsed once per worker process. ACME request handlers receive that ConfigParser; CA handlers still load their own settings (including the multi-handler `[CAhandler:<name>]` overlay). Restart acme2certifier after editing the file.
+
 ## configuration options for acme2certifier
 
 INI (`acme_srv.cfg`) and YAML (`acme_srv.yaml` / `acme_srv.yml`) are equivalent. The shipped default remains INI (`acme2certifier/share/acme_srv.cfg`). See [YAML configuration](#yaml-configuration) for file detection and native lists.

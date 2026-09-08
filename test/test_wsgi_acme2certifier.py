@@ -21,6 +21,15 @@ sys.path.insert(1, "..")
 _WSGI_MODULE = "acme2certifier.share.acme2certifier_wsgi"
 
 
+def _wsgi_test_config():
+    """Unmerged ConfigParser as injected by WSGI (not a nested dict)."""
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.optionxform = str
+    parser.add_section("Directory")
+    parser.set("Directory", "url_prefix", "")
+    return parser
+
+
 class FakeDBStore(object):
     """face DBStore class needed for mocking"""
 
@@ -1019,7 +1028,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch(
         "acme2certifier.share.acme2certifier_wsgi.CONFIG",
-        {"Directory": {"url_prefix": ""}},
+        _wsgi_test_config(),
     )
     def test_059_application(self):
         """Test redirect to /directory when root URL is accessed."""
@@ -1038,7 +1047,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch(
         "acme2certifier.share.acme2certifier_wsgi.CONFIG",
-        {"Directory": {"url_prefix": ""}},
+        _wsgi_test_config(),
     )
     @patch(
         "acme2certifier.acme_srv.directory.DirectoryRepository.get_db_version",
@@ -1060,7 +1069,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch(
         "acme2certifier.share.acme2certifier_wsgi.CONFIG",
-        {"Directory": {"url_prefix": ""}},
+        _wsgi_test_config(),
     )
     def test_061_application(self):
         """Test accessing the /acme/acct endpoint."""
@@ -1077,7 +1086,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch(
         "acme2certifier.share.acme2certifier_wsgi.CONFIG",
-        {"Directory": {"url_prefix": ""}},
+        _wsgi_test_config(),
     )
     def test_062_application(self):
         """Test accessing the /acme/newaccount endpoint."""
@@ -1096,7 +1105,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch(
         "acme2certifier.share.acme2certifier_wsgi.CONFIG",
-        {"Directory": {"url_prefix": ""}},
+        _wsgi_test_config(),
     )
     def test_063_application(self):
         """Test accessing an unknown endpoint."""

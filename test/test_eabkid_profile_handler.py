@@ -498,6 +498,22 @@ class TestACMEHandler(unittest.TestCase):
         call_args = models_mock.DBstore().certificate_lookup.call_args
         self.assertEqual(call_args[0][0], "cert_raw")
 
+    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.eab_kid_get")
+    def test_049_cahandler_name_get(self, mock_kid, mock_prof):
+        """cahandler_name_get returns the per-kid registry name"""
+        mock_prof.return_value = {"kid1": {"cahandler_name": "ejbca"}}
+        mock_kid.return_value = "kid1"
+        self.assertEqual(self.eabhandler.cahandler_name_get("csr"), "ejbca")
+
+    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.eab_kid_get")
+    def test_050_cahandler_name_get_missing(self, mock_kid, mock_prof):
+        """cahandler_name_get returns None when the kid has no cahandler_name"""
+        mock_prof.return_value = {"kid1": {"cahandler": {"foo": "bar"}}}
+        mock_kid.return_value = "kid1"
+        self.assertIsNone(self.eabhandler.cahandler_name_get("csr"))
+
 
 if __name__ == "__main__":
 

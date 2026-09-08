@@ -93,10 +93,12 @@ class Directory:
         debug: Optional[object] = None,
         srv_name: Optional[str] = None,
         logger: Optional[object] = None,
+        config_dic=None,
     ) -> None:
         """Initialize Directory with configuration, repository, and logger."""
         self.server_name = srv_name
         self.logger = logger
+        self.config_dic = config_dic
         self.dbstore = DBstore(debug, self.logger)
         self.repository = DirectoryRepository(self.dbstore, self.logger)
         self.config = DirectoryConfig()
@@ -117,7 +119,11 @@ class Directory:
     def _load_configuration(self) -> None:
         """Load and parse all Directory configuration from file and environment."""
         self.logger.debug("Directory._load_configuration()")
-        config_dic = load_config(self.logger, "Directory")
+        config_dic = (
+            self.config_dic
+            if self.config_dic is not None
+            else load_config(self.logger, "Directory")
+        )
 
         self._parse_directory_section(config_dic)
         self._parse_booleans(config_dic)

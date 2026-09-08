@@ -726,6 +726,7 @@ class TestChallengeSetManager(unittest.TestCase):
             srv_name="https://example.com",
             logger=self.mock_logger,
             expiry=1234567890,
+            config_dic=None,
         )
         mock_challenge_instance.challengeset_get.assert_called_once_with(
             "test_authz",
