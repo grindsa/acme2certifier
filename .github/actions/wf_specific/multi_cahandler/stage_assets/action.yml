@@ -1,0 +1,40 @@
+name: "stage_assets"
+description: "Stage openssl CA material, XCA database, and EAB kid profiles"
+inputs:
+  VOLUME_DIR:
+    description: "Target volume directory"
+    required: true
+  XCA_DB_NAME:
+    description: "XCA database filename"
+    required: true
+  CA_SOURCE_DIR:
+    description: "Directory with test CA key/cert/CRL files"
+    required: false
+    default: "test/ca"
+  KID_SOURCE:
+    description: "kid_profiles.json fixture"
+    required: false
+    default: ".github/actions/wf_specific/multi_cahandler/fixtures/kid_profiles.json"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Stage CA material and kid profiles"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        XCA_DB_NAME: ${{ inputs.XCA_DB_NAME }}
+        CA_SOURCE_DIR: ${{ inputs.CA_SOURCE_DIR }}
+        KID_SOURCE: ${{ inputs.KID_SOURCE }}
+      run: |
+        set -euo pipefail
+        sudo mkdir -p "${VOLUME_DIR}/acme_ca/certs"
+        sudo cp \
+          "${CA_SOURCE_DIR}/sub-ca-key.pem" \
+          "${CA_SOURCE_DIR}/sub-ca-crl.pem" \
+          "${CA_SOURCE_DIR}/sub-ca-cert.pem" \
+          "${CA_SOURCE_DIR}/root-ca-cert.pem" \
+          "${VOLUME_DIR}/acme_ca/"
+        sudo cp "${CA_SOURCE_DIR}/acme2certifier-clean.xdb" "${VOLUME_DIR}/acme_ca/${XCA_DB_NAME}"
+        sudo cp "${KID_SOURCE}" "${VOLUME_DIR}/acme_ca/kid_profiles.json"
+        sudo chmod -R 777 "${VOLUME_DIR}/acme_ca"
