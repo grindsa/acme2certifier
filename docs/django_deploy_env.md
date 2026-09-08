@@ -14,7 +14,7 @@ When `[DBhandler] handler: django`, Django uses `acme2certifier.django_project.s
 | `ACME2CERTIFIER_SECRET_KEY` | yes (production) | Install scripts generate one via `a2c-django-secret-keygen` when unset and persist it. |
 | `ACME2CERTIFIER_ALLOWED_HOSTS` | recommended | Comma-separated hostnames/IPs Django accepts in the `Host` header. Default without override: `127.0.0.1,localhost`. When `[DEFAULT] server_name` is set in `acme_srv.cfg`, that hostname is merged into `ALLOWED_HOSTS` at worker startup (see below). |
 | `ACME2CERTIFIER_BASE_DIR` | no | Application root (default `/var/www/acme2certifier` or `/opt/acme2certifier`). |
-| `ACME2CERTIFIER_DEBUG` | no | Set to `1` for local development only. |
+| `ACME2CERTIFIER_DEBUG` | no | Set to `1` for local development only (Django `DEBUG`). ACME Helper debug uses this only when `[DEFAULT] debug` is unset in `acme_srv.cfg`; an explicit cfg value always wins. |
 
 MySQL / external DB templates: [`examples/django/settings.py`](../examples/django/settings.py).
 

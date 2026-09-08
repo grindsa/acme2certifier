@@ -23,6 +23,8 @@ from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
 from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
 from acme2certifier.acme_srv.helper import (
+    apply_log_levels,
+    config_debug_get,
     get_url,
     load_config,
     log_loaded_acme_srv_cfg,
@@ -65,12 +67,12 @@ ACME_GET_ERROR_MSG = json.dumps(acme_get_method_not_allowed_problem(), indent=2)
 CONTENT_TYPE_JSON = "application/json"
 WSGI_INPUT = "wsgi.input"
 
+# Quiet Helper.load_config() until DEFAULT.debug / ACME2CERTIFIER_DEBUG is known.
+apply_log_levels(False)
+
 # load config to set debug mode
 CONFIG = load_config()
-try:
-    DEBUG = CONFIG.getboolean("DEFAULT", "debug")
-except Exception:
-    DEBUG = False
+DEBUG = config_debug_get(CONFIG)
 
 URL_PREFIX = CONFIG.get("Directory", "url_prefix", fallback=None)
 

@@ -11,7 +11,7 @@ import sys
 import tempfile
 import unittest
 import warnings
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -312,6 +312,83 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 self.assertNotIn(
                     "transaction_mode", mod.DATABASES["default"]["OPTIONS"]
                 )
+
+    def test_017_logger_setup_cfg_debug_false_overrides_env(self) -> None:
+        """ACME2CERTIFIER_DEBUG=1 but cfg debug=False → ACME logger INFO"""
+        cfg = self._cfg_server_name("acme.example.com")
+        cfg.set("DEFAULT", "debug", "False")
+        mock_logger = MagicMock()
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                    "ACME2CERTIFIER_DEBUG": "1",
+                    "ACME2CERTIFIER_ALLOWED_HOSTS": "127.0.0.1",
+                },
+                clear=False,
+            ),
+            patch(_LOAD_CONFIG, return_value=cfg),
+            patch(
+                "acme2certifier.acme_srv.helpers.logging_utils.logger_setup",
+                return_value=mock_logger,
+            ) as mock_setup,
+        ):
+            mod = self._reload()
+        self.assertTrue(mod.DEBUG)
+        mock_setup.assert_called_with(False)
+        mock_logger.info.assert_called()
+
+    def test_018_logger_setup_env_when_cfg_debug_unset(self) -> None:
+        """ACME2CERTIFIER_DEBUG=1 and cfg debug unset → ACME logger DEBUG"""
+        cfg = self._cfg_server_name("acme.example.com")
+        mock_logger = MagicMock()
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                    "ACME2CERTIFIER_DEBUG": "1",
+                    "ACME2CERTIFIER_ALLOWED_HOSTS": "127.0.0.1",
+                },
+                clear=False,
+            ),
+            patch(_LOAD_CONFIG, return_value=cfg),
+            patch(
+                "acme2certifier.acme_srv.helpers.logging_utils.logger_setup",
+                return_value=mock_logger,
+            ) as mock_setup,
+        ):
+            mod = self._reload()
+        self.assertTrue(mod.DEBUG)
+        mock_setup.assert_called_with(True)
+        mock_logger.info.assert_called()
+
+    def test_019_logger_setup_cfg_debug_true_overrides_env_off(self) -> None:
+        """ACME2CERTIFIER_DEBUG off and cfg debug=True → ACME logger DEBUG"""
+        cfg = self._cfg_server_name("acme.example.com")
+        cfg.set("DEFAULT", "debug", "True")
+        mock_logger = MagicMock()
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                    "ACME2CERTIFIER_DEBUG": "0",
+                    "ACME2CERTIFIER_ALLOWED_HOSTS": "127.0.0.1",
+                },
+                clear=False,
+            ),
+            patch(_LOAD_CONFIG, return_value=cfg),
+            patch(
+                "acme2certifier.acme_srv.helpers.logging_utils.logger_setup",
+                return_value=mock_logger,
+            ) as mock_setup,
+        ):
+            mod = self._reload()
+        self.assertFalse(mod.DEBUG)
+        mock_setup.assert_called_with(True)
+        mock_logger.info.assert_called()
 
 
 if __name__ == "__main__":

@@ -52,6 +52,7 @@ class TestACMEHandler(unittest.TestCase):
             {
                 "ACME_SRV_CONFIGFILE": "ACME_SRV_CONFIGFILE",
                 "ACME2CERTIFIER_BASE_DIR": self._tmpdir,
+                "ACME2CERTIFIER_DEBUG": "0",
             },
         )
         self._env_patcher.start()
