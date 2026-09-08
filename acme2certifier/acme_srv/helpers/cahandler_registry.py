@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from typing import Any, Dict, List, Optional, Type
 
 from .config import (
@@ -13,6 +12,7 @@ from .config import (
     cahandler_config_section_set,
     load_config,
 )
+from .domain_utils import is_domain_whitelisted
 from .plugin_loader import ca_handler_load_from_section
 
 
@@ -52,19 +52,6 @@ class _BoundCAHandlerInstance:
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self._handler, item)
-
-
-def _domain_matches(entry: str, patterns: List[str]) -> bool:
-    """Return True if ``entry`` matches any regex in ``patterns``."""
-    if not entry or not patterns:
-        return False
-    for pattern in patterns:
-        regex = pattern
-        if regex.startswith("*."):
-            regex = regex.replace("*.", ".", 1)
-        if re.search(regex, entry):
-            return True
-    return False
 
 
 class BoundCAHandler:
@@ -419,7 +406,10 @@ class CAHandlerRegistry:
             patterns = entry.get("route_domainlist") or []
             if not patterns:
                 continue
-            if all(_domain_matches(ident, patterns) for ident in identifiers):
+            if all(
+                is_domain_whitelisted(self.logger, ident, patterns)
+                for ident in identifiers
+            ):
                 matches.append(name)
 
         if len(matches) > 1:

@@ -227,6 +227,33 @@ def test_resolve_stored_name(logger: logging.Logger) -> None:
     assert bound.name == "ejbca"
 
 
+def _routing_registry(
+    logger: logging.Logger, route_domainlist: str
+) -> CAHandlerRegistry:
+    """Multi-handler registry with openssl default and an internal route list."""
+    config = _cfg(
+        {
+            "CAhandler": {
+                "multi_handler": "True",
+                "default_handler": "openssl",
+            },
+            "CAhandler:openssl": {
+                "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
+            },
+            "CAhandler:internal": {
+                "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
+                "route_domainlist": route_domainlist,
+            },
+        }
+    )
+    module = SimpleNamespace(CAhandler=_DummyHandler)
+    with patch(
+        "acme2certifier.acme_srv.helpers.cahandler_registry.ca_handler_load_from_section",
+        return_value=module,
+    ):
+        return CAHandlerRegistry(logger).load(config)
+
+
 @patch(
     "acme2certifier.acme_srv.helper.csr_cn_get",
     return_value="host.internal.example",
@@ -240,31 +267,105 @@ def test_resolve_domain_routing(
     _mock_cn,
     logger: logging.Logger,
 ) -> None:
-    config = _cfg(
-        {
-            "CAhandler": {
-                "multi_handler": "True",
-                "default_handler": "openssl",
-            },
-            "CAhandler:openssl": {
-                "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
-            },
-            "CAhandler:internal": {
-                "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
-                "route_domainlist": '["\\\\.internal\\\\.example$"]',
-            },
-        }
-    )
-    module = SimpleNamespace(CAhandler=_DummyHandler)
-    with patch(
-        "acme2certifier.acme_srv.helpers.cahandler_registry.ca_handler_load_from_section",
-        return_value=module,
-    ):
-        registry = CAHandlerRegistry(logger).load(config)
-
+    registry = _routing_registry(logger, '["*.internal.example"]')
     bound = registry.resolve(csr="dummy-csr")
     assert bound is not None
     assert bound.name == "internal"
+
+
+@patch(
+    "acme2certifier.acme_srv.helper.csr_cn_get",
+    return_value="host.internal.example",
+)
+@patch(
+    "acme2certifier.acme_srv.helper.csr_san_get",
+    return_value=["dns:host.internal.example"],
+)
+def test_resolve_domain_routing_exact_host(
+    _mock_san,
+    _mock_cn,
+    logger: logging.Logger,
+) -> None:
+    registry = _routing_registry(logger, '["host.internal.example"]')
+    bound = registry.resolve(csr="dummy-csr")
+    assert bound is not None
+    assert bound.name == "internal"
+
+
+@patch(
+    "acme2certifier.acme_srv.helper.csr_cn_get",
+    return_value="internal.example",
+)
+@patch(
+    "acme2certifier.acme_srv.helper.csr_san_get",
+    return_value=["dns:internal.example"],
+)
+def test_resolve_domain_routing_wildcard_skips_apex(
+    _mock_san,
+    _mock_cn,
+    logger: logging.Logger,
+) -> None:
+    registry = _routing_registry(logger, '["*.internal.example"]')
+    bound = registry.resolve(csr="dummy-csr")
+    assert bound is not None
+    assert bound.name == "openssl"
+
+
+@patch(
+    "acme2certifier.acme_srv.helper.csr_cn_get",
+    return_value="foointernal.example",
+)
+@patch(
+    "acme2certifier.acme_srv.helper.csr_san_get",
+    return_value=["dns:foointernal.example"],
+)
+def test_resolve_domain_routing_wildcard_requires_dot(
+    _mock_san,
+    _mock_cn,
+    logger: logging.Logger,
+) -> None:
+    registry = _routing_registry(logger, '["*.internal.example"]')
+    bound = registry.resolve(csr="dummy-csr")
+    assert bound is not None
+    assert bound.name == "openssl"
+
+
+@patch(
+    "acme2certifier.acme_srv.helper.csr_cn_get",
+    return_value="host.internal.example",
+)
+@patch(
+    "acme2certifier.acme_srv.helper.csr_san_get",
+    return_value=["dns:other.example.com"],
+)
+def test_resolve_domain_routing_all_identifiers_must_match(
+    _mock_san,
+    _mock_cn,
+    logger: logging.Logger,
+) -> None:
+    registry = _routing_registry(logger, '["*.internal.example"]')
+    bound = registry.resolve(csr="dummy-csr")
+    assert bound is not None
+    assert bound.name == "openssl"
+
+
+@patch(
+    "acme2certifier.acme_srv.helper.csr_cn_get",
+    return_value="host.internal.example",
+)
+@patch(
+    "acme2certifier.acme_srv.helper.csr_san_get",
+    return_value=["dns:host.internal.example"],
+)
+def test_resolve_domain_routing_regex_pattern_is_literal(
+    _mock_san,
+    _mock_cn,
+    logger: logging.Logger,
+) -> None:
+    registry = _routing_registry(logger, '["\\\\.internal\\\\.example$"]')
+    bound = registry.resolve(csr="dummy-csr")
+    assert bound is not None
+    assert bound.name == "openssl"
 
 
 def test_cahandler_lookup_from_csr(logger: logging.Logger) -> None:
