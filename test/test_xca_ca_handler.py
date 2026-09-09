@@ -1052,7 +1052,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("foo_file", self.cahandler.passphrase)
         self.assertIn(
-            "INFO:test_a2c:Overwrite passphrase_variable",
+            "INFO:test_a2c:Overwrite passphrase",
             lcm.output,
         )
 
@@ -3225,7 +3225,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_access.side_effect = [True, True]
         mock_load.return_value = None
         self.assertEqual(
-            "ca_key_load failed. PLease check passphrase", self.cahandler._db_check()
+            "ca_key_load failed. Please check passphrase", self.cahandler._db_check()
         )
 
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._ca_key_load")
@@ -3368,6 +3368,46 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("cfg_error", self.cahandler.handler_check())
         self.assertTrue(mock_cfg.called)
         self.assertFalse(mock_db.called)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.load_config")
+    def test_220_config_load_no_cahandler_section(self, mock_load_cfg):
+        """_config_load without CAhandler section must not raise"""
+        parser = configparser.ConfigParser()
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertIsNone(self.cahandler.passphrase)
+        self.assertIsNone(self.cahandler.xdb_file)
+
+    def test_221_x509super_insert(self):
+        """_x509super_insert writes a row linked to a new item"""
+        self.cahandler.xdb_file = self.dir_path + "/ca/acme2certifier.xdb"
+        item_id = self.cahandler._item_insert(
+            {
+                "name": "x509super-test",
+                "type": 3,
+                "source": 2,
+                "date": "20200101000000Z",
+                "comment": "from acme2certifier",
+            }
+        )
+        row_id = self.cahandler._x509super_insert(
+            {
+                "item": item_id,
+                "subj_hash": 1,
+                "pkey": None,
+                "key_hash": 2,
+            }
+        )
+        self.assertTrue(row_id)
+
+    def test_222_public_key_hash_get(self):
+        """_public_key_hash_get matches XCA fixture key_hash for sub-ca cert"""
+        self.cahandler.xdb_file = self.dir_path + "/ca/acme2certifier.xdb"
+        self.cahandler.issuing_ca_name = "sub-ca"
+        ca_cert, _ca_id = self.cahandler._ca_cert_load()
+        self.assertEqual(
+            2066264345, self.cahandler._public_key_hash_get(ca_cert.public_key())
+        )
 
 
 if __name__ == "__main__":

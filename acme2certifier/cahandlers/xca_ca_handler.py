@@ -2,13 +2,15 @@
 # -*- coding: utf-8 -*-
 """handler for xca ca handler"""
 
-from __future__ import print_function
+import hashlib
+import logging
 import os
 import sqlite3
 import uuid
 import json
 import datetime
-from typing import List, Tuple, Dict
+from typing import Any, Dict, List, Optional, Tuple
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
@@ -33,6 +35,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_option_load,
     config_profile_load,
     convert_byte_to_string,
     convert_string_to_byte,
@@ -53,32 +56,38 @@ DEFAULT_DATE_FORMAT = "%Y%m%d%H%M%SZ"
 COLUMN_NOT_IN_TABLE_MSG = "column: %s not in %s table"
 
 
-def dict_from_row(row):
+def dict_from_row(row: Optional[Any]) -> Dict[str, Any]:
     """small helper to convert the output of a "select" command into a dictionary"""
-    return dict(zip(row.keys(), row))
+    if row is None:
+        return {}
+    return dict(zip(row.keys(), tuple(row)))
 
 
-class CAhandler(object):
+class CAhandler:
     """CA  handler"""
 
-    def __init__(self, debug: bool = False, logger: object = None):
+    def __init__(
+        self, debug: bool = False, logger: Optional[logging.Logger] = None
+    ) -> None:
         self.debug = debug
         self.logger = logger
-        self.xdb_file = None
+        self.xdb_file: Optional[str] = None
         self.xdb_permission = "660"
-        self.passphrase = None
-        self.issuing_ca_name = None
-        self.issuing_ca_key = None
+        self.passphrase: Optional[str] = None
+        self.issuing_ca_name: Optional[str] = None
+        self.issuing_ca_key: Optional[str] = None
         self.cert_validity_days = 365
-        self.ca_cert_chain_list = []
-        self.template_name = None
+        self.ca_cert_chain_list: List[str] = []
+        self.template_name: Optional[str] = None
         self.header_info_field = None
         self.eab_handler = None
         self.eab_profiling = False
         self.enrollment_config_log = False
-        self.enrollment_config_log_skip_list = []
-        self.profiles = {}
+        self.enrollment_config_log_skip_list: List[str] = []
+        self.profiles: Dict[str, Any] = {}
         self.profile_mapping_field = "template_name"
+        self.dbs = None
+        self.cursor = None
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -87,7 +96,7 @@ class CAhandler(object):
         return self
 
     def __exit__(self, *args):
-        """cose the connection at the end of the context"""
+        """close the connection at the end of the context"""
 
     def _asn1_stream_parse(self, asn1_stream: str = None) -> Dict[str, str]:
         """parse asn_string"""
@@ -137,12 +146,11 @@ class CAhandler(object):
         self._db_open()
         pre_statement = """SELECT * from view_certs WHERE name LIKE ?"""
         self.cursor.execute(pre_statement, [self.issuing_ca_name])
+        row = self.cursor.fetchone()
         try:
-            db_result = dict_from_row(self.cursor.fetchone())
-        except Exception:
-            self.logger.error(
-                "Certificate lookup in database failed: %s", self.cursor.fetchone()
-            )
+            db_result = dict_from_row(row)
+        except Exception as err:
+            self.logger.error("Certificate lookup in database failed: %s", err)
             db_result = {}
         self._db_close()
 
@@ -171,8 +179,9 @@ class CAhandler(object):
         self._db_open()
         pre_statement = """SELECT * from view_private WHERE name LIKE ?"""
         self.cursor.execute(pre_statement, [self.issuing_ca_key])
+        row = self.cursor.fetchone()
         try:
-            db_result = dict_from_row(self.cursor.fetchone())
+            db_result = dict_from_row(row)
         except Exception as err:
             self.logger.error("Failed to load CA private key from database: %s", err)
             db_result = {}
@@ -249,7 +258,6 @@ class CAhandler(object):
                     and isinstance(cert_dic["issuer"], int)
                     and isinstance(cert_dic["ca"], int)
                     and isinstance(cert_dic["iss_hash"], int)
-                    and isinstance(cert_dic["iss_hash"], int)
                     and isinstance(cert_dic["hash"], int)
                 ):
                     self._db_open()
@@ -288,23 +296,25 @@ class CAhandler(object):
         self.cursor.execute(pre_statement, [value])
 
         cert_result = {}
+        row = self.cursor.fetchone()
         try:
-            item_result = dict_from_row(self.cursor.fetchone())
-        except Exception:
-            self.logger.error(
-                "Certificate item search in database failed: %s", self.cursor.fetchone()
-            )
+            item_result = dict_from_row(row)
+        except Exception as err:
+            self.logger.error("Certificate item search in database failed: %s", err)
             item_result = {}
 
         if item_result:
             item_id = item_result["id"]
             pre_statement = """SELECT * from certs WHERE item LIKE ?"""
             self.cursor.execute(pre_statement, [item_id])
+            cert_row = self.cursor.fetchone()
             try:
-                cert_result = dict_from_row(self.cursor.fetchone())
-            except Exception:
+                cert_result = dict_from_row(cert_row)
+            except Exception as err:
                 self.logger.error(
-                    "Certificate search in database failed for item: %s", item_id
+                    "Certificate search in database failed for item %s: %s",
+                    item_id,
+                    err,
                 )
 
         self._db_close()
@@ -432,7 +442,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler.columns_get(%s)", table)
 
         self._db_open()
-        pre_statement = f"SELECT * from {table}"
+        pre_statement = f"SELECT * from {table} LIMIT 0"
         self.cursor.execute(pre_statement)
         result = [column[0] for column in self.cursor.description]
         self._db_close()
@@ -470,8 +480,8 @@ class CAhandler(object):
         self.logger.debug("CAhandler._config_check() ended")
         return error
 
-    def _config_load(self):
-        """ " load config from file"""
+    def _config_load(self) -> None:
+        """load config from file"""
         self.logger.debug("CAhandler._config_load()")
         config_dic = load_config(self.logger, "CAhandler")
 
@@ -492,30 +502,17 @@ class CAhandler(object):
                 "CAhandler", self.profile_mapping_field, fallback=self.template_name
             )
 
-        if "passphrase_variable" in config_dic["CAhandler"]:
-            try:
-                self.passphrase = os.environ[
-                    config_dic.get("CAhandler", "passphrase_variable")
-                ]
-            except Exception as err:
-                self.logger.error(
-                    "Could not load passphrase_variable:%s",
-                    err,
-                )
+            if "ca_cert_chain_list" in config_dic["CAhandler"]:
+                try:
+                    self.ca_cert_chain_list = json.loads(
+                        config_dic.get("CAhandler", "ca_cert_chain_list")
+                    )
+                except (json.JSONDecodeError, TypeError):
+                    self.logger.error('Parameter "ca_cert_chain_list" cannot be loaded')
 
-        if "passphrase" in config_dic["CAhandler"]:
-            # overwrite passphrase specified in variable
-            if self.passphrase:
-                self.logger.info("Overwrite passphrase_variable")
-            self.passphrase = config_dic.get("CAhandler", "passphrase")
-
-        if "ca_cert_chain_list" in config_dic["CAhandler"]:
-            try:
-                self.ca_cert_chain_list = json.loads(
-                    config_dic.get("CAhandler", "ca_cert_chain_list")
-                )
-            except Exception:
-                self.logger.error('Parameter "ca_cert_chain_list" cannot be loaded')
+        self.passphrase = config_option_load(
+            self.logger, config_dic, "passphrase", current=self.passphrase
+        )
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
@@ -556,6 +553,8 @@ class CAhandler(object):
             # insert csr
             csr_info = {"item": row_id, "signed": 1, "request": csr}
             self._csr_insert(csr_info)
+            if row_id:
+                self._x509super_store_from_csr(csr, row_id)
 
         self.logger.debug("CAhandler._csr_import() ended")
         return csr_info
@@ -604,9 +603,11 @@ class CAhandler(object):
         pre_statement = f"""SELECT * from view_requests WHERE {column} LIKE ?"""
         self.cursor.execute(pre_statement, [value])
 
+        row = self.cursor.fetchone()
         try:
-            db_result = dict_from_row(self.cursor.fetchone())
-        except Exception:
+            db_result = dict_from_row(row)
+        except Exception as err:
+            self.logger.error("CSR search in database failed: %s", err)
             db_result = {}
         self._db_close()
         self.logger.debug("CAhandler._csr_search() ended with: %s", bool(db_result))
@@ -642,17 +643,15 @@ class CAhandler(object):
         if not error:
             ca_key = self._ca_key_load()
             if not ca_key:
-                error = "ca_key_load failed. PLease check passphrase"
+                error = "ca_key_load failed. Please check passphrase"
 
         self.logger.debug("CAhandler._db_check() ended with: %s", error)
         return error
 
-    def _db_open(self):
+    def _db_open(self) -> None:
         """opens db and sets cursor"""
-        # pylint: disable=W0201
         self.dbs = sqlite3.connect(self.xdb_file)
         self.dbs.row_factory = sqlite3.Row
-        # pylint: disable=W0201
         self.cursor = self.dbs.cursor()
 
     def _db_close(self):
@@ -687,7 +686,7 @@ class CAhandler(object):
             if "ekuCritical" in template_dic:
                 try:
                     ekuc = bool(int(template_dic["ekuCritical"]))
-                except Exception:
+                except (TypeError, ValueError):
                     self.logger.error(
                         "Failed to convert EKU critical flag to int, defaulting to False"
                     )
@@ -873,7 +872,7 @@ class CAhandler(object):
             if "kuCritical" in template_dic:
                 try:
                     kuc = bool(int(template_dic["kuCritical"]))
-                except Exception:
+                except (TypeError, ValueError):
                     kuc = False
             else:
                 kuc = False
@@ -895,7 +894,7 @@ class CAhandler(object):
         if kuval:
             try:
                 kuval = int(kuval)
-            except Exception:
+            except (TypeError, ValueError):
                 self.logger.error(
                     "Keyusage value conversion to int failed, defaulting to 0"
                 )
@@ -987,7 +986,7 @@ class CAhandler(object):
                 ) = san_list[
                     0
                 ].split(":")
-            except Exception:
+            except (AttributeError, IndexError, ValueError):
                 self.logger.error(
                     "Failed to split SAN from CSR subjectAltName: %s", san_list
                 )
@@ -1074,9 +1073,11 @@ class CAhandler(object):
         pre_statement = f"""SELECT * from revocations WHERE {column} LIKE ?"""
         self.cursor.execute(pre_statement, [value])
 
+        row = self.cursor.fetchone()
         try:
-            db_result = dict_from_row(self.cursor.fetchone())
-        except Exception:
+            db_result = dict_from_row(row)
+        except Exception as err:
+            self.logger.error("Revocation search in database failed: %s", err)
             db_result = {}
         self._db_close()
         self.logger.debug("CAhandler._revocation_search() ended")
@@ -1116,6 +1117,8 @@ class CAhandler(object):
             "hash": name_hash,
         }
         _row_id = self._cert_insert(cert_dic)  # lgtm [py/unused-local-variable]
+        if row_id:
+            self._x509super_store_from_cert(cert, row_id, name_hash)
 
         self.logger.debug("CAhandler._store_cert() ended")
 
@@ -1157,6 +1160,98 @@ class CAhandler(object):
         pyopenssl_subject_name_hash = pyopenssl_cert.subject_name_hash() & 0x7FFFFFFF
 
         return pyopenssl_subject_name_hash
+
+    def _public_key_hash_get(self, public_key: object) -> int:
+        """XCA 32-bit key hash (SHA1(SPKI)[:4] little-endian, 31-bit)."""
+        self.logger.debug("CAhandler._public_key_hash_get()")
+        spki = public_key.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        digest = hashlib.sha1(spki).digest()[:4]
+        return int.from_bytes(digest, "little") & 0x7FFFFFFF
+
+    def _x509super_insert(
+        self, x509_dic: Optional[Dict[str, Any]] = None
+    ) -> Optional[int]:
+        """insert x509super row used by XCA views"""
+        self.logger.debug("CAhandler._x509super_insert()")
+        row_id = None
+        if x509_dic and all(
+            key in x509_dic for key in ("item", "subj_hash", "key_hash")
+        ):
+            if (
+                isinstance(x509_dic["item"], int)
+                and isinstance(x509_dic["subj_hash"], int)
+                and isinstance(x509_dic["key_hash"], int)
+            ):
+                payload = {
+                    "item": x509_dic["item"],
+                    "subj_hash": x509_dic["subj_hash"],
+                    "pkey": x509_dic.get("pkey"),
+                    "key_hash": x509_dic["key_hash"],
+                }
+                self._db_open()
+                self.cursor.execute(
+                    """INSERT INTO x509super(item, subj_hash, pkey, key_hash) VALUES(:item, :subj_hash, :pkey, :key_hash)""",
+                    payload,
+                )
+                row_id = self.cursor.lastrowid
+                self._db_close()
+            else:
+                self.logger.error(
+                    "x509super insert aborted due to wrong datatypes: %s", x509_dic
+                )
+        else:
+            self.logger.error(
+                "x509super insert aborted due to incomplete dataset: %s", x509_dic
+            )
+        self.logger.debug("CAhandler._x509super_insert() ended with row_id: %s", row_id)
+        return row_id
+
+    def _x509super_store_from_csr(self, csr: str, item_id: int) -> None:
+        """best-effort x509super row for an imported CSR"""
+        self.logger.debug("CAhandler._x509super_store_from_csr(%s)", item_id)
+        try:
+            csr_pem = build_pem_file(
+                self.logger, None, b64_url_recode(self.logger, csr), None, True
+            )
+            req = x509.load_pem_x509_csr(
+                convert_string_to_byte(csr_pem), default_backend()
+            )
+            pyreq = pyossslcrypto.load_certificate_request(
+                pyossslcrypto.FILETYPE_PEM, convert_string_to_byte(csr_pem)
+            )
+            self._x509super_insert(
+                {
+                    "item": item_id,
+                    "subj_hash": pyreq.get_subject().hash() & 0x7FFFFFFF,
+                    "pkey": None,
+                    "key_hash": self._public_key_hash_get(req.public_key()),
+                }
+            )
+        except Exception as err:
+            self.logger.error("Failed to store x509super for CSR: %s", err)
+
+    def _x509super_store_from_cert(
+        self, cert_b64: str, item_id: int, subj_hash: Any
+    ) -> None:
+        """best-effort x509super row for a stored certificate"""
+        self.logger.debug("CAhandler._x509super_store_from_cert(%s)", item_id)
+        try:
+            cert = x509.load_der_x509_certificate(
+                b64_decode(self.logger, cert_b64), default_backend()
+            )
+            self._x509super_insert(
+                {
+                    "item": item_id,
+                    "subj_hash": int(subj_hash),
+                    "pkey": None,
+                    "key_hash": self._public_key_hash_get(cert.public_key()),
+                }
+            )
+        except Exception as err:
+            self.logger.error("Failed to store x509super for certificate: %s", err)
 
     def _subject_modify(self, subject: str, dn_dic: Dict[str, str] = None) -> str:
         """modify subject name"""
@@ -1224,10 +1319,11 @@ class CAhandler(object):
         self._db_open()
         pre_statement = """SELECT * from view_templates WHERE name LIKE ?"""
         self.cursor.execute(pre_statement, [self.template_name])
+        row = self.cursor.fetchone()
         try:
-            db_result = dict_from_row(self.cursor.fetchone())
-        except Exception:
-            self.logger.error("template lookup failed: %s", self.cursor.fetchone())
+            db_result = dict_from_row(row)
+        except Exception as err:
+            self.logger.error("template lookup failed: %s", err)
             db_result = {}
 
         # parse template
@@ -1373,7 +1469,7 @@ class CAhandler(object):
             if "bcCritical" in template_dic:
                 try:
                     bcc = bool(int(template_dic["bcCritical"]))
-                except Exception:
+                except (TypeError, ValueError):
                     bcc = False
             else:
                 bcc = False
