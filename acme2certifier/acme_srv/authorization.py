@@ -31,6 +31,7 @@ from acme2certifier.acme_srv.helpers.domain_utils import (
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
+    SERVER_INTERNAL_TYPE,
     log_ownership_denial,
     ownership_lookup_failed,
     ownership_unauthorized,
@@ -1219,9 +1220,9 @@ class Authorization(object):
         except AuthorizationError as err:
             self.logger.error("Authorization error: %s", err)
             return (
-                403,
-                "urn:ietf:params:acme:error:unauthorized",
-                "authorization error",
+                500,
+                SERVER_INTERNAL_TYPE,
+                "Database error",
                 {},
             )
         if not auth_info:

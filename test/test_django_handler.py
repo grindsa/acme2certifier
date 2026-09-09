@@ -823,6 +823,37 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual((), mock_atomic.call_args_list[1].args)
         self.assertEqual({}, mock_atomic.call_args_list[1].kwargs)
 
+    def test_044b_sqlite_immediate_write_django_51_sets_transaction_mode(
+        self,
+    ) -> None:
+        """Django 5.1+: force connection.transaction_mode IMMEDIATE for the write"""
+        import django
+
+        cm = MagicMock()
+        cm.__enter__ = MagicMock(return_value=None)
+        cm.__exit__ = MagicMock(return_value=False)
+        connection = MagicMock()
+        connection.transaction_mode = None
+
+        def atomic_side_effect(*_args, **_kwargs):
+            self.assertEqual("IMMEDIATE", connection.transaction_mode)
+            return cm
+
+        with patch.object(django, "VERSION", (5, 1, 0)):
+            with patch.object(self.dbstore, "_sqlite_backend", return_value=True):
+                with patch.object(
+                    dh_mod.transaction, "atomic", side_effect=atomic_side_effect
+                ) as mock_atomic:
+                    with patch.object(
+                        dh_mod.transaction,
+                        "get_connection",
+                        return_value=connection,
+                    ):
+                        result = self.dbstore._sqlite_immediate_write(lambda: "ok-51")
+        self.assertEqual("ok-51", result)
+        mock_atomic.assert_called_once_with()
+        self.assertIsNone(connection.transaction_mode)
+
 
 class TestDjangoHandlerInitializeReload(unittest.TestCase):
     """cover initialize monkey_patches import for Django < 4 via reload"""

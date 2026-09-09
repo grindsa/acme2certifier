@@ -96,9 +96,17 @@ class DBstore(object):
         import django
 
         if django.VERSION >= (5, 1):
-            # Django 5.1+: immediate= removed; use OPTIONS.transaction_mode instead.
-            with transaction.atomic():
-                return fn()
+            # Django 5.1+: atomic(immediate=True) was removed. Force IMMEDIATE on
+            # this connection even when settings omit OPTIONS.transaction_mode
+            # (CI overlays historically only set busy_timeout).
+            connection = transaction.get_connection()
+            previous_mode = getattr(connection, "transaction_mode", None)
+            connection.transaction_mode = "IMMEDIATE"
+            try:
+                with transaction.atomic():
+                    return fn()
+            finally:
+                connection.transaction_mode = previous_mode
         try:
             with transaction.atomic(immediate=True):
                 return fn()

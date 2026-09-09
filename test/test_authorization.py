@@ -1884,8 +1884,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(result.get("error"), "unauthorized")
 
     def test_085_handle_post_request_authorization_error(self):
-        """Test POST request handling when authorization error occurs"""
-        # Patch check to return a valid url in protected
+        """POST maps get_authorization_details AuthorizationError to serverInternal"""
         with patch.object(
             self.mock_message,
             "check",
@@ -1908,11 +1907,11 @@ class TestAuthorization(unittest.TestCase):
                     self.authorization,
                     "get_authorization_details",
                     side_effect=AuthorizationError("Auth error"),
-                ) as mock_get_details:
+                ):
                     with patch.object(
                         self.mock_message,
                         "prepare_response",
-                        return_value={"error": "unauthorized"},
+                        return_value={"error": "serverInternal"},
                     ) as mock_prepare_response:
                         result = self.authorization.handle_post_request(
                             '{"test": "content"}'
@@ -1920,13 +1919,13 @@ class TestAuthorization(unittest.TestCase):
                         mock_prepare_response.assert_called_once()
                         status_dic = mock_prepare_response.call_args[0][1]
                         expected_status_dic = {
-                            "code": 403,
-                            "type": "urn:ietf:params:acme:error:unauthorized",
-                            "detail": "authorization error",
+                            "code": 500,
+                            "type": "urn:ietf:params:acme:error:serverInternal",
+                            "detail": "Database error",
                         }
                         self.assertEqual(status_dic, expected_status_dic)
         self.assertIsInstance(result, dict)
-        self.assertEqual(result.get("error"), "unauthorized")
+        self.assertEqual(result.get("error"), "serverInternal")
 
     def test_086_handle_post_request_authorization_details_valid(self):
         """Test POST request handling when get_authorization_details returns something valid"""
