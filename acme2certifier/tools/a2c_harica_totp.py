@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 """Print current HARICA CertManager TOTP code from acme_srv.cfg."""
 
-from __future__ import annotations
-
 import argparse
 import logging
 import os

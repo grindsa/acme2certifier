@@ -75,10 +75,9 @@ def load_deploy_env(base_dir: Optional[str] = None) -> None:
                 os.environ[key] = val
 
     if not os.environ.get("ACME2CERTIFIER_SECRET_KEY"):
-        # pylint: disable=E0401
-        from django.core.management.utils import get_random_secret_key
+        from acme2certifier.tools.a2c_django_secret_keygen import generate_secret_key
 
-        os.environ["ACME2CERTIFIER_SECRET_KEY"] = get_random_secret_key()
+        os.environ["ACME2CERTIFIER_SECRET_KEY"] = generate_secret_key()
 
 
 def main() -> None:

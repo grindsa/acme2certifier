@@ -128,7 +128,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
             env["ACME2CERTIFIER_BASE_DIR"] = tmp
             with patch.dict(os.environ, env, clear=True):
                 with patch(
-                    "django.core.management.utils.get_random_secret_key",
+                    "acme2certifier.tools.a2c_django_secret_keygen.generate_secret_key",
                     return_value="generated-secret",
                 ):
                     load_deploy_env()

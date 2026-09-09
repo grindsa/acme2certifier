@@ -308,9 +308,14 @@ uwsgi_plugins_value() {
   esac
 }
 
-# uWSGI ini env lines: quote values so $ and (plugin) in secrets are not interpreted.
+# uWSGI ini env lines: quote values so $ is not interpreted. Reject @( / %(
+# placeholders (uWSGI opens them as files / interpolates even inside quotes).
 a2c_uwsgi_env_set() {
   local ini="$1" key="$2" value="$3" escaped
+  if [[ "$value" == *'@('* || "$value" == *'%('* ]]; then
+    echo "ERROR: ${key} contains uWSGI placeholder syntax @( or %(" >&2
+    return 1
+  fi
   escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/$$/g')"
   printf 'env = %s="%s"\n' "$key" "$escaped" | ${SUDO} tee -a "$ini" >/dev/null
 }

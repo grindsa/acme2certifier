@@ -60,6 +60,7 @@ Parameters in the [Hooks] section take precedence over those in [DEFAULT].
 
 import smtplib
 import sys
+from typing import List
 
 sys.path.insert(0, "...")
 sys.path.insert(1, "..")
@@ -95,7 +96,7 @@ class Hooks:
 
         self.config_dic = load_config(self.logger, "Hooks")
 
-        self.msg: list[str] = []
+        self.msg: List[str] = []
         self.san = ""
 
         # Enhanced configuration validation

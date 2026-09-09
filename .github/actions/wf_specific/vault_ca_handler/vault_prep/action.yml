@@ -107,6 +107,22 @@ runs:
       docker exec vault vault operator unseal $UNSEAL_KEY_1
       docker exec vault vault operator unseal $UNSEAL_KEY_2
       docker exec vault vault operator unseal $UNSEAL_KEY_3
+
+      # Single-node Raft is unsealed before leader election finishes. Login
+      # against a standby with no active node returns HTTP 500.
+      for i in $(seq 1 30); do
+        if docker exec vault vault status -format=json 2>/dev/null \
+          | jq -e '.sealed == false and .ha_mode == "active"' >/dev/null; then
+          break
+        fi
+        if [ "$i" -eq 30 ]; then
+          echo "Vault did not become the active Raft node after unseal"
+          docker exec vault vault status || true
+          exit 1
+        fi
+        sleep 1
+      done
+
       echo $ROOT_TOKEN | docker exec -i vault vault login -
 
       # Create root ca

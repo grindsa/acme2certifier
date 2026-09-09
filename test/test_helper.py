@@ -9434,7 +9434,13 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         """cahandler_lookup returns None when neither csr nor cert_raw is given"""
         from acme2certifier.acme_srv.helpers.config import cahandler_lookup
 
-        self.assertIsNone(cahandler_lookup(self.logger))
+        models_mock = MagicMock()
+        with patch.dict(
+            "sys.modules", {"acme2certifier.acme_srv.db_handler": models_mock}
+        ):
+            self.assertIsNone(cahandler_lookup(self.logger))
+        models_mock.DBstore.assert_called_once()
+        models_mock.DBstore.return_value.certificates_search.assert_not_called()
 
     def test_681_cahandler_lookup_db_error(self):
         """cahandler_lookup logs a warning when certificates_search fails"""
