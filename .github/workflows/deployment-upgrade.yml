@@ -339,7 +339,9 @@ jobs:
           VOLUME_DIR: examples/Docker/data
           DEPLOYMENT_TYPE: container
           XDB_FILE: volume/xca/${{ env.XCA_DB_NAME }}
-          DJANGO: ${{ matrix.dbhandler == 'django' && 'true' || 'false' }}
+          # Keep from_tag settings.py: current CI settings import
+          # apply_log_levels, which 0.45.x logging_utils does not export.
+          DJANGO: "false"
 
       - name: "Ensure from image ${{ matrix.hop.from_tag }}"
         uses: ./.github/actions/wf_specific/upgrade/ensure_container_image
@@ -517,7 +519,9 @@ jobs:
           VOLUME_DIR: data/volume
           DEPLOYMENT_TYPE: rpm
           XDB_FILE: volume/acme_ca/${{ env.XCA_DB_NAME }}
-          DJANGO: ${{ matrix.mode == 'django' && 'true' || 'false' }}
+          # Keep from_tag settings.py: current CI settings import
+          # apply_log_levels, which 0.45.x logging_utils does not export.
+          DJANGO: "false"
 
       - name: "Download from RPM ${{ matrix.hop.from_tag }}"
         uses: ./.github/actions/wf_specific/upgrade/download_release_pkg
@@ -741,7 +745,9 @@ jobs:
           VOLUME_DIR: data/volume
           DEPLOYMENT_TYPE: deb
           XDB_FILE: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
-          DJANGO: ${{ matrix.mode == 'django' && 'true' || 'false' }}
+          # Keep from_tag settings.py: current CI settings import
+          # apply_log_levels, which 0.45.x logging_utils does not export.
+          DJANGO: "false"
 
       - name: "Download from DEB ${{ matrix.hop.from_tag }}"
         uses: ./.github/actions/wf_specific/upgrade/download_release_pkg

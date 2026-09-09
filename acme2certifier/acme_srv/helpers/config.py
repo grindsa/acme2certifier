@@ -7,7 +7,6 @@ import logging
 import os
 import threading
 import warnings
-from contextvars import ContextVar, Token
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
@@ -24,17 +23,48 @@ _ACME_SRV_CFG_LOADED: Set[str] = set()
 # Last successful load (path, source, format); used after logger_setup.
 _LAST_LOADED_CFG: Optional[Tuple[str, str, str]] = None
 # Unmerged ConfigParser per absolute path (process lifetime). Merged
-# ContextVar views are never stored here.
+# thread-local views are never stored here.
 _CONFIG_CACHE: Dict[str, Tuple[configparser.ConfigParser, str]] = {}
 _CONFIG_CACHE_LOCK = threading.Lock()
-_CAHANDLER_CONFIG_SECTION: ContextVar[Optional[str]] = ContextVar(
-    "cahandler_config_section", default=None
-)
 ACME_SRV_CFG_FILENAME = "acme_srv.cfg"
 ACME_SRV_YAML_FILENAMES = ("acme_srv.yaml", "acme_srv.yml")
 _YAML_CONFIG_EXTENSIONS = {".yaml", ".yml"}
 DEB_DEPLOY_BASE_DIR = "/var/www/acme2certifier"
 RPM_DEPLOY_BASE_DIR = "/opt/acme2certifier"
+
+
+class CahandlerSectionToken:
+    """Opaque restore token for ``cahandler_config_section_set()``."""
+
+    __slots__ = ("_old",)
+
+    def __init__(self, old: Optional[str]) -> None:
+        self._old = old
+
+    def restore_value(self) -> Optional[str]:
+        """Value to restore on ``cahandler_config_section_reset()``."""
+        return self._old
+
+
+class _ThreadLocalValue:
+    """Per-thread bind with ContextVar-style set/get/reset (Python 3.6)."""
+
+    def __init__(self) -> None:
+        self._local = threading.local()
+
+    def get(self) -> Optional[str]:
+        return getattr(self._local, "value", None)
+
+    def set(self, value: Optional[str]) -> CahandlerSectionToken:
+        token = CahandlerSectionToken(self.get())
+        self._local.value = value
+        return token
+
+    def reset(self, token: CahandlerSectionToken) -> None:
+        self._local.value = token.restore_value()
+
+
+_CAHANDLER_CONFIG_SECTION = _ThreadLocalValue()
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -886,7 +916,7 @@ def _parse_config_content(
 def cahandler_config_section_set(
     section: str,
     logger: logging.Logger = None,
-) -> Token:
+) -> CahandlerSectionToken:
     """Bind ``load_config()`` reads of ``[CAhandler]`` to a named handler section."""
     log = logger or logging.getLogger(__name__)
     previous = _CAHANDLER_CONFIG_SECTION.get()
@@ -904,7 +934,7 @@ def cahandler_config_section_set(
 
 
 def cahandler_config_section_reset(
-    token: Token,
+    token: CahandlerSectionToken,
     logger: logging.Logger = None,
 ) -> None:
     """Clear a ``cahandler_config_section_set()`` binding."""
@@ -997,7 +1027,7 @@ def _apply_bound_cahandler_merge(
     explicit_cfg_file: bool,
     logger: logging.Logger,
 ) -> configparser.ConfigParser:
-    """Overlay the ContextVar-bound named section onto ``[CAhandler]``."""
+    """Overlay the thread-local bound named section onto ``[CAhandler]``."""
     if explicit_cfg_file:
         return config
     bound_section = cahandler_config_section_get(logger)

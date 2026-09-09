@@ -8,7 +8,10 @@ inputs:
     description: "xdb_file path for the target deployment"
     required: true
   DJANGO:
-    description: "If true, refresh django settings to current package layout"
+    description: >
+      If true, overlay current-branch django CI settings. Use only after the
+      FROM package is stopped / about to be replaced. 0.45.x logging_utils has
+      no apply_log_levels; overlaying too early breaks the FROM hop.
     required: false
     default: "false"
   DEPLOYMENT_TYPE:

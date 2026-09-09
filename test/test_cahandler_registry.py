@@ -168,7 +168,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         self.assertEqual(registry.profile_cahandler, {"long": "ejbca"})
 
     def test_003_load_config_honors_bound_section_via_context(self):
-        """load_config merges a ContextVar-bound named CAhandler section"""
+        """load_config merges a thread-local bound named CAhandler section"""
         from acme2certifier.acme_srv.helpers.config import (
             cahandler_config_section_reset,
             cahandler_config_section_set,
@@ -198,6 +198,28 @@ class TestCAHandlerRegistry(unittest.TestCase):
                 cahandler_config_section_reset(token)
         self.assertEqual(merged.get("CAhandler", "api_host"), "https://ejbca.example")
         self.assertEqual(merged.get("CAhandler", "shared_flag"), "yes")
+
+    def test_003b_nested_section_bind_restores_previous(self):
+        """Nested set/reset restores the previous bound section"""
+        from acme2certifier.acme_srv.helpers.config import (
+            cahandler_config_section_get,
+            cahandler_config_section_reset,
+            cahandler_config_section_set,
+        )
+
+        self.assertIsNone(cahandler_config_section_get())
+        outer = cahandler_config_section_set("CAhandler:openssl")
+        try:
+            self.assertEqual(cahandler_config_section_get(), "CAhandler:openssl")
+            inner = cahandler_config_section_set("CAhandler:ejbca")
+            try:
+                self.assertEqual(cahandler_config_section_get(), "CAhandler:ejbca")
+            finally:
+                cahandler_config_section_reset(inner)
+            self.assertEqual(cahandler_config_section_get(), "CAhandler:openssl")
+        finally:
+            cahandler_config_section_reset(outer)
+        self.assertIsNone(cahandler_config_section_get())
 
     def test_004_load_config_section_aliases_named_section(self):
         """load_config_section aliases a named handler section onto CAhandler"""

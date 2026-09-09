@@ -2894,7 +2894,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             config_mod.load_config_cache_clear()
 
     def test_233_load_config_merge_after_cache_hit(self):
-        """ContextVar overlay still runs on a cache hit and does not store the merge"""
+        """Bound-section overlay still runs on a cache hit and does not store the merge"""
         import tempfile
         from acme2certifier.acme_srv.helpers import config as config_mod
         from acme2certifier.acme_srv.helpers.config import (
