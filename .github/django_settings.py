@@ -3,6 +3,8 @@ Django settings for acme2certifier project.
 """
 
 import os
+
+import django
 from acme2certifier.acme_srv.helpers.config import load_config  # noqa: E402
 from acme2certifier.acme_srv.helpers.logging_utils import (  # noqa: E402
     apply_log_levels,
@@ -84,10 +86,18 @@ WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
+_SQLITE_BUSY_TIMEOUT = int(os.environ.get("ACME2CERTIFIER_SQLITE_TIMEOUT", "30"))
+_SQLITE_OPTIONS: dict = {"timeout": _SQLITE_BUSY_TIMEOUT}
+if django.VERSION >= (5, 1):
+    # BEGIN IMMEDIATE avoids SHARED→RESERVED lock-upgrade aborts under
+    # threaded WSGI (apache2+django) when ACME clients POST authz in parallel.
+    _SQLITE_OPTIONS["transaction_mode"] = "IMMEDIATE"
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(BASE_DIR, "/var/www/acme2certifier/volume/db.sqlite3"),
+        "OPTIONS": _SQLITE_OPTIONS,
     }
 }
 

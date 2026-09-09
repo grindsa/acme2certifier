@@ -85,6 +85,35 @@ class DBstore(object):
         self.logger.debug("DBStore._status_getinstance(%s:%s)", mkey, value)
         return Status.objects.get(**{mkey: value})
 
+    def _sqlite_backend(self) -> bool:
+        """True when the default database backend is SQLite."""
+        return settings.DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3"
+
+    def _sqlite_immediate_write(self, fn):
+        """Run fn inside BEGIN IMMEDIATE when using SQLite (all Django versions)."""
+        if not self._sqlite_backend():
+            return fn()
+        import django
+
+        if django.VERSION >= (5, 1):
+            # Django 5.1+: atomic(immediate=True) was removed. Force IMMEDIATE on
+            # this connection even when settings omit OPTIONS.transaction_mode
+            # (CI overlays historically only set busy_timeout).
+            connection = transaction.get_connection()
+            previous_mode = getattr(connection, "transaction_mode", None)
+            connection.transaction_mode = "IMMEDIATE"
+            try:
+                with transaction.atomic():
+                    return fn()
+            finally:
+                connection.transaction_mode = previous_mode
+        try:
+            with transaction.atomic(immediate=True):
+                return fn()
+        except TypeError:
+            with transaction.atomic():
+                return fn()
+
     def account_add(self, data_dic: Dict[str, str]) -> Tuple[str, bool]:
         """add account in database"""
         self.logger.debug("DBStore.account_add(%s)", data_dic)
