@@ -95,11 +95,12 @@ class DBstore(object):
             return fn()
         import django
 
+        connection = transaction.get_connection()
+
         if django.VERSION >= (5, 1):
             # Django 5.1+: atomic(immediate=True) was removed. Force IMMEDIATE on
             # this connection even when settings omit OPTIONS.transaction_mode
             # (CI overlays historically only set busy_timeout).
-            connection = transaction.get_connection()
             previous_mode = getattr(connection, "transaction_mode", None)
             connection.transaction_mode = "IMMEDIATE"
             try:
@@ -107,12 +108,27 @@ class DBstore(object):
                     return fn()
             finally:
                 connection.transaction_mode = previous_mode
+
         try:
             with transaction.atomic(immediate=True):
                 return fn()
         except TypeError:
-            with transaction.atomic():
-                return fn()
+            # Django 4.2 (EL8/EL9 python39-django): no immediate= and no
+            # OPTIONS.transaction_mode. Patch BEGIN so atomic() is IMMEDIATE;
+            # a deferred BEGIN hits SQLITE_BUSY immediately (lock upgrade).
+            start = getattr(connection, "_start_transaction_under_autocommit", None)
+
+            def _begin_immediate() -> None:
+                connection.cursor().execute("BEGIN IMMEDIATE")
+
+            if start is not None:
+                connection._start_transaction_under_autocommit = _begin_immediate
+            try:
+                with transaction.atomic():
+                    return fn()
+            finally:
+                if start is not None:
+                    connection._start_transaction_under_autocommit = start
 
     def account_add(self, data_dic: Dict[str, str]) -> Tuple[str, bool]:
         """add account in database"""

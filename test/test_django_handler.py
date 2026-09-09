@@ -809,19 +809,32 @@ class TestDjangoHandler(unittest.TestCase):
         def atomic_side_effect(*args, **kwargs):
             if kwargs.get("immediate") is True:
                 raise TypeError("immediate unsupported")
+            self.assertIsNot(
+                connection._start_transaction_under_autocommit, original_start
+            )
             return cm
+
+        connection = MagicMock()
+        original_start = MagicMock(name="orig_start")
+        connection._start_transaction_under_autocommit = original_start
 
         with patch.object(django, "VERSION", (4, 2, 0)):
             with patch.object(self.dbstore, "_sqlite_backend", return_value=True):
                 with patch.object(
                     dh_mod.transaction, "atomic", side_effect=atomic_side_effect
                 ) as mock_atomic:
-                    result = self.dbstore._sqlite_immediate_write(lambda: "ok-fb")
+                    with patch.object(
+                        dh_mod.transaction,
+                        "get_connection",
+                        return_value=connection,
+                    ):
+                        result = self.dbstore._sqlite_immediate_write(lambda: "ok-fb")
         self.assertEqual("ok-fb", result)
         self.assertEqual(2, mock_atomic.call_count)
         self.assertEqual({"immediate": True}, mock_atomic.call_args_list[0].kwargs)
         self.assertEqual((), mock_atomic.call_args_list[1].args)
         self.assertEqual({}, mock_atomic.call_args_list[1].kwargs)
+        self.assertIs(connection._start_transaction_under_autocommit, original_start)
 
     def test_044b_sqlite_immediate_write_django_51_sets_transaction_mode(
         self,
