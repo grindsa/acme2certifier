@@ -13,17 +13,32 @@ import sys
 from typing import Any, Optional, TextIO
 
 
-def sql_literal(value: Any) -> str:
+def sql_literal(value: Any, dialect: str = "mysql") -> str:
     """Render a Python value as an SQL literal (UTF-8 strings, hex blobs)."""
     if value is None:
         return "NULL"
     if isinstance(value, bytes):
+        if dialect == "postgresql":
+            return r"'\x" + value.hex() + "'"
         return "X'" + value.hex() + "'"
     if isinstance(value, bool):
         return "1" if value else "0"
     if isinstance(value, (int, float)):
         return str(value)
     return "'" + str(value).replace("'", "''") + "'"
+
+
+def quote_ident(name: str, dialect: str) -> str:
+    """Quote an identifier for *dialect*.
+
+    PostgreSQL folds unquoted CREATE TABLE names to lowercase, but quoted
+    identifiers are case-sensitive. Quote the folded name so INSERTs match
+    sqlite_master DDL and reserved words such as ``public`` stay valid.
+    """
+    ident = name.replace('"', '""')
+    if dialect == "postgresql":
+        ident = ident.lower()
+    return f'"{ident}"'
 
 
 def dump_xca_sqlite(xdb_path: str, dialect: str, out: TextIO) -> None:
@@ -51,11 +66,14 @@ def dump_xca_sqlite(xdb_path: str, dialect: str, out: TextIO) -> None:
                 continue
             col_info = con.execute(f'PRAGMA table_info("{name}")').fetchall()
             columns = [row["name"] for row in col_info]
-            quoted_cols = ", ".join(f'"{col}"' for col in columns)
+            quoted_cols = ", ".join(quote_ident(col, dialect) for col in columns)
+            table_ident = quote_ident(name, dialect)
             for row in con.execute(f'SELECT * FROM "{name}"'):
-                values = ", ".join(sql_literal(row[col]) for col in columns)
+                values = ", ".join(
+                    sql_literal(row[col], dialect) for col in columns
+                )
                 out.write(
-                    f'INSERT INTO "{name}" ({quoted_cols}) VALUES ({values});\n'
+                    f"INSERT INTO {table_ident} ({quoted_cols}) VALUES ({values});\n"
                 )
 
         if dialect == "mysql":
