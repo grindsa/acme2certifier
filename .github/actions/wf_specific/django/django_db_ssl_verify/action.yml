@@ -1,0 +1,62 @@
+name: "django_db_ssl_verify"
+description: "Assert Django's live DATABASES session is TLS-encrypted"
+inputs:
+  CONTAINER:
+    description: "acme2certifier container name"
+    required: false
+    default: "acme-srv"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Verify Django DB session is TLS"
+      run: |
+        set -euo pipefail
+        CONTAINER="${{ inputs.CONTAINER }}"
+        docker cp "${GITHUB_WORKSPACE}/.github/scripts/django_db_ssl_verify.py" \
+          "${CONTAINER}:/tmp/django_db_ssl_verify.py"
+        docker exec "$CONTAINER" bash -c '
+          set -euo pipefail
+          py=""
+          if command -v a2c-manage >/dev/null 2>&1; then
+            shebang=$(head -n1 "$(command -v a2c-manage)")
+            case "$shebang" in
+              "#!"*)
+                rest=${shebang:2}
+                set -- $rest
+                if [[ "${1##*/}" == "env" ]]; then
+                  interp=$2
+                else
+                  interp=$1
+                fi
+                if command -v "$interp" >/dev/null 2>&1; then
+                  interp=$(command -v "$interp")
+                fi
+                if [[ -x "$interp" ]] && "$interp" -c "import django" >/dev/null 2>&1; then
+                  py="$interp"
+                fi
+                ;;
+            esac
+          fi
+          if [[ -z "$py" ]]; then
+            for cand in python3 python3.9 python3.11 python3.12 \
+              /usr/bin/python3 /usr/bin/python3.9 \
+              /opt/acme2certifier/venv/bin/python3 \
+              /var/www/acme2certifier/venv/bin/python3; do
+              if command -v "$cand" >/dev/null 2>&1; then
+                cand=$(command -v "$cand")
+              fi
+              if [[ -x "$cand" ]] && "$cand" -c "import django" >/dev/null 2>&1; then
+                py="$cand"
+                break
+              fi
+            done
+          fi
+          if [[ -z "$py" ]]; then
+            echo "ERROR: no Python interpreter with django found" >&2
+            exit 1
+          fi
+          echo "Using $py for Django TLS session check"
+          "$py" /tmp/django_db_ssl_verify.py
+        '
+      shell: bash
