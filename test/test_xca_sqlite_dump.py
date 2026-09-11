@@ -51,6 +51,20 @@ class TestXcaSqliteDump(unittest.TestCase):
             r"angewendet\)\n\(Der Schlüssel",
         )
 
+    def test_004_postgresql_inserts_match_folded_identifiers(self):
+        """quoted INSERTs must use folded names to match unquoted CREATE TABLE"""
+        buf = io.StringIO()
+        dump_xca_sqlite(_xdb_path(), "postgresql", buf)
+        sql = buf.getvalue()
+        self.assertIn(
+            'INSERT INTO "private_keys" ("item", "ownpass", "private")', sql
+        )
+        self.assertNotIn('"ownPass"', sql)
+        self.assertIn('INSERT INTO "revocations" ("caid"', sql)
+        self.assertNotIn('"caId"', sql)
+        self.assertIn('INSERT INTO "public_keys"', sql)
+        self.assertIn('"public"', sql)
+
 
 if __name__ == "__main__":
     unittest.main()
