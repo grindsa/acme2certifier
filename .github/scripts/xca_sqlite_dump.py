@@ -69,9 +69,7 @@ def dump_xca_sqlite(xdb_path: str, dialect: str, out: TextIO) -> None:
             quoted_cols = ", ".join(quote_ident(col, dialect) for col in columns)
             table_ident = quote_ident(name, dialect)
             for row in con.execute(f'SELECT * FROM "{name}"'):
-                values = ", ".join(
-                    sql_literal(row[col], dialect) for col in columns
-                )
+                values = ", ".join(sql_literal(row[col], dialect) for col in columns)
                 out.write(
                     f"INSERT INTO {table_ident} ({quoted_cols}) VALUES ({values});\n"
                 )

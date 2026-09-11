@@ -3430,7 +3430,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("id", row)
         self.assertIn("name", row)
 
-    def test_223a_sql_match(self):
+    def test_224_sql_match(self):
         """numeric lookups use =; text keeps LIKE (PostgreSQL rejects integer LIKE)"""
         from acme2certifier.cahandlers.xca_ca_handler import sql_match
 
@@ -3438,7 +3438,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("item = ?", sql_match("item", 2))
         self.assertEqual("flag LIKE ?", sql_match("flag", True))
 
-    def test_224_xcadb_rewrite_prefix(self):
+    def test_225_xcadb_rewrite_prefix(self):
         """XcaDb.rewrite_prefix matches XCA concatenation on tables and views"""
         from acme2certifier.cahandlers.xca_ca_handler import XcaDb
 
@@ -3455,7 +3455,7 @@ class TestACMEHandler(unittest.TestCase):
         sql = db.rewrite_prefix("SELECT * FROM items")
         self.assertEqual("SELECT * FROM items", sql)
 
-    def test_225_xcadb_convert_sql_sqlite(self):
+    def test_226_xcadb_convert_sql_sqlite(self):
         """sqlite keeps ? placeholders and does not rewrite tables"""
         from acme2certifier.cahandlers.xca_ca_handler import XcaDb
 
@@ -3464,7 +3464,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("SELECT * FROM items WHERE name LIKE ?", sql)
         self.assertEqual(["a"], params)
 
-    def test_226_xcadb_convert_sql_mysql(self):
+    def test_227_xcadb_convert_sql_mysql(self):
         """mysql converts ? to %s and applies the table prefix"""
         from acme2certifier.cahandlers.xca_ca_handler import XcaDb
 
@@ -3476,7 +3476,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("SELECT * FROM xcaview_certs WHERE name LIKE %s", sql)
         self.assertEqual(["a"], params)
 
-    def test_227_xcadb_convert_sql_named(self):
+    def test_228_xcadb_convert_sql_named(self):
         """postgres converts :name placeholders to pyformat"""
         from acme2certifier.cahandlers.xca_ca_handler import XcaDb
 
@@ -3489,7 +3489,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("INSERT INTO items(id, name) VALUES(%(id)s, %(name)s)", sql)
         self.assertEqual({"id": 1, "name": "ca"}, params)
 
-    def test_228_xcadb_catalog_and_physical_name(self):
+    def test_229_xcadb_catalog_and_physical_name(self):
         """catalog SQL and prefixed physical names per engine"""
         from acme2certifier.cahandlers.xca_ca_handler import XcaDb
 
@@ -3505,12 +3505,12 @@ class TestACMEHandler(unittest.TestCase):
         db.configure(engine="unknown")
         self.assertIn("sqlite_master", db.catalog_sql())
 
-    def test_229_config_check_unsupported_engine(self):
+    def test_230_config_check_unsupported_engine(self):
         """_config_check rejects unknown xdb_engine values"""
         self.cahandler.xdb_engine = "mssql"
         self.assertEqual("unsupported xdb_engine mssql", self.cahandler._config_check())
 
-    def test_230_config_check_remote_missing_host(self):
+    def test_231_config_check_remote_missing_host(self):
         """remote engine requires host, name and user"""
         self.cahandler.xdb_engine = "mysql"
         self.cahandler.xdb_password = "secret"
@@ -3519,7 +3519,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_check(),
         )
 
-    def test_231_config_check_remote_missing_password(self):
+    def test_232_config_check_remote_missing_password(self):
         """remote engine requires xdb_password"""
         self.cahandler.xdb_engine = "postgresql"
         self.cahandler.xdb_host = "db.example"
@@ -3530,7 +3530,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_check(),
         )
 
-    def test_232_config_check_remote_ok(self):
+    def test_233_config_check_remote_ok(self):
         """remote mysql config is valid without xdb_file"""
         self.cahandler.xdb_engine = "mysql"
         self.cahandler.xdb_host = "db.example"
@@ -3540,7 +3540,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.issuing_ca_name = "sub-ca"
         self.assertFalse(self.cahandler._config_check())
 
-    def test_233_config_check_mariadb_alias(self):
+    def test_234_config_check_mariadb_alias(self):
         """mariadb is accepted as mysql"""
         self.cahandler.xdb_engine = "mariadb"
         self.cahandler.xdb_host = "db.example"
@@ -3551,7 +3551,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler._config_check())
         self.assertEqual("mysql", self.cahandler._xdb_engine_normalized())
 
-    def test_234_config_check_mutual_exclusive(self):
+    def test_235_config_check_mutual_exclusive(self):
         """xdb_file cannot be combined with a remote engine"""
         self.cahandler.xdb_engine = "postgresql"
         self.cahandler.xdb_file = "/tmp/foo.xdb"
@@ -3566,7 +3566,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict("os.environ", {"XCA_DB_PASSWORD": "dbpass"})
     @patch("acme2certifier.cahandlers.xca_ca_handler.load_config")
-    def test_235_config_load_remote(self, mock_load_cfg):
+    def test_236_config_load_remote(self, mock_load_cfg):
         """_config_load maps remote keys and xdb_password_variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -3597,7 +3597,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("dbpass", self.cahandler.xca_db.password)
 
     @patch("acme2certifier.cahandlers.xca_ca_handler.load_config")
-    def test_236_config_load_postgres_alias(self, mock_load_cfg):
+    def test_237_config_load_postgres_alias(self, mock_load_cfg):
         """postgres and pgsql aliases map to postgresql"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"xdb_engine": "postgres"}
@@ -3606,7 +3606,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("postgresql", self.cahandler.xdb_engine)
 
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._config_load")
-    def test_237_enter_remote_skips_config_load(self, mock_cfg):
+    def test_238_enter_remote_skips_config_load(self, mock_cfg):
         """__enter__ treats remote host/name/user as configured"""
         self.cahandler.xdb_engine = "mysql"
         self.cahandler.xdb_host = "db.example"
@@ -3618,7 +3618,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._ca_key_load")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
-    def test_238_db_check_remote(self, mock_open, mock_close, mock_load):
+    def test_239_db_check_remote(self, mock_open, mock_close, mock_load):
         """remote _db_check connects with SELECT 1 and skips file perms"""
         self.cahandler.xdb_engine = "mysql"
         self.cahandler.cursor = Mock()
@@ -3632,7 +3632,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._ca_key_load")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
-    def test_239_db_check_remote_connect_failed(self, mock_open, mock_close, mock_load):
+    def test_240_db_check_remote_connect_failed(self, mock_open, mock_close, mock_load):
         """remote _db_check surfaces connection errors"""
         self.cahandler.xdb_engine = "postgresql"
         mock_open.side_effect = Exception("refused")
@@ -3644,7 +3644,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
-    def test_240_table_check_prefix(self, mock_open, mock_close):
+    def test_241_table_check_prefix(self, mock_open, mock_close):
         """_table_check matches catalog names including the XCA prefix"""
         self.cahandler.xca_db.configure(engine="mysql", table_prefix="pki_")
         self.cahandler.cursor = Mock()
@@ -3654,7 +3654,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_open.called)
         self.assertTrue(mock_close.called)
 
-    def test_241_inserted_row_id(self):
+    def test_242_inserted_row_id(self):
         """_inserted_row_id falls back to rowcount when lastrowid is 0"""
         self.cahandler.cursor = Mock()
         self.cahandler.cursor.lastrowid = 0
@@ -3666,7 +3666,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.cursor.rowcount = 0
         self.assertIsNone(self.cahandler._inserted_row_id())
 
-    def test_242_db_configured(self):
+    def test_243_db_configured(self):
         """_db_configured is true for sqlite file or complete remote settings"""
         self.assertFalse(self.cahandler._db_configured())
         self.cahandler.xdb_file = "/tmp/foo.xdb"
@@ -3679,7 +3679,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.xdb_user = "xca"
         self.assertTrue(self.cahandler._db_configured())
 
-    def test_243_connect_mysql_ssl_verify_ca(self):
+    def test_244_connect_mysql_ssl_verify_ca(self):
         """verify-ca must not set check_hostname (PyMySQL defaults True)"""
         from acme2certifier.cahandlers.xca_ca_handler import XcaDb
 
@@ -3703,7 +3703,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("/etc/ssl/ca.pem", kwargs["ssl"]["ca"])
         self.assertFalse(kwargs["ssl"]["check_hostname"])
 
-    def test_244_connect_mysql_ssl_verify_full(self):
+    def test_245_connect_mysql_ssl_verify_full(self):
         """verify-full enables hostname checks"""
         from acme2certifier.cahandlers.xca_ca_handler import XcaDb
 
@@ -3725,6 +3725,369 @@ class TestACMEHandler(unittest.TestCase):
             db._connect_mysql()
         kwargs = mock_pymysql.connect.call_args.kwargs
         self.assertTrue(kwargs["ssl"]["check_hostname"])
+
+    def test_246_xca_cursor_lastrowid_rowcount_description(self):
+        """_XcaCursor exposes lastrowid, rowcount and description"""
+        from acme2certifier.cahandlers.xca_ca_handler import _XcaCursor
+
+        inner = Mock()
+        inner.lastrowid = 9
+        inner.rowcount = 3
+        inner.description = (("id",),)
+        cursor = _XcaCursor(inner, lambda sql, params: (sql, params))
+        self.assertEqual(9, cursor.lastrowid)
+        self.assertEqual(3, cursor.rowcount)
+        self.assertEqual((("id",),), cursor.description)
+
+    def test_247_xcadb_is_remote(self):
+        """XcaDb.is_remote is true for mysql and postgresql"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        db = XcaDb(logger=self.logger)
+        self.assertFalse(db.is_remote())
+        db.engine = "mysql"
+        self.assertTrue(db.is_remote())
+        db.engine = "postgresql"
+        self.assertTrue(db.is_remote())
+
+    def test_248_connect_mysql_postgresql_unsupported(self):
+        """XcaDb.connect dispatches mysql/postgresql and rejects unknown engines"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        db = XcaDb(logger=self.logger)
+        conn, cur = Mock(), Mock()
+        db.engine = "mysql"
+        with patch.object(db, "_connect_mysql", return_value=(conn, cur)) as mock_my:
+            got_conn, got_cur = db.connect()
+        self.assertTrue(mock_my.called)
+        self.assertIs(conn, got_conn)
+        self.assertEqual(conn, db.connection)
+        db.engine = "postgresql"
+        with patch.object(
+            db, "_connect_postgresql", return_value=(conn, cur)
+        ) as mock_pg:
+            db.connect()
+        self.assertTrue(mock_pg.called)
+        db.engine = "mssql"
+        with self.assertRaises(ValueError):
+            db.connect()
+
+    def test_249_connect_mysql_import_error_and_port(self):
+        """_connect_mysql raises without PyMySQL and passes port when set"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        db = XcaDb(logger=self.logger)
+        db.configure(
+            engine="mysql",
+            host="db.example",
+            name="xca",
+            user="xca",
+            password="secret",
+            port=3306,
+        )
+        with patch.dict(sys.modules, {"pymysql": None, "pymysql.cursors": None}):
+            with self.assertRaises(ImportError):
+                db._connect_mysql()
+        mock_pymysql = MagicMock()
+        mock_cursors = MagicMock()
+        with patch.dict(
+            sys.modules, {"pymysql": mock_pymysql, "pymysql.cursors": mock_cursors}
+        ):
+            db._connect_mysql()
+        self.assertEqual(3306, mock_pymysql.connect.call_args.kwargs["port"])
+
+    def test_250_connect_postgresql_options_and_import_error(self):
+        """_connect_postgresql raises without psycopg2 and maps ssl/port"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        db = XcaDb(logger=self.logger)
+        db.configure(
+            engine="postgresql",
+            host="db.example",
+            name="xca",
+            user="xca",
+            password="secret",
+            port=5432,
+            ssl_mode="verify-full",
+            ssl_ca="/etc/ssl/ca.pem",
+        )
+        with patch.dict(sys.modules, {"psycopg2": None, "psycopg2.extras": None}):
+            with self.assertRaises(ImportError):
+                db._connect_postgresql()
+        mock_psycopg2 = MagicMock()
+        mock_extras = MagicMock()
+        mock_conn = Mock()
+        mock_psycopg2.connect.return_value = mock_conn
+        with patch.dict(
+            sys.modules, {"psycopg2": mock_psycopg2, "psycopg2.extras": mock_extras}
+        ):
+            conn, cursor = db._connect_postgresql()
+        kwargs = mock_psycopg2.connect.call_args.kwargs
+        self.assertEqual(5432, kwargs["port"])
+        self.assertEqual("verify-full", kwargs["sslmode"])
+        self.assertEqual("/etc/ssl/ca.pem", kwargs["sslrootcert"])
+        self.assertIs(mock_conn, conn)
+        self.assertTrue(mock_conn.cursor.called)
+        self.assertIs(cursor, mock_conn.cursor.return_value)
+
+    def test_251_exit_closes_nested_refs_and_logs_disconnect_errors(self):
+        """__exit__ drains nested db refs; close errors are logged"""
+        self.cahandler._db_refcount = 2
+        self.cahandler.dbs = Mock()
+        self.cahandler.dbs.close.side_effect = RuntimeError("close fail")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler.__exit__(None, None, None)
+        self.assertEqual(0, self.cahandler._db_refcount)
+        self.assertIsNone(self.cahandler.dbs)
+        self.assertIn(
+            "ERROR:test_a2c:Failed to close XCA database connection: close fail",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.dict_from_row",
+        side_effect=RuntimeError("bad row"),
+    )
+    def test_252_ca_cert_load_row_error(self, _mock_dfr, mock_open, mock_close):
+        """_ca_cert_load logs when the cert row cannot be converted"""
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.fetchone.return_value = object()
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            ca_cert, ca_id = self.cahandler._ca_cert_load()
+        self.assertIsNone(ca_cert)
+        self.assertIsNone(ca_id)
+        self.assertIn(
+            "ERROR:test_a2c:Certificate lookup in database failed: bad row",
+            lcm.output,
+        )
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.dict_from_row",
+        side_effect=RuntimeError("bad key"),
+    )
+    def test_253_ca_key_load_row_error(self, _mock_dfr, mock_open, mock_close):
+        """_ca_key_load logs when the private-key row cannot be converted"""
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.fetchone.return_value = object()
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(self.cahandler._ca_key_load())
+        self.assertIn(
+            "ERROR:test_a2c:Failed to load CA private key from database: bad key",
+            lcm.output,
+        )
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._identifier_check")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.dict_from_row",
+        side_effect=RuntimeError("bad item"),
+    )
+    def test_254_cert_search_item_row_error(
+        self, _mock_dfr, mock_open, mock_close, mock_check
+    ):
+        """_cert_search logs when the items row cannot be converted"""
+        mock_check.return_value = True
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.fetchone.return_value = object()
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual({}, self.cahandler._cert_search("name", "client"))
+        self.assertIn(
+            "ERROR:test_a2c:Certificate item search in database failed: bad item",
+            lcm.output,
+        )
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._identifier_check")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.dict_from_row")
+    def test_255_cert_search_cert_row_error(
+        self, mock_dfr, mock_open, mock_close, mock_check
+    ):
+        """_cert_search logs when the certs row cannot be converted"""
+        mock_check.return_value = True
+        mock_dfr.side_effect = [{"id": 6}, RuntimeError("bad cert")]
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.fetchone.return_value = object()
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual({}, self.cahandler._cert_search("name", "client"))
+        self.assertIn(
+            "ERROR:test_a2c:Certificate search in database failed for item 6: bad cert",
+            lcm.output,
+        )
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.load_config")
+    def test_256_config_load_invalid_xdb_port(self, mock_load_cfg):
+        """_config_load logs when xdb_port is not an integer"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "xdb_engine": "mysql",
+            "xdb_host": "db.example",
+            "xdb_port": "not-a-port",
+            "issuing_ca_name": "sub-ca",
+        }
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            'ERROR:test_a2c:Parameter "xdb_port" cannot be loaded',
+            lcm.output,
+        )
+        self.assertIsNone(self.cahandler.xdb_port)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._identifier_check")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.dict_from_row",
+        side_effect=RuntimeError("bad csr"),
+    )
+    def test_257_csr_search_row_error(
+        self, _mock_dfr, mock_open, mock_close, mock_check
+    ):
+        """_csr_search logs when the request row cannot be converted"""
+        mock_check.return_value = True
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.fetchone.return_value = object()
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual({}, self.cahandler._csr_search("name", "req"))
+        self.assertIn(
+            "ERROR:test_a2c:CSR search in database failed: bad csr",
+            lcm.output,
+        )
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+
+    def test_258_row_first_value_none_and_dict(self):
+        """_row_first_value handles None, dict and sequence rows"""
+        self.assertIsNone(self.cahandler._row_first_value(None))
+        self.assertEqual(4, self.cahandler._row_first_value({"id": 4}))
+        self.assertEqual(7, self.cahandler._row_first_value((7, "name")))
+
+    def test_259_x509super_insert_validation_errors(self):
+        """_x509super_insert rejects incomplete and mistyped payloads"""
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(self.cahandler._x509super_insert({"item": 1}))
+        self.assertIn(
+            "ERROR:test_a2c:x509super insert aborted due to incomplete dataset: {'item': 1}",
+            lcm.output,
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(
+                self.cahandler._x509super_insert(
+                    {"item": "1", "subj_hash": 2, "key_hash": 3}
+                )
+            )
+        self.assertIn(
+            "ERROR:test_a2c:x509super insert aborted due to wrong datatypes:",
+            lcm.output[0],
+        )
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._x509super_insert")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._public_key_hash_get")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.pyossslcrypto.load_certificate_request"
+    )
+    @patch("acme2certifier.cahandlers.xca_ca_handler.x509.load_pem_x509_csr")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.build_pem_file")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.b64_url_recode")
+    def test_260_x509super_store_from_csr(
+        self, mock_b64, mock_pem, mock_load_csr, mock_load_req, mock_hash, mock_ins
+    ):
+        """_x509super_store_from_csr inserts a row from a parsed CSR"""
+        mock_b64.return_value = "recode"
+        mock_pem.return_value = "-----BEGIN CERTIFICATE REQUEST-----\nMII\n-----END CERTIFICATE REQUEST-----"
+        mock_load_csr.return_value.public_key.return_value = Mock()
+        mock_load_req.return_value.get_subject.return_value.hash.return_value = 99
+        mock_hash.return_value = 12
+        self.cahandler._x509super_store_from_csr("csr", 8)
+        mock_ins.assert_called_once_with(
+            {"item": 8, "subj_hash": 99, "pkey": None, "key_hash": 12}
+        )
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._x509super_insert")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._public_key_hash_get")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.x509.load_der_x509_certificate")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.b64_decode")
+    def test_261_x509super_store_from_cert(
+        self, mock_b64, mock_load, mock_hash, mock_ins
+    ):
+        """_x509super_store_from_cert inserts a row from a stored certificate"""
+        mock_b64.return_value = b"der"
+        mock_load.return_value.public_key.return_value = Mock()
+        mock_hash.return_value = 21
+        self.cahandler._x509super_store_from_cert("YQ==", 5, "17")
+        mock_ins.assert_called_once_with(
+            {"item": 5, "subj_hash": 17, "pkey": None, "key_hash": 21}
+        )
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    @patch(
+        "acme2certifier.cahandlers.xca_ca_handler.dict_from_row",
+        side_effect=RuntimeError("bad template"),
+    )
+    def test_262_template_load_row_error(self, _mock_dfr, mock_open, mock_close):
+        """_template_load logs when the template row cannot be converted"""
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.fetchone.return_value = object()
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(({}, {}), self.cahandler._template_load())
+        self.assertIn(
+            "ERROR:test_a2c:template lookup failed: bad template",
+            lcm.output,
+        )
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_check")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.eab_profile_header_info_check")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._cert_sign")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._ca_load")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.build_pem_file")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.b64_url_recode")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._csr_import")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._requestname_get")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._config_check")
+    def test_263_enroll_opens_db_session(
+        self,
+        mock_chk,
+        mock_reqname,
+        mock_csr,
+        mock_b64,
+        mock_build,
+        mock_ca,
+        mock_sign,
+        mock_prof,
+        mock_db,
+        mock_open,
+        mock_close,
+    ):
+        """enroll opens and closes the database when it is already configured"""
+        mock_chk.return_value = None
+        mock_db.return_value = None
+        mock_prof.return_value = None
+        mock_reqname.return_value = "client.example"
+        mock_ca.return_value = ("key", "cert", 1)
+        mock_sign.return_value = ("bundle", "raw")
+        self.cahandler.xdb_file = self.dir_path + "/ca/acme2certifier.xdb"
+        self.assertEqual((None, "bundle", "raw", None), self.cahandler.enroll("csr"))
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
 
 
 if __name__ == "__main__":

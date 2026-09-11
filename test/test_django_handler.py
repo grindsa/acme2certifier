@@ -836,7 +836,7 @@ class TestDjangoHandler(unittest.TestCase):
         self.assertEqual({}, mock_atomic.call_args_list[1].kwargs)
         self.assertIs(connection._start_transaction_under_autocommit, original_start)
 
-    def test_044b_sqlite_immediate_write_django_51_sets_transaction_mode(
+    def test_045_sqlite_immediate_write_django_51_sets_transaction_mode(
         self,
     ) -> None:
         """Django 5.1+: force connection.transaction_mode IMMEDIATE for the write"""
@@ -867,11 +867,45 @@ class TestDjangoHandler(unittest.TestCase):
         mock_atomic.assert_called_once_with()
         self.assertIsNone(connection.transaction_mode)
 
+    def test_046_sqlite_immediate_begin_execute(self) -> None:
+        """TypeError fallback executes BEGIN IMMEDIATE on the connection"""
+        import django
+
+        cm = MagicMock()
+        cm.__enter__ = MagicMock(return_value=None)
+        cm.__exit__ = MagicMock(return_value=False)
+        connection = MagicMock()
+        original_start = MagicMock(name="orig_start")
+        connection._start_transaction_under_autocommit = original_start
+
+        def atomic_side_effect(*_args, **kwargs):
+            if kwargs.get("immediate") is True:
+                raise TypeError("immediate unsupported")
+            connection._start_transaction_under_autocommit()
+            return cm
+
+        with patch.object(django, "VERSION", (4, 2, 0)):
+            with patch.object(self.dbstore, "_sqlite_backend", return_value=True):
+                with patch.object(
+                    dh_mod.transaction, "atomic", side_effect=atomic_side_effect
+                ):
+                    with patch.object(
+                        dh_mod.transaction,
+                        "get_connection",
+                        return_value=connection,
+                    ):
+                        result = self.dbstore._sqlite_immediate_write(
+                            lambda: "ok-begin"
+                        )
+        self.assertEqual("ok-begin", result)
+        connection.cursor.return_value.execute.assert_called_with("BEGIN IMMEDIATE")
+        self.assertIs(connection._start_transaction_under_autocommit, original_start)
+
 
 class TestDjangoHandlerInitializeReload(unittest.TestCase):
     """cover initialize monkey_patches import for Django < 4 via reload"""
 
-    def test_045_initialize_loads_monkey_patches_on_django3(self) -> None:
+    def test_047_initialize_loads_monkey_patches_on_django3(self) -> None:
         """reload django_handler with Django major < 4 to hit monkey_patches import"""
         saved = {
             key: sys.modules.get(key)

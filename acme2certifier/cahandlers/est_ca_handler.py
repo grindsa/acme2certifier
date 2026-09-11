@@ -118,9 +118,7 @@ class CAhandler(object):
         """load est server address"""
         self.logger.debug("CAhandler._config_host_load()")
 
-        est_host = config_option_load(
-            self.logger, config_dic, "est_host", current=None
-        )
+        est_host = config_option_load(self.logger, config_dic, "est_host", current=None)
         if est_host:
             self.est_host = est_host + "/.well-known/est"
         if not self.est_host:

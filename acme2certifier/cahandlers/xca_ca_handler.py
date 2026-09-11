@@ -563,7 +563,9 @@ class CAhandler:
 
         if item_result:
             item_id = item_result["id"]
-            pre_statement = f"""SELECT * from certs WHERE {sql_match("item", item_id)}"""
+            pre_statement = (
+                f"""SELECT * from certs WHERE {sql_match("item", item_id)}"""
+            )
             self.cursor.execute(pre_statement, [item_id])
             cert_row = self.cursor.fetchone()
             try:

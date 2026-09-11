@@ -11,6 +11,8 @@ import sys
 import tempfile
 import unittest
 import warnings
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from django.core.exceptions import ImproperlyConfigured
@@ -18,6 +20,16 @@ from django.core.exceptions import ImproperlyConfigured
 _SETTINGS = "acme2certifier.django_project.settings"
 _INSECURE = "django-insecure-change-me-run-a2c-django-secret-keygen"
 _LOAD_CONFIG = "acme2certifier.acme_srv.helpers.config.load_config"
+_SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "..", ".github", "scripts")
+_DB_CA = "/var/www/acme2certifier/volume/db-ca.pem"
+_REPO = Path(__file__).resolve().parents[1]
+
+
+def _load_github_script(name: str):
+    """Import a helper from .github/scripts without installing it."""
+    if _SCRIPTS_DIR not in sys.path:
+        sys.path.insert(0, _SCRIPTS_DIR)
+    return importlib.import_module(name)
 
 
 class TestDjangoProjectSettings(unittest.TestCase):
@@ -389,6 +401,133 @@ class TestDjangoProjectSettings(unittest.TestCase):
         self.assertFalse(mod.DEBUG)
         mock_setup.assert_called_with(True)
         mock_logger.info.assert_called()
+
+    def test_020_patch_mariadb_injects_ssl(self) -> None:
+        """MariaDB OPTIONS gain ssl.ca pointing at the runtime CA path"""
+        patch_file = _load_github_script("patch_django_db_ssl").patch_file
+        src = _REPO / ".github" / "django_settings_mariadb.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "settings.py"
+            dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            patch_file(dest, "mariadb", _DB_CA)
+            text = dest.read_text(encoding="utf-8")
+            self.assertIn(f'"ssl": {{"ca": "{_DB_CA}"}}', text)
+            patch_file(dest, "mariadb", _DB_CA)
+            self.assertEqual(
+                text.count('"ssl"'), dest.read_text(encoding="utf-8").count('"ssl"')
+            )
+
+    def test_021_patch_psql_injects_sslmode(self) -> None:
+        """PostgreSQL DATABASES gain sslmode verify-ca and sslrootcert"""
+        patch_file = _load_github_script("patch_django_db_ssl").patch_file
+        src = _REPO / ".github" / "django_settings_psql.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "settings.py"
+            dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            patch_file(dest, "psql", _DB_CA)
+            text = dest.read_text(encoding="utf-8")
+            self.assertIn('"sslmode": "verify-ca"', text)
+            self.assertIn(f'"sslrootcert": "{_DB_CA}"', text)
+            self.assertIn(
+                '"sslcert": "/var/www/acme2certifier/volume/db-client-cert.pem"',
+                text,
+            )
+            self.assertIn(
+                '"sslkey": "/var/www/acme2certifier/volume/db-client-key.pem"',
+                text,
+            )
+            self.assertNotIn("HOME", text)
+            patch_file(dest, "psql", _DB_CA)
+            twice = dest.read_text(encoding="utf-8")
+            self.assertEqual(twice.count("sslrootcert"), text.count("sslrootcert"))
+
+    def test_022_patch_rejects_unknown_engine(self) -> None:
+        """unsupported DJANGO_DB values fail closed"""
+        patch_file = _load_github_script("patch_django_db_ssl").patch_file
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "settings.py"
+            dest.write_text("DATABASES = {}\n", encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                patch_file(dest, "mssql", _DB_CA)
+
+    def _run_ssl_verify_with_connection(self, vendor: str, fetchone) -> int:
+        verify = _load_github_script("django_db_ssl_verify")
+        cursor = MagicMock()
+        cursor.fetchone.return_value = fetchone
+        ctx = MagicMock()
+        ctx.__enter__.return_value = cursor
+        ctx.__exit__.return_value = False
+        connection = SimpleNamespace(vendor=vendor, cursor=lambda: ctx)
+        django_mock = MagicMock()
+        db_mod = SimpleNamespace(connection=connection)
+        with (
+            patch.dict("sys.modules", {"django": django_mock, "django.db": db_mod}),
+            patch.object(django_mock, "setup"),
+            patch.object(verify, "_prepare_runtime"),
+        ):
+            return verify.main()
+
+    def test_023_mysql_cipher_ok(self) -> None:
+        """non-empty Ssl_cipher is success"""
+        self.assertEqual(
+            0,
+            self._run_ssl_verify_with_connection(
+                "mysql", ("Ssl_cipher", "TLS_AES_256_GCM_SHA384")
+            ),
+        )
+
+    def test_024_mysql_empty_cipher_fails(self) -> None:
+        """empty Ssl_cipher fails the check"""
+        self.assertEqual(
+            1, self._run_ssl_verify_with_connection("mysql", ("Ssl_cipher", ""))
+        )
+
+    def test_025_postgresql_ssl_true(self) -> None:
+        """pg_stat_ssl ssl=true is success"""
+        self.assertEqual(
+            0,
+            self._run_ssl_verify_with_connection(
+                "postgresql", (True, "TLSv1.3", "TLS_AES_256_GCM_SHA384")
+            ),
+        )
+
+    def test_026_postgresql_ssl_false_fails(self) -> None:
+        """pg_stat_ssl ssl=false fails the check"""
+        self.assertEqual(
+            1,
+            self._run_ssl_verify_with_connection("postgresql", (False, None, None)),
+        )
+
+    def test_027_unsupported_vendor_fails(self) -> None:
+        """unknown Django vendor fails closed"""
+        self.assertEqual(1, self._run_ssl_verify_with_connection("sqlite", None))
+
+    def test_028_prepare_runtime_adds_app_root(self) -> None:
+        """RPM/DEB APP_ROOT is prepended so django_project can be imported"""
+        verify = _load_github_script("django_db_ssl_verify")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "opt" / "acme2certifier"
+            (root / "acme2certifier" / "django_project").mkdir(parents=True)
+            env = dict(os.environ)
+            env.pop("ACME2CERTIFIER_BASE_DIR", None)
+            env.pop("DJANGO_SETTINGS_MODULE", None)
+            inserted = False
+            try:
+                with (
+                    patch.object(verify, "_APP_ROOTS", (str(root), "/no/such/root")),
+                    patch.dict(os.environ, env, clear=True),
+                ):
+                    verify._prepare_runtime()
+                    inserted = bool(sys.path and sys.path[0] == str(root))
+                    self.assertEqual(str(root), sys.path[0])
+                    self.assertEqual(str(root), os.environ["ACME2CERTIFIER_BASE_DIR"])
+                    self.assertEqual(
+                        "acme2certifier.django_project.settings",
+                        os.environ["DJANGO_SETTINGS_MODULE"],
+                    )
+            finally:
+                if inserted and sys.path and sys.path[0] == str(root):
+                    sys.path.pop(0)
 
 
 if __name__ == "__main__":

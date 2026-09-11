@@ -199,7 +199,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         self.assertEqual(merged.get("CAhandler", "api_host"), "https://ejbca.example")
         self.assertEqual(merged.get("CAhandler", "shared_flag"), "yes")
 
-    def test_003b_nested_section_bind_restores_previous(self):
+    def test_004_nested_section_bind_restores_previous(self):
         """Nested set/reset restores the previous bound section"""
         from acme2certifier.acme_srv.helpers.config import (
             cahandler_config_section_get,
@@ -221,7 +221,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             cahandler_config_section_reset(outer)
         self.assertIsNone(cahandler_config_section_get())
 
-    def test_004_load_config_section_aliases_named_section(self):
+    def test_005_load_config_section_aliases_named_section(self):
         """load_config_section aliases a named handler section onto CAhandler"""
         from acme2certifier.acme_srv.helpers.config import load_config_section
 
@@ -245,7 +245,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         self.assertEqual(merged.get("CAhandler", "api_host"), "https://ejbca.example")
         self.assertEqual(merged.get("CAhandler", "shared_flag"), "yes")
 
-    def test_005_bound_cahandler_load_config_in_context(self):
+    def test_006_bound_cahandler_load_config_in_context(self):
         """BoundCAHandler context makes load_config see the named section"""
         config = self._cfg(
             {
@@ -268,33 +268,33 @@ class TestCAHandlerRegistry(unittest.TestCase):
                 handler._config_load()
         self.assertEqual(handler.api_host, "https://ejbca.example")
 
-    def test_006_resolve_default_handler(self):
+    def test_007_resolve_default_handler(self):
         """resolve() without a match returns the default handler"""
         registry = self._multi_registry()
         bound = registry.resolve(csr="dummy-csr-with-no-domain-match")
         self.assertIsNotNone(bound)
         self.assertEqual(bound.name, "openssl")
 
-    def test_007_resolve_profile_cahandler(self):
+    def test_008_resolve_profile_cahandler(self):
         """resolve() uses Order profile_cahandler mapping"""
         registry = self._multi_registry()
         bound = registry.resolve(order_profile="long", csr="dummy")
         self.assertIsNotNone(bound)
         self.assertEqual(bound.name, "ejbca")
 
-    def test_008_resolve_eab_cahandler_name(self):
+    def test_009_resolve_eab_cahandler_name(self):
         """resolve() prefers an explicit EAB cahandler_name"""
         registry = self._multi_registry()
         bound = registry.resolve(cahandler_name="ejbca", csr="dummy")
         self.assertIsNotNone(bound)
         self.assertEqual(bound.name, "ejbca")
 
-    def test_009_resolve_unknown_eab_name_returns_none(self):
+    def test_010_resolve_unknown_eab_name_returns_none(self):
         """unknown EAB cahandler_name does not fall back silently"""
         registry = self._multi_registry()
         self.assertIsNone(registry.resolve(cahandler_name="missing", csr="dummy"))
 
-    def test_010_resolve_stored_name(self):
+    def test_011_resolve_stored_name(self):
         """resolve() returns a previously stored handler name"""
         registry = self._multi_registry()
         bound = registry.resolve(stored_name="ejbca", csr="dummy")
@@ -309,7 +309,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         "acme2certifier.acme_srv.helper.csr_san_get",
         return_value=["dns:host.internal.example"],
     )
-    def test_011_resolve_domain_routing(self, _mock_san, _mock_cn):
+    def test_012_resolve_domain_routing(self, _mock_san, _mock_cn):
         """wildcard route_domainlist selects the matching handler"""
         registry = self._routing_registry('["*.internal.example"]')
         bound = registry.resolve(csr="dummy-csr")
@@ -324,7 +324,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         "acme2certifier.acme_srv.helper.csr_san_get",
         return_value=["dns:host.internal.example"],
     )
-    def test_012_resolve_domain_routing_exact_host(self, _mock_san, _mock_cn):
+    def test_013_resolve_domain_routing_exact_host(self, _mock_san, _mock_cn):
         """exact-host route_domainlist selects the matching handler"""
         registry = self._routing_registry('["host.internal.example"]')
         bound = registry.resolve(csr="dummy-csr")
@@ -339,7 +339,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         "acme2certifier.acme_srv.helper.csr_san_get",
         return_value=["dns:internal.example"],
     )
-    def test_013_resolve_domain_routing_wildcard_skips_apex(self, _mock_san, _mock_cn):
+    def test_014_resolve_domain_routing_wildcard_skips_apex(self, _mock_san, _mock_cn):
         """wildcard route_domainlist does not match the apex name"""
         registry = self._routing_registry('["*.internal.example"]')
         bound = registry.resolve(csr="dummy-csr")
@@ -354,7 +354,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         "acme2certifier.acme_srv.helper.csr_san_get",
         return_value=["dns:foointernal.example"],
     )
-    def test_014_resolve_domain_routing_wildcard_requires_dot(
+    def test_015_resolve_domain_routing_wildcard_requires_dot(
         self, _mock_san, _mock_cn
     ):
         """wildcard route_domainlist requires a dotted label boundary"""
@@ -371,7 +371,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         "acme2certifier.acme_srv.helper.csr_san_get",
         return_value=["dns:other.example.com"],
     )
-    def test_015_resolve_domain_routing_all_identifiers_must_match(
+    def test_016_resolve_domain_routing_all_identifiers_must_match(
         self, _mock_san, _mock_cn
     ):
         """all CSR identifiers must match the route list"""
@@ -388,7 +388,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         "acme2certifier.acme_srv.helper.csr_san_get",
         return_value=["dns:host.internal.example"],
     )
-    def test_016_resolve_domain_routing_regex_pattern_is_literal(
+    def test_017_resolve_domain_routing_regex_pattern_is_literal(
         self, _mock_san, _mock_cn
     ):
         """regex-like route_domainlist entries are treated as literals"""
@@ -397,7 +397,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         self.assertIsNotNone(bound)
         self.assertEqual(bound.name, "openssl")
 
-    def test_017_cahandler_lookup_from_csr(self):
+    def test_018_cahandler_lookup_from_csr(self):
         """cahandler_lookup returns the stored handler name for a CSR"""
         from acme2certifier.acme_srv.helpers.config import cahandler_lookup
 
@@ -409,7 +409,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         with patch.dict(sys.modules, modules):
             self.assertEqual(cahandler_lookup(self.logger, csr="test-csr"), "ejbca")
 
-    def test_018_cahandler_lookup_recodes_cert_raw(self):
+    def test_019_cahandler_lookup_recodes_cert_raw(self):
         """cahandler_lookup recodes cert_raw before searching"""
         from acme2certifier.acme_srv.helpers.config import cahandler_lookup
 
@@ -425,14 +425,14 @@ class TestCAHandlerRegistry(unittest.TestCase):
         self.assertEqual(search.call_args[0][0], "cert_raw")
         self.assertEqual(search.call_args[0][1], "abc+def/ghi=")
 
-    def test_019_bound_instance_getattr_and_handler_cls_getattr(self):
+    def test_020_bound_instance_getattr_and_handler_cls_getattr(self):
         """wrapper and factory forward unknown attributes to the handler"""
         bound = self.BoundCAHandler(_DummyHandler, "CAhandler", "default")
         self.assertEqual(bound.config_section, "CAhandler")
         wrapper = bound(False, self.logger)
         self.assertFalse(wrapper.debug)
 
-    def test_020_load_none_config_dic_uses_load_config(self):
+    def test_021_load_none_config_dic_uses_load_config(self):
         """load() without config_dic reads via load_config()"""
         config = self._cfg(
             {
@@ -456,7 +456,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         self.assertFalse(registry.multi_handler)
         self.assertIsNotNone(registry.default_handler())
 
-    def test_021_load_missing_cahandler_section(self):
+    def test_022_load_missing_cahandler_section(self):
         """missing [CAhandler] sets startup_error"""
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             registry = self.CAHandlerRegistry(self.logger).load(
@@ -470,7 +470,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             lcm.output,
         )
 
-    def test_022_multi_handler_parse_invalid_boolean(self):
+    def test_023_multi_handler_parse_invalid_boolean(self):
         """invalid multi_handler values fall back to classical mode"""
         module = SimpleNamespace(CAhandler=_DummyHandler)
         config = self._cfg({"CAhandler": {"multi_handler": "not-a-bool"}})
@@ -485,7 +485,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             any("Failed to parse multi_handler" in msg for msg in lcm.output)
         )
 
-    def test_023_classical_load_no_handler(self):
+    def test_024_classical_load_no_handler(self):
         """classical mode without a loadable handler leaves no bound default"""
         config = self._cfg({"CAhandler": {"foo": "bar"}})
         with patch(
@@ -496,7 +496,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         self.assertIsNone(registry.default_handler())
         self.assertEqual(registry.all_handlers(), [])
 
-    def test_024_multi_load_missing_default_handler(self):
+    def test_025_multi_load_missing_default_handler(self):
         """multi_handler without default_handler sets startup_error"""
         config = self._cfg({"CAhandler": {"multi_handler": "True"}})
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
@@ -509,7 +509,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             any("no default_handler configured" in msg for msg in lcm.output)
         )
 
-    def test_025_legacy_handler_keys_warn(self):
+    def test_026_legacy_handler_keys_warn(self):
         """handler_module on [CAhandler] is ignored in multi-handler mode"""
         config = self._cfg(
             {
@@ -537,7 +537,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             )
         )
 
-    def test_026_profile_cahandler_parse_error(self):
+    def test_027_profile_cahandler_parse_error(self):
         """invalid profile_cahandler JSON is ignored"""
         config = self._cfg(
             {
@@ -563,7 +563,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             any("Failed to parse profile_cahandler" in msg for msg in lcm.output)
         )
 
-    def test_027_named_handler_load_failure(self):
+    def test_028_named_handler_load_failure(self):
         """failed [CAhandler:name] loads are skipped"""
         config = self._cfg(
             {
@@ -593,7 +593,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             registry.startup_error, "default_handler 'openssl' is not registered"
         )
 
-    def test_028_route_domainlist_invalid(self):
+    def test_029_route_domainlist_invalid(self):
         """invalid or non-list route_domainlist values become empty lists"""
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             registry = self._routing_registry("not-json")
@@ -604,7 +604,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         registry = self._routing_registry('{"a": 1}')
         self.assertEqual(registry.handlers["internal"]["route_domainlist"], [])
 
-    def test_029_resolve_stored_name_unregistered_falls_through(self):
+    def test_030_resolve_stored_name_unregistered_falls_through(self):
         """unknown stored names are re-resolved via the default handler"""
         registry = self._multi_registry()
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
@@ -618,7 +618,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             )
         )
 
-    def test_030_resolve_profile_unknown_handler(self):
+    def test_031_resolve_profile_unknown_handler(self):
         """profile_cahandler mapping to an unknown handler returns None"""
         registry = self._multi_registry()
         registry.profile_cahandler = {"long": "ghost"}
@@ -631,7 +631,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             )
         )
 
-    def test_031_resolve_no_handler_matched(self):
+    def test_032_resolve_no_handler_matched(self):
         """resolve() returns None when default_handler is also unregistered"""
         registry = self._multi_registry()
         registry.default_name = "gone"
@@ -647,7 +647,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         "acme2certifier.acme_srv.helper.csr_san_get",
         return_value=["not-a-san", "dns:host.internal.example"],
     )
-    def test_032_resolve_by_csr_skips_malformed_san(self, _mock_san, _mock_cn):
+    def test_033_resolve_by_csr_skips_malformed_san(self, _mock_san, _mock_cn):
         """SANs without a type prefix are skipped during domain routing"""
         registry = self._routing_registry('["*.internal.example"]')
         bound = registry.resolve(csr="dummy-csr")
@@ -656,7 +656,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helper.csr_cn_get", return_value=None)
     @patch("acme2certifier.acme_srv.helper.csr_san_get", return_value=[])
-    def test_033_resolve_by_csr_no_identifiers(self, _mock_san, _mock_cn):
+    def test_034_resolve_by_csr_no_identifiers(self, _mock_san, _mock_cn):
         """CSR with no identifiers falls back to the default handler"""
         registry = self._routing_registry('["*.internal.example"]')
         bound = registry.resolve(csr="dummy-csr")
@@ -667,7 +667,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         "acme2certifier.acme_srv.helper.csr_cn_get",
         side_effect=Exception("parse fail"),
     )
-    def test_034_resolve_by_csr_parse_error(self, _mock_cn):
+    def test_035_resolve_by_csr_parse_error(self, _mock_cn):
         """CSR parse failures fall back to the default handler"""
         registry = self._routing_registry('["*.internal.example"]')
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
@@ -684,7 +684,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
         "acme2certifier.acme_srv.helper.csr_san_get",
         return_value=["dns:host.internal.example"],
     )
-    def test_035_resolve_by_csr_multiple_matches(self, _mock_san, _mock_cn):
+    def test_036_resolve_by_csr_multiple_matches(self, _mock_san, _mock_cn):
         """multiple matching route lists warn and pick the first match"""
         config = self._cfg(
             {
@@ -721,7 +721,7 @@ class TestCAHandlerRegistry(unittest.TestCase):
             )
         )
 
-    def test_036_default_all_and_referenced_handlers(self):
+    def test_037_default_all_and_referenced_handlers(self):
         """default_handler, all_handlers, and referenced_handlers cover both modes"""
         classical = self.CAHandlerRegistry(self.logger)
         classical._single_bound = self.BoundCAHandler(

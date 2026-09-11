@@ -166,9 +166,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._config_hostname_load() ended")
 
     def _config_url_load(self, config_dic: Dict[str, str]):
-        self.url = config_option_load(
-            self.logger, config_dic, "url", current=self.url
-        )
+        self.url = config_option_load(self.logger, config_dic, "url", current=self.url)
 
         self._enrollment_url_https_check()
         self.logger.debug("CAhandler._config_url_load() ended")

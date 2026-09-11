@@ -43,9 +43,7 @@ def _patch_psql(text: str, ca_runtime_path: str) -> str:
     if needle in text:
         return text.replace(needle, needle + options, 1)
     if '"PORT": "",' in text:
-        return text.replace(
-            '"PORT": "",', '"PORT": "",\n' + options.rstrip("\n"), 1
-        )
+        return text.replace('"PORT": "",', '"PORT": "",\n' + options.rstrip("\n"), 1)
     raise SystemExit("PostgreSQL settings: expected PORT key to inject OPTIONS")
 
 

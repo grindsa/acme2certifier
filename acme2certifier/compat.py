@@ -36,8 +36,9 @@ def warn_default_ca_handler(logger: logging.Logger, *, stacklevel: int = 3) -> N
     warn_once(
         "default:acme_srv.ca_handler",
         (
-            "Loading default CA handler via 'acme_srv.ca_handler' is deprecated; "
-            "set handler_module (e.g. acme2certifier.cahandlers.openssl_ca_handler). "
+            "Loading default CA handler via 'acme_srv.ca_handler' is deprecated. "
+            "Configure the handler in acme_srv.cfg using handler_module "
+            "or handler_file."
             f"This fallback will be removed in acme2certifier {REMOVAL_VERSION}."
         ),
         logger=logger,

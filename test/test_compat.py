@@ -43,7 +43,11 @@ class TestCompatDeprecation(unittest.TestCase):
                 compat.warn_default_ca_handler(logger)
         self.assertEqual(len(caught), 1)
         self.assertIn("acme_srv.ca_handler", str(caught[0].message))
+        self.assertIn("acme_srv.cfg", str(caught[0].message))
+        self.assertIn("handler_module", str(caught[0].message))
+        self.assertIn("handler_file", str(caught[0].message))
         self.assertTrue(any("acme_srv.ca_handler" in line for line in lcm.output))
+        self.assertTrue(any("acme_srv.cfg" in line for line in lcm.output))
 
 
 class TestPluginLoaderFileDeprecated(unittest.TestCase):

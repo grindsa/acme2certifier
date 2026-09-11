@@ -351,9 +351,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_userauth_load(parser)
-        self.assertIn(
-            "INFO:test_a2c:Overwrite est_user", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite est_user", lcm.output)
         self.assertEqual("est_user", self.cahandler.est_user)
 
     def test_022_config_password_load(self):

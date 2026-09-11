@@ -27,7 +27,7 @@ class TestXcaSqliteDump(unittest.TestCase):
         self.assertIn("SET SESSION SQL_MODE='ANSI';", sql)
         self.assertNotIn("unistr(", sql)
         self.assertNotIn("char(10)", sql.lower())
-        self.assertIn("INSERT INTO \"items\"", sql)
+        self.assertIn('INSERT INTO "items"', sql)
         self.assertIn("wurde neu erstellt", sql)
         self.assertIn("\n", sql)
 
@@ -56,9 +56,7 @@ class TestXcaSqliteDump(unittest.TestCase):
         buf = io.StringIO()
         dump_xca_sqlite(_xdb_path(), "postgresql", buf)
         sql = buf.getvalue()
-        self.assertIn(
-            'INSERT INTO "private_keys" ("item", "ownpass", "private")', sql
-        )
+        self.assertIn('INSERT INTO "private_keys" ("item", "ownpass", "private")', sql)
         self.assertNotIn('"ownPass"', sql)
         self.assertIn('INSERT INTO "revocations" ("caid"', sql)
         self.assertNotIn('"caId"', sql)

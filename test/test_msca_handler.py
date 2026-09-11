@@ -1125,10 +1125,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_kerberos_parameters_load(parser)
         self.assertIsNone(self.cahandler.krb5_principal)
         self.assertTrue(
-            any(
-                "Could not load krb5_principal_variable" in msg
-                for msg in lcm.output
-            )
+            any("Could not load krb5_principal_variable" in msg for msg in lcm.output)
         )
 
     def test_076_config_kerberos_parameters_load_missing_section(self):

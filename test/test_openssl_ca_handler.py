@@ -37,6 +37,14 @@ class TestACMEHandler(unittest.TestCase):
         self.logger = logging.getLogger("test_a2c")
         self.cahandler = CAhandler(False, self.logger)
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
+        self._saved_base_dir = os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
+
+    def tearDown(self):
+        """restore ACME2CERTIFIER_BASE_DIR for other tests/process env"""
+        if self._saved_base_dir is not None:
+            os.environ["ACME2CERTIFIER_BASE_DIR"] = self._saved_base_dir
+        else:
+            os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
     def test_001_default(self):
         """default test which always passes"""
