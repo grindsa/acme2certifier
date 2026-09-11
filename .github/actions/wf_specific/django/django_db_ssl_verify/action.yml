@@ -1,0 +1,92 @@
+name: "django_db_ssl_verify"
+description: "Assert Django's live DATABASES session is TLS-encrypted"
+inputs:
+  CONTAINER:
+    description: "acme2certifier container name"
+    required: false
+    default: "acme-srv"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Verify Django DB session is TLS"
+      run: |
+        set -euo pipefail
+        CONTAINER="${{ inputs.CONTAINER }}"
+        docker cp "${GITHUB_WORKSPACE}/.github/scripts/django_db_ssl_verify.py" \
+          "${CONTAINER}:/tmp/django_db_ssl_verify.py"
+        docker exec "$CONTAINER" bash -c '
+          set -euo pipefail
+          APP_ROOT=""
+          for cand in /opt/acme2certifier /var/www/acme2certifier; do
+            if [[ -d "$cand/acme2certifier/django_project" ]]; then
+              APP_ROOT="$cand"
+              break
+            fi
+          done
+          if [[ -n "$APP_ROOT" ]]; then
+            export PYTHONPATH="${APP_ROOT}${PYTHONPATH:+:$PYTHONPATH}"
+            export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
+            cd "$APP_ROOT"
+          fi
+          py=""
+          if command -v a2c-manage >/dev/null 2>&1; then
+            shebang=$(head -n1 "$(command -v a2c-manage)")
+            case "$shebang" in
+              "#!"*)
+                rest=${shebang:2}
+                set -- $rest
+                if [[ "${1##*/}" == "env" ]]; then
+                  interp=$2
+                else
+                  interp=$1
+                fi
+                if command -v "$interp" >/dev/null 2>&1; then
+                  interp=$(command -v "$interp")
+                fi
+                if [[ -x "$interp" ]] && "$interp" -c "import django, acme2certifier.django_project" >/dev/null 2>&1; then
+                  py="$interp"
+                fi
+                ;;
+            esac
+          fi
+          if [[ -z "$py" ]]; then
+            for cand in python3 python3.9 python3.11 python3.12 \
+              /usr/bin/python3 /usr/bin/python3.9 \
+              /opt/acme2certifier/venv/bin/python3 \
+              /var/www/acme2certifier/venv/bin/python3; do
+              if command -v "$cand" >/dev/null 2>&1; then
+                cand=$(command -v "$cand")
+              fi
+              if [[ -x "$cand" ]] && "$cand" -c "import django, acme2certifier.django_project" >/dev/null 2>&1; then
+                py="$cand"
+                break
+              fi
+            done
+          fi
+          if [[ -z "$py" ]]; then
+            echo "ERROR: no Python interpreter with django + acme2certifier.django_project found" >&2
+            exit 1
+          fi
+          echo "Using $py for Django TLS session check"
+          app_user=""
+          for u in www-data nginx apache; do
+            if getent passwd "$u" >/dev/null 2>&1; then
+              app_user=$u
+              break
+            fi
+          done
+          for key in /opt/acme2certifier/volume/db-client-key.pem \
+            /var/www/acme2certifier/volume/db-client-key.pem; do
+            if [[ -f "$key" ]]; then
+              chmod 600 "$key"
+              if [[ -n "$app_user" ]]; then
+                chown "$app_user:$app_user" "$key"
+              fi
+              echo "PostgreSQL client key $key mode=$(stat -c %a:%U:%G "$key")"
+              break
+            fi
+          done
+          "$py" /tmp/django_db_ssl_verify.py
+        '
+      shell: bash

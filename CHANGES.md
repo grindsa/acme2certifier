@@ -11,6 +11,11 @@ and pick the appropriate release branch.
 **New Features**:
 
 - Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377)); per-account overrides via EAB profile `challenge` section
+- [HARICA CertManager](docs/harica.md) REST CA handler (`harica_ca_handler`) for SSL enrollment against prevalidated domains (login/2FA, poll, optional `auto_approve`, revoke); credentials via `requester_*` / `approver_*` or matching `*_variable` environment variable names
+- [`a2c-harica-totp`](docs/harica.md) CLI to print the current CertManager TOTP code from configured seeds (portal login / troubleshooting)
+- [XCA CA handler](docs/xca.md) can use the same MySQL/MariaDB or PostgreSQL database as the XCA GUI (`xdb_engine`, `xdb_host` / `xdb_name` / `xdb_user` / `xdb_password`, optional table prefix and TLS); SQLite `.xdb` remains the default ([#386](https://github.com/grindsa/acme2certifier/issues/386))
+
+## Changes in 0.45.3
 
 **Bug Fixes and Improvements**:
 
