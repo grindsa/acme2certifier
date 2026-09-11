@@ -106,6 +106,18 @@ def dict_from_row(row: Optional[Any]) -> Dict[str, Any]:
     return {str(key).lower(): value for key, value in zip(row.keys(), tuple(row))}
 
 
+def sql_match(column: str, value: Any) -> str:
+    """Build a WHERE comparison for *column* and bound *value*.
+
+    SQLite and MySQL coerce integers through LIKE. PostgreSQL does not
+    (``operator does not exist: integer ~~ integer``). Use ``=`` for
+    numbers and keep LIKE for text lookups.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return f"{column} LIKE ?"
+    return f"{column} = ?"
+
+
 class _XcaCursor:
     """Cursor proxy that applies table-prefix and placeholder conversion."""
 
@@ -536,7 +548,9 @@ class CAhandler:
 
         # query database for key
         self._db_open()
-        pre_statement = f"""SELECT * from items WHERE type = 3 and {column} LIKE ?"""
+        pre_statement = (
+            f"""SELECT * from items WHERE type = 3 and {sql_match(column, value)}"""
+        )
         self.cursor.execute(pre_statement, [value])
 
         cert_result = {}
@@ -549,7 +563,7 @@ class CAhandler:
 
         if item_result:
             item_id = item_result["id"]
-            pre_statement = """SELECT * from certs WHERE item LIKE ?"""
+            pre_statement = f"""SELECT * from certs WHERE {sql_match("item", item_id)}"""
             self.cursor.execute(pre_statement, [item_id])
             cert_row = self.cursor.fetchone()
             try:
@@ -905,7 +919,9 @@ class CAhandler:
 
         # query database for key
         self._db_open()
-        pre_statement = f"""SELECT * from view_requests WHERE {column} LIKE ?"""
+        pre_statement = (
+            f"""SELECT * from view_requests WHERE {sql_match(column, value)}"""
+        )
         self.cursor.execute(pre_statement, [value])
 
         row = self.cursor.fetchone()
@@ -1434,7 +1450,9 @@ class CAhandler:
             return {}
         # query database for key
         self._db_open()
-        pre_statement = f"""SELECT * from revocations WHERE {column} LIKE ?"""
+        pre_statement = (
+            f"""SELECT * from revocations WHERE {sql_match(column, value)}"""
+        )
         self.cursor.execute(pre_statement, [value])
 
         row = self.cursor.fetchone()

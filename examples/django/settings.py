@@ -72,6 +72,9 @@ DATABASES = {
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
             "charset": "utf8mb4",
             "use_unicode": True,
+            # TLS: place the DB server CA on the volume and uncomment.
+            # "ssl": {"ca": "/var/www/acme2certifier/volume/db-ca.pem"},
+            # Optional hostname check (mysqlclient): "ssl_mode": "VERIFY_IDENTITY",
         },
     },
 }
