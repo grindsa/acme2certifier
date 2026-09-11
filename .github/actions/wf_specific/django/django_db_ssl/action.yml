@@ -45,6 +45,25 @@ runs:
         sudo mkdir -p "$VOLUME_DIR"
         sudo cp "$SSL_CA" "$VOLUME_DIR/db-ca.pem"
         sudo chmod 644 "$VOLUME_DIR/db-ca.pem"
+        if [ "$DJANGO_DB" = "psql" ]; then
+          # libpq probes $HOME/.postgresql/postgresql.crt unless sslcert/sslkey are
+          # set. After uWSGI setuid that path is /root/... (EACCES). Point both at
+          # readable volume files instead of changing HOME.
+          SSL_DIR=$(dirname "$SSL_CA")
+          test -f "$SSL_DIR/ca-key.pem"
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout /tmp/a2c-db-client-key.pem \
+            -out /tmp/a2c-db-client.csr \
+            -subj "/CN=a2c-django-db-client"
+          openssl x509 -req -in /tmp/a2c-db-client.csr \
+            -CA "$SSL_CA" -CAkey "$SSL_DIR/ca-key.pem" -CAcreateserial \
+            -out /tmp/a2c-db-client-cert.pem -days 30 -sha256
+          sudo cp /tmp/a2c-db-client-cert.pem "$VOLUME_DIR/db-client-cert.pem"
+          sudo cp /tmp/a2c-db-client-key.pem "$VOLUME_DIR/db-client-key.pem"
+          sudo chmod 644 "$VOLUME_DIR/db-client-cert.pem"
+          # libpq refuses a client key with group/world access (644).
+          sudo chmod 600 "$VOLUME_DIR/db-client-key.pem"
+        fi
         # Files were staged with sudo; patch as root.
         # shellcheck disable=SC2086
         sudo python3 "${GITHUB_WORKSPACE}/.github/scripts/patch_django_db_ssl.py" \

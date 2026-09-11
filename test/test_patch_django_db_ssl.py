@@ -38,10 +38,12 @@ def test_patch_psql_injects_sslmode(tmp_path: Path) -> None:
     text = dest.read_text(encoding="utf-8")
     assert '"sslmode": "verify-ca"' in text
     assert f'"sslrootcert": "{_CA}"' in text
+    assert '"sslcert": "/var/www/acme2certifier/volume/db-client-cert.pem"' in text
+    assert '"sslkey": "/var/www/acme2certifier/volume/db-client-key.pem"' in text
+    assert "HOME" not in text
     patch_file(dest, "psql", _CA)
-    assert text.count("sslrootcert") == dest.read_text(encoding="utf-8").count(
-        "sslrootcert"
-    )
+    twice = dest.read_text(encoding="utf-8")
+    assert twice.count("sslrootcert") == text.count("sslrootcert")
 
 
 def test_patch_rejects_unknown_engine(tmp_path: Path) -> None:
