@@ -5,6 +5,7 @@
 # pylint: disable=C0302, C0415, R0904, R0913, W0212
 import sys
 import os
+import re
 import unittest
 from unittest.mock import patch, Mock, MagicMock
 
@@ -3408,6 +3409,267 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(
             2066264345, self.cahandler._public_key_hash_get(ca_cert.public_key())
         )
+
+    def test_223_dict_from_row(self):
+        """dict_from_row normalizes None, dict, and sqlite rows"""
+        from acme2certifier.cahandlers.xca_ca_handler import dict_from_row
+
+        self.assertEqual({}, dict_from_row(None))
+        self.assertEqual(
+            {"id": 1, "name": "ca"}, dict_from_row({"ID": 1, "Name": "ca"})
+        )
+        self.cahandler.xdb_file = self.dir_path + "/ca/acme2certifier.xdb"
+        self.cahandler._db_open()
+        try:
+            self.cahandler.cursor.execute(
+                "SELECT id, name FROM items WHERE id = ?", [1]
+            )
+            row = dict_from_row(self.cahandler.cursor.fetchone())
+        finally:
+            self.cahandler._db_close()
+        self.assertIn("id", row)
+        self.assertIn("name", row)
+
+    def test_224_xcadb_rewrite_prefix(self):
+        """XcaDb.rewrite_prefix matches XCA concatenation on tables and views"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        db = XcaDb()
+        db.configure(table_prefix="pki_")
+        sql = db.rewrite_prefix(
+            "SELECT * FROM view_certs JOIN items ON items.id = view_certs.item"
+        )
+        self.assertIn("pki_view_certs", sql)
+        self.assertIn("pki_items", sql)
+        self.assertIsNone(re.search(r"\bview_certs\b", sql))
+        self.assertIsNone(re.search(r"\bitems\b", sql))
+        db.configure(table_prefix="")
+        sql = db.rewrite_prefix("SELECT * FROM items")
+        self.assertEqual("SELECT * FROM items", sql)
+
+    def test_225_xcadb_convert_sql_sqlite(self):
+        """sqlite keeps ? placeholders and does not rewrite tables"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        db = XcaDb()
+        sql, params = db.convert_sql("SELECT * FROM items WHERE name LIKE ?", ["a"])
+        self.assertEqual("SELECT * FROM items WHERE name LIKE ?", sql)
+        self.assertEqual(["a"], params)
+
+    def test_226_xcadb_convert_sql_mysql(self):
+        """mysql converts ? to %s and applies the table prefix"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        db = XcaDb()
+        db.configure(engine="mysql", table_prefix="xca")
+        sql, params = db.convert_sql(
+            "SELECT * FROM view_certs WHERE name LIKE ?", ["a"]
+        )
+        self.assertEqual("SELECT * FROM xcaview_certs WHERE name LIKE %s", sql)
+        self.assertEqual(["a"], params)
+
+    def test_227_xcadb_convert_sql_named(self):
+        """postgres converts :name placeholders to pyformat"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        db = XcaDb()
+        db.configure(engine="postgresql")
+        sql, params = db.convert_sql(
+            "INSERT INTO items(id, name) VALUES(:id, :name)",
+            {"id": 1, "name": "ca"},
+        )
+        self.assertEqual("INSERT INTO items(id, name) VALUES(%(id)s, %(name)s)", sql)
+        self.assertEqual({"id": 1, "name": "ca"}, params)
+
+    def test_228_xcadb_catalog_and_physical_name(self):
+        """catalog SQL and prefixed physical names per engine"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        db = XcaDb()
+        self.assertIn("sqlite_master", db.catalog_sql())
+        self.assertEqual("items", db.physical_name("items"))
+        db.configure(engine="mysql", table_prefix="pki_")
+        self.assertIn("information_schema.tables", db.catalog_sql())
+        self.assertIn("DATABASE()", db.catalog_sql())
+        self.assertEqual("pki_items", db.physical_name("items"))
+        db.configure(engine="postgresql", table_prefix="pki_")
+        self.assertIn("current_schema()", db.catalog_sql())
+        db.configure(engine="unknown")
+        self.assertIn("sqlite_master", db.catalog_sql())
+
+    def test_229_config_check_unsupported_engine(self):
+        """_config_check rejects unknown xdb_engine values"""
+        self.cahandler.xdb_engine = "mssql"
+        self.assertEqual("unsupported xdb_engine mssql", self.cahandler._config_check())
+
+    def test_230_config_check_remote_missing_host(self):
+        """remote engine requires host, name and user"""
+        self.cahandler.xdb_engine = "mysql"
+        self.cahandler.xdb_password = "secret"
+        self.assertEqual(
+            "xdb_host, xdb_name and xdb_user must be specified in config file",
+            self.cahandler._config_check(),
+        )
+
+    def test_231_config_check_remote_missing_password(self):
+        """remote engine requires xdb_password"""
+        self.cahandler.xdb_engine = "postgresql"
+        self.cahandler.xdb_host = "db.example"
+        self.cahandler.xdb_name = "xca"
+        self.cahandler.xdb_user = "xca"
+        self.assertEqual(
+            "xdb_password must be specified in config file",
+            self.cahandler._config_check(),
+        )
+
+    def test_232_config_check_remote_ok(self):
+        """remote mysql config is valid without xdb_file"""
+        self.cahandler.xdb_engine = "mysql"
+        self.cahandler.xdb_host = "db.example"
+        self.cahandler.xdb_name = "xca"
+        self.cahandler.xdb_user = "xca"
+        self.cahandler.xdb_password = "secret"
+        self.cahandler.issuing_ca_name = "sub-ca"
+        self.assertFalse(self.cahandler._config_check())
+
+    def test_233_config_check_mariadb_alias(self):
+        """mariadb is accepted as mysql"""
+        self.cahandler.xdb_engine = "mariadb"
+        self.cahandler.xdb_host = "db.example"
+        self.cahandler.xdb_name = "xca"
+        self.cahandler.xdb_user = "xca"
+        self.cahandler.xdb_password = "secret"
+        self.cahandler.issuing_ca_name = "sub-ca"
+        self.assertFalse(self.cahandler._config_check())
+        self.assertEqual("mysql", self.cahandler._xdb_engine_normalized())
+
+    def test_234_config_check_mutual_exclusive(self):
+        """xdb_file cannot be combined with a remote engine"""
+        self.cahandler.xdb_engine = "postgresql"
+        self.cahandler.xdb_file = "/tmp/foo.xdb"
+        self.cahandler.xdb_host = "db.example"
+        self.cahandler.xdb_name = "xca"
+        self.cahandler.xdb_user = "xca"
+        self.cahandler.xdb_password = "secret"
+        self.assertEqual(
+            "xdb_file and remote xdb_engine are mutually exclusive",
+            self.cahandler._config_check(),
+        )
+
+    @patch.dict("os.environ", {"XCA_DB_PASSWORD": "dbpass"})
+    @patch("acme2certifier.cahandlers.xca_ca_handler.load_config")
+    def test_235_config_load_remote(self, mock_load_cfg):
+        """_config_load maps remote keys and xdb_password_variable"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "xdb_engine": "MariaDB",
+            "xdb_host": "10.1.0.1",
+            "xdb_port": "3306",
+            "xdb_name": "xca",
+            "xdb_user": "xca",
+            "xdb_password_variable": "XCA_DB_PASSWORD",
+            "xdb_table_prefix": "pki1",
+            "xdb_ssl_ca": "/etc/ssl/ca.pem",
+            "xdb_ssl_mode": "verify-ca",
+            "issuing_ca_name": "sub-ca",
+        }
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual("mysql", self.cahandler.xdb_engine)
+        self.assertEqual("10.1.0.1", self.cahandler.xdb_host)
+        self.assertEqual(3306, self.cahandler.xdb_port)
+        self.assertEqual("xca", self.cahandler.xdb_name)
+        self.assertEqual("xca", self.cahandler.xdb_user)
+        self.assertEqual("dbpass", self.cahandler.xdb_password)
+        self.assertEqual("pki1", self.cahandler.xdb_table_prefix)
+        self.assertEqual("/etc/ssl/ca.pem", self.cahandler.xdb_ssl_ca)
+        self.assertEqual("verify-ca", self.cahandler.xdb_ssl_mode)
+        self.assertEqual("mysql", self.cahandler.xca_db.engine)
+        self.assertEqual("pki1", self.cahandler.xca_db.table_prefix)
+        self.assertEqual("dbpass", self.cahandler.xca_db.password)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.load_config")
+    def test_236_config_load_postgres_alias(self, mock_load_cfg):
+        """postgres and pgsql aliases map to postgresql"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"xdb_engine": "postgres"}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual("postgresql", self.cahandler.xdb_engine)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._config_load")
+    def test_237_enter_remote_skips_config_load(self, mock_cfg):
+        """__enter__ treats remote host/name/user as configured"""
+        self.cahandler.xdb_engine = "mysql"
+        self.cahandler.xdb_host = "db.example"
+        self.cahandler.xdb_name = "xca"
+        self.cahandler.xdb_user = "xca"
+        self.cahandler.__enter__()
+        self.assertFalse(mock_cfg.called)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._ca_key_load")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    def test_238_db_check_remote(self, mock_open, mock_close, mock_load):
+        """remote _db_check connects with SELECT 1 and skips file perms"""
+        self.cahandler.xdb_engine = "mysql"
+        self.cahandler.cursor = Mock()
+        mock_load.return_value = "ca_key"
+        self.assertEqual(None, self.cahandler._db_check())
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+        self.cahandler.cursor.execute.assert_called_with("SELECT 1")
+        self.assertTrue(mock_load.called)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._ca_key_load")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    def test_239_db_check_remote_connect_failed(self, mock_open, mock_close, mock_load):
+        """remote _db_check surfaces connection errors"""
+        self.cahandler.xdb_engine = "postgresql"
+        mock_open.side_effect = Exception("refused")
+        self.assertEqual(
+            "database connection failed: refused", self.cahandler._db_check()
+        )
+        self.assertFalse(mock_load.called)
+        self.assertFalse(mock_close.called)
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_close")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._db_open")
+    def test_240_table_check_prefix(self, mock_open, mock_close):
+        """_table_check matches catalog names including the XCA prefix"""
+        self.cahandler.xca_db.configure(engine="mysql", table_prefix="pki_")
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.fetchall.return_value = [{"name": "pki_requests"}]
+        self.assertTrue(self.cahandler._table_check("requests"))
+        self.assertFalse(self.cahandler._table_check("certs"))
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+
+    def test_241_inserted_row_id(self):
+        """_inserted_row_id falls back to rowcount when lastrowid is 0"""
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.lastrowid = 0
+        self.cahandler.cursor.rowcount = 1
+        self.assertEqual(1, self.cahandler._inserted_row_id())
+        self.cahandler.cursor.lastrowid = 15
+        self.assertEqual(15, self.cahandler._inserted_row_id())
+        self.cahandler.cursor.lastrowid = 0
+        self.cahandler.cursor.rowcount = 0
+        self.assertIsNone(self.cahandler._inserted_row_id())
+
+    def test_242_db_configured(self):
+        """_db_configured is true for sqlite file or complete remote settings"""
+        self.assertFalse(self.cahandler._db_configured())
+        self.cahandler.xdb_file = "/tmp/foo.xdb"
+        self.assertTrue(self.cahandler._db_configured())
+        self.cahandler.xdb_file = None
+        self.cahandler.xdb_engine = "mysql"
+        self.assertFalse(self.cahandler._db_configured())
+        self.cahandler.xdb_host = "db.example"
+        self.cahandler.xdb_name = "xca"
+        self.cahandler.xdb_user = "xca"
+        self.assertTrue(self.cahandler._db_configured())
 
 
 if __name__ == "__main__":

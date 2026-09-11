@@ -5,6 +5,7 @@
 import hashlib
 import logging
 import os
+import re
 import sqlite3
 import uuid
 import json
@@ -54,13 +55,242 @@ from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR
 # Define constants
 DEFAULT_DATE_FORMAT = "%Y%m%d%H%M%SZ"
 COLUMN_NOT_IN_TABLE_MSG = "column: %s not in %s table"
+XDB_ENGINE_MAP = {
+    "sqlite": "sqlite",
+    "mysql": "mysql",
+    "mariadb": "mysql",
+    "postgresql": "postgresql",
+    "postgres": "postgresql",
+    "pgsql": "postgresql",
+}
+XCA_RELATIONS = (
+    "settings",
+    "items",
+    "public_keys",
+    "private_keys",
+    "tokens",
+    "token_mechanism",
+    "x509super",
+    "requests",
+    "certs",
+    "authority",
+    "crls",
+    "revocations",
+    "templates",
+    "takeys",
+    "view_public_keys",
+    "view_certs",
+    "view_requests",
+    "view_crls",
+    "view_templates",
+    "view_private",
+)
+_XCA_PREFIX_RE = re.compile(
+    r"\b("
+    + "|".join(
+        re.escape(name)
+        for name in list(XCA_RELATIONS) + [f"i_{name}" for name in XCA_RELATIONS]
+    )
+    + r")\b",
+    re.IGNORECASE,
+)
+_NAMED_PARAM_RE = re.compile(r":([A-Za-z_][A-Za-z0-9_]*)")
 
 
 def dict_from_row(row: Optional[Any]) -> Dict[str, Any]:
     """small helper to convert the output of a "select" command into a dictionary"""
     if row is None:
         return {}
-    return dict(zip(row.keys(), tuple(row)))
+    if isinstance(row, dict):
+        return {str(key).lower(): value for key, value in row.items()}
+    return {str(key).lower(): value for key, value in zip(row.keys(), tuple(row))}
+
+
+class _XcaCursor:
+    """Cursor proxy that applies table-prefix and placeholder conversion."""
+
+    def __init__(self, cursor: Any, convert_sql) -> None:
+        self._cursor = cursor
+        self._convert_sql = convert_sql
+
+    def execute(self, sql: str, params: Any = None):
+        sql, params = self._convert_sql(sql, params)
+        if params is None:
+            return self._cursor.execute(sql)
+        return self._cursor.execute(sql, params)
+
+    def fetchone(self):
+        return self._cursor.fetchone()
+
+    def fetchall(self):
+        return self._cursor.fetchall()
+
+    @property
+    def lastrowid(self):
+        return self._cursor.lastrowid
+
+    @property
+    def rowcount(self):
+        return getattr(self._cursor, "rowcount", 0)
+
+    @property
+    def description(self):
+        return self._cursor.description
+
+
+class XcaDb:
+    """SQLite / MySQL / PostgreSQL adapter for the XCA schema."""
+
+    def __init__(self, logger: Optional[logging.Logger] = None) -> None:
+        self.logger = logger
+        self.engine = "sqlite"
+        self.xdb_file: Optional[str] = None
+        self.host: Optional[str] = None
+        self.port: Optional[int] = None
+        self.name: Optional[str] = None
+        self.user: Optional[str] = None
+        self.password: Optional[str] = None
+        self.table_prefix = ""
+        self.ssl_ca: Optional[str] = None
+        self.ssl_mode: Optional[str] = None
+        self.connection = None
+
+    def configure(
+        self,
+        *,
+        engine: str = "sqlite",
+        xdb_file: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        name: Optional[str] = None,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+        table_prefix: Optional[str] = None,
+        ssl_ca: Optional[str] = None,
+        ssl_mode: Optional[str] = None,
+    ) -> None:
+        self.engine = engine or "sqlite"
+        self.xdb_file = xdb_file
+        self.host = host
+        self.port = port
+        self.name = name
+        self.user = user
+        self.password = password
+        self.table_prefix = table_prefix or ""
+        self.ssl_ca = ssl_ca
+        self.ssl_mode = ssl_mode
+
+    def is_remote(self) -> bool:
+        return self.engine in ("mysql", "postgresql")
+
+    def rewrite_prefix(self, sql: str) -> str:
+        """Prepend XCA table prefix like XSqlQuery::rewriteQuery."""
+        if not self.table_prefix:
+            return sql
+        return _XCA_PREFIX_RE.sub(
+            lambda match: f"{self.table_prefix}{match.group(1).lower()}", sql
+        )
+
+    def convert_sql(self, sql: str, params: Any = None) -> Tuple[str, Any]:
+        sql = self.rewrite_prefix(sql)
+        if self.engine == "sqlite":
+            return sql, params
+        if isinstance(params, dict):
+            return _NAMED_PARAM_RE.sub(r"%(\1)s", sql), params
+        return sql.replace("?", "%s"), params
+
+    def connect(self) -> Tuple[Any, _XcaCursor]:
+        """Connect to database"""
+        self.logger.debug("XcaDb.connect()")
+        if self.engine == "sqlite":
+            connection = sqlite3.connect(self.xdb_file)
+            connection.row_factory = sqlite3.Row
+            cursor = connection.cursor()
+        elif self.engine == "mysql":
+            connection, cursor = self._connect_mysql()
+        elif self.engine == "postgresql":
+            connection, cursor = self._connect_postgresql()
+        else:
+            raise ValueError(f"unsupported xdb_engine {self.engine}")
+        self.connection = connection
+        self.logger.debug("XcaDb.connect() ended")
+        return connection, _XcaCursor(cursor, self.convert_sql)
+
+    def _connect_mysql(self) -> Tuple[Any, Any]:
+        """Connect to MySQL/MariaDB database"""
+        self.logger.debug("XcaDb._connect_mysql()")
+        try:
+            import pymysql
+            import pymysql.cursors
+        except ImportError as err:
+            raise ImportError(
+                "PyMySQL is required for xdb_engine=mysql/mariadb"
+            ) from err
+        kwargs: Dict[str, Any] = {
+            "host": self.host,
+            "user": self.user,
+            "password": self.password,
+            "database": self.name,
+            "cursorclass": pymysql.cursors.DictCursor,
+        }
+        if self.port:
+            kwargs["port"] = self.port
+        if self.ssl_ca or self.ssl_mode:
+            ssl_dic: Dict[str, Any] = {}
+            if self.ssl_ca:
+                ssl_dic["ca"] = self.ssl_ca
+            if self.ssl_mode == "verify-full":
+                ssl_dic["check_hostname"] = True
+            kwargs["ssl"] = ssl_dic
+        connection = pymysql.connect(**kwargs)
+        cursor = connection.cursor()
+        cursor.execute("SET SESSION sql_mode = 'ANSI'")
+        self.logger.debug("XcaDb._connect_mysql() ended")
+        return connection, cursor
+
+    def _connect_postgresql(self) -> Tuple[Any, Any]:
+        """Connect to PostgreSQL database"""
+        self.logger.debug("XcaDb._connect_postgresql()")
+        try:
+            import psycopg2
+            import psycopg2.extras
+        except ImportError as err:
+            raise ImportError("psycopg2 is required for xdb_engine=postgresql") from err
+        kwargs: Dict[str, Any] = {
+            "host": self.host,
+            "user": self.user,
+            "password": self.password,
+            "dbname": self.name,
+            "cursor_factory": psycopg2.extras.RealDictCursor,
+        }
+        if self.port:
+            kwargs["port"] = self.port
+        if self.ssl_mode:
+            kwargs["sslmode"] = self.ssl_mode
+        if self.ssl_ca:
+            kwargs["sslrootcert"] = self.ssl_ca
+        connection = psycopg2.connect(**kwargs)
+        self.logger.debug("XcaDb._connect_postgresql() ended")
+        return connection, connection.cursor()
+
+    def catalog_sql(self) -> str:
+        if self.engine == "mysql":
+            self.logger.debug("XcaDb.catalog_sql() mysql")
+            return (
+                "SELECT table_name AS name FROM information_schema.tables "
+                "WHERE table_schema = DATABASE()"
+            )
+        if self.engine == "postgresql":
+            self.logger.debug("XcaDb.catalog_sql() postgresql")
+            return (
+                "SELECT table_name AS name FROM information_schema.tables "
+                "WHERE table_schema = current_schema()"
+            )
+        self.logger.debug("XcaDb.catalog_sql() sqlite")
+        return "SELECT name FROM sqlite_master WHERE type = 'table' or type = 'view'"
+
+    def physical_name(self, table: str) -> str:
+        return f"{self.table_prefix}{table}"
 
 
 class CAhandler:
@@ -86,17 +316,31 @@ class CAhandler:
         self.enrollment_config_log_skip_list: List[str] = []
         self.profiles: Dict[str, Any] = {}
         self.profile_mapping_field = "template_name"
+        self.xdb_engine = "sqlite"
+        self.xdb_host: Optional[str] = None
+        self.xdb_port: Optional[int] = None
+        self.xdb_name: Optional[str] = None
+        self.xdb_user: Optional[str] = None
+        self.xdb_password: Optional[str] = None
+        self.xdb_table_prefix = ""
+        self.xdb_ssl_ca: Optional[str] = None
+        self.xdb_ssl_mode: Optional[str] = None
         self.dbs = None
         self.cursor = None
+        self.xca_db = XcaDb(logger)
+        self._db_refcount = 0
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
-        if not self.xdb_file:
+        if not self._db_configured():
             self._config_load()
         return self
 
     def __exit__(self, *args):
         """close the connection at the end of the context"""
+        while self._db_refcount > 0:
+            self._db_close()
+        self._db_disconnect()
 
     def _asn1_stream_parse(self, asn1_stream: str = None) -> Dict[str, str]:
         """parse asn_string"""
@@ -262,10 +506,10 @@ class CAhandler:
                 ):
                     self._db_open()
                     self.cursor.execute(
-                        """INSERT INTO CERTS(item, serial, issuer, ca, cert, hash, iss_hash) VALUES(:item, :serial, :issuer, :ca, :cert, :hash, :iss_hash)""",
+                        """INSERT INTO certs(item, serial, issuer, ca, cert, hash, iss_hash) VALUES(:item, :serial, :issuer, :ca, :cert, :hash, :iss_hash)""",
                         cert_dic,
                     )
-                    row_id = self.cursor.lastrowid
+                    row_id = self._inserted_row_id()
                     self._db_close()
                 else:
                     self.logger.error(
@@ -292,7 +536,7 @@ class CAhandler:
 
         # query database for key
         self._db_open()
-        pre_statement = f"""SELECT * from items WHERE type == 3 and {column} LIKE ?"""
+        pre_statement = f"""SELECT * from items WHERE type = 3 and {column} LIKE ?"""
         self.cursor.execute(pre_statement, [value])
 
         cert_result = {}
@@ -348,7 +592,9 @@ class CAhandler:
         self.logger.debug("Certificate._cert_sign()")
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["dbs", "cursor"])
+            self.enrollment_config_log_skip_list.extend(
+                ["dbs", "cursor", "xdb_password", "xca_db"]
+            )
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )
@@ -444,7 +690,10 @@ class CAhandler:
         self._db_open()
         pre_statement = f"SELECT * from {table} LIMIT 0"
         self.cursor.execute(pre_statement)
-        result = [column[0] for column in self.cursor.description]
+        result = [
+            column[0].lower() if isinstance(column[0], str) else column[0]
+            for column in self.cursor.description
+        ]
         self._db_close()
 
         self.logger.debug(
@@ -452,17 +701,40 @@ class CAhandler:
         )
         return result
 
+    def _xdb_engine_normalized(self) -> str:
+        raw = (self.xdb_engine or "sqlite").lower()
+        return XDB_ENGINE_MAP.get(raw, raw)
+
+    def _db_configured(self) -> bool:
+        """True when sqlite file or remote connection settings are present."""
+        if self._xdb_engine_normalized() in ("mysql", "postgresql"):
+            return bool(self.xdb_host and self.xdb_name and self.xdb_user)
+        return bool(self.xdb_file)
+
     def _config_check(self) -> str:
         """check config for consitency"""
         self.logger.debug("CAhandler._config_check()")
         error = None
+        engine = self._xdb_engine_normalized()
 
-        if self.xdb_file:
-            if not os.path.exists(self.xdb_file):
-                error = f"xdb_file {self.xdb_file} does not exist"
-                self.xdb_file = None
+        if engine not in ("sqlite", "mysql", "postgresql"):
+            error = f"unsupported xdb_engine {self.xdb_engine}"
+        elif engine == "sqlite":
+            if self.xdb_file:
+                if not os.path.exists(self.xdb_file):
+                    error = f"xdb_file {self.xdb_file} does not exist"
+                    self.xdb_file = None
+            else:
+                error = "xdb_file must be specified in config file"
         else:
-            error = "xdb_file must be specified in config file"
+            if self.xdb_file:
+                error = "xdb_file and remote xdb_engine are mutually exclusive"
+            elif not self.xdb_host or not self.xdb_name or not self.xdb_user:
+                error = (
+                    "xdb_host, xdb_name and xdb_user must be specified in config file"
+                )
+            elif not self.xdb_password:
+                error = "xdb_password must be specified in config file"
 
         if not error and not self.issuing_ca_name:
             error = "issuing_ca_name must be set in config file"
@@ -492,6 +764,35 @@ class CAhandler:
             self.xdb_permission = config_dic.get(
                 "CAhandler", "xdb_permission", fallback=self.xdb_permission
             )
+            engine_raw = config_dic.get("CAhandler", "xdb_engine", fallback="").strip()
+            if engine_raw:
+                self.xdb_engine = XDB_ENGINE_MAP.get(
+                    engine_raw.lower(), engine_raw.lower()
+                )
+            self.xdb_host = config_dic.get(
+                "CAhandler", "xdb_host", fallback=self.xdb_host
+            )
+            port_raw = config_dic.get("CAhandler", "xdb_port", fallback="")
+            if port_raw:
+                try:
+                    self.xdb_port = int(port_raw)
+                except (TypeError, ValueError):
+                    self.logger.error('Parameter "xdb_port" cannot be loaded')
+            self.xdb_name = config_dic.get(
+                "CAhandler", "xdb_name", fallback=self.xdb_name
+            )
+            self.xdb_user = config_dic.get(
+                "CAhandler", "xdb_user", fallback=self.xdb_user
+            )
+            self.xdb_table_prefix = config_dic.get(
+                "CAhandler", "xdb_table_prefix", fallback=self.xdb_table_prefix
+            )
+            self.xdb_ssl_ca = config_dic.get(
+                "CAhandler", "xdb_ssl_ca", fallback=self.xdb_ssl_ca
+            )
+            self.xdb_ssl_mode = config_dic.get(
+                "CAhandler", "xdb_ssl_mode", fallback=self.xdb_ssl_mode
+            )
             self.issuing_ca_name = config_dic.get(
                 "CAhandler", "issuing_ca_name", fallback=self.issuing_ca_name
             )
@@ -513,6 +814,10 @@ class CAhandler:
         self.passphrase = config_option_load(
             self.logger, config_dic, "passphrase", current=self.passphrase
         )
+        self.xdb_password = config_option_load(
+            self.logger, config_dic, "xdb_password", current=self.xdb_password
+        )
+        self._xca_db_configure()
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
@@ -571,10 +876,10 @@ class CAhandler:
                 ):
                     self._db_open()
                     self.cursor.execute(
-                        """INSERT INTO REQUESTS(item, signed, request) VALUES(:item, :signed, :request)""",
+                        """INSERT INTO requests(item, signed, request) VALUES(:item, :signed, :request)""",
                         csr_dic,
                     )
-                    row_id = self.cursor.lastrowid
+                    row_id = self._inserted_row_id()
                     self._db_close()
                 else:
                     self.logger.error(
@@ -618,28 +923,34 @@ class CAhandler:
         self.logger.debug("CAhandler._db_check()")
         error = None
 
-        st = os.stat(self.xdb_file)
-        oct_perm = oct(st.st_mode)[-3:]
+        if self._xdb_engine_normalized() == "sqlite":
+            st = os.stat(self.xdb_file)
+            oct_perm = oct(st.st_mode)[-3:]
 
-        # test open failure
-        if not os.access(self.xdb_file, os.R_OK):
-            error = f"xdb_file {self.xdb_file} is not readable"
-        elif not os.access(self.xdb_file, os.W_OK):
-            error = f"xdb_file {self.xdb_file} is not writeable"
-        # warns if permissions are to wide
-        elif (
-            int(oct_perm[0]) > int(self.xdb_permission[0])
-            or int(oct_perm[1]) > int(self.xdb_permission[1])
-            or int(oct_perm[2]) > int(self.xdb_permission[2])
-        ):
-            self.logger.warning(
-                "File permissions %s for '%s' are too permissive. Should be %s.",
-                oct_perm,
-                self.xdb_file,
-                self.xdb_permission,
-            )
+            if not os.access(self.xdb_file, os.R_OK):
+                error = f"xdb_file {self.xdb_file} is not readable"
+            elif not os.access(self.xdb_file, os.W_OK):
+                error = f"xdb_file {self.xdb_file} is not writeable"
+            elif (
+                int(oct_perm[0]) > int(self.xdb_permission[0])
+                or int(oct_perm[1]) > int(self.xdb_permission[1])
+                or int(oct_perm[2]) > int(self.xdb_permission[2])
+            ):
+                self.logger.warning(
+                    "File permissions %s for '%s' are too permissive. Should be %s.",
+                    oct_perm,
+                    self.xdb_file,
+                    self.xdb_permission,
+                )
+        else:
+            try:
+                self._db_open()
+                self.cursor.execute("SELECT 1")
+                self.cursor.fetchone()
+                self._db_close()
+            except Exception as err:
+                error = f"database connection failed: {err}"
 
-        # validates passphrase against database
         if not error:
             ca_key = self._ca_key_load()
             if not ca_key:
@@ -648,18 +959,45 @@ class CAhandler:
         self.logger.debug("CAhandler._db_check() ended with: %s", error)
         return error
 
+    def _xca_db_configure(self) -> None:
+        self.xca_db.configure(
+            engine=self._xdb_engine_normalized(),
+            xdb_file=self.xdb_file,
+            host=self.xdb_host,
+            port=self.xdb_port,
+            name=self.xdb_name,
+            user=self.xdb_user,
+            password=self.xdb_password,
+            table_prefix=self.xdb_table_prefix,
+            ssl_ca=self.xdb_ssl_ca,
+            ssl_mode=self.xdb_ssl_mode,
+        )
+
     def _db_open(self) -> None:
-        """opens db and sets cursor"""
-        self.dbs = sqlite3.connect(self.xdb_file)
-        self.dbs.row_factory = sqlite3.Row
-        self.cursor = self.dbs.cursor()
+        """opens db and sets cursor; nested calls reuse the connection"""
+        if self._db_refcount == 0:
+            self._xca_db_configure()
+            self.dbs, self.cursor = self.xca_db.connect()
+        self._db_refcount += 1
 
     def _db_close(self):
-        """commit and close"""
-        # self.logger.debug('DBStore._db_close()')
-        self.dbs.commit()
-        self.dbs.close()
-        # self.logger.debug('DBStore._db_close() ended')
+        """commit on the outermost close and disconnect"""
+        if self._db_refcount > 0:
+            self._db_refcount -= 1
+        if self._db_refcount == 0:
+            if self.dbs is not None:
+                self.dbs.commit()
+            self._db_disconnect()
+
+    def _db_disconnect(self) -> None:
+        if self.dbs is not None:
+            try:
+                self.dbs.close()
+            except Exception as err:
+                self.logger.error("Failed to close XCA database connection: %s", err)
+            self.dbs = None
+            self.cursor = None
+            self.xca_db.connection = None
 
     def _extended_keyusage_generate(
         self, template_dic: Dict[str, str], _csr_extensions_dic: Dict[str, str] = None
@@ -836,16 +1174,16 @@ class CAhandler:
                     item_dic["source"], int
                 ):
                     self._db_open()
+                    row_id = self._next_item_id()
+                    insert_dic = dict(item_dic)
+                    insert_dic["id"] = row_id
                     self.cursor.execute(
-                        """INSERT INTO ITEMS(name, type, source, date, comment) VALUES(:name, :type, :source, :date, :comment)""",
-                        item_dic,
+                        """INSERT INTO items(id, name, type, source, date, comment) VALUES(:id, :name, :type, :source, :date, :comment)""",
+                        insert_dic,
                     )
-                    row_id = self.cursor.lastrowid
-                    # update stamp field
-                    data_dic = {"stamp": row_id}
                     self.cursor.execute(
-                        """UPDATE ITEMS SET stamp = :stamp WHERE id = :stamp""",
-                        data_dic,
+                        """UPDATE items SET stamp = :stamp WHERE id = :stamp""",
+                        {"stamp": row_id},
                     )
                     self._db_close()
                 else:
@@ -861,6 +1199,32 @@ class CAhandler:
 
         self.logger.debug("CAhandler._item_insert() ended with row_id: %s", row_id)
         return row_id
+
+    def _inserted_row_id(self) -> Optional[int]:
+        """lastrowid, or 1 when the insert succeeded without an autoincrement id."""
+        self.logger.debug("CAhandler._inserted_row_id()")
+        row_id = self.cursor.lastrowid
+        if row_id:
+            return int(row_id)
+        if getattr(self.cursor, "rowcount", 0) > 0:
+            return 1
+        return None
+
+    def _next_item_id(self) -> int:
+        """allocate the next items.id (portable across SQLite/MySQL/PostgreSQL)"""
+        self.logger.debug("CAhandler._next_item_id()")
+        self.cursor.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM items")
+        value = self._row_first_value(self.cursor.fetchone())
+        self.logger.debug("CAhandler._next_item_id() ended with value: %s", value)
+        return int(value or 1)
+
+    def _row_first_value(self, row: Any) -> Any:
+        self.logger.debug("CAhandler._row_first_value()")
+        if row is None:
+            return None
+        if isinstance(row, dict):
+            return next(iter(row.values()))
+        return row[0]
 
     def _keyusage_generate(
         self, template_dic: Dict[str, str], _csr_extensions_dic: Dict[str, str] = None
@@ -1009,10 +1373,10 @@ class CAhandler:
                 ):
                     self._db_open()
                     self.cursor.execute(
-                        """INSERT INTO REVOCATIONS(caID, serial, date, invaldate, reasonBit) VALUES(:caID, :serial, :date, :invaldate, :reasonBit)""",
+                        """INSERT INTO revocations(caID, serial, date, invaldate, reasonBit) VALUES(:caID, :serial, :date, :invaldate, :reasonBit)""",
                         rev_dic,
                     )
-                    row_id = self.cursor.lastrowid
+                    row_id = self._inserted_row_id()
                     self._db_close()
                 else:
                     self.logger.error(
@@ -1196,7 +1560,7 @@ class CAhandler:
                     """INSERT INTO x509super(item, subj_hash, pkey, key_hash) VALUES(:item, :subj_hash, :pkey, :key_hash)""",
                     payload,
                 )
-                row_id = self.cursor.lastrowid
+                row_id = self._inserted_row_id()
                 self._db_close()
             else:
                 self.logger.error(
@@ -1302,13 +1666,15 @@ class CAhandler:
         """get all tables in db"""
         self.logger.debug("DBStore.tables_get()")
         self._db_open()
-        pre_statement = (
-            "SELECT name FROM sqlite_master WHERE type='table' or type == 'view'"
-        )
-        self.cursor.execute(pre_statement)
-        tables_list = [row[0] for row in self.cursor.fetchall()]
+        self.cursor.execute(self.xca_db.catalog_sql())
+        tables_list = [
+            str(self._row_first_value(row)).lower()
+            for row in self.cursor.fetchall()
+            if row is not None
+        ]
         self._db_close()
-        result = True if table in tables_list else False
+        physical = self.xca_db.physical_name(table).lower()
+        result = physical in tables_list
         self.logger.debug("DBStore._table_check() ended with: %s", result)
         return result
 
@@ -1519,31 +1885,38 @@ class CAhandler:
             error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
         # fmt: on
 
-        if not error:
-            request_name = self._requestname_get(csr)
+        db_session = bool(not error and self._db_configured())
+        if db_session:
+            self._db_open()
+        try:
+            if not error:
+                request_name = self._requestname_get(csr)
 
-            if request_name:
-                # import CSR to database
-                _csr_info = self._csr_import(
-                    csr, request_name
-                )  # lgtm [py/unused-local-variable]
+                if request_name:
+                    # import CSR to database
+                    _csr_info = self._csr_import(
+                        csr, request_name
+                    )  # lgtm [py/unused-local-variable]
 
-                # prepare the CSR to be signed
-                csr = build_pem_file(
-                    self.logger, None, b64_url_recode(self.logger, csr), None, True
-                )
-
-                # load ca cert and key
-                ca_key, ca_cert, ca_id = self._ca_load()
-
-                if ca_key and ca_cert and ca_id:
-                    cert_bundle, cert_raw = self._cert_sign(
-                        csr, request_name, ca_key, ca_cert, ca_id
+                    # prepare the CSR to be signed
+                    csr = build_pem_file(
+                        self.logger, None, b64_url_recode(self.logger, csr), None, True
                     )
+
+                    # load ca cert and key
+                    ca_key, ca_cert, ca_id = self._ca_load()
+
+                    if ca_key and ca_cert and ca_id:
+                        cert_bundle, cert_raw = self._cert_sign(
+                            csr, request_name, ca_key, ca_cert, ca_id
+                        )
+                    else:
+                        error = "ca lookup failed"
                 else:
-                    error = "ca lookup failed"
-            else:
-                error = "request_name lookup failed"
+                    error = "request_name lookup failed"
+        finally:
+            if db_session:
+                self._db_close()
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)
 
@@ -1574,22 +1947,25 @@ class CAhandler:
         if self.eab_profiling:
             eab_profile_revocation_check(self.logger, self, cert)
 
-        if self.xdb_file:
-            # load ca cert and key
-            _ca_key, _ca_cert, ca_id = self._ca_load()
+        if self._db_configured():
+            self._db_open()
+            try:
+                _ca_key, _ca_cert, ca_id = self._ca_load()
 
-            serial = cert_serial_get(self.logger, cert)
-            if serial:
-                serial = f"{serial:X}"
+                serial = cert_serial_get(self.logger, cert)
+                if serial:
+                    serial = f"{serial:X}"
 
-            if ca_id and serial:
-                code, message, detail = self._revocation_check(
-                    serial, ca_id, err_msg_dic
-                )
-            else:
-                code = 500
-                message = err_msg_dic["serverinternal"]
-                detail = "certificate lookup failed"
+                if ca_id and serial:
+                    code, message, detail = self._revocation_check(
+                        serial, ca_id, err_msg_dic
+                    )
+                else:
+                    code = 500
+                    message = err_msg_dic["serverinternal"]
+                    detail = "certificate lookup failed"
+            finally:
+                self._db_close()
         else:
             code = 500
             message = err_msg_dic["serverinternal"]

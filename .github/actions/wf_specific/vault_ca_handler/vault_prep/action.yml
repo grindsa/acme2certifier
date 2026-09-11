@@ -110,9 +110,10 @@ runs:
 
       # Single-node Raft is unsealed before leader election finishes. Login
       # against a standby with no active node returns HTTP 500.
+      # `vault status -format=json` has no ha_mode field; parse table output.
       for i in $(seq 1 30); do
-        if docker exec vault vault status -format=json 2>/dev/null \
-          | jq -e '.sealed == false and .ha_mode == "active"' >/dev/null; then
+        if docker exec vault vault status 2>/dev/null \
+          | grep -Eq 'HA Mode[[:space:]]+active'; then
           break
         fi
         if [ "$i" -eq 30 ]; then

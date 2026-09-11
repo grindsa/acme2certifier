@@ -342,6 +342,97 @@ jobs:
           ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
 
   # ---------------------------------------------------------
+  # Remote XCA schema (MariaDB / PostgreSQL) + Django ACME DB
+  # ---------------------------------------------------------
+  test-containers-remote-xdb:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - backend: mariadb
+            django_db: mariadb
+            xdb_engine: mysql
+            xdb_host: mariadbsrv.acme
+            ssl_ca: /tmp/data/mariadb/ssl/ca.pem
+          - backend: psql
+            django_db: psql
+            xdb_engine: postgresql
+            xdb_host: postgresdbsrv
+            ssl_ca: /tmp/data/pgsql/ssl/ca.pem
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: apache2
+          DB_HANDLER: django
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+          DJANGO_DB: ${{ matrix.django_db }}
+          TLS: "true"
+          XCA_DB: "true"
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Setup a2c with xca_ca_handler (${{ matrix.backend }})"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_engine: ${{ matrix.xdb_engine }}
+            xdb_host: ${{ matrix.xdb_host }}
+            xdb_name: xca
+            xdb_user: acme2certifier
+            xdb_password: 1mmSvDFl
+            xdb_ssl_ca: volume/xca-db-ca.pem
+            xdb_ssl_mode: verify-ca
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+
+      - name: "Stage TLS CA and issuing CA files"
+        run: |
+          set -euo pipefail
+          sudo cp "${SSL_CA}" examples/Docker/data/xca-db-ca.pem
+          sudo chmod 644 examples/Docker/data/xca-db-ca.pem
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        env:
+          SSL_CA: ${{ matrix.ssl_ca }}
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: django
+          WEB_SRV: apache2
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-remote-xdb-${{ matrix.backend }}.tar.gz
+
+  # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
 
