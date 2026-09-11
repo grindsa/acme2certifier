@@ -83,7 +83,7 @@ runs:
               if [[ -n "$app_user" ]]; then
                 chown "$app_user:$app_user" "$key"
               fi
-              echo "PostgreSQL client key $key mode=$(stat -c '%a %U:%G' "$key")"
+              echo "PostgreSQL client key $key mode=$(stat -c %a:%U:%G "$key")"
               break
             fi
           done
