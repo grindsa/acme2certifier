@@ -35,6 +35,10 @@ inputs:
     description: "Package name suffix after acme2certifier (empty on full branches, -min on min-*)"
     required: false
     default: ""
+  TLS:
+    description: "Enable TLS on the Django database server"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -232,12 +236,14 @@ runs:
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
+        TLS: ${{ inputs.TLS }}
 
     - name: "Instanciate Postgres"
       if: inputs.DJANGO_DB == 'psql'
       uses: ./.github/actions/psql_prep
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        TLS: ${{ inputs.TLS }}
 
     - name: "Prepare and install MSSQL client stack"
       if: inputs.DJANGO_DB == 'mssql'
