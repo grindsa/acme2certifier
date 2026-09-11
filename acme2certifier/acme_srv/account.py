@@ -132,11 +132,13 @@ class ExternalAccountBinding:
                     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 )
             except Exception:
-                pass
+                self.logger.debug("Account.verify() EAB signature dummy verification failed kid=%s error=%s", eab_kid, error)
+
             code = 403
             message = err_msg_dic["unauthorized"]
             detail = self.INVALID_EAB_CREDENTIALS_DETAIL
             self.logger.error("EAB kid lookup failed kid=%s", eab_kid)
+
         self.logger.debug("ExternalAccountBinding.verify() ended with: %s", code)
         return (code, message, detail)
 

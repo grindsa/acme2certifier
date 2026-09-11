@@ -669,7 +669,7 @@ class CAhandler(object):
     ) -> bool:
         """Run kinit and log failures. Returns True on success."""
         try:
-            subprocess.run(
+            subprocess.run(  # nosec B603
                 args,
                 check=True,
                 stdout=subprocess.PIPE,

@@ -827,6 +827,20 @@ class TestACMEHandler(unittest.TestCase):
                     )
                 self.assertEqual(cm.exception.code, 0)
 
+    def test_080_helper_generate_random_string_charset_and_secrets(self):
+        """generate_random_string uses secrets and alphanumeric charset"""
+        from string import ascii_letters, digits
+
+        with patch(
+            "acme2certifier.tools.a2c_cli.secrets.choice",
+            side_effect=lambda seq: seq[0],
+        ) as mock_choice:
+            result = self.generate_random_string(self.logger, 8)
+        self.assertEqual(8, mock_choice.call_count)
+        self.assertEqual(result, "0" * 8)
+        for char in self.generate_random_string(self.logger, 64):
+            self.assertIn(char, digits + ascii_letters)
+
 
 if __name__ == "__main__":
     unittest.main()

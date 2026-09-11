@@ -604,7 +604,7 @@ class CAhandler(object):
                         "Configured krb5_config does not exist: %s. Ignoring for kinit fallback.",
                         self.krb5_config,
                     )
-            subprocess.run(
+            subprocess.run(  # nosec B603
                 [
                     kinit_cmd,
                     "-k",
