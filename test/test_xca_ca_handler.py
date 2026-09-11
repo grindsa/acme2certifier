@@ -3671,6 +3671,53 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.xdb_user = "xca"
         self.assertTrue(self.cahandler._db_configured())
 
+    def test_243_connect_mysql_ssl_verify_ca(self):
+        """verify-ca must not set check_hostname (PyMySQL defaults True)"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        mock_pymysql = MagicMock()
+        mock_cursors = MagicMock()
+        with patch.dict(
+            sys.modules, {"pymysql": mock_pymysql, "pymysql.cursors": mock_cursors}
+        ):
+            db = XcaDb(logger=Mock())
+            db.configure(
+                engine="mysql",
+                host="db.example",
+                name="xca",
+                user="xca",
+                password="secret",
+                ssl_ca="/etc/ssl/ca.pem",
+                ssl_mode="verify-ca",
+            )
+            db._connect_mysql()
+        kwargs = mock_pymysql.connect.call_args.kwargs
+        self.assertEqual("/etc/ssl/ca.pem", kwargs["ssl"]["ca"])
+        self.assertFalse(kwargs["ssl"]["check_hostname"])
+
+    def test_244_connect_mysql_ssl_verify_full(self):
+        """verify-full enables hostname checks"""
+        from acme2certifier.cahandlers.xca_ca_handler import XcaDb
+
+        mock_pymysql = MagicMock()
+        mock_cursors = MagicMock()
+        with patch.dict(
+            sys.modules, {"pymysql": mock_pymysql, "pymysql.cursors": mock_cursors}
+        ):
+            db = XcaDb(logger=Mock())
+            db.configure(
+                engine="mysql",
+                host="db.example",
+                name="xca",
+                user="xca",
+                password="secret",
+                ssl_ca="/etc/ssl/ca.pem",
+                ssl_mode="verify-full",
+            )
+            db._connect_mysql()
+        kwargs = mock_pymysql.connect.call_args.kwargs
+        self.assertTrue(kwargs["ssl"]["check_hostname"])
+
 
 if __name__ == "__main__":
 

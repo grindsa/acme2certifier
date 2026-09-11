@@ -239,8 +239,8 @@ class XcaDb:
             ssl_dic: Dict[str, Any] = {}
             if self.ssl_ca:
                 ssl_dic["ca"] = self.ssl_ca
-            if self.ssl_mode == "verify-full":
-                ssl_dic["check_hostname"] = True
+            # PyMySQL/OpenSSL default check_hostname=True; verify-ca must not.
+            ssl_dic["check_hostname"] = self.ssl_mode == "verify-full"
             kwargs["ssl"] = ssl_dic
         connection = pymysql.connect(**kwargs)
         cursor = connection.cursor()

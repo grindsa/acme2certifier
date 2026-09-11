@@ -56,9 +56,12 @@ runs:
         SSL_DIR=/tmp/data/mariadb/ssl
         sudo mkdir -p "$SSL_DIR"
         sudo chown "$(id -u):$(id -g)" "$SSL_DIR"
+        # OpenSSL 3.x / Python ssl reject CA certs without keyUsage=keyCertSign.
         openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
           -keyout "$SSL_DIR/ca-key.pem" -out "$SSL_DIR/ca.pem" \
-          -subj "/CN=mariadb-test-ca"
+          -subj "/CN=mariadb-test-ca" \
+          -addext "basicConstraints=critical,CA:TRUE" \
+          -addext "keyUsage=critical,keyCertSign,cRLSign"
         openssl req -newkey rsa:2048 -nodes \
           -keyout "$SSL_DIR/server-key.pem" -out "$SSL_DIR/server.csr" \
           -subj "/CN=mariadbsrv" \
@@ -168,20 +171,8 @@ runs:
         set -euo pipefail
         XDB="${GITHUB_WORKSPACE}/test/ca/acme2certifier-clean.xdb"
         test -f "$XDB"
-        RAW=/tmp/xca-raw.sql
-        if ! sqlite3 --escape off "$XDB" .dump > "$RAW" 2>/tmp/sqlite-dump.err; then
-          echo "sqlite3 --escape off failed, retrying without it"
-          cat /tmp/sqlite-dump.err || true
-          sqlite3 "$XDB" .dump > "$RAW"
-        fi
-        {
-          echo "SET SESSION SQL_MODE='ANSI';"
-          grep -v -E '^(PRAGMA |BEGIN TRANSACTION;|CREATE TABLE sqlite_sequence|INSERT INTO sqlite_sequence)' "$RAW"
-        } > /tmp/xca-mariadb.sql
-        if grep -q 'unistr(' /tmp/xca-mariadb.sql; then
-          echo "sqlite dump still contains unistr(); need sqlite3 --escape off" >&2
-          exit 1
-        fi
+        python3 "${GITHUB_WORKSPACE}/.github/scripts/xca_sqlite_dump.py" \
+          --dialect mysql "$XDB" -o /tmp/xca-mariadb.sql
         docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"DROP DATABASE IF EXISTS xca;"
         docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"CREATE DATABASE xca CHARACTER SET UTF8;"
         docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"GRANT ALL PRIVILEGES ON xca.* TO 'acme2certifier'@'%'; FLUSH PRIVILEGES;"
