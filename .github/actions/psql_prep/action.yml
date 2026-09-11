@@ -9,6 +9,25 @@ inputs:
     description: "Instanciate mariadb"
     required: true
     default: "true"
+  TLS:
+    description: "Generate a self-signed CA/server cert and enable TLS (not required for clients)"
+    required: false
+    default: "false"
+  XCA_DB:
+    description: "Create database xca and import test/ca/acme2certifier-clean.xdb"
+    required: false
+    default: "false"
+
+outputs:
+  SSL_CA:
+    description: "Host path to the TLS CA certificate (empty unless TLS=true)"
+    value: ${{ steps.gen_tls.outputs.SSL_CA }}
+  SSL_CERT:
+    description: "Host path to the TLS server certificate (empty unless TLS=true)"
+    value: ${{ steps.gen_tls.outputs.SSL_CERT }}
+  SSL_KEY:
+    description: "Host path to the TLS server key (empty unless TLS=true)"
+    value: ${{ steps.gen_tls.outputs.SSL_KEY }}
 
 runs:
   using: "composite"
@@ -29,14 +48,60 @@ runs:
       with:
         IMAGE: postgres
 
+    - name: "Generate TLS certificates"
+      id: gen_tls
+      if: inputs.INSTANCIATE == 'true' && inputs.TLS == 'true'
+      run: |
+        set -euo pipefail
+        SSL_DIR=/tmp/data/pgsql/ssl
+        sudo mkdir -p "$SSL_DIR"
+        sudo chown "$(id -u):$(id -g)" "$SSL_DIR"
+        openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+          -keyout "$SSL_DIR/ca-key.pem" -out "$SSL_DIR/ca.pem" \
+          -subj "/CN=postgres-test-ca"
+        openssl req -newkey rsa:2048 -nodes \
+          -keyout "$SSL_DIR/server-key.pem" -out "$SSL_DIR/server.csr" \
+          -subj "/CN=postgresdbsrv" \
+          -addext "subjectAltName=DNS:postgresdbsrv,DNS:localhost,IP:127.0.0.1" \
+          -addext "extendedKeyUsage=serverAuth" \
+          -addext "keyUsage=digitalSignature,keyEncipherment"
+        openssl x509 -req -in "$SSL_DIR/server.csr" \
+          -CA "$SSL_DIR/ca.pem" -CAkey "$SSL_DIR/ca-key.pem" -CAcreateserial \
+          -out "$SSL_DIR/server-cert.pem" -days 30 -sha256 -copy_extensions copy
+        chmod 644 "$SSL_DIR/ca.pem" "$SSL_DIR/server-cert.pem"
+        # Official postgres image runs as uid 999; world-readable keys are rejected.
+        sudo chown 999:999 "$SSL_DIR/server-key.pem"
+        sudo chmod 600 "$SSL_DIR/server-key.pem"
+        {
+          echo "SSL_CA=$SSL_DIR/ca.pem"
+          echo "SSL_CERT=$SSL_DIR/server-cert.pem"
+          echo "SSL_KEY=$SSL_DIR/server-key.pem"
+        } >> "$GITHUB_OUTPUT"
+      shell: bash
+
     - name: "Install postgres"
       if: inputs.INSTANCIATE == 'true'
       working-directory: /tmp
       run: |
-        docker run --name postgresdbsrv --network $NAME_SPACE -e POSTGRES_PASSWORD=foobar -d postgres
+        set -euo pipefail
+        extra=()
+        ssl_opts=()
+        if [ "$TLS" = "true" ]; then
+          extra+=(-v /tmp/data/pgsql/ssl:/certs:ro)
+          ssl_opts+=(
+            -c ssl=on
+            -c ssl_cert_file=/certs/server-cert.pem
+            -c ssl_key_file=/certs/server-key.pem
+            -c ssl_ca_file=/certs/ca.pem
+          )
+        fi
+        docker run --name postgresdbsrv --network "$NAME_SPACE" \
+          -e POSTGRES_PASSWORD=foobar \
+          "${extra[@]}" -d postgres "${ssl_opts[@]}"
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        TLS: ${{ inputs.TLS }}
 
     - name: "Wait for postgres readiness"
       if: inputs.INSTANCIATE == 'true'
@@ -73,3 +138,23 @@ runs:
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Import XCA schema"
+      if: inputs.INSTANCIATE == 'true' && inputs.XCA_DB == 'true'
+      run: |
+        set -euo pipefail
+        XDB="${GITHUB_WORKSPACE}/test/ca/acme2certifier-clean.xdb"
+        test -f "$XDB"
+        RAW=/tmp/xca-raw.sql
+        if ! sqlite3 --escape off "$XDB" .dump > "$RAW" 2>/tmp/sqlite-dump.err; then
+          echo "sqlite3 --escape off failed, retrying without it"
+          cat /tmp/sqlite-dump.err || true
+          sqlite3 "$XDB" .dump > "$RAW"
+        fi
+        grep -v -E '^(PRAGMA |BEGIN TRANSACTION;|CREATE TABLE sqlite_sequence|INSERT INTO sqlite_sequence)' "$RAW" > /tmp/xca-pgsql.sql
+        docker exec postgresdbsrv psql -U postgres -c "DROP DATABASE IF EXISTS xca;"
+        docker exec postgresdbsrv psql -U postgres -c "CREATE DATABASE xca;"
+        docker exec postgresdbsrv psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE xca TO acme2certifier;"
+        docker exec -i postgresdbsrv psql -v ON_ERROR_STOP=1 -U postgres -d xca < /tmp/xca-pgsql.sql
+        docker exec postgresdbsrv psql -U postgres -d xca -c "GRANT ALL ON SCHEMA public TO acme2certifier; GRANT ALL ON ALL TABLES IN SCHEMA public TO acme2certifier; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO acme2certifier;"
+      shell: bash
