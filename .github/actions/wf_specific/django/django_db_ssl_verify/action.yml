@@ -17,6 +17,18 @@ runs:
           "${CONTAINER}:/tmp/django_db_ssl_verify.py"
         docker exec "$CONTAINER" bash -c '
           set -euo pipefail
+          APP_ROOT=""
+          for cand in /opt/acme2certifier /var/www/acme2certifier; do
+            if [[ -d "$cand/acme2certifier/django_project" ]]; then
+              APP_ROOT="$cand"
+              break
+            fi
+          done
+          if [[ -n "$APP_ROOT" ]]; then
+            export PYTHONPATH="${APP_ROOT}${PYTHONPATH:+:$PYTHONPATH}"
+            export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
+            cd "$APP_ROOT"
+          fi
           py=""
           if command -v a2c-manage >/dev/null 2>&1; then
             shebang=$(head -n1 "$(command -v a2c-manage)")
@@ -32,7 +44,7 @@ runs:
                 if command -v "$interp" >/dev/null 2>&1; then
                   interp=$(command -v "$interp")
                 fi
-                if [[ -x "$interp" ]] && "$interp" -c "import django" >/dev/null 2>&1; then
+                if [[ -x "$interp" ]] && "$interp" -c "import django, acme2certifier.django_project" >/dev/null 2>&1; then
                   py="$interp"
                 fi
                 ;;
@@ -46,14 +58,14 @@ runs:
               if command -v "$cand" >/dev/null 2>&1; then
                 cand=$(command -v "$cand")
               fi
-              if [[ -x "$cand" ]] && "$cand" -c "import django" >/dev/null 2>&1; then
+              if [[ -x "$cand" ]] && "$cand" -c "import django, acme2certifier.django_project" >/dev/null 2>&1; then
                 py="$cand"
                 break
               fi
             done
           fi
           if [[ -z "$py" ]]; then
-            echo "ERROR: no Python interpreter with django found" >&2
+            echo "ERROR: no Python interpreter with django + acme2certifier.django_project found" >&2
             exit 1
           fi
           echo "Using $py for Django TLS session check"

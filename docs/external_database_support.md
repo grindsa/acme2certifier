@@ -202,12 +202,26 @@ Place the database server CA (PEM) on the acme2certifier volume (for example `/v
 }
 ```
 
-**PostgreSQL** — add `OPTIONS` with `sslmode` `verify-ca` (or `verify-full` to also check the hostname):
+**PostgreSQL** — add `OPTIONS` with `sslmode` `verify-ca` (or `verify-full` to also check the hostname). Use **absolute** paths only. libpq otherwise probes `$HOME/.postgresql/postgresql.crt`; after Apache/uWSGI `setuid` that is often `/root/.postgresql/postgresql.crt` and fails with `Permission denied`.
+
+On libpq 17+ disable the client-cert probe:
 
 ```python
 "OPTIONS": {
     "sslmode": "verify-ca",
     "sslrootcert": "/var/www/acme2certifier/volume/db-ca.pem",
+    "sslcertmode": "disable",
+}
+```
+
+On older libpq, set `sslcert` and `sslkey` to readable absolute files so the default `~/.postgresql/` paths are never used (the server does not need to require client certs):
+
+```python
+"OPTIONS": {
+    "sslmode": "verify-ca",
+    "sslrootcert": "/var/www/acme2certifier/volume/db-ca.pem",
+    "sslcert": "/var/www/acme2certifier/volume/db-client-cert.pem",
+    "sslkey": "/var/www/acme2certifier/volume/db-client-key.pem",
 }
 ```
 
