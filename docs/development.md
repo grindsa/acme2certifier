@@ -36,7 +36,7 @@ export ACME2CERTIFIER_DEBUG=1
 | ------------------------- | -------------------------------------------------------------- |
 | `ACME2CERTIFIER_BASE_DIR` | Deploy root: Django `db.sqlite3`, relative `dbfile` / CA paths |
 | `ACME_SRV_CONFIGFILE`     | Absolute path to `acme_srv.cfg` or `acme_srv.yaml` / `.yml` (beats `/var/www/...` and `/opt/...`) |
-| `ACME2CERTIFIER_DEBUG`    | Django `DEBUG` (`1` / `true`)                                  |
+| `ACME2CERTIFIER_DEBUG`    | Django `DEBUG` (`1` / `true`). ACME Helper debug follows this only when `[DEFAULT] debug` is unset in `acme_srv.cfg`; an explicit cfg `debug` always wins. |
 
 ## 3. Config and a local OpenSSL CA
 

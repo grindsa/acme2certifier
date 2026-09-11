@@ -12,6 +12,8 @@ from acme2certifier.acme_srv.certificate import Certificate
 from acme2certifier.acme_srv.challenge import Challenge
 from acme2certifier.acme_srv.directory import Directory
 from acme2certifier.acme_srv.helper import (
+    apply_log_levels,
+    config_debug_get,
     get_url,
     load_config,
     log_loaded_acme_srv_cfg,
@@ -36,9 +38,12 @@ from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 from acme2certifier.acme_srv.acmechallenge import Acmechallenge
 
+# Quiet Helper.load_config() until DEFAULT.debug / ACME2CERTIFIER_DEBUG is known.
+apply_log_levels(False)
+
 # load config to set debug mode
 CONFIG = load_config()
-DEBUG = CONFIG.getboolean("DEFAULT", "debug", fallback=False)
+DEBUG = config_debug_get(CONFIG)
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)
@@ -90,7 +95,7 @@ tnauthlist_configuration_validate(LOGGER, CONFIG)
 challenge_type_configuration_validate(LOGGER, CONFIG)
 LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
 
-with Housekeeping(DEBUG, LOGGER) as housekeeping:
+with Housekeeping(DEBUG, LOGGER, config_dic=CONFIG) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
     housekeeping.nonce_cleanup()
 
@@ -124,7 +129,7 @@ def pretty_request(request):
 @require_http_methods(["GET"])
 def directory(request):
     """get directory"""
-    with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
+    with Directory(DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG) as cfg_dir:
         response = cfg_dir.directory_get()
         if "error" in response:
             return JsonResponse(
@@ -142,7 +147,9 @@ def directory(request):
 def newaccount(request):
     """new account"""
     if request.method == "POST":
-        with Account(DEBUG, get_url(request.META), LOGGER) as account:
+        with Account(
+            DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
+        ) as account:
             response_dic = account.new(request.body)
             # create the response
             response = JsonResponse(
@@ -169,7 +176,7 @@ def newaccount(request):
 def newnonce(request):
     """new nonce"""
     if request.method in ["HEAD", "GET"]:
-        with Nonce(DEBUG, LOGGER) as nonce:
+        with Nonce(DEBUG, LOGGER, config_dic=CONFIG) as nonce:
             if request.method == "HEAD":
                 response = HttpResponse("")
             else:
@@ -197,14 +204,14 @@ def newnonce(request):
 @require_http_methods(["GET"])
 def servername_get(request):
     """get server name"""
-    with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
+    with Directory(DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG) as cfg_dir:
         return JsonResponse({"server_name": escape(cfg_dir.servername_get())})
 
 
 @require_http_methods(["POST"])
 def acct(request):
     """xxxx command"""
-    with Account(DEBUG, get_url(request.META), LOGGER) as account:
+    with Account(DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG) as account:
         response_dic = account.parse(request.body)
         # create the response
         response = JsonResponse(status=response_dic["code"], data=response_dic["data"])
@@ -224,7 +231,7 @@ def acct(request):
 def neworders(request):
     """new account"""
     if request.method == "POST":
-        with Order(DEBUG, get_url(request.META), LOGGER) as norder:
+        with Order(DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG) as norder:
             response_dic = norder.new(request.body)
             # create the response
             response = JsonResponse(
@@ -254,7 +261,9 @@ def neworders(request):
 def authz(request):
     """new-authz command"""
     if request.method == "POST":
-        with Authorization(DEBUG, get_url(request.META), LOGGER) as authorization:
+        with Authorization(
+            DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
+        ) as authorization:
             response_dic = authorization.new_post(request.body)
             # create the response
             response = JsonResponse(
@@ -277,7 +286,9 @@ def authz(request):
     elif request.method == "GET":
         if not LEGACY_ACME_GET:
             return ERR_RESPONSE_ACME_GET
-        with Authorization(DEBUG, get_url(request.META), LOGGER) as authorization:
+        with Authorization(
+            DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
+        ) as authorization:
             response_dic = authorization.new_get(request.build_absolute_uri())
             response = JsonResponse(
                 status=response_dic["code"], data=response_dic["data"]
@@ -302,6 +313,7 @@ def chall(request):
         srv_name=get_url(request.META),
         source=request.META["REMOTE_ADDR"],
         logger=LOGGER,
+        config_dic=CONFIG,
     ) as challenge:
         # pylint: disable=R1705
         if request.method == "POST":
@@ -341,7 +353,7 @@ def chall(request):
 def order(request):
     """order request"""
     if request.method == "POST":
-        with Order(DEBUG, get_url(request.META), LOGGER) as eorder:
+        with Order(DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG) as eorder:
             response_dic = eorder.parse(request.body, request.META)
             # create the response
             response = JsonResponse(
@@ -367,7 +379,9 @@ def order(request):
 def cert(request):
     """cert request"""
     if request.method in ("POST", "GET"):
-        with Certificate(DEBUG, get_url(request.META), LOGGER) as certificate:
+        with Certificate(
+            DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
+        ) as certificate:
             if request.method == "POST":
                 response_dic = certificate.new_post(request.body)
             else:
@@ -399,7 +413,9 @@ def cert(request):
 def revokecert(request):
     """cert revocation"""
     if request.method == "POST":
-        with Certificate(DEBUG, get_url(request.META), LOGGER) as certificate:
+        with Certificate(
+            DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
+        ) as certificate:
             response_dic = certificate.revoke(request.body)
             # create the response
             if "data" in response_dic:
@@ -442,8 +458,10 @@ def trigger(request):
                 response_dic,
             )
             return JsonResponse(status=403, data=ERR_TRIGGER_DISABLED)
-        with Trigger(DEBUG, get_url(request.META), LOGGER) as trigger_:
-            response_dic = trigger_.parse(request.body)
+        with Trigger(
+            DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
+        ) as trigger_:
+            response_dic = trigger_.parse(request.body, headers=request.META)
             # create the response
             if "data" in response_dic:
                 response = JsonResponse(
@@ -500,7 +518,9 @@ def renewalinfo(request):
     if request.method not in ("POST", "GET"):
         return ERR_RESPONSE_POST
 
-    with Renewalinfo(DEBUG, get_url(request.META), LOGGER) as renewalinfo_:
+    with Renewalinfo(
+        DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
+    ) as renewalinfo_:
         response_dic = _renewalinfo_dispatch(renewalinfo_, request)
         response = _renewalinfo_build_response(request.method, response_dic)
         log_response(
@@ -528,7 +548,7 @@ def housekeeping(request):
                 response_dic,
             )
             return JsonResponse(status=403, data=ERR_HOUSEKEEPING_CLI_DISABLED)
-        with Housekeeping(DEBUG, LOGGER) as housekeeping_:
+        with Housekeeping(DEBUG, LOGGER, config_dic=CONFIG) as housekeeping_:
             response_dic = housekeeping_.parse(request.body)
             # create the response
             if "data" in response_dic:

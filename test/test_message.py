@@ -1093,6 +1093,20 @@ class TestACMEHandler(unittest.TestCase):
             "account_name", self.message.extract_account_name_from_content(protected)
         )
 
+    def test_063_injected_config_skips_load_config(self):
+        """Message.__init__ uses injected config_dic and does not call load_config()"""
+        from acme2certifier.acme_srv.message import Message
+
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.optionxform = str
+        parser.add_section("Nonce")
+        with patch("acme2certifier.acme_srv.message.load_config") as mock_load:
+            message = Message(
+                False, "http://tester.local", self.logger, config_dic=parser
+            )
+        mock_load.assert_not_called()
+        self.assertIs(message.config_dic, parser)
+
 
 class TestAccountRepository(unittest.TestCase):
     """Unit tests for AccountRepository class"""
