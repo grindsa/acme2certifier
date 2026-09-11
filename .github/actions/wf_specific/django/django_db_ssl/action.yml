@@ -60,7 +60,9 @@ runs:
             -out /tmp/a2c-db-client-cert.pem -days 30 -sha256
           sudo cp /tmp/a2c-db-client-cert.pem "$VOLUME_DIR/db-client-cert.pem"
           sudo cp /tmp/a2c-db-client-key.pem "$VOLUME_DIR/db-client-key.pem"
-          sudo chmod 644 "$VOLUME_DIR/db-client-cert.pem" "$VOLUME_DIR/db-client-key.pem"
+          sudo chmod 644 "$VOLUME_DIR/db-client-cert.pem"
+          # libpq refuses a client key with group/world access (644).
+          sudo chmod 600 "$VOLUME_DIR/db-client-key.pem"
         fi
         # Files were staged with sudo; patch as root.
         # shellcheck disable=SC2086

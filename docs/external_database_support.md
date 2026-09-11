@@ -214,7 +214,7 @@ On libpq 17+ disable the client-cert probe:
 }
 ```
 
-On older libpq, set `sslcert` and `sslkey` to readable absolute files so the default `~/.postgresql/` paths are never used (the server does not need to require client certs):
+On older libpq, set `sslcert` and `sslkey` to absolute files so the default `~/.postgresql/` paths are never used (the server does not need to require client certs). libpq rejects a key with group/world access: `chmod 600` the key and make it readable by the Apache/uWSGI user (`www-data` or `nginx`).
 
 ```python
 "OPTIONS": {
