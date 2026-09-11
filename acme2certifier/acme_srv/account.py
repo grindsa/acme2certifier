@@ -131,8 +131,12 @@ class ExternalAccountBinding:
                     payload.get("externalaccountbinding", {}),
                     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 )
-            except Exception:
-                self.logger.debug("Account.verify() EAB signature dummy verification failed kid=%s error=%s", eab_kid, error)
+            except Exception as err:
+                self.logger.debug(
+                    "Account.verify() EAB signature dummy verification failed kid=%s error=%s",
+                    eab_kid,
+                    err,
+                )
 
             code = 403
             message = err_msg_dic["unauthorized"]
