@@ -8,8 +8,17 @@ and pick the appropriate release branch.
 
 ## Changes in 0.45.1
 
+**Bug Fixes and Improvements**:
+
+- Multi-CAhandler: ACME profiles that only select a named handler (`profile_cahandler` identity maps such as `harica` → `harica`) no longer overwrite that handler's `profile_mapping_field` (HARICA was sending `transactionType=harica` instead of `OV`)
+- OpenSSL CA handler honors `enrollment_config_log` / `enrollment_config_log_skip_list` (same as XCA and the other handlers)
+- Log the resolved CA handler name (and config section) at INFO before certificate enrollment
+- Multi-CAhandler: do not fall back to deprecated `acme_srv.ca_handler` (or log CRITICAL) when `multi_handler` is enabled; `[CAhandler]` is a registry, not a plugin
+- `logger_setup(False)` applies INFO to the root logger and quiets urllib3/requests so HTTP wire traces are not emitted when `debug` is off
+
 **New Features**:
 
+- Multi-CAhandler support: configure several CA handler plugins in one instance (`multi_handler`, named `[CAhandler:<name>]` sections, EAB `cahandler_name`, `profile_cahandler`, `route_domainlist` using the same exact/wildcard matching as `[Order] allowed_domainlist`, `orders.cahandler` persistence); INI and YAML config; see [`docs/multi_cahandler.md`](docs/multi_cahandler.md)
 - Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377)); per-account overrides via EAB profile `challenge` section
 
 **Bug Fixes and Improvements**:

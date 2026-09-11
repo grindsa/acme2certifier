@@ -36,6 +36,31 @@ def handler_supports_trigger(cahandler_cls) -> bool:
     return bool(getattr(cahandler_cls, "supports_trigger", False))
 
 
+def _cahandler_class_load(logger, config_dic):
+    """Load CAhandler factory from the configured CA handler registry."""
+    registry = CAHandlerRegistry(logger).load(config_dic)
+    bound = registry.default_handler()
+    if bound is not None:
+        return bound
+    ca_handler_module = ca_handler_load(logger, config_dic)
+    if ca_handler_module is None:
+        return None
+    handler_cls = getattr(ca_handler_module, "CAhandler", None)
+    if handler_cls is None:
+        return None
+    from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+    return BoundCAHandler(handler_cls, "CAhandler", "default")
+
+
+def _trigger_status_log(
+    logger, log_status: bool, level: str, message: str, *args
+) -> None:
+    """Emit a trigger-enablement status log when requested."""
+    if log_status:
+        getattr(logger, level)(message, *args)
+
+
 def resolve_trigger_endpoint(logger, config_dic, *, log_status: bool = False) -> bool:
     """
     Decide whether the /trigger HTTP endpoint should be active.
@@ -144,6 +169,19 @@ class Trigger(object):
                     err_,
                 )
 
+                try:
+                    self.cahandler = BoundCAHandler(
+                        ca_handler_module.CAhandler, "CAhandler", "default"
+                    )
+                except Exception as err:
+                    self.logger.critical(
+                        "Failed to load CA handler module: %s", err
+                    )
+
+        self.hmac_keys, self.auth_disabled = trigger_hmac_keys_load(
+            self.logger, config_dic
+        )
+        self.ca_cert = trigger_ca_cert_load(self.logger, config_dic)
         self.enabled = resolve_trigger_endpoint(
             self.logger, config_dic, log_status=False
         )

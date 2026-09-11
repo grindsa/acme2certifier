@@ -2583,6 +2583,18 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         """logger setup"""
         self.assertTrue(self.logger_setup(True))
 
+    def test_218a_logger_setup_false_quiets_http_loggers(self):
+        """debug=False must not leave urllib3/requests at DEBUG"""
+        import logging
+
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger("urllib3").setLevel(logging.DEBUG)
+        logging.getLogger("requests").setLevel(logging.DEBUG)
+        self.logger_setup(False)
+        self.assertGreaterEqual(logging.getLogger().level, logging.INFO)
+        self.assertGreaterEqual(logging.getLogger("urllib3").level, logging.WARNING)
+        self.assertGreaterEqual(logging.getLogger("requests").level, logging.WARNING)
+
     @patch("acme2certifier.acme_srv.helpers.logging_utils.load_config")
     def test_218_logger_setup(self, mock_load_cfg):
         """logger setup"""
@@ -3450,6 +3462,15 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             lcm.output,
         )
 
+    def test_285a_ca_handler_load_skips_default_when_multi_handler(self):
+        """multi_handler registry section must not import acme_srv.ca_handler"""
+        config_dic = {
+            "CAhandler": {"multi_handler": "True", "default_handler": "openssl"}
+        }
+        with patch("importlib.import_module") as mock_imp:
+            self.assertFalse(self.ca_handler_load(self.logger, config_dic))
+        mock_imp.assert_not_called()
+
     @patch("importlib.import_module")
     def test_286_ca_handler_load(self, mock_imp):
         """test ca_handler_load"""
@@ -3474,7 +3495,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("foo", self.ca_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:Loading CAhandler configured in cfg failed with err: exc_mock_util",
+            "CRITICAL:test_a2c:Loading CAhandler configured in [CAhandler] failed with err: exc_mock_util",
             lcm.output,
         )
 
@@ -3634,7 +3655,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 "from_module", self.ca_handler_load(self.logger, config_dic)
             )
         self.assertFalse(mock_util.spec_from_file_location.called)
-        self.assertTrue(any("ignoring handler_file" in line for line in lcm.output))
+        self.assertTrue(any("using handler_module" in line for line in lcm.output))
 
     @patch("importlib.import_module")
     def test_305_ca_handler_load_info_once(self, mock_imp):
@@ -4898,6 +4919,31 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.eab.profile_lookup")
     @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
+    @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
+    def test_413a_eab_profile_header_info_check_skip_handler_routing_name(
+        self, mock_lookup, mock_eab, mock_profile
+    ):
+        """ACME profile matching cahandler_registry_name is routing-only."""
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = False
+        cahandler.header_info_field = None
+        cahandler.handler_hifield = "OV"
+        cahandler.cahandler_registry_name = "harica"
+        cahandler.profiles = {"harica": "http://example/harica"}
+        mock_profile.return_value = "harica"
+        self.assertFalse(
+            self.eab_profile_header_info_check(
+                self.logger, cahandler, "csr", "handler_hifield"
+            )
+        )
+        self.assertFalse(mock_lookup.called)
+        self.assertFalse(mock_eab.called)
+        self.assertTrue(mock_profile.called)
+        self.assertEqual("OV", cahandler.handler_hifield)
+
+    @patch("acme2certifier.acme_srv.helpers.eab.profile_lookup")
+    @patch("acme2certifier.acme_srv.helpers.eab.eab_profile_check")
+    @patch("acme2certifier.acme_srv.helpers.eab.header_value_allowlist_resolve")
     @patch("acme2certifier.acme_srv.helpers.eab.header_info_lookup")
     def test_414_eab_profile_header_info_check(
         self, mock_lookup, mock_allowlist, mock_eab, mock_profile

@@ -10,8 +10,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
-from .plugin_loader import eab_handler_load
+from .encoding import b64_url_recode
 from .global_variables import CONFIGURATION_ERROR_DETAIL, PARSING_ERR_MSG
+from .plugin_loader import eab_handler_load
 from .security_gate import SECURITY_DISABLE_ACK_ENV, security_disable_acknowledged
 
 # Emit acme_srv.cfg path deprecation warnings at most once per path per process.
@@ -887,6 +888,40 @@ def profile_lookup(logger: logging.Logger, csr: str) -> str:
 
     logger.debug("Helper.profile_lookup() ended with: %s", profile_name)
     return profile_name
+
+
+def cahandler_lookup(
+    logger: logging.Logger,
+    csr: Optional[str] = None,
+    cert_raw: Optional[str] = None,
+) -> Optional[str]:
+    """Return the handler name stored in order table linked to a CSR or certificate."""
+    logger.debug("Helper.cahandler_lookup()")
+
+    from acme2certifier.acme_srv.db_handler import DBstore  # pylint: disable=c0415
+
+    dbstore = DBstore(logger=logger)
+    if cert_raw:
+        search_key, value = "cert_raw", b64_url_recode(logger, cert_raw)
+    elif csr:
+        search_key, value = "csr", csr
+    else:
+        return None
+
+    try:
+        result = dbstore.certificates_search(
+            search_key, value, ["id", "order_id", "order__cahandler"]
+        )
+    except Exception as err:
+        logger.warning("CAhandler lookup failed with: %s", err)
+        result = None
+
+    cahandler_name = None
+    if result and result[0].get("order__cahandler"):
+        cahandler_name = result[0]["order__cahandler"]
+
+    logger.debug("Helper.cahandler_lookup() ended with: %s", cahandler_name)
+    return cahandler_name
 
 
 def client_parameter_validate(

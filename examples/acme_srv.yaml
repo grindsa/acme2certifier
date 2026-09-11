@@ -11,6 +11,12 @@ Nonce:
 # Prefer handler_module, e.g.:
 # handler_module: acme2certifier.cahandlers.openssl_ca_handler
 # CA specific options
+# Multi-handler example (disabled by default):
+# CAhandler:
+#   multi_handler: true
+#   default_handler: openssl
+# CAhandler:openssl:
+#   handler_module: acme2certifier.cahandlers.openssl_ca_handler
 CAhandler: {}
 
 DBhandler:

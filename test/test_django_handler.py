@@ -47,6 +47,7 @@ def _bootstrap_django() -> None:
 
 _bootstrap_django()
 
+from acme2certifier.acme_srv.version import __dbversion__  # noqa: E402
 from acme2certifier.dbhandlers import django_handler as dh_mod  # noqa: E402
 from acme2certifier.dbhandlers.django_handler import DBstore, initialize  # noqa: E402
 from acme2certifier.django_app.models import (  # noqa: E402
@@ -78,7 +79,7 @@ class TestDjangoHandler(unittest.TestCase):
         if Status.objects.count() != 8:
             call_command("loaddata", "status", verbosity=0)
         elif not Housekeeping.objects.filter(name="dbversion").exists():
-            Housekeeping.objects.create(name="dbversion", value="0.41")
+            Housekeeping.objects.create(name="dbversion", value=__dbversion__)
 
     def setUp(self) -> None:
         logging.basicConfig(level=logging.CRITICAL)
@@ -104,7 +105,7 @@ class TestDjangoHandler(unittest.TestCase):
 
             call_command("loaddata", "status", verbosity=0)
         if not Housekeeping.objects.filter(name="dbversion").exists():
-            Housekeeping.objects.create(name="dbversion", value="0.41")
+            Housekeeping.objects.create(name="dbversion", value=__dbversion__)
 
     def _seed_account(self, name: str = "acct1", jwk: str | None = None) -> Account:
         return Account.objects.create(
