@@ -6,7 +6,6 @@ import textwrap
 import math
 import time
 import json
-import os
 from typing import List, Tuple, Dict
 from urllib.parse import urlencode
 import requests
@@ -21,6 +20,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_option_load,
     config_profile_load,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
@@ -317,19 +317,9 @@ class CAhandler(object):
             "api_user" in config_dic["CAhandler"]
             or "api_user_variable" in config_dic["CAhandler"]
         ):
-            if "api_user_variable" in config_dic["CAhandler"]:
-                try:
-                    self.api_user = os.environ[
-                        config_dic.get("CAhandler", "api_user_variable")
-                    ]
-                except Exception as err:
-                    self.logger.error("Could not load user_variable:%s", err)
-            if "api_user" in config_dic["CAhandler"]:
-                if self.api_user:
-                    self.logger.info("Overwrite api_user")
-                self.api_user = config_dic.get(
-                    "CAhandler", "api_user", fallback=self.api_user
-                )
+            self.api_user = config_option_load(
+                self.logger, config_dic, "api_user", current=self.api_user
+            )
         else:
             self.logger.error(
                 '%s: "api_user" parameter is missing in config file',
@@ -346,20 +336,9 @@ class CAhandler(object):
             "api_password" in config_dic["CAhandler"]
             or "api_password_variable" in config_dic["CAhandler"]
         ):
-            if "api_password_variable" in config_dic["CAhandler"]:
-                try:
-                    self.api_password = os.environ[
-                        config_dic.get("CAhandler", "api_password_variable")
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load passphrase_variable:%s",
-                        err,
-                    )
-            if "api_password" in config_dic["CAhandler"]:
-                if self.api_password:
-                    self.logger.info("Overwrite api_password_variable")
-                self.api_password = config_dic.get("CAhandler", "api_password")
+            self.api_password = config_option_load(
+                self.logger, config_dic, "api_password", current=self.api_password
+            )
         else:
             self.logger.error(
                 '%s: "api_password" parameter is missing in config file',

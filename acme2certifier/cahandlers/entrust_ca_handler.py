@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_option_load,
     config_profile_load,
     csr_cn_lookup,
     eab_profile_header_info_check,
@@ -282,37 +283,9 @@ class CAhandler(object):
     def _config_passphrase_load(self, config_dic: Dict[str, str]):
         """load passphrase"""
         self.logger.debug("CAhandler._config_passphrase_load()")
-        if (
-            "cert_passphrase_variable" in config_dic["CAhandler"]
-            or "cert_passphrase" in config_dic["CAhandler"]
-        ):
-            if "cert_passphrase_variable" in config_dic["CAhandler"]:
-                self.logger.debug(
-                    "CAhandler._config_passphrase_load(): load passphrase from environment variable"
-                )
-                try:
-                    self.cert_passphrase = os.environ[
-                        config_dic.get(
-                            "CAhandler",
-                            "cert_passphrase_variable",
-                            fallback=self.cert_passphrase,
-                        )
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load cert_passphrase_variable:%s",
-                        err,
-                    )
-
-            if "cert_passphrase" in config_dic["CAhandler"]:
-                self.logger.debug(
-                    "CAhandler._config_passphrase_load(): load passphrase from config file"
-                )
-                if self.cert_passphrase:
-                    self.logger.info("Overwrite cert_passphrase")
-                self.cert_passphrase = config_dic.get(
-                    "CAhandler", "cert_passphrase", fallback=self.cert_passphrase
-                )
+        self.cert_passphrase = config_option_load(
+            self.logger, config_dic, "cert_passphrase", current=self.cert_passphrase
+        )
         self.logger.debug("CAhandler._config_passphrase_load() ended")
 
     def _config_root_load(self, config_dic: Dict[str, str]):

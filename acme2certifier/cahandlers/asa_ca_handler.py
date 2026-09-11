@@ -3,7 +3,6 @@
 
 from __future__ import print_function
 from typing import Any, Dict, Optional, Tuple, Union
-import os
 import time
 import requests
 from requests.auth import HTTPBasicAuth
@@ -26,6 +25,7 @@ from acme2certifier.acme_srv.helper import (
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     config_enroll_config_log_load,
+    config_option_load,
     config_profile_load,
     enrollment_config_log,
     handler_config_check,
@@ -184,19 +184,9 @@ class CAhandler(object):
     def _config_host_load(self, config_dic: Dict[str, str]):
         """load hostname"""
         self.logger.debug("_config_host_load()")
-
-        api_host_variable = config_dic.get("api_host_variable")
-        if api_host_variable:
-            self.api_host = os.environ.get(api_host_variable)
-            if not self.api_host:
-                self.logger.error(f"Could not load host_variable: {api_host_variable}")
-
-        api_host = config_dic.get("api_host")
-        if api_host:
-            if self.api_host:
-                self.logger.info("Overwrite api_host parameter")
-            self.api_host = api_host
-
+        self.api_host = config_option_load(
+            self.logger, config_dic, "api_host", current=self.api_host
+        )
         self.logger.debug("_config_host_load() ended")
 
     def _certificates_list(self) -> Dict[str, str]:
@@ -212,57 +202,25 @@ class CAhandler(object):
     def _config_key_load(self, config_dic: Dict[str, str]):
         """load keyname"""
         self.logger.debug("_config_key_load()")
-
-        api_key_variable = config_dic.get("api_key_variable")
-        if api_key_variable:
-            self.api_key = os.environ.get(api_key_variable)
-            if not self.api_key:
-                self.logger.error(f"Could not load key_variable: {api_key_variable}")
-
-        api_key = config_dic.get("api_key")
-        if api_key:
-            if self.api_key:
-                self.logger.info("Overwrite api_key parameter")
-            self.api_key = api_key
-
+        self.api_key = config_option_load(
+            self.logger, config_dic, "api_key", current=self.api_key
+        )
         self.logger.debug("_config_key_load() ended")
 
     def _config_password_load(self, config_dic: Dict[str, str]):
         """load passwordname"""
         self.logger.debug("_config_password_load()")
-
-        api_password_variable = config_dic.get("api_password_variable")
-        if api_password_variable:
-            self.api_password = os.environ.get(api_password_variable)
-            if not self.api_password:
-                self.logger.error(
-                    f"Could not load password_variable: {api_password_variable}"
-                )
-
-        api_password = config_dic.get("api_password")
-        if api_password:
-            if self.api_password:
-                self.logger.info("Overwrite api_password parameter")
-            self.api_password = api_password
-
+        self.api_password = config_option_load(
+            self.logger, config_dic, "api_password", current=self.api_password
+        )
         self.logger.debug("_config_password_load() ended")
 
     def _config_user_load(self, config_dic: Dict[str, str]):
         """load username"""
         self.logger.debug("_config_user_load()")
-
-        api_user_variable = config_dic.get("api_user_variable")
-        if api_user_variable:
-            self.api_user = os.environ.get(api_user_variable)
-            if not self.api_user:
-                self.logger.error(f"Could not load user_variable: {api_user_variable}")
-
-        api_user = config_dic.get("api_user")
-        if api_user:
-            if self.api_user:
-                self.logger.info("Overwrite api_user parameter")
-            self.api_user = api_user
-
+        self.api_user = config_option_load(
+            self.logger, config_dic, "api_user", current=self.api_user
+        )
         self.logger.debug("_config_user_load() ended")
 
     def _config_load(self):
@@ -272,10 +230,10 @@ class CAhandler(object):
         config_dic = load_config(self.logger, "CAhandler")
 
         if "CAhandler" in config_dic:
-            self._config_host_load(config_dic["CAhandler"])
-            self._config_user_load(config_dic["CAhandler"])
-            self._config_password_load(config_dic["CAhandler"])
-            self._config_key_load(config_dic["CAhandler"])
+            self._config_host_load(config_dic)
+            self._config_user_load(config_dic)
+            self._config_password_load(config_dic)
+            self._config_key_load(config_dic)
             self.ca_name = config_dic["CAhandler"].get("ca_name")
             self.profile_name = config_dic["CAhandler"].get(self.profile_mapping_field)
 

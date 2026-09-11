@@ -104,7 +104,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn(
-            "ERROR:test_a2c:Unable to load host variable from environment: 'unk'",
+            "ERROR:test_a2c:Could not load host_variable:'unk'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
@@ -183,7 +183,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn(
-            "ERROR:test_a2c:Unable to load user variable from environment: 'unk'",
+            "ERROR:test_a2c:Could not load user_variable:'unk'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
@@ -261,7 +261,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn(
-            "ERROR:test_a2c:Unable to load password variable from environment: 'unk'",
+            "ERROR:test_a2c:Could not load password_variable:'unk'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)

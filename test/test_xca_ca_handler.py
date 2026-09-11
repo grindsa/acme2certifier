@@ -3493,7 +3493,7 @@ class TestACMEHandler(unittest.TestCase):
         """catalog SQL and prefixed physical names per engine"""
         from acme2certifier.cahandlers.xca_ca_handler import XcaDb
 
-        db = XcaDb()
+        db = XcaDb(logger=self.logger)
         self.assertIn("sqlite_master", db.catalog_sql())
         self.assertEqual("items", db.physical_name("items"))
         db.configure(engine="mysql", table_prefix="pki_")

@@ -352,7 +352,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_userauth_load(parser)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite est_user", lcm.output
+            "INFO:test_a2c:Overwrite est_user", lcm.output
         )
         self.assertEqual("est_user", self.cahandler.est_user)
 
@@ -379,7 +379,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_password_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:Could not load est_password:'est_password_var'",
+            "ERROR:test_a2c:Could not load est_password_variable:'est_password_var'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.est_password)

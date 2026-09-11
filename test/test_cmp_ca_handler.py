@@ -233,7 +233,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.ref)
         self.assertIn(
-            "ERROR:test_a2c:Could not load cmp_ref:'does_not_exist'",
+            "ERROR:test_a2c:Could not load cmp_ref_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -251,7 +251,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("cmp_ref_local", self.cahandler.ref)
         self.assertIn(
-            "INFO:test_a2c:Overwrite cmp_ref variable",
+            "INFO:test_a2c:Overwrite cmp_ref",
             lcm.output,
         )
 
@@ -294,7 +294,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("cmp_secret_local", self.cahandler.secret)
         self.assertIn(
-            "INFO:test_a2c:Overwrite cmp_secret variable",
+            "INFO:test_a2c:Overwrite cmp_secret",
             lcm.output,
         )
 

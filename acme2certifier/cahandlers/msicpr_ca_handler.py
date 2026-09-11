@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     build_pem_file,
     config_eab_profile_load,
     config_enroll_config_log_load,
+    config_option_load,
     config_profile_load,
     convert_byte_to_string,
     convert_string_to_byte,
@@ -105,114 +106,38 @@ class CAhandler(object):
     def _config_host_load(self, config_dic: Dict[str, str]):
         """load host variable"""
         self.logger.debug("CAhandler._config_host_load()")
-
-        if "host_variable" in config_dic["CAhandler"]:
-            try:
-                self.host = os.environ[config_dic.get("CAhandler", "host_variable")]
-            except Exception as err:
-                self.logger.error(
-                    "Unable to load host variable from environment: %s", err
-                )
-        if "host" in config_dic["CAhandler"]:
-            if self.host:
-                self.logger.info("Overwrite host")
-            self.host = config_dic.get("CAhandler", "host")
-
+        self.host = config_option_load(
+            self.logger, config_dic, "host", current=self.host
+        )
         self.logger.debug("CAhandler._config_host_load() ended")
 
     def _config_credentials_load(self, config_dic: Dict[str, str]):
         """load host variable"""
         self.logger.debug("CAhandler._config_credentials_load()")
 
-        cahandler_cfg = config_dic["CAhandler"]
-        self.user = self._config_credential_item_load(
-            config_dic,
-            cahandler_cfg,
-            self.user,
-            "user",
-            "user_variable",
-            "Unable to load user variable from environment: %s",
+        self.user = config_option_load(
+            self.logger, config_dic, "user", current=self.user
         )
-        self.password = self._config_credential_item_load(
-            config_dic,
-            cahandler_cfg,
-            self.password,
-            "password",
-            "password_variable",
-            "Unable to load password variable from environment: %s",
+        self.password = config_option_load(
+            self.logger, config_dic, "password", current=self.password
         )
-        self.krb5_principal = self._config_credential_item_load(
-            config_dic,
-            cahandler_cfg,
-            self.krb5_principal,
-            "krb5_principal",
-            "krb5_principal_variable",
-            "Unable to load kerberos principal variable from environment: %s",
+        self.krb5_principal = config_option_load(
+            self.logger, config_dic, "krb5_principal", current=self.krb5_principal
         )
-        self.krb5_keytab = self._config_credential_item_load(
-            config_dic,
-            cahandler_cfg,
-            self.krb5_keytab,
-            "krb5_keytab",
-            "krb5_keytab_variable",
-            "Unable to load kerberos keytab variable from environment: %s",
+        self.krb5_keytab = config_option_load(
+            self.logger, config_dic, "krb5_keytab", current=self.krb5_keytab
         )
-        self.krb5_cache = self._config_credential_item_load(
-            config_dic,
-            cahandler_cfg,
-            self.krb5_cache,
-            "krb5_cache",
-            "krb5_cache_variable",
-            "Unable to load kerberos ccache variable from environment: %s",
+        self.krb5_cache = config_option_load(
+            self.logger, config_dic, "krb5_cache", current=self.krb5_cache
         )
-        self.krb5_config = self._config_credential_item_load(
-            config_dic,
-            cahandler_cfg,
-            self.krb5_config,
-            "krb5_config",
-            "krb5_config_variable",
-            "Unable to load kerberos krb5 config variable from environment: %s",
+        self.krb5_config = config_option_load(
+            self.logger, config_dic, "krb5_config", current=self.krb5_config
         )
-        self.krb5_kinit_path = self._config_credential_item_load(
-            config_dic,
-            cahandler_cfg,
-            self.krb5_kinit_path,
-            "krb5_kinit_path",
-            "krb5_kinit_path_variable",
-            "Unable to load kerberos kinit path variable from environment: %s",
+        self.krb5_kinit_path = config_option_load(
+            self.logger, config_dic, "krb5_kinit_path", current=self.krb5_kinit_path
         )
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
-
-    def _config_credential_item_load(
-        self,
-        config_dic: Dict[str, str],
-        cahandler_cfg: Dict[str, str],
-        current_value: Optional[str],
-        cfg_key: str,
-        cfg_var_key: str,
-        env_load_error_msg: str,
-    ) -> Optional[str]:
-        """load one credential item from env variable and/or config"""
-        self.logger.debug("CAhandler._config_credential_item_load(%s)", cfg_key)
-        loaded_value = current_value
-
-        if cfg_var_key in cahandler_cfg:
-            try:
-                loaded_value = os.environ[config_dic.get("CAhandler", cfg_var_key)]
-            except Exception as err:
-                self.logger.error(env_load_error_msg, err)
-
-        if cfg_key in cahandler_cfg:
-            if loaded_value:
-                self.logger.info("Overwrite %s", cfg_key)
-            loaded_value = config_dic.get("CAhandler", cfg_key)
-        self.logger.debug(
-            "CAhandler._config_credential_item_load(%s) ended with value: %s",
-            cfg_key,
-            "******" if loaded_value else None,
-        )
-        return loaded_value
 
     def _config_parameters_load(self, config_dic: Dict[str, str]):
         """load parameters"""

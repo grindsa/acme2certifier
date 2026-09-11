@@ -14,6 +14,7 @@ from acme2certifier.acme_srv.helper import (
     build_pem_file,
     b64_url_recode,
     config_profile_load,
+    config_option_load,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -78,16 +79,12 @@ class CAhandler(object):
     def _config_refsecret_load(self, config_dic: Dict[str, str]):
         """ " load ref secrets from file"""
         self.logger.debug("CAhandler._config_refsecret_load()")
-
-        if "CAhandler" in config_dic and "cmp_ref" in config_dic["CAhandler"]:
-            if self.ref:
-                self.logger.info("Overwrite cmp_ref variable")
-            self.ref = config_dic["CAhandler"]["cmp_ref"]
-        if "CAhandler" in config_dic and "cmp_secret" in config_dic["CAhandler"]:
-            if self.secret:
-                self.logger.info("Overwrite cmp_secret variable")
-            self.secret = config_dic["CAhandler"]["cmp_secret"]
-
+        self.ref = config_option_load(
+            self.logger, config_dic, "cmp_ref", current=self.ref
+        )
+        self.secret = config_option_load(
+            self.logger, config_dic, "cmp_secret", current=self.secret
+        )
         self.logger.debug("CAhandler._config_refsecret_load() ended")
 
     def _config_paramters_load(self):
@@ -138,20 +135,12 @@ class CAhandler(object):
             self.openssl_bin = config_dic["CAhandler"]["cmp_openssl_bin"]
         elif ele == "cmp_recipient":
             self._config_cmprecipient_load(config_dic)
-        elif ele == "cmp_ref_variable":
-            try:
-                self.ref = os.environ[config_dic["CAhandler"]["cmp_ref_variable"]]
-            except Exception as err:
-                self.logger.error("Could not load cmp_ref:%s", err)
-        elif ele == "cmp_secret_variable":
-            try:
-                self.secret = os.environ[config_dic["CAhandler"]["cmp_secret_variable"]]
-            except Exception as err:
-                self.logger.error(
-                    "Could not load cmp_secret_variable:%s",
-                    err,
-                )
-        elif ele in ("cmp_secret", "cmp_ref"):
+        elif ele in (
+            "cmp_secret",
+            "cmp_ref",
+            "cmp_ref_variable",
+            "cmp_secret_variable",
+        ):
             self.logger.debug("CAhandler._config_cmpparameter_load() ignore %s", ele)
         else:
             if (

@@ -829,37 +829,32 @@ class TestCAhandler(unittest.TestCase):
                 )
 
     def test_044_config_passphrase_load_env_error_logs(self):
-        # Simulate missing env var, should log error
-        config_dic = {"CAhandler": {"cert_passphrase_variable": "MISSING_ENV_VAR"}}
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_passphrase_variable": "MISSING_ENV_VAR"}
         with patch.dict(os.environ, {}, clear=True):
-            with patch.object(self.cahandler.logger, "error") as mock_log:
-                self.cahandler._config_passphrase_load(config_dic)
-                mock_log.assert_any_call(
-                    "Could not load cert_passphrase_variable:%s",
-                    unittest.mock.ANY,
-                )
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                self.cahandler._config_passphrase_load(parser)
+        self.assertTrue(
+            any("Could not load cert_passphrase_variable" in msg for msg in lcm.output)
+        )
 
     def test_045_config_passphrase_load_overwrite_logs_info(self):
-        # Simulate env var present, then config value overwrites, should log info
-        config_dic = {
-            "CAhandler": {
-                "cert_passphrase_variable": "EXISTING_ENV_VAR",
-                "cert_passphrase": "from_config",
-            }
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "cert_passphrase_variable": "EXISTING_ENV_VAR",
+            "cert_passphrase": "from_config",
         }
         with patch.dict(os.environ, {"EXISTING_ENV_VAR": "from_env"}):
-            with patch.object(self.cahandler.logger, "info") as mock_log:
-                self.cahandler._config_passphrase_load(config_dic)
-                self.assertEqual(self.cahandler.cert_passphrase, "from_config")
-                mock_log.assert_any_call(
-                    "CAhandler._config_load() overwrite cert_passphrase"
-                )
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                self.cahandler._config_passphrase_load(parser)
+        self.assertEqual(self.cahandler.cert_passphrase, "from_config")
+        self.assertTrue(any("Overwrite cert_passphrase" in msg for msg in lcm.output))
 
     def test_046_config_passphrase_load_direct(self):
-        # Only cert_passphrase in config, should set directly
-        config_dic = {"CAhandler": {"cert_passphrase": "direct_value"}}
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_passphrase": "direct_value"}
         self.cahandler.cert_passphrase = None
-        self.cahandler._config_passphrase_load(config_dic)
+        self.cahandler._config_passphrase_load(parser)
         self.assertEqual(self.cahandler.cert_passphrase, "direct_value")
 
     def test_047_login_pkcs12_auth(self):

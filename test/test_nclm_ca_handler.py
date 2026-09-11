@@ -355,7 +355,7 @@ class TestACMEHandler(unittest.TestCase):
             {"api_user": None, "api_password": None}, self.cahandler.credential_dic
         )
         self.assertIn(
-            "ERROR:test_a2c:Unable to load API user from environment: 'does_not_exist'",
+            "ERROR:test_a2c:Could not load api_user_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -406,7 +406,7 @@ class TestACMEHandler(unittest.TestCase):
             {"api_user": None, "api_password": None}, self.cahandler.credential_dic
         )
         self.assertIn(
-            "ERROR:test_a2c:Could not load password_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load api_password_variable:'does_not_exist'",
             lcm.output,
         )
 

@@ -371,7 +371,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_passphrase_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:Could not load cert_passphrase_variable from environment: 'cert_passphrase_variable'",
+            "ERROR:test_a2c:Could not load cert_passphrase_variable:'cert_passphrase_variable'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.cert_passphrase)

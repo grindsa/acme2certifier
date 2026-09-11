@@ -640,7 +640,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_session_load(parser)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase",
+            "INFO:test_a2c:Overwrite cert_passphrase",
             lcm.output,
         )
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)

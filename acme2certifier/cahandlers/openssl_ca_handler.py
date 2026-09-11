@@ -39,6 +39,7 @@ from acme2certifier.acme_srv.helper import (
     csr_cn_get,
     csr_san_get,
     config_enroll_config_log_load,
+    config_option_load,
     enrollment_config_log,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
@@ -461,28 +462,18 @@ class CAhandler(object):
             "CAhandler", "issuing_ca_cert", fallback=None
         )
 
-        if "issuing_ca_key_passphrase_variable" in config_dic["CAhandler"]:
-            try:
-                self.issuer_dict["passphrase"] = os.environ[
-                    config_dic.get("CAhandler", "issuing_ca_key_passphrase_variable")
-                ]
-            except Exception as err:
-                self.logger.error(
-                    "Unable to load issuing_ca_key_passphrase_variable from environment: %s",
-                    err,
-                )
-        if "issuing_ca_key_passphrase" in config_dic["CAhandler"]:
-            if "passphrase" in self.issuer_dict and self.issuer_dict["passphrase"]:
-                self.logger.info("Overwrite issuing_ca_key_passphrase_variable")
-            self.issuer_dict["passphrase"] = config_dic.get(
-                "CAhandler", "issuing_ca_key_passphrase"
+        if (
+            "issuing_ca_key_passphrase_variable" in config_dic["CAhandler"]
+            or "issuing_ca_key_passphrase" in config_dic["CAhandler"]
+        ):
+            passphrase = config_option_load(
+                self.logger,
+                config_dic,
+                "issuing_ca_key_passphrase",
+                current=self.issuer_dict.get("passphrase"),
             )
-
-        # convert passphrase
-        if "passphrase" in self.issuer_dict:
-            self.issuer_dict["passphrase"] = self.issuer_dict["passphrase"].encode(
-                "ascii"
-            )
+            if isinstance(passphrase, str):
+                self.issuer_dict["passphrase"] = passphrase.encode("ascii")
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
 

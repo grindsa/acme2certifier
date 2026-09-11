@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """ejbca rest ca handler"""
 
-import os
 from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
@@ -17,6 +16,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_option_load,
     config_profile_load,
     convert_byte_to_string,
     csr_cn_get,
@@ -167,21 +167,9 @@ class CAhandler(object):
             "username_variable" in config_dic["CAhandler"]
             or "username" in config_dic["CAhandler"]
         ):
-            if "username_variable" in config_dic["CAhandler"]:
-                try:
-                    self.username = os.environ[
-                        config_dic.get("CAhandler", "username_variable", fallback=None)
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load username_variable:%s",
-                        err,
-                    )
-
-            if "username" in config_dic["CAhandler"]:
-                if self.username:
-                    self.logger.info("Overwrite username parameter")
-                self.username = config_dic.get("CAhandler", "username", fallback=None)
+            self.username = config_option_load(
+                self.logger, config_dic, "username", current=self.username
+            )
         else:
             self.logger.error(
                 '%s: "username" parameter is missing in config file',
@@ -207,21 +195,9 @@ class CAhandler(object):
             "enrollment_code_variable" in config_dic["CAhandler"]
             or "enrollment_code" in config_dic["CAhandler"]
         ):
-            if "enrollment_code_variable" in config_dic["CAhandler"]:
-                try:
-                    self.enrollment_code = os.environ[
-                        config_dic.get("CAhandler", "enrollment_code_variable")
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load enrollment_code_variable:%s",
-                        err,
-                    )
-
-            if "enrollment_code" in config_dic["CAhandler"]:
-                if self.enrollment_code:
-                    self.logger.info("Overwrite enrollment_code")
-                self.enrollment_code = config_dic.get("CAhandler", "enrollment_code")
+            self.enrollment_code = config_option_load(
+                self.logger, config_dic, "enrollment_code", current=self.enrollment_code
+            )
         else:
             self.logger.error(
                 '%s: "enrollment_code" parameter is missing in config file',
@@ -237,25 +213,9 @@ class CAhandler(object):
             "cert_passphrase_variable" in config_dic["CAhandler"]
             or "cert_passphrase" in config_dic["CAhandler"]
         ):
-            if "cert_passphrase_variable" in config_dic["CAhandler"]:
-                try:
-                    self.cert_passphrase = os.environ[
-                        config_dic.get(
-                            "CAhandler", "cert_passphrase_variable", fallback=None
-                        )
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load cert_passphrase_variable:%s",
-                        err,
-                    )
-
-            if "cert_passphrase" in config_dic["CAhandler"]:
-                if self.cert_passphrase:
-                    self.logger.info(
-                        "CAhandler._config_load() overwrite cert_passphrase"
-                    )
-                self.cert_passphrase = config_dic.get("CAhandler", "cert_passphrase")
+            self.cert_passphrase = config_option_load(
+                self.logger, config_dic, "cert_passphrase", current=self.cert_passphrase
+            )
 
         if (
             config_dic

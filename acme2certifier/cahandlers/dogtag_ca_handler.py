@@ -4,7 +4,6 @@
 
 from __future__ import print_function
 from typing import Tuple, Dict, Optional
-import os
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 from cryptography import x509
@@ -19,6 +18,7 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     eab_profile_header_info_check,
     config_enroll_config_log_load,
+    config_option_load,
     config_profile_load,
     config_eab_profile_load,
     config_headerinfo_load,
@@ -674,50 +674,9 @@ class CAhandler(object):
         Returns:
             None
         """
-        section = None
-        # Support both dict and ConfigParser
-        if isinstance(config_dic, dict) and self.CONFIG_SECTION in config_dic:
-            section = config_dic[self.CONFIG_SECTION]
-        elif hasattr(config_dic, "items") and config_dic.has_section(
-            self.CONFIG_SECTION
-        ):
-            # Convert section to dict
-            section = dict(config_dic.items(self.CONFIG_SECTION))
-        if not isinstance(section, dict):
-            return
-
-        if "cert_passphrase_variable" in section:
-            self._load_passphrase_from_env(section["cert_passphrase_variable"])
-
-        if "cert_passphrase" in section:
-            self._load_passphrase_from_config(section["cert_passphrase"])
-
-    def _load_passphrase_from_env(self, var_name: str) -> None:
-        """
-        Load certificate passphrase from environment variable.
-
-        Args:
-            var_name (str): Environment variable name.
-        Returns:
-            None
-        """
-        try:
-            self.cert_passphrase = os.environ[var_name]
-        except Exception as err:
-            self.logger.error("Could not load cert_passphrase_variable:%s", err)
-
-    def _load_passphrase_from_config(self, passphrase: str) -> None:
-        """
-        Load certificate passphrase from config value.
-
-        Args:
-            passphrase (str): Passphrase value.
-        Returns:
-            None
-        """
-        if self.cert_passphrase:
-            self.logger.info("CAhandler._config_load() overwrite cert_passphrase")
-        self.cert_passphrase = passphrase
+        self.cert_passphrase = config_option_load(
+            self.logger, config_dic, "cert_passphrase", current=self.cert_passphrase
+        )
 
     def _config_load(self) -> None:
         """

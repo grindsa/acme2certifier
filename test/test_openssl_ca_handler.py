@@ -1154,7 +1154,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Unable to load issuing_ca_key_passphrase_variable from environment: 'does_not_exist'",
+            "ERROR:test_a2c:Could not load issuing_ca_key_passphrase_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -1172,7 +1172,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual(b"foo_file", self.cahandler.issuer_dict["passphrase"])
         self.assertIn(
-            "INFO:test_a2c:Overwrite issuing_ca_key_passphrase_variable",
+            "INFO:test_a2c:Overwrite issuing_ca_key_passphrase",
             lcm.output,
         )
 

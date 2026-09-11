@@ -2,7 +2,6 @@
 """ca handler for generic EST server"""
 
 from __future__ import print_function
-import os
 import textwrap
 import json
 from typing import List, Tuple, Dict
@@ -25,6 +24,7 @@ from acme2certifier.acme_srv.helper import (
     parse_url,
     proxy_check,
     handler_config_check,
+    config_option_load,
     pkcs7_to_pem,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
@@ -118,18 +118,11 @@ class CAhandler(object):
         """load est server address"""
         self.logger.debug("CAhandler._config_host_load()")
 
-        if "est_host_variable" in config_dic["CAhandler"]:
-            try:
-                self.est_host = (
-                    os.environ[config_dic.get("CAhandler", "est_host_variable")]
-                    + "/.well-known/est"
-                )
-            except Exception as err:
-                self.logger.error("Could not load est_host_variable:%s", err)
-        if "est_host" in config_dic["CAhandler"]:
-            if self.est_host:
-                self.logger.info("Overwrite est_host")
-            self.est_host = config_dic.get("CAhandler", "est_host") + "/.well-known/est"
+        est_host = config_option_load(
+            self.logger, config_dic, "est_host", current=None
+        )
+        if est_host:
+            self.est_host = est_host + "/.well-known/est"
         if not self.est_host:
             self.logger.error('Missing "est_host" parameter')
 
@@ -138,20 +131,9 @@ class CAhandler(object):
     def _cert_passphrase_load(self, config_dic: Dict[str, str]):
         """load cert passphrase"""
         self.logger.debug("CAhandler._cert_passphrase_load()")
-        if "cert_passphrase_variable" in config_dic["CAhandler"]:
-            try:
-                self.cert_passphrase = os.environ[
-                    config_dic.get("CAhandler", "cert_passphrase_variable")
-                ]
-            except Exception as err:
-                self.logger.error(
-                    "Could not load cert_passphrase_variable:%s",
-                    err,
-                )
-        if "cert_passphrase" in config_dic["CAhandler"]:
-            if self.cert_passphrase:
-                self.logger.info("Overwrite cert_passphrase")
-            self.cert_passphrase = config_dic.get("CAhandler", "cert_passphrase")
+        self.cert_passphrase = config_option_load(
+            self.logger, config_dic, "cert_passphrase", current=self.cert_passphrase
+        )
         self.logger.debug("CAhandler._cert_passphrase_load() ended")
 
     def _config_clientauth_load(self, config_dic: Dict[str, str]):
@@ -195,17 +177,13 @@ class CAhandler(object):
         """check if we need to use user-auth"""
         self.logger.debug("CAhandler._config_userauth_load()")
 
-        if "est_user_variable" in config_dic["CAhandler"]:
-            try:
-                self.est_user = os.environ[
-                    config_dic.get("CAhandler", "est_user_variable")
-                ]
-            except Exception as err:
-                self.logger.error("Could not load est_user_variable:%s", err)
-        if "est_user" in config_dic["CAhandler"]:
-            if self.est_user:
-                self.logger.info("CAhandler._config_load() overwrite est_user")
-            self.est_user = config_dic.get("CAhandler", "est_user")
+        if (
+            "est_user_variable" in config_dic["CAhandler"]
+            or "est_user" in config_dic["CAhandler"]
+        ):
+            self.est_user = config_option_load(
+                self.logger, config_dic, "est_user", current=self.est_user
+            )
 
         self.logger.debug("CAhandler._config_userauth_load() ended")
 
@@ -213,17 +191,13 @@ class CAhandler(object):
         """load password"""
         self.logger.debug("CAhandler._config_password_load()")
 
-        if "est_password_variable" in config_dic["CAhandler"]:
-            try:
-                self.est_password = os.environ[
-                    config_dic.get("CAhandler", "est_password_variable")
-                ]
-            except Exception as err:
-                self.logger.error("Could not load est_password:%s", err)
-        if "est_password" in config_dic["CAhandler"]:
-            if self.est_password:
-                self.logger.info("Overwrite est_password")
-            self.est_password = config_dic.get("CAhandler", "est_password")
+        if (
+            "est_password_variable" in config_dic["CAhandler"]
+            or "est_password" in config_dic["CAhandler"]
+        ):
+            self.est_password = config_option_load(
+                self.logger, config_dic, "est_password", current=self.est_password
+            )
 
         if (self.est_user and not self.est_password) or (
             self.est_password and not self.est_user

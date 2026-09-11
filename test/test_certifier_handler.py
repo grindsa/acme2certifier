@@ -339,7 +339,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.api_user)
         self.assertIn(
-            "ERROR:test_a2c:Could not load user_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load api_user_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -354,10 +354,13 @@ class TestACMEHandler(unittest.TestCase):
             "api_user": "api_user",
         }
         mock_load_cfg.return_value = parser
-        self.cahandler._config_load()
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
         self.assertEqual("api_user", self.cahandler.api_user)
-        # self.assertIn("foo", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Overwrite api_user",
+            lcm.output,
+        )
         self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict("os.environ", {"api_password_var": "password_var"})
@@ -382,7 +385,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.api_password)
         self.assertIn(
-            "ERROR:test_a2c:Could not load passphrase_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load api_password_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -401,7 +404,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("api_password", self.cahandler.api_password)
         self.assertIn(
-            "INFO:test_a2c:Overwrite api_password_variable",
+            "INFO:test_a2c:Overwrite api_password",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)

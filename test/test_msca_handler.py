@@ -368,7 +368,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertIn(
-            "ERROR:test_a2c:Could not load host_variable from environment: 'doesnotexist'",
+            "ERROR:test_a2c:Could not load host_variable:'doesnotexist'",
             lcm.output,
         )
 
@@ -405,7 +405,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.user)
         self.assertIn(
-            "ERROR:test_a2c:Could not load user_variable from environment: 'doesnotexist'",
+            "ERROR:test_a2c:Could not load user_variable:'doesnotexist'",
             lcm.output,
         )
 
@@ -442,7 +442,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.password)
         self.assertIn(
-            "ERROR:test_a2c:Could not load password_variable from environment: 'doesnotexist'",
+            "ERROR:test_a2c:Could not load password_variable:'doesnotexist'",
             lcm.output,
         )
 
@@ -1075,7 +1075,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_url_load(parser)
         self.assertFalse(self.cahandler.url)
         self.assertIn(
-            "ERROR:test_a2c:Could not load url_variable from environment: 'doesnotexist'",
+            "ERROR:test_a2c:Could not load url_variable:'doesnotexist'",
             lcm.output,
         )
 
@@ -1117,22 +1117,16 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("host or url", error)
         self.assertTrue(any("host or url" in msg for msg in lcm.output))
 
-    def test_075_config_kerberos_parameter_item_load_env_error(self):
-        """_config_kerberos_parameter_item_load logs missing env variables"""
+    def test_075_config_kerberos_parameters_load_env_error(self):
+        """_config_kerberos_parameters_load logs missing env variables"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"krb5_principal_variable": "DOES_NOT_EXIST"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            value = self.cahandler._config_kerberos_parameter_item_load(
-                parser,
-                None,
-                "krb5_principal",
-                "krb5_principal_variable",
-                "Could not load krb5_principal_variable from environment: %s",
-            )
-        self.assertIsNone(value)
+            self.cahandler._config_kerberos_parameters_load(parser)
+        self.assertIsNone(self.cahandler.krb5_principal)
         self.assertTrue(
             any(
-                "Could not load krb5_principal_variable from environment" in msg
+                "Could not load krb5_principal_variable" in msg
                 for msg in lcm.output
             )
         )

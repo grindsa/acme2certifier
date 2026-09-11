@@ -2,7 +2,6 @@
 """ca handler for "NetGuard Certificate Lifecycle Manager" via REST-API class"""
 
 from __future__ import print_function
-import os
 import time
 import json
 from typing import List, Tuple, Dict
@@ -17,6 +16,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_option_load,
     config_profile_load,
     convert_string_to_byte,
     eab_profile_header_info_check,
@@ -455,39 +455,23 @@ class CAhandler(object):
     def _config_api_user_load(self, config_dic: Dict[str, str]):
         """load user"""
         self.logger.debug("CAhandler._config_api_user_load()")
-
-        if "api_user_variable" in config_dic["CAhandler"]:
-            try:
-                self.credential_dic["api_user"] = os.environ[
-                    config_dic.get("CAhandler", "api_user_variable")
-                ]
-            except Exception as err:
-                self.logger.error("Unable to load API user from environment: %s", err)
-        if "api_user" in config_dic["CAhandler"]:
-            if self.credential_dic["api_user"]:
-                self.logger.info("Overwrite api_user")
-            self.credential_dic["api_user"] = config_dic.get("CAhandler", "api_user")
-
+        self.credential_dic["api_user"] = config_option_load(
+            self.logger,
+            config_dic,
+            "api_user",
+            current=self.credential_dic.get("api_user"),
+        )
         self.logger.debug("CAhandler._config_api_user_load() ended.")
 
     def _config_api_password_load(self, config_dic: Dict[str, str]):
         """load password"""
         self.logger.debug("CAhandler._config_api_password_load()")
-
-        if "api_password_variable" in config_dic["CAhandler"]:
-            try:
-                self.credential_dic["api_password"] = os.environ[
-                    config_dic.get("CAhandler", "api_password_variable")
-                ]
-            except Exception as err:
-                self.logger.error("Could not load password_variable:%s", err)
-        if "api_password" in config_dic["CAhandler"]:
-            if self.credential_dic["api_password"]:
-                self.logger.info("Overwrite api_password")
-            self.credential_dic["api_password"] = config_dic.get(
-                "CAhandler", "api_password"
-            )
-
+        self.credential_dic["api_password"] = config_option_load(
+            self.logger,
+            config_dic,
+            "api_password",
+            current=self.credential_dic.get("api_password"),
+        )
         self.logger.debug("CAhandler._config_api_password_load() ended")
 
     def _config_names_load(self, config_dic: Dict[str, str]):
