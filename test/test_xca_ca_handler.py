@@ -3430,6 +3430,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("id", row)
         self.assertIn("name", row)
 
+    def test_223a_sql_match(self):
+        """numeric lookups use =; text keeps LIKE (PostgreSQL rejects integer LIKE)"""
+        from acme2certifier.cahandlers.xca_ca_handler import sql_match
+
+        self.assertEqual("name LIKE ?", sql_match("name", "ca"))
+        self.assertEqual("item = ?", sql_match("item", 2))
+        self.assertEqual("flag LIKE ?", sql_match("flag", True))
+
     def test_224_xcadb_rewrite_prefix(self):
         """XcaDb.rewrite_prefix matches XCA concatenation on tables and views"""
         from acme2certifier.cahandlers.xca_ca_handler import XcaDb
