@@ -119,19 +119,22 @@ Do not store Django ACME tables and an unprefixed XCA schema in the same databas
 
 ### Importing an existing SQLite `.xdb`
 
-Follow [XCA Remote Databases](https://www.hohnstaedt.de/xca/index.php/documentation/remote-databases), with one extra step on SQLite 3.44+: `.dump` emits `unistr()`, which MariaDB/MySQL do not implement.
+Follow [XCA Remote Databases](https://www.hohnstaedt.de/xca/index.php/documentation/remote-databases), with one extra step on SQLite 3.44+: `.dump` emits `unistr()` / `char(10)`, which MariaDB/MySQL and PostgreSQL do not accept as-is.
+
+Prefer a newer sqlite CLI (`sqlite3 --escape off your.xdb .dump`) or dump via Python so strings keep literal newlines:
 
 ```bash
-sqlite3 --escape off your.xdb .dump > dump.sql
+python3 .github/scripts/xca_sqlite_dump.py --dialect mysql your.xdb -o dump.sql
+# or --dialect postgresql
 ```
 
-Then apply the XCA MySQL edits (drop `PRAGMA` / `BEGIN TRANSACTION`, add `SET SESSION SQL_MODE='ANSI';`) and import:
+Then import:
 
 ```bash
 mariadb -u root -p xca < dump.sql
 ```
 
-`--escape off` writes control characters (newlines in item comments) as literal bytes instead of `unistr('\u000a')`. If a dump already contains `unistr()`, replace those calls before import — `\u000a` is a newline (`CHAR(10)`). PostgreSQL provides `unistr()` and does not need this change.
+`--escape off` writes control characters (newlines in item comments) as literal bytes instead of `unistr('\u000a')`. If a dump already contains `unistr()`, replace those calls before import — `\u000a` is a newline (`CHAR(10)` in MariaDB, `chr(10)` in PostgreSQL).
 
 ## Template Support
 
