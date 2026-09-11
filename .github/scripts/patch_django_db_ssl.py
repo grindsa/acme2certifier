@@ -8,6 +8,11 @@ import sys
 from pathlib import Path
 
 
+def _client_material_paths(ca_runtime_path: str) -> tuple[str, str]:
+    parent = Path(ca_runtime_path).parent
+    return str(parent / "db-client-cert.pem"), str(parent / "db-client-key.pem")
+
+
 def _patch_mariadb(text: str, ca_runtime_path: str) -> str:
     ssl_snippet = f'"ssl": {{"ca": "{ca_runtime_path}"}}'
     if ssl_snippet in text:
@@ -25,18 +30,22 @@ def _patch_mariadb(text: str, ca_runtime_path: str) -> str:
 def _patch_psql(text: str, ca_runtime_path: str) -> str:
     if '"sslmode"' in text and "sslrootcert" in text:
         return text
+    sslcert, sslkey = _client_material_paths(ca_runtime_path)
     options = (
         '        "OPTIONS": {\n'
         '            "sslmode": "verify-ca",\n'
         f'            "sslrootcert": "{ca_runtime_path}",\n'
+        f'            "sslcert": "{sslcert}",\n'
+        f'            "sslkey": "{sslkey}",\n'
         "        },\n"
     )
     needle = '"PORT": "",\n'
     if needle in text:
         return text.replace(needle, needle + options, 1)
-    needle_alt = '"PORT": "",'
-    if needle_alt in text:
-        return text.replace(needle_alt, needle_alt + "\n" + options.rstrip("\n"), 1)
+    if '"PORT": "",' in text:
+        return text.replace(
+            '"PORT": "",', '"PORT": "",\n' + options.rstrip("\n"), 1
+        )
     raise SystemExit("PostgreSQL settings: expected PORT key to inject OPTIONS")
 
 

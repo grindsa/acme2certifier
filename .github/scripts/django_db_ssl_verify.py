@@ -6,11 +6,30 @@ from __future__ import annotations
 import os
 import sys
 
+# RPM/DEB layouts keep the package on PYTHONPATH, not in site-packages.
+_APP_ROOTS = (
+    "/opt/acme2certifier",
+    "/var/www/acme2certifier",
+)
 
-def main() -> int:
+
+def _prepare_runtime() -> None:
+    """Make acme2certifier.django_project importable and set BASE_DIR."""
     os.environ.setdefault(
         "DJANGO_SETTINGS_MODULE", "acme2certifier.django_project.settings"
     )
+    for root in _APP_ROOTS:
+        django_project = os.path.join(root, "acme2certifier", "django_project")
+        if not os.path.isdir(django_project):
+            continue
+        if root not in sys.path:
+            sys.path.insert(0, root)
+        os.environ.setdefault("ACME2CERTIFIER_BASE_DIR", root)
+        return
+
+
+def main() -> int:
+    _prepare_runtime()
     import django
 
     django.setup()

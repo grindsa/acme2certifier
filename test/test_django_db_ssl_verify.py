@@ -25,6 +25,7 @@ def _run_with_connection(vendor: str, fetchone) -> int:
     with (
         patch.dict("sys.modules", {"django": django_mock, "django.db": db_mod}),
         patch.object(django_mock, "setup"),
+        patch.object(django_db_ssl_verify, "_prepare_runtime"),
     ):
         return django_db_ssl_verify.main()
 
@@ -55,3 +56,21 @@ def test_postgresql_ssl_false_fails() -> None:
 def test_unsupported_vendor_fails() -> None:
     """Unknown Django vendor fails closed."""
     assert _run_with_connection("sqlite", None) == 1
+
+
+def test_prepare_runtime_adds_app_root(tmp_path, monkeypatch) -> None:
+    """RPM/DEB APP_ROOT is prepended so django_project can be imported."""
+    root = tmp_path / "opt" / "acme2certifier"
+    (root / "acme2certifier" / "django_project").mkdir(parents=True)
+    monkeypatch.setattr(
+        django_db_ssl_verify, "_APP_ROOTS", (str(root), "/no/such/root")
+    )
+    monkeypatch.delenv("ACME2CERTIFIER_BASE_DIR", raising=False)
+    monkeypatch.delenv("DJANGO_SETTINGS_MODULE", raising=False)
+    django_db_ssl_verify._prepare_runtime()
+    assert sys.path[0] == str(root)
+    assert os.environ["ACME2CERTIFIER_BASE_DIR"] == str(root)
+    assert (
+        os.environ["DJANGO_SETTINGS_MODULE"]
+        == "acme2certifier.django_project.settings"
+    )
