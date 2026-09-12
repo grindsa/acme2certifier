@@ -251,6 +251,23 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
         self.assertEqual((code, content), (201, {"ok": True}))
         mock_req.assert_called_once()
 
+    def test_014_kerberos_ccache_path_and_username(self) -> None:
+        """KerberosAuthMixin normalizes FILE: ccaches and principal usernames"""
+        from acme2certifier.acme_srv.helpers.kerberos_auth import KerberosAuthMixin
+
+        self.assertEqual(
+            "/tmp/cc", KerberosAuthMixin._kerberos_ccache_path("FILE:/tmp/cc")
+        )
+        self.assertEqual("/tmp/cc", KerberosAuthMixin._kerberos_ccache_path("/tmp/cc"))
+        self.assertIsNone(KerberosAuthMixin._kerberos_ccache_path(None))
+        self.assertIsNone(KerberosAuthMixin._kerberos_ccache_path(""))
+
+        mixin = KerberosAuthMixin()
+        mixin.logger = self.logger
+        self.assertEqual(
+            "svc", mixin._kerberos_username_from_principal("svc@EXAMPLE.COM")
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
