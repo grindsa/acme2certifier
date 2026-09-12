@@ -28,9 +28,9 @@ from acme2certifier.acme_srv.helper import (
     config_profile_load,
     config_proxy_load,
     enrollment_config_log,
+    handler_config_check,
     request_operation,
 )
-from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 CONTENT_TYPE = "application/json"
 
@@ -129,21 +129,16 @@ class CAhandler(object):
     def _config_check(self) -> str:
         """check if config is valid"""
         self.logger.debug("CAhandler._config_check()")
-        error = None
-
-        error = None
-        for ele in [
-            "vault_url",
-            "vault_path",
-            self.profile_mapping_field,
-            "vault_token",
-        ]:
-            if not getattr(self, ele):
-
-                error = f"{ele} parameter is missing in config file"
-                self.logger.error("%s: %s", CONFIGURATION_ERROR_DETAIL, error)
-                break
-
+        error = handler_config_check(
+            self.logger,
+            self,
+            [
+                "vault_url",
+                "vault_path",
+                self.profile_mapping_field,
+                "vault_token",
+            ],
+        )
         self.logger.debug("CAhandler._config_check() ended with %s", error)
         return error
 

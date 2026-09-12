@@ -33,8 +33,7 @@ from acme2certifier.acme_srv.helper import (
     error_dic_get,
     handler_config_check,
     load_config,
-    parse_url,
-    proxy_check,
+    config_proxy_load,
     uts_now,
     uts_to_date_utc,
 )
@@ -128,18 +127,7 @@ class CAhandler(object):
     def _config_proxy_load(self, config_dic) -> None:
         """Load proxy settings from configuration."""
         self.logger.debug("CAhandler._config_proxy_load()")
-        if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
-            try:
-                proxy_list = json.loads(config_dic["DEFAULT"]["proxy_server_list"])
-                url_dic = parse_url(self.logger, self.api_url)
-                if "host" in url_dic:
-                    fqdn = url_dic["host"].split(":")[0]
-                    proxy_server = proxy_check(self.logger, fqdn, proxy_list)
-                    self.proxy = {"http": proxy_server, "https": proxy_server}
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to parse proxy_server_list from configuration: %s", err_
-                )
+        self.proxy = config_proxy_load(self.logger, config_dic, self.api_url)
         self.logger.debug("CAhandler._config_proxy_load() ended")
 
     def _config_bool_get(

@@ -19,8 +19,7 @@ from acme2certifier.acme_srv.helper import (
     config_option_load,
     config_profile_load,
     convert_byte_to_string,
-    csr_cn_get,
-    csr_san_get,
+    csr_cn_lookup,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     encode_url,
@@ -331,22 +330,7 @@ class CAhandler(object):
     def _csr_cn_get(self, csr: str) -> str:
         """get CN from csr"""
         self.logger.debug("CAhandler._csr_cn_get()")
-
-        cn = csr_cn_get(self.logger, csr)
-
-        if not cn:
-            self.logger.info("CN not found in CSR")
-            san_list = csr_san_get(self.logger, csr)
-            if san_list:
-                _type, san_value = san_list[0].split(":")
-                cn = san_value
-                self.logger.info(
-                    "CN not found in CSR. Using first SAN entry as CN: %s",
-                    san_value,
-                )
-            else:
-                self.logger.error("CN not found in CSR. No SAN entries found")
-
+        cn = csr_cn_lookup(self.logger, csr)
         self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
         return cn
 

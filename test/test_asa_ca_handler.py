@@ -578,8 +578,8 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._cert_status_get("cert"),
         )
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_san_get")
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
     def test_029__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = "cn"
@@ -587,34 +587,24 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("cn", self.cahandler._csr_cn_get("csr"))
         self.assertFalse(mock_san.called)
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_san_get")
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
     def test_030__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
         mock_san.return_value = ["dns:san0", "dns:san1"]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual("san0", self.cahandler._csr_cn_get("csr"))
-        self.assertIn("INFO:test_a2c:CN not found in CSR", lcm.output)
-        self.assertIn(
-            "INFO:test_a2c:CN not found in CSR. Using first SAN entry as CN: san0",
-            lcm.output,
-        )
+        self.assertEqual("san0", self.cahandler._csr_cn_get("csr"))
         self.assertTrue(mock_san.called)
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_san_get")
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
     def test_031__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
         mock_san.return_value = None
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._csr_cn_get("csr"))
-        self.assertIn("INFO:test_a2c:CN not found in CSR", lcm.output)
-        self.assertIn(
-            "ERROR:test_a2c:CN not found in CSR. No SAN entries found",
-            lcm.output,
-        )
+        self.assertIn("ERROR:test_a2c:No SANs found in CSR", lcm.output)
         self.assertTrue(mock_san.called)
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuers_list")

@@ -258,7 +258,7 @@ class TestACMEHandler(unittest.TestCase):
         entry = "foo.bar.foo"
         self.assertTrue(self.eabhandler._wllist_check(entry, list_))
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_030_chk_san_lists_get(self, mock_san):
         """CAhandler._chk_san_lists_get()"""
         csr = "csr"
@@ -267,21 +267,16 @@ class TestACMEHandler(unittest.TestCase):
             (["foo.bar", "bar.foo"], []), self.eabhandler._chk_san_lists_get(csr)
         )
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_031_chk_san_lists_get(self, mock_san):
         """CAhandler._chk_san_lists_get()"""
         csr = "csr"
         mock_san.return_value = ["dns:foo.bar", "bar.foo"]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                (["foo.bar"], [False]), self.eabhandler._chk_san_lists_get(csr)
-            )
-        self.assertIn(
-            "INFO:test_a2c:SAN list parsing failed at entry: bar.foo",
-            lcm.output,
+        self.assertEqual(
+            (["foo.bar"], [False]), self.eabhandler._chk_san_lists_get(csr)
         )
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_032_chk_san_lists_get(self, mock_san):
         """CAhandler._chk_san_lists_get()"""
         csr = "csr"

@@ -37,10 +37,10 @@ from acme2certifier.acme_srv.helper import (
     convert_string_to_byte,
     convert_byte_to_string,
     csr_cn_get,
-    csr_san_get,
     config_enroll_config_log_load,
     config_option_load,
     enrollment_config_log,
+    sancheck_lists_create,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -548,27 +548,10 @@ class CAhandler(object):
     def _chk_san_lists_get(self, csr: str) -> Tuple[List[str], List[bool]]:
         """check lists"""
         self.logger.debug("CAhandler._chk_san_lists_get()")
-
-        # get sans and build a list
-        _san_list = csr_san_get(self.logger, csr)
-
-        check_list = []
-        san_list = []
-
-        if _san_list:
-            for san in _san_list:
-                try:
-                    # SAN list must be modified/filtered)
-                    _san_type, san_value = san.lower().split(":")
-                    san_list.append(san_value)
-                except Exception:
-                    # force check to fail as something went wrong during parsing
-                    check_list.append(False)
-                    self.logger.debug(
-                        "CAhandler._csr_check(): san_list parsing failed at entry: %s",
-                        san,
-                    )
-
+        san_list, parse_failures = sancheck_lists_create(
+            self.logger, csr, include_cn=False
+        )
+        check_list = [False for _ in parse_failures]
         self.logger.debug("CAhandler._chk_san_lists_get() ended")
         return (san_list, check_list)
 

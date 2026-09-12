@@ -240,27 +240,18 @@ class TestEABHandler(unittest.TestCase):
         result = self.eabhandler._chk_san_lists_get(None)
         self.assertEqual(result, ([], []))
 
-    @patch("acme2certifier.eabhandlers.sql_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_018_chk_san_lists_get_value(self, mock_csr_san_get):
         # Should return empty lists for empty input
         mock_csr_san_get.return_value = ["dns:example.com", "dns:example.org"]
         result = self.eabhandler._chk_san_lists_get("csr")
         self.assertEqual(result, (["example.com", "example.org"], []))
 
-    @patch("acme2certifier.eabhandlers.sql_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_019_chk_san_lists_get_value(self, mock_csr_san_get):
         # Should return empty lists for empty input
         mock_csr_san_get.return_value = ["example.com", "example.org"]  #
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                [False, False], self.eabhandler._chk_san_lists_get("csr")[1]
-            )
-        self.assertIn(
-            "INFO:test_a2c:SAN list parsing failed at entry: example.com", lcm.output
-        )
-        self.assertIn(
-            "INFO:test_a2c:SAN list parsing failed at entry: example.org", lcm.output
-        )
+        self.assertEqual([False, False], self.eabhandler._chk_san_lists_get("csr")[1])
 
     @patch("acme2certifier.eabhandlers.sql_handler.csr_cn_get")
     def test_020_cn_add_cn_not_in_sans(self, mock_csr_cn_get):

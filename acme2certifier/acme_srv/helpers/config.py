@@ -581,10 +581,10 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
     if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
         try:
             proxy_list = json.loads(config_dic["DEFAULT"]["proxy_server_list"])
-            url_dic = parse_url(logger, host_name)
-            if "host" in url_dic:
-                # check if we need to set the proxy
-                fqdn, _port = url_dic["host"].split(":")
+            url_dic = parse_url(logger, host_name or "")
+            host = url_dic.get("host") or ""
+            fqdn = host.split(":")[0]
+            if fqdn:
                 proxy_server = proxy_check(logger, fqdn, proxy_list)
                 proxy = {"http": proxy_server, "https": proxy_server}
         except Exception as err_:

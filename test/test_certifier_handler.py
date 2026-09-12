@@ -409,65 +409,48 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(self.cahandler.profile_id)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.parse_url")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
-    def test_021_config_load(self, mock_load_cfg, mock_json, mock_url):
+    def test_021_config_load(self, mock_load_cfg, mock_proxy):
         """test _config_load ca_handler configured load proxies"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
         mock_load_cfg.return_value = parser
-        mock_url.return_value = {"foo": "bar"}
-        mock_json.return_value = "foo"
+        mock_proxy.return_value = {}
         self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertTrue(mock_url.called)
+        self.assertTrue(mock_proxy.called)
         self.assertFalse(self.cahandler.profile_id)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.proxy_check")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.parse_url")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
-    def test_022_config_load(self, mock_load_cfg, mock_json, mock_url, mock_chk):
+    def test_022_config_load(self, mock_load_cfg, mock_proxy):
         """test _config_load ca_handler configured load proxies"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
         mock_load_cfg.return_value = parser
-        mock_url.return_value = {"host": "bar:8888"}
-        mock_json.return_value = "foo.bar.local"
-        mock_chk.return_value = "proxy.bar.local"
+        mock_proxy.return_value = {
+            "http": "proxy.bar.local",
+            "https": "proxy.bar.local",
+        }
         self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertTrue(mock_url.called)
-        self.assertTrue(mock_chk.called)
+        self.assertTrue(mock_proxy.called)
         self.assertEqual(
             {"http": "proxy.bar.local", "https": "proxy.bar.local"},
             self.cahandler.proxy,
         )
         self.assertFalse(self.cahandler.profile_id)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.proxy_check")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.parse_url")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
-    def test_023_config_load(self, mock_load_cfg, mock_json, mock_url, mock_chk):
-        """test _config_load ca_handler configured load proxies"""
+    def test_023_config_load(self, mock_load_cfg, mock_proxy):
+        """test _config_load ca_handler configured load proxies with empty result"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
         mock_load_cfg.return_value = parser
-        mock_url.return_value = {"host": "bar"}
-        mock_json.return_value = "foo.bar.local"
-        mock_chk.return_value = "proxy.bar.local"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertTrue(mock_url.called)
-        self.assertFalse(mock_chk.called)
+        mock_proxy.return_value = {}
+        self.cahandler._config_load()
+        self.assertTrue(mock_proxy.called)
         self.assertFalse(self.cahandler.proxy)
-        self.assertIn(
-            "WARNING:test_a2c:Failed to parse proxy_server_list from configuration: not enough values to unpack (expected 2, got 1)",
-            lcm.output,
-        )
         self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict("os.environ", {"api_user_var": "user_var"})

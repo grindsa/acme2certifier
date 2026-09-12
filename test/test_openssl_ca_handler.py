@@ -640,7 +640,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
-    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_061_csr_check(self, mock_san, mock_cn):
         """CAhandler._check_csr with empty allowed_domainlist and blocked_domainlists"""
         self.cahandler.allowed_domainlist = []
@@ -652,7 +652,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._string_wlbl_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
-    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_062_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """CAhandler._check_csr with list and failed check"""
         self.cahandler.allowed_domainlist = ["foo.bar"]
@@ -665,7 +665,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._string_wlbl_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
-    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_063_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """CAhandler._check_csr with list and successful check"""
         self.cahandler.allowed_domainlist = ["foo.bar"]
@@ -678,7 +678,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._string_wlbl_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
-    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_064_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """CAhandler._check_csr san parsing failed"""
         self.cahandler.allowed_domainlist = ["foo.bar"]
@@ -690,7 +690,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((False, None), self.cahandler._csr_check(csr))
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
-    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_065_csr_check(self, mock_san, mock_cn):
         """CAhandler._check_csr san parsing failed"""
         self.cahandler.allowed_domainlist = ["foo.bar"]
@@ -701,7 +701,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((False, None), self.cahandler._csr_check(csr))
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
-    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_066_csr_check(self, mock_san, mock_cn):
         """CAhandler._check_csr cn_enforce"""
         mock_san.return_value = ["DNS:host.foo.bar"]
@@ -710,7 +710,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((True, "host.foo.bar"), self.cahandler._csr_check(csr))
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
-    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_067_csr_check(self, mock_san, mock_cn):
         """CAhandler._check_csr cn_enforce  but no san"""
         mock_san.return_value = []

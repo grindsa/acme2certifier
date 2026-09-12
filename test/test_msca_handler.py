@@ -461,43 +461,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("password_local", self.cahandler.password)
         self.assertIn("INFO:test_a2c:Overwrite password", lcm.output)
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.proxy_check")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
-    def test_033_config_load(self, mock_load_cfg, mock_json, mock_chk):
+    def test_033_config_load(self, mock_load_cfg, mock_proxy):
         """test _config_load ca_handler configured load proxies"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
         mock_load_cfg.return_value = parser
-        mock_json.return_value = "foo.bar.local"
-        mock_chk.return_value = "proxy.bar.local"
+        mock_proxy.return_value = {
+            "http": "proxy.bar.local",
+            "https": "proxy.bar.local",
+        }
         self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertTrue(mock_chk.called)
+        self.assertTrue(mock_proxy.called)
         self.assertEqual(
             {"http": "proxy.bar.local", "https": "proxy.bar.local"},
             self.cahandler.proxy,
         )
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.proxy_check")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
-    def test_034_config_load(self, mock_load_cfg, mock_json, mock_chk):
+    def test_034_config_load(self, mock_load_cfg, mock_proxy):
         """test _config_load ca_handler configured load proxies failed with exception in json.load"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
-        mock_json.side_effect = Exception("exc_load_config")
         mock_load_cfg.return_value = parser
-        mock_chk.side = "proxy.bar.local"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertFalse(mock_chk.called)
+        mock_proxy.return_value = {}
+        self.cahandler._config_load()
+        self.assertTrue(mock_proxy.called)
         self.assertFalse(self.cahandler.proxy)
-        self.assertIn(
-            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: exc_load_config",
-            lcm.output,
-        )
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")

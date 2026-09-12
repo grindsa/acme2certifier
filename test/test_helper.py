@@ -6699,22 +6699,17 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         }
         host_name = "https://api.example.com/test"
 
-        # Mock parse_url to return host without port
         mock_parse_url.return_value = {"host": "api.example.com"}
-        # Mock proxy_check to return a proxy server
         mock_proxy_check.return_value = "proxy.example.com:8080"
 
-        # This should cause an exception when trying to split on ':'
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            result = self.config_proxy_load(self.logger, config_dic, host_name)
+        result = self.config_proxy_load(self.logger, config_dic, host_name)
 
-        self.assertEqual(result, {})
-        # Check that warning message was logged due to the exception
-        self.assertTrue(
-            any(
-                "Failed to parse proxy_server_list from configuration:" in log
-                for log in lcm.output
-            )
+        expected = {"http": "proxy.example.com:8080", "https": "proxy.example.com:8080"}
+        self.assertEqual(result, expected)
+        mock_proxy_check.assert_called_once_with(
+            self.logger,
+            "api.example.com",
+            {"example.com": "proxy.example.com:8080"},
         )
 
     @patch("acme2certifier.acme_srv.helpers.network.proxy_check")

@@ -5,7 +5,6 @@ from __future__ import print_function
 import textwrap
 import math
 import time
-import json
 from typing import List, Tuple, Dict
 from urllib.parse import urlencode
 import requests
@@ -29,7 +28,7 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     load_config,
     parse_url,
-    proxy_check,
+    config_proxy_load,
     request_operation,
     uts_now,
     uts_to_date_utc,
@@ -434,21 +433,7 @@ class CAhandler(object):
     def _config_proxy_load(self, config_dic: Dict[str, str]):
         """load parameters"""
         self.logger.debug("_config_proxy_load()")
-
-        if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
-            try:
-                proxy_list = json.loads(config_dic["DEFAULT"]["proxy_server_list"])
-                url_dic = parse_url(self.logger, self.api_host)
-                if "host" in url_dic:
-                    fqdn, _port = url_dic["host"].split(":")
-                    proxy_server = proxy_check(self.logger, fqdn, proxy_list)
-                    self.proxy = {"http": proxy_server, "https": proxy_server}
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to parse proxy_server_list from configuration: %s",
-                    err_,
-                )
-
+        self.proxy = config_proxy_load(self.logger, config_dic, self.api_host)
         self.logger.debug("_config_proxy_load() ended")
 
     def _config_load(self):

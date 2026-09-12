@@ -31,7 +31,7 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     kerberos_kinit_command_resolve,
     load_config,
-    proxy_check,
+    config_proxy_load,
     pkcs7_to_pem,
 )  # pylint: disable=e0401
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
@@ -344,18 +344,10 @@ class CAhandler(object):
     def _config_proxy_load(self, config_dic: Dict[str, str]):
         """load hostname"""
         self.logger.debug("CAhandler._config_proxy_load()")
-
-        if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
-            try:
-                proxy_list = json.loads(config_dic.get("DEFAULT", "proxy_server_list"))
-                proxy_server = proxy_check(self.logger, self.host, proxy_list)
-                self.proxy = {"http": proxy_server, "https": proxy_server}
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to load proxy_server_list from configuration: %s",
-                    err_,
-                )
-
+        host_ref = self.url or self.host or ""
+        if host_ref and "://" not in host_ref:
+            host_ref = f"https://{host_ref}"
+        self.proxy = config_proxy_load(self.logger, config_dic, host_ref)
         self.logger.debug("CAhandler._config_proxy_load() ended")
 
     def _config_load(self):

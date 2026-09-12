@@ -541,15 +541,16 @@ class TestHaricaCAhandler(unittest.TestCase):
     def test_031_exit(self):
         self.assertIsNone(self.cahandler.__exit__(None, None, None))
 
-    @patch("acme2certifier.cahandlers.harica_ca_handler.proxy_check")
-    @patch("acme2certifier.cahandlers.harica_ca_handler.parse_url")
-    def test_032_config_proxy_load_success(self, mock_url, mock_chk):
+    @patch("acme2certifier.cahandlers.harica_ca_handler.config_proxy_load")
+    def test_032_config_proxy_load_success(self, mock_proxy):
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {
             "proxy_server_list": '[["cm-stg.harica.gr", "http://proxy:8080"]]'
         }
-        mock_url.return_value = {"host": "cm-stg.harica.gr"}
-        mock_chk.return_value = "http://proxy:8080"
+        mock_proxy.return_value = {
+            "http": "http://proxy:8080",
+            "https": "http://proxy:8080",
+        }
         self.cahandler._config_proxy_load(parser)
         self.assertEqual(
             {"http": "http://proxy:8080", "https": "http://proxy:8080"},
