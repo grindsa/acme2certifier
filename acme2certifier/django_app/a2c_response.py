@@ -5,6 +5,7 @@
 import json
 from django.http import HttpResponse
 from django.core.serializers.json import DjangoJSONEncoder
+from acme2certifier.acme_srv.helpers.acme_http_boot import acme_response_content_type
 
 
 class JsonResponse(HttpResponse):
@@ -29,10 +30,9 @@ class JsonResponse(HttpResponse):
         if json_dumps_params is None:
             json_dumps_params = {"indent": 2}
 
-        if "status" in kwargs and kwargs["status"] > 201:
-            kwargs.setdefault("content_type", "application/problem+json")
-        else:
-            kwargs.setdefault("content_type", "application/json")
+        kwargs.setdefault(
+            "content_type", acme_response_content_type(kwargs.get("status"))
+        )
 
         data = json.dumps(data, cls=encoder, **json_dumps_params)
         super().__init__(content=data, **kwargs)

@@ -12,9 +12,13 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 
+from acme2certifier.acme_srv.helpers.django_boot import (
+    DEFAULT_DJANGO_SETTINGS,  # noqa: F401
+    configure_django_settings_module,
+)
+
 SCHEMA_VERSION = 1
 TOOL_VERSION = "0.1.0"
-DEFAULT_DJANGO_SETTINGS = "acme2certifier.django_project.settings"
 _VERBOSE = False
 
 # Dump keys use WSGI table names (orders, not order).
@@ -630,7 +634,7 @@ def load_dump(dump_path: Path) -> Dict[str, Any]:
 
 def setup_django_orm() -> None:
     """Bootstrap Django for ORM wipe/import (same pattern as a2c-django-update)."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", DEFAULT_DJANGO_SETTINGS)
+    configure_django_settings_module()
     try:
         from acme2certifier.tools.a2c_django_deploy_env import load_deploy_env
 

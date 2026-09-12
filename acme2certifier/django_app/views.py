@@ -12,51 +12,25 @@ from acme2certifier.acme_srv.certificate import Certificate
 from acme2certifier.acme_srv.challenge import Challenge
 from acme2certifier.acme_srv.directory import Directory
 from acme2certifier.acme_srv.helper import (
-    apply_log_levels,
-    config_debug_get,
     get_url,
-    load_config,
-    log_loaded_acme_srv_cfg,
-    logger_setup,
     log_response,
-    config_check,
-    legacy_acme_get_load,
     acme_get_method_not_allowed_problem,
-    server_name_configuration_validate,
-    challenge_type_configuration_validate,
-    tnauthlist_configuration_validate,
 )
-from acme2certifier.acme_srv.db_handler import log_active_db_handler
-from acme2certifier.acme_srv.housekeeping import (
-    Housekeeping,
-    resolve_housekeeping_cli_endpoint,
-)
+from acme2certifier.acme_srv.helpers.acme_http_boot import boot_acme_http_stack
+from acme2certifier.acme_srv.housekeeping import Housekeeping
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
-from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
-from acme2certifier.acme_srv.version import __dbversion__, __version__
+from acme2certifier.acme_srv.trigger import Trigger
 from acme2certifier.acme_srv.acmechallenge import Acmechallenge
 
-# Quiet Helper.load_config() until DEFAULT.debug / ACME2CERTIFIER_DEBUG is known.
-apply_log_levels(False)
-
-# load config to set debug mode
-CONFIG = load_config()
-DEBUG = config_debug_get(CONFIG)
-
-# initialize logger
-LOGGER = logger_setup(DEBUG)
-LOGGER.info("starting acme2certifier version %s", __version__)
-log_loaded_acme_srv_cfg(LOGGER)
-log_active_db_handler(LOGGER, CONFIG)
-
-# Stack-start gate for /trigger (config + CA handler supports_trigger)
-TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
-# Stack-start gate for /housekeeping HTTP CLI
-HOUSEKEEPING_CLI_ENABLED = resolve_housekeeping_cli_endpoint(
-    LOGGER, CONFIG, log_status=True
-)
+_STACK = boot_acme_http_stack(log_startup_version=True)
+CONFIG = _STACK.config
+DEBUG = _STACK.debug
+LOGGER = _STACK.logger
+TRIGGER_ENDPOINT_ENABLED = _STACK.trigger_endpoint_enabled
+HOUSEKEEPING_CLI_ENABLED = _STACK.housekeeping_cli_enabled
+LEGACY_ACME_GET = _STACK.legacy_acme_get
 
 METHOD_NOT_ALLOWED = "Method Not Allowed"
 ERR_DATA_POST = {
@@ -87,17 +61,6 @@ ERR_RESPONSE_ACME_GET = JsonResponse(
     status=405, data=acme_get_method_not_allowed_problem()
 )
 ERR_RESPONSE_ACME_GET["Allow"] = "POST"
-
-# check configuration for parameters masked in ""
-config_check(LOGGER, CONFIG)
-server_name_configuration_validate(LOGGER, CONFIG)
-tnauthlist_configuration_validate(LOGGER, CONFIG)
-challenge_type_configuration_validate(LOGGER, CONFIG)
-LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
-
-with Housekeeping(DEBUG, LOGGER, config_dic=CONFIG) as housekeeping:
-    housekeeping.dbversion_check(__dbversion__)
-    housekeeping.nonce_cleanup()
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):

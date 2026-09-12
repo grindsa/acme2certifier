@@ -8,7 +8,7 @@ from typing import List, Tuple, Dict
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.authorization import Authorization
 from acme2certifier.acme_srv.certificate import Certificate
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.helper import (
@@ -915,9 +915,14 @@ class Housekeeping(object):
                 detail = "either type field or data field is missing in payload"
 
         # prepare/enrich response
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, False, account_name=account_name
+        response_dic = finish_response(
+            self.message,
+            response_dic,
+            code,
+            message,
+            detail,
+            add_nonce=False,
+            account_name=account_name,
         )
         self.logger.debug("Housekeeping.parse() returned something.")
 

@@ -1107,6 +1107,29 @@ class TestACMEHandler(unittest.TestCase):
         mock_load.assert_not_called()
         self.assertIs(message.config_dic, parser)
 
+    @patch("acme2certifier.acme_srv.nonce.Nonce.generate_and_add")
+    def test_064_message_finish_response_wraps_prepare_response(self, mock_nnonce):
+        """finish_response builds the standard status dict for prepare_response"""
+        mock_nnonce.return_value = "new_nonce"
+        result = self.message.finish_response(
+            {"data": {"ok": True}}, 200, None, None, account_name="acct"
+        )
+        self.assertEqual(
+            {
+                "header": {"Replay-Nonce": "new_nonce"},
+                "code": 200,
+                "data": {"ok": True},
+            },
+            result,
+        )
+        err = self.message.finish_response(
+            None, 400, "urn:ietf:params:acme:error:malformed", "bad", add_nonce=False
+        )
+        self.assertEqual(400, err["code"])
+        self.assertEqual("urn:ietf:params:acme:error:malformed", err["data"]["type"])
+        self.assertIn("bad", err["data"]["detail"])
+        self.assertNotIn("Replay-Nonce", err.get("header", {}))
+
 
 class TestAccountRepository(unittest.TestCase):
     """Unit tests for AccountRepository class"""

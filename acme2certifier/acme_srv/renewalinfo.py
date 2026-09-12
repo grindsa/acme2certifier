@@ -5,7 +5,7 @@ from __future__ import print_function
 from typing import Dict, Optional, Tuple, Any, Callable
 from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 from acme2certifier.acme_srv.helper import (
     string_sanitize,
     certid_hex_get,
@@ -486,10 +486,8 @@ class Renewalinfo(object):
     ) -> Dict[str, str]:
         """Build an ACME problem document the same way order/certificate handlers do."""
         code, message, detail = status
-        return self.message.prepare_response(
-            {},
-            {"code": code, "type": message, "detail": detail},
-            account_name=account_name,
+        return finish_response(
+            self.message, {}, code, message, detail, account_name=account_name
         )
 
     def update(self, content: str) -> Dict[str, str]:

@@ -17,7 +17,7 @@ from acme2certifier.acme_srv.helper import (
     uts_now,
 )
 from acme2certifier.acme_srv.db_handler import DBstore
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 
 from acme2certifier.acme_srv.signature import Signature
 from acme2certifier.acme_srv.helpers.global_variables import (
@@ -920,9 +920,8 @@ class Account:
 
         log_account = self._resolve_log_account(code, message, account_name)
 
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, account_name=log_account
+        response_dic = finish_response(
+            self.message, response_dic, code, message, detail, account_name=log_account
         )
 
         return response_dic

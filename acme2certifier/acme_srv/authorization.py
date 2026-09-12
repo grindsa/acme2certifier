@@ -39,7 +39,7 @@ from acme2certifier.acme_srv.helpers.security_gate import (
     SECURITY_DISABLE_ACK_ENV,
     security_disable_acknowledged,
 )
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 from acme2certifier.acme_srv.nonce import Nonce
 
 NO_ORDER_INFO_LOG = "No order information found for authorization %s"
@@ -1276,9 +1276,13 @@ class Authorization(object):
                 protected, account_name, code, message, detail
             )
 
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, account_name=account_name
+        response_dic = finish_response(
+            self.message,
+            response_dic,
+            code,
+            message,
+            detail,
+            account_name=account_name,
         )
         self.logger.debug(
             "Authorization.handle_post_request() returns: %s", json.dumps(response_dic)

@@ -8,9 +8,9 @@ import os
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-os.environ.setdefault(
-    "DJANGO_SETTINGS_MODULE", "acme2certifier.django_project.settings"
-)
+from acme2certifier.acme_srv.helpers.django_boot import configure_django_settings_module
+
+configure_django_settings_module()
 
 # Global variables to store imported modules (for testing)
 django = None

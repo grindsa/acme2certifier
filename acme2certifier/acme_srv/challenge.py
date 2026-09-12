@@ -28,7 +28,7 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.db_handler import DBstore
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 
 # Import our modules
 from acme2certifier.acme_srv.challenge_validators import (
@@ -467,8 +467,9 @@ class Challenge:
     ) -> Dict[str, str]:
         """Create standardized error response."""
         self.logger.debug("Challenge._create_error_response() called")
-        status_dic = {"code": code, "type": message, "detail": detail}
-        return self.message.prepare_response({}, status_dic, account_name=account_name)
+        return finish_response(
+            self.message, {}, code, message, detail, account_name=account_name
+        )
 
     def _check_challenge_ownership(
         self, challenge_name: str, account_name: Optional[str]
@@ -488,8 +489,7 @@ class Challenge:
     def _create_success_response(self, response_dic: Dict[str, Any]) -> Dict[str, str]:
         """Create standardized success response."""
         self.logger.debug("Challenge._create_success_response() called")
-        status_dic = {"code": 200, "type": None, "detail": None}
-        return self.message.prepare_response(response_dic, status_dic)
+        return finish_response(self.message, response_dic, 200, None, None)
 
     def _execute_challenge_validation(self, challenge_name: str) -> ValidationResult:
         """Execute challenge validation using registry."""

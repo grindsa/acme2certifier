@@ -4,8 +4,11 @@
 
 import configparser
 import logging
+import os
+import sys
+import tempfile
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import requests
 
@@ -267,6 +270,105 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
         self.assertEqual(
             "svc", mixin._kerberos_username_from_principal("svc@EXAMPLE.COM")
         )
+
+    def test_015_acme_response_content_type(self) -> None:
+        """JSON for success; problem+json for ACME error status codes"""
+        from acme2certifier.acme_srv.helpers.acme_http_boot import (
+            CONTENT_TYPE_JSON,
+            CONTENT_TYPE_PROBLEM_JSON,
+            acme_response_content_type,
+        )
+
+        self.assertEqual(CONTENT_TYPE_JSON, acme_response_content_type())
+        self.assertEqual(CONTENT_TYPE_JSON, acme_response_content_type(201))
+        self.assertEqual(CONTENT_TYPE_PROBLEM_JSON, acme_response_content_type(400))
+        self.assertEqual(CONTENT_TYPE_JSON, acme_response_content_type("nope"))
+
+    def test_016_configure_django_settings_module(self) -> None:
+        """setdefault DJANGO_SETTINGS_MODULE and leave an existing value alone"""
+        from acme2certifier.acme_srv.helpers.django_boot import (
+            DEFAULT_DJANGO_SETTINGS,
+            configure_django_settings_module,
+        )
+
+        with patch.dict(os.environ, {"DJANGO_SETTINGS_MODULE": "custom.settings"}):
+            self.assertEqual(
+                "custom.settings", configure_django_settings_module("ignored.settings")
+            )
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("DJANGO_SETTINGS_MODULE", None)
+            self.assertEqual(
+                DEFAULT_DJANGO_SETTINGS, configure_django_settings_module()
+            )
+
+    def test_017_prepend_sys_path_if_dir(self) -> None:
+        """prepend an existing directory once; skip missing and duplicate paths"""
+        from acme2certifier.acme_srv.helpers.django_boot import prepend_sys_path_if_dir
+
+        prepend_sys_path_if_dir(None)
+        prepend_sys_path_if_dir("/nonexistent/a2c/django-boot-xyz")
+        self.assertNotIn("/nonexistent/a2c/django-boot-xyz", sys.path)
+        with tempfile.TemporaryDirectory() as tmp:
+            saved = list(sys.path)
+            try:
+                if tmp in sys.path:
+                    sys.path.remove(tmp)
+                prepend_sys_path_if_dir(tmp)
+                self.assertEqual(tmp, sys.path[0])
+                prepend_sys_path_if_dir(tmp)
+                self.assertEqual(1, sys.path.count(tmp))
+            finally:
+                sys.path[:] = saved
+
+    def test_018_boot_acme_http_stack(self) -> None:
+        """HTTP adapter boot loads config, validates, and runs housekeeping"""
+        from acme2certifier.acme_srv.helpers.acme_http_boot import boot_acme_http_stack
+
+        mock_hk = MagicMock()
+        mock_cm = MagicMock()
+        mock_cm.__enter__.return_value = mock_hk
+        mock_cm.__exit__.return_value = False
+        logger = logging.getLogger("test_a2c_boot_stack")
+        with (
+            patch("acme2certifier.acme_srv.helper.apply_log_levels"),
+            patch(
+                "acme2certifier.acme_srv.helper.load_config", return_value={"cfg": True}
+            ),
+            patch("acme2certifier.acme_srv.helper.config_debug_get", return_value=True),
+            patch("acme2certifier.acme_srv.helper.logger_setup", return_value=logger),
+            patch("acme2certifier.acme_srv.helper.log_loaded_acme_srv_cfg"),
+            patch("acme2certifier.acme_srv.db_handler.log_active_db_handler"),
+            patch("acme2certifier.acme_srv.helper.config_check"),
+            patch("acme2certifier.acme_srv.helper.server_name_configuration_validate"),
+            patch("acme2certifier.acme_srv.helper.tnauthlist_configuration_validate"),
+            patch(
+                "acme2certifier.acme_srv.helper.challenge_type_configuration_validate"
+            ),
+            patch(
+                "acme2certifier.acme_srv.helper.legacy_acme_get_load", return_value=True
+            ),
+            patch(
+                "acme2certifier.acme_srv.trigger.resolve_trigger_endpoint",
+                return_value=False,
+            ),
+            patch(
+                "acme2certifier.acme_srv.housekeeping.resolve_housekeeping_cli_endpoint",
+                return_value=False,
+            ),
+            patch(
+                "acme2certifier.acme_srv.housekeeping.Housekeeping",
+                return_value=mock_cm,
+            ),
+        ):
+            stack = boot_acme_http_stack(log_startup_version=True)
+        self.assertEqual({"cfg": True}, stack.config)
+        self.assertTrue(stack.debug)
+        self.assertIs(logger, stack.logger)
+        self.assertTrue(stack.legacy_acme_get)
+        self.assertFalse(stack.trigger_endpoint_enabled)
+        self.assertFalse(stack.housekeeping_cli_enabled)
+        mock_hk.dbversion_check.assert_called_once()
+        mock_hk.nonce_cleanup.assert_called_once()
 
 
 if __name__ == "__main__":

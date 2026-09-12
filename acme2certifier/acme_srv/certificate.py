@@ -42,7 +42,7 @@ from acme2certifier.acme_srv.helpers.cahandler_registry import (
 )
 from acme2certifier.acme_srv.helpers.csr import _normalize_bound_name
 from acme2certifier.acme_srv.db_handler import DBstore
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 from acme2certifier.acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 from acme2certifier.acme_srv.certificate_manager import CertificateManager
 from acme2certifier.acme_srv.certificate_repository import DatabaseCertificateRepository
@@ -1951,9 +1951,13 @@ class Certificate(object):
     ) -> Dict[str, str]:
         """Prepare and format certificate response"""
         try:
-            status_dic = {"code": code, "type": message, "detail": detail}
-            response_dic = self.message.prepare_response(
-                response_dic, status_dic, account_name=account_name
+            response_dic = finish_response(
+                self.message,
+                response_dic,
+                code,
+                message,
+                detail,
+                account_name=account_name,
             )
 
             # Serialize dict data to JSON if needed
@@ -2157,13 +2161,12 @@ class Certificate(object):
             validation_errors = self._validate_input_parameters(content=content)
             if validation_errors:
                 self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
-                return self.message.prepare_response(
+                return finish_response(
+                    self.message,
                     {},
-                    {
-                        "code": 400,
-                        "type": self.err_msg_dic["malformed"],
-                        "detail": "Invalid content",
-                    },
+                    400,
+                    self.err_msg_dic["malformed"],
+                    "Invalid content",
                 )
 
             self.logger.debug("Certificate.revoke_certificate()")
@@ -2193,9 +2196,8 @@ class Certificate(object):
                     detail = "certificate not found"
 
             # Prepare response
-            status_dic = {"code": code, "type": message, "detail": detail}
-            response_dic = self.message.prepare_response(
-                {}, status_dic, account_name=account_name
+            response_dic = finish_response(
+                self.message, {}, code, message, detail, account_name=account_name
             )
 
             self.logger.debug(
@@ -2205,12 +2207,13 @@ class Certificate(object):
 
         except Exception as err:
             self.logger.critical("Unexpected error in revoke_certificate: %s", err)
-            error_response = {
-                "code": 500,
-                "type": self.err_msg_dic["serverinternal"],
-                "detail": "Unexpected error during revocation",
-            }
-            return self.message.prepare_response({}, error_response)
+            return finish_response(
+                self.message,
+                {},
+                500,
+                self.err_msg_dic["serverinternal"],
+                "Unexpected error during revocation",
+            )
 
     def _handle_successful_certificate_poll(
         self,

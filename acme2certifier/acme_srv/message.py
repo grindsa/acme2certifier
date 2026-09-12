@@ -5,7 +5,7 @@
 from __future__ import print_function
 import json
 import logging
-from typing import Tuple, Dict, List, Optional
+from typing import Any, Tuple, Dict, List, Optional
 from dataclasses import dataclass
 from acme2certifier.acme_srv.helper import (
     decode_message,
@@ -28,6 +28,24 @@ from acme2certifier.acme_srv.helpers.security_gate import (  # noqa: F401
     SECURITY_DISABLE_ACK_ENV,
     security_disable_acknowledged,
 )
+
+
+def finish_response(
+    handler: Any,
+    response_dic: Optional[Dict[str, str]],
+    code: int,
+    message: Optional[str],
+    detail: Optional[str] = None,
+    add_nonce: bool = True,
+    account_name: Optional[str] = None,
+) -> Dict[str, str]:
+    """Build the standard ACME status dict and pass it to ``prepare_response``."""
+    return handler.prepare_response(
+        response_dic or {},
+        {"code": code, "type": message, "detail": detail},
+        add_nonce=add_nonce,
+        account_name=account_name,
+    )
 
 
 @dataclass
@@ -559,3 +577,17 @@ class Message(object):
             response_dic["header"]["Replay-Nonce"] = self.nonce.generate_and_add()
 
         return response_dic
+
+    def finish_response(
+        self,
+        response_dic: Optional[Dict[str, str]],
+        code: int,
+        message: Optional[str],
+        detail: Optional[str] = None,
+        add_nonce: bool = True,
+        account_name: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """Wrap ``prepare_response`` with the standard ACME status dict."""
+        return finish_response(
+            self, response_dic, code, message, detail, add_nonce, account_name
+        )

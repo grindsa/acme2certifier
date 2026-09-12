@@ -36,7 +36,7 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     resolve_resource_ownership,
 )
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 
 
 class OrderDatabaseError(Exception):
@@ -1740,9 +1740,13 @@ class Order(object):
                 detail = "Could not process order"
 
         # prepare/enrich response
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, account_name=account_name
+        response_dic = finish_response(
+            self.message,
+            response_dic,
+            code,
+            message,
+            detail,
+            account_name=account_name,
         )
 
         self.logger.debug(
@@ -1855,9 +1859,13 @@ class Order(object):
                     ] = f'{self.server_name}{self.path_dic["cert_path"]}{certificate_name}'
 
         # prepare/enrich response
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, account_name=account_name
+        response_dic = finish_response(
+            self.message,
+            response_dic,
+            code,
+            message,
+            detail,
+            account_name=account_name,
         )
 
         self.logger.debug(
