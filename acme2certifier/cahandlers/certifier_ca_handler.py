@@ -20,6 +20,7 @@ from acme2certifier.acme_srv.helper import (
     config_enroll_config_log_load,
     config_headerinfo_load,
     config_option_load,
+    config_ca_bundle_load,
     config_profile_load,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
@@ -419,14 +420,9 @@ class CAhandler(object):
                 self.request_retry_backoff,
             )
 
-        # check if we get a ca bundle for verification
-        if "ca_bundle" in config_dic["CAhandler"]:
-            try:
-                self.ca_bundle = config_dic.getboolean("CAhandler", "ca_bundle")
-            except Exception:
-                self.ca_bundle = config_dic.get(
-                    "CAhandler", "ca_bundle", fallback=self.ca_bundle
-                )
+        self.ca_bundle = config_ca_bundle_load(
+            self.logger, config_dic, current=self.ca_bundle
+        )
 
         self.logger.debug("_config_parameter_load() ended")
 

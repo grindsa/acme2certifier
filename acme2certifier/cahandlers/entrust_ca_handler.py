@@ -28,7 +28,8 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     header_info_get,
     load_config,
-    request_operation,
+    ca_api_request,
+    client_session_apply,
     uts_now,
     uts_to_date_utc,
 )
@@ -104,14 +105,12 @@ class CAhandler(object):
 
     def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_get()")
         headers = {"Content-Type": CONTENT_TYPE}
-
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
+            "get",
+            url,
             session=self.session,
-            method="get",
-            url=url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -119,18 +118,15 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-        self.logger.debug("CAhandler._api_get() ended with code: %s", code)
-        return code, content
 
     def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_post()")
         headers = {"Content-Type": CONTENT_TYPE}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
+            "post",
+            url,
             session=self.session,
-            method="post",
-            url=url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -138,18 +134,15 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-        self.logger.debug("CAhandler._api_post() ended with code: %s", code)
-        return code, content
 
     def _api_put(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_put()")
         headers = {"Content-Type": CONTENT_TYPE}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
+            "put",
+            url,
             session=self.session,
-            method="put",
-            url=url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -157,9 +150,6 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-
-        self.logger.debug("CAhandler._api_put() ended with code: %s", code)
-        return code, content
 
     def _certificates_get_from_serial(self, cert_serial: str) -> List[str]:
         """get certificates"""
@@ -321,9 +311,10 @@ class CAhandler(object):
                 self.logger.debug(
                     "CAhandler._config_session_load() cert and key in pem format"
                 )
-                self.session.cert = (
-                    config_dic.get("CAhandler", "client_cert"),
-                    config_dic.get("CAhandler", "client_key"),
+                client_session_apply(
+                    self.session,
+                    pem_cert=config_dic.get("CAhandler", "client_cert"),
+                    pem_key=config_dic.get("CAhandler", "client_key"),
                 )
 
             else:
@@ -332,12 +323,12 @@ class CAhandler(object):
                     self.logger.debug(
                         "CAhandler._config_session_load() cert and passphrase"
                     )
-                    self.session.mount(
-                        self.api_url,
-                        Pkcs12Adapter(
-                            pkcs12_filename=config_dic.get("CAhandler", "client_cert"),
-                            pkcs12_password=self.cert_passphrase,
-                        ),
+                    client_session_apply(
+                        self.session,
+                        pkcs12_filename=config_dic.get("CAhandler", "client_cert"),
+                        pkcs12_password=self.cert_passphrase,
+                        mount_url=self.api_url,
+                        pkcs12_adapter_cls=Pkcs12Adapter,
                     )
                 else:
                     self.logger.warning(

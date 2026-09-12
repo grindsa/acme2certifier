@@ -477,7 +477,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._api_post("url", "data"),
             )
         self.assertIn(
-            "ERROR:test_a2c:Could not parse the response for an API post() request: 'str' object is not callable",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: 'str' object is not callable",
             lcm.output,
         )
 
@@ -502,7 +502,7 @@ class TestACMEHandler(unittest.TestCase):
                 (500, "exc_api_post"), self.cahandler._api_post("url", "data")
             )
         self.assertIn(
-            "ERROR:test_a2c:API post() request returned an error: exc_api_post",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_post",
             lcm.output,
         )
 
@@ -530,7 +530,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._api_get("url"),
             )
         self.assertIn(
-            "ERROR:test_a2c:Could not parse the response for an API get() request: 'str' object is not callable",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: 'str' object is not callable",
             lcm.output,
         )
 
@@ -544,7 +544,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((500, "exc_api_get"), self.cahandler._api_get("url"))
         self.assertIn(
-            "ERROR:test_a2c:API get() request returned error: exc_api_get",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_get",
             lcm.output,
         )
 
@@ -706,7 +706,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({"issuers": ["ca_name"]}, self.cahandler._issuers_list())
         self.assertEqual(1, mock_get.call_count)
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.time.sleep")
+    @patch("acme2certifier.acme_srv.helpers.network.time.sleep")
     @patch("requests.get")
     def test_041_api_get_retries(self, mock_req, mock_sleep):
         """_api_get() retries transport failures then succeeds"""
@@ -1365,7 +1365,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.time.sleep")
+    @patch("acme2certifier.acme_srv.helpers.network.time.sleep")
     @patch("requests.post")
     def test_073_api_post_retries(self, mock_req, mock_sleep):
         """_api_post() retries transport failures then succeeds"""
@@ -1385,9 +1385,8 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
             )
         self.assertEqual(3, mock_req.call_count)
         self.assertEqual(2, mock_sleep.call_count)
-        self.assertIn(
-            "INFO:test_a2c:Retrying API post() attempt 2/3 after 1s",
-            lcm.output,
+        self.assertTrue(
+            any("Request_operation error: timeout" in msg for msg in lcm.output)
         )
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")

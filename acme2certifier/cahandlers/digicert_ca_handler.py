@@ -19,7 +19,7 @@ from acme2certifier.acme_srv.helper import (
     enrollment_config_log,
     handler_config_check,
     load_config,
-    request_operation,
+    ca_api_request,
     uts_now,
     uts_to_date_utc,
 )
@@ -63,12 +63,11 @@ class CAhandler(object):
 
     def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_get()")
         headers = {"X-DC-DEVKEY": self.api_key, "Content-Type": CONTENT_TYPE}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
-            method="get",
-            url=url,
+            "get",
+            url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -77,17 +76,13 @@ class CAhandler(object):
             retry_backoff=self.request_retry_backoff,
         )
 
-        self.logger.debug("CAhandler._api_get() ended with code: %s", code)
-        return code, content
-
     def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_post()")
         headers = {"X-DC-DEVKEY": self.api_key, "Content-Type": CONTENT_TYPE}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
-            method="post",
-            url=url,
+            "post",
+            url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -95,18 +90,14 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-
-        self.logger.debug("CAhandler._api_post() ended with code: %s", code)
-        return code, content
 
     def _api_put(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_put()")
         headers = {"X-DC-DEVKEY": self.api_key, "Content-Type": CONTENT_TYPE}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
-            method="put",
-            url=url,
+            "put",
+            url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -114,9 +105,6 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-
-        self.logger.debug("CAhandler._api_put() ended with code: %s", code)
-        return code, content
 
     def _config_check(self) -> str:
         """check config"""

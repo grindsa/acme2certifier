@@ -24,6 +24,8 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     config_option_load,
     pkcs7_to_pem,
+    config_ca_bundle_load,
+    client_session_apply,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -143,9 +145,10 @@ class CAhandler(object):
                 self.est_client_cert = config_dic.get(
                     "CAhandler", "est_client_cert", fallback=self.est_client_cert
                 )
-                self.session.cert = (
-                    config_dic.get("CAhandler", "est_client_cert"),
-                    config_dic.get("CAhandler", "est_client_key"),
+                client_session_apply(
+                    self.session,
+                    pem_cert=config_dic.get("CAhandler", "est_client_cert"),
+                    pem_key=config_dic.get("CAhandler", "est_client_key"),
                 )
             elif (
                 "cert_passphrase" in config_dic["CAhandler"]
@@ -154,12 +157,12 @@ class CAhandler(object):
                 self.logger.debug("CAhandler._config_clientauth_load(): load pkcs12")
                 self.est_client_cert = config_dic.get("CAhandler", "est_client_cert")
                 self._cert_passphrase_load(config_dic)
-                self.session.mount(
-                    self.est_host,
-                    Pkcs12Adapter(
-                        pkcs12_filename=config_dic.get("CAhandler", "est_client_cert"),
-                        pkcs12_password=self.cert_passphrase,
-                    ),
+                client_session_apply(
+                    self.session,
+                    pkcs12_filename=config_dic.get("CAhandler", "est_client_cert"),
+                    pkcs12_password=self.cert_passphrase,
+                    mount_url=self.est_host,
+                    pkcs12_adapter_cls=Pkcs12Adapter,
                 )
             else:
                 self.logger.error(
@@ -209,13 +212,9 @@ class CAhandler(object):
         """load config paramters"""
         self.logger.debug("CAhandler._config_load()")
 
-        # check if we get a ca bundle for verification
-        try:
-            self.ca_bundle = config_dic.getboolean("CAhandler", "ca_bundle")
-        except Exception:
-            self.ca_bundle = config_dic.get(
-                "CAhandler", "ca_bundle", fallback=self.ca_bundle
-            )
+        self.ca_bundle = config_ca_bundle_load(
+            self.logger, config_dic, current=self.ca_bundle
+        )
 
         try:
             self.request_timeout = int(

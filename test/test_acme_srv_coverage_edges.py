@@ -11,11 +11,14 @@ import requests
 
 from acme2certifier.acme_srv.helpers.network import (
     _caaidentities_parse,
+    ca_api_request,
+    client_session_apply,
     configured_server_name_get,
     request_operation,
     server_name_allowed_host,
     url_get_dns_pinned,
 )
+from acme2certifier.acme_srv.helpers.config import config_ca_bundle_load
 
 
 class TestAcmeSrvCoverageEdges(unittest.TestCase):
@@ -160,6 +163,93 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
                 request_operation(self.logger, session=session),
                 (500, "Unexpected retry loop exit"),
             )
+
+    def test_010_request_operation_passes_auth(self) -> None:
+        """request_operation forwards HTTP auth to the session call"""
+        response = Mock(status_code=200, text="")
+        session = Mock(get=Mock(return_value=response))
+        auth = Mock()
+        code, _content = request_operation(
+            self.logger,
+            session=session,
+            url="http://example.org",
+            method="GET",
+            auth=auth,
+        )
+        self.assertEqual(code, 200)
+        session.get.assert_called_once()
+        self.assertIs(session.get.call_args.kwargs["auth"], auth)
+
+    def test_011_config_ca_bundle_load_boolean_and_path(self) -> None:
+        """config_ca_bundle_load parses booleans and keeps path strings"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"ca_bundle": "False"}
+        self.assertFalse(config_ca_bundle_load(self.logger, parser, current=True))
+        parser["CAhandler"] = {"ca_bundle": "/etc/ssl/certs/ca.pem"}
+        self.assertEqual(
+            config_ca_bundle_load(self.logger, parser, current=True),
+            "/etc/ssl/certs/ca.pem",
+        )
+        self.assertTrue(
+            config_ca_bundle_load(self.logger, {"DEFAULT": {}}, current=True)
+        )
+        self.assertFalse(
+            config_ca_bundle_load(
+                self.logger, {"CAhandler": {"ca_bundle": "False"}}, current=True
+            )
+        )
+        mock_cfg = Mock()
+        mock_cfg.get.return_value = "notaboolean"
+        mock_cfg.getboolean.return_value = False
+        self.assertEqual(
+            config_ca_bundle_load(self.logger, mock_cfg, current=True),
+            "notaboolean",
+        )
+
+    def test_012_client_session_apply_pem_and_pkcs12(self) -> None:
+        """client_session_apply sets PEM certs or mounts a PKCS12 adapter"""
+        session = Mock()
+        client_session_apply(session, pem_cert="cert.pem", pem_key="key.pem")
+        self.assertEqual(session.cert, ("cert.pem", "key.pem"))
+
+        session = Mock()
+        adapter_cls = Mock(return_value="adapter")
+        client_session_apply(
+            session,
+            pkcs12_filename="client.p12",
+            pkcs12_password="secret",
+            mount_url="https://ca.example",
+            pkcs12_adapter_cls=adapter_cls,
+        )
+        adapter_cls.assert_called_once_with(
+            pkcs12_filename="client.p12", pkcs12_password="secret"
+        )
+        session.mount.assert_called_once_with("https://ca.example", "adapter")
+
+        session = Mock()
+        adapter_cls = Mock(return_value="adapter")
+        client_session_apply(
+            session,
+            pkcs12_filename="client.p12",
+            pkcs12_password="secret",
+            pkcs12_adapter_cls=adapter_cls,
+        )
+        adapter_cls.assert_called_once_with(
+            pkcs12_filename="client.p12", pkcs12_password="secret"
+        )
+        session.mount.assert_called_once_with(None, "adapter")
+
+    def test_013_ca_api_request_wraps_request_operation(self) -> None:
+        """ca_api_request delegates to request_operation"""
+        with patch(
+            "acme2certifier.acme_srv.helpers.network.request_operation",
+            return_value=(201, {"ok": True}),
+        ) as mock_req:
+            code, content = ca_api_request(
+                self.logger, "post", "http://example.org", payload={"a": 1}
+            )
+        self.assertEqual((code, content), (201, {"ok": True}))
+        mock_req.assert_called_once()
 
 
 if __name__ == "__main__":

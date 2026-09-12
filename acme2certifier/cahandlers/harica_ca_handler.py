@@ -25,6 +25,7 @@ from acme2certifier.acme_srv.helper import (
     config_enroll_config_log_load,
     config_headerinfo_load,
     config_option_load,
+    config_ca_bundle_load,
     config_profile_load,
     csr_cn_lookup,
     csr_san_get,
@@ -228,14 +229,9 @@ class CAhandler(object):
         self.request_retry_backoff = self._config_float_get(
             config_dic, "request_retry_backoff", self.request_retry_backoff
         )
-        if "ca_bundle" in config_dic["CAhandler"]:
-            try:
-                self.ca_bundle = config_dic.getboolean("CAhandler", "ca_bundle")
-            except Exception:
-                # May be a filesystem path to a CA bundle file
-                self.ca_bundle = config_dic.get(
-                    "CAhandler", "ca_bundle", fallback=self.ca_bundle
-                )
+        self.ca_bundle = config_ca_bundle_load(
+            self.logger, config_dic, current=self.ca_bundle
+        )
 
     def _config_load(self) -> None:
         """Load handler configuration."""

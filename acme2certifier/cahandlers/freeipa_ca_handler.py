@@ -23,6 +23,7 @@ from acme2certifier.acme_srv.helper import (
     config_headerinfo_load,
     enrollment_config_log,
     request_operation,
+    config_ca_bundle_load,
 )
 
 
@@ -118,14 +119,12 @@ class CAhandler(object):
             self.CONFIG_SECTION, self.profile_mapping_field, fallback=self.profile_id
         )
 
-        self.ca_bundle = config_dic.get(
-            self.CONFIG_SECTION, "ca_bundle", fallback=self.ca_bundle
+        self.ca_bundle = config_ca_bundle_load(
+            self.logger,
+            config_dic,
+            current=self.ca_bundle,
+            section=self.CONFIG_SECTION,
         )
-
-        if str(self.ca_bundle).lower() in ["true", "false"]:
-            self.ca_bundle = config_dic.getboolean(
-                self.CONFIG_SECTION, "ca_bundle", fallback=self.ca_bundle
-            )
 
         try:
             self.request_retries = int(

@@ -5,9 +5,7 @@ from __future__ import print_function
 from typing import Tuple, Dict, List
 import datetime
 import os
-import requests
 import json
-from requests_pkcs12 import Pkcs12Adapter
 
 # pylint: disable=e0401
 from acme2certifier.acme_srv.helper import (
@@ -29,7 +27,8 @@ from acme2certifier.acme_srv.helper import (
     config_proxy_load,
     enrollment_config_log,
     handler_config_check,
-    request_operation,
+    config_ca_bundle_load,
+    ca_api_request,
 )
 
 CONTENT_TYPE = "application/json"
@@ -71,13 +70,11 @@ class CAhandler(object):
 
     def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_get()")
         headers = {"Content-Type": CONTENT_TYPE, "X-Vault-Token": self.vault_token}
-
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
-            method="get",
-            url=url,
+            "get",
+            url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -85,17 +82,14 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-        self.logger.debug("CAhandler._api_get() ended with code: %s", code)
-        return code, content
 
     def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_post()")
         headers = {"Content-Type": CONTENT_TYPE, "X-Vault-Token": self.vault_token}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
-            method="post",
-            url=url,
+            "post",
+            url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -104,17 +98,14 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-        self.logger.debug("CAhandler._api_post() ended with code: %s", code)
-        return code, content
 
     def _api_put(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_put()")
         headers = {"Content-Type": CONTENT_TYPE, "X-Vault-Token": self.vault_token}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
-            method="put",
-            url=url,
+            "put",
+            url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -122,9 +113,6 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-
-        self.logger.debug("CAhandler._api_put() ended with code: %s", code)
-        return code, content
 
     def _config_check(self) -> str:
         """check if config is valid"""
@@ -197,12 +185,9 @@ class CAhandler(object):
                     err,
                 )
 
-            try:
-                self.ca_bundle = config_dic.getboolean("CAhandler", "ca_bundle")
-            except Exception:
-                self.ca_bundle = config_dic.get(
-                    "CAhandler", "ca_bundle", fallback=self.ca_bundle
-                )
+            self.ca_bundle = config_ca_bundle_load(
+                self.logger, config_dic, current=self.ca_bundle
+            )
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(

@@ -364,6 +364,53 @@ def config_option_load(
     return value
 
 
+def _config_ca_bundle_raw(config_dic: Any, section: str, current: Any) -> Any:
+    """Read the raw ``ca_bundle`` value from a ConfigParser-like object or dict."""
+    getter = getattr(config_dic, "get", None)
+    if callable(getter) and not isinstance(config_dic, dict):
+        try:
+            return getter(section, "ca_bundle", fallback=current)
+        except Exception:
+            return current
+    if section not in config_dic:
+        return current
+    section_data = config_dic[section]
+    if not hasattr(section_data, "get") or "ca_bundle" not in section_data:
+        return current
+    return section_data.get("ca_bundle", current)
+
+
+def _config_ca_bundle_as_bool_or_path(config_dic: Any, section: str, raw: Any) -> Any:
+    """Interpret ``ca_bundle`` as a bool when it looks like one, else keep the path."""
+    if isinstance(raw, bool):
+        return raw
+    if not isinstance(raw, str) or raw.lower() not in ("true", "false"):
+        return raw
+    getboolean = getattr(config_dic, "getboolean", None)
+    if callable(getboolean) and not isinstance(config_dic, dict):
+        try:
+            return getboolean(section, "ca_bundle")
+        except Exception:
+            pass
+    return raw.lower() == "true"
+
+
+def config_ca_bundle_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    current: Any = True,
+    *,
+    section: str = "CAhandler",
+) -> Any:
+    """Load ``ca_bundle`` as a bool when possible, otherwise as a path string."""
+    logger.debug("Helper.config_ca_bundle_load()")
+    value = _config_ca_bundle_as_bool_or_path(
+        config_dic, section, _config_ca_bundle_raw(config_dic, section, current)
+    )
+    logger.debug("Helper.config_ca_bundle_load() ended with: %s", value)
+    return value
+
+
 def config_dns_server_list_load(
     logger: logging.Logger, config_dic: Dict[str, str]
 ) -> Tuple[List[str], int]:

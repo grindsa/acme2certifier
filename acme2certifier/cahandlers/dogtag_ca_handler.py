@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     eab_profile_header_info_check,
     config_enroll_config_log_load,
     config_option_load,
+    config_ca_bundle_load,
     config_profile_load,
     config_eab_profile_load,
     config_headerinfo_load,
@@ -27,6 +28,7 @@ from acme2certifier.acme_srv.helper import (
     request_operation,
     uts_now,
     uts_to_date_utc,
+    client_session_apply,
 )
 
 
@@ -704,14 +706,12 @@ class CAhandler(object):
             self.CONFIG_SECTION, self.profile_mapping_field, fallback=self.profile
         )
 
-        self.ca_bundle = config_dic.get(
-            self.CONFIG_SECTION, "ca_bundle", fallback=self.ca_bundle
+        self.ca_bundle = config_ca_bundle_load(
+            self.logger,
+            config_dic,
+            current=self.ca_bundle,
+            section=self.CONFIG_SECTION,
         )
-
-        if str(self.ca_bundle).lower() in ["true", "false"]:
-            self.ca_bundle = config_dic.getboolean(
-                self.CONFIG_SECTION, "ca_bundle", fallback=self.ca_bundle
-            )
 
         self.certrequest_approve = config_dic.getboolean(
             self.CONFIG_SECTION,
@@ -753,16 +753,20 @@ class CAhandler(object):
                 self.logger.debug(
                     "CAhandler._login() using PKCS12 client authentication"
                 )
-                self.session.mount(
-                    self.api_host,
-                    Pkcs12Adapter(
-                        pkcs12_filename=self.client_cert,
-                        pkcs12_password=self.cert_passphrase,
-                    ),
+                client_session_apply(
+                    self.session,
+                    pkcs12_filename=self.client_cert,
+                    pkcs12_password=self.cert_passphrase,
+                    mount_url=self.api_host,
+                    pkcs12_adapter_cls=Pkcs12Adapter,
                 )
             else:
                 # client auth via pem files
-                self.session.cert = (self.client_cert, self.client_key)
+                client_session_apply(
+                    self.session,
+                    pem_cert=self.client_cert,
+                    pem_key=self.client_key,
+                )
             # update hader
             self.session.headers.update({"Accept": "application/json"})
 

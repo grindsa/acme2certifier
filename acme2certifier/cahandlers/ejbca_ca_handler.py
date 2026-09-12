@@ -17,6 +17,7 @@ from acme2certifier.acme_srv.helper import (
     config_enroll_config_log_load,
     config_headerinfo_load,
     config_option_load,
+    config_ca_bundle_load,
     config_profile_load,
     convert_byte_to_string,
     csr_cn_lookup,
@@ -27,6 +28,7 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     load_config,
     request_operation,
+    client_session_apply,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -154,9 +156,9 @@ class CAhandler(object):
                 )
                 self.request_retry_backoff = 2.0
 
-            self.ca_bundle = config_dic.get("CAhandler", "ca_bundle", fallback=True)
-            if self.ca_bundle == "False":
-                self.ca_bundle = False
+            self.ca_bundle = config_ca_bundle_load(
+                self.logger, config_dic, current=self.ca_bundle
+            )
 
         self.logger.debug("CAhandler._config_server_load() ended")
 
@@ -222,12 +224,12 @@ class CAhandler(object):
             and self.cert_passphrase
         ):
             with requests.Session() as self.session:
-                self.session.mount(
-                    self.api_host,
-                    Pkcs12Adapter(
-                        pkcs12_filename=config_dic["CAhandler"]["cert_file"],
-                        pkcs12_password=self.cert_passphrase,
-                    ),
+                client_session_apply(
+                    self.session,
+                    pkcs12_filename=config_dic["CAhandler"]["cert_file"],
+                    pkcs12_password=self.cert_passphrase,
+                    mount_url=self.api_host,
+                    pkcs12_adapter_cls=Pkcs12Adapter,
                 )
         else:
             self.logger.error(

@@ -9,7 +9,7 @@ import logging
 import json
 import re
 import time
-from typing import List, Dict, Tuple, Union, Optional
+from typing import Any, List, Dict, Tuple, Union, Optional
 from urllib.parse import urlparse, quote
 from urllib3.util import connection
 import socks
@@ -852,6 +852,7 @@ def _request_send_by_method(
     timeout: int,
     payload: Dict[str, str],
     verify: bool,
+    auth: Any = None,
 ) -> Tuple[Optional[requests.Response], Optional[Tuple[int, str]]]:
     """Send request by HTTP method and return either response or error tuple."""
     request_args = {
@@ -861,6 +862,8 @@ def _request_send_by_method(
         "timeout": timeout,
         "verify": verify,
     }
+    if auth is not None:
+        request_args["auth"] = auth
     method_lower = method.lower()
 
     if method_lower == "get":
@@ -911,6 +914,7 @@ def request_operation(
     verify: bool = True,
     retries: int = 0,
     retry_backoff: float = 1.0,
+    auth: Any = None,
 ):
     """Execute an HTTP request with optional retry on transient failures."""
     logger.debug("Helper.api_operation(): method: %s", method)
@@ -929,6 +933,7 @@ def request_operation(
                 timeout,
                 payload,
                 verify,
+                auth,
             )
             if method_error:
                 return method_error
@@ -970,3 +975,46 @@ def request_operation(
                 return code, content
 
     return 500, "Unexpected retry loop exit"
+
+
+def client_session_apply(
+    session: requests.Session,
+    *,
+    pem_cert: Optional[str] = None,
+    pem_key: Optional[str] = None,
+    pkcs12_filename: Optional[str] = None,
+    pkcs12_password: Optional[str] = None,
+    mount_url: Optional[str] = None,
+    pkcs12_adapter_cls: Optional[type] = None,
+) -> requests.Session:
+    """Apply PEM or PKCS12 client authentication to a requests session."""
+    if pem_cert and pem_key:
+        session.cert = (pem_cert, pem_key)
+        return session
+    if pkcs12_filename:
+        adapter_cls = pkcs12_adapter_cls
+        if adapter_cls is None:
+            from requests_pkcs12 import Pkcs12Adapter  # pylint: disable=c0415
+
+            adapter_cls = Pkcs12Adapter
+        session.mount(
+            mount_url,
+            adapter_cls(
+                pkcs12_filename=pkcs12_filename,
+                pkcs12_password=pkcs12_password,
+            ),
+        )
+    return session
+
+
+def ca_api_request(
+    logger: logging.Logger,
+    method: str,
+    url: str,
+    **kwargs: Any,
+) -> Tuple[int, Optional[Union[Dict, str]]]:
+    """Thin CA-handler wrapper around request_operation."""
+    logger.debug("CAhandler._api_%s()", method.lower())
+    code, content = request_operation(logger, method=method, url=url, **kwargs)
+    logger.debug("CAhandler._api_%s() ended with code: %s", method.lower(), code)
+    return code, content
