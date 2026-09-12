@@ -3,7 +3,7 @@
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from .config import (
     cahandler_config_section_reset,
@@ -267,6 +267,100 @@ class CAHandlerRegistry:
         self.logger.debug("CAHandlerRegistry._route_domainlist_load() ended with []")
         return []
 
+    def _bind_resolved(self, name: str, kind: str = "") -> BoundCAHandler:
+        """Bind a registered handler and emit the resolve() completion log."""
+        bound = self._bind(name)
+        label = f"{kind} handler" if kind else "handler"
+        self.logger.debug(
+            "CAHandlerRegistry.resolve() ended with %s %r",
+            label,
+            name,
+        )
+        return bound
+
+    def _bind_if_registered(
+        self, name: str, kind: str = ""
+    ) -> Optional[BoundCAHandler]:
+        """Bind ``name`` when it is registered; otherwise return None."""
+        if name in self.handlers:
+            return self._bind_resolved(name, kind)
+        return None
+
+    def _resolve_classical(self) -> Optional[BoundCAHandler]:
+        """Return the single bound handler used outside multi-handler mode."""
+        self.logger.debug(
+            "CAHandlerRegistry.resolve() ended with classical handler %r",
+            getattr(self._single_bound, "name", None),
+        )
+        return self._single_bound
+
+    def _resolve_stored(self, stored_name: Optional[str]) -> Optional[BoundCAHandler]:
+        """Return a previously stored handler, or None to continue resolving."""
+        if not stored_name:
+            return None
+        bound = self._bind_if_registered(stored_name, "stored")
+        if bound:
+            return bound
+        self.logger.warning(
+            "Stored cahandler '%s' is not registered; re-resolving",
+            stored_name,
+        )
+        return None
+
+    def _resolve_eab(self, cahandler_name: str) -> Optional[BoundCAHandler]:
+        """Return the EAB-named handler, or None without falling back."""
+        bound = self._bind_if_registered(cahandler_name, "EAB")
+        if bound:
+            return bound
+        self.logger.error(
+            "Unknown EAB cahandler_name '%s'; refusing silent fallback",
+            cahandler_name,
+        )
+        return None
+
+    def _profile_handler_name(
+        self, order_profile: Optional[str]
+    ) -> Tuple[Optional[str], bool]:
+        """Map an order profile to a handler name.
+
+        Returns ``(name, hard_fail)``. ``hard_fail`` is True when the profile
+        maps to an unregistered handler and resolve() must stop.
+        """
+        if not (
+            order_profile
+            and self.profile_cahandler
+            and order_profile in self.profile_cahandler
+        ):
+            return None, False
+        mapped = self.profile_cahandler[order_profile]
+        if mapped in self.handlers:
+            return mapped, False
+        self.logger.error(
+            "profile_cahandler maps profile '%s' to unknown handler '%s'",
+            order_profile,
+            mapped,
+        )
+        return None, True
+
+    def _default_handler_name(self) -> Optional[str]:
+        """Return the configured default handler name when it is registered."""
+        if self.default_name and self.default_name in self.handlers:
+            return self.default_name
+        return None
+
+    def _resolve_fallback_name(
+        self, order_profile: Optional[str], csr: Optional[str]
+    ) -> Tuple[Optional[str], bool]:
+        """Resolve via profile mapping, CSR routing, then default_handler."""
+        name, hard_fail = self._profile_handler_name(order_profile)
+        if hard_fail:
+            return None, True
+        if name is None and csr is not None:
+            name = self._resolve_by_csr(csr)
+        if name is None:
+            name = self._default_handler_name()
+        return name, False
+
     def resolve(
         self,
         *,
@@ -283,64 +377,18 @@ class CAHandlerRegistry:
             stored_name,
             bool(csr),
         )
-
         if not self.multi_handler:
-            self.logger.debug(
-                "CAHandlerRegistry.resolve() ended with classical handler %r",
-                getattr(self._single_bound, "name", None),
-            )
-            return self._single_bound
+            return self._resolve_classical()
 
-        if stored_name:
-            if stored_name in self.handlers:
-                bound = self._bind(stored_name)
-                self.logger.debug(
-                    "CAHandlerRegistry.resolve() ended with stored handler %r",
-                    stored_name,
-                )
-                return bound
-            self.logger.warning(
-                "Stored cahandler '%s' is not registered; re-resolving",
-                stored_name,
-            )
-
+        bound = self._resolve_stored(stored_name)
+        if bound:
+            return bound
         if cahandler_name:
-            if cahandler_name in self.handlers:
-                bound = self._bind(cahandler_name)
-                self.logger.debug(
-                    "CAHandlerRegistry.resolve() ended with EAB handler %r",
-                    cahandler_name,
-                )
-                return bound
-            self.logger.error(
-                "Unknown EAB cahandler_name '%s'; refusing silent fallback",
-                cahandler_name,
-            )
+            return self._resolve_eab(cahandler_name)
+
+        name, hard_fail = self._resolve_fallback_name(order_profile, csr)
+        if hard_fail:
             return None
-
-        name: Optional[str] = None
-        if (
-            order_profile
-            and self.profile_cahandler
-            and order_profile in self.profile_cahandler
-        ):
-            mapped = self.profile_cahandler[order_profile]
-            if mapped in self.handlers:
-                name = mapped
-            else:
-                self.logger.error(
-                    "profile_cahandler maps profile '%s' to unknown handler '%s'",
-                    order_profile,
-                    mapped,
-                )
-                return None
-
-        if name is None and csr is not None:
-            name = self._resolve_by_csr(csr)
-
-        if name is None and self.default_name and self.default_name in self.handlers:
-            name = self.default_name
-
         if name is None:
             self.logger.error(
                 "CAHandlerRegistry.resolve: no handler matched "
@@ -350,38 +398,60 @@ class CAHandlerRegistry:
             )
             self.logger.debug("CAHandlerRegistry.resolve() ended with None")
             return None
+        return self._bind_resolved(name)
 
-        bound = self._bind(name)
-        self.logger.debug("CAHandlerRegistry.resolve() ended with handler %r", name)
-        return bound
+    def _csr_dns_sans(self, sans: List[str]) -> List[str]:
+        """Return DNS SAN values, skipping malformed entries."""
+        values: List[str] = []
+        for san in sans:
+            try:
+                san_type, san_value = san.lower().split(":", 1)
+            except ValueError:
+                self.logger.debug(
+                    "CAHandlerRegistry._resolve_by_csr: skipping SAN %s", san
+                )
+                continue
+            if san_type == "dns":
+                values.append(san_value)
+        return values
 
-    def _resolve_by_csr(self, csr: str) -> Optional[str]:
+    def _csr_dns_identifiers(self, csr: str) -> Optional[List[str]]:
+        """Return CN and DNS SAN identifiers from a CSR, or None on parse failure."""
         from acme2certifier.acme_srv.helper import (  # pylint: disable=c0415
             csr_cn_get,
             csr_san_get,
         )
 
-        self.logger.debug("CAHandlerRegistry._resolve_by_csr()")
         identifiers: List[str] = []
         try:
             cn = csr_cn_get(self.logger, csr)
             if cn:
                 identifiers.append(cn.lower())
-            for san in csr_san_get(self.logger, csr) or []:
-                try:
-                    san_type, san_value = san.lower().split(":", 1)
-                    if san_type == "dns":
-                        identifiers.append(san_value)
-                except ValueError:
-                    self.logger.debug(
-                        "CAHandlerRegistry._resolve_by_csr: skipping SAN %s", san
-                    )
+            identifiers.extend(self._csr_dns_sans(csr_san_get(self.logger, csr) or []))
         except Exception as err:
             self.logger.warning(
                 "CAHandlerRegistry._resolve_by_csr: failed to parse CSR: %s", err
             )
             return None
+        return identifiers
 
+    def _csr_route_matches(self, identifiers: List[str]) -> List[str]:
+        """Return handler names whose route_domainlist covers every identifier."""
+        matches: List[str] = []
+        for name, entry in self.handlers.items():
+            patterns = entry.get("route_domainlist") or []
+            if patterns and all(
+                is_domain_whitelisted(self.logger, ident, patterns)
+                for ident in identifiers
+            ):
+                matches.append(name)
+        return matches
+
+    def _resolve_by_csr(self, csr: str) -> Optional[str]:
+        self.logger.debug("CAHandlerRegistry._resolve_by_csr()")
+        identifiers = self._csr_dns_identifiers(csr)
+        if identifiers is None:
+            return None
         if not identifiers:
             self.logger.debug(
                 "CAHandlerRegistry._resolve_by_csr() ended with no identifiers"
@@ -391,17 +461,7 @@ class CAHandlerRegistry:
         self.logger.debug(
             "CAHandlerRegistry._resolve_by_csr() identifiers=%s", identifiers
         )
-        matches: List[str] = []
-        for name, entry in self.handlers.items():
-            patterns = entry.get("route_domainlist") or []
-            if not patterns:
-                continue
-            if all(
-                is_domain_whitelisted(self.logger, ident, patterns)
-                for ident in identifiers
-            ):
-                matches.append(name)
-
+        matches = self._csr_route_matches(identifiers)
         if len(matches) > 1:
             self.logger.warning(
                 "Multiple handlers matched CSR identifiers %s: %s; using '%s'",

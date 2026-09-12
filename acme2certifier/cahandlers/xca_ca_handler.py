@@ -94,7 +94,7 @@ _XCA_PREFIX_RE = re.compile(
     + r")\b",
     re.IGNORECASE,
 )
-_NAMED_PARAM_RE = re.compile(r":([A-Za-z_][A-Za-z0-9_]*)")
+_NAMED_PARAM_RE = re.compile(r":([A-Za-z_]\w*)")
 
 
 def dict_from_row(row: Optional[Any]) -> Dict[str, Any]:
@@ -727,44 +727,53 @@ class CAhandler:
             return bool(self.xdb_host and self.xdb_name and self.xdb_user)
         return bool(self.xdb_file)
 
-    def _config_check(self) -> str:
+    def _config_check_sqlite(self) -> Optional[str]:
+        """Validate sqlite ``xdb_file`` presence and path."""
+        if not self.xdb_file:
+            return "xdb_file must be specified in config file"
+        if os.path.exists(self.xdb_file):
+            return None
+        error = f"xdb_file {self.xdb_file} does not exist"
+        self.xdb_file = None
+        return error
+
+    def _config_check_remote(self) -> Optional[str]:
+        """Validate mysql/postgresql connection settings."""
+        if self.xdb_file:
+            return "xdb_file and remote xdb_engine are mutually exclusive"
+        if not self.xdb_host or not self.xdb_name or not self.xdb_user:
+            return "xdb_host, xdb_name and xdb_user must be specified in config file"
+        if not self.xdb_password:
+            return "xdb_password must be specified in config file"
+        return None
+
+    def _config_check_engine(self, engine: str) -> Optional[str]:
+        """Validate engine-specific XCA database settings."""
+        if engine not in ("sqlite", "mysql", "postgresql"):
+            return f"unsupported xdb_engine {self.xdb_engine}"
+        if engine == "sqlite":
+            return self._config_check_sqlite()
+        return self._config_check_remote()
+
+    def _issuing_ca_key_default(self) -> None:
+        """Use issuing_ca_name as the key name when issuing_ca_key is unset."""
+        if self.issuing_ca_key:
+            return
+        self.logger.debug(
+            "use self.issuing_ca_name as self.issuing_ca_key: %s",
+            self.issuing_ca_name,
+        )
+        self.issuing_ca_key = self.issuing_ca_name
+
+    def _config_check(self) -> Optional[str]:
         """check config for consitency"""
         self.logger.debug("CAhandler._config_check()")
-        error = None
-        engine = self._xdb_engine_normalized()
-
-        if engine not in ("sqlite", "mysql", "postgresql"):
-            error = f"unsupported xdb_engine {self.xdb_engine}"
-        elif engine == "sqlite":
-            if self.xdb_file:
-                if not os.path.exists(self.xdb_file):
-                    error = f"xdb_file {self.xdb_file} does not exist"
-                    self.xdb_file = None
-            else:
-                error = "xdb_file must be specified in config file"
-        else:
-            if self.xdb_file:
-                error = "xdb_file and remote xdb_engine are mutually exclusive"
-            elif not self.xdb_host or not self.xdb_name or not self.xdb_user:
-                error = (
-                    "xdb_host, xdb_name and xdb_user must be specified in config file"
-                )
-            elif not self.xdb_password:
-                error = "xdb_password must be specified in config file"
-
+        error = self._config_check_engine(self._xdb_engine_normalized())
         if not error and not self.issuing_ca_name:
             error = "issuing_ca_name must be set in config file"
-
         if error:
             self.logger.debug("CAhandler config error: %s", error)
-
-        if not self.issuing_ca_key:
-            self.logger.debug(
-                "use self.issuing_ca_name as self.issuing_ca_key: %s",
-                self.issuing_ca_name,
-            )
-            self.issuing_ca_key = self.issuing_ca_name
-
+        self._issuing_ca_key_default()
         self.logger.debug("CAhandler._config_check() ended")
         return error
 

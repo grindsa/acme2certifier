@@ -215,35 +215,51 @@ def env_debug_get() -> bool:
     return os.environ.get("ACME2CERTIFIER_DEBUG", "0") in ("1", "true", "True")
 
 
-def _explicit_default_debug(config_dic: Any) -> Optional[bool]:
-    """Return DEFAULT.debug when the key is set; None if unset or invalid."""
-    if config_dic is None:
+_DEBUG_TRUE = ("1", "true", "yes", "on")
+_DEBUG_FALSE = ("0", "false", "no", "off")
+
+
+def _debug_value_as_bool(value: Any) -> Optional[bool]:
+    """Parse a DEFAULT.debug value; None if unset-style or invalid."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in _DEBUG_TRUE:
+            return True
+        if lowered in _DEBUG_FALSE:
+            return False
+    return None
+
+
+def _configparser_default_debug(config_dic: Any) -> Optional[bool]:
+    """Read DEFAULT.debug from a ConfigParser-like object."""
+    try:
+        if not config_dic.has_option("DEFAULT", "debug"):
+            return None
+        return config_dic.getboolean("DEFAULT", "debug")
+    except (ValueError, TypeError):
         return None
 
-    if hasattr(config_dic, "has_option") and hasattr(config_dic, "getboolean"):
-        try:
-            if not config_dic.has_option("DEFAULT", "debug"):
-                return None
-            return config_dic.getboolean("DEFAULT", "debug")
-        except (ValueError, TypeError):
-            return None
 
+def _mapping_default_debug(config_dic: Any) -> Optional[bool]:
+    """Read DEFAULT.debug from a mapping-like object."""
     try:
         default_sec = config_dic.get("DEFAULT")
     except (AttributeError, TypeError, KeyError):
         return None
     if not isinstance(default_sec, dict) or "debug" not in default_sec:
         return None
-    value = default_sec["debug"]
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in ("1", "true", "yes", "on"):
-            return True
-        if lowered in ("0", "false", "no", "off"):
-            return False
-    return None
+    return _debug_value_as_bool(default_sec["debug"])
+
+
+def _explicit_default_debug(config_dic: Any) -> Optional[bool]:
+    """Return DEFAULT.debug when the key is set; None if unset or invalid."""
+    if config_dic is None:
+        return None
+    if hasattr(config_dic, "has_option") and hasattr(config_dic, "getboolean"):
+        return _configparser_default_debug(config_dic)
+    return _mapping_default_debug(config_dic)
 
 
 def config_debug_get(config_dic: Any = None) -> bool:

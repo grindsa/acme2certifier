@@ -2,7 +2,7 @@
 """Renewalinfo class: ACME renewal info handler with separated config and repository helpers."""
 
 from __future__ import print_function
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any, Callable
 from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
@@ -156,61 +156,85 @@ class Renewalinfo(object):
         self.repository = RenewalinfoRepository(self.dbstore, self.logger)
         self.cahandler = None
 
-    def _load_configuration(self):
+    def _assign_config_option(
+        self,
+        attr: str,
+        loader: Callable[[], Any],
+        error_fmt: str,
+        error_value: Any = None,
+        set_error_value: bool = False,
+    ) -> None:
+        """Set a config attribute from *loader*, optionally resetting on error."""
+        try:
+            setattr(self.config, attr, loader())
+        except Exception as err_:
+            self.logger.error(error_fmt, err_)
+            if set_error_value:
+                setattr(self.config, attr, error_value)
+
+    def _parse_renewal_window_duration(self, config_dic: object) -> None:
+        """Parse Renewalinfo.renewal_window_duration as seconds, or None."""
+        try:
+            raw_duration = config_dic.get(
+                "Renewalinfo", "renewal_window_duration", fallback=None
+            )
+            if raw_duration is None or str(raw_duration).strip() == "":
+                self.config.renewal_window_duration = None
+                return
+            self.config.renewal_window_duration = duration_to_seconds(raw_duration)
+        except Exception as err_:
+            self.logger.error("renewal_window_duration parsing error: %s", err_)
+            self.config.renewal_window_duration = None
+
+    def _parse_renewalinfo_section(self, config_dic: object) -> None:
+        """Parse the [Renewalinfo] section into ``self.config``."""
+        if "Renewalinfo" not in config_dic:
+            return
+        self._assign_config_option(
+            "renewalinfo_disable",
+            lambda: config_dic.getboolean(
+                "Renewalinfo",
+                "renewalinfo_disable",
+                fallback=self.config.renewalinfo_disable,
+            ),
+            "renewalinfo_disable not set: %s",
+        )
+        self._assign_config_option(
+            "renewal_force",
+            lambda: config_dic.getboolean(
+                "Renewalinfo", "renewal_force", fallback=False
+            ),
+            "renewal_force parsing error: %s",
+            False,
+            True,
+        )
+        self._assign_config_option(
+            "renewalthreshold_pctg",
+            lambda: float(
+                config_dic.get("Renewalinfo", "renewalthreshold_pctg", fallback=85.0)
+            ),
+            "renewalthreshold_pctg parsing error: %s",
+            85.0,
+            True,
+        )
+        self._assign_config_option(
+            "retry_after_timeout",
+            lambda: int(
+                config_dic.get("Renewalinfo", "retry_after_timeout", fallback=86400)
+            ),
+            "retry_after_timeout parsing error: %s",
+            86400,
+            True,
+        )
+        self._parse_renewal_window_duration(config_dic)
+
+    def _load_configuration(self) -> None:
         """Load renewalinfo configuration from file (harmonized approach)"""
         self.logger.debug("Renewalinfo._load_configuration()")
-
         config_dic = self.config_dic if self.config_dic is not None else load_config()
-
-        if "Renewalinfo" in config_dic:
-            try:
-                self.config.renewalinfo_disable = config_dic.getboolean(
-                    "Renewalinfo",
-                    "renewalinfo_disable",
-                    fallback=self.config.renewalinfo_disable,
-                )
-            except Exception as err_:
-                self.logger.error("renewalinfo_disable not set: %s", err_)
-            try:
-                self.config.renewal_force = config_dic.getboolean(
-                    "Renewalinfo", "renewal_force", fallback=False
-                )
-            except Exception as err_:
-                self.logger.error("renewal_force parsing error: %s", err_)
-                self.config.renewal_force = False
-            try:
-                self.config.renewalthreshold_pctg = float(
-                    config_dic.get(
-                        "Renewalinfo", "renewalthreshold_pctg", fallback=85.0
-                    )
-                )
-            except Exception as err_:
-                self.logger.error("renewalthreshold_pctg parsing error: %s", err_)
-                self.config.renewalthreshold_pctg = 85.0
-            try:
-                self.config.retry_after_timeout = int(
-                    config_dic.get("Renewalinfo", "retry_after_timeout", fallback=86400)
-                )
-            except Exception as err_:
-                self.logger.error("retry_after_timeout parsing error: %s", err_)
-                self.config.retry_after_timeout = 86400
-            try:
-                raw_duration = config_dic.get(
-                    "Renewalinfo", "renewal_window_duration", fallback=None
-                )
-                if raw_duration is None or str(raw_duration).strip() == "":
-                    self.config.renewal_window_duration = None
-                else:
-                    self.config.renewal_window_duration = duration_to_seconds(
-                        raw_duration
-                    )
-            except Exception as err_:
-                self.logger.error("renewal_window_duration parsing error: %s", err_)
-                self.config.renewal_window_duration = None
-
+        self._parse_renewalinfo_section(config_dic)
         self._load_ca_handler(config_dic)
         self._parse_cahandler_section(config_dic)
-
         self.logger.debug("Renewalinfo._load_configuration() ended.")
 
     def _parse_cahandler_section(self, config_dic: object) -> None:

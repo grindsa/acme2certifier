@@ -27,6 +27,7 @@ _LAST_LOADED_CFG: Optional[Tuple[str, str, str]] = None
 _CONFIG_CACHE: Dict[str, Tuple[configparser.ConfigParser, str]] = {}
 _CONFIG_CACHE_LOCK = threading.Lock()
 ACME_SRV_CFG_FILENAME = "acme_srv.cfg"
+LOADED_ACME_SRV_CFG_MSG = f"Loaded {ACME_SRV_CFG_FILENAME} %s (%s, %s)"
 ACME_SRV_YAML_FILENAMES = ("acme_srv.yaml", "acme_srv.yml")
 _YAML_CONFIG_EXTENSIONS = {".yaml", ".yml"}
 DEB_DEPLOY_BASE_DIR = "/var/www/acme2certifier"
@@ -95,12 +96,11 @@ def _log_cfg_loaded_once(
 ) -> None:
     """Log successful acme_srv.cfg load once per absolute path (then DEBUG)."""
     abs_path = os.path.abspath(cfg_path)
-    message = "Loaded acme_srv.cfg %s (%s, %s)"
     if abs_path not in _ACME_SRV_CFG_LOADED:
         _ACME_SRV_CFG_LOADED.add(abs_path)
-        logger.info(message, abs_path, source, cfg_format)
+        logger.info(LOADED_ACME_SRV_CFG_MSG, abs_path, source, cfg_format)
     else:
-        logger.debug(message, abs_path, source, cfg_format)
+        logger.debug(LOADED_ACME_SRV_CFG_MSG, abs_path, source, cfg_format)
 
 
 def log_loaded_acme_srv_cfg(logger: logging.Logger) -> None:
@@ -962,6 +962,45 @@ def cahandler_config_section_get(
     return section
 
 
+def _ensure_config_section(parser: configparser.ConfigParser, section: str) -> None:
+    """Add ``section`` when it is missing."""
+    if not parser.has_section(section):
+        parser.add_section(section)
+
+
+def _copy_config_sections(
+    source: configparser.ConfigParser, dest: configparser.ConfigParser
+) -> None:
+    """Copy every reported section and option from *source* into *dest*."""
+    for sec in source.sections():
+        _ensure_config_section(dest, sec)
+        for key, value in source.items(sec, raw=True):
+            dest.set(sec, key, value)
+
+
+def _copy_cahandler_defaults(
+    source: configparser.ConfigParser, dest: configparser.ConfigParser
+) -> None:
+    """Copy ``[CAhandler]`` keys omitted by ``sections()`` without overwriting."""
+    if not source.has_section("CAhandler"):
+        return
+    _ensure_config_section(dest, "CAhandler")
+    for key, value in source.items("CAhandler", raw=True):
+        if not dest.has_option("CAhandler", key):
+            dest.set("CAhandler", key, value)
+
+
+def _overlay_section_onto_cahandler(
+    source: configparser.ConfigParser,
+    dest: configparser.ConfigParser,
+    section: str,
+) -> None:
+    """Write *section* keys onto ``[CAhandler]`` in *dest*."""
+    _ensure_config_section(dest, "CAhandler")
+    for key, value in source.items(section, raw=True):
+        dest.set("CAhandler", key, value)
+
+
 def _cahandler_section_merged_config(
     config: configparser.ConfigParser,
     section: str,
@@ -970,7 +1009,6 @@ def _cahandler_section_merged_config(
     """Overlay ``section`` onto ``[CAhandler]`` for handler config reads."""
     if section == "CAhandler":
         return config
-
     if not config.has_section(section):
         logger.debug(
             "_cahandler_section_merged_config: section %s missing, using CAhandler",
@@ -979,24 +1017,9 @@ def _cahandler_section_merged_config(
         return config
 
     merged = _new_config_parser()
-    for sec in config.sections():
-        if not merged.has_section(sec):
-            merged.add_section(sec)
-        for key, value in config.items(sec, raw=True):
-            merged.set(sec, key, value)
-
-    if config.has_section("CAhandler"):
-        if not merged.has_section("CAhandler"):
-            merged.add_section("CAhandler")
-        for key, value in config.items("CAhandler", raw=True):
-            if not merged.has_option("CAhandler", key):
-                merged.set("CAhandler", key, value)
-
-    if not merged.has_section("CAhandler"):
-        merged.add_section("CAhandler")
-    for key, value in config.items(section, raw=True):
-        merged.set("CAhandler", key, value)
-
+    _copy_config_sections(config, merged)
+    _copy_cahandler_defaults(config, merged)
+    _overlay_section_onto_cahandler(config, merged, section)
     return merged
 
 
@@ -1079,7 +1102,7 @@ def load_config(
         if logger is not None:
             _log_cfg_loaded_once(logger, abs_path, source, cfg_format)
         else:
-            log.debug("Loaded acme_srv.cfg %s (%s, %s)", abs_path, source, cfg_format)
+            log.debug(LOADED_ACME_SRV_CFG_MSG, abs_path, source, cfg_format)
         config = _apply_bound_cahandler_merge(config, explicit_cfg_file, log)
         log.debug(
             "Helper.load_config() ended sections=%s (cache hit)",
@@ -1112,7 +1135,7 @@ def load_config(
     if logger is not None:
         _log_cfg_loaded_once(logger, abs_path, source, cfg_format)
     else:
-        log.debug("Loaded acme_srv.cfg %s (%s, %s)", abs_path, source, cfg_format)
+        log.debug(LOADED_ACME_SRV_CFG_MSG, abs_path, source, cfg_format)
     config = _apply_bound_cahandler_merge(config, explicit_cfg_file, log)
     log.debug(
         "Helper.load_config() ended sections=%s",

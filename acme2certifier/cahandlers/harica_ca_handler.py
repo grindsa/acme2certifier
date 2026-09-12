@@ -50,6 +50,8 @@ PEM_CERT_BLOCK_RE = re.compile(
 )
 PENDING_STATUSES = frozenset({"Pending", "Ready", "Processing"})
 REJECTED_STATUSES = frozenset({"Cancelled", "Canceled", "Rejected", "Denied"})
+CONTENT_TYPE_JSON = "application/json"
+BEGIN_CERTIFICATE = "BEGIN CERTIFICATE"
 
 
 def totp_generate(secret: str, period: int = 30, digits: int = 6) -> str:
@@ -305,13 +307,13 @@ class CAhandler(object):
         self.logger.debug("CAhandler._fetch_rv_token() ended")
 
     def _auth_headers(
-        self, content_type: Optional[str] = "application/json"
+        self, content_type: Optional[str] = CONTENT_TYPE_JSON
     ) -> Dict[str, str]:
         """Build authenticated request headers (JWT + CSRF). Cookies come from the session jar."""
         headers = {
             "Authorization": self._jwt_token,
             "RequestVerificationToken": self._rv_token,
-            "Accept": "application/json",
+            "Accept": CONTENT_TYPE_JSON,
         }
         if content_type:
             headers["Content-Type"] = content_type
@@ -361,8 +363,8 @@ class CAhandler(object):
             endpoint = "/api/User/Login2FA"
         headers = {
             "RequestVerificationToken": self._rv_token,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
+            "Accept": CONTENT_TYPE_JSON,
         }
         response = self._session.post(
             f"{self.api_url}{endpoint}",
@@ -395,7 +397,7 @@ class CAhandler(object):
         response = self._session.post(
             f"{self.api_url}{endpoint}",
             json=payload,
-            headers=self._auth_headers("application/json"),
+            headers=self._auth_headers(CONTENT_TYPE_JSON),
             timeout=self.request_timeout,
             verify=self.ca_bundle,
             proxies=self.proxy,
@@ -480,7 +482,7 @@ class CAhandler(object):
         # csr_san_get returns "DNS:fqdn" / "IP:..." — HARICA wants bare FQDNs
         if san.startswith("DNS:"):
             name = san[4:].strip().lower()
-        elif san.startswith("IP:") or san.startswith("EMAIL:"):
+        elif san.startswith(("IP:", "EMAIL:")):
             self.logger.warning("Skipping non-DNS SAN for HARICA SSL: %s", san)
             return None
         else:
@@ -779,7 +781,7 @@ class CAhandler(object):
         CertManager may prepend openssl-style subject=/issuer= lines between
         certificates; strip everything outside BEGIN/END CERTIFICATE markers.
         """
-        if not pem_text or "BEGIN CERTIFICATE" not in pem_text:
+        if not pem_text or BEGIN_CERTIFICATE not in pem_text:
             return ""
         blocks = [
             match.group(0).strip() for match in PEM_CERT_BLOCK_RE.finditer(pem_text)
@@ -814,7 +816,7 @@ class CAhandler(object):
         cert_bundle = leaf if leaf.endswith("\n") else f"{leaf}\n"
         for key in ("intermediateCertificate", "caCertificate", "chain"):
             extra = cert_data.get(key)
-            if extra and isinstance(extra, str) and "BEGIN CERTIFICATE" in extra:
+            if extra and isinstance(extra, str) and BEGIN_CERTIFICATE in extra:
                 cleaned_extra = self._pem_bundle_clean(extra)
                 if cleaned_extra:
                     cert_bundle += cleaned_extra
@@ -831,7 +833,7 @@ class CAhandler(object):
         if (
             pem_bundle
             and isinstance(pem_bundle, str)
-            and "BEGIN CERTIFICATE" in pem_bundle
+            and BEGIN_CERTIFICATE in pem_bundle
         ):
             cert_bundle, leaf = self._certificate_from_pembundle(pem_bundle, cert_pem)
         elif cert_pem and cert_pem is not True and isinstance(cert_pem, str):

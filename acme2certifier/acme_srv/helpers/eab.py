@@ -252,45 +252,95 @@ def eab_profile_revocation_check(
     logger.debug("Helper.eab_profile_revocation_check() ended")
 
 
+def _eab_profile_list_dispatch(
+    logger: logging.Logger,
+    cahandler: Any,
+    eab_handler: Any,
+    csr: str,
+    key: str,
+    value: Any,
+) -> Optional[str]:
+    """Run handler-specific list check when present, else the helper default."""
+    if "eab_profile_list_check" in dir(cahandler):
+        return cahandler.eab_profile_list_check(eab_handler, csr, key, value)
+    return eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value)
+
+
+def _eab_profile_entry_check(
+    logger: logging.Logger,
+    cahandler: Any,
+    eab_handler: Any,
+    csr: str,
+    key: str,
+    value: Any,
+) -> Optional[str]:
+    """Validate one EAB profile entry. Skip routing-only keys."""
+    if key == "cahandler_name":
+        return None
+    if key == "subject":
+        return eab_profile_subject_check(logger, csr, value)
+    if isinstance(value, str):
+        eab_profile_string_check(logger, cahandler, key, value)
+        return None
+    if isinstance(value, list):
+        return _eab_profile_list_dispatch(
+            logger, cahandler, eab_handler, csr, key, value
+        )
+    return None
+
+
+def _eab_profile_entries_check(
+    logger: logging.Logger,
+    cahandler: Any,
+    eab_handler: Any,
+    csr: str,
+    eab_profile_dic: dict,
+) -> Optional[str]:
+    """Return the first profile-entry error, if any."""
+    for key, value in eab_profile_dic.items():
+        result = _eab_profile_entry_check(
+            logger, cahandler, eab_handler, csr, key, value
+        )
+        if result:
+            return result
+    return None
+
+
+def _eab_header_info_not_allowed(
+    logger: logging.Logger,
+    cahandler: Any,
+    csr: str,
+    handler_hifield: str,
+    eab_profile_dic: dict,
+) -> Optional[str]:
+    """Reject header_info values that the EAB profile does not allow."""
+    if not cahandler.header_info_field or handler_hifield in eab_profile_dic:
+        return None
+    hil_value = header_info_lookup(
+        logger, csr, cahandler.header_info_field, handler_hifield
+    )
+    if not hil_value:
+        return None
+    return f'header_info field "{handler_hifield}" is not allowed by profile'
+
+
 def eab_profile_check(
     logger: logging.Logger, cahandler, csr: str, handler_hifield: str
-) -> str:
+) -> Optional[str]:
     """check eab profile"""
     logger.debug("Helper.eab_profile_check()")
 
     result = None
     with cahandler.eab_handler(logger) as eab_handler:
         eab_profile_dic = eab_handler.eab_profile_get(csr)
-        for key, value in eab_profile_dic.items():
-            if key == "cahandler_name":
-                continue
-            if key == "subject":
-                result = eab_profile_subject_check(logger, csr, value)
-            elif isinstance(value, str):
-                eab_profile_string_check(logger, cahandler, key, value)
-            elif isinstance(value, list):
-                # check if we need to execute a function from the handler
-                if "eab_profile_list_check" in dir(cahandler):
-                    result = cahandler.eab_profile_list_check(
-                        eab_handler, csr, key, value
-                    )
-                else:
-                    result = eab_profile_list_check(
-                        logger, cahandler, eab_handler, csr, key, value
-                    )
-            if result:
-                break
-
-        # we need to reject situations where profiling is enabled but the header_hifiled is not defined in json
-        if cahandler.header_info_field and handler_hifield not in eab_profile_dic:
-            hil_value = header_info_lookup(
-                logger, csr, cahandler.header_info_field, handler_hifield
-            )
-            if hil_value:
-                # setattr(self, handler_hifield, hil_value)
-                result = (
-                    f'header_info field "{handler_hifield}" is not allowed by profile'
-                )
+        result = _eab_profile_entries_check(
+            logger, cahandler, eab_handler, csr, eab_profile_dic
+        )
+        denied = _eab_header_info_not_allowed(
+            logger, cahandler, csr, handler_hifield, eab_profile_dic
+        )
+        if denied:
+            result = denied
 
     logger.debug("Helper.eab_profile_check() ended with: %s", result)
     return result
