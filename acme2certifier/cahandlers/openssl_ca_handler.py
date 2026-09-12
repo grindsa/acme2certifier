@@ -8,7 +8,6 @@ import json
 from typing import List, Tuple, Dict, Optional
 import base64
 import uuid
-import re
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
@@ -40,7 +39,11 @@ from acme2certifier.acme_srv.helper import (
     config_enroll_config_log_load,
     config_option_load,
     enrollment_config_log,
-    sancheck_lists_create,
+)
+from acme2certifier.acme_srv.helpers.eab_profile import (
+    chk_san_lists_get,
+    list_regex_check,
+    wllist_check,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -548,12 +551,9 @@ class CAhandler(object):
     def _chk_san_lists_get(self, csr: str) -> Tuple[List[str], List[bool]]:
         """check lists"""
         self.logger.debug("CAhandler._chk_san_lists_get()")
-        san_list, parse_failures = sancheck_lists_create(
-            self.logger, csr, include_cn=False
-        )
-        check_list = [False for _ in parse_failures]
+        result = chk_san_lists_get(self.logger, csr)
         self.logger.debug("CAhandler._chk_san_lists_get() ended")
-        return (san_list, check_list)
+        return result
 
     def _cn_add(self, csr: str, san_list: List[str]) -> Tuple[List[str], str]:
         """add CN if required"""
@@ -619,16 +619,7 @@ class CAhandler(object):
     def _list_regex_check(self, entry: str, list_: List[str]) -> bool:
         """check entry against regex"""
         self.logger.debug("CAhandler._list_regex_check()")
-
-        check_result = False
-        for regex in list_:
-            if regex.startswith("*."):
-                regex = regex.replace("*.", ".")
-            regex_compiled = re.compile(regex)
-            if bool(regex_compiled.search(entry)):
-                # parameter is in set flag accordingly and stop loop
-                check_result = True
-
+        check_result = list_regex_check(self.logger, entry, list_)
         self.logger.debug("CAhandler._list_regex_check() ended with: %s", check_result)
         return check_result
 
@@ -636,21 +627,7 @@ class CAhandler(object):
         """check string against list"""
         self.logger.debug("CAhandler._list_check(%s:%s)", entry, toggle)
         self.logger.debug("check against list: %s", str(list_))
-
-        # default setting
-        check_result = False
-
-        if entry:
-            if list_:
-                check_result = self._list_regex_check(entry, list_)
-            else:
-                # empty list, flip parameter to make the check successful
-                check_result = True
-
-        if toggle:
-            # toggle result if this is a blocked_domainlist
-            check_result = not check_result
-
+        check_result = wllist_check(self.logger, entry, list_, toggle)
         self.logger.debug("CAhandler._list_check() ended with: %s", check_result)
         return check_result
 

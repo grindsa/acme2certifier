@@ -253,7 +253,7 @@ class TestEABHandler(unittest.TestCase):
         mock_csr_san_get.return_value = ["example.com", "example.org"]  #
         self.assertEqual([False, False], self.eabhandler._chk_san_lists_get("csr")[1])
 
-    @patch("acme2certifier.eabhandlers.sql_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.eab_profile.csr_cn_get")
     def test_020_cn_add_cn_not_in_sans(self, mock_csr_cn_get):
         """CN present and not in SANs: should append CN"""
         mock_csr_cn_get.return_value = "example.com"
@@ -262,7 +262,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertIn("test.com", result)
         self.assertEqual(len(result), 2)
 
-    @patch("acme2certifier.eabhandlers.sql_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.eab_profile.csr_cn_get")
     def test_021_cn_add_cn_already_in_sans(self, mock_csr_cn_get):
         """CN present and already in SANs: should not duplicate CN"""
         mock_csr_cn_get.return_value = "example.com"
@@ -271,7 +271,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertIn("test.com", result)
         self.assertEqual(len(result), 2)
 
-    @patch("acme2certifier.eabhandlers.sql_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.eab_profile.csr_cn_get")
     def test_022_cn_add_no_cn(self, mock_csr_cn_get):
         """No CN present: should not modify SANs"""
         mock_csr_cn_get.return_value = None

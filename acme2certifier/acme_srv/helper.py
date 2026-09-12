@@ -188,6 +188,12 @@ from .helpers.eab import (
     eab_profile_list_check,
     eab_profile_string_check,
 )
+from .helpers.eab_profile import (
+    chk_san_lists_get,
+    cn_add,
+    list_regex_check,
+    wllist_check,
+)
 
 # Domain utilities
 from .helpers.domain_utils import (

@@ -1,76 +1,26 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""eab json handler"""
+"""eab JSON file handler"""
 
 from __future__ import print_function
 import json
 from typing import Dict
 
-# pylint: disable=C0209, E0401
-from acme2certifier.acme_srv.helper import load_config
+from acme2certifier.eabhandlers.base import KeyFileEABhandler
 
 
-class EABhandler(object):
-    """EAB file handler"""
-
-    def __init__(self, logger: object = None):
-        self.logger = logger
-        self.key_file = None
-
-    def __enter__(self):
-        """Makes EABhandler a Context Manager"""
-        if not self.key_file:
-            self._config_load()
-        return self
-
-    def __exit__(self, *args):
-        """cose the connection at the end of the context"""
-
-    def _config_load(self):
-        """ " load config from file"""
-        self.logger.debug("EABhandler._config_load()")
-
-        config_dic = load_config(self.logger, "EABhandler")
-        self.key_file = config_dic.get("EABhandler", "key_file", fallback=self.key_file)
-
-        self.logger.debug("EABhandler._config_load() ended")
+class EABhandler(KeyFileEABhandler):
+    """EAB JSON file handler"""
 
     def key_file_load(self) -> Dict[str, str]:
-        """load key_file"""
+        """Load kid -> mac mappings from a JSON key_file."""
         self.logger.debug("EABhandler.key_file_load()")
-
-        data_dic = {}
+        data_dic: Dict[str, str] = {}
         if self.key_file:
             try:
                 with open(self.key_file, encoding="utf8") as json_file:
                     data_dic = json.load(json_file)
             except Exception as err:
                 self.logger.error("Failed to load EAB key file: %s", err)
-
-        self.logger.debug(
-            "EABhandler.key_file_load() ended: {0}".format(bool(data_dic))
-        )
+        self.logger.debug("EABhandler.key_file_load() ended: %s", bool(data_dic))
         return data_dic
-
-    def mac_key_get(self, kid: str = None) -> str:
-        """check external account binding"""
-        self.logger.debug("EABhandler.mac_key_get({})".format(kid))
-        mac_key = None
-
-        if not kid:
-            self.logger.warning("MAC key retrieval failed: kid=%s", kid)
-        elif not self.key_file:
-            self.logger.warning("MAC key retrieval failed: key_file is None")
-        else:
-            data_dic = self.key_file_load()
-            if kid in data_dic:
-                mac_key = data_dic[kid]
-            else:
-                self.logger.warning(
-                    "MAC key retrieval failed: kid=%s not found in key file", kid
-                )
-
-        self.logger.debug(
-            "EABhandler.mac_key_get() ended with: {0}".format(bool(mac_key))
-        )
-        return mac_key

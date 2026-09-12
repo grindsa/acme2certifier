@@ -40,7 +40,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    @patch("acme2certifier.eabhandlers.json_handler.load_config")
+    @patch("acme2certifier.eabhandlers.base.load_config")
     def test_003_config_load(self, mock_load_cfg):
         """test _config_load - empty dictionary"""
         parser = configparser.ConfigParser()
@@ -48,7 +48,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("acme2certifier.eabhandlers.json_handler.load_config")
+    @patch("acme2certifier.eabhandlers.base.load_config")
     def test_004_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()
@@ -57,7 +57,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("acme2certifier.eabhandlers.json_handler.load_config")
+    @patch("acme2certifier.eabhandlers.base.load_config")
     def test_005_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()
@@ -66,7 +66,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("acme2certifier.eabhandlers.json_handler.load_config")
+    @patch("acme2certifier.eabhandlers.base.load_config")
     def test_006_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()

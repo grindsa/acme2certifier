@@ -1,29 +1,24 @@
 #!/usr/bin/python
-
 # -*- coding: utf-8 -*-
-"""eab sql handler"""
+"""eab SQL handler"""
 
 from __future__ import print_function
 
-import json
 from logging import Logger
+from typing import Dict, Optional
+
 import pyodbc
-import re
-from typing import Dict, List, Optional, Tuple
 
-from acme2certifier.acme_srv.helper import (
-    load_config,
-    csr_cn_get,
-    sancheck_lists_create,
-)
+from acme2certifier.acme_srv.helper import load_config
+from acme2certifier.acme_srv.helpers.eab_profile import EabProfileMixin
+from acme2certifier.eabhandlers.base import EABhandlerBase
 
 
-class EABhandler(object):
+class EABhandler(EABhandlerBase, EabProfileMixin):
     """EAB SQL handler"""
 
     def __init__(self, logger: Logger):
-        self.logger = logger
-
+        super().__init__(logger)
         self.db_system = None
         self.db_host = None
         self.db_name = None
@@ -31,19 +26,14 @@ class EABhandler(object):
         self.db_password = None
 
     def __enter__(self):
-        """Makes EABhandler a Context Manager"""
+        """Makes EABhandler a Context Manager."""
         self._config_load()
         return self
 
-    def __exit__(self, *args):
-        """Close the connection at the end of the context"""
-
     def _config_load(self):
-        """Load config from file"""
+        """Load database credentials from the EABhandler config section."""
         self.logger.debug("EABhandler._config_load()")
-
         config_dic = load_config(self.logger, "EABhandler")
-
         self.db_system = config_dic.get(
             "EABhandler", "db_system", fallback=self.db_system
         )
@@ -53,209 +43,27 @@ class EABhandler(object):
         self.db_password = config_dic.get(
             "EABhandler", "db_password", fallback=self.db_password
         )
-
         self.logger.debug("EABhandler._config_load() ended")
 
-    def _chk_san_lists_get(self, csr: str) -> Tuple[List[str], List[bool]]:
-        """Check lists"""
-        self.logger.debug("EABhandler._chk_san_lists_get()")
-        san_list, parse_failures = sancheck_lists_create(
-            self.logger, csr, include_cn=False
-        )
-        check_list = [False for _ in parse_failures]
-        self.logger.debug("EABhandler._chk_san_lists_get() ended")
-        return (san_list, check_list)
-
-    def _cn_add(self, csr: str, san_list: List[str]) -> Tuple[List[str], str]:
-        """Add CN if required"""
-        self.logger.debug("EABhandler._cn_add()")
-
-        # get common name and attach it to san_list
-        cn_ = csr_cn_get(self.logger, csr)
-
-        if cn_:
-            cn_ = cn_.lower()
-            if cn_ not in san_list:
-                # append cn to san_list
-                self.logger.debug("EABhandler._csr_check(): append cn to san_list")
-                san_list.append(cn_)
-
-        self.logger.debug("EABhandler._cn_add() ended")
-        return san_list
-
-    def _list_regex_check(self, entry: str, list_: List[str]) -> bool:
-        """Check entry against regex"""
-        self.logger.debug("EABhandler._list_regex_check()")
-
-        check_result = False
-        for regex in list_:
-            if regex.startswith("*."):
-                regex = regex.replace("*.", ".")
-            regex_compiled = re.compile(regex)
-            if bool(regex_compiled.search(entry)):
-                # parameter is in set flag accordingly and stop loop
-                check_result = True
-
-        self.logger.debug(
-            "EABhandler._list_regex_check() ended with: {0}".format(check_result)
-        )
-        return check_result
-
-    def _wllist_check(self, entry: str, list_: List[str], toggle: bool = False) -> bool:
-        """Check string against list"""
-        self.logger.debug("EABhandler._wllist_check({0}:{1})".format(entry, toggle))
-        self.logger.debug("check against list: {0}".format(list_))
-
-        # default setting
-        check_result = False
-
-        if entry:
-            if list_:
-                check_result = self._list_regex_check(entry, list_)
-            else:
-                # empty list, flip parameter to make the check successful
-                check_result = True
-
-        if toggle:
-            # toggle result if this is a blocked_domainlist
-            check_result = not check_result
-
-        self.logger.debug(
-            "EABhandler._wllist_check() ended with: {0}".format(check_result)
-        )
-        return check_result
-
-    def _allowed_domains_check(self, csr: str, domain_list: List[str]) -> str:
-        """Check allowed domains"""
-        self.logger.debug("EABhandler.allowed_domains_check()")
-
-        san_list, check_list = self._chk_san_lists_get(csr)
-        san_list = self._cn_add(csr, san_list)
-
-        # go over the san list and check each entry
-        for san in san_list:
-            check_list.append(self._wllist_check(san, domain_list))
-
-        if check_list:
-            # cover a cornercase with empty checklist (no san, no cn)
-            if False in check_list:
-                result = "Either CN or SANs are not allowed by profile"
-            else:
-                result = False
-
-        self.logger.debug("EABhandler.allowed_domains_check() ended with: %s", result)
-        return result
-
-    def eab_kid_get(self, csr: str, revocation=False) -> str:
-        """Get eab kid from database based on csr"""
-        self.logger.debug("EABhandler.eab_kid_get()")
-
-        try:
-            # look up eab_kid from database based on csr
-            from acme2certifier.acme_srv.db_handler import (
-                DBstore,
-            )  # pylint: disable=c0415
-
-            if revocation:
-                # this is a lookup for a revocation request
-                search_key = "cert_raw"
-            else:
-                # this is a lookup for an enrollment request
-                search_key = "csr"
-
-            dbstore = DBstore(False, self.logger)
-            result_dic = dbstore.certificate_lookup(
-                search_key,
-                csr,
-                vlist=[
-                    "name",
-                    "order__name",
-                    "order__account__name",
-                    "order__account__eab_kid",
-                ],
-            )
-            if result_dic and "order__account__eab_kid" in result_dic:
-                eab_kid = result_dic["order__account__eab_kid"]
-            else:
-                eab_kid = None
-
-        except Exception as err:
-            self.logger.error("Database error while retrieving eab_kid: %s", err)
-            eab_kid = None
-
-        self.logger.debug("EABhandler.eab_kid_get() ended with: %s", eab_kid)
-        return eab_kid
-
-    def eab_profile_get(self, csr: str, revocation=False) -> str:
-        """Get eab profile"""
-        self.logger.debug("EABhandler._eab_profile_get()")
-
-        # load profiles from eab credentials database
-        profiles_dic = self.key_file_load()
-
-        # get eab_kid from database
-        eab_kid = self.eab_kid_get(csr, revocation=revocation)
-
-        # get profile from profiles_dic
-        if (
-            profiles_dic
-            and eab_kid
-            and eab_kid in profiles_dic
-            and "cahandler" in profiles_dic[eab_kid]
-        ):
-            profile_dic = profiles_dic[eab_kid]["cahandler"]
-        else:
-            profile_dic = {}
-
-        self.logger.debug(
-            "EABhandler._eab_profile_get() ended with: %s", bool(profile_dic)
-        )
-        return profile_dic
-
-    def cahandler_name_get(self, csr: str, revocation=False):
-        """Return per-kid ``cahandler_name`` registry selector, if configured."""
-        self.logger.debug("EABhandler.cahandler_name_get()")
-        name = None
-        profiles_dic = self.key_file_load()
-        eab_kid = self.eab_kid_get(csr, revocation=revocation)
-        if profiles_dic and eab_kid and eab_kid in profiles_dic:
-            entry = profiles_dic[eab_kid]
-            if isinstance(entry, str):
-                try:
-                    entry = json.loads(entry)
-                except Exception:
-                    entry = {}
-            if isinstance(entry, dict) and "cahandler_name" in entry:
-                name = entry["cahandler_name"]
-        self.logger.debug("EABhandler.cahandler_name_get() ended with: %s", name)
-        return name
-
     def key_file_load(self) -> Dict[str, str]:
-        """Load profiles from eab credentials database"""
+        """Load profiles from the eab credentials database."""
         self.logger.debug("EABhandler.key_file_load()")
-
-        data_dic = {}
-
+        data_dic: Dict[str, str] = {}
         if self.db_host and self.db_name and self.db_user and self.db_password:
             sql_query = "SELECT key_id, profile FROM acme_credential WHERE enabled = 1;"
             db_driver = ""
-
             if self.db_system == "mssql":
                 db_driver = "DRIVER={ODBC Driver 18 for SQL Server}"
             elif self.db_system == "postgres":
                 db_driver = "DRIVER={PostgreSQL}"
-
             data_dic = self._load_profiles(db_driver, sql_query)
-
         self.logger.debug("EABhandler.key_file.load() ended: {%s}", bool(data_dic))
         return data_dic
 
     def _load_profiles(self, db_driver, sql_query: str) -> Dict[str, str]:
-        """Helper to load eab profiles from database"""
+        """Load eab profiles from the database."""
         self.logger.debug("EABhandler._load_profiles()")
-
-        data_dic = {}
-
+        data_dic: Dict[str, str] = {}
         try:
             conn_str = (
                 db_driver
@@ -280,11 +88,9 @@ class EABhandler(object):
         return data_dic
 
     def mac_key_get(self, key_id: str) -> Optional[str]:
-        """Check external account binding"""
+        """Look up the MAC key for an external account binding key_id."""
         self.logger.debug("EABhandler.mac_key_get(%s)", key_id)
-
         mac_key = None
-
         try:
             if (
                 key_id
@@ -294,16 +100,13 @@ class EABhandler(object):
                 and self.db_password
             ):
                 data_dic = self.key_file_load()
-
                 if key_id in data_dic:
                     mac_key = data_dic[key_id]
             else:
                 self.logger.error("EABhandler.mac_key_get() error: key_id not found")
-
         except Exception as err:
             self.logger.error(
                 "Failed to retrieve MAC key for key_id '%s': %s", key_id, err
             )
-
         self.logger.debug("EABhandler.mac_key_get() ended with %s", bool(mac_key))
         return mac_key
