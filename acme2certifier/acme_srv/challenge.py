@@ -24,10 +24,8 @@ from acme2certifier.acme_srv.helper import (
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
-    log_ownership_denial,
     ownership_lookup_failed,
-    ownership_unauthorized,
-    resource_owner_matches,
+    resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message
@@ -476,14 +474,16 @@ class Challenge:
         self, challenge_name: str, account_name: Optional[str]
     ) -> Tuple[int, str, str]:
         """Verify the requester owns the challenge."""
-        try:
-            owner = self.repository.get_challenge_owner_account_name(challenge_name)
-        except DatabaseError as err:
-            raise ResourceOwnershipLookupError(str(err)) from err
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(self.logger, account_name, "challenge", challenge_name)
-            return ownership_unauthorized()
-        return (200, None, None)
+
+        def lookup() -> Optional[str]:
+            try:
+                return self.repository.get_challenge_owner_account_name(challenge_name)
+            except DatabaseError as err:
+                raise ResourceOwnershipLookupError(str(err)) from err
+
+        return resolve_resource_ownership(
+            self.logger, account_name, "challenge", challenge_name, lookup
+        )
 
     def _create_success_response(self, response_dic: Dict[str, Any]) -> Dict[str, str]:
         """Create standardized success response."""

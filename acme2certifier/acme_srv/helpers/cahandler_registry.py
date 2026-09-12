@@ -3,7 +3,7 @@
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 from .config import (
     cahandler_config_section_reset,
@@ -79,6 +79,32 @@ class BoundCAHandler:
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self.handler_cls, item)
+
+
+def resolve_default_ca_handler(
+    logger: logging.Logger,
+    registry: "CAHandlerRegistry",
+    config_dic: object,
+    ca_handler_load_fn: Optional[Callable] = None,
+) -> Optional[BoundCAHandler]:
+    """Return the registry default, or wrap the classical ca_handler_load fallback."""
+    default_bound = registry.default_handler()
+    if default_bound is not None:
+        return default_bound
+    loader = ca_handler_load_fn
+    if loader is None:
+        from .plugin_loader import ca_handler_load  # pylint: disable=c0415
+
+        loader = ca_handler_load
+    ca_handler_module = loader(logger, config_dic)
+    if ca_handler_module:
+        try:
+            return BoundCAHandler(ca_handler_module.CAhandler, "CAhandler", "default")
+        except Exception as err:
+            logger.critical("Failed to load CA handler module: %s", err)
+            return None
+    logger.critical("No ca_handler loaded")
+    return None
 
 
 class CAHandlerRegistry:

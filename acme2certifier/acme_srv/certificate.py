@@ -38,6 +38,7 @@ from acme2certifier.acme_srv.helper import (
 from acme2certifier.acme_srv.helpers.cahandler_registry import (
     BoundCAHandler,
     CAHandlerRegistry,
+    resolve_default_ca_handler,
 )
 from acme2certifier.acme_srv.helpers.csr import _normalize_bound_name
 from acme2certifier.acme_srv.db_handler import DBstore
@@ -52,10 +53,8 @@ from acme2certifier.acme_srv.helpers.global_variables import (
 )
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
-    log_ownership_denial,
     ownership_lookup_failed,
-    ownership_unauthorized,
-    resource_owner_matches,
+    resolve_resource_ownership,
 )
 
 
@@ -388,16 +387,13 @@ class Certificate(object):
         self, certificate_name: str, account_name: Optional[str]
     ) -> Tuple[int, str, str]:
         """Verify the requester owns the certificate."""
-        try:
-            owner = self._lookup_certificate_owner_account(certificate_name)
-        except ResourceOwnershipLookupError:
-            return ownership_lookup_failed()
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(
-                self.logger, account_name, "certificate", certificate_name
-            )
-            return ownership_unauthorized()
-        return (200, None, None)
+        return resolve_resource_ownership(
+            self.logger,
+            account_name,
+            "certificate",
+            certificate_name,
+            lambda: self._lookup_certificate_owner_account(certificate_name),
+        )
 
     def _parse_order_identifiers(self, identifier_dic: Dict[str, str]) -> list:
         """Load order identifiers JSON; return [] on parse failure."""
@@ -731,17 +727,9 @@ class Certificate(object):
         config_dic = self.config_dic if self.config_dic is not None else load_config()
 
         self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
-        default_bound = self.cahandler_registry.default_handler()
-        if default_bound is not None:
-            self.cahandler = default_bound
-        else:
-            ca_handler_module = ca_handler_load(self.logger, config_dic)
-            if ca_handler_module:
-                self.cahandler = BoundCAHandler(
-                    ca_handler_module.CAhandler, "CAhandler", "default"
-                )
-            else:
-                self.logger.critical("No ca_handler loaded")
+        self.cahandler = resolve_default_ca_handler(
+            self.logger, self.cahandler_registry, config_dic, ca_handler_load
+        )
 
         self.eab_profiling, self.eab_handler_class = config_eab_profile_load(
             self.logger, config_dic

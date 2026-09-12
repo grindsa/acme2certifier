@@ -33,9 +33,8 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     DB_ERROR_MSG,
 )
 from acme2certifier.acme_srv.helpers.resource_ownership import (
-    log_ownership_denial,
-    ownership_unauthorized,
-    resource_owner_matches,
+    ResourceOwnershipLookupError,
+    resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.message import Message
 
@@ -1230,7 +1229,9 @@ class Order(object):
             self.logger.critical(
                 f"{DB_ERROR_MSG}: failed to look up order account: %s", err_
             )
-            return None
+            raise ResourceOwnershipLookupError(
+                f"failed to look up order account for {order_name}"
+            ) from err_
         if not order_dic:
             return None
         return order_dic.get("account__name") or order_dic.get("account")
@@ -1239,11 +1240,13 @@ class Order(object):
         self, order_name: str, account_name: Optional[str]
     ) -> Tuple[int, str, str]:
         """Verify the requester owns the order."""
-        owner = self._get_order_account_name(order_name)
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(self.logger, account_name, "order", order_name)
-            return ownership_unauthorized()
-        return (200, None, None)
+        return resolve_resource_ownership(
+            self.logger,
+            account_name,
+            "order",
+            order_name,
+            lambda: self._get_order_account_name(order_name),
+        )
 
     def _header_info_lookup(self, header: Optional[Dict[str, Any]]) -> str:
         """lookup header information and serialize them in a string"""

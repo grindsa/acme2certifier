@@ -32,10 +32,8 @@ from acme2certifier.acme_srv.helpers.domain_utils import (
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     SERVER_INTERNAL_TYPE,
-    log_ownership_denial,
-    ownership_lookup_failed,
-    ownership_unauthorized,
-    resource_owner_matches,
+    ResourceOwnershipLookupError,
+    resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.helpers.security_gate import (
     SECURITY_DISABLE_ACK_ENV,
@@ -1182,9 +1180,12 @@ class Authorization(object):
 
     def _lookup_authorization_owner_account(self, authz_name: str) -> Optional[str]:
         """Return the account that owns an authorization."""
-        authz = self.repository.find_authorization_by_name(
-            authz_name, ["order__account__name"]
-        )
+        try:
+            authz = self.repository.find_authorization_by_name(
+                authz_name, ["order__account__name"]
+            )
+        except AuthorizationError as err:
+            raise ResourceOwnershipLookupError(str(err)) from err
         if not authz:
             return None
         return authz.get("order__account__name")
@@ -1193,14 +1194,13 @@ class Authorization(object):
         self, authz_name: str, account_name: Optional[str]
     ) -> Tuple[int, str, str]:
         """Verify the requester owns the authorization."""
-        try:
-            owner = self._lookup_authorization_owner_account(authz_name)
-        except AuthorizationError:
-            return ownership_lookup_failed()
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(self.logger, account_name, "authorization", authz_name)
-            return ownership_unauthorized()
-        return (200, None, None)
+        return resolve_resource_ownership(
+            self.logger,
+            account_name,
+            "authorization",
+            authz_name,
+            lambda: self._lookup_authorization_owner_account(authz_name),
+        )
 
     def _expire_authorizations_if_enabled(self) -> None:
         """Expire invalid authorizations unless expiry checks are disabled."""

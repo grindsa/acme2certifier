@@ -744,6 +744,49 @@ class TestCAHandlerRegistry(unittest.TestCase):
         self.assertEqual(registry.referenced_handlers(), [])
         self.assertIsNone(registry.startup_error)
 
+    def test_038_resolve_default_ca_handler_uses_registry(self):
+        """resolve_default_ca_handler returns the registry default when set"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import (
+            resolve_default_ca_handler,
+        )
+
+        bound = self.BoundCAHandler(_DummyHandler, "CAhandler", "default")
+        registry = MagicMock()
+        registry.default_handler.return_value = bound
+        result = resolve_default_ca_handler(self.logger, registry, {}, MagicMock())
+        self.assertIs(result, bound)
+
+    def test_039_resolve_default_ca_handler_classical_fallback(self):
+        """resolve_default_ca_handler wraps ca_handler_load when no registry default"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import (
+            resolve_default_ca_handler,
+        )
+
+        mock_module = MagicMock()
+        mock_module.CAhandler = _DummyHandler
+        registry = MagicMock()
+        registry.default_handler.return_value = None
+        result = resolve_default_ca_handler(
+            self.logger, registry, {}, lambda _logger, _cfg: mock_module
+        )
+        self.assertIsInstance(result, self.BoundCAHandler)
+        self.assertIs(result.handler_cls, _DummyHandler)
+
+    def test_040_resolve_default_ca_handler_missing_module(self):
+        """resolve_default_ca_handler logs critical when no handler can be loaded"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import (
+            resolve_default_ca_handler,
+        )
+
+        registry = MagicMock()
+        registry.default_handler.return_value = None
+        with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+            result = resolve_default_ca_handler(
+                self.logger, registry, {}, lambda _logger, _cfg: None
+            )
+        self.assertIsNone(result)
+        self.assertIn("CRITICAL:test_a2c:No ca_handler loaded", lcm.output)
+
 
 if __name__ == "__main__":
     unittest.main()

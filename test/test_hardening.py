@@ -98,6 +98,49 @@ class TestResourceOwnershipHelper:
         assert code == 500
         assert msg == "urn:ietf:params:acme:error:serverInternal"
 
+    def test_006b_check_resource_ownership_match(self) -> None:
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            check_resource_ownership,
+        )
+
+        logger = Mock(spec=logging.Logger)
+        assert check_resource_ownership(
+            logger, "acct-a", "order", "ord1", "acct-a"
+        ) == (
+            200,
+            None,
+            None,
+        )
+        logger.warning.assert_not_called()
+
+    def test_006c_check_resource_ownership_denied(self) -> None:
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            check_resource_ownership,
+        )
+
+        logger = Mock(spec=logging.Logger)
+        assert (
+            check_resource_ownership(logger, "acct-a", "order", "ord1", "acct-b")
+            == ownership_unauthorized()
+        )
+        logger.warning.assert_called_once()
+
+    def test_006d_resolve_resource_ownership_lookup_error(self) -> None:
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ResourceOwnershipLookupError,
+            resolve_resource_ownership,
+        )
+
+        logger = Mock(spec=logging.Logger)
+
+        def lookup() -> Optional[str]:
+            raise ResourceOwnershipLookupError("db")
+
+        assert (
+            resolve_resource_ownership(logger, "acct-a", "order", "ord1", lookup)
+            == ownership_lookup_failed()
+        )
+
 
 class TestTkauthFailClosed:
     def test_007_validation_fails_closed_without_ack(self) -> None:

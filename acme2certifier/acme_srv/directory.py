@@ -15,7 +15,10 @@ from .helper import (
     config_profile_load,
     config_async_mode_load,
 )
-from acme2certifier.acme_srv.helpers.cahandler_registry import CAHandlerRegistry
+from acme2certifier.acme_srv.helpers.cahandler_registry import (
+    CAHandlerRegistry,
+    resolve_default_ca_handler,
+)
 from .db_handler import DBstore
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 
@@ -291,21 +294,9 @@ class Directory:
         """Load the CA handler registry as configured."""
         self.logger.debug("Directory._load_ca_handler()")
         self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
-        default_bound = self.cahandler_registry.default_handler()
-        if default_bound is not None:
-            self.cahandler = default_bound
-        else:
-            ca_handler_module = ca_handler_load(self.logger, config_dic)
-            if ca_handler_module:
-                from acme2certifier.acme_srv.helpers.cahandler_registry import (
-                    BoundCAHandler,
-                )
-
-                self.cahandler = BoundCAHandler(
-                    ca_handler_module.CAhandler, "CAhandler", "default"
-                )
-            else:
-                self.logger.critical("No ca_handler loaded")
+        self.cahandler = resolve_default_ca_handler(
+            self.logger, self.cahandler_registry, config_dic, ca_handler_load
+        )
         self.logger.debug("Directory._load_ca_handler() ended")
 
     def _build_meta_information(self) -> Dict[str, object]:

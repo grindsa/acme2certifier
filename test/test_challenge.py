@@ -3453,17 +3453,19 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(reason, "url=http://ex/")
 
     def test_169_check_challenge_ownership_db_error(self):
-        """_check_challenge_ownership wraps DatabaseError as ownership lookup error"""
+        """_check_challenge_ownership maps DatabaseError to lookup failure"""
         from acme2certifier.acme_srv.challenge_error_handling import DatabaseError
         from acme2certifier.acme_srv.helpers.resource_ownership import (
-            ResourceOwnershipLookupError,
+            ownership_lookup_failed,
         )
 
         self.challenge.repository.get_challenge_owner_account_name.side_effect = (
             DatabaseError("db fail")
         )
-        with self.assertRaises(ResourceOwnershipLookupError):
-            self.challenge._check_challenge_ownership("c1", "acc")
+        self.assertEqual(
+            self.challenge._check_challenge_ownership("c1", "acc"),
+            ownership_lookup_failed(),
+        )
 
     def test_170_process_challenge_request_ownership_lookup_failed(self):
         """process_challenge_request returns 500 when ownership lookup fails"""

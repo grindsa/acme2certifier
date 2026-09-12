@@ -16,7 +16,10 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     ca_handler_load,
 )
-from acme2certifier.acme_srv.helpers.cahandler_registry import CAHandlerRegistry
+from acme2certifier.acme_srv.helpers.cahandler_registry import (
+    CAHandlerRegistry,
+    resolve_default_ca_handler,
+)
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.trigger_auth import (
     TRIGGER_SIGNATURE_HEADER,
@@ -51,18 +54,7 @@ def handler_supports_trigger(cahandler_cls) -> bool:
 def _cahandler_class_load(logger, config_dic):
     """Load CAhandler factory from the configured CA handler registry."""
     registry = CAHandlerRegistry(logger).load(config_dic)
-    bound = registry.default_handler()
-    if bound is not None:
-        return bound
-    ca_handler_module = ca_handler_load(logger, config_dic)
-    if ca_handler_module is None:
-        return None
-    handler_cls = getattr(ca_handler_module, "CAhandler", None)
-    if handler_cls is None:
-        return None
-    from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
-
-    return BoundCAHandler(handler_cls, "CAhandler", "default")
+    return resolve_default_ca_handler(logger, registry, config_dic, ca_handler_load)
 
 
 def _trigger_status_log(
@@ -201,23 +193,9 @@ class Trigger(object):
             )
 
         registry = CAHandlerRegistry(self.logger).load(config_dic)
-        default_bound = registry.default_handler()
-        ca_handler_module = None
-        if default_bound is not None:
-            self.cahandler = default_bound
-        else:
-            ca_handler_module = ca_handler_load(self.logger, config_dic)
-            if ca_handler_module:
-                from acme2certifier.acme_srv.helpers.cahandler_registry import (
-                    BoundCAHandler,
-                )
-
-                try:
-                    self.cahandler = BoundCAHandler(
-                        ca_handler_module.CAhandler, "CAhandler", "default"
-                    )
-                except Exception as err:
-                    self.logger.critical("Failed to load CA handler module: %s", err)
+        self.cahandler = resolve_default_ca_handler(
+            self.logger, registry, config_dic, ca_handler_load
+        )
 
         self.hmac_keys, self.auth_disabled = trigger_hmac_keys_load(
             self.logger, config_dic
@@ -226,7 +204,7 @@ class Trigger(object):
         self.enabled = resolve_trigger_endpoint(
             self.logger, config_dic, log_status=False
         )
-        self.logger.debug("ca_handler: %s", ca_handler_module)
+        self.logger.debug("ca_handler: %s", self.cahandler)
         self.logger.debug("Certificate._config_load() ended.")
 
     def _certificate_record_add(

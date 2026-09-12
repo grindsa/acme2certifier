@@ -21,14 +21,15 @@ from acme2certifier.acme_srv.helper import (
     duration_to_seconds,
     parse_url,
 )
-from acme2certifier.acme_srv.helpers.cahandler_registry import CAHandlerRegistry
+from acme2certifier.acme_srv.helpers.cahandler_registry import (
+    CAHandlerRegistry,
+    resolve_default_ca_handler,
+)
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
-    log_ownership_denial,
+    check_resource_ownership,
     ownership_lookup_failed,
-    ownership_unauthorized,
-    resource_owner_matches,
 )
 
 
@@ -261,21 +262,9 @@ class Renewalinfo(object):
     def _load_ca_handler(self, config_dic: object) -> None:
         """Load the CA handler registry as configured."""
         self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
-        default_bound = self.cahandler_registry.default_handler()
-        if default_bound is not None:
-            self.cahandler = default_bound
-        else:
-            ca_handler_module = ca_handler_load(self.logger, config_dic)
-            if ca_handler_module:
-                from acme2certifier.acme_srv.helpers.cahandler_registry import (
-                    BoundCAHandler,
-                )
-
-                self.cahandler = BoundCAHandler(
-                    ca_handler_module.CAhandler, "CAhandler", "default"
-                )
-            else:
-                self.logger.critical("No ca_handler loaded")
+        self.cahandler = resolve_default_ca_handler(
+            self.logger, self.cahandler_registry, config_dic, ca_handler_load
+        )
 
     def __enter__(self):
         self._load_configuration()
@@ -534,14 +523,17 @@ class Renewalinfo(object):
                 account_name,
             )
         owner = cert_dic.get("order__account__name")
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(
-                self.logger,
-                account_name,
-                "certificate",
-                cert_dic.get("name", payload["certid"]),
+        own_code, own_message, own_detail = check_resource_ownership(
+            self.logger,
+            account_name,
+            "certificate",
+            cert_dic.get("name", payload["certid"]),
+            owner,
+        )
+        if own_code != 200:
+            return self._problem_response(
+                (own_code, own_message, own_detail), account_name
             )
-            return self._problem_response(ownership_unauthorized(), account_name)
         cert_name = cert_dic.get("name")
         if not cert_name:
             return self._problem_response(

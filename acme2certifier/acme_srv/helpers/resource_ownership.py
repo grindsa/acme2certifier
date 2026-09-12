@@ -2,11 +2,14 @@
 """Account-to-resource ownership checks for authenticated ACME requests."""
 
 import logging
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 UNAUTHORIZED_TYPE = "urn:ietf:params:acme:error:unauthorized"
 SERVER_INTERNAL_TYPE = "urn:ietf:params:acme:error:serverInternal"
 OWNERSHIP_DENIED_DETAIL = "Unauthorized"
+
+OwnershipResult = Tuple[int, Optional[str], Optional[str]]
+OwnerLookup = Callable[[], Optional[str]]
 
 
 class ResourceOwnershipLookupError(Exception):
@@ -44,4 +47,35 @@ def log_ownership_denial(
         requester_account,
         resource_type,
         resource_name,
+    )
+
+
+def check_resource_ownership(
+    logger: logging.Logger,
+    requester_account: Optional[str],
+    resource_type: str,
+    resource_name: str,
+    owner: Optional[str],
+) -> OwnershipResult:
+    """Compare requester and owner; deny with a 403 when they do not match."""
+    if not resource_owner_matches(requester_account, owner):
+        log_ownership_denial(logger, requester_account, resource_type, resource_name)
+        return ownership_unauthorized()
+    return (200, None, None)
+
+
+def resolve_resource_ownership(
+    logger: logging.Logger,
+    requester_account: Optional[str],
+    resource_type: str,
+    resource_name: str,
+    lookup: OwnerLookup,
+) -> OwnershipResult:
+    """Run *lookup* then check ownership; map lookup failures to HTTP 500."""
+    try:
+        owner = lookup()
+    except ResourceOwnershipLookupError:
+        return ownership_lookup_failed()
+    return check_resource_ownership(
+        logger, requester_account, resource_type, resource_name, owner
     )

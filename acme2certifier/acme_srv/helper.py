@@ -176,6 +176,13 @@ from .helpers.plugin_loader import (
     eab_handler_load,
     hooks_load,
 )
+from .helpers.cahandler_registry import resolve_default_ca_handler
+
+# Resource ownership
+from .helpers.resource_ownership import (
+    check_resource_ownership,
+    resolve_resource_ownership,
+)
 
 # EAB functions
 from .helpers.eab import (
