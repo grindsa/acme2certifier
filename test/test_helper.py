@@ -9679,6 +9679,18 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.assertIsNone(_explicit_default_debug({"DEFAULT": {"debug": "maybe"}}))
             self.assertFalse(_explicit_default_debug({"DEFAULT": {"debug": False}}))
 
+    def test_691_eab_profile_check_non_str_non_list_value(self):
+        """Non-string, non-list profile values are ignored."""
+        self.cahandler = MagicMock()
+        self.cahandler.header_info_field = False
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {
+            "boolFlag": True,
+            "nested": {"foo": 1},
+        }
+        self.assertIsNone(
+            self.eab_profile_check(self.logger, self.cahandler, "csr", "boolFlag")
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

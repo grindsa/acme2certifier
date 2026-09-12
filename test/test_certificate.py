@@ -3742,6 +3742,14 @@ class TestCertificate(unittest.TestCase):
         self.cert._persist_order_cahandler("ord1", "openssl")
         self.cert.repository.order_update.assert_not_called()
 
+    def test_243_cahandler_hints_from_order_missing(self):
+        """Empty order lookup returns no profile or stored handler."""
+        self.cert.repository.order_lookup.return_value = None
+        self.assertEqual(self.cert._cahandler_hints_from_order("ord1"), (None, None))
+        self.cert.repository.order_lookup.assert_called_once_with(
+            "name", "ord1", ["profile", "cahandler"]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

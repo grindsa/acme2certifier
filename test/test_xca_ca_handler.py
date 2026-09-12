@@ -4089,6 +4089,16 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_open.called)
         self.assertTrue(mock_close.called)
 
+    @patch("os.path.exists")
+    def test_264_config_check_keeps_issuing_ca_key(self, mock_file):
+        """_config_check does not overwrite an explicit issuing_ca_key."""
+        self.cahandler.xdb_file = "foo"
+        self.cahandler.issuing_ca_name = "ca-name"
+        self.cahandler.issuing_ca_key = "ca-key"
+        mock_file.return_value = True
+        self.assertFalse(self.cahandler._config_check())
+        self.assertEqual("ca-key", self.cahandler.issuing_ca_key)
+
 
 if __name__ == "__main__":
 

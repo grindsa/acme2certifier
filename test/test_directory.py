@@ -752,6 +752,25 @@ class TestDirectory(unittest.TestCase):
         self.assertIn("error", resp)
         mock_critical.assert_called()
 
+    def test_059_handler_check_error_missing_method(self):
+        """Handlers without handler_check are treated as OK."""
+
+        class BareHandler:
+            pass
+
+        self.assertIsNone(self.directory._handler_check_error(BareHandler(), "openssl"))
+
+    def test_060_sync_handler_profiles_missing_method(self):
+        """profiles_sync skips handlers without synchronize_profiles."""
+        self.directory.config.profiles_sync = True
+
+        class BareHandler:
+            pass
+
+        merged = {"existing": "url"}
+        self.directory._sync_handler_profiles(BareHandler(), merged, "openssl")
+        self.assertEqual(merged, {"existing": "url"})
+
 
 if __name__ == "__main__":
     unittest.main()
