@@ -22,7 +22,9 @@ class TestACMEHandler(unittest.TestCase):
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from acme2certifier.eabhandlers.skeleton_eab_handler import EABhandler
+        from acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler import (
+            EABhandler,
+        )
 
         self.eabhandler = EABhandler(self.logger)
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -31,14 +33,18 @@ class TestACMEHandler(unittest.TestCase):
         """default test which always passes"""
         self.assertEqual("foo", "foo")
 
-    @patch("acme2certifier.eabhandlers.skeleton_eab_handler.EABhandler._config_load")
+    @patch(
+        "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler.EABhandler._config_load"
+    )
     def test_002__enter__(self, mock_cfg):
         """test enter calls _config_load when key is unset"""
         mock_cfg.return_value = True
         self.eabhandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    @patch("acme2certifier.eabhandlers.skeleton_eab_handler.EABhandler._config_load")
+    @patch(
+        "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler.EABhandler._config_load"
+    )
     def test_003__enter__key_set(self, mock_cfg):
         """test enter skips _config_load when key is already set"""
         self.eabhandler.key = "existing"
@@ -50,7 +56,9 @@ class TestACMEHandler(unittest.TestCase):
         """test exit is a no-op"""
         self.assertIsNone(self.eabhandler.__exit__(None, None, None))
 
-    @patch("acme2certifier.eabhandlers.skeleton_eab_handler.load_config")
+    @patch(
+        "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler.load_config"
+    )
     def test_005_config_load(self, mock_load_cfg):
         """test _config_load - empty dictionary"""
         parser = configparser.ConfigParser()
@@ -58,7 +66,9 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertIsNone(self.eabhandler.key)
 
-    @patch("acme2certifier.eabhandlers.skeleton_eab_handler.load_config")
+    @patch(
+        "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler.load_config"
+    )
     def test_006_config_load(self, mock_load_cfg):
         """test _config_load - section without key"""
         parser = configparser.ConfigParser()
@@ -67,7 +77,9 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertIsNone(self.eabhandler.key)
 
-    @patch("acme2certifier.eabhandlers.skeleton_eab_handler.load_config")
+    @patch(
+        "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler.load_config"
+    )
     def test_007_config_load(self, mock_load_cfg):
         """test _config_load - key present"""
         parser = configparser.ConfigParser()

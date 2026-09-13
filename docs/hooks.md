@@ -11,8 +11,8 @@ Prefer `hooks_module`. For custom code, a path is enough (no packaging); see [Cu
 
 ```config
 [Hooks]
-hooks_module: acme2certifier.hookhandlers.skeleton_hooks
-# or: hooks_module: /var/www/acme2certifier/volume/hooks.py
+hooks_module: acme2certifier.hookhandlers.email_hooks
+# or custom: hooks_module: /var/www/acme2certifier/volume/hooks.py
 ```
 
 ## How to Create Your Own Hooks

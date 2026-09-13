@@ -1,6 +1,4 @@
 ignore:
-  - "acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py"
-  - "acme2certifier/share/skeletons/eab_handler/skeleton_eab_handler.py"
-  - "acme2certifier/share/skeletons/hooks/skeleton_hooks.py"
+  - "acme2certifier/share/skeletons/**"
   - "docs/__init__.py"
   - "test"

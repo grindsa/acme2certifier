@@ -68,7 +68,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_cert_pub.return_value = "foo"
         mock_search_list.return_value = []
         mock_import.return_value = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.assertEqual([], self.trigger._certname_lookup("cert_pem"))
 
@@ -82,7 +82,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_cert_pub.return_value = "foo"
         mock_search_list.return_value = [{"foo": "bar"}]
         mock_import.return_value = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.assertEqual([], self.trigger._certname_lookup("cert_pem"))
 
@@ -96,7 +96,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_cert_pub.return_value = "foo"
         mock_search_list.return_value = [{"csr": None}]
         mock_import.return_value = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.assertEqual([], self.trigger._certname_lookup("cert_pem"))
 
@@ -112,7 +112,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_csr_pub.return_value = "foo1"
         mock_search_list.return_value = [{"csr": None}]
         mock_import.return_value = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.assertEqual([], self.trigger._certname_lookup("cert_pem"))
 
@@ -130,7 +130,7 @@ class TestACMEHandler(unittest.TestCase):
             {"csr": "csr", "name": "cert_name", "order__name": "order_name"}
         ]
         mock_import.return_value = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.assertEqual(
             [{"cert_name": "cert_name", "order_name": "order_name"}],
@@ -211,7 +211,7 @@ class TestACMEHandler(unittest.TestCase):
         """Trigger._payload_process() without payload"""
         payload = {}
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=("error", None, None))
@@ -223,7 +223,7 @@ class TestACMEHandler(unittest.TestCase):
         """Trigger._payload_process() without certbunde and cert_raw"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=("error", None, None))
@@ -233,7 +233,7 @@ class TestACMEHandler(unittest.TestCase):
         """Trigger._payload_process() with bundle and without cart_raw"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=("error", "bundle", None))
@@ -243,7 +243,7 @@ class TestACMEHandler(unittest.TestCase):
         """Trigger._payload_process() with bundle and without cart_raw"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=("error", None, "raw"))
@@ -259,7 +259,7 @@ class TestACMEHandler(unittest.TestCase):
         """Trigger._payload_process() with certificae_name"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=("error", "bundle", "raw"))
@@ -281,7 +281,7 @@ class TestACMEHandler(unittest.TestCase):
         """Trigger._payload_process() without certificate_name"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=("error", "bundle", "raw"))
@@ -301,7 +301,7 @@ class TestACMEHandler(unittest.TestCase):
         """Trigger._payload_process() _certname.lookup() returned empty list"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=("error", "bundle", "raw"))
@@ -324,7 +324,7 @@ class TestACMEHandler(unittest.TestCase):
         """Trigger._payload_process() without certificate_name"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=("error", "bundle", "raw"))
@@ -347,7 +347,7 @@ class TestACMEHandler(unittest.TestCase):
         """Trigger._payload_process() rejects ambiguous pubkey matches"""
         payload = {"payload": "foo"}
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=("error", "bundle", "raw"))
@@ -372,7 +372,7 @@ class TestACMEHandler(unittest.TestCase):
     ):
         """test Trigger._payload_process - dbstore.order_update() raises an exception"""
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(
@@ -404,7 +404,7 @@ class TestACMEHandler(unittest.TestCase):
     ):
         """test Trigger._payload_process - dbstore.certificate_add() raises an exception"""
         ca_handler_module = importlib.import_module(
-            "acme2certifier.cahandlers.skeleton_ca_handler"
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
         )
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(

@@ -933,7 +933,7 @@ class TestACMEHandler(unittest.TestCase):
         self.message.repo.account_lookup.side_effect = None
         self.message.repo.account_lookup.return_value = {"eab_kid": "eab_kid"}
         eab_handler_module = importlib.import_module(
-            "acme2certifier.eabhandlers.skeleton_eab_handler"
+            "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler"
         )
         self.message.config.eab_handler = eab_handler_module.EABhandler
         self.message.config.eab_handler.mac_key_get = MagicMock(return_value="mac_key")
@@ -948,7 +948,7 @@ class TestACMEHandler(unittest.TestCase):
         self.message.repo.account_lookup.side_effect = None
         self.message.repo.account_lookup.return_value = {"eab_kid": "eab_kid"}
         eab_handler_module = importlib.import_module(
-            "acme2certifier.eabhandlers.skeleton_eab_handler"
+            "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler"
         )
         self.message.config.eab_handler = eab_handler_module.EABhandler
         self.message.config.eab_handler.mac_key_get = MagicMock(return_value=None)
@@ -968,7 +968,7 @@ class TestACMEHandler(unittest.TestCase):
         self.message.repo.account_update.side_effect = None
         self.message.repo.account_lookup.return_value = {"eab_kid": "eab_kid"}
         eab_handler_module = importlib.import_module(
-            "acme2certifier.eabhandlers.skeleton_eab_handler"
+            "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler"
         )
         self.message.config.eab_handler = eab_handler_module.EABhandler
         self.message.config.eab_handler.mac_key_get = MagicMock(return_value=None)
@@ -993,7 +993,7 @@ class TestACMEHandler(unittest.TestCase):
         self.message.repo.account_lookup.side_effect = None
         self.message.repo.account_lookup.return_value = {"foo": "bar"}
         eab_handler_module = importlib.import_module(
-            "acme2certifier.eabhandlers.skeleton_eab_handler"
+            "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler"
         )
         self.message.config.eab_handler = eab_handler_module.EABhandler
         self.message.config.eab_handler.mac_key_get = MagicMock(return_value=None)
@@ -1011,7 +1011,7 @@ class TestACMEHandler(unittest.TestCase):
         self.message.repo.account_lookup.side_effect = None
         self.message.repo.account_lookup.return_value = None
         eab_handler_module = importlib.import_module(
-            "acme2certifier.eabhandlers.skeleton_eab_handler"
+            "acme2certifier.share.skeletons.eab_handler.skeleton_eab_handler"
         )
         self.message.config.eab_handler = eab_handler_module.EABhandler
         self.message.config.eab_handler.mac_key_get = MagicMock(return_value=None)

@@ -478,7 +478,7 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
             logger,
             "hooks_file",
             "hooks_module",
-            "acme2certifier.hookhandlers.skeleton_hooks or /path/to/hooks.py",
+            "acme2certifier.hookhandlers.email_hooks or /path/to/hooks.py",
         )
         loaded = _load_from_file(
             logger,
