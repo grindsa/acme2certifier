@@ -787,6 +787,47 @@ class TestCAHandlerRegistry(unittest.TestCase):
         self.assertIsNone(result)
         self.assertIn("CRITICAL:test_a2c:No ca_handler loaded", lcm.output)
 
+    def test_041_resolve_default_ca_handler_imports_plugin_loader(self):
+        """resolve_default_ca_handler imports ca_handler_load when loader is omitted"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import (
+            resolve_default_ca_handler,
+        )
+
+        mock_module = MagicMock()
+        mock_module.CAhandler = _DummyHandler
+        registry = MagicMock()
+        registry.default_handler.return_value = None
+        with patch(
+            "acme2certifier.acme_srv.helpers.plugin_loader.ca_handler_load",
+            return_value=mock_module,
+        ) as mock_load:
+            result = resolve_default_ca_handler(self.logger, registry, {})
+        mock_load.assert_called_once_with(self.logger, {})
+        self.assertIsInstance(result, self.BoundCAHandler)
+        self.assertIs(result.handler_cls, _DummyHandler)
+
+    def test_042_resolve_default_ca_handler_bound_construction_error(self):
+        """resolve_default_ca_handler logs critical when BoundCAHandler construction fails"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import (
+            resolve_default_ca_handler,
+        )
+
+        class _BrokenModule:
+            @property
+            def CAhandler(self):
+                raise RuntimeError("broken handler class")
+
+        registry = MagicMock()
+        registry.default_handler.return_value = None
+        with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+            result = resolve_default_ca_handler(
+                self.logger, registry, {}, lambda _logger, _cfg: _BrokenModule()
+            )
+        self.assertIsNone(result)
+        self.assertTrue(
+            any("Failed to load CA handler module" in msg for msg in lcm.output)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

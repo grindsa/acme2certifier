@@ -182,6 +182,14 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Failed to load EAB key file: ex_mock_csv", lcm.output
         )
 
+    def test_018_keyfile_base_key_file_load_not_implemented(self):
+        """KeyFileEABhandler.key_file_load raises NotImplementedError"""
+        from acme2certifier.eabhandlers.base import KeyFileEABhandler
+
+        handler = KeyFileEABhandler(self.logger)
+        with self.assertRaises(NotImplementedError):
+            handler.key_file_load()
+
 
 if __name__ == "__main__":
 

@@ -337,7 +337,9 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
             patch("acme2certifier.acme_srv.helper.config_debug_get", return_value=True),
             patch("acme2certifier.acme_srv.helper.logger_setup", return_value=logger),
             patch("acme2certifier.acme_srv.helper.log_loaded_acme_srv_cfg"),
-            patch("acme2certifier.acme_srv.db_handler.log_active_db_handler"),
+            patch(
+                "acme2certifier.acme_srv.helpers.acme_http_boot.db_handler_mod.log_active_db_handler"
+            ),
             patch("acme2certifier.acme_srv.helper.config_check"),
             patch("acme2certifier.acme_srv.helper.server_name_configuration_validate"),
             patch("acme2certifier.acme_srv.helper.tnauthlist_configuration_validate"),
@@ -369,6 +371,124 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
         self.assertFalse(stack.housekeeping_cli_enabled)
         mock_hk.dbversion_check.assert_called_once()
         mock_hk.nonce_cleanup.assert_called_once()
+
+    def test_019_eab_profile_entry_as_dict_and_mixin_key_file_load(self) -> None:
+        """_profile_entry_as_dict rejects non-dicts; mixin key_file_load is abstract"""
+        from acme2certifier.acme_srv.helpers.eab_profile import (
+            EabProfileMixin,
+            _profile_entry_as_dict,
+        )
+
+        self.assertEqual(_profile_entry_as_dict(123), {})
+        self.assertEqual(_profile_entry_as_dict(["x"]), {})
+
+        class _Bare(EabProfileMixin):
+            pass
+
+        bare = _Bare()
+        bare.logger = logging.getLogger("test_a2c")
+        with self.assertRaises(NotImplementedError):
+            bare.key_file_load()
+
+    def test_020_kerberos_handler_attr_fallback_and_empty_principal(self) -> None:
+        """KerberosAuthMixin falls back for missing symbols and empty principals"""
+        from acme2certifier.acme_srv.helpers.kerberos_auth import KerberosAuthMixin
+
+        class _Handler(KerberosAuthMixin):
+            pass
+
+        handler = _Handler()
+        handler.logger = logging.getLogger("test_a2c")
+        self.assertEqual(
+            "fallback", handler._kerberos_handler_attr("no_such_symbol", "fallback")
+        )
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertIsNone(handler._kerberos_username_from_principal(""))
+        self.assertTrue(
+            any(
+                "Kerberos principal is not configured, cannot extract username." in msg
+                for msg in lcm.output
+            )
+        )
+
+    def test_021_kerberos_kinit_env_warns_when_config_missing(self) -> None:
+        """_kerberos_kinit_env warns and continues when optional krb5_config is missing"""
+        from acme2certifier.acme_srv.helpers.kerberos_auth import KerberosAuthMixin
+
+        class _Handler(KerberosAuthMixin):
+            pass
+
+        handler = _Handler()
+        handler.logger = logging.getLogger("test_a2c")
+        handler.krb5_config = "/no/such/krb5.conf"
+        handler._KRB5_KINIT_REQUIRE_CONFIG_FILE = False
+        with patch.object(handler, "_kerberos_config_path_resolve", return_value=None):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                env = handler._kerberos_kinit_env("/tmp/ccache")
+        self.assertEqual("/tmp/ccache", env["KRB5CCNAME"])
+        self.assertTrue(
+            any("Configured krb5_config does not exist" in msg for msg in lcm.output)
+        )
+
+    def test_022_request_operation_final_exception_returns_500(self) -> None:
+        """request_operation returns 500 after the last retry raises"""
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.network._request_send_by_method",
+                side_effect=RuntimeError("boom"),
+            ),
+            patch("acme2certifier.acme_srv.helpers.network.time.sleep"),
+        ):
+            code, content = request_operation(
+                self.logger,
+                url="http://example.org",
+                method="GET",
+                retries=1,
+            )
+        self.assertEqual(500, code)
+        self.assertIn("boom", content)
+
+    def test_023_client_session_apply_imports_pkcs12_adapter(self) -> None:
+        """client_session_apply imports Pkcs12Adapter when no class is passed"""
+        session = Mock()
+        adapter_cls = Mock(return_value="adapter")
+        fake_mod = MagicMock(Pkcs12Adapter=adapter_cls)
+        with patch.dict(sys.modules, {"requests_pkcs12": fake_mod}):
+            client_session_apply(
+                session,
+                pkcs12_filename="client.p12",
+                pkcs12_password="secret",
+                mount_url="https://ca.example",
+            )
+        adapter_cls.assert_called_once_with(
+            pkcs12_filename="client.p12", pkcs12_password="secret"
+        )
+        session.mount.assert_called_once_with("https://ca.example", "adapter")
+
+    def test_024_config_ca_bundle_raw_and_bool_exception_paths(self) -> None:
+        """config ca_bundle helpers tolerate get/getboolean failures and odd sections"""
+        from acme2certifier.acme_srv.helpers.config import (
+            _config_ca_bundle_as_bool_or_path,
+            _config_ca_bundle_raw,
+        )
+
+        cfg = Mock()
+        cfg.get.side_effect = RuntimeError("get failed")
+        self.assertEqual(_config_ca_bundle_raw(cfg, "CAhandler", "cur"), "cur")
+
+        self.assertEqual(
+            _config_ca_bundle_raw({"CAhandler": "not-a-mapping"}, "CAhandler", "cur"),
+            "cur",
+        )
+
+        cfg_bool = Mock()
+        cfg_bool.getboolean.side_effect = ValueError("bad bool")
+        self.assertTrue(
+            _config_ca_bundle_as_bool_or_path(cfg_bool, "CAhandler", "true")
+        )
+        self.assertFalse(
+            _config_ca_bundle_as_bool_or_path(cfg_bool, "CAhandler", "false")
+        )
 
 
 if __name__ == "__main__":

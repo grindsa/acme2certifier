@@ -2521,6 +2521,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ecl.called)
         self.assertIn("issuer_dict", mock_ecl.call_args[0][2])
 
+    def test_167_list_regex_check(self):
+        """CAhandler._list_regex_check matches and rejects regex entries"""
+        self.assertTrue(
+            self.cahandler._list_regex_check("foo.example.com", [r"foo\.example\.com"])
+        )
+        self.assertFalse(
+            self.cahandler._list_regex_check("bar.example.com", [r"foo\.example\.com"])
+        )
+
 
 if __name__ == "__main__":
 

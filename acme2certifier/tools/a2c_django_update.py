@@ -8,7 +8,9 @@ import os
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-from acme2certifier.acme_srv.helpers.django_boot import configure_django_settings_module
+from acme2certifier.acme_srv.helpers.django_boot import (
+    configure_django_settings_module,
+)  # noqa: E402
 
 configure_django_settings_module()
 

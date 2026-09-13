@@ -26,24 +26,23 @@ repos:
     hooks:
     -   id: black
 
-#-   repo: https://github.com/executablebooks/mdformat
-#    rev: 0.7.13#
-#    hooks:
-#    - id: mdformat
-#      additional_dependencies:
-#        - mdformat-black#
-#        - black
-
-- repo: https://github.com/jackdewinter/pymarkdown
-  rev: v0.9.39
-  hooks:
-    - id: pymarkdown
-      args: [-d, MD013, scan]
-
 -   repo: local
     hooks:
+    -   id: pycodestyle
+        name: pycodestyle (acme2certifier/)
+        # $HOME is expanded by the shell; pre-commit does not expand env vars in args.
+        entry: bash -c 'exec pycodestyle --config="${HOME}/.config/.pycodestyle" "$@"' --
+        language: system
+        types: [python]
+        files: ^acme2certifier/
     -   id: test-naming-convention
         name: test naming convention
         entry: python3 tools/check_test_naming.py
         language: system
         files: ^test/test.*\.py$
+
+-   repo: https://github.com/jackdewinter/pymarkdown
+    rev: v0.9.39
+    hooks:
+    -   id: pymarkdown
+        args: [-d, MD013, scan]

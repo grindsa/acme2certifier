@@ -46,6 +46,8 @@ class TestACMEHandler(unittest.TestCase):
             logger_setup,
         )
 
+        mock_arg.return_value.parse_args.return_value.batchfile = None
+        mock_arg.return_value.parse_args.return_value.debug = False
         self.a2ccli = CommandLineInterface()
         self.keyops = KeyOperations(logger=self.logger)
         self.msgops = MessageOperations(logger=self.logger)
@@ -815,17 +817,24 @@ class TestACMEHandler(unittest.TestCase):
     def test_079_module_main_entrypoint(self):
         """``__main__`` guard calls main()"""
         import runpy
+        import acme2certifier.tools as tools_pkg
 
-        sys.modules.pop("acme2certifier.tools.a2c_cli", None)
-        with patch("sys.argv", ["a2c-cli"]):
-            with patch("builtins.input", side_effect=["/Q"]):
-                with self.assertRaises(SystemExit) as cm:
-                    runpy.run_module(
-                        "acme2certifier.tools.a2c_cli",
-                        run_name="__main__",
-                        alter_sys=True,
-                    )
-                self.assertEqual(cm.exception.code, 0)
+        saved = sys.modules.get("acme2certifier.tools.a2c_cli")
+        try:
+            sys.modules.pop("acme2certifier.tools.a2c_cli", None)
+            with patch("sys.argv", ["a2c-cli"]):
+                with patch("builtins.input", side_effect=["/Q"]):
+                    with self.assertRaises(SystemExit) as cm:
+                        runpy.run_module(
+                            "acme2certifier.tools.a2c_cli",
+                            run_name="__main__",
+                            alter_sys=True,
+                        )
+                    self.assertEqual(cm.exception.code, 0)
+        finally:
+            if saved is not None:
+                sys.modules["acme2certifier.tools.a2c_cli"] = saved
+                setattr(tools_pkg, "a2c_cli", saved)
 
     def test_080_helper_generate_random_string_charset_and_secrets(self):
         """generate_random_string uses secrets and alphanumeric charset"""
@@ -840,6 +849,17 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, "0" * 8)
         for char in self.generate_random_string(self.logger, 64):
             self.assertIn(char, digits + ascii_letters)
+
+    @patch("acme2certifier.tools.a2c_cli.CommandLineInterface._load_cfg")
+    @patch("argparse.ArgumentParser")
+    def test_081_init_with_batchfile_calls_load_cfg(self, mock_arg, mock_lcfg):
+        """CommandLineInterface.__init__ loads batchfile when -b is set"""
+        from acme2certifier.tools.a2c_cli import CommandLineInterface
+
+        mock_arg.return_value.parse_args.return_value.batchfile = "batch.txt"
+        mock_arg.return_value.parse_args.return_value.debug = False
+        CommandLineInterface()
+        mock_lcfg.assert_called_once_with("batch.txt")
 
 
 if __name__ == "__main__":

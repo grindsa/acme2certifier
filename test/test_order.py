@@ -3592,7 +3592,7 @@ class TestOrderClass(unittest.TestCase):
                 ownership_unauthorized(),
             )
 
-    def test_216b_check_order_ownership_lookup_error(self):
+    def test_217_check_order_ownership_lookup_error(self):
         """_check_order_ownership maps lookup errors to 500"""
         from acme2certifier.acme_srv.helpers.resource_ownership import (
             ResourceOwnershipLookupError,
@@ -3609,7 +3609,7 @@ class TestOrderClass(unittest.TestCase):
                 ownership_lookup_failed(),
             )
 
-    def test_217_finalize_ready_order_update_if_status_db_error(self):
+    def test_218_finalize_ready_order_update_if_status_db_error(self):
         """OrderDatabaseError on claim maps to not-ready path"""
         from acme2certifier.acme_srv.order import OrderDatabaseError
 
@@ -3625,7 +3625,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_218_finalize_ready_authz_invalid_update_db_error(self):
+    def test_219_finalize_ready_authz_invalid_update_db_error(self):
         """OrderDatabaseError while marking invalid is swallowed"""
         from acme2certifier.acme_srv.order import OrderDatabaseError
 
@@ -3645,7 +3645,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_219_authorizations_valid_for_issuance_db_error(self):
+    def test_220_authorizations_valid_for_issuance_db_error(self):
         """_authorizations_valid_for_issuance returns False on DB error"""
         from acme2certifier.acme_srv.order import OrderDatabaseError
 
@@ -3654,7 +3654,7 @@ class TestOrderClass(unittest.TestCase):
         )
         self.assertFalse(self.order._authorizations_valid_for_issuance("order1"))
 
-    def test_220_authorizations_valid_for_issuance_empty(self):
+    def test_221_authorizations_valid_for_issuance_empty(self):
         """_authorizations_valid_for_issuance returns False for empty list"""
         self.order.repository.authorization_lookup.return_value = []
         self.assertFalse(self.order._authorizations_valid_for_issuance("order1"))
