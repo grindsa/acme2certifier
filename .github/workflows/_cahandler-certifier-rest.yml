@@ -294,6 +294,11 @@ jobs:
           sudo chmod 777 examples/Docker/data/kid_profiles.yml
           sudo rm -f examples/Docker/data/kid_profiles.json
 
+      - name: "Restart a2c"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
       - name: "kid-file in yaml format - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
         with:

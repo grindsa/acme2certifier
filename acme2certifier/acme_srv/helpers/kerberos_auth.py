@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Shared Kerberos/GSSAPI helpers for MS-CertSrv and MS-ICPR CA handlers."""
 
-from __future__ import annotations
-
 import importlib
 import logging
 import os

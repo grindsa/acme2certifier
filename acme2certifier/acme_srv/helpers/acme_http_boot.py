@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Shared ACME HTTP adapter bootstrap for Django views and the WSGI app."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any, Optional
 

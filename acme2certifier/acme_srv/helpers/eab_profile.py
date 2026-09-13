@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Shared EAB profile helpers: SAN/CN whitelist checks and kid/profile lookup."""
 
-from __future__ import annotations
-
 import json
 import logging
 import re

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Shared Django settings bootstrap for tools, WSGI, and the Django DB handler."""
 
-from __future__ import annotations
-
 import os
 import sys
 from typing import Optional
