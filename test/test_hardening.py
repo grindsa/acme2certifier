@@ -98,7 +98,7 @@ class TestResourceOwnershipHelper:
         assert code == 500
         assert msg == "urn:ietf:params:acme:error:serverInternal"
 
-    def test_006b_check_resource_ownership_match(self) -> None:
+    def test_007_check_resource_ownership_match(self) -> None:
         from acme2certifier.acme_srv.helpers.resource_ownership import (
             check_resource_ownership,
         )
@@ -113,7 +113,7 @@ class TestResourceOwnershipHelper:
         )
         logger.warning.assert_not_called()
 
-    def test_006c_check_resource_ownership_denied(self) -> None:
+    def test_008_check_resource_ownership_denied(self) -> None:
         from acme2certifier.acme_srv.helpers.resource_ownership import (
             check_resource_ownership,
         )
@@ -125,7 +125,7 @@ class TestResourceOwnershipHelper:
         )
         logger.warning.assert_called_once()
 
-    def test_006d_resolve_resource_ownership_lookup_error(self) -> None:
+    def test_009_resolve_resource_ownership_lookup_error(self) -> None:
         from acme2certifier.acme_srv.helpers.resource_ownership import (
             ResourceOwnershipLookupError,
             resolve_resource_ownership,
@@ -143,7 +143,7 @@ class TestResourceOwnershipHelper:
 
 
 class TestTkauthFailClosed:
-    def test_007_validation_fails_closed_without_ack(self) -> None:
+    def test_010_validation_fails_closed_without_ack(self) -> None:
         logger = Mock(spec=logging.Logger)
         validator = TkauthChallengeValidator(logger)
         context = ChallengeContext(
@@ -159,7 +159,7 @@ class TestTkauthFailClosed:
         assert result.invalid is True
         assert result.error_message == NOT_IMPLEMENTED_MSG
 
-    def test_008_validation_succeeds_when_acknowledged(self) -> None:
+    def test_011_validation_succeeds_when_acknowledged(self) -> None:
         logger = logging.getLogger("test_hardening_tkauth")
         validator = TkauthChallengeValidator(logger)
         context = ChallengeContext(
@@ -197,7 +197,7 @@ class TestOrderResourceOwnership:
             }
             yield order_obj
 
-    def test_009_account_order_request_denied(self, order) -> None:
+    def test_012_account_order_request_denied(self, order) -> None:
         order.message.check.return_value = (
             200,
             None,
@@ -221,7 +221,7 @@ class TestOrderResourceOwnership:
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
 
-    def test_010_account_order_request_allowed(self, order) -> None:
+    def test_013_account_order_request_allowed(self, order) -> None:
         order.message.check.return_value = (
             200,
             None,
@@ -248,7 +248,7 @@ class TestOrderResourceOwnership:
             result = order.parse_order_content("content")
         assert result["code"] == 200
 
-    def test_011_owner_lookup_unavailable_denied(self, order) -> None:
+    def test_014_owner_lookup_unavailable_denied(self, order) -> None:
         order.message.check.return_value = (
             200,
             None,
@@ -297,7 +297,7 @@ class TestCertificateResourceOwnership:
         )
         yield cert
 
-    def test_012_account_certificate_download_denied(self, certificate) -> None:
+    def test_015_account_certificate_download_denied(self, certificate) -> None:
         certificate._validate_certificate_request_message = MagicMock(
             return_value=(
                 200,
@@ -319,7 +319,7 @@ class TestCertificateResourceOwnership:
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
 
-    def test_013_account_certificate_download_allowed(self, certificate) -> None:
+    def test_016_account_certificate_download_allowed(self, certificate) -> None:
         certificate._validate_certificate_request_message = MagicMock(
             return_value=(
                 200,
@@ -369,7 +369,7 @@ class TestChallengeResourceOwnership:
         )
         yield ch
 
-    def test_014_account_challenge_post_denied(self, challenge) -> None:
+    def test_017_account_challenge_post_denied(self, challenge) -> None:
         challenge.message.check.return_value = (
             200,
             None,
@@ -386,7 +386,7 @@ class TestChallengeResourceOwnership:
         mock_handle.assert_not_called()
         assert result["code"] == 403
 
-    def test_015_account_challenge_post_allowed(self, challenge) -> None:
+    def test_018_account_challenge_post_allowed(self, challenge) -> None:
         challenge.message.check.return_value = (
             200,
             None,
@@ -416,7 +416,7 @@ class TestAuthorizationResourceOwnership:
         auth.business_logic.extract_authorization_name_from_url.return_value = "authz1"
         yield auth
 
-    def test_016_account_authorization_post_denied(self, authorization) -> None:
+    def test_019_account_authorization_post_denied(self, authorization) -> None:
         authorization.message.check.return_value = (
             200,
             "ok",
@@ -438,7 +438,7 @@ class TestAuthorizationResourceOwnership:
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
 
-    def test_017_account_authorization_post_allowed(self, authorization) -> None:
+    def test_020_account_authorization_post_allowed(self, authorization) -> None:
         authorization.message.check.return_value = (
             200,
             "ok",
@@ -460,7 +460,7 @@ class TestAuthorizationResourceOwnership:
         result = authorization.handle_post_request("content")
         assert result["code"] == 200
 
-    def test_018_owner_lookup_db_error_returns_500(self, authorization) -> None:
+    def test_021_owner_lookup_db_error_returns_500(self, authorization) -> None:
         authorization.message.check.return_value = (
             200,
             "ok",
@@ -488,7 +488,7 @@ class TestRenewalinfoResourceOwnership:
         info.repository = MagicMock()
         yield info
 
-    def test_019_account_replaced_update_denied(self, renewalinfo) -> None:
+    def test_022_account_replaced_update_denied(self, renewalinfo) -> None:
         renewalinfo.message.check.return_value = (
             200,
             None,
@@ -514,7 +514,7 @@ class TestRenewalinfoResourceOwnership:
         renewalinfo.repository.mark_certificate_replaced.assert_not_called()
         assert result["code"] == 403
 
-    def test_020_account_replaced_update_allowed(self, renewalinfo) -> None:
+    def test_023_account_replaced_update_allowed(self, renewalinfo) -> None:
         renewalinfo.message.check.return_value = (
             200,
             None,
@@ -552,7 +552,7 @@ class TestCsrBinding:
         }
         yield cert
 
-    def test_021_strict_exact_match_allows_enrollment(self, certificate) -> None:
+    def test_024_strict_exact_match_allows_enrollment(self, certificate) -> None:
         csr = _build_csr_b64(
             cn="example.com",
             dns_sans=["example.com"],
@@ -583,7 +583,7 @@ class TestCsrBinding:
         assert error is None
         assert detail == ""
 
-    def test_022_strict_extra_email_san_rejected(self, certificate) -> None:
+    def test_025_strict_extra_email_san_rejected(self, certificate) -> None:
         csr = _build_csr_b64(
             cn="user@example.com",
             email_sans=["user@example.com", "attacker@evil.com"],
@@ -607,7 +607,7 @@ class TestCsrBinding:
         assert error == "urn:ietf:params:acme:error:badCSR"
         assert detail == "CSR validation failed"
 
-    def test_023_strict_missing_order_identifier_rejected(self, certificate) -> None:
+    def test_026_strict_missing_order_identifier_rejected(self, certificate) -> None:
         csr = _build_csr_b64(dns_sans=["a.example.com"])
         identifiers = _identifiers_json(
             ("dns", "a.example.com"),
@@ -623,7 +623,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_024_strict_cn_mismatch_rejected(self, certificate) -> None:
+    def test_027_strict_cn_mismatch_rejected(self, certificate) -> None:
         csr = _build_csr_b64(
             cn="evil.example.com",
             dns_sans=["example.com"],
@@ -639,7 +639,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_025_strict_cn_only_email_allowed(self, certificate) -> None:
+    def test_028_strict_cn_only_email_allowed(self, certificate) -> None:
         csr = _build_csr_b64(cn="user@example.com")
         identifiers = _identifiers_json(("email", "user@example.com"))
         with patch.object(
@@ -652,7 +652,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_026_legacy_non_strict_allows_subset(self, certificate) -> None:
+    def test_029_legacy_non_strict_allows_subset(self, certificate) -> None:
         certificate.config.csr_binding_strict = False
         csr = _build_csr_b64(dns_sans=["a.example.com"])
         identifiers = _identifiers_json(
@@ -669,7 +669,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_027_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
+    def test_030_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
         """email_identifier_rewrite: dns:user@host order matches CSR DNS+EMAIL SANs."""
         certificate.config.email_identifier_rewrite = True
         csr = _build_csr_b64(
@@ -688,7 +688,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_028_rewrite_still_rejects_extra_email(self, certificate) -> None:
+    def test_031_rewrite_still_rejects_extra_email(self, certificate) -> None:
         certificate.config.email_identifier_rewrite = True
         csr = _build_csr_b64(
             cn="jum@mailserver.acme",
@@ -710,7 +710,7 @@ class TestCsrBinding:
 class TestClientHeaderParameterGate:
     """Client-selected CA template/profile via header_info without allowlist."""
 
-    def test_029_empty_allowlist_ignored_without_ack(self) -> None:
+    def test_032_empty_allowlist_ignored_without_ack(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
             with patch.object(logger, "warning") as mock_warn:
@@ -720,7 +720,7 @@ class TestClientHeaderParameterGate:
         assert result == "WebServer"
         mock_warn.assert_called_once()
 
-    def test_030_empty_allowlist_permitted_with_ack(self) -> None:
+    def test_033_empty_allowlist_permitted_with_ack(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
             with patch.object(logger, "critical") as mock_crit:
@@ -730,14 +730,14 @@ class TestClientHeaderParameterGate:
         assert result == "Privileged"
         mock_crit.assert_called_once()
 
-    def test_031_nonempty_allowlist_applies_listed_value(self) -> None:
+    def test_034_nonempty_allowlist_applies_listed_value(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         result = client_header_parameter_decide(
             logger, "template", "WebServer", ["WebServer", "User"], "User"
         )
         assert result == "WebServer"
 
-    def test_032_nonempty_allowlist_ignores_unlisted_value(self) -> None:
+    def test_035_nonempty_allowlist_ignores_unlisted_value(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         with patch.object(logger, "warning") as mock_warn:
             result = client_header_parameter_decide(
@@ -746,7 +746,7 @@ class TestClientHeaderParameterGate:
         assert result == "User"
         mock_warn.assert_called_once()
 
-    def test_033_header_info_path_ignores_without_ack(self) -> None:
+    def test_036_header_info_path_ignores_without_ack(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_header_info_check
 
         cahandler = MagicMock()
@@ -771,7 +771,7 @@ class TestClientHeaderParameterGate:
         assert err is None
         assert cahandler.template == "WebServer"
 
-    def test_034_empty_client_value_keeps_default(self) -> None:
+    def test_037_empty_client_value_keeps_default(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         result = client_header_parameter_decide(
             logger, "template", None, ["WebServer"], "WebServer"
@@ -784,7 +784,7 @@ class TestClientHeaderParameterGate:
 
 
 class TestEabProfileDenylist:
-    def test_001_exact_and_suffix_denied(self) -> None:
+    def test_038_exact_and_suffix_denied(self) -> None:
         from acme2certifier.acme_srv.helpers.security_gate import (
             eab_profile_attr_denied,
         )
@@ -800,7 +800,7 @@ class TestEabProfileDenylist:
         assert eab_profile_attr_denied("vault_path") is False
         assert eab_profile_attr_denied("profile_id") is False
 
-    def test_002_string_check_skips_denied_attr(self) -> None:
+    def test_039_string_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_string_check
 
         class _Handler:
@@ -816,7 +816,7 @@ class TestEabProfileDenylist:
         assert cahandler.api_user == "kid_user"
         assert mock_warn.call_count == 1
 
-    def test_003_list_check_skips_denied_attr(self) -> None:
+    def test_040_list_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
 
         class _Handler:

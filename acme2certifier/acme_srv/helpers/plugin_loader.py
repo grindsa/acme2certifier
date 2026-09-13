@@ -268,9 +268,7 @@ def _load_named_ca_handler(
     return None, True
 
 
-def _load_default_ca_handler(
-    logger: logging.Logger, config_dic: Dict
-) -> Optional[Any]:
+def _load_default_ca_handler(logger: logging.Logger, config_dic: Dict) -> Optional[Any]:
     """Load legacy ``acme_srv.ca_handler``, unless multi_handler is enabled."""
     if _section_flag_true(config_dic, "CAhandler", "multi_handler"):
         logger.debug(
