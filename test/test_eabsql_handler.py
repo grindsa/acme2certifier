@@ -3,11 +3,11 @@
 """unittests for acme2certifier"""
 
 # pylint: disable= C0415, W0212
-import unittest
-import sys
-import os
-from unittest.mock import patch, MagicMock
 import configparser
+import os
+import sys
+import unittest
+from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -386,10 +386,32 @@ class TestEABHandler(unittest.TestCase):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = [("id1", "profile1"), ("id2", "profile2")]
+        mock_cursor.fetchall.return_value = [(
+            "keyid_01",
+                "{\"hmac\": \"hmac_01\", \"order\": {\"allowed_domainlist\": [\"127.0.0.1\"]}}"),(
+            "keyid_02",
+                "{\"hmac\": \"hmac_02\"}"),(
+            "keyid_03",
+                "{\"order\": {\"allowed_domainlist\": [\"127.0.0.1\"]}, \"hmac\": \"hmac_03\"}")
+        ]
         mock_connect.return_value = mock_conn
+
         result = self.eabhandler._load_profiles("mssql", "SELECT ...")
-        self.assertEqual(result, {"id1": "profile1", "id2": "profile2"})
+        self.assertEqual(result, {
+            "keyid_01": {
+                'hmac': 'hmac_01',
+                'order': {'allowed_domainlist': ['127.0.0.1']}
+            },
+            "keyid_02": {
+                'hmac': 'hmac_02'
+            },
+            "keyid_03": {
+                'order': {'allowed_domainlist': ['127.0.0.1']},
+                'hmac': 'hmac_03'}
+            })
+        self.assertEqual({'hmac': 'hmac_01', 'order': {'allowed_domainlist': ['127.0.0.1']}}, result["keyid_01"])
+        self.assertEqual({'hmac': 'hmac_02'}, result["keyid_02"])
+        self.assertEqual({'hmac': 'hmac_03', 'order': {'allowed_domainlist': ['127.0.0.1']}}, result["keyid_03"])
 
     @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
     def test_035_load_mssql_profiles_empty(self, mock_connect):
@@ -423,10 +445,32 @@ class TestEABHandler(unittest.TestCase):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = [("id1", "profile1"), ("id2", "profile2")]
+        mock_cursor.fetchall.return_value = [(
+            "keyid_01",
+                "{\"hmac\": \"hmac_01\", \"order\": {\"allowed_domainlist\": [\"127.0.0.1\"]}}"),(
+            "keyid_02",
+                "{\"hmac\": \"hmac_02\"}"),(
+            "keyid_03",
+                "{\"order\": {\"allowed_domainlist\": [\"127.0.0.1\"]}, \"hmac\": \"hmac_03\"}")
+        ]
         mock_connect.return_value = mock_conn
+
         result = self.eabhandler._load_profiles("postgres", "SELECT ...")
-        self.assertEqual(result, {"id1": "profile1", "id2": "profile2"})
+        self.assertEqual(result, {
+            "keyid_01": {
+                'hmac': 'hmac_01',
+                'order': {'allowed_domainlist': ['127.0.0.1']}
+            },
+            "keyid_02": {
+                'hmac': 'hmac_02'
+            },
+            "keyid_03": {
+                'order': {'allowed_domainlist': ['127.0.0.1']},
+                'hmac': 'hmac_03'}
+            })
+        self.assertEqual({'hmac': 'hmac_01', 'order': {'allowed_domainlist': ['127.0.0.1']}}, result["keyid_01"])
+        self.assertEqual({'hmac': 'hmac_02'}, result["keyid_02"])
+        self.assertEqual({'hmac': 'hmac_03', 'order': {'allowed_domainlist': ['127.0.0.1']}}, result["keyid_03"])
 
     @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
     def test_038_load_postgres_profiles_empty(self, mock_connect):
@@ -451,28 +495,79 @@ class TestEABHandler(unittest.TestCase):
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_040_mac_key_get_valid(self, mock_key_file_load):
+    def test_040_mac_key_get_valid_mssql(self, mock_key_file_load):
         """Valid key: should return mac_key"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
-        mock_key_file_load.return_value = {"key1": "mac_value"}
-        result = self.eabhandler.mac_key_get("key1")
-        self.assertEqual(result, "mac_value")
+        self.eabhandler.db_system = "mssql"
+
+        mock_key_file_load.return_value = {
+            "keyid_01": {
+                'hmac': 'hmac_01',
+                'order': {'allowed_domainlist': ['127.0.0.1']}
+            },
+            "keyid_02": {
+                'hmac': 'hmac_02'
+            },
+            "keyid_03": {
+                'order': {'allowed_domainlist': ['127.0.0.1']},
+                'hmac': 'hmac_03'}
+            }
+
+        result = self.eabhandler.mac_key_get("keyid_01")
+        self.assertEqual(result, "hmac_01")
+        result = self.eabhandler.mac_key_get("keyid_02")
+        self.assertEqual(result, "hmac_02")
+        result = self.eabhandler.mac_key_get("keyid_03")
+        self.assertEqual(result, "hmac_03")
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_041_mac_key_get_missing_key(self, mock_key_file_load):
+    def test_041_mac_key_get_valid_postgres(self, mock_key_file_load):
+        """Valid key: should return mac_key"""
+        self.eabhandler.db_host = "host"
+        self.eabhandler.db_name = "name"
+        self.eabhandler.db_user = "user"
+        self.eabhandler.db_password = "pass"
+        self.eabhandler.db_system = "postgres"
+
+        mock_key_file_load.return_value = {
+            "keyid_01": {
+                'hmac': 'hmac_01',
+                'order': {'allowed_domainlist': ['127.0.0.1']}
+            },
+            "keyid_02": {
+                'hmac': 'hmac_02'
+            },
+            "keyid_03": {
+                'order': {'allowed_domainlist': ['127.0.0.1']},
+                'hmac': 'hmac_03'}
+            }
+
+        result = self.eabhandler.mac_key_get("keyid_01")
+        self.assertEqual(result, "hmac_01")
+        result = self.eabhandler.mac_key_get("keyid_02")
+        self.assertEqual(result, "hmac_02")
+        result = self.eabhandler.mac_key_get("keyid_03")
+        self.assertEqual(result, "hmac_03")
+
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
+    def test_042_mac_key_get_missing_key(self, mock_key_file_load):
         """Missing key: should return None"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
-        mock_key_file_load.return_value = {"key1": "mac_value"}
-        result = self.eabhandler.mac_key_get("key2")
+        mock_key_file_load.return_value = {
+            "keyid_01": {
+                'hmac': 'hmac_01',
+            }
+        }
+        result = self.eabhandler.mac_key_get("keyid_02")
         self.assertIsNone(result)
 
-    def test_042_mac_key_get_missing_db_params(self):
+    def test_043_mac_key_get_missing_db_params(self):
         """Missing DB params: should return None and log error"""
         self.eabhandler.db_host = None
         self.eabhandler.db_name = None
@@ -485,7 +580,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_043_mac_key_get_exception(self, mock_key_file_load):
+    def test_044_mac_key_get_exception(self, mock_key_file_load):
         """Exception: should return None and log error"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -497,7 +592,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertIsNone(result)
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
-    def test_044_eab_kid_get_exception(self):
+    def test_045_eab_kid_get_exception(self):
         """Exception branch: should log error and return None"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -515,7 +610,7 @@ class TestEABHandler(unittest.TestCase):
             any("Database error while retrieving eab_kid" in msg for msg in lcm.output)
         )
 
-    def test_045_eab_kid_get_revocation(self):
+    def test_046_eab_kid_get_revocation(self):
         """test EABhandler.eab_kid_get() with revocation=True uses cert_raw"""
         models_mock = MagicMock()
         models_mock.DBstore().certificate_lookup.return_value = {
@@ -528,6 +623,61 @@ class TestEABHandler(unittest.TestCase):
         call_args = models_mock.DBstore().certificate_lookup.call_args
         self.assertEqual(call_args[0][0], "cert_raw")
 
+    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
+    def test_047_load_mssql_profiles_invalid_json(self, mock_connect):
+        """Invalid json: should return error"""
+        self.eabhandler.db_host = "host"
+        self.eabhandler.db_name = "name"
+        self.eabhandler.db_user = "user"
+        self.eabhandler.db_password = "pass"
+        self.eabhandler.db_system = "mssql"
+
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        # JSON is missing some brackets
+        mock_cursor.fetchall.return_value = [(
+            "keyid_01",
+                "\"hmac\": \"hmac_01\", \"order\": \"allowed_domainlist\": [\"127.0.0.1\"}}")
+        ]
+        mock_connect.return_value = mock_conn
+
+        self.eabhandler._load_profiles("postgres", "SELECT ...")
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.eabhandler.eab_profile_get("csr"))
+        self.assertIn(
+            "ERROR:test_a2c:EABhandler._load_profiles()",
+           str(lcm.output),
+        )
+
+    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
+    def test_048_load_postgres_profiles_invalid_json(self, mock_connect):
+        """Invalid json: should return error"""
+        self.eabhandler.db_host = "host"
+        self.eabhandler.db_name = "name"
+        self.eabhandler.db_user = "user"
+        self.eabhandler.db_password = "pass"
+        self.eabhandler.db_system = "postgres"
+
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        # JSON is missing some brackets
+        mock_cursor.fetchall.return_value = [(
+            "keyid_01",
+                "\"hmac\": \"hmac_01\", \"order\": \"allowed_domainlist\": [\"127.0.0.1\"}}")
+        ]
+        mock_connect.return_value = mock_conn
+
+        self.eabhandler._load_profiles("postgres", "SELECT ...")
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.eabhandler.eab_profile_get("csr"))
+        self.assertIn(
+            "ERROR:test_a2c:EABhandler._load_profiles()",
+           str(lcm.output),
+        )
 
 if __name__ == "__main__":
 

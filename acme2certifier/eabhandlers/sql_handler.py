@@ -5,6 +5,7 @@
 
 from __future__ import print_function
 
+import json
 from logging import Logger
 import pyodbc
 import re
@@ -267,7 +268,9 @@ class EABhandler(object):
             cursor.execute(sql_query)
             rows = cursor.fetchall()
             for row in rows:
-                data_dic[str(row[0])] = str(row[1])
+                key_id, profile = row
+                data_dic[key_id] = json.loads(profile)
+
         except Exception as err:
             self.logger.error("EABhandler._load_profiles() error: %s", err)
         return data_dic
@@ -289,7 +292,7 @@ class EABhandler(object):
                 data_dic = self.key_file_load()
 
                 if key_id in data_dic:
-                    mac_key = data_dic[key_id]
+                    mac_key = data_dic[key_id]["hmac"]
             else:
                 self.logger.error("EABhandler.mac_key_get() error: key_id not found")
 
