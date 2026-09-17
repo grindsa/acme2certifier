@@ -598,6 +598,153 @@ class TestDirectory(unittest.TestCase):
             self.directory._parse_cahandler_section(config_dic)
             mock_error.assert_any_call("profiles_sync_interval not set: %s", ANY)
 
+    def test_053_get_directory_response_multi_handler_check_all(self):
+        """Multi-handler mode runs handler_check on every referenced handler."""
+        handler_a = MagicMock()
+        handler_a.__enter__.return_value = handler_a
+        handler_a.__exit__.return_value = None
+        handler_a.handler_check.return_value = None
+        handler_a.name = "openssl"
+        mock_bound_a = MagicMock(return_value=handler_a)
+        mock_bound_a.name = "openssl"
+
+        handler_b = MagicMock()
+        handler_b.__enter__.return_value = handler_b
+        handler_b.__exit__.return_value = None
+        handler_b.handler_check.return_value = None
+        handler_b.name = "xca"
+        mock_bound_b = MagicMock(return_value=handler_b)
+        mock_bound_b.name = "xca"
+
+        mock_registry = MagicMock()
+        mock_registry.multi_handler = True
+        mock_registry.startup_error = None
+        mock_registry.referenced_handlers.return_value = [mock_bound_a, mock_bound_b]
+        self.directory.cahandler_registry = mock_registry
+        self.directory.cahandler = mock_bound_a
+
+        resp = self.directory.get_directory_response()
+        self.assertIn("newAuthz", resp)
+        handler_a.handler_check.assert_called_once()
+        handler_b.handler_check.assert_called_once()
+
+    def test_054_get_directory_response_multi_handler_check_failure(self):
+        """First failing referenced handler fails the directory response."""
+        handler_a = MagicMock()
+        handler_a.__enter__.return_value = handler_a
+        handler_a.__exit__.return_value = None
+        handler_a.handler_check.return_value = None
+        mock_bound_a = MagicMock(return_value=handler_a)
+        mock_bound_a.name = "openssl"
+
+        handler_b = MagicMock()
+        handler_b.__enter__.return_value = handler_b
+        handler_b.__exit__.return_value = None
+        handler_b.handler_check.return_value = "xca misconfigured"
+        mock_bound_b = MagicMock(return_value=handler_b)
+        mock_bound_b.name = "xca"
+
+        mock_registry = MagicMock()
+        mock_registry.multi_handler = True
+        mock_registry.startup_error = None
+        mock_registry.referenced_handlers.return_value = [mock_bound_a, mock_bound_b]
+        self.directory.cahandler_registry = mock_registry
+
+        resp = self.directory.get_directory_response()
+        self.assertIn("error", resp)
+        handler_b.handler_check.assert_called_once()
+
+    def test_055_get_directory_response_profiles_sync_merge(self):
+        """profiles_sync merges profiles from multiple handlers."""
+        self.directory.config.profiles_sync = True
+        self.directory.config.acme_url = "https://acme.example.com"
+        self.directory.config.profiles_sync_interval = 3600
+        self.directory.config.profiles = {"shared": "old-url"}
+
+        handler_a = MagicMock()
+        handler_a.__enter__.return_value = handler_a
+        handler_a.__exit__.return_value = None
+        handler_a.handler_check.return_value = None
+        handler_a.synchronize_profiles.return_value = {
+            "openssl_profile": "https://example/openssl"
+        }
+        mock_bound_a = MagicMock(return_value=handler_a)
+        mock_bound_a.name = "openssl"
+
+        handler_b = MagicMock()
+        handler_b.__enter__.return_value = handler_b
+        handler_b.__exit__.return_value = None
+        handler_b.handler_check.return_value = None
+        handler_b.synchronize_profiles.return_value = {
+            "shared": "https://example/new",
+            "xca_profile": "https://example/xca",
+        }
+        mock_bound_b = MagicMock(return_value=handler_b)
+        mock_bound_b.name = "xca"
+
+        mock_registry = MagicMock()
+        mock_registry.multi_handler = True
+        mock_registry.startup_error = None
+        mock_registry.referenced_handlers.return_value = [mock_bound_a, mock_bound_b]
+        self.directory.cahandler_registry = mock_registry
+
+        with patch.object(self.mock_logger, "warning") as mock_warning:
+            resp = self.directory.get_directory_response()
+
+        self.assertIn("newAuthz", resp)
+        self.assertEqual(
+            self.directory.config.profiles,
+            {
+                "shared": "https://example/new",
+                "openssl_profile": "https://example/openssl",
+                "xca_profile": "https://example/xca",
+            },
+        )
+        mock_warning.assert_called()
+
+    def test_056_load_ca_handler_bound_fallback(self):
+        """Classical fallback wraps ca_handler_load() in BoundCAHandler."""
+        config_dic = {}
+        mock_handler_cls = MagicMock()
+        mock_module = MagicMock()
+        mock_module.CAhandler = mock_handler_cls
+        with patch(
+            "acme2certifier.acme_srv.directory.CAHandlerRegistry"
+        ) as mock_registry_cls:
+            registry = mock_registry_cls.return_value
+            registry.load.return_value = registry
+            registry.default_handler.return_value = None
+            with patch(
+                "acme2certifier.acme_srv.directory.ca_handler_load",
+                return_value=mock_module,
+            ):
+                self.directory._load_ca_handler(config_dic)
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        self.assertIsInstance(self.directory.cahandler, BoundCAHandler)
+        self.assertIs(self.directory.cahandler.handler_cls, mock_handler_cls)
+
+    def test_057_directory_handlers_classical_registry(self):
+        """Non-multi registry mode returns the single bound handler."""
+        mock_registry = MagicMock()
+        mock_registry.multi_handler = False
+        mock_registry.startup_error = None
+        self.directory.cahandler_registry = mock_registry
+        handlers = self.directory._directory_handlers()
+        self.assertEqual(handlers, [self.mock_cahandler])
+
+    def test_058_get_directory_response_startup_error(self):
+        """Registry startup_error fails the directory response."""
+        mock_registry = MagicMock()
+        mock_registry.multi_handler = True
+        mock_registry.startup_error = "default_handler missing"
+        mock_registry.referenced_handlers.return_value = []
+        self.directory.cahandler_registry = mock_registry
+        with patch.object(self.mock_logger, "critical") as mock_critical:
+            resp = self.directory.get_directory_response()
+        self.assertIn("error", resp)
+        mock_critical.assert_called()
+
 
 if __name__ == "__main__":
     unittest.main()

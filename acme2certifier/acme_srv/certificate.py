@@ -277,10 +277,13 @@ class Certificate(object):
     # Error message constants
     INVALID_INPUT_PARAMS_MSG = "Invalid input parameters: %s"
 
-    def __init__(self, debug: bool = False, srv_name: str = None, logger=None):
+    def __init__(
+        self, debug: bool = False, srv_name: str = None, logger=None, config_dic=None
+    ):
         self.debug = debug
         self.logger = logger
         self.server_name = srv_name
+        self.config_dic = config_dic
 
         self.path_dic = {"cert_path": "/acme/cert/"}
 
@@ -295,7 +298,9 @@ class Certificate(object):
         self.cahandler = None
         self.err_msg_dic = error_dic_get(self.logger)
         self.hooks = None
-        self.message = Message(self.debug, self.server_name, self.logger)
+        self.message = Message(
+            self.debug, self.server_name, self.logger, config_dic=config_dic
+        )
 
         # Initialize the new architecture components with configuration
         self.certificate_manager = CertificateManager(
@@ -713,7 +718,7 @@ class Certificate(object):
     def _load_configuration(self):
         """Load certificate configuration from file"""
         self.logger.debug("Certificate._load_configuration()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
 
         # load ca_handler according to configuration
         ca_handler_module = ca_handler_load(self.logger, config_dic)
@@ -740,6 +745,89 @@ class Certificate(object):
 
         self.logger.debug("ca_handler: %s", ca_handler_module)
         self.logger.debug("Certificate._load_configuration() ended.")
+
+    def _resolve_cahandler(
+        self,
+        csr: Optional[str] = None,
+        order_name: Optional[str] = None,
+        revocation: bool = False,
+        cert_raw: Optional[str] = None,
+    ):
+        """Resolve the CAhandler factory for enroll/revoke/poll."""
+        self.logger.debug("Certificate._resolve_cahandler()")
+        if self.cahandler_registry is None:
+            return self.cahandler
+
+        cahandler_name = None
+        lookup_value = cert_raw if revocation and cert_raw else csr
+        if self.eab_profiling and self.eab_handler_class is not None and lookup_value:
+            try:
+                with self.eab_handler_class(self.logger) as eab_handler:
+                    if hasattr(eab_handler, "cahandler_name_get"):
+                        cahandler_name = eab_handler.cahandler_name_get(
+                            lookup_value, revocation=revocation
+                        )
+            except Exception as err:
+                self.logger.warning(
+                    "Failed to look up cahandler_name via EAB handler: %s", err
+                )
+
+        order_profile = None
+        stored_name = None
+        if csr:
+            order_profile = profile_lookup(self.logger, csr)
+            stored_name = cahandler_lookup(self.logger, csr=csr)
+        elif cert_raw:
+            stored_name = cahandler_lookup(self.logger, cert_raw=cert_raw)
+        elif order_name:
+            try:
+                order_dic = self.repository.order_lookup(
+                    "name", order_name, ["profile", "cahandler"]
+                )
+                if order_dic:
+                    order_profile = order_dic.get("profile") or None
+                    stored_name = order_dic.get("cahandler") or None
+            except Exception as err:
+                self.logger.warning(
+                    "Failed to load order profile/cahandler for %s: %s",
+                    order_name,
+                    err,
+                )
+
+        bound = self.cahandler_registry.resolve(
+            cahandler_name=cahandler_name,
+            order_profile=order_profile,
+            csr=csr if not revocation else None,
+            stored_name=stored_name,
+        )
+        if bound is None:
+            if cahandler_name:
+                return None
+            self.logger.error(
+                "Certificate._resolve_cahandler: no handler resolved; using default"
+            )
+            return self.cahandler
+        self.logger.debug("Certificate._resolve_cahandler() -> %s", bound.name)
+        return bound
+
+    def _persist_order_cahandler(
+        self, order_name: Optional[str], handler_name: Optional[str]
+    ) -> None:
+        if not order_name or not handler_name:
+            return
+        if not self.cahandler_registry or not self.cahandler_registry.multi_handler:
+            return
+        try:
+            self.repository.order_update(
+                {"name": order_name, "cahandler": handler_name}
+            )
+        except Exception as err:
+            self.logger.warning(
+                "Failed to persist cahandler '%s' on order %s: %s",
+                handler_name,
+                order_name,
+                err,
+            )
 
     def _load_and_validate_identifiers(
         self, identifier_dic: Dict[str, str], csr: str
@@ -877,7 +965,29 @@ class Certificate(object):
             self.logger.debug(
                 "Certificate._process_certificate_enrollment(): trigger enrollment"
             )
-            with self.cahandler(self.debug, self.logger) as ca_handler:
+            handler_factory = self._resolve_cahandler(csr=csr, order_name=order_name)
+            if handler_factory is None:
+                return (
+                    self.err_msg_dic.get("serverinternal", "Internal error"),
+                    None,
+                    None,
+                    None,
+                    False,
+                )
+            self._persist_order_cahandler(
+                order_name, getattr(handler_factory, "name", None)
+            )
+            handler_name = getattr(handler_factory, "name", None)
+            handler_section = getattr(handler_factory, "section", None)
+            if not isinstance(handler_name, str):
+                handler_name = "unknown"
+            extra = f" ({handler_section})" if isinstance(handler_section, str) else ""
+            self.logger.info(
+                "Certificate enrollment via CA handler '%s'%s",
+                handler_name,
+                extra,
+            )
+            with handler_factory(self.debug, self.logger) as ca_handler:
                 (
                     error,
                     certificate,

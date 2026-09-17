@@ -6,7 +6,17 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
-## Changes in 0.45.1
+## Changes in 0.46
+
+**Bug Fixes and Improvements**:
+
+- Parse `acme_srv.cfg` once per worker and pass that ConfigParser into ACME objects; CAhandler still self-configures via `_config_load()` (named `[CAhandler:<name>]` overlay unchanged). Restart the process after config edits ([#384](https://github.com/grindsa/acme2certifier/issues/384))
+- Multi-CAhandler: ACME profiles that only select a named handler (`profile_cahandler` identity maps such as `harica` → `harica`) no longer overwrite that handler's `profile_mapping_field` (HARICA was sending `transactionType=harica` instead of `OV`)
+- OpenSSL CA handler honors `enrollment_config_log` / `enrollment_config_log_skip_list` (same as XCA and the other handlers)
+- Log the resolved CA handler name (and config section) at INFO before certificate enrollment
+- Multi-CAhandler: do not fall back to deprecated `acme_srv.ca_handler` (or log CRITICAL) when `multi_handler` is enabled; `[CAhandler]` is a registry, not a plugin
+- `logger_setup(False)` applies INFO to the root logger and quiets urllib3/requests so HTTP wire traces are not emitted when `debug` is off
+- ACME Helper debug: explicit `[DEFAULT] debug` in `acme_srv.cfg` overrides `ACME2CERTIFIER_DEBUG`; the env var is used only when `debug` is unset. Django `DEBUG` stays independent.
 
 **New Features**:
 

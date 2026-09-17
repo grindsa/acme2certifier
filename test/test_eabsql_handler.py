@@ -528,6 +528,30 @@ class TestEABHandler(unittest.TestCase):
         call_args = models_mock.DBstore().certificate_lookup.call_args
         self.assertEqual(call_args[0][0], "cert_raw")
 
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
+    def test_046_cahandler_name_get_dict(self, mock_kid, mock_prof):
+        """cahandler_name_get reads cahandler_name from a dict profile entry"""
+        mock_prof.return_value = {"kid1": {"cahandler_name": "openssl"}}
+        mock_kid.return_value = "kid1"
+        self.assertEqual(self.eabhandler.cahandler_name_get("csr"), "openssl")
+
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
+    def test_047_cahandler_name_get_json_string(self, mock_kid, mock_prof):
+        """cahandler_name_get parses a JSON string profile entry"""
+        mock_prof.return_value = {"kid1": '{"cahandler_name": "ejbca"}'}
+        mock_kid.return_value = "kid1"
+        self.assertEqual(self.eabhandler.cahandler_name_get("csr"), "ejbca")
+
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
+    def test_048_cahandler_name_get_invalid_json(self, mock_kid, mock_prof):
+        """cahandler_name_get treats invalid JSON profile entries as empty"""
+        mock_prof.return_value = {"kid1": "not-json"}
+        mock_kid.return_value = "kid1"
+        self.assertIsNone(self.eabhandler.cahandler_name_get("csr"))
+
 
 if __name__ == "__main__":
 
