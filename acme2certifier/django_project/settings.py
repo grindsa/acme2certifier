@@ -5,26 +5,25 @@ Override via ACME2CERTIFIER_* env vars, or replace/symlink this module for
 production DB credentials (see examples/django for a MySQL template).
 """
 
-import os
+from pathlib import Path
+import environ
 
-_DEFAULT_BASE = "/var/www/acme2certifier"
-BASE_DIR = os.environ.get(
-    "ACME2CERTIFIER_BASE_DIR",
-    _DEFAULT_BASE if os.path.isdir(_DEFAULT_BASE) else os.getcwd(),
+_DEFAULT_BASE = Path("/var/www/acme2certifier")
+BASE_DIR = Path(env("ACME2CERTIFIER_BASE_DIR", default=str(_DEFAULT_BASE if _DEFAULT_BASE.is_dir() else Path.cwd())))
+
+env = environ.Env(
+    ACME2CERTIFIER_DEBUG=(bool, False),
+    ACME2CERTIFIER_ALLOWED_HOSTS=(list, ["127.0.0.1", "*"]),
 )
 
-SECRET_KEY = os.environ.get(
+SECRET_KEY = env(
     "ACME2CERTIFIER_SECRET_KEY",
-    "django-insecure-change-me-run-a2c-django-secret-keygen",
+    default="django-insecure-change-me-run-a2c-django-secret-keygen",
 )
 
-DEBUG = os.environ.get("ACME2CERTIFIER_DEBUG", "0") in ("1", "true", "True")
+DEBUG = env("ACME2CERTIFIER_DEBUG")
 
-ALLOWED_HOSTS = [
-    h.strip()
-    for h in os.environ.get("ACME2CERTIFIER_ALLOWED_HOSTS", "127.0.0.1,*").split(",")
-    if h.strip()
-]
+ALLOWED_HOSTS = env("ACME2CERTIFIER_ALLOWED_HOSTS")
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -65,10 +64,10 @@ TEMPLATES = [
 WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
-    }
+    "default": env.db(
+        "ACME2CERTIFIER_DATABASE_URL",
+        default=f"sqlite:///{BASE_DIR}/db.sqlite3",
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [

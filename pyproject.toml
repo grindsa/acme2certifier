@@ -52,17 +52,20 @@ ntlm = [
 ]
 django = [
     "Django",
+    "django-environ",
 ]
 full = [
     "gssapi",
     "requests_gssapi",
     "requests_ntlm",
     "Django",
+    "django-environ",
 ]
 test = [
     "pytest",
     "pytest-cov",
     "Django",
+    "django-environ",
     "requests_ntlm",
 ]
 
