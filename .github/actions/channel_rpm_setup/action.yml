@@ -53,6 +53,10 @@ inputs:
     description: "Package name suffix after acme2certifier (empty on full branches, -min on min-*)"
     required: false
     default: ""
+  TLS:
+    description: "Enable TLS on the Django database server"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -86,6 +90,7 @@ runs:
         PYTHON_STACK: ${{ inputs.PYTHON_STACK }}
         DJANGO_DB: ${{ inputs.DJANGO_DB }}
         NAME_SUFFIX: ${{ inputs.NAME_SUFFIX }}
+        TLS: ${{ inputs.TLS }}
 
     - name: "Download RPM artifact by name from build run"
       uses: ./.github/actions/download_artifact

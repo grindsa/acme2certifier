@@ -24,6 +24,14 @@ inputs:
     description: "IPv6"
     required: true
     default: "false"
+  TLS:
+    description: "Enable TLS on the Django database server"
+    required: false
+    default: "false"
+  XCA_DB:
+    description: "Import XCA schema into a dedicated xca database"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -94,12 +102,16 @@ runs:
       uses: ./.github/actions/mariadb_prep
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        TLS: ${{ inputs.TLS }}
+        XCA_DB: ${{ inputs.XCA_DB }}
 
     - name: "Instanciate Postgres"
       if: inputs.DJANGO_DB == 'psql'
       uses: ./.github/actions/psql_prep
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        TLS: ${{ inputs.TLS }}
+        XCA_DB: ${{ inputs.XCA_DB }}
 
     - name: "Instanciate MSSQL"
       if: inputs.DJANGO_DB == 'mssql'
