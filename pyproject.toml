@@ -58,6 +58,8 @@ full = [
     "requests_gssapi",
     "requests_ntlm",
     "Django",
+    "PyMySQL",
+    "psycopg2-binary",
 ]
 test = [
     "pytest",

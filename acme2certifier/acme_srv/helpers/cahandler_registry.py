@@ -172,9 +172,9 @@ class CAHandlerRegistry:
     def _legacy_handler_keys_warn(self, config_dic: Any) -> None:
         """Warn if classical handler keys are set while multi_handler is on."""
         self.logger.debug("CAHandlerRegistry._legacy_handler_keys_warn()")
-        if config_dic.get("CAhandler", "handler_module", fallback=None) or config_dic.get(
-            "CAhandler", "handler_file", fallback=None
-        ):
+        if config_dic.get(
+            "CAhandler", "handler_module", fallback=None
+        ) or config_dic.get("CAhandler", "handler_file", fallback=None):
             self.logger.warning(
                 "multi_handler enabled: handler_module/handler_file on [CAhandler] "
                 "are ignored; use [CAhandler:<name>] sections"
@@ -194,9 +194,7 @@ class CAHandlerRegistry:
             self.logger.warning("Failed to parse profile_cahandler: %s", err)
             return {}
         if mapping:
-            self.logger.debug(
-                "CAHandlerRegistry.load() profile_cahandler=%s", mapping
-            )
+            self.logger.debug("CAHandlerRegistry.load() profile_cahandler=%s", mapping)
         self.logger.debug("CAHandlerRegistry._profile_cahandler_load() ended")
         return mapping
 
@@ -220,9 +218,7 @@ class CAHandlerRegistry:
             self.handlers[name] = {
                 "module": module,
                 "config_section": section,
-                "route_domainlist": self._route_domainlist_load(
-                    config_dic, section
-                ),
+                "route_domainlist": self._route_domainlist_load(config_dic, section),
             }
             self.logger.debug(
                 "CAHandlerRegistry: registered handler '%s' (section %s)",
@@ -270,9 +266,7 @@ class CAHandlerRegistry:
                 section,
                 err,
             )
-        self.logger.debug(
-            "CAHandlerRegistry._route_domainlist_load() ended with []"
-        )
+        self.logger.debug("CAHandlerRegistry._route_domainlist_load() ended with []")
         return []
 
     def resolve(
@@ -360,9 +354,7 @@ class CAHandlerRegistry:
             return None
 
         bound = self._bind(name)
-        self.logger.debug(
-            "CAHandlerRegistry.resolve() ended with handler %r", name
-        )
+        self.logger.debug("CAHandlerRegistry.resolve() ended with handler %r", name)
         return bound
 
     def _resolve_by_csr(self, csr: str) -> Optional[str]:
