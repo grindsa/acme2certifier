@@ -2,7 +2,7 @@
 """ejbca rest ca handler"""
 
 import os
-from typing import Tuple, Dict
+from typing import List, Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 
@@ -305,6 +305,19 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_cainfo_load() ended")
 
+    def _mandatory_parameter_list(self) -> List[str]:
+        """parameters which must be set for the handler to operate"""
+        parameter_list = [
+            "api_host",
+            self.profile_mapping_field,
+            "ee_profile_name",
+            "ca_name",
+            "enrollment_code",
+        ]
+        if not self.username_append_cn:
+            parameter_list.append("username")
+        return parameter_list
+
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_load()")
@@ -327,14 +340,7 @@ class CAhandler(object):
 
         # check configuration for completeness
         variable_dic = self.__dict__
-        for ele in [
-            "api_host",
-            self.profile_mapping_field,
-            "ee_profile_name",
-            "ca_name",
-            "username",
-            "enrollment_code",
-        ]:
+        for ele in self._mandatory_parameter_list():
             if not variable_dic[ele]:
                 self.logger.error(
                     '%s: parameter "%s" is missing in configuration file',
@@ -453,7 +459,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._sign()")
 
         if self.username_append_cn:
-            username = f"{self.username}{self._csr_cn_get(csr)}"
+            username = f"{self.username or ''}{self._csr_cn_get(csr)}"
         else:
             username = self.username
         self.logger.debug("CAhandler._sign() username: %s", username)
@@ -527,16 +533,7 @@ class CAhandler(object):
         """check if handler is ready"""
         self.logger.debug("CAhandler.check()")
         error = handler_config_check(
-            self.logger,
-            self,
-            [
-                "api_host",
-                self.profile_mapping_field,
-                "ee_profile_name",
-                "ca_name",
-                "username",
-                "enrollment_code",
-            ],
+            self.logger, self, self._mandatory_parameter_list()
         )
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error

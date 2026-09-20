@@ -13,7 +13,7 @@ This handler can be used to enroll certificates from the [Open Source version of
 - you'll need:
   - a [client certificate and key in p12](https://docs.keyfactor.com/ejbca/latest/authentication-methods) format to authenticate towards the REST service
   - the name of the CA issuing the certificates from EJBA admin UI
-  - a username and enrolment code
+  - an enrolment code, and a username (optional when `username_append_cn` is used)
   - a [certificate profile name](https://docs.keyfactor.com/ejbca/latest/certificate-profiles-overview)
   - an [end-entity profile name](https://docs.keyfactor.com/ejbca/latest/end-entity-profiles-overview)
 
@@ -44,9 +44,9 @@ request_timeout: <seconds>
 - cert_passphrase - passphrase to access the pkcs#12 container
 - cert_passphrase_variable - *optional* - name of the environment variable containing the cert_passphrase (a configured `cert_passphrase` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - optional - ca certificate chain in pem format needed to validate the EJBCA server certificate - can be True/False or a filename (default: True)
-- username - EJBCA username
+- username - EJBCA username. *optional* when `username_append_cn` is set, in which case the common-name is used on its own
 - username_variable - *optional* - name of the environment variable containing the EJBCA username (a configured `username` parameter in acme_srv.cfg takes precedence)
-- username_append_cn - *optional* - add common-name (or 1st SAN) to EJBCA username to allow a better differentiation in the EJBCA-UI
+- username_append_cn - *optional* - add common-name (or 1st SAN) to EJBCA username to allow a better differentiation in the EJBCA-UI. Leaving `username` unset then names the end-entity after the common-name alone
 - enrollment_code - enrollment code
 - enrollment_code_variable - *optional* - name of the environment variable containing the enrollment_code for the EJBCA user (a configured `enrollment_code` parameter in acme_srv.cfg takes precedence)
 - cert_profile_name - name of the certificate profile
