@@ -68,6 +68,8 @@ cn_enforce: True
 - **save_cert_as_hex** *(optional)* – If `True`, the certificate serial number will be stored in hexadecimal format as the filename (default: `False`).
 - **cn_enforce** *(optional)* – If `True`, the first SAN will be used as the CN if no CN is provided in the CSR (default: `False`).
 - **cert_validity_adjust** *(optional)* – If `True`, ensures that the "valid until" field of a certificate does not exceed the expiration date of any certificate in the certificate chain (default: `False`).
+- **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`). `issuer_dict` (includes the CA key passphrase) is omitted.
+- **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
 
 ### Domain Allow/Block Lists
 

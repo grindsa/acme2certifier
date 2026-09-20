@@ -186,6 +186,45 @@ DATABASES = {
 }
 ```
 
+### Encrypting the Django database connection (TLS)
+
+Place the database server CA (PEM) on the acme2certifier volume (for example `/var/www/acme2certifier/volume/db-ca.pem` or `/opt/acme2certifier/volume/db-ca.pem` on RPM) and point Django at it. The DB server must present a certificate signed by that CA. There is no `acme_srv.cfg` key for this; it lives in `DATABASES['OPTIONS']` only. Client-certificate (mTLS) authentication is not used.
+
+**MariaDB** — encrypt and verify the server certificate (`verify-ca`; no hostname check). Add `"ssl"` to the existing `OPTIONS` dict:
+
+```python
+"OPTIONS": {
+    "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
+    "charset": "utf8mb4",
+    "use_unicode": True,
+    "ssl": {"ca": "/var/www/acme2certifier/volume/db-ca.pem"},
+    # Optional hostname check (mysqlclient): "ssl_mode": "VERIFY_IDENTITY",
+}
+```
+
+**PostgreSQL** — add `OPTIONS` with `sslmode` `verify-ca` (or `verify-full` to also check the hostname). Use **absolute** paths only. libpq otherwise probes `$HOME/.postgresql/postgresql.crt`; after Apache/uWSGI `setuid` that is often `/root/.postgresql/postgresql.crt` and fails with `Permission denied`.
+
+On libpq 17+ disable the client-cert probe:
+
+```python
+"OPTIONS": {
+    "sslmode": "verify-ca",
+    "sslrootcert": "/var/www/acme2certifier/volume/db-ca.pem",
+    "sslcertmode": "disable",
+}
+```
+
+On older libpq, set `sslcert` and `sslkey` to absolute files so the default `~/.postgresql/` paths are never used (the server does not need to require client certs). libpq rejects a key with group/world access: `chmod 600` the key and make it readable by the Apache/uWSGI user (`www-data` or `nginx`).
+
+```python
+"OPTIONS": {
+    "sslmode": "verify-ca",
+    "sslrootcert": "/var/www/acme2certifier/volume/db-ca.pem",
+    "sslcert": "/var/www/acme2certifier/volume/db-client-cert.pem",
+    "sslkey": "/var/www/acme2certifier/volume/db-client-key.pem",
+}
+```
+
 ## Finalize acme2certifier configuration
 
 - Modify the [configuration file](acme_srv.md) `/var/www/acme2certifier/volume/acme_srv.cfg` according to your needs. If your CA handler needs runtime information (configuration files, keys, certificate bundles, etc.) to be shared between (cluster) nodes, ensure they are loaded from `/var/www/acme2certifier/volume`. Below is an example `[CAhandler]` section for the OpenSSL handler:

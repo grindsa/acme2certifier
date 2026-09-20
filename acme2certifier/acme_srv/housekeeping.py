@@ -49,10 +49,11 @@ def resolve_housekeeping_cli_endpoint(
 class Housekeeping(object):
     """Housekeeping class"""
 
-    def __init__(self, debug: bool = False, logger: object = None):
+    def __init__(self, debug: bool = False, logger: object = None, config_dic=None):
         self.logger = logger
+        self.config_dic = config_dic
         self.dbstore = DBstore(debug, self.logger)
-        self.message = Message(debug, None, self.logger)
+        self.message = Message(debug, None, self.logger, config_dic=config_dic)
         self.error_msg_dic = error_dic_get(self.logger)
         self.debug = debug
         self.cli_enabled = False
@@ -204,7 +205,7 @@ class Housekeeping(object):
     def _config_load(self):
         """load config from file"""
         self.logger.debug("Housekeeping._config_load()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
         self.cli_enabled = housekeeping_cli_enabled(config_dic)
         self.logger.debug(
             "Housekeeping._config_load() cli_enabled=%s", self.cli_enabled
@@ -661,7 +662,9 @@ class Housekeeping(object):
         """scan certificates and update issue/expiry date"""
         self.logger.debug("Housekeeping.certificate_dates_update()")
 
-        with Certificate(self.debug, None, self.logger) as certificate:
+        with Certificate(
+            self.debug, None, self.logger, config_dic=self.config_dic
+        ) as certificate:
             certificate.dates_update()
 
     def certificates_cleanup(
@@ -676,7 +679,9 @@ class Housekeeping(object):
         if not uts:
             uts = uts_now()
 
-        with Certificate(self.debug, None, self.logger) as certificate:
+        with Certificate(
+            self.debug, None, self.logger, config_dic=self.config_dic
+        ) as certificate:
             field_list, cert_list = certificate.cleanup(timestamp=uts, purge=purge)
 
             # normalize lists
@@ -744,7 +749,9 @@ class Housekeeping(object):
         """authorizations cleanup based on expiry date"""
         self.logger.debug("Housekeeping.authorization_invalidate(%s)", uts)
 
-        with Authorization(self.debug, None, self.logger) as authorization:
+        with Authorization(
+            self.debug, None, self.logger, config_dic=self.config_dic
+        ) as authorization:
             # get expired orders
             field_list, authorization_list = authorization.invalidate(timestamp=uts)
             # normalize lists
@@ -809,7 +816,7 @@ class Housekeeping(object):
         """nonce cleanup based on expiry date"""
         self.logger.debug("Housekeeping.nonce_cleanup()")
 
-        with Nonce(self.debug, self.logger) as nonce:
+        with Nonce(self.debug, self.logger, config_dic=self.config_dic) as nonce:
             # get expired orders
             _field_list, order_list = nonce.expire_nonces(timestamp=uts)
 
@@ -822,7 +829,7 @@ class Housekeeping(object):
         """orders cleanup based on expiry date"""
         self.logger.debug("Housekeeping.orders_invalidate(%s)", uts)
 
-        with Order(self.debug, None, self.logger) as order:
+        with Order(self.debug, None, self.logger, config_dic=self.config_dic) as order:
             # get expired orders
             field_list, order_list = order.invalidate(timestamp=uts)
             # normalize lists

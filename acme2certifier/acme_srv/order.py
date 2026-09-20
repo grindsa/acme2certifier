@@ -206,11 +206,16 @@ class Order(object):
     """class for order handling"""
 
     def __init__(
-        self, debug: bool = None, server_name: str = None, logger: object = None
+        self,
+        debug: bool = None,
+        server_name: str = None,
+        logger: object = None,
+        config_dic=None,
     ) -> None:
         """Initialize the Order handler"""
         self.debug = debug
         self.server_name = server_name
+        self.config_dic = config_dic
         self.config = OrderConfiguration()
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
@@ -220,7 +225,9 @@ class Order(object):
             "cert_path": "/acme/cert/",
         }
         self.repository = OrderRepository(self.dbstore, self.logger)
-        self.message = Message(self.debug, self.server_name, self.logger)
+        self.message = Message(
+            self.debug, self.server_name, self.logger, config_dic=config_dic
+        )
         self.error_msg_dic = error_dic_get(self.logger)
 
     def __enter__(self) -> "Order":
@@ -725,7 +732,7 @@ class Order(object):
     def _load_configuration(self):
         """Load all configuration from file."""
         self.logger.debug("Order._load_configuration()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
         # load order config
         self._load_order_config(config_dic)
         self._load_header_info_config(config_dic)
@@ -1490,7 +1497,12 @@ class Order(object):
         self, order_name: str, csr: str, header_info: str
     ) -> Tuple[int, str, str]:
         """Store CSR and perform enrollment for an order."""
-        with Certificate(self.debug, self.server_name, self.logger) as certificate:
+        with Certificate(
+            self.debug,
+            self.server_name,
+            self.logger,
+            config_dic=self.config_dic,
+        ) as certificate:
             certificate.config.ca_error_details_forward = (
                 self.config.ca_error_details_forward
             )

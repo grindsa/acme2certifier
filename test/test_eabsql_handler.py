@@ -623,61 +623,30 @@ class TestEABHandler(unittest.TestCase):
         call_args = models_mock.DBstore().certificate_lookup.call_args
         self.assertEqual(call_args[0][0], "cert_raw")
 
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_047_load_mssql_profiles_invalid_json(self, mock_connect):
-        """Invalid json: should return error"""
-        self.eabhandler.db_host = "host"
-        self.eabhandler.db_name = "name"
-        self.eabhandler.db_user = "user"
-        self.eabhandler.db_password = "pass"
-        self.eabhandler.db_system = "mssql"
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
+    def test_046_cahandler_name_get_dict(self, mock_kid, mock_prof):
+        """cahandler_name_get reads cahandler_name from a dict profile entry"""
+        mock_prof.return_value = {"kid1": {"cahandler_name": "openssl"}}
+        mock_kid.return_value = "kid1"
+        self.assertEqual(self.eabhandler.cahandler_name_get("csr"), "openssl")
 
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        # JSON is missing some brackets
-        mock_cursor.fetchall.return_value = [(
-            "keyid_01",
-                "\"hmac\": \"hmac_01\", \"order\": \"allowed_domainlist\": [\"127.0.0.1\"}}")
-        ]
-        mock_connect.return_value = mock_conn
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
+    def test_047_cahandler_name_get_json_string(self, mock_kid, mock_prof):
+        """cahandler_name_get parses a JSON string profile entry"""
+        mock_prof.return_value = {"kid1": '{"cahandler_name": "ejbca"}'}
+        mock_kid.return_value = "kid1"
+        self.assertEqual(self.eabhandler.cahandler_name_get("csr"), "ejbca")
 
-        self.eabhandler._load_profiles("postgres", "SELECT ...")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
+    def test_048_cahandler_name_get_invalid_json(self, mock_kid, mock_prof):
+        """cahandler_name_get treats invalid JSON profile entries as empty"""
+        mock_prof.return_value = {"kid1": "not-json"}
+        mock_kid.return_value = "kid1"
+        self.assertIsNone(self.eabhandler.cahandler_name_get("csr"))
 
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.eabhandler.eab_profile_get("csr"))
-        self.assertIn(
-            "ERROR:test_a2c:EABhandler._load_profiles()",
-           str(lcm.output),
-        )
-
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_048_load_postgres_profiles_invalid_json(self, mock_connect):
-        """Invalid json: should return error"""
-        self.eabhandler.db_host = "host"
-        self.eabhandler.db_name = "name"
-        self.eabhandler.db_user = "user"
-        self.eabhandler.db_password = "pass"
-        self.eabhandler.db_system = "postgres"
-
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        # JSON is missing some brackets
-        mock_cursor.fetchall.return_value = [(
-            "keyid_01",
-                "\"hmac\": \"hmac_01\", \"order\": \"allowed_domainlist\": [\"127.0.0.1\"}}")
-        ]
-        mock_connect.return_value = mock_conn
-
-        self.eabhandler._load_profiles("postgres", "SELECT ...")
-
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.eabhandler.eab_profile_get("csr"))
-        self.assertIn(
-            "ERROR:test_a2c:EABhandler._load_profiles()",
-           str(lcm.output),
-        )
 
 if __name__ == "__main__":
 

@@ -13,6 +13,25 @@ inputs:
     description: "Red Hat version"
     required: false
     default: "9"
+  TLS:
+    description: "Generate a self-signed CA/server cert and enable TLS (not required for clients)"
+    required: false
+    default: "false"
+  XCA_DB:
+    description: "Create database xca and import test/ca/acme2certifier-clean.xdb"
+    required: false
+    default: "false"
+
+outputs:
+  SSL_CA:
+    description: "Host path to the TLS CA certificate (empty unless TLS=true)"
+    value: ${{ steps.gen_tls.outputs.SSL_CA }}
+  SSL_CERT:
+    description: "Host path to the TLS server certificate (empty unless TLS=true)"
+    value: ${{ steps.gen_tls.outputs.SSL_CERT }}
+  SSL_KEY:
+    description: "Host path to the TLS server key (empty unless TLS=true)"
+    value: ${{ steps.gen_tls.outputs.SSL_KEY }}
 
 runs:
   using: "composite"
@@ -23,31 +42,91 @@ runs:
       with:
         IMAGE: mariadb:lts
 
-    - name: "Instanciate Mariadb"
-      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
-      run: |
-        echo "Instanciate mariadb for RH_VERSION $RH_VERSION"
-        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb:lts
-      shell: bash
-      env:
-        NAME_SPACE: ${{ inputs.NAME_SPACE }}
-        RH_VERSION: ${{ inputs.RH_VERSION }}
-
     - name: "Pull Mariadb image (RHEL8)"
       if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION == '8'
       uses: ./.github/actions/docker_pull
       with:
         IMAGE: mariadb:10.6-ubi9
 
-    - name: "Instanciate Mariadb for RHEL8"
-      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION == '8'
+    - name: "Generate TLS certificates"
+      id: gen_tls
+      if: inputs.INSTANCIATE == 'true' && inputs.TLS == 'true'
       run: |
-        echo "Instanciate mariadb 10 for RH_VERSION $RH_VERSION"
-        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb:10.6-ubi9
+        set -euo pipefail
+        SSL_DIR=/tmp/data/mariadb/ssl
+        sudo mkdir -p "$SSL_DIR"
+        sudo chown "$(id -u):$(id -g)" "$SSL_DIR"
+        # OpenSSL 3.x / Python ssl reject CA certs without keyUsage=keyCertSign.
+        openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+          -keyout "$SSL_DIR/ca-key.pem" -out "$SSL_DIR/ca.pem" \
+          -subj "/CN=mariadb-test-ca" \
+          -addext "basicConstraints=critical,CA:TRUE" \
+          -addext "keyUsage=critical,keyCertSign,cRLSign"
+        openssl req -newkey rsa:2048 -nodes \
+          -keyout "$SSL_DIR/server-key.pem" -out "$SSL_DIR/server.csr" \
+          -subj "/CN=mariadbsrv" \
+          -addext "subjectAltName=DNS:mariadbsrv,DNS:mariadbsrv.acme,DNS:localhost,IP:127.0.0.1" \
+          -addext "extendedKeyUsage=serverAuth" \
+          -addext "keyUsage=digitalSignature,keyEncipherment"
+        openssl x509 -req -in "$SSL_DIR/server.csr" \
+          -CA "$SSL_DIR/ca.pem" -CAkey "$SSL_DIR/ca-key.pem" -CAcreateserial \
+          -out "$SSL_DIR/server-cert.pem" -days 30 -sha256 -copy_extensions copy
+        # mysql uid differs across images (999 vs 27); keep the key world-readable.
+        chmod 644 "$SSL_DIR/ca.pem" "$SSL_DIR/server-cert.pem" "$SSL_DIR/server-key.pem"
+        {
+          echo "SSL_CA=$SSL_DIR/ca.pem"
+          echo "SSL_CERT=$SSL_DIR/server-cert.pem"
+          echo "SSL_KEY=$SSL_DIR/server-key.pem"
+        } >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: "Instanciate Mariadb"
+      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
+      run: |
+        set -euo pipefail
+        echo "Instanciate mariadb for RH_VERSION $RH_VERSION"
+        extra=()
+        ssl_opts=()
+        if [ "$TLS" = "true" ]; then
+          extra+=(-v /tmp/data/mariadb/ssl:/etc/mysql/ssl:ro)
+          ssl_opts+=(
+            --ssl-ca=/etc/mysql/ssl/ca.pem
+            --ssl-cert=/etc/mysql/ssl/server-cert.pem
+            --ssl-key=/etc/mysql/ssl/server-key.pem
+          )
+        fi
+        docker run --name mariadbsrv --network acme --network-alias mariadbsrv.acme \
+          -e MARIADB_ROOT_PASSWORD=foobar \
+          "${extra[@]}" -d mariadb:lts "${ssl_opts[@]}"
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
+        TLS: ${{ inputs.TLS }}
+
+    - name: "Instanciate Mariadb for RHEL8"
+      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION == '8'
+      run: |
+        set -euo pipefail
+        echo "Instanciate mariadb 10 for RH_VERSION $RH_VERSION"
+        extra=()
+        ssl_opts=()
+        if [ "$TLS" = "true" ]; then
+          extra+=(-v /tmp/data/mariadb/ssl:/etc/mysql/ssl:ro)
+          ssl_opts+=(
+            --ssl-ca=/etc/mysql/ssl/ca.pem
+            --ssl-cert=/etc/mysql/ssl/server-cert.pem
+            --ssl-key=/etc/mysql/ssl/server-key.pem
+          )
+        fi
+        docker run --name mariadbsrv --network acme --network-alias mariadbsrv.acme \
+          -e MARIADB_ROOT_PASSWORD=foobar \
+          "${extra[@]}" -d mariadb:10.6-ubi9 "${ssl_opts[@]}"
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        RH_VERSION: ${{ inputs.RH_VERSION }}
+        TLS: ${{ inputs.TLS }}
 
     - name: "Wait for mariadb readiness"
       if: inputs.INSTANCIATE == 'true'
@@ -84,4 +163,18 @@ runs:
         docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
         docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
         docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"FLUSH PRIVILEGES;"
+      shell: bash
+
+    - name: "Import XCA schema"
+      if: inputs.INSTANCIATE == 'true' && inputs.XCA_DB == 'true'
+      run: |
+        set -euo pipefail
+        XDB="${GITHUB_WORKSPACE}/test/ca/acme2certifier-clean.xdb"
+        test -f "$XDB"
+        python3 "${GITHUB_WORKSPACE}/.github/scripts/xca_sqlite_dump.py" \
+          --dialect mysql "$XDB" -o /tmp/xca-mariadb.sql
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"DROP DATABASE IF EXISTS xca;"
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"CREATE DATABASE xca CHARACTER SET UTF8;"
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"GRANT ALL PRIVILEGES ON xca.* TO 'acme2certifier'@'%'; FLUSH PRIVILEGES;"
+        docker exec -i mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp xca < /tmp/xca-mariadb.sql
       shell: bash

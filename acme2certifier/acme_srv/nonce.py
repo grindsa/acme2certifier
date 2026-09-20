@@ -61,9 +61,16 @@ class NonceConfiguration:
 class Nonce(object):
     """Nonce handler"""
 
-    def __init__(self, debug: bool = False, logger: object = None, repo: object = None):
+    def __init__(
+        self,
+        debug: bool = False,
+        logger: object = None,
+        repo: object = None,
+        config_dic=None,
+    ):
         self.debug = debug
         self.logger = logger
+        self.config_dic = config_dic
         self.config = NonceConfiguration()
         self.repo = repo or NonceRepository(DBstore(self.debug, self.logger))
 
@@ -78,7 +85,7 @@ class Nonce(object):
     def _load_configuration(self):
         """load configuratoion"""
 
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
 
         if config_dic:
 
