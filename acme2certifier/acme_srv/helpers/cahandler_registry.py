@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from .config import (
     cahandler_config_section_reset,
     cahandler_config_section_set,
+    config_cert_chain_skip_list_load,
     load_config,
 )
 from .domain_utils import is_domain_whitelisted
@@ -60,10 +61,34 @@ class BoundCAHandler:
         handler_cls: Type[Any],
         section: str,
         name: str,
+        *,
+        cert_chain_skip_list: Optional[List[str]] = None,
+        cert_chain_skip_list_error: Optional[str] = None,
     ) -> None:
         self.handler_cls = handler_cls
         self.section = section
         self.name = name
+        self.cert_chain_skip_list = cert_chain_skip_list or []
+        self.cert_chain_skip_list_error = cert_chain_skip_list_error
+
+    @classmethod
+    def from_config(
+        cls,
+        logger: logging.Logger,
+        handler_cls: Type[Any],
+        section: str,
+        name: str,
+        config_dic: Any,
+    ) -> "BoundCAHandler":
+        """Bind a handler class and load ``cert_chain_skip_list`` from *section*."""
+        error, skip_list = config_cert_chain_skip_list_load(logger, config_dic, section)
+        return cls(
+            handler_cls,
+            section,
+            name,
+            cert_chain_skip_list=skip_list or [],
+            cert_chain_skip_list_error=error,
+        )
 
     def __call__(self, debug: bool, logger: logging.Logger) -> Any:
         logger.debug(
@@ -99,7 +124,13 @@ def resolve_default_ca_handler(
     ca_handler_module = loader(logger, config_dic)
     if ca_handler_module:
         try:
-            return BoundCAHandler(ca_handler_module.CAhandler, "CAhandler", "default")
+            return BoundCAHandler.from_config(
+                logger,
+                ca_handler_module.CAhandler,
+                "CAhandler",
+                "default",
+                config_dic,
+            )
         except Exception as err:
             logger.critical("Failed to load CA handler module: %s", err)
             return None
@@ -152,8 +183,8 @@ class CAHandlerRegistry:
         """Load the single handler from ``[CAhandler]``."""
         module = ca_handler_load_from_section(self.logger, config_dic, "CAhandler")
         if module is not None:
-            self._single_bound = BoundCAHandler(
-                module.CAhandler, "CAhandler", "default"
+            self._single_bound = BoundCAHandler.from_config(
+                self.logger, module.CAhandler, "CAhandler", "default", config_dic
             )
             self.logger.debug(
                 "CAHandlerRegistry.load() classical mode handler=%s",
@@ -239,10 +270,15 @@ class CAHandlerRegistry:
                     "CAHandlerRegistry: failed to load handler for [%s]", section
                 )
                 continue
+            skip_error, skip_list = config_cert_chain_skip_list_load(
+                self.logger, config_dic, section
+            )
             self.handlers[name] = {
                 "module": module,
                 "config_section": section,
                 "route_domainlist": self._route_domainlist_load(config_dic, section),
+                "cert_chain_skip_list": skip_list or [],
+                "cert_chain_skip_list_error": skip_error,
             }
             self.logger.debug(
                 "CAHandlerRegistry: registered handler '%s' (section %s)",
@@ -510,6 +546,8 @@ class CAHandlerRegistry:
             entry["module"].CAhandler,
             entry["config_section"],
             name,
+            cert_chain_skip_list=entry.get("cert_chain_skip_list") or [],
+            cert_chain_skip_list_error=entry.get("cert_chain_skip_list_error"),
         )
         self.logger.debug(
             "CAHandlerRegistry._bind() ended section=%r handler=%s",

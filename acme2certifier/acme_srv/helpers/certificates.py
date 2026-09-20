@@ -20,6 +20,7 @@ from .encoding import (
     b64_decode,
 )
 from .datetime_utils import date_to_uts_utc
+from .global_variables import CONFIGURATION_ERROR_DETAIL
 from pyasn1.codec.der import decoder
 from pyasn1.type import univ
 from pyasn1_modules import rfc5280
@@ -340,6 +341,77 @@ def pembundle_to_list(logger: logging.Logger, pem_bundle: str) -> List[str]:
             cert_list.append(pem_data)
     logger.debug("Helper.pembundle_to_list() returned %s certificates", cert_list)
     return cert_list
+
+
+def _cert_sha256_fingerprint(cert: x509.Certificate) -> str:
+    """SHA-256 fingerprint as lowercase hex (no colons)."""
+    return cert.fingerprint(hashes.SHA256()).hex()
+
+
+def _pem_fingerprint(
+    logger: logging.Logger, pem_cert: str
+) -> Tuple[Optional[str], Optional[str]]:
+    """Return ``(error, fingerprint)`` for a single PEM certificate."""
+    try:
+        cert = load_pem_x509_certificate(convert_string_to_byte(pem_cert))
+    except ValueError as err_:
+        logger.error("Failed to parse certificate in chain: %s", err_)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse certificate chain",
+            None,
+        )
+    return None, _cert_sha256_fingerprint(cert)
+
+
+def cert_chain_skip(
+    logger: logging.Logger,
+    pem_bundle: Optional[str],
+    skip_list: Optional[List[str]],
+) -> Tuple[Optional[str], Optional[str]]:
+    """Drop certificates whose SHA-256 fingerprint is in *skip_list*."""
+    logger.debug("Helper.cert_chain_skip()")
+    if not pem_bundle:
+        logger.debug("Helper.cert_chain_skip() ended (empty bundle)")
+        return None, pem_bundle
+    if not skip_list:
+        logger.debug("Helper.cert_chain_skip() ended (skip list empty)")
+        return None, pem_bundle
+
+    pem_list = pembundle_to_list(logger, pem_bundle)
+    if not pem_list:
+        logger.error("cert_chain_skip_list is set but the bundle is not a PEM chain")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse certificate chain",
+            None,
+        )
+
+    skip_set = set(skip_list)
+    error, leaf_fp = _pem_fingerprint(logger, pem_list[0])
+    if error:
+        return error, None
+    if leaf_fp in skip_set:
+        logger.error("cert_chain_skip_list must not include the end-entity certificate")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            "cert_chain_skip_list includes the end-entity certificate",
+            None,
+        )
+
+    kept = [pem_list[0]]
+    for pem_cert in pem_list[1:]:
+        error, fingerprint = _pem_fingerprint(logger, pem_cert)
+        if error:
+            return error, None
+        if fingerprint not in skip_set:
+            kept.append(pem_cert)
+
+    result = "".join(kept)
+    logger.debug(
+        "Helper.cert_chain_skip() ended with %d of %d certificates kept",
+        len(kept),
+        len(pem_list),
+    )
+    return None, result
 
 
 def certid_asn1_get(logger: logging.Logger, cert_pem: str, issuer_pem: str) -> str:

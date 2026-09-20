@@ -52,6 +52,7 @@ request_timeout: <seconds>
 - cert_profile_name - name of the certificate profile
 - ee_profile_name - name of the end entity profile
 - ca_name - name of the CA used to enroll certificates
+- cert_chain_skip_list - optional - handler-independent JSON list of SHA-256 fingerprints to drop from the chain returned by EJBCA (typically the self-signed root). See [Rewriting the certificate chain](cert_chain.md)
 - allowed_domainlist - optional - list of domain-names allowed for enrollment in JSON format, for example: \["bar.local$, bar.foo.local\] (default: \[\])
 - enrollment_config_log - optional - log enrollment parameters (default False)
 - enrollment_config_log_skip_list - optional - list of enrollment parameters not to be logged in JSON format, for example: \[ "parameter1", "parameter2" \] (default: \[\])

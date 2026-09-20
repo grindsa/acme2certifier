@@ -15,8 +15,10 @@ from acme2certifier.acme_srv.helper import (
     b64_decode,
     load_config,
     ca_handler_load,
+    cert_chain_skip,
 )
 from acme2certifier.acme_srv.helpers.cahandler_registry import (
+    BoundCAHandler,
     CAHandlerRegistry,
     resolve_default_ca_handler,
 )
@@ -187,6 +189,7 @@ class Trigger(object):
         """ " load config from file"""
         self.logger.debug("Certificate._config_load()")
         config_dic = self.config_dic if self.config_dic is not None else load_config()
+        self.config_dic = config_dic
         if "Order" in config_dic:
             self.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
@@ -280,14 +283,28 @@ class Trigger(object):
             if payload:
                 error, cert_bundle, cert_raw = ca_handler.trigger(payload)
                 if cert_bundle and cert_raw:
-                    # returned cert_raw is in dear format, convert to pem for pubkey/chain checks
-                    cert_pem = convert_byte_to_string(
-                        cert_der2pem(b64_decode(self.logger, cert_raw))
-                    )
-                    # store certificate and create responses
-                    code, message, detail = self._cert_store(
-                        cert_bundle, cert_raw, cert_pem
-                    )
+                    rewrite_error = None
+                    skip_list: List[str] = []
+                    if isinstance(self.cahandler, BoundCAHandler):
+                        rewrite_error = self.cahandler.cert_chain_skip_list_error
+                        skip_list = self.cahandler.cert_chain_skip_list or []
+                    if not rewrite_error:
+                        rewrite_error, cert_bundle = cert_chain_skip(
+                            self.logger, cert_bundle, skip_list
+                        )
+                    if rewrite_error:
+                        code = 400
+                        message = rewrite_error
+                        detail = None
+                    else:
+                        # returned cert_raw is in dear format, convert to pem for pubkey/chain checks
+                        cert_pem = convert_byte_to_string(
+                            cert_der2pem(b64_decode(self.logger, cert_raw))
+                        )
+                        # store certificate and create responses
+                        code, message, detail = self._cert_store(
+                            cert_bundle, cert_raw, cert_pem
+                        )
                 else:
                     code = 400
                     message = error

@@ -313,6 +313,68 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
     return enrollment_cfg_log, enrollment_cfg_log_skip_list
 
 
+def _cert_chain_fingerprint_normalize(value: str) -> str:
+    """Normalize a SHA-256 fingerprint to lowercase hex without separators."""
+    return value.replace(":", "").replace(" ", "").lower()
+
+
+def config_cert_chain_skip_list_load(
+    logger: logging.Logger,
+    config_dic: Dict[str, str],
+    section: str = "CAhandler",
+) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Load ``cert_chain_skip_list`` from *section*.
+
+    Returns ``(error, skip_list)``. Unset yields ``(None, [])``. Invalid JSON
+    or a non-list / non-string payload yields an error and ``None``.
+    """
+    logger.debug("Helper.config_cert_chain_skip_list_load(%s)", section)
+    if not config_dic or section not in config_dic:
+        logger.debug(
+            "Helper.config_cert_chain_skip_list_load() ended (no %s section)", section
+        )
+        return None, []
+    if "cert_chain_skip_list" not in config_dic[section]:
+        logger.debug("Helper.config_cert_chain_skip_list_load() ended (unset)")
+        return None, []
+
+    try:
+        raw = config_dic[section]["cert_chain_skip_list"]
+        loaded = raw if isinstance(raw, list) else json.loads(raw)
+    except Exception as err_:
+        logger.error(
+            "Failed to parse cert_chain_skip_list from configuration: %s", err_
+        )
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse cert_chain_skip_list",
+            None,
+        )
+
+    if not isinstance(loaded, list):
+        logger.error("cert_chain_skip_list must be a JSON list")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: cert_chain_skip_list must be a JSON list",
+            None,
+        )
+
+    skip_list: List[str] = []
+    for entry in loaded:
+        if not isinstance(entry, str):
+            logger.error("cert_chain_skip_list entries must be strings")
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: "
+                "cert_chain_skip_list entries must be strings",
+                None,
+            )
+        skip_list.append(_cert_chain_fingerprint_normalize(entry))
+
+    logger.debug(
+        "Helper.config_cert_chain_skip_list_load() ended with %d fingerprints",
+        len(skip_list),
+    )
+    return None, skip_list
+
+
 def config_option_load(
     logger: logging.Logger,
     config_dic: Dict[str, str],

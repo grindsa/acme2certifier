@@ -828,6 +828,82 @@ class TestCAHandlerRegistry(unittest.TestCase):
             any("Failed to load CA handler module" in msg for msg in lcm.output)
         )
 
+    def test_043_classical_load_skip_list(self):
+        """classical BoundCAHandler loads cert_chain_skip_list from [CAhandler]"""
+        config = self._cfg(
+            {
+                "CAhandler": {
+                    "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
+                    "cert_chain_skip_list": '["AA:BB"]',
+                }
+            }
+        )
+        module = SimpleNamespace(CAhandler=_DummyHandler)
+        with patch(
+            "acme2certifier.acme_srv.helpers.cahandler_registry.ca_handler_load_from_section",
+            return_value=module,
+        ):
+            registry = self.CAHandlerRegistry(self.logger).load(config)
+        bound = registry.default_handler()
+        self.assertIsNotNone(bound)
+        self.assertIsNone(bound.cert_chain_skip_list_error)
+        self.assertEqual(["aabb"], bound.cert_chain_skip_list)
+
+    def test_044_named_handler_skip_list(self):
+        """named section skip-list is bound; [CAhandler] list is not inherited"""
+        config = self._cfg(
+            {
+                "CAhandler": {
+                    "multi_handler": "True",
+                    "default_handler": "openssl",
+                    "cert_chain_skip_list": '["bb"]',
+                },
+                "CAhandler:openssl": {
+                    "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
+                },
+                "CAhandler:ejbca": {
+                    "handler_module": "acme2certifier.cahandlers.ejbca_ca_handler",
+                    "cert_chain_skip_list": '["AA"]',
+                },
+            }
+        )
+        module = SimpleNamespace(CAhandler=_DummyHandler)
+        with patch(
+            "acme2certifier.acme_srv.helpers.cahandler_registry.ca_handler_load_from_section",
+            return_value=module,
+        ):
+            registry = self.CAHandlerRegistry(self.logger).load(config)
+        openssl = registry.resolve(cahandler_name="openssl")
+        ejbca = registry.resolve(cahandler_name="ejbca")
+        self.assertEqual([], openssl.cert_chain_skip_list)
+        self.assertEqual(["aa"], ejbca.cert_chain_skip_list)
+
+    def test_045_named_handler_skip_list_invalid(self):
+        """invalid skip-list JSON is stored as a bind error"""
+        config = self._cfg(
+            {
+                "CAhandler": {
+                    "multi_handler": "True",
+                    "default_handler": "openssl",
+                },
+                "CAhandler:openssl": {
+                    "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
+                    "cert_chain_skip_list": "not-json",
+                },
+            }
+        )
+        module = SimpleNamespace(CAhandler=_DummyHandler)
+        with patch(
+            "acme2certifier.acme_srv.helpers.cahandler_registry.ca_handler_load_from_section",
+            return_value=module,
+        ):
+            registry = self.CAHandlerRegistry(self.logger).load(config)
+        bound = registry.default_handler()
+        self.assertTrue(
+            bound.cert_chain_skip_list_error.startswith("Configuration error:")
+        )
+        self.assertEqual([], bound.cert_chain_skip_list)
+
 
 if __name__ == "__main__":
     unittest.main()
