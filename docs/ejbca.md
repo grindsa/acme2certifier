@@ -37,6 +37,8 @@ username_append_cn: <True|False>
 enrollment_code: <value>
 ca_name: <name>
 request_timeout: <seconds>
+cert_chain_skip_list: <list>
+cert_chain_root: <filename>
 ```
 
 - api_host - URL of the EJBCA-Rest service
@@ -52,6 +54,8 @@ request_timeout: <seconds>
 - cert_profile_name - name of the certificate profile
 - ee_profile_name - name of the end entity profile
 - ca_name - name of the CA used to enroll certificates
+- cert_chain_skip_list - optional - list of sha256 fingerprints in JSON format, identifying certificates to be removed from the chain returned by EJBCA, for example: \["5f2c1a9e...", "7b8d0e1f..."\] (default: \[\]). See [rewriting the certificate chain](#rewriting-the-certificate-chain)
+- cert_chain_root - optional - filename of a certificate in pem format to be appended to the chain returned by EJBCA. See [rewriting the certificate chain](#rewriting-the-certificate-chain)
 - allowed_domainlist - optional - list of domain-names allowed for enrollment in JSON format, for example: \["bar.local$, bar.foo.local\] (default: \[\])
 - enrollment_config_log - optional - log enrollment parameters (default False)
 - enrollment_config_log_skip_list - optional - list of enrollment parameters not to be logged in JSON format, for example: \[ "parameter1", "parameter2" \] (default: \[\])
@@ -74,6 +78,33 @@ The response to this call will show a dictionary containing status und version n
 ```
 
 Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found in the [disclaimer section of our README file](../README.md)
+
+## Rewriting the certificate chain
+
+EJBCA returns the full certificate chain, root certificate included. Two optional parameters let the handler rewrite that chain before it is handed to the ACME client.
+
+`cert_chain_skip_list` takes a JSON list of sha256 fingerprints in lower-case hex. Any certificate in the chain carrying one of these fingerprints is dropped. Matching is done on the fingerprint rather than on the subject name, so re-issuing an intermediate under the same DN does not quietly change what gets filtered.
+
+`cert_chain_root` takes the filename of one certificate in pem format, which is appended to the end of the chain.
+
+Fingerprints can be obtained with openssl:
+
+```bash
+root@rlh:~# openssl x509 -in root-ca.pem -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr 'A-Z' 'a-z'
+```
+
+Both parameters work on their own, but they were added to be used together, to swap the trust anchor:
+
+```config
+[CAhandler]
+...
+cert_chain_skip_list: ["eb3178e37d34b4981108a757dd3cb42c3989dc06ad87507bb16f75973342910f"]
+cert_chain_root: /var/www/acme2certifier/volume/cross-signed-root.pem
+```
+
+With neither parameter set the chain is passed through untouched, without being parsed.
+
+Neither parameter is fatal when misconfigured. A `cert_chain_skip_list` that is not valid JSON, a `cert_chain_root` that cannot be read or is not a certificate, and a chain that cannot be parsed are each logged as a warning, and the chain is passed on as EJBCA returned it.
 
 ## Passing a profile_id from client to server
 

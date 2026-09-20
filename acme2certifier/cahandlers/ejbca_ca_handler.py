@@ -5,6 +5,9 @@ import os
 from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
+import json
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
 
 # pylint: disable=e0401
 from acme2certifier.acme_srv.helper import (
@@ -58,6 +61,8 @@ class CAhandler(object):
         self.username = None
         self.username_append_cn = False
         self.profile_mapping_field = "cert_profile_name"
+        self.cert_chain_skip_list = []
+        self.cert_chain_root = None
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -303,6 +308,40 @@ class CAhandler(object):
                 "CAhandler", "ee_profile_name", fallback=self.ee_profile_name
             )
 
+            if "cert_chain_skip_list" in config_dic["CAhandler"]:
+                self.logger.debug(
+                    "cert_chain_skip_list parameter found in CAhandler section"
+                )
+                try:
+                    self.cert_chain_skip_list = json.loads(
+                        config_dic["CAhandler"]["cert_chain_skip_list"]
+                    )
+                    self.logger.debug(
+                        "cert_chain_skip_list parameter loaded with value: %s",
+                        self.cert_chain_skip_list,
+                    )
+                except Exception as err_:
+                    self.logger.warning(
+                        "Failed to load cert_chain_skip_list from configuration: %s",
+                        err_,
+                    )
+            if "cert_chain_root" in config_dic["CAhandler"]:
+                try:
+                    with open(config_dic["CAhandler"]["cert_chain_root"], "rb") as f:
+                        cert_chain_root_data = f.read()
+
+                    self.cert_chain_root = x509.load_pem_x509_certificate(
+                        cert_chain_root_data
+                    )
+                    self.logger.debug(
+                        "cert_chain_root parameter loaded with value: %s",
+                        self.cert_chain_root.fingerprint(hashes.SHA256()).hex(),
+                    )
+                except (FileNotFoundError, ValueError) as err_:
+                    self.logger.warning(
+                        "Failed to load cert_chain_root from configuration: %s", err_
+                    )
+
         self.logger.debug("CAhandler._config_cainfo_load() ended")
 
     def _config_load(self):
@@ -390,6 +429,34 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
         return cn
 
+    def _rewrite_chain(self, cert_bundle: str) -> str:
+        if not self.cert_chain_skip_list and not self.cert_chain_root:
+            return cert_bundle
+
+        try:
+            certificates = x509.load_pem_x509_certificates(cert_bundle.encode("utf-8"))
+        except ValueError as err_:
+            self.logger.warning("Failed to load cert_bundle from _enroll: %s", err_)
+            return cert_bundle
+
+        new_certs = [
+            cert
+            for cert in certificates
+            if cert.fingerprint(hashes.SHA256()).hex() not in self.cert_chain_skip_list
+        ]
+        if self.cert_chain_root:
+            new_certs.append(self.cert_chain_root)
+
+        pems = [
+            cert.public_bytes(encoding=serialization.Encoding.PEM).rstrip()
+            for cert in new_certs
+        ]
+
+        result_pem = b"\n".join([*pems, b""])
+
+        self.logger.debug("CAhandler._rewrite_chain() ended")
+        return result_pem.decode("utf-8")
+
     def _enroll(self, csr: str) -> Tuple[str, str, str]:
         """enroll certificate"""
         self.logger.debug("CAhandler._enroll()")
@@ -411,6 +478,7 @@ class CAhandler(object):
             )
             for ca_cert in sign_response["certificate_chain"]:
                 cert_bundle = f"{cert_bundle}{convert_byte_to_string(cert_der2pem(b64_decode(self.logger, ca_cert)))}"
+            cert_bundle = self._rewrite_chain(cert_bundle)
         else:
             error = "Malformed response"
             self.logger.error(

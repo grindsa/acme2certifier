@@ -6,11 +6,58 @@
 import unittest
 import sys
 import os
+import datetime
+import json
+import tempfile
+from base64 import b64encode
 from unittest.mock import patch, Mock
 import configparser
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
+
+
+def _cert_build(common_name: str) -> x509.Certificate:
+    """build a self-signed certificate to be used as a chain element"""
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+    return (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime(2020, 1, 1))
+        .not_valid_after(datetime.datetime(2030, 1, 1))
+        .sign(key, hashes.SHA256())
+    )
+
+
+def _pem(*certs: x509.Certificate) -> str:
+    """concatenate certificates the way _enroll() assembles its bundle"""
+    return "".join(
+        cert.public_bytes(serialization.Encoding.PEM).decode("utf-8") for cert in certs
+    )
+
+
+def _fingerprint(cert: x509.Certificate) -> str:
+    """sha256 fingerprint as used in cert_chain_skip_list"""
+    return cert.fingerprint(hashes.SHA256()).hex()
+
+
+def _der_b64(cert: x509.Certificate) -> str:
+    """certificate as returned by the EJBCA rest-api"""
+    return b64encode(cert.public_bytes(serialization.Encoding.DER)).decode("utf-8")
+
+
+CERT_LEAF = _cert_build("leaf")
+CERT_ICA = _cert_build("intermediate")
+CERT_OLD_ROOT = _cert_build("old root")
+CERT_NEW_ROOT = _cert_build("cross-signed root")
 
 
 class TestACMEHandler(unittest.TestCase):
@@ -1312,6 +1359,179 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertEqual(2.0, self.cahandler.request_retry_backoff)
+
+    def test_084__config_cainfo_load(self):
+        """test _config_cainfo_load() - cert_chain_skip_list"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "cert_chain_skip_list": json.dumps([_fingerprint(CERT_OLD_ROOT)])
+        }
+        self.cahandler._config_cainfo_load(parser)
+        self.assertEqual(
+            [_fingerprint(CERT_OLD_ROOT)], self.cahandler.cert_chain_skip_list
+        )
+
+    def test_085__config_cainfo_load(self):
+        """test _config_cainfo_load() - malformed cert_chain_skip_list"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_skip_list": "not-json"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_cainfo_load(parser)
+        self.assertIn(
+            "WARNING:test_a2c:Failed to load cert_chain_skip_list from configuration: Expecting value: line 1 column 1 (char 0)",
+            lcm.output,
+        )
+        self.assertEqual([], self.cahandler.cert_chain_skip_list)
+
+    def test_086__config_cainfo_load(self):
+        """test _config_cainfo_load() - cert_chain_root"""
+        with tempfile.NamedTemporaryFile(suffix=".pem") as tmp:
+            tmp.write(CERT_NEW_ROOT.public_bytes(serialization.Encoding.PEM))
+            tmp.flush()
+            parser = configparser.ConfigParser()
+            parser["CAhandler"] = {"cert_chain_root": tmp.name}
+            self.cahandler._config_cainfo_load(parser)
+        self.assertEqual(
+            _fingerprint(CERT_NEW_ROOT), _fingerprint(self.cahandler.cert_chain_root)
+        )
+
+    def test_087__config_cainfo_load(self):
+        """test _config_cainfo_load() - cert_chain_root file does not exist"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_root": "/does/not/exist.pem"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_cainfo_load(parser)
+        self.assertIn(
+            "WARNING:test_a2c:Failed to load cert_chain_root from configuration: [Errno 2] No such file or directory: '/does/not/exist.pem'",
+            lcm.output,
+        )
+        self.assertFalse(self.cahandler.cert_chain_root)
+
+    def test_088__config_cainfo_load(self):
+        """test _config_cainfo_load() - cert_chain_root is not a certificate"""
+        with tempfile.NamedTemporaryFile(suffix=".pem") as tmp:
+            tmp.write(b"no certificate in here")
+            tmp.flush()
+            parser = configparser.ConfigParser()
+            parser["CAhandler"] = {"cert_chain_root": tmp.name}
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                self.cahandler._config_cainfo_load(parser)
+        self.assertTrue(
+            any(
+                entry.startswith(
+                    "WARNING:test_a2c:Failed to load cert_chain_root from configuration:"
+                )
+                for entry in lcm.output
+            )
+        )
+        self.assertFalse(self.cahandler.cert_chain_root)
+
+    def test_089__config_cainfo_load(self):
+        """test _config_cainfo_load() - chain rewriting is off by default"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"ca_name": "ca_name"}
+        self.cahandler._config_cainfo_load(parser)
+        self.assertEqual([], self.cahandler.cert_chain_skip_list)
+        self.assertFalse(self.cahandler.cert_chain_root)
+
+    def test_090__rewrite_chain(self):
+        """test _rewrite_chain() - unconfigured handler preserves the chain"""
+        cert_bundle = _pem(CERT_LEAF, CERT_ICA, CERT_OLD_ROOT)
+        self.assertEqual(cert_bundle, self.cahandler._rewrite_chain(cert_bundle))
+
+    def test_091__rewrite_chain(self):
+        """test _rewrite_chain() - listed certificate gets dropped"""
+        self.cahandler.cert_chain_skip_list = [_fingerprint(CERT_OLD_ROOT)]
+        self.assertEqual(
+            _pem(CERT_LEAF, CERT_ICA),
+            self.cahandler._rewrite_chain(_pem(CERT_LEAF, CERT_ICA, CERT_OLD_ROOT)),
+        )
+
+    def test_092__rewrite_chain(self):
+        """test _rewrite_chain() - unlisted fingerprint leaves the chain alone"""
+        self.cahandler.cert_chain_skip_list = ["ff" * 32]
+        cert_bundle = _pem(CERT_LEAF, CERT_ICA, CERT_OLD_ROOT)
+        self.assertEqual(cert_bundle, self.cahandler._rewrite_chain(cert_bundle))
+
+    def test_093__rewrite_chain(self):
+        """test _rewrite_chain() - cert_chain_root gets appended"""
+        self.cahandler.cert_chain_root = CERT_NEW_ROOT
+        self.assertEqual(
+            _pem(CERT_LEAF, CERT_ICA, CERT_OLD_ROOT, CERT_NEW_ROOT),
+            self.cahandler._rewrite_chain(_pem(CERT_LEAF, CERT_ICA, CERT_OLD_ROOT)),
+        )
+
+    def test_094__rewrite_chain(self):
+        """test _rewrite_chain() - root swapped for its cross-signed counterpart"""
+        self.cahandler.cert_chain_skip_list = [_fingerprint(CERT_OLD_ROOT)]
+        self.cahandler.cert_chain_root = CERT_NEW_ROOT
+        self.assertEqual(
+            _pem(CERT_LEAF, CERT_ICA, CERT_NEW_ROOT),
+            self.cahandler._rewrite_chain(_pem(CERT_LEAF, CERT_ICA, CERT_OLD_ROOT)),
+        )
+
+    def test_095__rewrite_chain(self):
+        """test _rewrite_chain() - every certificate skipped"""
+        self.cahandler.cert_chain_skip_list = [
+            _fingerprint(CERT_LEAF),
+            _fingerprint(CERT_ICA),
+        ]
+        self.assertEqual("", self.cahandler._rewrite_chain(_pem(CERT_LEAF, CERT_ICA)))
+
+    def test_096__rewrite_chain(self):
+        """test _rewrite_chain() - unparseable bundle is handed back untouched"""
+        self.cahandler.cert_chain_root = CERT_NEW_ROOT
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual("foo", self.cahandler._rewrite_chain("foo"))
+        self.assertTrue(
+            any(
+                entry.startswith(
+                    "WARNING:test_a2c:Failed to load cert_bundle from _enroll:"
+                )
+                for entry in lcm.output
+            )
+        )
+
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
+    def test_097_enroll(self, mock_status, mock_sign):
+        """test enrollment - chain rewriting applies to the enrolled bundle"""
+        mock_status.return_value = {"status": "ok"}
+        mock_sign.return_value = {
+            "certificate": _der_b64(CERT_LEAF),
+            "certificate_chain": [_der_b64(CERT_ICA), _der_b64(CERT_OLD_ROOT)],
+        }
+        self.cahandler.cert_chain_skip_list = [_fingerprint(CERT_OLD_ROOT)]
+        self.cahandler.cert_chain_root = CERT_NEW_ROOT
+        self.assertEqual(
+            (None, _pem(CERT_LEAF, CERT_ICA, CERT_NEW_ROOT), _der_b64(CERT_LEAF), None),
+            self.cahandler.enroll("csr"),
+        )
+
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
+    def test_098_enroll(self, mock_status, mock_sign):
+        """test enrollment - unconfigured handler returns the EJBCA chain"""
+        mock_status.return_value = {"status": "ok"}
+        mock_sign.return_value = {
+            "certificate": _der_b64(CERT_LEAF),
+            "certificate_chain": [_der_b64(CERT_ICA), _der_b64(CERT_OLD_ROOT)],
+        }
+        self.assertEqual(
+            (
+                None,
+                _pem(CERT_LEAF, CERT_ICA, CERT_OLD_ROOT),
+                _der_b64(CERT_LEAF),
+                None,
+            ),
+            self.cahandler.enroll("csr"),
+        )
+
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.x509.load_pem_x509_certificates")
+    def test_099__rewrite_chain(self, mock_load):
+        """test _rewrite_chain() - unconfigured handler does not parse the bundle"""
+        self.assertEqual("foo", self.cahandler._rewrite_chain("foo"))
+        self.assertFalse(mock_load.called)
 
 
 if __name__ == "__main__":
