@@ -286,6 +286,10 @@ def logger_setup(debug: bool) -> logging.Logger:
     apply_log_levels(debug)
     logger = logging.getLogger("acme2certifier")
 
+    http_level = logging.DEBUG if debug else logging.WARNING
+    logging.getLogger("urllib3").setLevel(http_level)
+    logging.getLogger("requests").setLevel(http_level)
+
     formatter = logging.Formatter(fmt=log_format, datefmt="%Y-%m-%d %H:%M:%S")
     _attach_syslog_handler(logger, config_dic, formatter)
     _attach_file_handler(logger, config_dic, formatter)

@@ -832,7 +832,6 @@ class TestRenewalinfo(unittest.TestCase):
         self.assertEqual(result, renewalinfo_dic)
 
     def test_054__load_ca_handler_success(self):
-        # Patch ca_handler_load to return a mock module with CAhandler attribute
         mock_cahandler_class = MagicMock()
         mock_module = MagicMock()
         mock_module.CAhandler = mock_cahandler_class
@@ -853,7 +852,12 @@ class TestRenewalinfo(unittest.TestCase):
             self.renewalinfo._load_ca_handler(
                 {"CAhandler": {"handler_file": "/dev/null"}}
             )
-            self.assertIs(self.renewalinfo.cahandler, mock_cahandler_class)
+            from acme2certifier.acme_srv.helpers.cahandler_registry import (
+                BoundCAHandler,
+            )
+
+            self.assertIsInstance(self.renewalinfo.cahandler, BoundCAHandler)
+            self.assertIs(self.renewalinfo.cahandler.handler_cls, mock_cahandler_class)
 
     def test_055__load_ca_handler_failure(self):
         mock_registry = MagicMock()

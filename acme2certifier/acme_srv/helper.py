@@ -149,6 +149,7 @@ from .helpers.config import (
     header_info_lookup,
     client_parameter_validate,
     profile_lookup,
+    cahandler_lookup,
 )
 
 # Logging utilities

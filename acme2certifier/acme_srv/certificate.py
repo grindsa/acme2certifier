@@ -17,6 +17,8 @@ from acme2certifier.acme_srv.helper import (
     cert_bound_names_get,
     cert_serial_get,
     certid_asn1_get,
+    config_eab_profile_load,
+    cahandler_lookup,
     csr_san_get,
     csr_bound_names_get,
     csr_extensions_get,
@@ -26,6 +28,7 @@ from acme2certifier.acme_srv.helper import (
     hooks_load,
     load_config,
     pembundle_to_list,
+    profile_lookup,
     string_sanitize,
     uts_now,
     uts_to_date_utc,
@@ -296,6 +299,9 @@ class Certificate(object):
 
         # Legacy properties for backward compatibility
         self.cahandler = None
+        self.cahandler_registry = None
+        self.eab_profiling = False
+        self.eab_handler_class = None
         self.err_msg_dic = error_dic_get(self.logger)
         self.hooks = None
         self.message = Message(
@@ -728,6 +734,10 @@ class Certificate(object):
             self.cahandler = ca_handler_module.CAhandler
         else:
             self.logger.critical("No ca_handler loaded")
+
+        self.eab_profiling, self.eab_handler_class = config_eab_profile_load(
+            self.logger, config_dic
+        )
 
         # load hooks
         self._load_hooks_configuration(config_dic)
@@ -2069,7 +2079,13 @@ class Certificate(object):
 
             # Perform revocation
             rev_date = uts_to_date_utc(uts_now())
-            with self.cahandler(self.debug, self.logger) as ca_handler:
+            handler_factory = self._resolve_cahandler(
+                cert_raw=payload.get("certificate"),
+                revocation=True,
+            )
+            if handler_factory is None:
+                return 500, self.err_msg_dic["serverinternal"], None
+            with handler_factory(self.debug, self.logger) as ca_handler:
                 code, message, detail = ca_handler.revoke(
                     payload["certificate"], error, rev_date
                 )
@@ -2256,7 +2272,12 @@ class Certificate(object):
 
             # Poll certificate from CA handler
             try:
-                with self.cahandler(self.debug, self.logger) as ca_handler:
+                handler_factory = self._resolve_cahandler(
+                    csr=csr, order_name=order_name
+                )
+                if handler_factory is None:
+                    return None
+                with handler_factory(self.debug, self.logger) as ca_handler:
                     (
                         error,
                         certificate,

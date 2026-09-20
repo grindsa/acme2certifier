@@ -446,7 +446,8 @@ class TestCertificate(unittest.TestCase):
         mock_ca.__enter__.return_value = mock_ca
         mock_ca.enroll.return_value = (None, "cert", "raw", "poll")
         self.cert.cahandler = MagicMock(return_value=mock_ca)
-        result = self.cert._process_certificate_enrollment("csr")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cert._process_certificate_enrollment("csr")
         self.assertEqual(result, (None, "cert", "raw", "poll", False))
         self.assertIn(
             "INFO:test_a2c:Certificate enrollment via CA handler 'unknown'",
