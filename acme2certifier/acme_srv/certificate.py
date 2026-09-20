@@ -28,6 +28,7 @@ from acme2certifier.acme_srv.helper import (
     hooks_load,
     load_config,
     pembundle_to_list,
+    cert_chain_skip,
     profile_lookup,
     string_sanitize,
     uts_now,
@@ -725,6 +726,7 @@ class Certificate(object):
         """Load certificate configuration from file"""
         self.logger.debug("Certificate._load_configuration()")
         config_dic = self.config_dic if self.config_dic is not None else load_config()
+        self.config_dic = config_dic
 
         # load ca_handler according to configuration
         ca_handler_module = ca_handler_load(self.logger, config_dic)
@@ -1004,6 +1006,9 @@ class Certificate(object):
                     certificate_raw,
                     poll_identifier,
                 ) = ca_handler.enroll(csr)
+                error, certificate, certificate_raw = self._cert_bundle_rewrite(
+                    error, certificate, certificate_raw, handler_factory
+                )
             cert_reusage = False
         else:
             self.logger.info("Reuse existing certificate")
@@ -1011,6 +1016,40 @@ class Certificate(object):
 
         self.logger.debug("Certificate._process_certificate_enrollment() ended")
         return (error, certificate, certificate_raw, poll_identifier, cert_reusage)
+
+    def _cert_bundle_rewrite(
+        self,
+        error: Optional[str],
+        certificate: Optional[str],
+        certificate_raw: Optional[str],
+        handler_factory: Optional[BoundCAHandler] = None,
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Apply the resolved CAhandler cert_chain_skip_list to a PEM bundle."""
+        self.logger.debug("Certificate._cert_bundle_rewrite()")
+        if error or not certificate:
+            self.logger.debug("Certificate._cert_bundle_rewrite() skipped")
+            return error, certificate, certificate_raw
+
+        rewrite_error = None
+        skip_list: List[str] = []
+        if isinstance(handler_factory, BoundCAHandler):
+            rewrite_error = handler_factory.cert_chain_skip_list_error
+            skip_list = handler_factory.cert_chain_skip_list or []
+        if rewrite_error:
+            self.logger.error("Certificate chain rewrite failed: %s", rewrite_error)
+            self.logger.debug("Certificate._cert_bundle_rewrite() ended with error")
+            return rewrite_error, None, None
+
+        rewrite_error, certificate = cert_chain_skip(
+            self.logger, certificate, skip_list
+        )
+        if rewrite_error:
+            self.logger.error("Certificate chain rewrite failed: %s", rewrite_error)
+            self.logger.debug("Certificate._cert_bundle_rewrite() ended with error")
+            return rewrite_error, None, None
+
+        self.logger.debug("Certificate._cert_bundle_rewrite() ended")
+        return error, certificate, certificate_raw
 
     def _get_certificate_renewal_info(self, certificate: str) -> str:
         """get renewal info"""
@@ -2285,6 +2324,9 @@ class Certificate(object):
                         poll_identifier,
                         rejected,
                     ) = ca_handler.poll(certificate_name, poll_identifier, csr)
+                    error, certificate, certificate_raw = self._cert_bundle_rewrite(
+                        error, certificate, certificate_raw, handler_factory
+                    )
             except Exception as err:
                 self.logger.error("Error polling certificate from CA handler: %s", err)
                 return None

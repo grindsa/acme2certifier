@@ -218,6 +218,166 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
     return enrollment_cfg_log, enrollment_cfg_log_skip_list
 
 
+def _cert_chain_fingerprint_normalize(value: str) -> str:
+    """Normalize a SHA-256 fingerprint to lowercase hex without separators."""
+    return value.replace(":", "").replace(" ", "").lower()
+
+
+def config_cert_chain_skip_list_load(
+    logger: logging.Logger,
+    config_dic: Dict[str, str],
+    section: str = "CAhandler",
+) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Load ``cert_chain_skip_list`` from *section*.
+
+    Returns ``(error, skip_list)``. Unset yields ``(None, [])``. Invalid JSON
+    or a non-list / non-string payload yields an error and ``None``.
+    """
+    logger.debug("Helper.config_cert_chain_skip_list_load(%s)", section)
+    if not config_dic or section not in config_dic:
+        logger.debug(
+            "Helper.config_cert_chain_skip_list_load() ended (no %s section)", section
+        )
+        return None, []
+    if "cert_chain_skip_list" not in config_dic[section]:
+        logger.debug("Helper.config_cert_chain_skip_list_load() ended (unset)")
+        return None, []
+
+    try:
+        raw = config_dic[section]["cert_chain_skip_list"]
+        loaded = raw if isinstance(raw, list) else json.loads(raw)
+    except Exception as err_:
+        logger.error(
+            "Failed to parse cert_chain_skip_list from configuration: %s", err_
+        )
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse cert_chain_skip_list",
+            None,
+        )
+
+    if not isinstance(loaded, list):
+        logger.error("cert_chain_skip_list must be a JSON list")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: cert_chain_skip_list must be a JSON list",
+            None,
+        )
+
+    skip_list: List[str] = []
+    for entry in loaded:
+        if not isinstance(entry, str):
+            logger.error("cert_chain_skip_list entries must be strings")
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: "
+                "cert_chain_skip_list entries must be strings",
+                None,
+            )
+        skip_list.append(_cert_chain_fingerprint_normalize(entry))
+
+    logger.debug(
+        "Helper.config_cert_chain_skip_list_load() ended with %d fingerprints",
+        len(skip_list),
+    )
+    return None, skip_list
+
+
+def config_option_load(
+    logger: logging.Logger,
+    config_dic: Dict[str, str],
+    option: str,
+    *,
+    section: str = "CAhandler",
+    variable_option: Optional[str] = None,
+    current: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Load a config option from ``{option}_variable`` (environment) and/or ``option``.
+
+    Semantics (shared by CA handlers):
+    - If ``variable_option`` (default ``f"{option}_variable"``) is set, read
+      ``os.environ[env_name]``. Missing env vars are logged and leave ``current``.
+    - If ``option`` is also set in the config section, it overwrites the env value
+      (INFO: ``Overwrite {option}`` when a prior value exists).
+    - If neither key is present, return ``current`` unchanged.
+
+    Returns:
+        Resolved string value, or ``current`` / ``None``.
+    """
+    logger.debug("Helper.config_option_load(%s)", option)
+    if section not in config_dic:
+        logger.debug("Helper.config_option_load(%s) ended (no section)", option)
+        return current
+
+    var_option = (
+        variable_option if variable_option is not None else f"{option}_variable"
+    )
+    section_dic = config_dic[section]
+    if option not in section_dic and var_option not in section_dic:
+        logger.debug("Helper.config_option_load(%s) ended (unset)", option)
+        return current
+
+    value = current
+    if var_option in section_dic:
+        try:
+            value = os.environ[config_dic.get(section, var_option)]
+        except Exception as err:
+            logger.error("Could not load %s:%s", var_option, err)
+
+    if option in section_dic:
+        if value:
+            logger.info("Overwrite %s", option)
+        value = config_dic.get(section, option)
+
+    logger.debug("Helper.config_option_load(%s) ended", option)
+    return value
+
+
+def _config_ca_bundle_raw(config_dic: Any, section: str, current: Any) -> Any:
+    """Read the raw ``ca_bundle`` value from a ConfigParser-like object or dict."""
+    getter = getattr(config_dic, "get", None)
+    if callable(getter) and not isinstance(config_dic, dict):
+        try:
+            return getter(section, "ca_bundle", fallback=current)
+        except Exception:
+            return current
+    if section not in config_dic:
+        return current
+    section_data = config_dic[section]
+    if not hasattr(section_data, "get") or "ca_bundle" not in section_data:
+        return current
+    return section_data.get("ca_bundle", current)
+
+
+def _config_ca_bundle_as_bool_or_path(config_dic: Any, section: str, raw: Any) -> Any:
+    """Interpret ``ca_bundle`` as a bool when it looks like one, else keep the path."""
+    if isinstance(raw, bool):
+        return raw
+    if not isinstance(raw, str) or raw.lower() not in ("true", "false"):
+        return raw
+    getboolean = getattr(config_dic, "getboolean", None)
+    if callable(getboolean) and not isinstance(config_dic, dict):
+        try:
+            return getboolean(section, "ca_bundle")
+        except Exception:
+            pass
+    return raw.lower() == "true"
+
+
+def config_ca_bundle_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    current: Any = True,
+    *,
+    section: str = "CAhandler",
+) -> Any:
+    """Load ``ca_bundle`` as a bool when possible, otherwise as a path string."""
+    logger.debug("Helper.config_ca_bundle_load()")
+    value = _config_ca_bundle_as_bool_or_path(
+        config_dic, section, _config_ca_bundle_raw(config_dic, section, current)
+    )
+    logger.debug("Helper.config_ca_bundle_load() ended with: %s", value)
+    return value
+
+
 def config_dns_server_list_load(
     logger: logging.Logger, config_dic: Dict[str, str]
 ) -> Tuple[List[str], int]:

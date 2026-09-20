@@ -3742,6 +3742,146 @@ class TestCertificate(unittest.TestCase):
         self.cert._persist_order_cahandler("ord1", "openssl")
         self.cert.repository.order_update.assert_not_called()
 
+    def test_243_cahandler_hints_from_order_missing(self):
+        """Empty order lookup returns no profile or stored handler."""
+        self.cert.repository.order_lookup.return_value = None
+        self.assertEqual(self.cert._cahandler_hints_from_order("ord1"), (None, None))
+        self.cert.repository.order_lookup.assert_called_once_with(
+            "name", "ord1", ["profile", "cahandler"]
+        )
+
+    def test_244_cert_bundle_rewrite_skipped_on_error(self):
+        """existing enrollment error is not rewritten"""
+        error, bundle, raw = self.cert._cert_bundle_rewrite("boom", "bundle", "raw")
+        self.assertEqual("boom", error)
+        self.assertEqual("bundle", bundle)
+        self.assertEqual("raw", raw)
+
+    def test_245_cert_bundle_rewrite_skipped_without_bundle(self):
+        """no bundle means no rewrite"""
+        error, bundle, raw = self.cert._cert_bundle_rewrite(None, None, "raw")
+        self.assertIsNone(error)
+        self.assertIsNone(bundle)
+        self.assertEqual("raw", raw)
+
+    def test_246_cert_bundle_rewrite_success(self):
+        """successful skip replaces the stored bundle"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        factory = BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=["aa"],
+        )
+        with patch(
+            "acme2certifier.acme_srv.certificate.cert_chain_skip",
+            return_value=(None, "rewritten"),
+        ) as mock_skip:
+            error, bundle, raw = self.cert._cert_bundle_rewrite(
+                None, "bundle", "raw", factory
+            )
+        mock_skip.assert_called_once_with(self.cert.logger, "bundle", ["aa"])
+        self.assertIsNone(error)
+        self.assertEqual("rewritten", bundle)
+        self.assertEqual("raw", raw)
+
+    def test_247_cert_bundle_rewrite_failure_clears_bundle(self):
+        """skip-list error on BoundCAHandler discards bundle and raw"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        factory = BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=[],
+            cert_chain_skip_list_error="Configuration error: skip",
+        )
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, bundle, raw = self.cert._cert_bundle_rewrite(
+                None, "bundle", "raw", factory
+            )
+        self.assertEqual("Configuration error: skip", error)
+        self.assertIsNone(bundle)
+        self.assertIsNone(raw)
+        self.assertTrue(
+            any("Certificate chain rewrite failed" in line for line in lcm.output)
+        )
+
+    def test_248_process_certificate_enrollment_rewrites_bundle(self):
+        """enroll path rewrites the handler bundle"""
+        mock_ca = MagicMock()
+        mock_ca.__enter__.return_value = mock_ca
+        mock_ca.enroll.return_value = (None, "bundle", "raw", "poll")
+        self.cert.cahandler = MagicMock(return_value=mock_ca)
+        self.cert.config.cert_reusage_timeframe = False
+        with patch.object(
+            self.cert,
+            "_cert_bundle_rewrite",
+            return_value=(None, "rewritten", "raw"),
+        ) as mock_rewrite:
+            result = self.cert._process_certificate_enrollment("csr")
+        self.assertEqual((None, "rewritten", "raw", "poll", False), result)
+        mock_rewrite.assert_called_once_with(None, "bundle", "raw", self.cert.cahandler)
+
+    def test_249_process_certificate_enrollment_reuse_skips_rewrite(self):
+        """certificate reuse returns the stored bundle without rewrite"""
+        self.cert.config.cert_reusage_timeframe = True
+        with (
+            patch.object(
+                self.cert,
+                "_check_certificate_reusability",
+                return_value=(None, "bundle", "raw", "poll"),
+            ),
+            patch.object(self.cert, "_cert_bundle_rewrite") as mock_rewrite,
+        ):
+            result = self.cert._process_certificate_enrollment("csr")
+        self.assertEqual((None, "bundle", "raw", "poll", True), result)
+        mock_rewrite.assert_not_called()
+
+    def test_250_poll_certificate_status_rewrites_bundle(self):
+        """poll path rewrites a successful bundle"""
+        mock_ca = MagicMock()
+        mock_ca.poll.return_value = (None, "bundle", "raw", "poll", False)
+        factory = MagicMock(return_value=mock_ca)
+        factory.return_value.__enter__.return_value = mock_ca
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value=None),
+            patch.object(self.cert, "_resolve_cahandler", return_value=factory),
+            patch.object(
+                self.cert, "_handle_successful_certificate_poll", return_value=1
+            ) as mock_ok,
+            patch.object(
+                self.cert,
+                "_cert_bundle_rewrite",
+                return_value=(None, "rewritten", "raw"),
+            ) as mock_rewrite,
+        ):
+            result = self.cert.poll_certificate_status("cert", "poll", "csr", "order")
+        self.assertEqual(1, result)
+        mock_rewrite.assert_called_once_with(None, "bundle", "raw", factory)
+        mock_ok.assert_called_once_with("cert", "rewritten", "raw", "order")
+
+    def test_251_poll_certificate_status_rewrite_failure(self):
+        """poll rewrite failure is handled as a failed poll"""
+        mock_ca = MagicMock()
+        mock_ca.poll.return_value = (None, "bundle", "raw", "poll", False)
+        factory = MagicMock(return_value=mock_ca)
+        factory.return_value.__enter__.return_value = mock_ca
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value=None),
+            patch.object(self.cert, "_resolve_cahandler", return_value=factory),
+            patch.object(self.cert, "_handle_failed_certificate_poll") as mock_failed,
+            patch.object(
+                self.cert,
+                "_cert_bundle_rewrite",
+                return_value=("Configuration error: skip", None, None),
+            ),
+        ):
+            result = self.cert.poll_certificate_status("cert", "poll", "csr", "order")
+        self.assertIsNone(result)
+        mock_failed.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

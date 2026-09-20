@@ -1230,6 +1230,62 @@ class TestACMEHandler(unittest.TestCase):
         ):
             self.assertIsNone(_cahandler_class_load(self.logger, {}))
 
+    def test_061_payload_process_rewrites_bundle(self):
+        """trigger stores the rewritten chain"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        payload = {"payload": "foo"}
+        ca_handler_module = importlib.import_module(
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
+        )
+        ca_handler_module.CAhandler.trigger = Mock(return_value=(None, "bundle", "raw"))
+        self.trigger.cahandler = BoundCAHandler(
+            ca_handler_module.CAhandler,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=["aa"],
+        )
+        with (
+            patch(
+                "acme2certifier.acme_srv.trigger.cert_chain_skip",
+                return_value=(None, "rewritten"),
+            ) as mock_skip,
+            patch.object(
+                self.trigger, "_cert_store", return_value=(200, "OK", None)
+            ) as mock_store,
+            patch("acme2certifier.acme_srv.trigger.b64_decode", return_value=b"raw"),
+            patch("acme2certifier.acme_srv.trigger.cert_der2pem", return_value=b"pem"),
+            patch(
+                "acme2certifier.acme_srv.trigger.convert_byte_to_string",
+                return_value="pem",
+            ),
+        ):
+            self.assertEqual((200, "OK", None), self.trigger._payload_process(payload))
+        mock_skip.assert_called_once_with(self.trigger.logger, "bundle", ["aa"])
+        mock_store.assert_called_once_with("rewritten", "raw", "pem")
+
+    def test_062_payload_process_rewrite_failure(self):
+        """trigger rewrite failure does not store"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        payload = {"payload": "foo"}
+        ca_handler_module = importlib.import_module(
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
+        )
+        ca_handler_module.CAhandler.trigger = Mock(return_value=(None, "bundle", "raw"))
+        self.trigger.cahandler = BoundCAHandler(
+            ca_handler_module.CAhandler,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list_error="Configuration error: skip",
+        )
+        with patch.object(self.trigger, "_cert_store") as mock_store:
+            self.assertEqual(
+                (400, "Configuration error: skip", None),
+                self.trigger._payload_process(payload),
+            )
+        mock_store.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
