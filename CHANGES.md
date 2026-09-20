@@ -17,6 +17,7 @@ and pick the appropriate release branch.
 - Multi-CAhandler: do not fall back to deprecated `acme_srv.ca_handler` (or log CRITICAL) when `multi_handler` is enabled; `[CAhandler]` is a registry, not a plugin
 - `logger_setup(False)` applies INFO to the root logger and quiets urllib3/requests so HTTP wire traces are not emitted when `debug` is off
 - ACME Helper debug: explicit `[DEFAULT] debug` in `acme_srv.cfg` overrides `ACME2CERTIFIER_DEBUG`; the env var is used only when `debug` is unset. Django `DEBUG` stays independent.
+- EJBCA: `username` is optional when `username_append_cn` is set, so the end-entity can be named after the certificate CN alone ([#395](https://github.com/grindsa/acme2certifier/pull/395))
 
 **New Features**:
 

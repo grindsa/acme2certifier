@@ -164,18 +164,6 @@ class CAhandler(object):
 
     def _config_authuser_load(self, config_dic: Dict[str, str]):
         self.logger.debug("CAhandler._config_authuser_load()")
-        if (
-            "username_variable" in config_dic["CAhandler"]
-            or "username" in config_dic["CAhandler"]
-        ):
-            self.username = config_option_load(
-                self.logger, config_dic, "username", current=self.username
-            )
-        else:
-            self.logger.error(
-                '%s: "username" parameter is missing in config file',
-                CONFIGURATION_ERROR_DETAIL,
-            )
 
         # check if we need to add the common name of a certificate to the username
         try:
@@ -187,6 +175,19 @@ class CAhandler(object):
                 "Could not load username_append_cn parameter, using default value: False"
             )
             self.username_append_cn = False
+
+        if (
+            "username_variable" in config_dic["CAhandler"]
+            or "username" in config_dic["CAhandler"]
+        ):
+            self.username = config_option_load(
+                self.logger, config_dic, "username", current=self.username
+            )
+        elif not self.username_append_cn:
+            self.logger.error(
+                '%s: "username" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
+            )
 
         self.logger.debug("CAhandler._config_auth_load() ended")
 
