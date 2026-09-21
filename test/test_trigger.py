@@ -133,7 +133,13 @@ class TestACMEHandler(unittest.TestCase):
             "acme2certifier.cahandlers.skeleton_ca_handler"
         )
         self.assertEqual(
-            [{"cert_name": "cert_name", "order_name": "order_name"}],
+            [
+                {
+                    "cert_name": "cert_name",
+                    "order_name": "order_name",
+                    "csr": "csr",
+                }
+            ],
             self.trigger._certname_lookup("cert_pem"),
         )
 
@@ -1280,11 +1286,62 @@ class TestACMEHandler(unittest.TestCase):
             "default",
             cert_chain_skip_list_error="Configuration error: skip",
         )
-        with patch.object(self.trigger, "_cert_store") as mock_store:
+        with (
+            patch.object(self.trigger, "_cert_store") as mock_store,
+            patch("acme2certifier.acme_srv.trigger.b64_decode", return_value=b"raw"),
+            patch("acme2certifier.acme_srv.trigger.cert_der2pem", return_value=b"pem"),
+            patch(
+                "acme2certifier.acme_srv.trigger.convert_byte_to_string",
+                return_value="pem",
+            ),
+        ):
             self.assertEqual(
                 (400, "Configuration error: skip", None),
                 self.trigger._payload_process(payload),
             )
+        mock_store.assert_not_called()
+
+    def test_063_payload_process_eab_overlay_error(self):
+        """invalid kid-profile overlay fails closed and does not store"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        payload = {"payload": "foo"}
+        ca_handler_module = importlib.import_module(
+            "acme2certifier.share.skeletons.ca_handler.skeleton_ca_handler"
+        )
+        ca_handler_module.CAhandler.trigger = Mock(return_value=(None, "bundle", "raw"))
+        self.trigger.cahandler = BoundCAHandler(
+            ca_handler_module.CAhandler,
+            "CAhandler",
+            "default",
+        )
+        self.trigger.eab_profiling = True
+        self.trigger.eab_handler_class = Mock()
+        with (
+            patch.object(self.trigger, "_eab_processing_csr", return_value="csr"),
+            patch.object(
+                self.trigger,
+                "_eab_cahandler_profile",
+                return_value={"cert_chain_skip_list": "nope"},
+            ),
+            patch.object(
+                self.trigger.cahandler,
+                "eab_chain_overlay",
+                return_value=("Configuration error: skip", self.trigger.cahandler),
+            ) as mock_overlay,
+            patch.object(self.trigger, "_cert_store") as mock_store,
+            patch("acme2certifier.acme_srv.trigger.b64_decode", return_value=b"raw"),
+            patch("acme2certifier.acme_srv.trigger.cert_der2pem", return_value=b"pem"),
+            patch(
+                "acme2certifier.acme_srv.trigger.convert_byte_to_string",
+                return_value="pem",
+            ),
+        ):
+            self.assertEqual(
+                (400, "Configuration error: skip", None),
+                self.trigger._payload_process(payload),
+            )
+        mock_overlay.assert_called_once()
         mock_store.assert_not_called()
 
 

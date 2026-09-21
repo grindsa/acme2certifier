@@ -8,9 +8,12 @@ import logging
 from typing import Any, Dict, List, Optional, Type
 
 from .config import (
+    CERT_CHAIN_PROFILE_KEYS,
     cahandler_config_section_reset,
     cahandler_config_section_set,
     config_cert_chain_append_load,
+    config_cert_chain_link_check_load,
+    config_cert_chain_profile_load,
     config_cert_chain_skip_list_load,
     load_config,
 )
@@ -67,11 +70,16 @@ def _cert_chain_bind_kwargs(
     append_error, append_pems = config_cert_chain_append_load(
         logger, config_dic, section
     )
+    link_error, link_check = config_cert_chain_link_check_load(
+        logger, config_dic, section
+    )
     return {
         "cert_chain_skip_list": skip_list or [],
         "cert_chain_skip_list_error": skip_error,
         "cert_chain_append": append_pems or [],
         "cert_chain_append_error": append_error,
+        "cert_chain_link_check": link_check,
+        "cert_chain_link_check_error": link_error,
     }
 
 
@@ -88,6 +96,8 @@ class BoundCAHandler:
         cert_chain_skip_list_error: Optional[str] = None,
         cert_chain_append: Optional[List[str]] = None,
         cert_chain_append_error: Optional[str] = None,
+        cert_chain_link_check: bool = True,
+        cert_chain_link_check_error: Optional[str] = None,
     ) -> None:
         self.handler_cls = handler_cls
         self.section = section
@@ -96,6 +106,8 @@ class BoundCAHandler:
         self.cert_chain_skip_list_error = cert_chain_skip_list_error
         self.cert_chain_append = cert_chain_append or []
         self.cert_chain_append_error = cert_chain_append_error
+        self.cert_chain_link_check = cert_chain_link_check
+        self.cert_chain_link_check_error = cert_chain_link_check_error
 
     @classmethod
     def from_config(
@@ -114,19 +126,107 @@ class BoundCAHandler:
             **_cert_chain_bind_kwargs(logger, config_dic, section),
         )
 
+    def eab_chain_overlay(
+        self, logger: logging.Logger, profile_dic: Optional[dict]
+    ) -> Tuple[Optional[str], "BoundCAHandler"]:
+        """Return ``(error, factory)`` with kid-profile skip/append overlaid.
+
+        Does not mutate this factory. Keys present in *profile_dic* replace the
+        bound config values, including empty lists. Omitted keys keep the
+        bound values.
+        """
+        if not profile_dic:
+            return None, self
+        skip_list = self.cert_chain_skip_list
+        skip_error = self.cert_chain_skip_list_error
+        append = self.cert_chain_append
+        append_error = self.cert_chain_append_error
+        link_check = self.cert_chain_link_check
+        link_error = self.cert_chain_link_check_error
+        changed = False
+        for key in CERT_CHAIN_PROFILE_KEYS:
+            if key not in profile_dic:
+                continue
+            changed = True
+            error, loaded = config_cert_chain_profile_load(
+                logger, key, profile_dic[key]
+            )
+            if key == "cert_chain_skip_list":
+                skip_list = loaded or []
+                skip_error = error
+            elif key == "cert_chain_append":
+                append = loaded or []
+                append_error = error
+            else:
+                link_check = True if loaded is None else bool(loaded)
+                link_error = error
+            if error:
+                return error, self
+        if not changed:
+            return None, self
+        return None, BoundCAHandler(
+            self.handler_cls,
+            self.section,
+            self.name,
+            cert_chain_skip_list=skip_list,
+            cert_chain_skip_list_error=skip_error,
+            cert_chain_append=append,
+            cert_chain_append_error=append_error,
+            cert_chain_link_check=link_check,
+            cert_chain_link_check_error=link_error,
+        )
+
     def cert_chain_rewrite(
         self, logger: logging.Logger, pem_bundle: Optional[str]
     ) -> Tuple[Optional[str], Optional[str]]:
         """Apply skip-list then append PEMs to a handler bundle."""
-        error = self.cert_chain_skip_list_error or self.cert_chain_append_error
+        error = (
+            self.cert_chain_skip_list_error
+            or self.cert_chain_append_error
+            or self.cert_chain_link_check_error
+        )
         if error:
             return error, None
+        # #region agent log
+        from .certificates import (
+            _agent_dbg,
+            _cert_dbg_info,
+            cert_load,
+        )  # pylint: disable=c0415
+
+        append_info = []
+        for pem_cert in self.cert_chain_append or []:
+            try:
+                append_info.append(
+                    _cert_dbg_info(cert_load(logger, pem_cert, recode=False))
+                )
+            except Exception as err_:
+                append_info.append({"parse_error": str(err_)})
+        _agent_dbg(
+            "H1",
+            "cahandler_registry.py:cert_chain_rewrite",
+            "rewrite start",
+            {
+                "name": self.name,
+                "section": self.section,
+                "skip_list": self.cert_chain_skip_list,
+                "append_count": len(self.cert_chain_append or []),
+                "append": append_info,
+                "link_check": self.cert_chain_link_check,
+            },
+        )
+        # #endregion
         error, pem_bundle = cert_chain_skip(
             logger, pem_bundle, self.cert_chain_skip_list
         )
         if error:
             return error, None
-        return cert_chain_append(logger, pem_bundle, self.cert_chain_append)
+        return cert_chain_append(
+            logger,
+            pem_bundle,
+            self.cert_chain_append,
+            link_check=self.cert_chain_link_check,
+        )
 
     def __call__(self, debug: bool, logger: logging.Logger) -> Any:
         logger.debug(
@@ -525,6 +625,8 @@ class CAHandlerRegistry:
             cert_chain_skip_list_error=entry.get("cert_chain_skip_list_error"),
             cert_chain_append=entry.get("cert_chain_append") or [],
             cert_chain_append_error=entry.get("cert_chain_append_error"),
+            cert_chain_link_check=entry.get("cert_chain_link_check", True),
+            cert_chain_link_check_error=entry.get("cert_chain_link_check_error"),
         )
         self.logger.debug(
             "CAHandlerRegistry._bind() ended section=%r handler=%s",

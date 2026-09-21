@@ -757,6 +757,91 @@ class Certificate(object):
         self.logger.debug("ca_handler: %s", ca_handler_module)
         self.logger.debug("Certificate._load_configuration() ended.")
 
+    def _eab_cahandler_name(
+        self, lookup_value: Optional[str], revocation: bool
+    ) -> Optional[str]:
+        """Return EAB-configured CA handler name, if any."""
+        if not (
+            self.eab_profiling and self.eab_handler_class is not None and lookup_value
+        ):
+            return None
+        try:
+            with self.eab_handler_class(self.logger) as eab_handler:
+                if hasattr(eab_handler, "cahandler_name_get"):
+                    return eab_handler.cahandler_name_get(
+                        lookup_value, revocation=revocation
+                    )
+        except Exception as err:
+            self.logger.warning(
+                "Failed to look up cahandler_name via EAB handler: %s", err
+            )
+        return None
+
+    def _eab_cahandler_profile(self, csr: Optional[str]) -> dict:
+        """Return the per-kid cahandler profile dict, if EAB profiling is on."""
+        if not (self.eab_profiling and self.eab_handler_class is not None and csr):
+            return {}
+        try:
+            with self.eab_handler_class(self.logger) as eab_handler:
+                if hasattr(eab_handler, "eab_profile_get"):
+                    return eab_handler.eab_profile_get(csr) or {}
+        except Exception as err:
+            self.logger.warning("Failed to look up EAB cahandler profile: %s", err)
+        return {}
+
+    def _cahandler_hints_from_order(
+        self, order_name: str
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Return (order_profile, stored_name) from an order record."""
+        try:
+            order_dic = self.repository.order_lookup(
+                "name", order_name, ["profile", "cahandler"]
+            )
+        except Exception as err:
+            self.logger.warning(
+                "Failed to load order profile/cahandler for %s: %s",
+                order_name,
+                err,
+            )
+            return None, None
+        if not order_dic:
+            return None, None
+        return order_dic.get("profile") or None, order_dic.get("cahandler") or None
+
+    def _cahandler_lookup_hints(
+        self,
+        csr: Optional[str],
+        cert_raw: Optional[str],
+        order_name: Optional[str],
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Return (order_profile, stored_name) from CSR, cert, or order."""
+        if csr:
+            return (
+                profile_lookup(self.logger, csr),
+                cahandler_lookup(self.logger, csr=csr),
+            )
+        if cert_raw:
+            return None, cahandler_lookup(self.logger, cert_raw=cert_raw)
+        if order_name:
+            return self._cahandler_hints_from_order(order_name)
+        return None, None
+
+    def _bound_cahandler_or_fallback(
+        self,
+        bound: Optional[BoundCAHandler],
+        cahandler_name: Optional[str],
+    ) -> Optional[BoundCAHandler]:
+        """Use resolved handler, or default unless an unknown EAB name was requested."""
+        if bound is not None:
+            self.logger.debug("Certificate._resolve_cahandler() -> %s", bound.name)
+            return bound
+        if cahandler_name:
+            return None
+        self.logger.error(
+            "Certificate._resolve_cahandler: no handler resolved; using default"
+        )
+        return self.cahandler
+
     def _resolve_cahandler(
         self,
         csr: Optional[str] = None,
@@ -1006,7 +1091,7 @@ class Certificate(object):
                     poll_identifier,
                 ) = ca_handler.enroll(csr)
                 error, certificate, certificate_raw = self._cert_bundle_rewrite(
-                    error, certificate, certificate_raw, handler_factory
+                    error, certificate, certificate_raw, handler_factory, csr
                 )
             cert_reusage = False
         else:
@@ -1019,9 +1104,10 @@ class Certificate(object):
     def _cert_bundle_rewrite(
         self,
         error: Optional[str],
-        certificate: Optional[str],
+        certificate: Optional[xstr],
         certificate_raw: Optional[str],
         handler_factory: Optional[BoundCAHandler] = None,
+        csr: Optional[str] = None,
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Apply the resolved CAhandler chain rewrite to a PEM bundle."""
         self.logger.debug("Certificate._cert_bundle_rewrite()")
@@ -1030,7 +1116,21 @@ class Certificate(object):
             return error, certificate, certificate_raw
 
         if isinstance(handler_factory, BoundCAHandler):
-            rewrite_error, certificate = handler_factory.cert_chain_rewrite(
+            factory = handler_factory
+            if self.eab_profiling and self.eab_handler_class and csr:
+                profile = self._eab_cahandler_profile(csr)
+                overlay_error, factory = handler_factory.eab_chain_overlay(
+                    self.logger, profile
+                )
+                if overlay_error:
+                    self.logger.error(
+                        "Certificate chain rewrite failed: %s", overlay_error
+                    )
+                    self.logger.debug(
+                        "Certificate._cert_bundle_rewrite() ended with error"
+                    )
+                    return overlay_error, None, None
+            rewrite_error, certificate = factory.cert_chain_rewrite(
                 self.logger, certificate
             )
             if rewrite_error:
@@ -2315,7 +2415,7 @@ class Certificate(object):
                         rejected,
                     ) = ca_handler.poll(certificate_name, poll_identifier, csr)
                     error, certificate, certificate_raw = self._cert_bundle_rewrite(
-                        error, certificate, certificate_raw, handler_factory
+                        error, certificate, certificate_raw, handler_factory, csr
                     )
             except Exception as err:
                 self.logger.error("Error polling certificate from CA handler: %s", err)

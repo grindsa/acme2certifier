@@ -400,6 +400,78 @@ def config_cert_chain_append_load(
     return None, pem_list
 
 
+CERT_CHAIN_PROFILE_KEYS = (
+    "cert_chain_skip_list",
+    "cert_chain_append",
+    "cert_chain_link_check",
+)
+_CERT_CHAIN_BOOL_TRUE = {"1", "true", "yes", "on"}
+_CERT_CHAIN_BOOL_FALSE = {"0", "false", "no", "off"}
+
+
+def config_cert_chain_link_check_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    section: str = "CAhandler",
+) -> Tuple[Optional[str], bool]:
+    """Load ``cert_chain_link_check`` from *section*.
+    Unset yields ``(None, True)`` (RFC 8555 fail closed). Invalid values
+    yield an error and ``True``.
+    """
+    logger.debug("Helper.config_cert_chain_link_check_load(%s)", section)
+    if not config_dic or section not in config_dic:
+        return None, True
+    if "cert_chain_link_check" not in config_dic[section]:
+        return None, True
+
+    getboolean = getattr(config_dic, "getboolean", None)
+    if callable(getboolean) and not isinstance(config_dic, dict):
+        try:
+            return None, bool(
+                getboolean(section, "cert_chain_link_check", fallback=True)
+            )
+        except Exception as err_:
+            logger.error("Failed to parse cert_chain_link_check: %s", err_)
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse cert_chain_link_check",
+                True,
+            )
+
+    raw = config_dic[section]["cert_chain_link_check"]
+    if isinstance(raw, bool):
+        return None, raw
+    if isinstance(raw, str):
+        low = raw.strip().lower()
+        if low in _CERT_CHAIN_BOOL_TRUE:
+            return None, True
+        if low in _CERT_CHAIN_BOOL_FALSE:
+            return None, False
+    logger.error("cert_chain_link_check must be a boolean")
+    return (
+        f"{CONFIGURATION_ERROR_DETAIL}: cert_chain_link_check must be a boolean",
+        True,
+    )
+
+
+def config_cert_chain_profile_load(
+    logger: logging.Logger, key: str, value: Any
+) -> Tuple[Optional[str], Any]:
+    """Parse one kid-profile cert-chain key with the same loaders as bind.
+
+    Returns ``(error, loaded)``. Unknown keys yield ``(None, None)``.
+    """
+    logger.debug("Helper.config_cert_chain_profile_load(%s)", key)
+    config_dic = {"CAhandler": {key: value}}
+    if key == "cert_chain_skip_list":
+        return config_cert_chain_skip_list_load(logger, config_dic, "CAhandler")
+    if key == "cert_chain_append":
+        return config_cert_chain_append_load(logger, config_dic, "CAhandler")
+    if key == "cert_chain_link_check":
+        return config_cert_chain_link_check_load(logger, config_dic, "CAhandler")
+    logger.debug("Helper.config_cert_chain_profile_load() ended (unknown key)")
+    return None, None
+
+
 def config_option_load(
     logger: logging.Logger,
     config_dic: Dict[str, str],

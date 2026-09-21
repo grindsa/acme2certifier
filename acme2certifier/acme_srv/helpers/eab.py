@@ -5,7 +5,15 @@ import logging
 from typing import Any, Optional
 from .csr import csr_subject_get
 from .encoding import b64_url_recode
-from .config import client_parameter_validate, profile_lookup, header_info_lookup
+from .config import (
+    CERT_CHAIN_PROFILE_KEYS,
+    client_parameter_validate,
+    config_cert_chain_profile_load,
+    profile_lookup,
+    header_info_lookup,
+    header_value_allowlist_resolve,
+)
+from .security_gate import client_header_parameter_decide, eab_profile_warn_if_denied
 from .validation import cn_validate
 from .domain_utils import allowed_domainlist_check
 
@@ -212,9 +220,14 @@ def eab_profile_revocation_check(
             b64_url_recode(logger, certificate_raw), revocation=True
         )
         for key, value in eab_profile_dic.items():
-            if key in ["subject", "allowed_domainlist", "cahandler_name"]:
+            if key in (
+                "subject",
+                "allowed_domainlist",
+                "cahandler_name",
+                *CERT_CHAIN_PROFILE_KEYS,
+            ):
                 continue
-            elif isinstance(value, str):
+            if isinstance(value, str):
                 eab_profile_string_check(logger, cahandler, key, value)
             elif isinstance(value, list):
                 # check if we need to execute a function from the handler
@@ -228,6 +241,81 @@ def eab_profile_revocation_check(
                     )
 
     logger.debug("Helper.eab_profile_revocation_check() ended")
+
+
+def _eab_profile_list_dispatch(
+    logger: logging.Logger,
+    cahandler: Any,
+    eab_handler: Any,
+    csr: str,
+    key: str,
+    value: Any,
+) -> Optional[str]:
+    """Run handler-specific list check when present, else the helper default."""
+    if "eab_profile_list_check" in dir(cahandler):
+        return cahandler.eab_profile_list_check(eab_handler, csr, key, value)
+    return eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value)
+
+
+def _eab_profile_entry_check(
+    logger: logging.Logger,
+    cahandler: Any,
+    eab_handler: Any,
+    csr: str,
+    key: str,
+    value: Any,
+) -> Optional[str]:
+    """Validate one EAB profile entry. Skip routing-only keys."""
+    if key == "cahandler_name":
+        return None
+    if key in CERT_CHAIN_PROFILE_KEYS:
+        error, _loaded = config_cert_chain_profile_load(logger, key, value)
+        return error
+    if key == "subject":
+        return eab_profile_subject_check(logger, csr, value)
+    if isinstance(value, str):
+        eab_profile_string_check(logger, cahandler, key, value)
+        return None
+    if isinstance(value, list):
+        return _eab_profile_list_dispatch(
+            logger, cahandler, eab_handler, csr, key, value
+        )
+    return None
+
+
+def _eab_profile_entries_check(
+    logger: logging.Logger,
+    cahandler: Any,
+    eab_handler: Any,
+    csr: str,
+    eab_profile_dic: dict,
+) -> Optional[str]:
+    """Return the first profile-entry error, if any."""
+    for key, value in eab_profile_dic.items():
+        result = _eab_profile_entry_check(
+            logger, cahandler, eab_handler, csr, key, value
+        )
+        if result:
+            return result
+    return None
+
+
+def _eab_header_info_not_allowed(
+    logger: logging.Logger,
+    cahandler: Any,
+    csr: str,
+    handler_hifield: str,
+    eab_profile_dic: dict,
+) -> Optional[str]:
+    """Reject header_info values that the EAB profile does not allow."""
+    if not cahandler.header_info_field or handler_hifield in eab_profile_dic:
+        return None
+    hil_value = header_info_lookup(
+        logger, csr, cahandler.header_info_field, handler_hifield
+    )
+    if not hil_value:
+        return None
+    return f'header_info field "{handler_hifield}" is not allowed by profile'
 
 
 def eab_profile_check(

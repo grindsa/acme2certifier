@@ -131,6 +131,8 @@ from .helpers.config import (
     config_enroll_config_log_load,
     config_cert_chain_skip_list_load,
     config_cert_chain_append_load,
+    config_cert_chain_link_check_load,
+    config_cert_chain_profile_load,
     config_option_load,
     config_ca_bundle_load,
     config_allowed_domainlist_load,

@@ -401,12 +401,29 @@ class TestCertChainAppend(unittest.TestCase):
         error, bundle = self.append(
             self.logger, _pem(CERT_LEAF, CERT_ICA), [_pem(CERT_OTHER)]
         )
-        self.assertEqual(
-            "Configuration error: "
-            "cert_chain_append certificate does not certify the previous one",
-            error,
+        self.assertTrue(
+            error.startswith(
+                "Configuration error: "
+                "cert_chain_append certificate does not certify the previous one"
+            )
         )
+        self.assertIn("previous issuer", error)
         self.assertIsNone(bundle)
+
+    def test_003b_append_unrelated_allowed_when_link_check_false(self):
+        """cert_chain_link_check False appends an unlinked CA and warns"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            error, bundle = self.append(
+                self.logger,
+                _pem(CERT_LEAF, CERT_ICA),
+                [_pem(CERT_OTHER)],
+                link_check=False,
+            )
+        self.assertIsNone(error)
+        self.assertEqual(_pem(CERT_LEAF, CERT_ICA, CERT_OTHER), bundle)
+        self.assertTrue(
+            any("cert_chain_link_check is False" in line for line in lcm.output)
+        )
 
     def test_004_append_leaf_fails(self):
         """appending the end-entity certificate is a configuration error"""
@@ -482,6 +499,207 @@ class TestBoundCAHandlerAppend(unittest.TestCase):
         )
         self.assertIsNone(bound.cert_chain_append_error)
         self.assertEqual([_pem(CERT_ICA2)], bound.cert_chain_append)
+
+    def test_003_link_check_default_true(self):
+        """unset cert_chain_link_check stays fail-closed"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {}
+        bound = self.BoundCAHandler.from_config(
+            self.logger, object, "CAhandler", "default", parser
+        )
+        self.assertTrue(bound.cert_chain_link_check)
+        self.assertIsNone(bound.cert_chain_link_check_error)
+
+    def test_004_link_check_false(self):
+        """named section can disable RFC link checking"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler:openssl"] = {"cert_chain_link_check": "False"}
+        bound = self.BoundCAHandler.from_config(
+            self.logger, object, "CAhandler:openssl", "openssl", parser
+        )
+        self.assertFalse(bound.cert_chain_link_check)
+        self.assertIsNone(bound.cert_chain_link_check_error)
+
+
+class TestCertChainProfileLoad(unittest.TestCase):
+    """config_cert_chain_profile_load()"""
+
+    def setUp(self):
+        logging.basicConfig(level=logging.CRITICAL)
+        self.logger = logging.getLogger("test_a2c")
+        from acme2certifier.acme_srv.helpers.config import (
+            config_cert_chain_profile_load,
+        )
+
+        self.load = config_cert_chain_profile_load
+
+    def test_001_skip_list(self):
+        """kid-profile skip-list fingerprints are normalized"""
+        error, loaded = self.load(
+            self.logger, "cert_chain_skip_list", ["AA:BB", "cc dd"]
+        )
+        self.assertIsNone(error)
+        self.assertEqual(["aabb", "ccdd"], loaded)
+
+    def test_002_unknown_key(self):
+        """unknown keys are ignored"""
+        error, loaded = self.load(self.logger, "profile_id", ["aa"])
+        self.assertIsNone(error)
+        self.assertIsNone(loaded)
+
+    def test_003_invalid_json(self):
+        """invalid skip-list JSON fails closed"""
+        error, loaded = self.load(self.logger, "cert_chain_skip_list", "nope")
+        self.assertEqual(
+            "Configuration error: Failed to parse cert_chain_skip_list", error
+        )
+        self.assertIsNone(loaded)
+
+    def test_004_link_check_false(self):
+        """kid-profile cert_chain_link_check False is parsed"""
+        error, loaded = self.load(self.logger, "cert_chain_link_check", False)
+        self.assertIsNone(error)
+        self.assertFalse(loaded)
+
+    def test_005_link_check_invalid(self):
+        """invalid cert_chain_link_check fails closed"""
+        error, loaded = self.load(self.logger, "cert_chain_link_check", "maybe")
+        self.assertEqual(
+            "Configuration error: cert_chain_link_check must be a boolean", error
+        )
+        self.assertTrue(loaded)
+
+
+class TestBoundCAHandlerEabOverlay(unittest.TestCase):
+    """BoundCAHandler.eab_chain_overlay()"""
+
+    def setUp(self):
+        logging.basicConfig(level=logging.CRITICAL)
+        self.logger = logging.getLogger("test_a2c")
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        self.BoundCAHandler = BoundCAHandler
+        self.tmpdir = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmpdir.cleanup()
+
+    def test_001_skip_replaces_without_mutating(self):
+        """kid skip-list replaces bound values on a copy"""
+        bound = self.BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=["cfg"],
+        )
+        error, overlaid = bound.eab_chain_overlay(
+            self.logger, {"cert_chain_skip_list": ["EAB"]}
+        )
+        self.assertIsNone(error)
+        self.assertIsNot(overlaid, bound)
+        self.assertEqual(["cfg"], bound.cert_chain_skip_list)
+        self.assertEqual(["eab"], overlaid.cert_chain_skip_list)
+
+    def test_002_omitted_keys_keep_bound_factory(self):
+        """profile without chain keys does not copy"""
+        bound = self.BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=["cfg"],
+        )
+        error, overlaid = bound.eab_chain_overlay(self.logger, {"profile_id": "tls"})
+        self.assertIsNone(error)
+        self.assertIs(overlaid, bound)
+
+    def test_003_empty_skip_clears_bound_list(self):
+        """empty kid skip-list clears the bound skip-list"""
+        bound = self.BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=["cfg"],
+        )
+        error, overlaid = bound.eab_chain_overlay(
+            self.logger, {"cert_chain_skip_list": []}
+        )
+        self.assertIsNone(error)
+        self.assertEqual([], overlaid.cert_chain_skip_list)
+        self.assertEqual(["cfg"], bound.cert_chain_skip_list)
+
+    def test_004_append_loads_pems(self):
+        """kid cert_chain_append paths are read into PEMs"""
+        path = _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
+        bound = self.BoundCAHandler(object, "CAhandler", "default")
+        error, overlaid = bound.eab_chain_overlay(
+            self.logger, {"cert_chain_append": [path]}
+        )
+        self.assertIsNone(error)
+        self.assertEqual([_pem(CERT_ROOT)], overlaid.cert_chain_append)
+        self.assertEqual([], bound.cert_chain_append)
+
+    def test_005_invalid_skip_fails_closed(self):
+        """invalid kid skip-list returns error and keeps the bound factory"""
+        bound = self.BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=["cfg"],
+        )
+        error, overlaid = bound.eab_chain_overlay(
+            self.logger, {"cert_chain_skip_list": "nope"}
+        )
+        self.assertEqual(
+            "Configuration error: Failed to parse cert_chain_skip_list", error
+        )
+        self.assertIs(overlaid, bound)
+
+    def test_006_overlay_then_rewrite(self):
+        """kid skip-list is used for rewrite"""
+        bound = self.BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=[_fingerprint(CERT_ROOT)],
+        )
+        error, overlaid = bound.eab_chain_overlay(
+            self.logger,
+            {
+                "cert_chain_skip_list": [
+                    _fingerprint(CERT_ICA),
+                    _fingerprint(CERT_ROOT),
+                ]
+            },
+        )
+        self.assertIsNone(error)
+        rewrite_error, bundle = overlaid.cert_chain_rewrite(self.logger, BUNDLE)
+        self.assertIsNone(rewrite_error)
+        self.assertEqual(_pem(CERT_LEAF), bundle)
+
+    def test_007_link_check_false_allows_unlinked_append(self):
+        """kid cert_chain_link_check False overlays without mutating the factory"""
+        bound = self.BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_append=[_pem(CERT_OTHER)],
+        )
+        error, overlaid = bound.eab_chain_overlay(
+            self.logger, {"cert_chain_link_check": False}
+        )
+        self.assertIsNone(error)
+        self.assertIsNot(overlaid, bound)
+        self.assertTrue(bound.cert_chain_link_check)
+        self.assertFalse(overlaid.cert_chain_link_check)
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            rewrite_error, bundle = overlaid.cert_chain_rewrite(
+                self.logger, _pem(CERT_LEAF, CERT_ICA)
+            )
+        self.assertIsNone(rewrite_error)
+        self.assertEqual(_pem(CERT_LEAF, CERT_ICA, CERT_OTHER), bundle)
+        self.assertTrue(
+            any("cert_chain_link_check is False" in line for line in lcm.output)
+        )
 
 
 if __name__ == "__main__":
