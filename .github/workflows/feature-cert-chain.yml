@@ -1,0 +1,535 @@
+name: Feature Tests - Certificate Chain Rewrite
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  guard:
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  # ---------------------------------------------------------
+  # Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Generate test CAs"
+        uses: ./.github/actions/wf_specific/cert_chain/stage_test_cas
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure layout A (cross-signed old root)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          LAYOUT: a
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Layout A - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: a
+          DEPLOYMENT_TYPE: container
+          CA_PATH: examples/Docker/data/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Configure layout B (re-issued ICA)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          LAYOUT: b
+
+      - name: "Restart a2c container"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Layout B - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: b
+          DEPLOYMENT_TYPE: container
+          CA_PATH: examples/Docker/data/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Configure unlinked trust-anchor (link_check default)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          LAYOUT: unlinked
+
+      - name: "Restart a2c container"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Unlinked append - enrollment (expect fail)"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: unlinked
+          EXPECT: fail
+          DEPLOYMENT_TYPE: container
+          CA_PATH: examples/Docker/data/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Configure unlinked trust-anchor (link_check False)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          LAYOUT: unlinked
+          LINK_CHECK: "false"
+
+      - name: "Restart a2c container"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Unlinked append link_check False - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: unlinked
+          ASSERT_WARNING: "true"
+          DEPLOYMENT_TYPE: container
+          CA_PATH: examples/Docker/data/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Setup openssl ca_handler with eab-profiling"
+        uses: ./.github/actions/wf_specific/cert_chain/setup_eabprofile
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          KEY_FILE: volume/kid_profiles.json
+          KID_PROFILES_DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "Restart a2c container"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB Profiling - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll_eabprofile
+        with:
+          DEPLOYMENT_TYPE: container
+          CA_PATH: examples/Docker/data/acme_ca
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+
+  # ---------------------------------------------------------
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
+  # ---------------------------------------------------------
+
+  test-rpm:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
+        mode: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_rpm_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          JSON_SECRET: ${{ secrets.GH_CFG }}
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Generate test CAs"
+        uses: ./.github/actions/wf_specific/cert_chain/stage_test_cas
+
+      - name: "Configure layout A (cross-signed old root)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: a
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Layout A - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: a
+          DEPLOYMENT_TYPE: rpm
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Configure layout B (re-issued ICA)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: b
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Layout B - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: b
+          DEPLOYMENT_TYPE: rpm
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Configure unlinked trust-anchor (link_check default)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: unlinked
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Unlinked append - enrollment (expect fail)"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: unlinked
+          EXPECT: fail
+          DEPLOYMENT_TYPE: rpm
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Configure unlinked trust-anchor (link_check False)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: unlinked
+          LINK_CHECK: "false"
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Unlinked append link_check False - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: unlinked
+          ASSERT_WARNING: "true"
+          DEPLOYMENT_TYPE: rpm
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Setup openssl ca_handler with eab-profiling"
+        uses: ./.github/actions/wf_specific/cert_chain/setup_eabprofile
+        with:
+          KEY_FILE: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+          KID_PROFILES_DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB Profiling - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll_eabprofile
+        with:
+          DEPLOYMENT_TYPE: rpm
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: rpm
+          ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+
+  # ---------------------------------------------------------
+  # Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+
+  test-deb:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        mode: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_deb_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          DJANGO_DB: ${{ matrix.mode == 'django' && 'psql' || '' }}
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Generate test CAs"
+        uses: ./.github/actions/wf_specific/cert_chain/stage_test_cas
+
+      - name: "Configure layout A (cross-signed old root)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: a
+          APPEND_PREFIX: /var/www/acme2certifier/volume/acme_ca
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Layout A - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: a
+          DEPLOYMENT_TYPE: deb
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Configure layout B (re-issued ICA)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: b
+          APPEND_PREFIX: /var/www/acme2certifier/volume/acme_ca
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Layout B - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: b
+          DEPLOYMENT_TYPE: deb
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Configure unlinked trust-anchor (link_check default)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: unlinked
+          APPEND_PREFIX: /var/www/acme2certifier/volume/acme_ca
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Unlinked append - enrollment (expect fail)"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: unlinked
+          EXPECT: fail
+          DEPLOYMENT_TYPE: deb
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Configure unlinked trust-anchor (link_check False)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: unlinked
+          LINK_CHECK: "false"
+          APPEND_PREFIX: /var/www/acme2certifier/volume/acme_ca
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Unlinked append link_check False - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: unlinked
+          ASSERT_WARNING: "true"
+          DEPLOYMENT_TYPE: deb
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Setup openssl ca_handler with eab-profiling"
+        uses: ./.github/actions/wf_specific/cert_chain/setup_eabprofile
+        with:
+          KEY_FILE: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+          KID_PROFILES_DEST: data/volume/acme_ca/kid_profiles.json
+          APPEND_PREFIX: /var/www/acme2certifier/volume/acme_ca
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB Profiling - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll_eabprofile
+        with:
+          DEPLOYMENT_TYPE: deb
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: deb
+          ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          WEBSRV: ${{ matrix.websrv }}

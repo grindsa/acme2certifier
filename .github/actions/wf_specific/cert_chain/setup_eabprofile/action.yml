@@ -1,0 +1,133 @@
+name: "setup_eabprofile"
+description: "openssl + kid_profile_handler with cert_chain skip/append overlays"
+inputs:
+  VOLUME_DIR:
+    description: "Volume directory (contains acme_ca/ and acme_srv.cfg)"
+    required: false
+    default: "data/volume"
+  KEY_FILE:
+    description: "key_file path written into [EABhandler] (as seen by the server)"
+    required: true
+  KID_PROFILES_DEST:
+    description: "Host path for the generated kid_profiles.json"
+    required: true
+  APPEND_PREFIX:
+    description: "cert_chain_append path prefix as seen by the server"
+    required: false
+    default: "volume/acme_ca"
+  PATH_REWRITE_FROM:
+    description: "Optional substring to rewrite in acme_srv.cfg after openssl setup"
+    required: false
+    default: ""
+  PATH_REWRITE_TO:
+    description: "Replacement for PATH_REWRITE_FROM"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Setup openssl ca_handler base cfg"
+      uses: ./.github/actions/setup_openssl_cahandler
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
+        PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
+
+    - name: "Configure EABhandler"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        KEY_FILE: ${{ inputs.KEY_FILE }}
+      run: |
+        set -euo pipefail
+        cfg="${VOLUME_DIR}/acme_srv.cfg"
+        {
+          echo
+          echo "[EABhandler]"
+          echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler"
+          echo "key_file: ${KEY_FILE}"
+          echo "eab_profiling: True"
+        } | sudo tee -a "${cfg}" >/dev/null
+
+    - name: "Generate kid_profiles.json"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        KID_PROFILES_DEST: ${{ inputs.KID_PROFILES_DEST }}
+        APPEND_PREFIX: ${{ inputs.APPEND_PREFIX }}
+      run: |
+        set -euo pipefail
+        dest_dir="$(dirname "${KID_PROFILES_DEST}")"
+        sudo mkdir -p "${dest_dir}"
+        python3 - "${VOLUME_DIR}/acme_ca" "${APPEND_PREFIX}" "${KID_PROFILES_DEST}" <<'PY'
+        import json
+        import subprocess
+        import sys
+
+        ca_dir, prefix, dest = sys.argv[1:]
+
+        def fp(name: str) -> str:
+            out = subprocess.check_output(
+                [
+                    "openssl",
+                    "x509",
+                    "-in",
+                    f"{ca_dir}/{name}",
+                    "-noout",
+                    "-fingerprint",
+                    "-sha256",
+                ],
+                text=True,
+            )
+            return out.split("=", 1)[1].strip().replace(":", "").lower()
+
+        old_root = fp("root-ca-cert.pem")
+        old_sub = fp("sub-ca-cert.pem")
+        kids = {
+            "keyid_00": {
+                "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+                "cahandler": {
+                    "cert_chain_skip_list": [old_root],
+                    "cert_chain_append": [
+                        f"{prefix}/root-ca-cross.pem",
+                        f"{prefix}/new-root.pem",
+                    ],
+                },
+            },
+            "keyid_01": {
+                "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+                "cahandler": {
+                    "cert_chain_skip_list": [old_sub, old_root],
+                    "cert_chain_append": [
+                        f"{prefix}/sub-ca-cross.pem",
+                        f"{prefix}/new-root.pem",
+                    ],
+                },
+            },
+            "keyid_02": {
+                "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+            },
+            "keyid_03": {
+                "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr",
+                "cahandler": {
+                    "cert_chain_skip_list": [old_root],
+                    "cert_chain_append": [f"{prefix}/new-root.pem"],
+                    "cert_chain_link_check": False,
+                },
+            },
+            "keyid_04": {
+                "hmac": "YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5",
+                "cahandler": {
+                    "cert_chain_skip_list": [old_root],
+                    "cert_chain_append": [f"{prefix}/new-root.pem"],
+                },
+            },
+        }
+        with open("/tmp/kid_profiles.json", "w", encoding="utf-8") as handle:
+            json.dump(kids, handle, indent=2)
+            handle.write("\n")
+        PY
+        sudo cp /tmp/kid_profiles.json "${KID_PROFILES_DEST}"
+        sudo chmod 777 "${KID_PROFILES_DEST}"
+        cat "${KID_PROFILES_DEST}"
