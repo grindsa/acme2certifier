@@ -724,7 +724,7 @@ class CAhandler(object):
         """get closesd expiry date of issuing CA"""
         self.logger.debug("CAhandler._cacert_expiry_get()")
 
-        ca_list = self.ca_cert_chain_list
+        ca_list = list(self.ca_cert_chain_list)
         if (
             self.issuer_dict["issuing_ca_cert"]
             and self.issuer_dict["issuing_ca_cert"] not in ca_list
