@@ -28,7 +28,6 @@ from acme2certifier.acme_srv.helper import (
     hooks_load,
     load_config,
     pembundle_to_list,
-    cert_chain_skip,
     profile_lookup,
     string_sanitize,
     uts_now,
@@ -1054,29 +1053,20 @@ class Certificate(object):
         certificate_raw: Optional[str],
         handler_factory: Optional[BoundCAHandler] = None,
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """Apply the resolved CAhandler cert_chain_skip_list to a PEM bundle."""
+        """Apply the resolved CAhandler chain rewrite to a PEM bundle."""
         self.logger.debug("Certificate._cert_bundle_rewrite()")
         if error or not certificate:
             self.logger.debug("Certificate._cert_bundle_rewrite() skipped")
             return error, certificate, certificate_raw
 
-        rewrite_error = None
-        skip_list: List[str] = []
         if isinstance(handler_factory, BoundCAHandler):
-            rewrite_error = handler_factory.cert_chain_skip_list_error
-            skip_list = handler_factory.cert_chain_skip_list or []
-        if rewrite_error:
-            self.logger.error("Certificate chain rewrite failed: %s", rewrite_error)
-            self.logger.debug("Certificate._cert_bundle_rewrite() ended with error")
-            return rewrite_error, None, None
-
-        rewrite_error, certificate = cert_chain_skip(
-            self.logger, certificate, skip_list
-        )
-        if rewrite_error:
-            self.logger.error("Certificate chain rewrite failed: %s", rewrite_error)
-            self.logger.debug("Certificate._cert_bundle_rewrite() ended with error")
-            return rewrite_error, None, None
+            rewrite_error, certificate = handler_factory.cert_chain_rewrite(
+                self.logger, certificate
+            )
+            if rewrite_error:
+                self.logger.error("Certificate chain rewrite failed: %s", rewrite_error)
+                self.logger.debug("Certificate._cert_bundle_rewrite() ended with error")
+                return rewrite_error, None, None
 
         self.logger.debug("Certificate._cert_bundle_rewrite() ended")
         return error, certificate, certificate_raw

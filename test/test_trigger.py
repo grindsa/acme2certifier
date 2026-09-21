@@ -1246,10 +1246,11 @@ class TestACMEHandler(unittest.TestCase):
             cert_chain_skip_list=["aa"],
         )
         with (
-            patch(
-                "acme2certifier.acme_srv.trigger.cert_chain_skip",
+            patch.object(
+                self.trigger.cahandler,
+                "cert_chain_rewrite",
                 return_value=(None, "rewritten"),
-            ) as mock_skip,
+            ) as mock_rewrite,
             patch.object(
                 self.trigger, "_cert_store", return_value=(200, "OK", None)
             ) as mock_store,
@@ -1261,7 +1262,7 @@ class TestACMEHandler(unittest.TestCase):
             ),
         ):
             self.assertEqual((200, "OK", None), self.trigger._payload_process(payload))
-        mock_skip.assert_called_once_with(self.trigger.logger, "bundle", ["aa"])
+        mock_rewrite.assert_called_once_with(self.trigger.logger, "bundle")
         mock_store.assert_called_once_with("rewritten", "raw", "pem")
 
     def test_062_payload_process_rewrite_failure(self):

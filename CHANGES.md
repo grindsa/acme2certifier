@@ -21,7 +21,7 @@ and pick the appropriate release branch.
 
 **New Features**:
 
-- Optional `[CAhandler] cert_chain_skip_list` (JSON list of SHA-256 fingerprints) to drop certificates from the PEM bundle after the CA handler returns it (enroll, poll, trigger). Typical use: omit a self-signed root. See [`docs/cert_chain.md`](docs/cert_chain.md)
+- Optional `[CAhandler] cert_chain_skip_list` (JSON list of SHA-256 fingerprints) and `cert_chain_append` (JSON list of PEM files) to rewrite the PEM bundle after the CA handler returns it (enroll, poll, trigger). Skip drops matching certificates; append adds local PEMs that must certify the previous certificate. Typical use: omit a self-signed root and attach a cross-signed replacement. See [`docs/cert_chain.md`](docs/cert_chain.md)
 - Multi-CAhandler support: configure several CA handler plugins in one instance (`multi_handler`, named `[CAhandler:<name>]` sections, EAB `cahandler_name`, `profile_cahandler`, `route_domainlist` using the same exact/wildcard matching as `[Order] allowed_domainlist`, `orders.cahandler` persistence); INI and YAML config; see [`docs/multi_cahandler.md`](docs/multi_cahandler.md)
 - Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377)); per-account overrides via EAB profile `challenge` section
 - [HARICA CertManager](docs/harica.md) REST CA handler (`harica_ca_handler`) for SSL enrollment against prevalidated domains (login/2FA, poll, optional `auto_approve`, revoke); credentials via `requester_*` / `approver_*` or matching `*_variable` environment variable names

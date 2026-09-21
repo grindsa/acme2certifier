@@ -3774,14 +3774,11 @@ class TestCertificate(unittest.TestCase):
             "default",
             cert_chain_skip_list=["aa"],
         )
-        with patch(
-            "acme2certifier.acme_srv.certificate.cert_chain_skip",
-            return_value=(None, "rewritten"),
-        ) as mock_skip:
-            error, bundle, raw = self.cert._cert_bundle_rewrite(
-                None, "bundle", "raw", factory
-            )
-        mock_skip.assert_called_once_with(self.cert.logger, "bundle", ["aa"])
+        factory.cert_chain_rewrite = MagicMock(return_value=(None, "rewritten"))
+        error, bundle, raw = self.cert._cert_bundle_rewrite(
+            None, "bundle", "raw", factory
+        )
+        factory.cert_chain_rewrite.assert_called_once_with(self.cert.logger, "bundle")
         self.assertIsNone(error)
         self.assertEqual("rewritten", bundle)
         self.assertEqual("raw", raw)
@@ -3802,6 +3799,27 @@ class TestCertificate(unittest.TestCase):
                 None, "bundle", "raw", factory
             )
         self.assertEqual("Configuration error: skip", error)
+        self.assertIsNone(bundle)
+        self.assertIsNone(raw)
+        self.assertTrue(
+            any("Certificate chain rewrite failed" in line for line in lcm.output)
+        )
+
+    def test_247b_cert_bundle_rewrite_append_error_clears_bundle(self):
+        """append error on BoundCAHandler discards bundle and raw"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        factory = BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_append_error="Configuration error: append",
+        )
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, bundle, raw = self.cert._cert_bundle_rewrite(
+                None, "bundle", "raw", factory
+            )
+        self.assertEqual("Configuration error: append", error)
         self.assertIsNone(bundle)
         self.assertIsNone(raw)
         self.assertTrue(

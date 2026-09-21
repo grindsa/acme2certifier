@@ -8,9 +8,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from .config import (
     cahandler_config_section_reset,
     cahandler_config_section_set,
+    config_cert_chain_append_load,
     config_cert_chain_skip_list_load,
     load_config,
 )
+from .certificates import cert_chain_append, cert_chain_skip
 from .domain_utils import is_domain_whitelisted
 from .plugin_loader import ca_handler_load_from_section
 
@@ -53,6 +55,24 @@ class _BoundCAHandlerInstance:
         return getattr(self._handler, item)
 
 
+def _cert_chain_bind_kwargs(
+    logger: logging.Logger, config_dic: Any, section: str
+) -> Dict[str, Any]:
+    """Load skip-list and append PEMs for *section*."""
+    skip_error, skip_list = config_cert_chain_skip_list_load(
+        logger, config_dic, section
+    )
+    append_error, append_pems = config_cert_chain_append_load(
+        logger, config_dic, section
+    )
+    return {
+        "cert_chain_skip_list": skip_list or [],
+        "cert_chain_skip_list_error": skip_error,
+        "cert_chain_append": append_pems or [],
+        "cert_chain_append_error": append_error,
+    }
+
+
 class BoundCAHandler:
     """Factory binding a CAhandler class to a named config section."""
 
@@ -64,12 +84,16 @@ class BoundCAHandler:
         *,
         cert_chain_skip_list: Optional[List[str]] = None,
         cert_chain_skip_list_error: Optional[str] = None,
+        cert_chain_append: Optional[List[str]] = None,
+        cert_chain_append_error: Optional[str] = None,
     ) -> None:
         self.handler_cls = handler_cls
         self.section = section
         self.name = name
         self.cert_chain_skip_list = cert_chain_skip_list or []
         self.cert_chain_skip_list_error = cert_chain_skip_list_error
+        self.cert_chain_append = cert_chain_append or []
+        self.cert_chain_append_error = cert_chain_append_error
 
     @classmethod
     def from_config(
@@ -80,15 +104,27 @@ class BoundCAHandler:
         name: str,
         config_dic: Any,
     ) -> "BoundCAHandler":
-        """Bind a handler class and load ``cert_chain_skip_list`` from *section*."""
-        error, skip_list = config_cert_chain_skip_list_load(logger, config_dic, section)
+        """Bind a handler class and load chain-rewrite options from *section*."""
         return cls(
             handler_cls,
             section,
             name,
-            cert_chain_skip_list=skip_list or [],
-            cert_chain_skip_list_error=error,
+            **_cert_chain_bind_kwargs(logger, config_dic, section),
         )
+
+    def cert_chain_rewrite(
+        self, logger: logging.Logger, pem_bundle: Optional[str]
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Apply skip-list then append PEMs to a handler bundle."""
+        error = self.cert_chain_skip_list_error or self.cert_chain_append_error
+        if error:
+            return error, None
+        error, pem_bundle = cert_chain_skip(
+            logger, pem_bundle, self.cert_chain_skip_list
+        )
+        if error:
+            return error, None
+        return cert_chain_append(logger, pem_bundle, self.cert_chain_append)
 
     def __call__(self, debug: bool, logger: logging.Logger) -> Any:
         logger.debug(
@@ -270,15 +306,12 @@ class CAHandlerRegistry:
                     "CAHandlerRegistry: failed to load handler for [%s]", section
                 )
                 continue
-            skip_error, skip_list = config_cert_chain_skip_list_load(
-                self.logger, config_dic, section
-            )
+            skip_kwargs = _cert_chain_bind_kwargs(self.logger, config_dic, section)
             self.handlers[name] = {
                 "module": module,
                 "config_section": section,
                 "route_domainlist": self._route_domainlist_load(config_dic, section),
-                "cert_chain_skip_list": skip_list or [],
-                "cert_chain_skip_list_error": skip_error,
+                **skip_kwargs,
             }
             self.logger.debug(
                 "CAHandlerRegistry: registered handler '%s' (section %s)",
@@ -548,6 +581,8 @@ class CAHandlerRegistry:
             name,
             cert_chain_skip_list=entry.get("cert_chain_skip_list") or [],
             cert_chain_skip_list_error=entry.get("cert_chain_skip_list_error"),
+            cert_chain_append=entry.get("cert_chain_append") or [],
+            cert_chain_append_error=entry.get("cert_chain_append_error"),
         )
         self.logger.debug(
             "CAHandlerRegistry._bind() ended section=%r handler=%s",
