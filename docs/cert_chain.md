@@ -11,8 +11,6 @@ acme2certifier can rewrite the PEM bundle **after** the CA handler returns it, b
 
 This does **not** replace OpenSSL/XCA `ca_cert_chain_list`, which is how those handlers *build* a chain when the CA does not return one.
 
-Skip runs first, then append. Invalid JSON, a missing PEM file, a chain that cannot be parsed, or an appended certificate that does not certify the previous one fails enrollment (fail closed). The original CA chain is **not** stored.
-
 The first certificate in the bundle is the end-entity certificate (RFC 8555 `MUST`) and is never dropped or replaced.
 
 ## `cert_chain_skip_list`
@@ -41,7 +39,7 @@ Typical use: drop the self-signed root the CA always includes.
 
 Optional JSON list of PEM files appended after skip. Each file may contain one certificate or a chain. Relative paths are resolved against `ACME2CERTIFIER_BASE_DIR` when that variable is set. Files are read when the CA handler is bound (restart after replacing a PEM).
 
-Each appended certificate must certify the previous one (issuer name and signature). Appending the end-entity certificate, or a certificate already in the remaining chain, is a configuration error.
+Each appended certificate must certify the previous one (issuer name and signature) unless `cert_chain_link_check` is `False`. Appending the end-entity certificate, or a certificate already in the remaining chain, is a configuration error.
 
 ```config
 [CAhandler]
@@ -52,6 +50,30 @@ cert_chain_append: ["/var/www/acme2certifier/volume/cross-signed-ica.pem", "/var
 
 Typical use: omit the CA's self-signed root, then attach a cross-signed intermediate and the replacement trust anchor.
 
-In [multi-handler](multi_cahandler.md) mode put both options on the named section (`[CAhandler:ejbca]`), not on the registry `[CAhandler]` block.
+Local throwaway CAs used for CI (re-uses `acme_srv/ca/sub-ca-key.pk8` and the existing root/sub certs; generates a new-root key):
 
-EAB-profile overrides are not in this release.
+```bash
+tools/make_test_cas.sh
+```
+
+The script prints `cert_chain_skip_list` / `cert_chain_append` snippets. Defaults: source `test/ca`, output `test/new_ca`. There is no openssl root private key; the old root is cross-signed from its certificate.
+
+## `cert_chain_link_check`
+
+Default `True`: an appended certificate that does not certify the previous one fails enrollment. Set to `False` to append anyway (unlinked extra CA, separate trust anchor). A warning is logged for each broken link.
+
+```config
+[CAhandler]
+...
+cert_chain_skip_list: ["0685ac595a5ee17aec01b4529249385ec7228009e7b5e9fcd804c27af6c7f7c4"]
+cert_chain_append: ["/var/www/acme2certifier/volume/other-root.pem"]
+cert_chain_link_check: False
+```
+
+In [multi-handler](multi_cahandler.md) mode put these options on the named section (`[CAhandler:ejbca]`), not on the registry `[CAhandler]` block.
+
+## EAB-profile overrides
+
+When [EAB profiling](eab_profiling.md) is enabled, a kid profile may set `cert_chain_skip_list`, `cert_chain_append`, and `cert_chain_link_check` in the `cahandler` block. Keys present in the profile replace the bound `acme_srv.cfg` values for that account (including an empty list). Omitted keys keep the bound values.
+
+These keys are not setattr'd onto the CA handler. Skip-list fingerprints are parsed the same way as config; append paths are read when the profile is applied. `eab_profiling` must be on. Invalid overlay fails enrollment (fail closed).

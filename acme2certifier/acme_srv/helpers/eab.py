@@ -6,7 +6,9 @@ from typing import Any, Optional
 from .csr import csr_subject_get
 from .encoding import b64_url_recode
 from .config import (
+    CERT_CHAIN_PROFILE_KEYS,
     client_parameter_validate,
+    config_cert_chain_profile_load,
     profile_lookup,
     header_info_lookup,
     header_value_allowlist_resolve,
@@ -234,9 +236,14 @@ def eab_profile_revocation_check(
             b64_url_recode(logger, certificate_raw), revocation=True
         )
         for key, value in eab_profile_dic.items():
-            if key in ["subject", "allowed_domainlist", "cahandler_name"]:
+            if key in (
+                "subject",
+                "allowed_domainlist",
+                "cahandler_name",
+                *CERT_CHAIN_PROFILE_KEYS,
+            ):
                 continue
-            elif isinstance(value, str):
+            if isinstance(value, str):
                 eab_profile_string_check(logger, cahandler, key, value)
             elif isinstance(value, list):
                 # check if we need to execute a function from the handler
@@ -277,6 +284,9 @@ def _eab_profile_entry_check(
     """Validate one EAB profile entry. Skip routing-only keys."""
     if key == "cahandler_name":
         return None
+    if key in CERT_CHAIN_PROFILE_KEYS:
+        error, _loaded = config_cert_chain_profile_load(logger, key, value)
+        return error
     if key == "subject":
         return eab_profile_subject_check(logger, csr, value)
     if isinstance(value, str):

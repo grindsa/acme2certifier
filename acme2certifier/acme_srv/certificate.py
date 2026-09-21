@@ -773,6 +773,18 @@ class Certificate(object):
             )
         return None
 
+    def _eab_cahandler_profile(self, csr: Optional[str]) -> dict:
+        """Return the per-kid cahandler profile dict, if EAB profiling is on."""
+        if not (self.eab_profiling and self.eab_handler_class is not None and csr):
+            return {}
+        try:
+            with self.eab_handler_class(self.logger) as eab_handler:
+                if hasattr(eab_handler, "eab_profile_get"):
+                    return eab_handler.eab_profile_get(csr) or {}
+        except Exception as err:
+            self.logger.warning("Failed to look up EAB cahandler profile: %s", err)
+        return {}
+
     def _cahandler_hints_from_order(
         self, order_name: str
     ) -> Tuple[Optional[str], Optional[str]]:
@@ -1036,7 +1048,7 @@ class Certificate(object):
                     poll_identifier,
                 ) = ca_handler.enroll(csr)
                 error, certificate, certificate_raw = self._cert_bundle_rewrite(
-                    error, certificate, certificate_raw, handler_factory
+                    error, certificate, certificate_raw, handler_factory, csr
                 )
             cert_reusage = False
         else:
@@ -1052,6 +1064,7 @@ class Certificate(object):
         certificate: Optional[str],
         certificate_raw: Optional[str],
         handler_factory: Optional[BoundCAHandler] = None,
+        csr: Optional[str] = None,
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Apply the resolved CAhandler chain rewrite to a PEM bundle."""
         self.logger.debug("Certificate._cert_bundle_rewrite()")
@@ -1060,7 +1073,21 @@ class Certificate(object):
             return error, certificate, certificate_raw
 
         if isinstance(handler_factory, BoundCAHandler):
-            rewrite_error, certificate = handler_factory.cert_chain_rewrite(
+            factory = handler_factory
+            if self.eab_profiling and self.eab_handler_class and csr:
+                profile = self._eab_cahandler_profile(csr)
+                overlay_error, factory = handler_factory.eab_chain_overlay(
+                    self.logger, profile
+                )
+                if overlay_error:
+                    self.logger.error(
+                        "Certificate chain rewrite failed: %s", overlay_error
+                    )
+                    self.logger.debug(
+                        "Certificate._cert_bundle_rewrite() ended with error"
+                    )
+                    return overlay_error, None, None
+            rewrite_error, certificate = factory.cert_chain_rewrite(
                 self.logger, certificate
             )
             if rewrite_error:
@@ -2348,7 +2375,7 @@ class Certificate(object):
                         rejected,
                     ) = ca_handler.poll(certificate_name, poll_identifier, csr)
                     error, certificate, certificate_raw = self._cert_bundle_rewrite(
-                        error, certificate, certificate_raw, handler_factory
+                        error, certificate, certificate_raw, handler_factory, csr
                     )
             except Exception as err:
                 self.logger.error("Error polling certificate from CA handler: %s", err)

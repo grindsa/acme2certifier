@@ -15,6 +15,7 @@ from acme2certifier.acme_srv.helper import (
     b64_decode,
     load_config,
     ca_handler_load,
+    config_eab_profile_load,
 )
 from acme2certifier.acme_srv.helpers.cahandler_registry import (
     BoundCAHandler,
@@ -145,6 +146,8 @@ class Trigger(object):
         self.hmac_keys: List[str] = []
         self.auth_disabled = False
         self.ca_cert: Optional[str] = None
+        self.eab_profiling = False
+        self.eab_handler_class = None
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -178,6 +181,7 @@ class Trigger(object):
                             {
                                 "cert_name": cert["name"],
                                 "order_name": cert["order__name"],
+                                "csr": cert["csr"],
                             }
                         )
         self.logger.debug("Trigger._certname_lookup() ended with: %s", result_list)
@@ -205,6 +209,9 @@ class Trigger(object):
         self.ca_cert = trigger_ca_cert_load(self.logger, config_dic)
         self.enabled = resolve_trigger_endpoint(
             self.logger, config_dic, log_status=False
+        )
+        self.eab_profiling, self.eab_handler_class = config_eab_profile_load(
+            self.logger, config_dic
         )
         self.logger.debug("ca_handler: %s", self.cahandler)
         self.logger.debug("Certificate._config_load() ended.")
@@ -275,6 +282,42 @@ class Trigger(object):
         self.logger.debug("Trigger._cert_store() ended")
         return (200, "OK", None)
 
+    def _eab_cahandler_profile(self, csr: Optional[str]) -> dict:
+        """Return the per-kid cahandler profile dict, if EAB profiling is on."""
+        if not (self.eab_profiling and self.eab_handler_class is not None and csr):
+            return {}
+        try:
+            with self.eab_handler_class(self.logger) as eab_handler:
+                if hasattr(eab_handler, "eab_profile_get"):
+                    return eab_handler.eab_profile_get(csr) or {}
+        except Exception as err:
+            self.logger.warning("Failed to look up EAB cahandler profile: %s", err)
+        return {}
+
+    def _eab_processing_csr(self, cert_pem: str) -> Optional[str]:
+        """CSR of the unique processing order matching *cert_pem*, if any."""
+        if not (self.eab_profiling and self.eab_handler_class):
+            return None
+        names = self._certname_lookup(cert_pem)
+        if len(names) == 1:
+            return names[0].get("csr")
+        return None
+
+    def _cert_bundle_rewrite(
+        self, cert_bundle: str, cert_pem: str
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Apply BoundCAHandler skip/append, with a kid-profile overlay when set."""
+        if not isinstance(self.cahandler, BoundCAHandler):
+            return None, cert_bundle
+        factory = self.cahandler
+        csr = self._eab_processing_csr(cert_pem)
+        if csr:
+            profile = self._eab_cahandler_profile(csr)
+            overlay_error, factory = factory.eab_chain_overlay(self.logger, profile)
+            if overlay_error:
+                return overlay_error, None
+        return factory.cert_chain_rewrite(self.logger, cert_bundle)
+
     def _payload_process(self, payload: str) -> Tuple[int, str, str]:
         """process payload"""
         self.logger.debug("Trigger._payload_process()")
@@ -282,21 +325,17 @@ class Trigger(object):
             if payload:
                 error, cert_bundle, cert_raw = ca_handler.trigger(payload)
                 if cert_bundle and cert_raw:
-                    rewrite_error = None
-                    if isinstance(self.cahandler, BoundCAHandler):
-                        rewrite_error, cert_bundle = self.cahandler.cert_chain_rewrite(
-                            self.logger, cert_bundle
-                        )
+                    cert_pem = convert_byte_to_string(
+                        cert_der2pem(b64_decode(self.logger, cert_raw))
+                    )
+                    rewrite_error, cert_bundle = self._cert_bundle_rewrite(
+                        cert_bundle, cert_pem
+                    )
                     if rewrite_error:
                         code = 400
                         message = rewrite_error
                         detail = None
                     else:
-                        # returned cert_raw is in dear format, convert to pem for pubkey/chain checks
-                        cert_pem = convert_byte_to_string(
-                            cert_der2pem(b64_decode(self.logger, cert_raw))
-                        )
-                        # store certificate and create responses
                         code, message, detail = self._cert_store(
                             cert_bundle, cert_raw, cert_pem
                         )
