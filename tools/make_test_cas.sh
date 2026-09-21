@@ -65,7 +65,31 @@ mkdir -p "${OUT_DIR}"
 OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
 
 dn_slash() {
-  openssl x509 -in "$1" -noout -subject | sed 's/^subject=[[:space:]]*//'
+  # LibreSSL: "subject= /CN=sub-ca". OpenSSL 3: "subject=CN = sub-ca".
+  # openssl req -subj requires /type=value[/type=value...] with no spaces.
+  local raw
+  raw="$(openssl x509 -in "$1" -noout -subject)"
+  raw="${raw#subject=}"
+  raw="${raw#"${raw%%[![:space:]]*}"}"
+  raw="${raw%"${raw##*[![:space:]]}"}"
+  raw="$(printf '%s' "${raw}" | sed 's/[[:space:]]*=[[:space:]]*/=/g')"
+  if [[ "${raw}" == /* ]]; then
+    printf '%s\n' "${raw}"
+    return
+  fi
+  local result="" part
+  local IFS=','
+  local -a parts
+  read -ra parts <<< "${raw}"
+  local i
+  for ((i = ${#parts[@]} - 1; i >= 0; i--)); do
+    part="${parts[$i]}"
+    part="${part#"${part%%[![:space:]]*}"}"
+    part="${part%"${part##*[![:space:]]}"}"
+    [[ -n "${part}" ]] || continue
+    result="${result}/${part}"
+  done
+  printf '%s\n' "${result}"
 }
 
 fp() {

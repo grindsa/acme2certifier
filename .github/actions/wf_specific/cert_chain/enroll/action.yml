@@ -151,20 +151,20 @@ runs:
         chain="${work}/chain.pem"
         openssl x509 -in "${crt}" -out "${leaf}"
         crt_n="$(grep -c "BEGIN CERTIFICATE" "${crt}" || true)"
+        issuer_n=0
+        if [[ -s "${issuer}" ]]; then
+          issuer_n="$(grep -c "BEGIN CERTIFICATE" "${issuer}" || true)"
+        fi
+        # lego .crt is fullchain (EE first). Remainder is certs 2..n.
         if [[ "${crt_n}" -gt 1 ]]; then
-          awk -v d="${work}" 'BEGIN{c=0} /BEGIN CERT/{c++} {print > d "/p" c ".pem"}' "${crt}"
-          : > "${chain}"
-          for f in "${work}"/p*.pem; do
-            [[ "$(fp "${f}")" == "$(fp "${leaf}")" ]] && continue
-            cat "${f}" >> "${chain}"
-          done
+          awk 'BEGIN{c=0} /BEGIN CERT/{c++} c>1{print}' "${crt}" > "${chain}"
         else
           test -s "${issuer}"
           cp "${issuer}" "${chain}"
         fi
         awk -v d="${work}" 'BEGIN{c=0} /BEGIN CERT/{c++} {print > d "/c" c ".pem"}' "${chain}"
-        n="$(find "${work}" -name 'c*.pem' | wc -l | tr -d ' ')"
-        echo "issuer chain count=${n} (crt_n=${crt_n})"
+        n="$(grep -c "BEGIN CERTIFICATE" "${chain}" || true)"
+        echo "issuer chain count=${n} (crt_n=${crt_n} issuer_n=${issuer_n})"
         found=""
         for f in "${work}"/c*.pem; do
           this="$(fp "${f}")"

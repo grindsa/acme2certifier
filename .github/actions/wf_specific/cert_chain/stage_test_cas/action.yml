@@ -22,7 +22,14 @@ runs:
         set -euo pipefail
         dest="${VOLUME_DIR}/acme_ca"
         sudo mkdir -p "${dest}"
-        tools/make_test_cas.sh -c "${CA_SOURCE_DIR}" -o "${dest}"
+        work="$(mktemp -d)"
+        tools/make_test_cas.sh -c "${CA_SOURCE_DIR}" -o "${work}"
+        sudo cp \
+          "${work}/new-root.pem" \
+          "${work}/new-root-key.pem" \
+          "${work}/sub-ca-cross.pem" \
+          "${work}/root-ca-cross.pem" \
+          "${dest}/"
         sudo chmod 644 \
           "${dest}/new-root.pem" \
           "${dest}/sub-ca-cross.pem" \
