@@ -2284,6 +2284,30 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.ca_cert_chain_list = ["cacert1"]
         self.cahandler.issuer_dict = {"issuing_ca_cert": "issuing_ca_cert"}
         self.assertEqual((335, "issuing_ca_cert"), self.cahandler._cacert_expiry_get())
+        self.assertEqual(["cacert1"], self.cahandler.ca_cert_chain_list)
+
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.datetime")
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._cert_expiry_get")
+    @patch("builtins.open", mock_open(read_data="test"), create=True)
+    @patch("os.path.exists")
+    @patch(
+        "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
+    )
+    def test_148a__cacert_expiry_get_does_not_mutate_chain_list(
+        self, mock_certload, mock_exists, mock_exp, mock_now
+    ):
+        """_cacert_expiry_get must not append issuing CA onto ca_cert_chain_list"""
+        mock_certload.side_effect = ["cert1", "issuing_ca_cert"]
+        mock_exp.side_effect = [
+            datetime.datetime(2024, 12, 31, 5, 0, 1),
+            datetime.datetime(2024, 11, 30, 5, 0, 1),
+        ]
+        mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
+        mock_exists.return_value = True
+        self.cahandler.ca_cert_chain_list = ["cacert1"]
+        self.cahandler.issuer_dict = {"issuing_ca_cert": "issuing_ca_cert"}
+        self.cahandler._cacert_expiry_get()
+        self.assertEqual(["cacert1"], self.cahandler.ca_cert_chain_list)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.datetime")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._cert_expiry_get")
