@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
+from .certificates import cert_load, pembundle_to_list
 from .encoding import b64_url_recode
 from .global_variables import CONFIGURATION_ERROR_DETAIL, PARSING_ERR_MSG
 from .plugin_loader import eab_handler_load
@@ -223,61 +224,180 @@ def _cert_chain_fingerprint_normalize(value: str) -> str:
     return value.replace(":", "").replace(" ", "").lower()
 
 
+def _config_path_resolve(path: str) -> str:
+    """Resolve *path* against ``ACME2CERTIFIER_BASE_DIR`` when it is relative."""
+    if os.path.isabs(path):
+        return path
+    base_dir = os.environ.get("ACME2CERTIFIER_BASE_DIR")
+    if not base_dir:
+        return path
+    return os.path.normpath(os.path.join(base_dir, path))
+
+
+def _config_str_list_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    section: str,
+    option: str,
+) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Load a JSON list of strings from *section*/*option*.
+    Returns ``(error, values)``. Unset yields ``(None, [])``. Invalid JSON
+    or a non-list / non-string payload yields an error and ``None``.
+    """
+    logger.debug("Helper._config_str_list_load(%s, %s)", section, option)
+    if not config_dic or section not in config_dic:
+        logger.debug("Helper._config_str_list_load() ended (no %s section)", section)
+        return None, []
+    if option not in config_dic[section]:
+        logger.debug("Helper._config_str_list_load() ended (unset %s)", option)
+        return None, []
+
+    try:
+        raw = config_dic[section][option]
+        loaded = raw if isinstance(raw, list) else json.loads(raw)
+    except Exception as err_:
+        logger.error("Failed to parse %s from configuration: %s", option, err_)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse {option}",
+            None,
+        )
+
+    if not isinstance(loaded, list):
+        logger.error("%s must be a JSON list", option)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: {option} must be a JSON list",
+            None,
+        )
+
+    values: List[str] = []
+    for entry in loaded:
+        if not isinstance(entry, str):
+            logger.error("%s entries must be strings", option)
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: {option} entries must be strings",
+                None,
+            )
+        values.append(entry)
+    logger.debug(
+        "Helper._config_str_list_load() ended with %d %s entries", len(values), option
+    )
+    return None, values
+
+
 def config_cert_chain_skip_list_load(
     logger: logging.Logger,
     config_dic: Dict[str, str],
     section: str = "CAhandler",
 ) -> Tuple[Optional[str], Optional[List[str]]]:
     """Load ``cert_chain_skip_list`` from *section*.
-
     Returns ``(error, skip_list)``. Unset yields ``(None, [])``. Invalid JSON
     or a non-list / non-string payload yields an error and ``None``.
     """
     logger.debug("Helper.config_cert_chain_skip_list_load(%s)", section)
-    if not config_dic or section not in config_dic:
+    error, loaded = _config_str_list_load(
+        logger, config_dic, section, "cert_chain_skip_list"
+    )
+    if error or not loaded:
         logger.debug(
-            "Helper.config_cert_chain_skip_list_load() ended (no %s section)", section
+            "Helper.config_cert_chain_skip_list_load() ended with %s",
+            "error" if error else "empty",
         )
-        return None, []
-    if "cert_chain_skip_list" not in config_dic[section]:
-        logger.debug("Helper.config_cert_chain_skip_list_load() ended (unset)")
-        return None, []
+        return error, loaded
 
-    try:
-        raw = config_dic[section]["cert_chain_skip_list"]
-        loaded = raw if isinstance(raw, list) else json.loads(raw)
-    except Exception as err_:
-        logger.error(
-            "Failed to parse cert_chain_skip_list from configuration: %s", err_
-        )
-        return (
-            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse cert_chain_skip_list",
-            None,
-        )
-
-    if not isinstance(loaded, list):
-        logger.error("cert_chain_skip_list must be a JSON list")
-        return (
-            f"{CONFIGURATION_ERROR_DETAIL}: cert_chain_skip_list must be a JSON list",
-            None,
-        )
-
-    skip_list: List[str] = []
-    for entry in loaded:
-        if not isinstance(entry, str):
-            logger.error("cert_chain_skip_list entries must be strings")
-            return (
-                f"{CONFIGURATION_ERROR_DETAIL}: "
-                "cert_chain_skip_list entries must be strings",
-                None,
-            )
-        skip_list.append(_cert_chain_fingerprint_normalize(entry))
-
+    skip_list = [_cert_chain_fingerprint_normalize(entry) for entry in loaded]
     logger.debug(
         "Helper.config_cert_chain_skip_list_load() ended with %d fingerprints",
         len(skip_list),
     )
     return None, skip_list
+
+
+def _cert_chain_append_pems_parse(
+    logger: logging.Logger, path: str, content: str
+) -> Tuple[Optional[str], List[str]]:
+    """Split file content into PEMs and parse-check each certificate."""
+    file_pems = pembundle_to_list(logger, content)
+    if not file_pems:
+        logger.error("cert_chain_append file %s contains no certificates", path)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            f"cert_chain_append file {path} contains no certificates",
+            [],
+        )
+    for pem_cert in file_pems:
+        try:
+            cert_load(logger, pem_cert, recode=False)
+        except Exception as err_:
+            logger.error(
+                "Failed to parse certificate in cert_chain_append file %s: %s",
+                path,
+                err_,
+            )
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: "
+                f"Failed to parse cert_chain_append file {path}",
+                [],
+            )
+    return None, file_pems
+
+
+def _cert_chain_append_file_load(
+    logger: logging.Logger, raw_path: str
+) -> Tuple[Optional[str], List[str]]:
+    """Read one ``cert_chain_append`` PEM file and parse-check its certificates."""
+    path = _config_path_resolve(raw_path.strip())
+    if not path:
+        logger.error("cert_chain_append entries must be non-empty paths")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            "cert_chain_append entries must be non-empty paths",
+            [],
+        )
+    try:
+        with open(path, encoding="utf-8") as handle:
+            content = handle.read()
+    except Exception as err_:
+        logger.error("Failed to read cert_chain_append file %s: %s", path, err_)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            f"Failed to read cert_chain_append file {path}",
+            [],
+        )
+    return _cert_chain_append_pems_parse(logger, path, content)
+
+
+def config_cert_chain_append_load(
+    logger: logging.Logger,
+    config_dic: Dict[str, str],
+    section: str = "CAhandler",
+) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Load ``cert_chain_append`` PEM files from *section*.
+    Returns ``(error, pem_list)``. Unset yields ``(None, [])``. Missing files,
+    empty files, or unparseable PEM fail closed.
+    """
+    logger.debug("Helper.config_cert_chain_append_load(%s)", section)
+    error, paths = _config_str_list_load(
+        logger, config_dic, section, "cert_chain_append"
+    )
+    if error or not paths:
+        logger.debug(
+            "Helper.config_cert_chain_append_load() ended with %s",
+            "error" if error else "empty",
+        )
+        return error, paths
+
+    pem_list: List[str] = []
+    for raw_path in paths:
+        error, file_pems = _cert_chain_append_file_load(logger, raw_path)
+        if error:
+            return error, None
+        pem_list.extend(file_pems)
+
+    logger.debug(
+        "Helper.config_cert_chain_append_load() ended with %d certificates",
+        len(pem_list),
+    )
+    return None, pem_list
 
 
 def config_option_load(

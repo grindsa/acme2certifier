@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-"""unittests for cert_chain_skip_list (handler-independent chain rewrite phase 1)"""
+"""unittests for handler-independent certificate chain rewrite"""
 
 # pylint: disable=C0415
 import configparser
 import datetime
 import json
 import logging
+import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -55,10 +57,21 @@ def _fingerprint(cert: x509.Certificate) -> str:
 _ROOT_KEY = ec.generate_private_key(ec.SECP256R1())
 _ICA_KEY = ec.generate_private_key(ec.SECP256R1())
 _LEAF_KEY = ec.generate_private_key(ec.SECP256R1())
+_OTHER_KEY = ec.generate_private_key(ec.SECP256R1())
+_NEW_ROOT_KEY = ec.generate_private_key(ec.SECP256R1())
 _ROOT_NAME = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "old-root")])
+_OTHER_NAME = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "other-root")])
+_NEW_ROOT_NAME = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "new-root")])
 CERT_ROOT = _issue_cert("old-root", _ROOT_KEY, _ROOT_NAME, _ROOT_KEY, True)
 CERT_ICA = _issue_cert("intermediate", _ICA_KEY, CERT_ROOT.subject, _ROOT_KEY, True)
 CERT_LEAF = _issue_cert("leaf", _LEAF_KEY, CERT_ICA.subject, _ICA_KEY, False)
+CERT_OTHER = _issue_cert("other-root", _OTHER_KEY, _OTHER_NAME, _OTHER_KEY, True)
+CERT_NEW_ROOT = _issue_cert(
+    "new-root", _NEW_ROOT_KEY, _NEW_ROOT_NAME, _NEW_ROOT_KEY, True
+)
+CERT_ICA2 = _issue_cert(
+    "intermediate", _ICA_KEY, CERT_NEW_ROOT.subject, _NEW_ROOT_KEY, True
+)
 BUNDLE = _pem(CERT_LEAF, CERT_ICA, CERT_ROOT)
 
 
@@ -151,7 +164,7 @@ class TestCertChainSkip(unittest.TestCase):
     def test_001_empty_skip_passthrough(self):
         """empty skip list does not parse the bundle"""
         with patch(
-            "acme2certifier.acme_srv.helpers.certificates.load_pem_x509_certificate"
+            "acme2certifier.acme_srv.helpers.certificates.cert_load"
         ) as mock_load:
             error, bundle = self.skip(self.logger, "not-pem", [])
         self.assertIsNone(error)
@@ -268,6 +281,207 @@ class TestBoundCAHandlerSkipList(unittest.TestCase):
         )
         self.assertIsNone(bound.cert_chain_skip_list_error)
         self.assertEqual([], bound.cert_chain_skip_list)
+
+
+def _write_pem(directory: str, name: str, *certs: x509.Certificate) -> str:
+    path = os.path.join(directory, name)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(_pem(*certs))
+    return path
+
+
+class TestCertChainAppendLoad(unittest.TestCase):
+    """config_cert_chain_append_load()"""
+
+    def setUp(self):
+        logging.basicConfig(level=logging.CRITICAL)
+        self.logger = logging.getLogger("test_a2c")
+        from acme2certifier.acme_srv.helpers.config import (
+            config_cert_chain_append_load,
+        )
+
+        self.load = config_cert_chain_append_load
+        self.tmpdir = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmpdir.cleanup()
+
+    def test_001_unset(self):
+        """missing key returns an empty list"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"ca_name": "ca"}
+        self.assertEqual((None, []), self.load(self.logger, parser))
+
+    def test_002_valid_file(self):
+        """PEM file is loaded into a list of certificates"""
+        path = _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": json.dumps([path])}
+        error, pem_list = self.load(self.logger, parser)
+        self.assertIsNone(error)
+        self.assertEqual([_pem(CERT_ROOT)], pem_list)
+
+    def test_003_bundle_file(self):
+        """a file with several certificates is split in order"""
+        path = _write_pem(self.tmpdir.name, "chain.pem", CERT_ICA2, CERT_NEW_ROOT)
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": json.dumps([path])}
+        error, pem_list = self.load(self.logger, parser)
+        self.assertIsNone(error)
+        self.assertEqual([_pem(CERT_ICA2), _pem(CERT_NEW_ROOT)], pem_list)
+
+    def test_004_missing_file(self):
+        """missing file is a configuration error"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": json.dumps(["/no/such/cert.pem"])}
+        error, pem_list = self.load(self.logger, parser)
+        self.assertTrue(error.startswith("Configuration error:"))
+        self.assertIsNone(pem_list)
+
+    def test_005_empty_file(self):
+        """file without certificates is a configuration error"""
+        path = os.path.join(self.tmpdir.name, "empty.pem")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("not a certificate\n")
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": json.dumps([path])}
+        error, pem_list = self.load(self.logger, parser)
+        self.assertTrue(error.startswith("Configuration error:"))
+        self.assertIsNone(pem_list)
+
+    def test_006_invalid_json(self):
+        """invalid JSON is a configuration error"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": "not-json"}
+        error, pem_list = self.load(self.logger, parser)
+        self.assertTrue(error.startswith("Configuration error:"))
+        self.assertIsNone(pem_list)
+
+    def test_007_relative_path_with_base_dir(self):
+        """relative paths are resolved against ACME2CERTIFIER_BASE_DIR"""
+        _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": json.dumps(["root.pem"])}
+        with patch.dict(os.environ, {"ACME2CERTIFIER_BASE_DIR": self.tmpdir.name}):
+            error, pem_list = self.load(self.logger, parser)
+        self.assertIsNone(error)
+        self.assertEqual([_pem(CERT_ROOT)], pem_list)
+
+
+class TestCertChainAppend(unittest.TestCase):
+    """cert_chain_append()"""
+
+    def setUp(self):
+        logging.basicConfig(level=logging.CRITICAL)
+        self.logger = logging.getLogger("test_a2c")
+        from acme2certifier.acme_srv.helpers.certificates import cert_chain_append
+
+        self.append = cert_chain_append
+
+    def test_001_empty_append_passthrough(self):
+        """empty append list does not parse the bundle"""
+        with patch(
+            "acme2certifier.acme_srv.helpers.certificates.cert_load"
+        ) as mock_load:
+            error, bundle = self.append(self.logger, "bundle", [])
+        self.assertIsNone(error)
+        self.assertEqual("bundle", bundle)
+        mock_load.assert_not_called()
+
+    def test_002_append_root_after_ica(self):
+        """root that certifies the last chain cert is appended"""
+        error, bundle = self.append(
+            self.logger, _pem(CERT_LEAF, CERT_ICA), [_pem(CERT_ROOT)]
+        )
+        self.assertIsNone(error)
+        self.assertEqual(_pem(CERT_LEAF, CERT_ICA, CERT_ROOT), bundle)
+
+    def test_003_append_unrelated_fails(self):
+        """appended cert that does not certify the previous one fails closed"""
+        error, bundle = self.append(
+            self.logger, _pem(CERT_LEAF, CERT_ICA), [_pem(CERT_OTHER)]
+        )
+        self.assertEqual(
+            "Configuration error: "
+            "cert_chain_append certificate does not certify the previous one",
+            error,
+        )
+        self.assertIsNone(bundle)
+
+    def test_004_append_leaf_fails(self):
+        """appending the end-entity certificate is a configuration error"""
+        error, bundle = self.append(self.logger, BUNDLE, [_pem(CERT_LEAF)])
+        self.assertEqual(
+            "Configuration error: cert_chain_append includes the end-entity certificate",
+            error,
+        )
+        self.assertIsNone(bundle)
+
+    def test_005_append_duplicate_fails(self):
+        """appending a cert already in the remaining chain fails closed"""
+        error, bundle = self.append(
+            self.logger, _pem(CERT_LEAF, CERT_ICA, CERT_ROOT), [_pem(CERT_ROOT)]
+        )
+        self.assertEqual(
+            "Configuration error: "
+            "cert_chain_append includes a certificate already in the chain",
+            error,
+        )
+        self.assertIsNone(bundle)
+
+    def test_006_skip_then_append_replacement(self):
+        """skip old ICA/root then append a re-issued ICA and new root"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        bound = BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=[_fingerprint(CERT_ICA), _fingerprint(CERT_ROOT)],
+            cert_chain_append=[_pem(CERT_ICA2), _pem(CERT_NEW_ROOT)],
+        )
+        error, bundle = bound.cert_chain_rewrite(self.logger, BUNDLE)
+        self.assertIsNone(error)
+        self.assertEqual(_pem(CERT_LEAF, CERT_ICA2, CERT_NEW_ROOT), bundle)
+
+
+class TestBoundCAHandlerAppend(unittest.TestCase):
+    """BoundCAHandler.from_config() loads cert_chain_append from its section"""
+
+    def setUp(self):
+        logging.basicConfig(level=logging.CRITICAL)
+        self.logger = logging.getLogger("test_a2c")
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        self.BoundCAHandler = BoundCAHandler
+        self.tmpdir = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmpdir.cleanup()
+
+    def test_001_classical_section(self):
+        """[CAhandler] append PEMs are loaded onto the bound factory"""
+        path = _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": json.dumps([path])}
+        bound = self.BoundCAHandler.from_config(
+            self.logger, object, "CAhandler", "default", parser
+        )
+        self.assertIsNone(bound.cert_chain_append_error)
+        self.assertEqual([_pem(CERT_ROOT)], bound.cert_chain_append)
+
+    def test_002_named_section(self):
+        """named handler section is loaded without inheriting [CAhandler]"""
+        root_path = _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
+        ica_path = _write_pem(self.tmpdir.name, "ica.pem", CERT_ICA2)
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": json.dumps([root_path])}
+        parser["CAhandler:ejbca"] = {"cert_chain_append": json.dumps([ica_path])}
+        bound = self.BoundCAHandler.from_config(
+            self.logger, object, "CAhandler:ejbca", "ejbca", parser
+        )
+        self.assertIsNone(bound.cert_chain_append_error)
+        self.assertEqual([_pem(CERT_ICA2)], bound.cert_chain_append)
 
 
 if __name__ == "__main__":

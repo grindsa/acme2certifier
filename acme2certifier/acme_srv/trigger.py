@@ -14,7 +14,6 @@ from acme2certifier.acme_srv.helper import (
     b64_decode,
     load_config,
     ca_handler_load,
-    cert_chain_skip,
 )
 from acme2certifier.acme_srv.helpers.cahandler_registry import (
     BoundCAHandler,
@@ -256,13 +255,9 @@ class Trigger(object):
                 error, cert_bundle, cert_raw = ca_handler.trigger(payload)
                 if cert_bundle and cert_raw:
                     rewrite_error = None
-                    skip_list: List[str] = []
                     if isinstance(self.cahandler, BoundCAHandler):
-                        rewrite_error = self.cahandler.cert_chain_skip_list_error
-                        skip_list = self.cahandler.cert_chain_skip_list or []
-                    if not rewrite_error:
-                        rewrite_error, cert_bundle = cert_chain_skip(
-                            self.logger, cert_bundle, skip_list
+                        rewrite_error, cert_bundle = self.cahandler.cert_chain_rewrite(
+                            self.logger, cert_bundle
                         )
                     if rewrite_error:
                         code = 400

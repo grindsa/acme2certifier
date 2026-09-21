@@ -879,6 +879,28 @@ def test_cahandler_lookup_recodes_cert_raw(logger: logging.Logger) -> None:
         )
         self.assertEqual([], bound.cert_chain_skip_list)
 
+    def test_046_classical_load_append_missing_file(self):
+        """missing cert_chain_append file is a bind error"""
+        config = self._cfg(
+            {
+                "CAhandler": {
+                    "handler_module": "acme2certifier.cahandlers.openssl_ca_handler",
+                    "cert_chain_append": '["/no/such/cert.pem"]',
+                }
+            }
+        )
+        module = SimpleNamespace(CAhandler=_DummyHandler)
+        with patch(
+            "acme2certifier.acme_srv.helpers.cahandler_registry.ca_handler_load_from_section",
+            return_value=module,
+        ):
+            registry = self.CAHandlerRegistry(self.logger).load(config)
+        bound = registry.default_handler()
+        self.assertTrue(
+            bound.cert_chain_append_error.startswith("Configuration error:")
+        )
+        self.assertEqual([], bound.cert_chain_append)
+
 
 if __name__ == "__main__":
     unittest.main()
