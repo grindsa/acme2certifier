@@ -186,7 +186,10 @@ class BoundCAHandler:
         if error:
             return error, None
         error, pem_bundle = cert_chain_skip(
-            logger, pem_bundle, self.cert_chain_skip_list
+            logger,
+            pem_bundle,
+            self.cert_chain_skip_list,
+            link_check=self.cert_chain_link_check,
         )
         if error:
             return error, None

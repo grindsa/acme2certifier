@@ -375,6 +375,7 @@ def cert_chain_skip(
     logger: logging.Logger,
     pem_bundle: Optional[str],
     skip_list: Optional[List[str]],
+    link_check: bool = True,
 ) -> Tuple[Optional[str], Optional[str]]:
     """Drop certificates whose SHA-256 fingerprint is in *skip_list*."""
     logger.debug("Helper.cert_chain_skip()")
@@ -412,6 +413,14 @@ def cert_chain_skip(
             return error, None
         if fingerprint not in skip_set:
             kept.append(pem_cert)
+
+    if len(kept) != len(pem_list):
+        error, certs = _certs_from_pems(logger, kept)
+        if error:
+            return error, None
+        error = _chain_links_error(logger, certs, 0, link_check=link_check)
+        if error:
+            return error, None
 
     result = "".join(kept)
     logger.debug(
@@ -547,23 +556,23 @@ def _chain_links_error(
             else:
                 reason = (
                     f"previous issuer {prev.issuer.rfc4514_string()} != "
-                    f"appended subject {nxt.subject.rfc4514_string()}"
+                    f"following subject {nxt.subject.rfc4514_string()}"
                 )
             if not link_check:
                 logger.warning(
-                    "cert_chain_link_check is False; appending a certificate "
-                    "that does not certify the previous one (%s)",
+                    "cert_chain_link_check is False; certificate "
+                    "does not certify the previous one (%s)",
                     reason,
                 )
                 continue
             logger.error(
-                "cert_chain_append: certificate %d does not certify the previous one (%s)",
+                "certificate %d does not certify the previous one (%s)",
                 idx + 1,
                 reason,
             )
             return (
                 f"{CONFIGURATION_ERROR_DETAIL}: "
-                "cert_chain_append certificate does not certify the previous one "
+                "certificate does not certify the previous one "
                 f"({reason})"
             )
     logger.debug("Helper._chain_links_error() ended")
