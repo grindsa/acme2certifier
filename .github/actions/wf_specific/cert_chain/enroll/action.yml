@@ -117,7 +117,7 @@ runs:
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-        PATTERN: "cert_chain_append certificate does not certify the previous one"
+        PATTERN: "certificate does not certify the previous one"
 
     - name: "Assert rewritten chain"
       if: ${{ inputs.EXPECT == 'success' }}
@@ -223,4 +223,4 @@ runs:
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-        PATTERN: "cert_chain_link_check is False; appending a certificate that does not certify the previous one"
+        PATTERN: "cert_chain_link_check is False; certificate does not certify the previous one"

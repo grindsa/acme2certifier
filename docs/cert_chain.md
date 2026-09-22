@@ -17,6 +17,8 @@ The first certificate in the bundle is the end-entity certificate (RFC 8555 `MUS
 
 Optional JSON list of SHA-256 fingerprints. Any certificate in the handler bundle that matches is dropped.
 
+Use this for a **suffix** of the chain (the self-signed root, or the issuing CA plus that root). After skip, remaining certificates must still certify the previous one (RFC 8555) unless `cert_chain_link_check` is `False`. Skipping a middle certificate while keeping what followed it (for example dropping the ICA and keeping the root) is a configuration error.
+
 - Matching uses the fingerprint, not the subject name, so re-issuing an intermediate under the same DN does not quietly change what gets filtered.
 - Fingerprints are normalized (lowercase hex, colons and spaces ignored).
 - Listing the end-entity certificate is a configuration error.
@@ -60,7 +62,7 @@ The script prints `cert_chain_skip_list` / `cert_chain_append` snippets. Default
 
 ## `cert_chain_link_check`
 
-Default `True`: an appended certificate that does not certify the previous one fails enrollment. Set to `False` to append anyway (unlinked extra CA, separate trust anchor). A warning is logged for each broken link.
+Default `True`: a rewritten chain where a certificate does not certify the previous one fails enrollment. This applies after skip (remaining links) and after append (join and appended certs). Set to `False` to keep the bundle anyway (unlinked extra CA, or a skip that leaves a hole). A warning is logged for each broken link.
 
 ```config
 [CAhandler]

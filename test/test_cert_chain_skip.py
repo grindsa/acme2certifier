@@ -195,10 +195,35 @@ class TestCertChainSkip(unittest.TestCase):
         self.assertEqual(BUNDLE, bundle)
 
     def test_006_drop_intermediate(self):
-        """intermediate can be skipped; leaf is kept"""
-        error, bundle = self.skip(self.logger, BUNDLE, [_fingerprint(CERT_ICA)])
+        """skipping a non-suffix cert leaves an unlinked chain and fails closed"""
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, bundle = self.skip(self.logger, BUNDLE, [_fingerprint(CERT_ICA)])
+        self.assertTrue(
+            error.startswith(
+                "Configuration error: "
+                "certificate does not certify the previous one"
+            )
+        )
+        self.assertIn("previous issuer", error)
+        self.assertIsNone(bundle)
+        self.assertTrue(
+            any("does not certify the previous one" in line for line in lcm.output)
+        )
+
+    def test_006b_drop_intermediate_allowed_when_link_check_false(self):
+        """cert_chain_link_check False keeps an unlinked remaining chain and warns"""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            error, bundle = self.skip(
+                self.logger,
+                BUNDLE,
+                [_fingerprint(CERT_ICA)],
+                link_check=False,
+            )
         self.assertIsNone(error)
         self.assertEqual(_pem(CERT_LEAF, CERT_ROOT), bundle)
+        self.assertTrue(
+            any("cert_chain_link_check is False" in line for line in lcm.output)
+        )
 
     def test_007_leaf_in_skip_list_fails(self):
         """end-entity fingerprint is a configuration error"""
@@ -404,7 +429,7 @@ class TestCertChainAppend(unittest.TestCase):
         self.assertTrue(
             error.startswith(
                 "Configuration error: "
-                "cert_chain_append certificate does not certify the previous one"
+                "certificate does not certify the previous one"
             )
         )
         self.assertIn("previous issuer", error)
