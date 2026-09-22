@@ -14,6 +14,8 @@ Please note we have a code of conduct, please follow it in all your interactions
 
 ## Pull Request Process
 
+1. Open pull requests against **`devel`**, not `master`. `master` is the stable
+   release branch; only `devel` → `master` promotions should target `master`.
 1. Ensure any install or build dependencies are removed before the end of the layer when doing a
    build.
 1. Update the README.md with details of changes to the interface, this includes new environment

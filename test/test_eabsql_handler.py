@@ -377,32 +377,43 @@ class TestEABHandler(unittest.TestCase):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = [(
-            "keyid_01",
-                "{\"hmac\": \"hmac_01\", \"order\": {\"allowed_domainlist\": [\"127.0.0.1\"]}}"),(
-            "keyid_02",
-                "{\"hmac\": \"hmac_02\"}"),(
-            "keyid_03",
-                "{\"order\": {\"allowed_domainlist\": [\"127.0.0.1\"]}, \"hmac\": \"hmac_03\"}")
+        mock_cursor.fetchall.return_value = [
+            (
+                "keyid_01",
+                '{"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}}',
+            ),
+            ("keyid_02", '{"hmac": "hmac_02"}'),
+            (
+                "keyid_03",
+                '{"order": {"allowed_domainlist": ["127.0.0.1"]}, "hmac": "hmac_03"}',
+            ),
         ]
         mock_connect.return_value = mock_conn
 
         result = self.eabhandler._load_profiles("mssql", "SELECT ...")
-        self.assertEqual(result, {
-            "keyid_01": {
-                'hmac': 'hmac_01',
-                'order': {'allowed_domainlist': ['127.0.0.1']}
+        self.assertEqual(
+            result,
+            {
+                "keyid_01": {
+                    "hmac": "hmac_01",
+                    "order": {"allowed_domainlist": ["127.0.0.1"]},
+                },
+                "keyid_02": {"hmac": "hmac_02"},
+                "keyid_03": {
+                    "order": {"allowed_domainlist": ["127.0.0.1"]},
+                    "hmac": "hmac_03",
+                },
             },
-            "keyid_02": {
-                'hmac': 'hmac_02'
-            },
-            "keyid_03": {
-                'order': {'allowed_domainlist': ['127.0.0.1']},
-                'hmac': 'hmac_03'}
-            })
-        self.assertEqual({'hmac': 'hmac_01', 'order': {'allowed_domainlist': ['127.0.0.1']}}, result["keyid_01"])
-        self.assertEqual({'hmac': 'hmac_02'}, result["keyid_02"])
-        self.assertEqual({'hmac': 'hmac_03', 'order': {'allowed_domainlist': ['127.0.0.1']}}, result["keyid_03"])
+        )
+        self.assertEqual(
+            {"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}},
+            result["keyid_01"],
+        )
+        self.assertEqual({"hmac": "hmac_02"}, result["keyid_02"])
+        self.assertEqual(
+            {"hmac": "hmac_03", "order": {"allowed_domainlist": ["127.0.0.1"]}},
+            result["keyid_03"],
+        )
 
     @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
     def test_035_load_mssql_profiles_empty(self, mock_connect):
@@ -436,32 +447,43 @@ class TestEABHandler(unittest.TestCase):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = [(
-            "keyid_01",
-                "{\"hmac\": \"hmac_01\", \"order\": {\"allowed_domainlist\": [\"127.0.0.1\"]}}"),(
-            "keyid_02",
-                "{\"hmac\": \"hmac_02\"}"),(
-            "keyid_03",
-                "{\"order\": {\"allowed_domainlist\": [\"127.0.0.1\"]}, \"hmac\": \"hmac_03\"}")
+        mock_cursor.fetchall.return_value = [
+            (
+                "keyid_01",
+                '{"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}}',
+            ),
+            ("keyid_02", '{"hmac": "hmac_02"}'),
+            (
+                "keyid_03",
+                '{"order": {"allowed_domainlist": ["127.0.0.1"]}, "hmac": "hmac_03"}',
+            ),
         ]
         mock_connect.return_value = mock_conn
 
         result = self.eabhandler._load_profiles("postgres", "SELECT ...")
-        self.assertEqual(result, {
-            "keyid_01": {
-                'hmac': 'hmac_01',
-                'order': {'allowed_domainlist': ['127.0.0.1']}
+        self.assertEqual(
+            result,
+            {
+                "keyid_01": {
+                    "hmac": "hmac_01",
+                    "order": {"allowed_domainlist": ["127.0.0.1"]},
+                },
+                "keyid_02": {"hmac": "hmac_02"},
+                "keyid_03": {
+                    "order": {"allowed_domainlist": ["127.0.0.1"]},
+                    "hmac": "hmac_03",
+                },
             },
-            "keyid_02": {
-                'hmac': 'hmac_02'
-            },
-            "keyid_03": {
-                'order': {'allowed_domainlist': ['127.0.0.1']},
-                'hmac': 'hmac_03'}
-            })
-        self.assertEqual({'hmac': 'hmac_01', 'order': {'allowed_domainlist': ['127.0.0.1']}}, result["keyid_01"])
-        self.assertEqual({'hmac': 'hmac_02'}, result["keyid_02"])
-        self.assertEqual({'hmac': 'hmac_03', 'order': {'allowed_domainlist': ['127.0.0.1']}}, result["keyid_03"])
+        )
+        self.assertEqual(
+            {"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}},
+            result["keyid_01"],
+        )
+        self.assertEqual({"hmac": "hmac_02"}, result["keyid_02"])
+        self.assertEqual(
+            {"hmac": "hmac_03", "order": {"allowed_domainlist": ["127.0.0.1"]}},
+            result["keyid_03"],
+        )
 
     @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
     def test_038_load_postgres_profiles_empty(self, mock_connect):
@@ -496,16 +518,15 @@ class TestEABHandler(unittest.TestCase):
 
         mock_key_file_load.return_value = {
             "keyid_01": {
-                'hmac': 'hmac_01',
-                'order': {'allowed_domainlist': ['127.0.0.1']}
+                "hmac": "hmac_01",
+                "order": {"allowed_domainlist": ["127.0.0.1"]},
             },
-            "keyid_02": {
-                'hmac': 'hmac_02'
-            },
+            "keyid_02": {"hmac": "hmac_02"},
             "keyid_03": {
-                'order': {'allowed_domainlist': ['127.0.0.1']},
-                'hmac': 'hmac_03'}
-            }
+                "order": {"allowed_domainlist": ["127.0.0.1"]},
+                "hmac": "hmac_03",
+            },
+        }
 
         result = self.eabhandler.mac_key_get("keyid_01")
         self.assertEqual(result, "hmac_01")
@@ -525,16 +546,15 @@ class TestEABHandler(unittest.TestCase):
 
         mock_key_file_load.return_value = {
             "keyid_01": {
-                'hmac': 'hmac_01',
-                'order': {'allowed_domainlist': ['127.0.0.1']}
+                "hmac": "hmac_01",
+                "order": {"allowed_domainlist": ["127.0.0.1"]},
             },
-            "keyid_02": {
-                'hmac': 'hmac_02'
-            },
+            "keyid_02": {"hmac": "hmac_02"},
             "keyid_03": {
-                'order': {'allowed_domainlist': ['127.0.0.1']},
-                'hmac': 'hmac_03'}
-            }
+                "order": {"allowed_domainlist": ["127.0.0.1"]},
+                "hmac": "hmac_03",
+            },
+        }
 
         result = self.eabhandler.mac_key_get("keyid_01")
         self.assertEqual(result, "hmac_01")
@@ -552,7 +572,7 @@ class TestEABHandler(unittest.TestCase):
         self.eabhandler.db_password = "pass"
         mock_key_file_load.return_value = {
             "keyid_01": {
-                'hmac': 'hmac_01',
+                "hmac": "hmac_01",
             }
         }
         result = self.eabhandler.mac_key_get("keyid_02")
@@ -651,9 +671,11 @@ class TestEABHandler(unittest.TestCase):
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
         # JSON is missing some brackets
-        mock_cursor.fetchall.return_value = [(
-            "keyid_01",
-            "\"hmac\": \"hmac_01\", \"order\": \"allowed_domainlist\": [\"127.0.0.1\"}}")
+        mock_cursor.fetchall.return_value = [
+            (
+                "keyid_01",
+                '"hmac": "hmac_01", "order": "allowed_domainlist": ["127.0.0.1"}}',
+            )
         ]
         mock_connect.return_value = mock_conn
 
@@ -679,9 +701,11 @@ class TestEABHandler(unittest.TestCase):
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
         # JSON is missing some brackets
-        mock_cursor.fetchall.return_value = [(
-            "keyid_01",
-            "\"hmac\": \"hmac_01\", \"order\": \"allowed_domainlist\": [\"127.0.0.1\"}}")
+        mock_cursor.fetchall.return_value = [
+            (
+                "keyid_01",
+                '"hmac": "hmac_01", "order": "allowed_domainlist": ["127.0.0.1"}}',
+            )
         ]
         mock_connect.return_value = mock_conn
 
@@ -693,6 +717,7 @@ class TestEABHandler(unittest.TestCase):
             "ERROR:test_a2c:EABhandler._load_profiles()",
             str(lcm.output),
         )
+
 
 if __name__ == "__main__":
 

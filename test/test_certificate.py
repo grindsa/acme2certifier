@@ -485,6 +485,44 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._get_certificate_renewal_info("cert")
             self.assertEqual(result, "hex")
 
+    def test_025a_get_certificate_renewal_info_single_pem(self):
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.pembundle_to_list",
+                return_value=["leaf"],
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.certid_asn1_get",
+            ) as mock_certid,
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            result = self.cert._get_certificate_renewal_info("cert")
+        self.assertIsNone(result)
+        mock_certid.assert_not_called()
+        self.assertIn(
+            "WARNING:test_a2c:Skipping renewal info calculation, less than two certificates found in bundle",
+            lcm.output,
+        )
+
+    def test_025b_get_certificate_renewal_info_empty_bundle(self):
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.pembundle_to_list",
+                return_value=[],
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.certid_asn1_get",
+            ) as mock_certid,
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            result = self.cert._get_certificate_renewal_info("cert")
+        self.assertIsNone(result)
+        mock_certid.assert_not_called()
+        self.assertIn(
+            "WARNING:test_a2c:Skipping renewal info calculation, less than two certificates found in bundle",
+            lcm.output,
+        )
+
     def test_026_store_certificate_and_update_order_success(self):
         with (
             patch.object(self.cert, "_store_certificate_in_database", return_value=1),
@@ -3748,6 +3786,266 @@ class TestCertificate(unittest.TestCase):
         self.assertEqual(self.cert._cahandler_hints_from_order("ord1"), (None, None))
         self.cert.repository.order_lookup.assert_called_once_with(
             "name", "ord1", ["profile", "cahandler"]
+        )
+
+    def test_244_cert_bundle_rewrite_skipped_on_error(self):
+        """existing enrollment error is not rewritten"""
+        error, bundle, raw = self.cert._cert_bundle_rewrite("boom", "bundle", "raw")
+        self.assertEqual("boom", error)
+        self.assertEqual("bundle", bundle)
+        self.assertEqual("raw", raw)
+
+    def test_245_cert_bundle_rewrite_skipped_without_bundle(self):
+        """no bundle means no rewrite"""
+        error, bundle, raw = self.cert._cert_bundle_rewrite(None, None, "raw")
+        self.assertIsNone(error)
+        self.assertIsNone(bundle)
+        self.assertEqual("raw", raw)
+
+    def test_246_cert_bundle_rewrite_success(self):
+        """successful skip replaces the stored bundle"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        factory = BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=["aa"],
+        )
+        factory.cert_chain_rewrite = MagicMock(return_value=(None, "rewritten"))
+        error, bundle, raw = self.cert._cert_bundle_rewrite(
+            None, "bundle", "raw", factory
+        )
+        factory.cert_chain_rewrite.assert_called_once_with(self.cert.logger, "bundle")
+        self.assertIsNone(error)
+        self.assertEqual("rewritten", bundle)
+        self.assertEqual("raw", raw)
+
+    def test_247_cert_bundle_rewrite_failure_clears_bundle(self):
+        """skip-list error on BoundCAHandler discards bundle and raw"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        factory = BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=[],
+            cert_chain_skip_list_error="Configuration error: skip",
+        )
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, bundle, raw = self.cert._cert_bundle_rewrite(
+                None, "bundle", "raw", factory
+            )
+        self.assertEqual("Configuration error: skip", error)
+        self.assertIsNone(bundle)
+        self.assertIsNone(raw)
+        self.assertTrue(
+            any("Certificate chain rewrite failed" in line for line in lcm.output)
+        )
+
+    def test_247b_cert_bundle_rewrite_append_error_clears_bundle(self):
+        """append error on BoundCAHandler discards bundle and raw"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        factory = BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_append_error="Configuration error: append",
+        )
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, bundle, raw = self.cert._cert_bundle_rewrite(
+                None, "bundle", "raw", factory
+            )
+        self.assertEqual("Configuration error: append", error)
+        self.assertIsNone(bundle)
+        self.assertIsNone(raw)
+        self.assertTrue(
+            any("Certificate chain rewrite failed" in line for line in lcm.output)
+        )
+
+    def test_247c_cert_bundle_rewrite_applies_eab_overlay(self):
+        """EAB overlay factory is used for rewrite"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        factory = BoundCAHandler(object, "CAhandler", "default")
+        overlaid = BoundCAHandler(object, "CAhandler", "default")
+        overlaid.cert_chain_rewrite = MagicMock(return_value=(None, "overlaid"))
+        factory.eab_chain_overlay = MagicMock(return_value=(None, overlaid))
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = MagicMock()
+        with patch.object(
+            self.cert,
+            "_eab_cahandler_profile",
+            return_value={"cert_chain_skip_list": ["aa"]},
+        ):
+            error, bundle, raw = self.cert._cert_bundle_rewrite(
+                None, "bundle", "raw", factory, "csr"
+            )
+        factory.eab_chain_overlay.assert_called_once_with(
+            self.cert.logger, {"cert_chain_skip_list": ["aa"]}
+        )
+        overlaid.cert_chain_rewrite.assert_called_once_with(self.cert.logger, "bundle")
+        self.assertIsNone(error)
+        self.assertEqual("overlaid", bundle)
+        self.assertEqual("raw", raw)
+
+    def test_247d_cert_bundle_rewrite_eab_overlay_error(self):
+        """invalid EAB overlay fails closed"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        factory = BoundCAHandler(object, "CAhandler", "default")
+        factory.eab_chain_overlay = MagicMock(
+            return_value=("Configuration error: skip", factory)
+        )
+        factory.cert_chain_rewrite = MagicMock()
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = MagicMock()
+        with patch.object(
+            self.cert,
+            "_eab_cahandler_profile",
+            return_value={"cert_chain_skip_list": "nope"},
+        ):
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                error, bundle, raw = self.cert._cert_bundle_rewrite(
+                    None, "bundle", "raw", factory, "csr"
+                )
+        self.assertEqual("Configuration error: skip", error)
+        self.assertIsNone(bundle)
+        self.assertIsNone(raw)
+        factory.cert_chain_rewrite.assert_not_called()
+        self.assertTrue(
+            any("Certificate chain rewrite failed" in line for line in lcm.output)
+        )
+
+    def test_248_process_certificate_enrollment_rewrites_bundle(self):
+        """enroll path rewrites the handler bundle"""
+        mock_ca = MagicMock()
+        mock_ca.__enter__.return_value = mock_ca
+        mock_ca.enroll.return_value = (None, "bundle", "raw", "poll")
+        self.cert.cahandler = MagicMock(return_value=mock_ca)
+        self.cert.config.cert_reusage_timeframe = False
+        with patch.object(
+            self.cert,
+            "_cert_bundle_rewrite",
+            return_value=(None, "rewritten", "raw"),
+        ) as mock_rewrite:
+            result = self.cert._process_certificate_enrollment("csr")
+        self.assertEqual((None, "rewritten", "raw", "poll", False), result)
+        mock_rewrite.assert_called_once_with(
+            None, "bundle", "raw", self.cert.cahandler, "csr"
+        )
+
+    def test_249_process_certificate_enrollment_reuse_skips_rewrite(self):
+        """certificate reuse returns the stored bundle without rewrite"""
+        self.cert.config.cert_reusage_timeframe = True
+        with (
+            patch.object(
+                self.cert,
+                "_check_certificate_reusability",
+                return_value=(None, "bundle", "raw", "poll"),
+            ),
+            patch.object(self.cert, "_cert_bundle_rewrite") as mock_rewrite,
+        ):
+            result = self.cert._process_certificate_enrollment("csr")
+        self.assertEqual((None, "bundle", "raw", "poll", True), result)
+        mock_rewrite.assert_not_called()
+
+    def test_250_poll_certificate_status_rewrites_bundle(self):
+        """poll path rewrites a successful bundle"""
+        mock_ca = MagicMock()
+        mock_ca.poll.return_value = (None, "bundle", "raw", "poll", False)
+        factory = MagicMock(return_value=mock_ca)
+        factory.return_value.__enter__.return_value = mock_ca
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value=None),
+            patch.object(self.cert, "_resolve_cahandler", return_value=factory),
+            patch.object(
+                self.cert, "_handle_successful_certificate_poll", return_value=1
+            ) as mock_ok,
+            patch.object(
+                self.cert,
+                "_cert_bundle_rewrite",
+                return_value=(None, "rewritten", "raw"),
+            ) as mock_rewrite,
+        ):
+            result = self.cert.poll_certificate_status("cert", "poll", "csr", "order")
+        self.assertEqual(1, result)
+        mock_rewrite.assert_called_once_with(None, "bundle", "raw", factory, "csr")
+        mock_ok.assert_called_once_with("cert", "rewritten", "raw", "order")
+
+    def test_251_poll_certificate_status_rewrite_failure(self):
+        """poll rewrite failure is handled as a failed poll"""
+        mock_ca = MagicMock()
+        mock_ca.poll.return_value = (None, "bundle", "raw", "poll", False)
+        factory = MagicMock(return_value=mock_ca)
+        factory.return_value.__enter__.return_value = mock_ca
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value=None),
+            patch.object(self.cert, "_resolve_cahandler", return_value=factory),
+            patch.object(self.cert, "_handle_failed_certificate_poll") as mock_failed,
+            patch.object(
+                self.cert,
+                "_cert_bundle_rewrite",
+                return_value=("Configuration error: skip", None, None),
+            ),
+        ):
+            result = self.cert.poll_certificate_status("cert", "poll", "csr", "order")
+        self.assertIsNone(result)
+        mock_failed.assert_called_once()
+
+    def test_252_eab_cahandler_profile_disabled(self):
+        """profiling off skips the EAB lookup"""
+        self.cert.eab_profiling = False
+        self.cert.eab_handler_class = MagicMock()
+        self.assertEqual({}, self.cert._eab_cahandler_profile("csr"))
+
+    def test_253_eab_cahandler_profile_get(self):
+        """kid cahandler profile is returned from the EAB handler"""
+        handler = MagicMock()
+        handler.eab_profile_get.return_value = {"cert_chain_skip_list": ["aa"]}
+        eab_cls = MagicMock()
+        eab_cls.return_value.__enter__.return_value = handler
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = eab_cls
+        self.assertEqual(
+            {"cert_chain_skip_list": ["aa"]},
+            self.cert._eab_cahandler_profile("csr"),
+        )
+
+    def test_254_eab_cahandler_profile_get_none(self):
+        """None from eab_profile_get becomes an empty dict"""
+        handler = MagicMock()
+        handler.eab_profile_get.return_value = None
+        eab_cls = MagicMock()
+        eab_cls.return_value.__enter__.return_value = handler
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = eab_cls
+        self.assertEqual({}, self.cert._eab_cahandler_profile("csr"))
+
+    def test_255_eab_cahandler_profile_without_get(self):
+        """handler without eab_profile_get yields an empty dict"""
+
+        class _Handler:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = MagicMock(return_value=_Handler())
+        self.assertEqual({}, self.cert._eab_cahandler_profile("csr"))
+
+    def test_256_eab_cahandler_profile_exception(self):
+        """EAB lookup failures are warned and ignored"""
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = MagicMock(side_effect=RuntimeError("eab down"))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual({}, self.cert._eab_cahandler_profile("csr"))
+        self.assertIn(
+            "WARNING:test_a2c:Failed to look up EAB cahandler profile: eab down",
+            lcm.output,
         )
 
 

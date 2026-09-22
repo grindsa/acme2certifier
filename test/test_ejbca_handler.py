@@ -164,10 +164,19 @@ class TestACMEHandler(unittest.TestCase):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"username_append_cn": True}
-        self.cahandler._config_auth_load(parser)
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_auth_load(parser)
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.session)
         self.assertTrue(self.cahandler.username_append_cn)
+        self.assertNotIn(
+            'ERROR:test_a2c:Configuration error: "username" parameter is missing in config file',
+            lcm.output,
+        )
+        self.assertIn(
+            'ERROR:test_a2c:Configuration error: "cert_file"/"cert_passphrase" parameter is missing in configuration file',
+            lcm.output,
+        )
 
     def test_015__config_auth_load(self):
         """test _config_server_load()"""
@@ -561,10 +570,26 @@ class TestACMEHandler(unittest.TestCase):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar", "foo1": "bar1"}
-        self.cahandler._config_authuser_load(parser)
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_authuser_load(parser)
         self.assertFalse(self.cahandler.username)
-        # self.assertIn("foo", lcm.output)
+        self.assertIn(
+            'ERROR:test_a2c:Configuration error: "username" parameter is missing in config file',
+            lcm.output,
+        )
+
+    def test_034a_config_authuser_load(self):
+        """username is optional when username_append_cn is set"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"username_append_cn": True}
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.cahandler._config_authuser_load(parser)
+        self.assertFalse(self.cahandler.username)
+        self.assertTrue(self.cahandler.username_append_cn)
+        self.assertNotIn(
+            'ERROR:test_a2c:Configuration error: "username" parameter is missing in config file',
+            lcm.output,
+        )
 
     @patch.dict("os.environ", {"enrollment_code_var": "user_var"})
     def test_035_config_enrollmentcode_load(self):
@@ -1302,6 +1327,63 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertEqual(2.0, self.cahandler.request_retry_backoff)
+
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.handler_config_check")
+    def test_084_handler_check(self, mock_handler_check):
+        """test handler_check() - username is mandatory by default"""
+        self.cahandler.handler_check()
+        self.assertIn("username", mock_handler_check.call_args[0][2])
+
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.handler_config_check")
+    def test_085_handler_check(self, mock_handler_check):
+        """test handler_check() - username_append_cn makes username optional"""
+        self.cahandler.username_append_cn = True
+        self.cahandler.handler_check()
+        self.assertNotIn("username", mock_handler_check.call_args[0][2])
+
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_auth_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_cainfo_load")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.load_config")
+    def test_086_config_load(
+        self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
+    ):
+        """load config - username_append_cn makes username optional"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"foo": "bar"}
+        mock_load_cfg.return_value = parser
+        self.cahandler.username_append_cn = True
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertIn(
+            'ERROR:test_a2c:Configuration error: parameter "enrollment_code" is missing in configuration file',
+            lcm.output,
+        )
+        self.assertNotIn(
+            'ERROR:test_a2c:Configuration error: parameter "username" is missing in configuration file',
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
+    def test_087__sign(self, mock_post, mock_cn):
+        """test _sign() - unset username gets appended to rather than stringified"""
+        self.cahandler.api_host = "foo"
+        self.cahandler.username_append_cn = True
+        mock_cn.return_value = "www.example.com"
+        self.cahandler._sign("csr")
+        self.assertEqual("www.example.com", mock_post.call_args[0][1]["username"])
+
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._csr_cn_get")
+    @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
+    def test_088__sign(self, mock_post, mock_cn):
+        """test _sign() - empty username gets appended to"""
+        self.cahandler.api_host = "foo"
+        self.cahandler.username = ""
+        self.cahandler.username_append_cn = True
+        mock_cn.return_value = "www.example.com"
+        self.cahandler._sign("csr")
+        self.assertEqual("www.example.com", mock_post.call_args[0][1]["username"])
 
 
 if __name__ == "__main__":

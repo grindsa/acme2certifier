@@ -12,6 +12,14 @@ from cryptography.hazmat.primitives.serialization.pkcs7 import (
     load_der_pkcs7_certificates,
 )
 from cryptography.x509 import load_pem_x509_certificate, ocsp
+from cryptography.hazmat.primitives.asymmetric import (
+    dsa,
+    ec,
+    ed25519,
+    ed448,
+    padding,
+    rsa,
+)
 from .encoding import (
     convert_string_to_byte,
     convert_byte_to_string,
@@ -20,6 +28,7 @@ from .encoding import (
     b64_decode,
 )
 from .datetime_utils import date_to_uts_utc
+from .global_variables import CONFIGURATION_ERROR_DETAIL
 from pyasn1.codec.der import decoder
 from pyasn1.type import univ
 from pyasn1_modules import rfc5280
@@ -340,6 +349,297 @@ def pembundle_to_list(logger: logging.Logger, pem_bundle: str) -> List[str]:
             cert_list.append(pem_data)
     logger.debug("Helper.pembundle_to_list() returned %s certificates", cert_list)
     return cert_list
+
+
+def _cert_sha256_fingerprint(cert: x509.Certificate) -> str:
+    """SHA-256 fingerprint as lowercase hex (no colons)."""
+    return cert.fingerprint(hashes.SHA256()).hex()
+
+
+def _pem_fingerprint(
+    logger: logging.Logger, pem_cert: str
+) -> Tuple[Optional[str], Optional[str]]:
+    """Return ``(error, fingerprint)`` for a single PEM certificate."""
+    try:
+        cert = cert_load(logger, pem_cert, recode=False)
+    except Exception as err_:
+        logger.error("Failed to parse certificate in chain: %s", err_)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse certificate chain",
+            None,
+        )
+    return None, _cert_sha256_fingerprint(cert)
+
+
+def cert_chain_skip(
+    logger: logging.Logger,
+    pem_bundle: Optional[str],
+    skip_list: Optional[List[str]],
+    link_check: bool = True,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Drop certificates whose SHA-256 fingerprint is in *skip_list*."""
+    logger.debug("Helper.cert_chain_skip()")
+    if not pem_bundle:
+        logger.debug("Helper.cert_chain_skip() ended (empty bundle)")
+        return None, pem_bundle
+    if not skip_list:
+        logger.debug("Helper.cert_chain_skip() ended (skip list empty)")
+        return None, pem_bundle
+
+    pem_list = pembundle_to_list(logger, pem_bundle)
+    if not pem_list:
+        logger.error("cert_chain_skip_list is set but the bundle is not a PEM chain")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse certificate chain",
+            None,
+        )
+
+    skip_set = set(skip_list)
+    error, leaf_fp = _pem_fingerprint(logger, pem_list[0])
+    if error:
+        return error, None
+    if leaf_fp in skip_set:
+        logger.error("cert_chain_skip_list must not include the end-entity certificate")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            "cert_chain_skip_list includes the end-entity certificate",
+            None,
+        )
+
+    kept = [pem_list[0]]
+    for pem_cert in pem_list[1:]:
+        error, fingerprint = _pem_fingerprint(logger, pem_cert)
+        if error:
+            return error, None
+        if fingerprint not in skip_set:
+            kept.append(pem_cert)
+
+    if len(kept) != len(pem_list):
+        error, certs = _certs_from_pems(logger, kept)
+        if error:
+            return error, None
+        error = _chain_links_error(logger, certs, 0, link_check=link_check)
+        if error:
+            return error, None
+
+    result = "".join(kept)
+    logger.debug(
+        "Helper.cert_chain_skip() ended with %d of %d certificates kept",
+        len(kept),
+        len(pem_list),
+    )
+    return None, result
+
+
+def _cert_certifies(issuer: x509.Certificate, subject: x509.Certificate) -> bool:
+    """Return True when *issuer* signed *subject* (RFC 8555 chain link)."""
+    if subject.issuer != issuer.subject:
+        return False
+    public_key = issuer.public_key()
+    try:
+        if isinstance(public_key, rsa.RSAPublicKey):
+            hash_alg = subject.signature_hash_algorithm
+            if hash_alg is None:
+                return False
+            public_key.verify(
+                subject.signature,
+                subject.tbs_certificate_bytes,
+                padding.PKCS1v15(),
+                hash_alg,
+            )
+            return True
+        if isinstance(public_key, ec.EllipticCurvePublicKey):
+            hash_alg = subject.signature_hash_algorithm
+            if hash_alg is None:
+                return False
+            public_key.verify(
+                subject.signature,
+                subject.tbs_certificate_bytes,
+                ec.ECDSA(hash_alg),
+            )
+            return True
+        if isinstance(public_key, dsa.DSAPublicKey):
+            hash_alg = subject.signature_hash_algorithm
+            if hash_alg is None:
+                return False
+            public_key.verify(
+                subject.signature, subject.tbs_certificate_bytes, hash_alg
+            )
+            return True
+        if isinstance(public_key, (ed25519.Ed25519PublicKey, ed448.Ed448PublicKey)):
+            public_key.verify(subject.signature, subject.tbs_certificate_bytes)
+            return True
+    except Exception:
+        return False
+    return False
+
+
+def _certs_from_pems(
+    logger: logging.Logger, pem_list: List[str]
+) -> Tuple[Optional[str], List[x509.Certificate]]:
+    """Load PEM strings with ``cert_load()``. Fail closed on parse errors."""
+    certs: List[x509.Certificate] = []
+    for pem_cert in pem_list:
+        try:
+            certs.append(cert_load(logger, pem_cert, recode=False))
+        except Exception as err_:
+            logger.error("Failed to parse certificate in chain: %s", err_)
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse certificate chain",
+                [],
+            )
+    return None, certs
+
+
+def _parse_pem_bundle(
+    logger: logging.Logger, pem_bundle: str
+) -> Tuple[Optional[str], List[str], List[x509.Certificate]]:
+    """Split *pem_bundle* and load each PEM. Fail closed on an empty or invalid chain."""
+    pems = pembundle_to_list(logger, pem_bundle)
+    if not pems:
+        logger.error("cert_chain_append is set but the bundle is not a PEM chain")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse certificate chain",
+            [],
+            [],
+        )
+    error, certs = _certs_from_pems(logger, pems)
+    if error:
+        return error, [], []
+    return None, pems, certs
+
+
+def _append_entry_check(
+    logger: logging.Logger,
+    cert: x509.Certificate,
+    leaf_fp: str,
+    seen_fps: Set[str],
+) -> Tuple[Optional[str], Optional[str]]:
+    """Return ``(error, fingerprint)``. Fingerprint is set only when the cert may be appended."""
+    logger.debug("Helper._append_entry_check()")
+    fingerprint = _cert_sha256_fingerprint(cert)
+    if fingerprint == leaf_fp:
+        logger.error("cert_chain_append must not include the end-entity certificate")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            "cert_chain_append includes the end-entity certificate",
+            None,
+        )
+    if fingerprint in seen_fps:
+        logger.error("cert_chain_append includes a certificate already in the chain")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            "cert_chain_append includes a certificate already in the chain",
+            None,
+        )
+    logger.debug("Helper._append_entry_check() ended")
+    return None, fingerprint
+
+
+def _chain_links_error(
+    logger: logging.Logger,
+    certs: List[x509.Certificate],
+    start: int,
+    *,
+    link_check: bool = True,
+) -> Optional[str]:
+    """Fail if any certificate from *start* does not certify the previous one."""
+    logger.debug("Helper._chain_links_error()")
+    for idx in range(start, len(certs) - 1):
+        prev = certs[idx]
+        nxt = certs[idx + 1]
+        issuer_name_match = prev.issuer == nxt.subject
+        certifies = _cert_certifies(nxt, prev)
+        if not certifies:
+            if issuer_name_match:
+                reason = "issuer name matches but signature verification failed"
+            else:
+                reason = (
+                    f"previous issuer {prev.issuer.rfc4514_string()} != "
+                    f"following subject {nxt.subject.rfc4514_string()}"
+                )
+            if not link_check:
+                logger.warning(
+                    "cert_chain_link_check is False; certificate "
+                    "does not certify the previous one (%s)",
+                    reason,
+                )
+                continue
+            logger.error(
+                "certificate %d does not certify the previous one (%s)",
+                idx + 1,
+                reason,
+            )
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: "
+                "certificate does not certify the previous one "
+                f"({reason})"
+            )
+    logger.debug("Helper._chain_links_error() ended")
+    return None
+
+
+def _extend_chain(
+    logger: logging.Logger,
+    pems: List[str],
+    certs: List[x509.Certificate],
+    pem_list: List[str],
+    *,
+    link_check: bool = True,
+) -> Optional[str]:
+    """Parse *pem_list*, reject leaf/duplicates, append in place, check RFC 8555 links."""
+    logger.debug("Helper._extend_chain()")
+
+    join_at = len(certs) - 1
+    leaf_fp = _cert_sha256_fingerprint(certs[0])
+    seen_fps = {_cert_sha256_fingerprint(cert) for cert in certs}
+    error, appended = _certs_from_pems(logger, pem_list)
+    if error:
+        return error
+    for pem_cert, parsed in zip(pem_list, appended):
+        error, fingerprint = _append_entry_check(logger, parsed, leaf_fp, seen_fps)
+        if error:
+            return error
+        seen_fps.add(fingerprint)
+        pems.append(pem_cert)
+        certs.append(parsed)
+
+    logger.debug("Helper._extend_chain() ended with: %s", pems)
+    return _chain_links_error(logger, certs, join_at, link_check=link_check)
+
+
+def cert_chain_append(
+    logger: logging.Logger,
+    pem_bundle: Optional[str],
+    pem_list: Optional[List[str]],
+    *,
+    link_check: bool = True,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Append PEM certificates to *pem_bundle* and check RFC 8555 chain links."""
+    logger.debug("Helper.cert_chain_append()")
+
+    if not pem_bundle:
+        logger.debug("Helper.cert_chain_append() ended (empty bundle)")
+        return None, pem_bundle
+    if not pem_list:
+        logger.debug("Helper.cert_chain_append() ended (append list empty)")
+        return None, pem_bundle
+
+    error, pems, certs = _parse_pem_bundle(logger, pem_bundle)
+    if error:
+        return error, None
+
+    error = _extend_chain(logger, pems, certs, pem_list, link_check=link_check)
+    if error:
+        return error, None
+
+    result = "".join(pems)
+    logger.debug(
+        "Helper.cert_chain_append() ended with %d certificates",
+        len(pems),
+    )
+    logger.debug("Helper.cert_chain_append() ended with: %s", result)
+    return None, result
 
 
 def certid_asn1_get(logger: logging.Logger, cert_pem: str, issuer_pem: str) -> str:

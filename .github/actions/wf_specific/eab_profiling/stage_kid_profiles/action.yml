@@ -15,6 +15,10 @@ inputs:
     description: "Substituted for ${ACME_KEYPATH} when ENVSUBST is true"
     required: false
     default: ""
+  APPEND_PREFIX:
+    description: "Substituted for ${APPEND_PREFIX} when ENVSUBST is true"
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -40,3 +44,4 @@ runs:
         DEST: ${{ inputs.DEST }}
         ENVSUBST: ${{ inputs.ENVSUBST }}
         ACME_KEYPATH: ${{ inputs.ACME_KEYPATH }}
+        APPEND_PREFIX: ${{ inputs.APPEND_PREFIX }}
