@@ -485,6 +485,44 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._get_certificate_renewal_info("cert")
             self.assertEqual(result, "hex")
 
+    def test_025a_get_certificate_renewal_info_single_pem(self):
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.pembundle_to_list",
+                return_value=["leaf"],
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.certid_asn1_get",
+            ) as mock_certid,
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            result = self.cert._get_certificate_renewal_info("cert")
+        self.assertIsNone(result)
+        mock_certid.assert_not_called()
+        self.assertIn(
+            "WARNING:test_a2c:Skipping renewal info calculation, less than two certificates found in bundle",
+            lcm.output,
+        )
+
+    def test_025b_get_certificate_renewal_info_empty_bundle(self):
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.pembundle_to_list",
+                return_value=[],
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.certid_asn1_get",
+            ) as mock_certid,
+            self.assertLogs("test_a2c", level="WARNING") as lcm,
+        ):
+            result = self.cert._get_certificate_renewal_info("cert")
+        self.assertIsNone(result)
+        mock_certid.assert_not_called()
+        self.assertIn(
+            "WARNING:test_a2c:Skipping renewal info calculation, less than two certificates found in bundle",
+            lcm.output,
+        )
+
     def test_026_store_certificate_and_update_order_success(self):
         with (
             patch.object(self.cert, "_store_certificate_in_database", return_value=1),

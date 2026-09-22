@@ -1141,15 +1141,17 @@ class Certificate(object):
         self.logger.debug("Certificate._cert_bundle_rewrite() ended")
         return error, certificate, certificate_raw
 
-    def _get_certificate_renewal_info(self, certificate: str) -> str:
+    def _get_certificate_renewal_info(self, certificate: str) -> Optional[str]:
         """get renewal info"""
         self.logger.debug("Certificate._renewal_info_get()")
 
         certificate_list = pembundle_to_list(self.logger, certificate)
 
-        renewal_info_hex = certid_asn1_get(
-            self.logger, certificate_list[0], certificate_list[1]
-        )
+        if len(certificate_list) > 1:
+            renewal_info_hex = certid_asn1_get(self.logger, certificate_list[0], certificate_list[1])
+        else:
+            self.logger.warning("Skipping renewal info calculation, less than two certificates found in bundle")
+            renewal_info_hex = None
 
         self.logger.debug(
             "Certificate.certid_asn1_get() ended with %s", renewal_info_hex
