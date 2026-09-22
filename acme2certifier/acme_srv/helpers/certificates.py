@@ -37,49 +37,6 @@ _OID_SKI = "2.5.29.14"
 _OID_AKI = "2.5.29.35"
 
 
-# #region agent log
-def _agent_dbg(hypothesis_id: str, location: str, message: str, data: dict) -> None:
-    """Session debug ingest for cert-chain rewrite troubleshooting."""
-    import json
-    import time
-
-    try:
-        with open(
-            "/Users/jm/Development/acme2certifier/.cursor/debug-274d4c.log",
-            "a",
-            encoding="utf-8",
-        ) as handle:
-            handle.write(
-                json.dumps(
-                    {
-                        "sessionId": "274d4c",
-                        "timestamp": int(time.time() * 1000),
-                        "hypothesisId": hypothesis_id,
-                        "location": location,
-                        "message": message,
-                        "data": data,
-                    }
-                )
-                + "\n"
-            )
-    except Exception:
-        pass
-
-
-def _cert_dbg_info(cert: x509.Certificate) -> dict:
-    """Subject/issuer/fingerprint summary (no key material)."""
-    return {
-        "subject": cert.subject.rfc4514_string(),
-        "issuer": cert.issuer.rfc4514_string(),
-        "fp": _cert_sha256_fingerprint(cert),
-        "self_signed": cert.subject == cert.issuer,
-        "key_type": type(cert.public_key()).__name__,
-    }
-
-
-# #endregion
-
-
 def _cert_pem_to_der(logger: logging.Logger, certificate: str) -> bytes:
     """Convert certificate input to DER bytes without parsing extensions."""
     pem_data = convert_string_to_byte(
@@ -462,25 +419,6 @@ def cert_chain_skip(
         len(kept),
         len(pem_list),
     )
-    # #region agent log
-    remaining = []
-    for pem_cert in kept:
-        try:
-            remaining.append(_cert_dbg_info(cert_load(logger, pem_cert, recode=False)))
-        except Exception as err_:
-            remaining.append({"parse_error": str(err_)})
-    _agent_dbg(
-        "H1",
-        "certificates.py:cert_chain_skip",
-        "skip remaining chain",
-        {
-            "skip_list": list(skip_set),
-            "input_count": len(pem_list),
-            "kept_count": len(kept),
-            "remaining": remaining,
-        },
-    )
-    # #endregion
     return None, result
 
 
@@ -603,21 +541,6 @@ def _chain_links_error(
         nxt = certs[idx + 1]
         issuer_name_match = prev.issuer == nxt.subject
         certifies = _cert_certifies(nxt, prev)
-        # #region agent log
-        _agent_dbg(
-            "H2",
-            "certificates.py:_chain_links_error",
-            "append link check",
-            {
-                "idx": idx,
-                "prev": _cert_dbg_info(prev),
-                "next": _cert_dbg_info(nxt),
-                "issuer_name_match": issuer_name_match,
-                "certifies": certifies,
-                "link_check": link_check,
-            },
-        )
-        # #endregion
         if not certifies:
             if issuer_name_match:
                 reason = "issuer name matches but signature verification failed"
@@ -673,18 +596,6 @@ def _extend_chain(
         certs.append(parsed)
 
     logger.debug("Helper._extend_chain() ended with: %s", pems)
-    # #region agent log
-    _agent_dbg(
-        "H4",
-        "certificates.py:_extend_chain",
-        "append candidates",
-        {
-            "join_at": join_at,
-            "remaining": [_cert_dbg_info(cert) for cert in certs[: join_at + 1]],
-            "appended": [_cert_dbg_info(cert) for cert in appended],
-        },
-    )
-    # #endregion
     return _chain_links_error(logger, certs, join_at, link_check=link_check)
 
 

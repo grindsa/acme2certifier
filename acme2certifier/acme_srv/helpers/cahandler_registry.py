@@ -185,35 +185,6 @@ class BoundCAHandler:
         )
         if error:
             return error, None
-        # #region agent log
-        from .certificates import (
-            _agent_dbg,
-            _cert_dbg_info,
-            cert_load,
-        )  # pylint: disable=c0415
-
-        append_info = []
-        for pem_cert in self.cert_chain_append or []:
-            try:
-                append_info.append(
-                    _cert_dbg_info(cert_load(logger, pem_cert, recode=False))
-                )
-            except Exception as err_:
-                append_info.append({"parse_error": str(err_)})
-        _agent_dbg(
-            "H1",
-            "cahandler_registry.py:cert_chain_rewrite",
-            "rewrite start",
-            {
-                "name": self.name,
-                "section": self.section,
-                "skip_list": self.cert_chain_skip_list,
-                "append_count": len(self.cert_chain_append or []),
-                "append": append_info,
-                "link_check": self.cert_chain_link_check,
-            },
-        )
-        # #endregion
         error, pem_bundle = cert_chain_skip(
             logger, pem_bundle, self.cert_chain_skip_list
         )
