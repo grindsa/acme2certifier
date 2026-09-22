@@ -10,11 +10,11 @@ import os
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, rsa
 from cryptography.x509.oid import NameOID
 
 sys.path.insert(0, ".")
@@ -262,6 +262,63 @@ class TestCertChainSkip(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(_pem(CERT_LEAF, CERT_ICA), bundle)
 
+    def test_010_unparseable_leaf_fails(self):
+        """PEM-shaped but invalid leaf fails closed during fingerprinting"""
+        bad = (
+            "-----BEGIN CERTIFICATE-----\n"
+            "not-a-certificate\n"
+            "-----END CERTIFICATE-----\n"
+        )
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, bundle = self.skip(self.logger, bad, ["aa" * 32])
+        self.assertEqual(
+            "Configuration error: Failed to parse certificate chain", error
+        )
+        self.assertIsNone(bundle)
+        self.assertTrue(
+            any("Failed to parse certificate in chain" in line for line in lcm.output)
+        )
+
+    def test_011_unparseable_issuer_fails(self):
+        """invalid issuer PEM after a valid leaf fails closed"""
+        bad_ica = (
+            "-----BEGIN CERTIFICATE-----\n"
+            "not-a-certificate\n"
+            "-----END CERTIFICATE-----\n"
+        )
+        error, bundle = self.skip(
+            self.logger, _pem(CERT_LEAF) + bad_ica, ["aa" * 32]
+        )
+        self.assertEqual(
+            "Configuration error: Failed to parse certificate chain", error
+        )
+        self.assertIsNone(bundle)
+
+    def test_012_kept_chain_reparse_error(self):
+        """parse error while checking remaining links after skip fails closed"""
+        from acme2certifier.acme_srv.helpers import certificates as cert_mod
+
+        real_load = cert_mod.cert_load
+        calls = {"n": 0}
+
+        def _load(logger, pem_cert, recode=False):
+            calls["n"] += 1
+            if calls["n"] > 3:
+                raise ValueError("reparse failed")
+            return real_load(logger, pem_cert, recode=recode)
+
+        with patch(
+            "acme2certifier.acme_srv.helpers.certificates.cert_load",
+            side_effect=_load,
+        ):
+            error, bundle = self.skip(
+                self.logger, BUNDLE, [_fingerprint(CERT_ROOT)]
+            )
+        self.assertEqual(
+            "Configuration error: Failed to parse certificate chain", error
+        )
+        self.assertIsNone(bundle)
+
 
 class TestBoundCAHandlerSkipList(unittest.TestCase):
     """BoundCAHandler.from_config() loads cert_chain_skip_list from its section"""
@@ -392,6 +449,40 @@ class TestCertChainAppendLoad(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual([_pem(CERT_ROOT)], pem_list)
 
+    def test_008_unparseable_pem_in_file(self):
+        """file with a PEM header that does not parse fails closed"""
+        path = os.path.join(self.tmpdir.name, "bad.pem")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(
+                "-----BEGIN CERTIFICATE-----\nnot-a-certificate\n-----END CERTIFICATE-----\n"
+            )
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": json.dumps([path])}
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, pem_list = self.load(self.logger, parser)
+        self.assertTrue(
+            error.startswith("Configuration error: Failed to parse cert_chain_append file")
+        )
+        self.assertIsNone(pem_list)
+        self.assertTrue(
+            any("Failed to parse certificate in cert_chain_append file" in line for line in lcm.output)
+        )
+
+    def test_009_empty_path_entry(self):
+        """blank cert_chain_append path is a configuration error"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_append": json.dumps(["  "])}
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, pem_list = self.load(self.logger, parser)
+        self.assertEqual(
+            "Configuration error: cert_chain_append entries must be non-empty paths",
+            error,
+        )
+        self.assertIsNone(pem_list)
+        self.assertTrue(
+            any("must be non-empty paths" in line for line in lcm.output)
+        )
+
 
 class TestCertChainAppend(unittest.TestCase):
     """cert_chain_append()"""
@@ -485,6 +576,82 @@ class TestCertChainAppend(unittest.TestCase):
         error, bundle = bound.cert_chain_rewrite(self.logger, BUNDLE)
         self.assertIsNone(error)
         self.assertEqual(_pem(CERT_LEAF, CERT_ICA2, CERT_NEW_ROOT), bundle)
+
+    def test_007_empty_bundle_passthrough(self):
+        """empty bundle is returned unchanged"""
+        self.assertEqual((None, None), self.append(self.logger, None, [_pem(CERT_ROOT)]))
+        self.assertEqual((None, ""), self.append(self.logger, "", [_pem(CERT_ROOT)]))
+
+    def test_008_unparseable_bundle_fails(self):
+        """append against a non-PEM bundle fails closed"""
+        error, bundle = self.append(self.logger, "not-pem", [_pem(CERT_ROOT)])
+        self.assertEqual(
+            "Configuration error: Failed to parse certificate chain", error
+        )
+        self.assertIsNone(bundle)
+
+    def test_008b_unparseable_pem_bundle_fails(self):
+        """PEM-shaped but invalid existing bundle fails closed"""
+        bad = (
+            "-----BEGIN CERTIFICATE-----\n"
+            "not-a-certificate\n"
+            "-----END CERTIFICATE-----\n"
+        )
+        error, bundle = self.append(self.logger, bad, [_pem(CERT_ROOT)])
+        self.assertEqual(
+            "Configuration error: Failed to parse certificate chain", error
+        )
+        self.assertIsNone(bundle)
+
+    def test_009_unparseable_append_pem_fails(self):
+        """invalid PEM in the append list fails closed"""
+        bad = (
+            "-----BEGIN CERTIFICATE-----\n"
+            "not-a-certificate\n"
+            "-----END CERTIFICATE-----\n"
+        )
+        error, bundle = self.append(
+            self.logger, _pem(CERT_LEAF, CERT_ICA), [bad]
+        )
+        self.assertEqual(
+            "Configuration error: Failed to parse certificate chain", error
+        )
+        self.assertIsNone(bundle)
+
+    def test_010_issuer_name_match_signature_fail(self):
+        """same issuer name but wrong key is a broken link"""
+        fake_ica = _issue_cert(
+            "intermediate", _OTHER_KEY, CERT_ICA.subject, _OTHER_KEY, True
+        )
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, bundle = self.append(
+                self.logger, _pem(CERT_LEAF), [_pem(fake_ica)]
+            )
+        self.assertTrue(
+            "issuer name matches but signature verification failed" in error
+        )
+        self.assertIsNone(bundle)
+        self.assertTrue(
+            any("issuer name matches but signature verification failed" in line for line in lcm.output)
+        )
+
+    def test_011_rewrite_skip_unlinked_intermediate(self):
+        """BoundCAHandler rewrite fails when skip leaves an unlinked chain"""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+
+        bound = BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=[_fingerprint(CERT_ICA)],
+        )
+        error, bundle = bound.cert_chain_rewrite(self.logger, BUNDLE)
+        self.assertTrue(
+            error.startswith(
+                "Configuration error: certificate does not certify the previous one"
+            )
+        )
+        self.assertIsNone(bundle)
 
 
 class TestBoundCAHandlerAppend(unittest.TestCase):
@@ -593,6 +760,45 @@ class TestCertChainProfileLoad(unittest.TestCase):
             "Configuration error: cert_chain_link_check must be a boolean", error
         )
         self.assertTrue(loaded)
+
+    def test_006_link_check_true_string(self):
+        """kid-profile string true values are accepted"""
+        error, loaded = self.load(self.logger, "cert_chain_link_check", "yes")
+        self.assertIsNone(error)
+        self.assertTrue(loaded)
+
+    def test_007_link_check_false_string(self):
+        """kid-profile string false values are accepted"""
+        error, loaded = self.load(self.logger, "cert_chain_link_check", "off")
+        self.assertIsNone(error)
+        self.assertFalse(loaded)
+
+
+class TestCertChainLinkCheckLoad(unittest.TestCase):
+    """config_cert_chain_link_check_load()"""
+
+    def setUp(self):
+        logging.basicConfig(level=logging.CRITICAL)
+        self.logger = logging.getLogger("test_a2c")
+        from acme2certifier.acme_srv.helpers.config import (
+            config_cert_chain_link_check_load,
+        )
+
+        self.load = config_cert_chain_link_check_load
+
+    def test_001_getboolean_exception(self):
+        """invalid ConfigParser boolean fails closed"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"cert_chain_link_check": "maybe"}
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, value = self.load(self.logger, parser)
+        self.assertEqual(
+            "Configuration error: Failed to parse cert_chain_link_check", error
+        )
+        self.assertTrue(value)
+        self.assertTrue(
+            any("Failed to parse cert_chain_link_check" in line for line in lcm.output)
+        )
 
 
 class TestBoundCAHandlerEabOverlay(unittest.TestCase):
@@ -725,6 +931,96 @@ class TestBoundCAHandlerEabOverlay(unittest.TestCase):
         self.assertTrue(
             any("cert_chain_link_check is False" in line for line in lcm.output)
         )
+
+    def test_008_empty_profile_returns_self(self):
+        """empty or missing profile dict does not copy the factory"""
+        bound = self.BoundCAHandler(
+            object,
+            "CAhandler",
+            "default",
+            cert_chain_skip_list=["cfg"],
+        )
+        error, overlaid = bound.eab_chain_overlay(self.logger, {})
+        self.assertIsNone(error)
+        self.assertIs(overlaid, bound)
+        error, overlaid = bound.eab_chain_overlay(self.logger, None)
+        self.assertIsNone(error)
+        self.assertIs(overlaid, bound)
+
+
+class TestCertCertifies(unittest.TestCase):
+    """_cert_certifies() key-type branches"""
+
+    def setUp(self):
+        logging.basicConfig(level=logging.CRITICAL)
+        self.logger = logging.getLogger("test_a2c")
+        from acme2certifier.acme_srv.helpers.certificates import _cert_certifies
+
+        self.certifies = _cert_certifies
+
+    def _subject_for(self, issuer, hash_alg=hashes.SHA256()):
+        subject = MagicMock()
+        subject.issuer = issuer.subject
+        subject.signature_hash_algorithm = hash_alg
+        subject.signature = b"sig"
+        subject.tbs_certificate_bytes = b"tbs"
+        return subject
+
+    def test_001_rsa_certifies(self):
+        """RSA issuer verifies with PKCS1v15"""
+        issuer = MagicMock()
+        pub = MagicMock(spec=rsa.RSAPublicKey)
+        issuer.public_key.return_value = pub
+        self.assertTrue(self.certifies(issuer, self._subject_for(issuer)))
+        pub.verify.assert_called_once()
+
+    def test_002_rsa_missing_hash(self):
+        """RSA without a signature hash algorithm does not certify"""
+        issuer = MagicMock()
+        issuer.public_key.return_value = MagicMock(spec=rsa.RSAPublicKey)
+        self.assertFalse(self.certifies(issuer, self._subject_for(issuer, None)))
+
+    def test_003_ec_missing_hash(self):
+        """EC without a signature hash algorithm does not certify"""
+        issuer = MagicMock()
+        issuer.public_key.return_value = MagicMock(spec=ec.EllipticCurvePublicKey)
+        self.assertFalse(self.certifies(issuer, self._subject_for(issuer, None)))
+
+    def test_004_dsa_certifies(self):
+        """DSA issuer verifies with the signature hash"""
+        issuer = MagicMock()
+        pub = MagicMock(spec=dsa.DSAPublicKey)
+        issuer.public_key.return_value = pub
+        self.assertTrue(self.certifies(issuer, self._subject_for(issuer)))
+        pub.verify.assert_called_once()
+
+    def test_005_dsa_missing_hash(self):
+        """DSA without a signature hash algorithm does not certify"""
+        issuer = MagicMock()
+        issuer.public_key.return_value = MagicMock(spec=dsa.DSAPublicKey)
+        self.assertFalse(self.certifies(issuer, self._subject_for(issuer, None)))
+
+    def test_006_ed25519_certifies(self):
+        """Ed25519 issuer verifies without a hash algorithm"""
+        issuer = MagicMock()
+        pub = MagicMock(spec=ed25519.Ed25519PublicKey)
+        issuer.public_key.return_value = pub
+        self.assertTrue(self.certifies(issuer, self._subject_for(issuer, None)))
+        pub.verify.assert_called_once()
+
+    def test_007_verify_exception(self):
+        """signature verification errors mean the link is broken"""
+        issuer = MagicMock()
+        pub = MagicMock(spec=rsa.RSAPublicKey)
+        pub.verify.side_effect = ValueError("bad sig")
+        issuer.public_key.return_value = pub
+        self.assertFalse(self.certifies(issuer, self._subject_for(issuer)))
+
+    def test_008_unknown_key_type(self):
+        """unsupported public key types do not certify"""
+        issuer = MagicMock()
+        issuer.public_key.return_value = object()
+        self.assertFalse(self.certifies(issuer, self._subject_for(issuer)))
 
 
 if __name__ == "__main__":
