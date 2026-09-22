@@ -2293,7 +2293,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
     )
-    def test_148a__cacert_expiry_get_does_not_mutate_chain_list(
+    def test_152__cacert_expiry_get_does_not_mutate_chain_list(
         self, mock_certload, mock_exists, mock_exp, mock_now
     ):
         """_cacert_expiry_get must not append issuing CA onto ca_cert_chain_list"""
@@ -2316,7 +2316,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
     )
-    def test_152__cacert_expiry_get(
+    def test_153__cacert_expiry_get(
         self, mock_certload, mock_exists, mock_exp, mock_now
     ):
         """test _cacert_expiry_get()"""
@@ -2338,7 +2338,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.x509.load_pem_x509_certificate"
     )
-    def test_153__cacert_expiry_get(
+    def test_154__cacert_expiry_get(
         self, mock_certload, mock_exists, mock_exp, mock_now
     ):
         """test _cacert_expiry_get()"""
@@ -2357,14 +2357,14 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_154__cert_expiry_get(self):
+    def test_155__cert_expiry_get(self):
         """test _cert_expiry_get()"""
         cert = Mock()
         cert.not_valid_after = "not_valid_after"
         self.assertEqual("not_valid_after", self.cahandler._cert_expiry_get(cert))
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.datetime")
-    def test_155__certexpiry_date_default(self, mock_now):
+    def test_156__certexpiry_date_default(self, mock_now):
         """test _certexpiry_date_default()"""
         mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
         mock_now.timedelta.return_value = datetime.timedelta(days=2)
@@ -2377,7 +2377,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.CAhandler._certexpiry_date_default"
     )
-    def test_156__certexpiry_date_set(self, mock_default, mock_get):
+    def test_157__certexpiry_date_set(self, mock_default, mock_get):
         """test _certexpiry_date_set()"""
         mock_default.return_value = 365
         mock_get.return_value = (720, "cert")
@@ -2389,7 +2389,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.CAhandler._certexpiry_date_default"
     )
-    def test_157__certexpiry_date_set(self, mock_default, mock_get):
+    def test_158__certexpiry_date_set(self, mock_default, mock_get):
         """test _certexpiry_date_set()"""
         mock_default.return_value = 365
         mock_get.return_value = (720, "cert")
@@ -2403,7 +2403,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.openssl_ca_handler.CAhandler._certexpiry_date_default"
     )
-    def test_158__certexpiry_date_set(self, mock_default, mock_get):
+    def test_159__certexpiry_date_set(self, mock_default, mock_get):
         """test _certexpiry_date_set()"""
         mock_default.return_value = 365
         cert = Mock()
@@ -2420,7 +2420,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_default.called)
         self.assertTrue(mock_get.called)
 
-    def test_159_path_resolve_relative_without_base_dir(self):
+    def test_160_path_resolve_relative_without_base_dir(self):
         """relative paths stay relative when BASE_DIR is unset"""
         os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
         self.assertEqual(
@@ -2428,7 +2428,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._path_resolve("volume/acme_ca/sub-ca-key.pem"),
         )
 
-    def test_160_path_resolve_relative_with_base_dir(self):
+    def test_161_path_resolve_relative_with_base_dir(self):
         """relative paths are joined with ACME2CERTIFIER_BASE_DIR"""
         os.environ["ACME2CERTIFIER_BASE_DIR"] = "/var/www/acme2certifier"
         try:
@@ -2439,7 +2439,7 @@ class TestACMEHandler(unittest.TestCase):
         finally:
             os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
-    def test_161_path_resolve_absolute_unchanged(self):
+    def test_162_path_resolve_absolute_unchanged(self):
         """absolute paths are not rewritten"""
         os.environ["ACME2CERTIFIER_BASE_DIR"] = "/var/www/acme2certifier"
         try:
@@ -2451,7 +2451,7 @@ class TestACMEHandler(unittest.TestCase):
             os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_162_config_load_resolves_paths_with_base_dir(self, mock_load_cfg):
+    def test_163_config_load_resolves_paths_with_base_dir(self, mock_load_cfg):
         """_config_load applies BASE_DIR to CA path options"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -2494,7 +2494,7 @@ class TestACMEHandler(unittest.TestCase):
             os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_163__config_load_ca_cert_chain_list_invalid_json(self, mock_load_cfg):
+    def test_164__config_load_ca_cert_chain_list_invalid_json(self, mock_load_cfg):
         """_config_load logs error when ca_cert_chain_list is invalid JSON"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_cert_chain_list": "not-json"}
@@ -2511,7 +2511,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.openssl_ca_handler.config_enroll_config_log_load")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
-    def test_164_config_load_enrollment_config_log(self, mock_load_cfg, mock_enroll):
+    def test_165_config_load_enrollment_config_log(self, mock_load_cfg, mock_enroll):
         """_config_load stores enrollment_config_log settings"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"save_cert_as_hex": False}
@@ -2524,7 +2524,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_165_enroll_skips_enrollment_config_log(self, mock_chk, mock_csr, mock_ecl):
+    def test_166_enroll_skips_enrollment_config_log(self, mock_chk, mock_csr, mock_ecl):
         """enroll does not dump config when enrollment_config_log is False"""
         mock_chk.return_value = None
         mock_csr.return_value = (False, None)
@@ -2535,7 +2535,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.openssl_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
-    def test_166_enroll_calls_enrollment_config_log(self, mock_chk, mock_csr, mock_ecl):
+    def test_167_enroll_calls_enrollment_config_log(self, mock_chk, mock_csr, mock_ecl):
         """enroll dumps config when enrollment_config_log is True"""
         mock_chk.return_value = None
         mock_csr.return_value = (False, None)
@@ -2545,7 +2545,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ecl.called)
         self.assertIn("issuer_dict", mock_ecl.call_args[0][2])
 
-    def test_167_list_regex_check(self):
+    def test_168_list_regex_check(self):
         """CAhandler._list_regex_check matches and rejects regex entries"""
         self.assertTrue(
             self.cahandler._list_regex_check("foo.example.com", [r"foo\.example\.com"])

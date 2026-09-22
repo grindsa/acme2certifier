@@ -161,7 +161,7 @@ class TestCertChainSkip(unittest.TestCase):
 
         self.skip = cert_chain_skip
 
-    def test_001_empty_skip_passthrough(self):
+    def test_008_empty_skip_passthrough(self):
         """empty skip list does not parse the bundle"""
         with patch(
             "acme2certifier.acme_srv.helpers.certificates.cert_load"
@@ -171,37 +171,36 @@ class TestCertChainSkip(unittest.TestCase):
         self.assertEqual("not-pem", bundle)
         self.assertFalse(mock_load.called)
 
-    def test_002_none_skip_passthrough(self):
+    def test_009_none_skip_passthrough(self):
         """None skip list does not parse"""
         error, bundle = self.skip(self.logger, BUNDLE, None)
         self.assertIsNone(error)
         self.assertEqual(BUNDLE, bundle)
 
-    def test_003_empty_bundle(self):
+    def test_010_empty_bundle(self):
         """empty bundle is returned unchanged"""
         self.assertEqual((None, None), self.skip(self.logger, None, ["aa"]))
         self.assertEqual((None, ""), self.skip(self.logger, "", ["aa"]))
 
-    def test_004_drop_root(self):
+    def test_011_drop_root(self):
         """listed root is dropped, leaf and intermediate stay"""
         error, bundle = self.skip(self.logger, BUNDLE, [_fingerprint(CERT_ROOT)])
         self.assertIsNone(error)
         self.assertEqual(_pem(CERT_LEAF, CERT_ICA), bundle)
 
-    def test_005_unlisted_fingerprint(self):
+    def test_012_unlisted_fingerprint(self):
         """unknown fingerprint leaves the chain unchanged"""
         error, bundle = self.skip(self.logger, BUNDLE, ["ff" * 32])
         self.assertIsNone(error)
         self.assertEqual(BUNDLE, bundle)
 
-    def test_006_drop_intermediate(self):
+    def test_013_drop_intermediate(self):
         """skipping a non-suffix cert leaves an unlinked chain and fails closed"""
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             error, bundle = self.skip(self.logger, BUNDLE, [_fingerprint(CERT_ICA)])
         self.assertTrue(
             error.startswith(
-                "Configuration error: "
-                "certificate does not certify the previous one"
+                "Configuration error: " "certificate does not certify the previous one"
             )
         )
         self.assertIn("previous issuer", error)
@@ -210,7 +209,7 @@ class TestCertChainSkip(unittest.TestCase):
             any("does not certify the previous one" in line for line in lcm.output)
         )
 
-    def test_006b_drop_intermediate_allowed_when_link_check_false(self):
+    def test_014_drop_intermediate_allowed_when_link_check_false(self):
         """cert_chain_link_check False keeps an unlinked remaining chain and warns"""
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             error, bundle = self.skip(
@@ -225,7 +224,7 @@ class TestCertChainSkip(unittest.TestCase):
             any("cert_chain_link_check is False" in line for line in lcm.output)
         )
 
-    def test_007_leaf_in_skip_list_fails(self):
+    def test_015_leaf_in_skip_list_fails(self):
         """end-entity fingerprint is a configuration error"""
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             error, bundle = self.skip(self.logger, BUNDLE, [_fingerprint(CERT_LEAF)])
@@ -236,7 +235,7 @@ class TestCertChainSkip(unittest.TestCase):
         self.assertIsNone(bundle)
         self.assertTrue(any("end-entity certificate" in line for line in lcm.output))
 
-    def test_008_unparseable_bundle_fails(self):
+    def test_016_unparseable_bundle_fails(self):
         """skip list set against a non-PEM bundle fails closed"""
         error, bundle = self.skip(self.logger, "foo", ["aa" * 32])
         self.assertEqual(
@@ -244,7 +243,7 @@ class TestCertChainSkip(unittest.TestCase):
         )
         self.assertIsNone(bundle)
 
-    def test_009_colon_fingerprint_matches(self):
+    def test_017_colon_fingerprint_matches(self):
         """openssl-style colon fingerprint still matches after load+skip"""
         from acme2certifier.acme_srv.helpers.config import (
             config_cert_chain_skip_list_load,
@@ -262,7 +261,7 @@ class TestCertChainSkip(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(_pem(CERT_LEAF, CERT_ICA), bundle)
 
-    def test_010_unparseable_leaf_fails(self):
+    def test_018_unparseable_leaf_fails(self):
         """PEM-shaped but invalid leaf fails closed during fingerprinting"""
         bad = (
             "-----BEGIN CERTIFICATE-----\n"
@@ -279,22 +278,20 @@ class TestCertChainSkip(unittest.TestCase):
             any("Failed to parse certificate in chain" in line for line in lcm.output)
         )
 
-    def test_011_unparseable_issuer_fails(self):
+    def test_019_unparseable_issuer_fails(self):
         """invalid issuer PEM after a valid leaf fails closed"""
         bad_ica = (
             "-----BEGIN CERTIFICATE-----\n"
             "not-a-certificate\n"
             "-----END CERTIFICATE-----\n"
         )
-        error, bundle = self.skip(
-            self.logger, _pem(CERT_LEAF) + bad_ica, ["aa" * 32]
-        )
+        error, bundle = self.skip(self.logger, _pem(CERT_LEAF) + bad_ica, ["aa" * 32])
         self.assertEqual(
             "Configuration error: Failed to parse certificate chain", error
         )
         self.assertIsNone(bundle)
 
-    def test_012_kept_chain_reparse_error(self):
+    def test_020_kept_chain_reparse_error(self):
         """parse error while checking remaining links after skip fails closed"""
         from acme2certifier.acme_srv.helpers import certificates as cert_mod
 
@@ -311,9 +308,7 @@ class TestCertChainSkip(unittest.TestCase):
             "acme2certifier.acme_srv.helpers.certificates.cert_load",
             side_effect=_load,
         ):
-            error, bundle = self.skip(
-                self.logger, BUNDLE, [_fingerprint(CERT_ROOT)]
-            )
+            error, bundle = self.skip(self.logger, BUNDLE, [_fingerprint(CERT_ROOT)])
         self.assertEqual(
             "Configuration error: Failed to parse certificate chain", error
         )
@@ -330,7 +325,7 @@ class TestBoundCAHandlerSkipList(unittest.TestCase):
 
         self.BoundCAHandler = BoundCAHandler
 
-    def test_001_classical_section(self):
+    def test_021_classical_section(self):
         """[CAhandler] skip-list is loaded onto the bound factory"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_chain_skip_list": json.dumps(["AA"])}
@@ -340,7 +335,7 @@ class TestBoundCAHandlerSkipList(unittest.TestCase):
         self.assertIsNone(bound.cert_chain_skip_list_error)
         self.assertEqual(["aa"], bound.cert_chain_skip_list)
 
-    def test_002_named_section(self):
+    def test_022_named_section(self):
         """named handler section is loaded without merging onto [CAhandler]"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_chain_skip_list": json.dumps(["bb"])}
@@ -353,7 +348,7 @@ class TestBoundCAHandlerSkipList(unittest.TestCase):
         self.assertIsNone(bound.cert_chain_skip_list_error)
         self.assertEqual([_fingerprint(CERT_ROOT)], bound.cert_chain_skip_list)
 
-    def test_003_named_section_without_skip_list(self):
+    def test_023_named_section_without_skip_list(self):
         """named section with no skip-list does not inherit [CAhandler]"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_chain_skip_list": json.dumps(["bb"])}
@@ -388,13 +383,13 @@ class TestCertChainAppendLoad(unittest.TestCase):
     def tearDown(self):
         self.tmpdir.cleanup()
 
-    def test_001_unset(self):
+    def test_024_unset(self):
         """missing key returns an empty list"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_name": "ca"}
         self.assertEqual((None, []), self.load(self.logger, parser))
 
-    def test_002_valid_file(self):
+    def test_025_valid_file(self):
         """PEM file is loaded into a list of certificates"""
         path = _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
         parser = configparser.ConfigParser()
@@ -403,7 +398,7 @@ class TestCertChainAppendLoad(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual([_pem(CERT_ROOT)], pem_list)
 
-    def test_003_bundle_file(self):
+    def test_026_bundle_file(self):
         """a file with several certificates is split in order"""
         path = _write_pem(self.tmpdir.name, "chain.pem", CERT_ICA2, CERT_NEW_ROOT)
         parser = configparser.ConfigParser()
@@ -412,7 +407,7 @@ class TestCertChainAppendLoad(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual([_pem(CERT_ICA2), _pem(CERT_NEW_ROOT)], pem_list)
 
-    def test_004_missing_file(self):
+    def test_027_missing_file(self):
         """missing file is a configuration error"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_chain_append": json.dumps(["/no/such/cert.pem"])}
@@ -420,7 +415,7 @@ class TestCertChainAppendLoad(unittest.TestCase):
         self.assertTrue(error.startswith("Configuration error:"))
         self.assertIsNone(pem_list)
 
-    def test_005_empty_file(self):
+    def test_028_empty_file(self):
         """file without certificates is a configuration error"""
         path = os.path.join(self.tmpdir.name, "empty.pem")
         with open(path, "w", encoding="utf-8") as handle:
@@ -431,7 +426,7 @@ class TestCertChainAppendLoad(unittest.TestCase):
         self.assertTrue(error.startswith("Configuration error:"))
         self.assertIsNone(pem_list)
 
-    def test_006_invalid_json(self):
+    def test_029_invalid_json(self):
         """invalid JSON is a configuration error"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_chain_append": "not-json"}
@@ -439,7 +434,7 @@ class TestCertChainAppendLoad(unittest.TestCase):
         self.assertTrue(error.startswith("Configuration error:"))
         self.assertIsNone(pem_list)
 
-    def test_007_relative_path_with_base_dir(self):
+    def test_030_relative_path_with_base_dir(self):
         """relative paths are resolved against ACME2CERTIFIER_BASE_DIR"""
         _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
         parser = configparser.ConfigParser()
@@ -449,7 +444,7 @@ class TestCertChainAppendLoad(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual([_pem(CERT_ROOT)], pem_list)
 
-    def test_008_unparseable_pem_in_file(self):
+    def test_031_unparseable_pem_in_file(self):
         """file with a PEM header that does not parse fails closed"""
         path = os.path.join(self.tmpdir.name, "bad.pem")
         with open(path, "w", encoding="utf-8") as handle:
@@ -461,14 +456,19 @@ class TestCertChainAppendLoad(unittest.TestCase):
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             error, pem_list = self.load(self.logger, parser)
         self.assertTrue(
-            error.startswith("Configuration error: Failed to parse cert_chain_append file")
+            error.startswith(
+                "Configuration error: Failed to parse cert_chain_append file"
+            )
         )
         self.assertIsNone(pem_list)
         self.assertTrue(
-            any("Failed to parse certificate in cert_chain_append file" in line for line in lcm.output)
+            any(
+                "Failed to parse certificate in cert_chain_append file" in line
+                for line in lcm.output
+            )
         )
 
-    def test_009_empty_path_entry(self):
+    def test_032_empty_path_entry(self):
         """blank cert_chain_append path is a configuration error"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_chain_append": json.dumps(["  "])}
@@ -479,9 +479,7 @@ class TestCertChainAppendLoad(unittest.TestCase):
             error,
         )
         self.assertIsNone(pem_list)
-        self.assertTrue(
-            any("must be non-empty paths" in line for line in lcm.output)
-        )
+        self.assertTrue(any("must be non-empty paths" in line for line in lcm.output))
 
 
 class TestCertChainAppend(unittest.TestCase):
@@ -494,7 +492,7 @@ class TestCertChainAppend(unittest.TestCase):
 
         self.append = cert_chain_append
 
-    def test_001_empty_append_passthrough(self):
+    def test_033_empty_append_passthrough(self):
         """empty append list does not parse the bundle"""
         with patch(
             "acme2certifier.acme_srv.helpers.certificates.cert_load"
@@ -504,7 +502,7 @@ class TestCertChainAppend(unittest.TestCase):
         self.assertEqual("bundle", bundle)
         mock_load.assert_not_called()
 
-    def test_002_append_root_after_ica(self):
+    def test_034_append_root_after_ica(self):
         """root that certifies the last chain cert is appended"""
         error, bundle = self.append(
             self.logger, _pem(CERT_LEAF, CERT_ICA), [_pem(CERT_ROOT)]
@@ -512,21 +510,20 @@ class TestCertChainAppend(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(_pem(CERT_LEAF, CERT_ICA, CERT_ROOT), bundle)
 
-    def test_003_append_unrelated_fails(self):
+    def test_035_append_unrelated_fails(self):
         """appended cert that does not certify the previous one fails closed"""
         error, bundle = self.append(
             self.logger, _pem(CERT_LEAF, CERT_ICA), [_pem(CERT_OTHER)]
         )
         self.assertTrue(
             error.startswith(
-                "Configuration error: "
-                "certificate does not certify the previous one"
+                "Configuration error: " "certificate does not certify the previous one"
             )
         )
         self.assertIn("previous issuer", error)
         self.assertIsNone(bundle)
 
-    def test_003b_append_unrelated_allowed_when_link_check_false(self):
+    def test_036_append_unrelated_allowed_when_link_check_false(self):
         """cert_chain_link_check False appends an unlinked CA and warns"""
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             error, bundle = self.append(
@@ -541,7 +538,7 @@ class TestCertChainAppend(unittest.TestCase):
             any("cert_chain_link_check is False" in line for line in lcm.output)
         )
 
-    def test_004_append_leaf_fails(self):
+    def test_037_append_leaf_fails(self):
         """appending the end-entity certificate is a configuration error"""
         error, bundle = self.append(self.logger, BUNDLE, [_pem(CERT_LEAF)])
         self.assertEqual(
@@ -550,7 +547,7 @@ class TestCertChainAppend(unittest.TestCase):
         )
         self.assertIsNone(bundle)
 
-    def test_005_append_duplicate_fails(self):
+    def test_038_append_duplicate_fails(self):
         """appending a cert already in the remaining chain fails closed"""
         error, bundle = self.append(
             self.logger, _pem(CERT_LEAF, CERT_ICA, CERT_ROOT), [_pem(CERT_ROOT)]
@@ -562,7 +559,7 @@ class TestCertChainAppend(unittest.TestCase):
         )
         self.assertIsNone(bundle)
 
-    def test_006_skip_then_append_replacement(self):
+    def test_039_skip_then_append_replacement(self):
         """skip old ICA/root then append a re-issued ICA and new root"""
         from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
 
@@ -577,12 +574,14 @@ class TestCertChainAppend(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(_pem(CERT_LEAF, CERT_ICA2, CERT_NEW_ROOT), bundle)
 
-    def test_007_empty_bundle_passthrough(self):
+    def test_040_empty_bundle_passthrough(self):
         """empty bundle is returned unchanged"""
-        self.assertEqual((None, None), self.append(self.logger, None, [_pem(CERT_ROOT)]))
+        self.assertEqual(
+            (None, None), self.append(self.logger, None, [_pem(CERT_ROOT)])
+        )
         self.assertEqual((None, ""), self.append(self.logger, "", [_pem(CERT_ROOT)]))
 
-    def test_008_unparseable_bundle_fails(self):
+    def test_041_unparseable_bundle_fails(self):
         """append against a non-PEM bundle fails closed"""
         error, bundle = self.append(self.logger, "not-pem", [_pem(CERT_ROOT)])
         self.assertEqual(
@@ -590,7 +589,7 @@ class TestCertChainAppend(unittest.TestCase):
         )
         self.assertIsNone(bundle)
 
-    def test_008b_unparseable_pem_bundle_fails(self):
+    def test_042_unparseable_pem_bundle_fails(self):
         """PEM-shaped but invalid existing bundle fails closed"""
         bad = (
             "-----BEGIN CERTIFICATE-----\n"
@@ -603,39 +602,38 @@ class TestCertChainAppend(unittest.TestCase):
         )
         self.assertIsNone(bundle)
 
-    def test_009_unparseable_append_pem_fails(self):
+    def test_043_unparseable_append_pem_fails(self):
         """invalid PEM in the append list fails closed"""
         bad = (
             "-----BEGIN CERTIFICATE-----\n"
             "not-a-certificate\n"
             "-----END CERTIFICATE-----\n"
         )
-        error, bundle = self.append(
-            self.logger, _pem(CERT_LEAF, CERT_ICA), [bad]
-        )
+        error, bundle = self.append(self.logger, _pem(CERT_LEAF, CERT_ICA), [bad])
         self.assertEqual(
             "Configuration error: Failed to parse certificate chain", error
         )
         self.assertIsNone(bundle)
 
-    def test_010_issuer_name_match_signature_fail(self):
+    def test_044_issuer_name_match_signature_fail(self):
         """same issuer name but wrong key is a broken link"""
         fake_ica = _issue_cert(
             "intermediate", _OTHER_KEY, CERT_ICA.subject, _OTHER_KEY, True
         )
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
-            error, bundle = self.append(
-                self.logger, _pem(CERT_LEAF), [_pem(fake_ica)]
-            )
+            error, bundle = self.append(self.logger, _pem(CERT_LEAF), [_pem(fake_ica)])
         self.assertTrue(
             "issuer name matches but signature verification failed" in error
         )
         self.assertIsNone(bundle)
         self.assertTrue(
-            any("issuer name matches but signature verification failed" in line for line in lcm.output)
+            any(
+                "issuer name matches but signature verification failed" in line
+                for line in lcm.output
+            )
         )
 
-    def test_011_rewrite_skip_unlinked_intermediate(self):
+    def test_045_rewrite_skip_unlinked_intermediate(self):
         """BoundCAHandler rewrite fails when skip leaves an unlinked chain"""
         from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
 
@@ -668,7 +666,7 @@ class TestBoundCAHandlerAppend(unittest.TestCase):
     def tearDown(self):
         self.tmpdir.cleanup()
 
-    def test_001_classical_section(self):
+    def test_046_classical_section(self):
         """[CAhandler] append PEMs are loaded onto the bound factory"""
         path = _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
         parser = configparser.ConfigParser()
@@ -679,7 +677,7 @@ class TestBoundCAHandlerAppend(unittest.TestCase):
         self.assertIsNone(bound.cert_chain_append_error)
         self.assertEqual([_pem(CERT_ROOT)], bound.cert_chain_append)
 
-    def test_002_named_section(self):
+    def test_047_named_section(self):
         """named handler section is loaded without inheriting [CAhandler]"""
         root_path = _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
         ica_path = _write_pem(self.tmpdir.name, "ica.pem", CERT_ICA2)
@@ -692,7 +690,7 @@ class TestBoundCAHandlerAppend(unittest.TestCase):
         self.assertIsNone(bound.cert_chain_append_error)
         self.assertEqual([_pem(CERT_ICA2)], bound.cert_chain_append)
 
-    def test_003_link_check_default_true(self):
+    def test_048_link_check_default_true(self):
         """unset cert_chain_link_check stays fail-closed"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
@@ -702,7 +700,7 @@ class TestBoundCAHandlerAppend(unittest.TestCase):
         self.assertTrue(bound.cert_chain_link_check)
         self.assertIsNone(bound.cert_chain_link_check_error)
 
-    def test_004_link_check_false(self):
+    def test_049_link_check_false(self):
         """named section can disable RFC link checking"""
         parser = configparser.ConfigParser()
         parser["CAhandler:openssl"] = {"cert_chain_link_check": "False"}
@@ -725,7 +723,7 @@ class TestCertChainProfileLoad(unittest.TestCase):
 
         self.load = config_cert_chain_profile_load
 
-    def test_001_skip_list(self):
+    def test_050_skip_list(self):
         """kid-profile skip-list fingerprints are normalized"""
         error, loaded = self.load(
             self.logger, "cert_chain_skip_list", ["AA:BB", "cc dd"]
@@ -733,13 +731,13 @@ class TestCertChainProfileLoad(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(["aabb", "ccdd"], loaded)
 
-    def test_002_unknown_key(self):
+    def test_051_unknown_key(self):
         """unknown keys are ignored"""
         error, loaded = self.load(self.logger, "profile_id", ["aa"])
         self.assertIsNone(error)
         self.assertIsNone(loaded)
 
-    def test_003_invalid_json(self):
+    def test_052_invalid_json(self):
         """invalid skip-list JSON fails closed"""
         error, loaded = self.load(self.logger, "cert_chain_skip_list", "nope")
         self.assertEqual(
@@ -747,13 +745,13 @@ class TestCertChainProfileLoad(unittest.TestCase):
         )
         self.assertIsNone(loaded)
 
-    def test_004_link_check_false(self):
+    def test_053_link_check_false(self):
         """kid-profile cert_chain_link_check False is parsed"""
         error, loaded = self.load(self.logger, "cert_chain_link_check", False)
         self.assertIsNone(error)
         self.assertFalse(loaded)
 
-    def test_005_link_check_invalid(self):
+    def test_054_link_check_invalid(self):
         """invalid cert_chain_link_check fails closed"""
         error, loaded = self.load(self.logger, "cert_chain_link_check", "maybe")
         self.assertEqual(
@@ -761,13 +759,13 @@ class TestCertChainProfileLoad(unittest.TestCase):
         )
         self.assertTrue(loaded)
 
-    def test_006_link_check_true_string(self):
+    def test_055_link_check_true_string(self):
         """kid-profile string true values are accepted"""
         error, loaded = self.load(self.logger, "cert_chain_link_check", "yes")
         self.assertIsNone(error)
         self.assertTrue(loaded)
 
-    def test_007_link_check_false_string(self):
+    def test_056_link_check_false_string(self):
         """kid-profile string false values are accepted"""
         error, loaded = self.load(self.logger, "cert_chain_link_check", "off")
         self.assertIsNone(error)
@@ -786,7 +784,7 @@ class TestCertChainLinkCheckLoad(unittest.TestCase):
 
         self.load = config_cert_chain_link_check_load
 
-    def test_001_getboolean_exception(self):
+    def test_057_getboolean_exception(self):
         """invalid ConfigParser boolean fails closed"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_chain_link_check": "maybe"}
@@ -815,7 +813,7 @@ class TestBoundCAHandlerEabOverlay(unittest.TestCase):
     def tearDown(self):
         self.tmpdir.cleanup()
 
-    def test_001_skip_replaces_without_mutating(self):
+    def test_058_skip_replaces_without_mutating(self):
         """kid skip-list replaces bound values on a copy"""
         bound = self.BoundCAHandler(
             object,
@@ -831,7 +829,7 @@ class TestBoundCAHandlerEabOverlay(unittest.TestCase):
         self.assertEqual(["cfg"], bound.cert_chain_skip_list)
         self.assertEqual(["eab"], overlaid.cert_chain_skip_list)
 
-    def test_002_omitted_keys_keep_bound_factory(self):
+    def test_059_omitted_keys_keep_bound_factory(self):
         """profile without chain keys does not copy"""
         bound = self.BoundCAHandler(
             object,
@@ -843,7 +841,7 @@ class TestBoundCAHandlerEabOverlay(unittest.TestCase):
         self.assertIsNone(error)
         self.assertIs(overlaid, bound)
 
-    def test_003_empty_skip_clears_bound_list(self):
+    def test_060_empty_skip_clears_bound_list(self):
         """empty kid skip-list clears the bound skip-list"""
         bound = self.BoundCAHandler(
             object,
@@ -858,7 +856,7 @@ class TestBoundCAHandlerEabOverlay(unittest.TestCase):
         self.assertEqual([], overlaid.cert_chain_skip_list)
         self.assertEqual(["cfg"], bound.cert_chain_skip_list)
 
-    def test_004_append_loads_pems(self):
+    def test_061_append_loads_pems(self):
         """kid cert_chain_append paths are read into PEMs"""
         path = _write_pem(self.tmpdir.name, "root.pem", CERT_ROOT)
         bound = self.BoundCAHandler(object, "CAhandler", "default")
@@ -869,7 +867,7 @@ class TestBoundCAHandlerEabOverlay(unittest.TestCase):
         self.assertEqual([_pem(CERT_ROOT)], overlaid.cert_chain_append)
         self.assertEqual([], bound.cert_chain_append)
 
-    def test_005_invalid_skip_fails_closed(self):
+    def test_062_invalid_skip_fails_closed(self):
         """invalid kid skip-list returns error and keeps the bound factory"""
         bound = self.BoundCAHandler(
             object,
@@ -885,7 +883,7 @@ class TestBoundCAHandlerEabOverlay(unittest.TestCase):
         )
         self.assertIs(overlaid, bound)
 
-    def test_006_overlay_then_rewrite(self):
+    def test_063_overlay_then_rewrite(self):
         """kid skip-list is used for rewrite"""
         bound = self.BoundCAHandler(
             object,
@@ -907,7 +905,7 @@ class TestBoundCAHandlerEabOverlay(unittest.TestCase):
         self.assertIsNone(rewrite_error)
         self.assertEqual(_pem(CERT_LEAF), bundle)
 
-    def test_007_link_check_false_allows_unlinked_append(self):
+    def test_064_link_check_false_allows_unlinked_append(self):
         """kid cert_chain_link_check False overlays without mutating the factory"""
         bound = self.BoundCAHandler(
             object,
@@ -932,7 +930,7 @@ class TestBoundCAHandlerEabOverlay(unittest.TestCase):
             any("cert_chain_link_check is False" in line for line in lcm.output)
         )
 
-    def test_008_empty_profile_returns_self(self):
+    def test_065_empty_profile_returns_self(self):
         """empty or missing profile dict does not copy the factory"""
         bound = self.BoundCAHandler(
             object,
@@ -966,7 +964,7 @@ class TestCertCertifies(unittest.TestCase):
         subject.tbs_certificate_bytes = b"tbs"
         return subject
 
-    def test_001_rsa_certifies(self):
+    def test_066_rsa_certifies(self):
         """RSA issuer verifies with PKCS1v15"""
         issuer = MagicMock()
         pub = MagicMock(spec=rsa.RSAPublicKey)
@@ -974,19 +972,19 @@ class TestCertCertifies(unittest.TestCase):
         self.assertTrue(self.certifies(issuer, self._subject_for(issuer)))
         pub.verify.assert_called_once()
 
-    def test_002_rsa_missing_hash(self):
+    def test_067_rsa_missing_hash(self):
         """RSA without a signature hash algorithm does not certify"""
         issuer = MagicMock()
         issuer.public_key.return_value = MagicMock(spec=rsa.RSAPublicKey)
         self.assertFalse(self.certifies(issuer, self._subject_for(issuer, None)))
 
-    def test_003_ec_missing_hash(self):
+    def test_068_ec_missing_hash(self):
         """EC without a signature hash algorithm does not certify"""
         issuer = MagicMock()
         issuer.public_key.return_value = MagicMock(spec=ec.EllipticCurvePublicKey)
         self.assertFalse(self.certifies(issuer, self._subject_for(issuer, None)))
 
-    def test_004_dsa_certifies(self):
+    def test_069_dsa_certifies(self):
         """DSA issuer verifies with the signature hash"""
         issuer = MagicMock()
         pub = MagicMock(spec=dsa.DSAPublicKey)
@@ -994,13 +992,13 @@ class TestCertCertifies(unittest.TestCase):
         self.assertTrue(self.certifies(issuer, self._subject_for(issuer)))
         pub.verify.assert_called_once()
 
-    def test_005_dsa_missing_hash(self):
+    def test_070_dsa_missing_hash(self):
         """DSA without a signature hash algorithm does not certify"""
         issuer = MagicMock()
         issuer.public_key.return_value = MagicMock(spec=dsa.DSAPublicKey)
         self.assertFalse(self.certifies(issuer, self._subject_for(issuer, None)))
 
-    def test_006_ed25519_certifies(self):
+    def test_071_ed25519_certifies(self):
         """Ed25519 issuer verifies without a hash algorithm"""
         issuer = MagicMock()
         pub = MagicMock(spec=ed25519.Ed25519PublicKey)
@@ -1008,7 +1006,7 @@ class TestCertCertifies(unittest.TestCase):
         self.assertTrue(self.certifies(issuer, self._subject_for(issuer, None)))
         pub.verify.assert_called_once()
 
-    def test_007_verify_exception(self):
+    def test_072_verify_exception(self):
         """signature verification errors mean the link is broken"""
         issuer = MagicMock()
         pub = MagicMock(spec=rsa.RSAPublicKey)
@@ -1016,7 +1014,7 @@ class TestCertCertifies(unittest.TestCase):
         issuer.public_key.return_value = pub
         self.assertFalse(self.certifies(issuer, self._subject_for(issuer)))
 
-    def test_008_unknown_key_type(self):
+    def test_073_unknown_key_type(self):
         """unsupported public key types do not certify"""
         issuer = MagicMock()
         issuer.public_key.return_value = object()

@@ -578,7 +578,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_034a_config_authuser_load(self):
+    def test_035_config_authuser_load(self):
         """username is optional when username_append_cn is set"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"username_append_cn": True}
@@ -592,7 +592,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"enrollment_code_var": "user_var"})
-    def test_035_config_enrollmentcode_load(self):
+    def test_036_config_enrollmentcode_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"enrollment_code_variable": "enrollment_code_var"}
@@ -600,7 +600,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("user_var", self.cahandler.enrollment_code)
 
     @patch.dict("os.environ", {"enrollment_code_var": "user_var"})
-    def test_036_config_enrollmentcode_load(self):
+    def test_037_config_enrollmentcode_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"enrollment_code_variable": "does_not_exist"}
@@ -613,7 +613,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"enrollment_code_var": "user_var"})
-    def test_037_config_enrollmentcode_load(self):
+    def test_038_config_enrollmentcode_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -624,7 +624,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("enrollment_code", self.cahandler.enrollment_code)
 
     @patch.dict("os.environ", {"foo": "bar"})
-    def test_038_config_enrollmentcode_load(self):
+    def test_039_config_enrollmentcode_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar", "foo1": "bar1"}
@@ -634,7 +634,7 @@ class TestACMEHandler(unittest.TestCase):
         # self.assertIn("foo", lcm.output)
 
     @patch.dict("os.environ", {"cert_passphrase_var": "user_var"})
-    def test_039_config_session_load(self):
+    def test_040_config_session_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_passphrase_variable": "cert_passphrase_var"}
@@ -642,7 +642,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("user_var", self.cahandler.cert_passphrase)
 
     @patch.dict("os.environ", {"cert_passphrase_var": "user_var"})
-    def test_040_config_session_load(self):
+    def test_041_config_session_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_passphrase_variable": "does_not_exist"}
@@ -655,7 +655,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"cert_passphrase_var": "user_var"})
-    def test_041_config_session_load(self):
+    def test_042_config_session_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -671,7 +671,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)
 
     @patch.dict("os.environ", {"foo": "bar"})
-    def test_042_config_session_load(self):
+    def test_043_config_session_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar", "foo1": "bar1"}
@@ -680,7 +680,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("requests.Session")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.Pkcs12Adapter")
-    def test_043_config_session_load(self, mock_pkcs12, mock_session):
+    def test_044_config_session_load(self, mock_pkcs12, mock_session):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -695,7 +695,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("requests.Session")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.Pkcs12Adapter")
-    def test_044_config_session_load(self, mock_pkcs12, mock_session):
+    def test_045_config_session_load(self, mock_pkcs12, mock_session):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_passphrase": "cert_passphrase"}
@@ -710,7 +710,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_pkcs12.called)
         self.assertFalse(mock_session.called)
 
-    def test_045__api_post(self):
+    def test_046__api_post(self):
         """test _api_post successful run"""
         mockresponse2 = Mock()
         mockresponse2.json = lambda: {"foo": "bar"}
@@ -719,7 +719,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual({"foo": "bar"}, self.cahandler._api_post("url", "data"))
 
-    def test_046__api_post(self):
+    def test_047__api_post(self):
         """CAhandler._api_post() returns an http error"""
         self.cahandler.request_retries = 0
         mockresponse = Mock()
@@ -732,7 +732,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_047__api_put(self):
+    def test_048__api_put(self):
         """test _api_put successful run"""
         mockresponse2 = Mock()
         mockresponse2.json = lambda: {"foo": "bar"}
@@ -741,7 +741,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual({"foo": "bar"}, self.cahandler._api_put("url"))
 
-    def test_048__api_put(self):
+    def test_049__api_put(self):
         """CAhandler._api_put() returns an http error"""
         self.cahandler.request_retries = 0
         mockresponse = Mock()
@@ -755,19 +755,19 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_load")
-    def test_049__enter(self, mock_cfgload):
+    def test_050__enter(self, mock_cfgload):
         """CAhandler._enter() with config load"""
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_load")
-    def test_050__enter(self, mock_cfgload):
+    def test_051__enter(self, mock_cfgload):
         """CAhandler._enter() with config load"""
         self.cahandler.api_host = "api_host"
         self.cahandler.__enter__()
         self.assertFalse(mock_cfgload.called)
 
-    def test_051__cert_status_check(self):
+    def test_052__cert_status_check(self):
         """test _cert_status_check  successful run"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"foo": "bar"}
@@ -779,7 +779,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._cert_status_check("issuer_dn", "cert_serial"),
         )
 
-    def test_052__cert_status_check(self):
+    def test_053__cert_status_check(self):
         """test _cert_status_check no api host"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"foo": "bar"}
@@ -792,7 +792,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_053__cert_status_check(self):
+    def test_054__cert_status_check(self):
         """test _cert_status_check exception"""
         self.cahandler.request_retries = 0
         mockresponse = Mock()
@@ -809,7 +809,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_054__status_get(self):
+    def test_055__status_get(self):
         """test _status_get  successful run"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"foo": "bar"}
@@ -818,7 +818,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_host = "api_host"
         self.assertEqual({"foo": "bar"}, self.cahandler._status_get())
 
-    def test_055__status_get(self):
+    def test_056__status_get(self):
         """test _status_get  no api host"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"foo": "bar"}
@@ -831,7 +831,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_056__status_get(self):
+    def test_057__status_get(self):
         """test _cert_status_check exception"""
         self.cahandler.request_retries = 0
         mockresponse = Mock()
@@ -850,7 +850,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._csr_cn_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
-    def test_057__sign(self, mock_post, mock_cn):
+    def test_058__sign(self, mock_post, mock_cn):
         """test _sign"""
         self.cahandler.api_host = "foo"
         mock_post.return_value = "foo"
@@ -859,7 +859,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._csr_cn_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
-    def test_058__sign(self, mock_post, mock_cn):
+    def test_059__sign(self, mock_post, mock_cn):
         """test _sign"""
         self.cahandler.api_host = "foo"
         mock_post.return_value = "foo"
@@ -868,7 +868,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cn.called)
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
-    def test_059__sign(self, mock_post):
+    def test_060__sign(self, mock_post):
         """test _sign"""
         mock_post.return_value = "foo"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -878,21 +878,21 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_060_poll(self):
+    def test_061_poll(self):
         """test polling"""
         self.assertEqual(
             ("Method not implemented.", None, None, "poll_identifier", False),
             self.cahandler.poll("cert_name", "poll_identifier", "csr"),
         )
 
-    def test_061_trigger(self):
+    def test_062_trigger(self):
         """test polling"""
         self.assertEqual(
             ("Method not implemented.", None, None), self.cahandler.trigger("payload")
         )
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_062_enroll(self, mock_status):
+    def test_063_enroll(self, mock_status):
         """test enrollment"""
         mock_status.return_value = {"foo": "bar"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -902,7 +902,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("ERROR:test_a2c:Enrollment failed: Unknown error", lcm.output)
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_063_enroll(self, mock_status):
+    def test_064_enroll(self, mock_status):
         """test enrollment"""
         mock_status.return_value = {"status": "nok"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -912,7 +912,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("ERROR:test_a2c:Enrollment failed: Unknown error", lcm.output)
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_064_enroll(self, mock_status):
+    def test_065_enroll(self, mock_status):
         """test enrollment"""
         mock_status.return_value = {"status": "nok", "error": "error_msg"}
         self.assertEqual(("error_msg", None, None, None), self.cahandler.enroll("csr"))
@@ -922,7 +922,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_065_enroll(
+    def test_066_enroll(
         self,
         mock_status,
         mock_sign,
@@ -950,7 +950,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_066_enroll(
+    def test_067_enroll(
         self,
         mock_status,
         mock_sign,
@@ -980,7 +980,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_067_enroll(
+    def test_068_enroll(
         self,
         mock_status,
         mock_sign,
@@ -1012,7 +1012,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_068_enroll(
+    def test_069_enroll(
         self,
         mock_status,
         mock_sign,
@@ -1045,7 +1045,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_069_enroll(
+    def test_070_enroll(
         self,
         mock_status,
         mock_sign,
@@ -1079,7 +1079,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_070_enroll(
+    def test_071_enroll(
         self,
         mock_status,
         mock_sign,
@@ -1110,7 +1110,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._sign")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._status_get")
-    def test_071_enroll(
+    def test_072_enroll(
         self,
         mock_status,
         mock_sign,
@@ -1138,7 +1138,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
-    def test_072_revoke(
+    def test_073_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation malformed api response"""
@@ -1155,7 +1155,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
-    def test_073_revoke(
+    def test_074_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation cert already revoked"""
@@ -1176,7 +1176,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
-    def test_074_revoke(
+    def test_075_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation - revocation response malformed"""
@@ -1197,7 +1197,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
-    def test_075_revoke(
+    def test_076_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation - revocation unsuccessful"""
@@ -1219,7 +1219,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
-    def test_076_revoke(
+    def test_077_revoke(
         self,
         mock_serial,
         mock_issuer,
@@ -1245,7 +1245,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_issuer_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.cert_serial_get")
-    def test_077_revoke(
+    def test_078_revoke(
         self,
         mock_serial,
         mock_issuer,
@@ -1268,7 +1268,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
     @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
-    def test_078__csr_cn_get(self, mock_cn, mock_san):
+    def test_079__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = "cn"
         mock_san.return_value = ["san0", "san1"]
@@ -1277,7 +1277,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
     @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
-    def test_079__csr_cn_get(self, mock_cn, mock_san):
+    def test_080__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
         mock_san.return_value = ["dns:san0", "dns:san1"]
@@ -1286,7 +1286,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
     @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
-    def test_080__csr_cn_get(self, mock_cn, mock_san):
+    def test_081__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
         mock_san.return_value = None
@@ -1296,12 +1296,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_san.called)
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.handler_config_check")
-    def test_081_handler_check(self, mock_handler_check):
+    def test_082_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
-    def test_082__config_server_load_invalid_request_retries(self):
+    def test_083__config_server_load_invalid_request_retries(self):
         """test _config_server_load() with invalid request_retries"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"api_host": "api_host", "request_retries": "invalid"}
@@ -1313,7 +1313,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(3, self.cahandler.request_retries)
 
-    def test_083__config_server_load_invalid_request_retry_backoff(self):
+    def test_084__config_server_load_invalid_request_retry_backoff(self):
         """test _config_server_load() with invalid request_retry_backoff"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -1329,13 +1329,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2.0, self.cahandler.request_retry_backoff)
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.handler_config_check")
-    def test_084_handler_check(self, mock_handler_check):
+    def test_085_handler_check(self, mock_handler_check):
         """test handler_check() - username is mandatory by default"""
         self.cahandler.handler_check()
         self.assertIn("username", mock_handler_check.call_args[0][2])
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.handler_config_check")
-    def test_085_handler_check(self, mock_handler_check):
+    def test_086_handler_check(self, mock_handler_check):
         """test handler_check() - username_append_cn makes username optional"""
         self.cahandler.username_append_cn = True
         self.cahandler.handler_check()
@@ -1345,7 +1345,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_auth_load")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._config_cainfo_load")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.load_config")
-    def test_086_config_load(
+    def test_087_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
         """load config - username_append_cn makes username optional"""
@@ -1366,7 +1366,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._csr_cn_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
-    def test_087__sign(self, mock_post, mock_cn):
+    def test_088__sign(self, mock_post, mock_cn):
         """test _sign() - unset username gets appended to rather than stringified"""
         self.cahandler.api_host = "foo"
         self.cahandler.username_append_cn = True
@@ -1376,7 +1376,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._csr_cn_get")
     @patch("acme2certifier.cahandlers.ejbca_ca_handler.CAhandler._api_post")
-    def test_088__sign(self, mock_post, mock_cn):
+    def test_089__sign(self, mock_post, mock_cn):
         """test _sign() - empty username gets appended to"""
         self.cahandler.api_host = "foo"
         self.cahandler.username = ""

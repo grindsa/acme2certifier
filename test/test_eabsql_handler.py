@@ -636,7 +636,7 @@ class TestEABHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
-    def test_046_cahandler_name_get_dict(self, mock_kid, mock_prof):
+    def test_047_cahandler_name_get_dict(self, mock_kid, mock_prof):
         """cahandler_name_get reads cahandler_name from a dict profile entry"""
         mock_prof.return_value = {"kid1": {"cahandler_name": "openssl"}}
         mock_kid.return_value = "kid1"
@@ -644,7 +644,7 @@ class TestEABHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
-    def test_047_cahandler_name_get_json_string(self, mock_kid, mock_prof):
+    def test_048_cahandler_name_get_json_string(self, mock_kid, mock_prof):
         """cahandler_name_get parses a JSON string profile entry"""
         mock_prof.return_value = {"kid1": '{"cahandler_name": "ejbca"}'}
         mock_kid.return_value = "kid1"
@@ -652,14 +652,14 @@ class TestEABHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
-    def test_048_cahandler_name_get_invalid_json(self, mock_kid, mock_prof):
+    def test_049_cahandler_name_get_invalid_json(self, mock_kid, mock_prof):
         """cahandler_name_get treats invalid JSON profile entries as empty"""
         mock_prof.return_value = {"kid1": "not-json"}
         mock_kid.return_value = "kid1"
         self.assertIsNone(self.eabhandler.cahandler_name_get("csr"))
 
     @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_049_load_mssql_profiles_invalid_json(self, mock_connect):
+    def test_050_load_mssql_profiles_invalid_json(self, mock_connect):
         """Invalid json: should return error"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -689,7 +689,7 @@ class TestEABHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_050_load_postgres_profiles_invalid_json(self, mock_connect):
+    def test_051_load_postgres_profiles_invalid_json(self, mock_connect):
         """Invalid json: should return error"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"

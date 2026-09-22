@@ -1390,9 +1390,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_068_eab_cahandler_profile_exception(self):
         """EAB lookup failures are warned and ignored"""
         self.trigger.eab_profiling = True
-        self.trigger.eab_handler_class = MagicMock(
-            side_effect=RuntimeError("eab down")
-        )
+        self.trigger.eab_handler_class = MagicMock(side_effect=RuntimeError("eab down"))
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.assertEqual({}, self.trigger._eab_cahandler_profile("csr"))
         self.assertIn(

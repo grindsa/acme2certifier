@@ -1105,9 +1105,13 @@ class Certificate(object):
         certificate_list = pembundle_to_list(self.logger, certificate)
 
         if len(certificate_list) > 1:
-            renewal_info_hex = certid_asn1_get(self.logger, certificate_list[0], certificate_list[1])
+            renewal_info_hex = certid_asn1_get(
+                self.logger, certificate_list[0], certificate_list[1]
+            )
         else:
-            self.logger.warning("Skipping renewal info calculation, less than two certificates found in bundle")
+            self.logger.warning(
+                "Skipping renewal info calculation, less than two certificates found in bundle"
+            )
             renewal_info_hex = None
 
         self.logger.debug(
