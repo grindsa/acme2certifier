@@ -1344,6 +1344,88 @@ class TestACMEHandler(unittest.TestCase):
         mock_overlay.assert_called_once()
         mock_store.assert_not_called()
 
+    def test_064_eab_cahandler_profile_disabled(self):
+        """profiling off skips the EAB lookup"""
+        self.trigger.eab_profiling = False
+        self.trigger.eab_handler_class = Mock()
+        self.assertEqual({}, self.trigger._eab_cahandler_profile("csr"))
+
+    def test_065_eab_cahandler_profile_get(self):
+        """kid cahandler profile is returned from the EAB handler"""
+        handler = MagicMock()
+        handler.eab_profile_get.return_value = {"cert_chain_skip_list": ["aa"]}
+        eab_cls = MagicMock()
+        eab_cls.return_value.__enter__.return_value = handler
+        self.trigger.eab_profiling = True
+        self.trigger.eab_handler_class = eab_cls
+        self.assertEqual(
+            {"cert_chain_skip_list": ["aa"]},
+            self.trigger._eab_cahandler_profile("csr"),
+        )
+
+    def test_066_eab_cahandler_profile_get_none(self):
+        """None from eab_profile_get becomes an empty dict"""
+        handler = MagicMock()
+        handler.eab_profile_get.return_value = None
+        eab_cls = MagicMock()
+        eab_cls.return_value.__enter__.return_value = handler
+        self.trigger.eab_profiling = True
+        self.trigger.eab_handler_class = eab_cls
+        self.assertEqual({}, self.trigger._eab_cahandler_profile("csr"))
+
+    def test_067_eab_cahandler_profile_without_get(self):
+        """handler without eab_profile_get yields an empty dict"""
+
+        class _Handler:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        self.trigger.eab_profiling = True
+        self.trigger.eab_handler_class = MagicMock(return_value=_Handler())
+        self.assertEqual({}, self.trigger._eab_cahandler_profile("csr"))
+
+    def test_068_eab_cahandler_profile_exception(self):
+        """EAB lookup failures are warned and ignored"""
+        self.trigger.eab_profiling = True
+        self.trigger.eab_handler_class = MagicMock(
+            side_effect=RuntimeError("eab down")
+        )
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual({}, self.trigger._eab_cahandler_profile("csr"))
+        self.assertIn(
+            "WARNING:test_a2c:Failed to look up EAB cahandler profile: eab down",
+            lcm.output,
+        )
+
+    def test_069_eab_processing_csr_disabled(self):
+        """profiling off does not look up a processing CSR"""
+        self.trigger.eab_profiling = False
+        self.trigger.eab_handler_class = Mock()
+        self.assertIsNone(self.trigger._eab_processing_csr("pem"))
+
+    def test_070_eab_processing_csr_unique(self):
+        """a unique processing-order match returns its CSR"""
+        self.trigger.eab_profiling = True
+        self.trigger.eab_handler_class = Mock()
+        with patch.object(
+            self.trigger, "_certname_lookup", return_value=[{"csr": "csr1"}]
+        ):
+            self.assertEqual("csr1", self.trigger._eab_processing_csr("pem"))
+
+    def test_071_eab_processing_csr_ambiguous(self):
+        """non-unique matches do not return a CSR"""
+        self.trigger.eab_profiling = True
+        self.trigger.eab_handler_class = Mock()
+        with patch.object(
+            self.trigger,
+            "_certname_lookup",
+            return_value=[{"csr": "a"}, {"csr": "b"}],
+        ):
+            self.assertIsNone(self.trigger._eab_processing_csr("pem"))
+
 
 if __name__ == "__main__":
     unittest.main()

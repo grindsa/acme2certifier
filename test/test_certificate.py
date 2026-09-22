@@ -3994,6 +3994,60 @@ class TestCertificate(unittest.TestCase):
         self.assertIsNone(result)
         mock_failed.assert_called_once()
 
+    def test_252_eab_cahandler_profile_disabled(self):
+        """profiling off skips the EAB lookup"""
+        self.cert.eab_profiling = False
+        self.cert.eab_handler_class = MagicMock()
+        self.assertEqual({}, self.cert._eab_cahandler_profile("csr"))
+
+    def test_253_eab_cahandler_profile_get(self):
+        """kid cahandler profile is returned from the EAB handler"""
+        handler = MagicMock()
+        handler.eab_profile_get.return_value = {"cert_chain_skip_list": ["aa"]}
+        eab_cls = MagicMock()
+        eab_cls.return_value.__enter__.return_value = handler
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = eab_cls
+        self.assertEqual(
+            {"cert_chain_skip_list": ["aa"]},
+            self.cert._eab_cahandler_profile("csr"),
+        )
+
+    def test_254_eab_cahandler_profile_get_none(self):
+        """None from eab_profile_get becomes an empty dict"""
+        handler = MagicMock()
+        handler.eab_profile_get.return_value = None
+        eab_cls = MagicMock()
+        eab_cls.return_value.__enter__.return_value = handler
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = eab_cls
+        self.assertEqual({}, self.cert._eab_cahandler_profile("csr"))
+
+    def test_255_eab_cahandler_profile_without_get(self):
+        """handler without eab_profile_get yields an empty dict"""
+
+        class _Handler:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = MagicMock(return_value=_Handler())
+        self.assertEqual({}, self.cert._eab_cahandler_profile("csr"))
+
+    def test_256_eab_cahandler_profile_exception(self):
+        """EAB lookup failures are warned and ignored"""
+        self.cert.eab_profiling = True
+        self.cert.eab_handler_class = MagicMock(side_effect=RuntimeError("eab down"))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual({}, self.cert._eab_cahandler_profile("csr"))
+        self.assertIn(
+            "WARNING:test_a2c:Failed to look up EAB cahandler profile: eab down",
+            lcm.output,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
