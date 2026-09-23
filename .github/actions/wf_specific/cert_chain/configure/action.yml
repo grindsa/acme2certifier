@@ -1,0 +1,94 @@
+name: "configure"
+description: "Write openssl acme_srv.cfg with cert_chain_skip_list / append / link_check"
+inputs:
+  VOLUME_DIR:
+    description: "Volume directory (contains acme_ca/ and acme_srv.cfg)"
+    required: false
+    default: "data/volume"
+  LAYOUT:
+    description: "a (cross-signed old root) | b (re-issued ICA) | unlinked (separate trust-anchor)"
+    required: true
+  LINK_CHECK:
+    description: "omit (default True) | true | false"
+    required: false
+    default: "omit"
+  APPEND_PREFIX:
+    description: "cert_chain_append path prefix as seen by the server"
+    required: false
+    default: "volume/acme_ca"
+  PATH_REWRITE_FROM:
+    description: "Optional substring to rewrite in acme_srv.cfg after openssl setup"
+    required: false
+    default: ""
+  PATH_REWRITE_TO:
+    description: "Replacement for PATH_REWRITE_FROM"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Setup openssl ca_handler base cfg"
+      uses: ./.github/actions/setup_openssl_cahandler
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
+        PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
+
+    - name: "Append cert_chain options"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        LAYOUT: ${{ inputs.LAYOUT }}
+        LINK_CHECK: ${{ inputs.LINK_CHECK }}
+        APPEND_PREFIX: ${{ inputs.APPEND_PREFIX }}
+      run: |
+        set -euo pipefail
+        case "${LAYOUT}" in
+          a|b|unlinked) ;;
+          *) echo "ERROR: LAYOUT must be a|b|unlinked (got: ${LAYOUT})" >&2; exit 1 ;;
+        esac
+        case "${LINK_CHECK}" in
+          omit|true|false) ;;
+          *) echo "ERROR: LINK_CHECK must be omit|true|false (got: ${LINK_CHECK})" >&2; exit 1 ;;
+        esac
+
+        fp() {
+          openssl x509 -in "$1" -noout -fingerprint -sha256 \
+            | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]'
+        }
+        ca="${VOLUME_DIR}/acme_ca"
+        old_root="$(fp "${ca}/root-ca-cert.pem")"
+        old_sub="$(fp "${ca}/sub-ca-cert.pem")"
+        cfg="${VOLUME_DIR}/acme_srv.cfg"
+
+        skip=""
+        append=""
+        case "${LAYOUT}" in
+          a)
+            skip="[\"${old_root}\"]"
+            append="[\"${APPEND_PREFIX}/root-ca-cross.pem\", \"${APPEND_PREFIX}/new-root.pem\"]"
+            ;;
+          b)
+            skip="[\"${old_sub}\", \"${old_root}\"]"
+            append="[\"${APPEND_PREFIX}/sub-ca-cross.pem\", \"${APPEND_PREFIX}/new-root.pem\"]"
+            ;;
+          unlinked)
+            skip="[\"${old_root}\"]"
+            append="[\"${APPEND_PREFIX}/new-root.pem\"]"
+            ;;
+        esac
+
+        {
+          echo
+          echo "cert_chain_skip_list: ${skip}"
+          echo "cert_chain_append: ${append}"
+          if [[ "${LINK_CHECK}" == "true" ]]; then
+            echo "cert_chain_link_check: True"
+          elif [[ "${LINK_CHECK}" == "false" ]]; then
+            echo "cert_chain_link_check: False"
+          fi
+        } | sudo tee -a "${cfg}" >/dev/null
+
+        echo "--- ${cfg} [CAhandler] ---"
+        awk '/^\[CAhandler\]/{p=1} p && /^\[/ && !/^\[CAhandler\]/{exit} p' "${cfg}"
