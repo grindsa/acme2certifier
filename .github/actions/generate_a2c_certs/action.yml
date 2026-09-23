@@ -1,5 +1,5 @@
-name: "cert_gen"
-description: "Generate Certificates"
+name: "generate_a2c_certs"
+description: "Generate acme2certifier server TLS key/cert from the openssl lab CA"
 inputs:
   ISSUING_CA_KEY:
     description: "Path to the Issuing-CA private key"

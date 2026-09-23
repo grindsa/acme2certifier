@@ -52,7 +52,7 @@ runs:
         NAME_SUFFIX: ${{ inputs.NAME_SUFFIX }}
 
     - name: "Generate keys and certificates"
-      uses: ./.github/actions/cert_gen
+      uses: ./.github/actions/generate_a2c_certs
 
     - name: "Setup environment for alma installation"
       run: |

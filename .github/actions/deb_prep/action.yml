@@ -40,7 +40,7 @@ runs:
       uses: ./.github/actions/deb_build
 
     - name: "Generate keys and certificates"
-      uses: ./.github/actions/cert_gen
+      uses: ./.github/actions/generate_a2c_certs
 
     - name: "Setup environment for ubuntu installation"
       run: |
@@ -75,7 +75,7 @@ runs:
       shell: bash
 
     - name: "Generate keys and certificates"
-      uses: ./.github/actions/cert_gen
+      uses: ./.github/actions/generate_a2c_certs
       with:
         DESTINATION_PATH: ".github"
         EE_KEY: "acme2certifier_key.pem"

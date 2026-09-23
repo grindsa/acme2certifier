@@ -10,6 +10,11 @@
 # with `openssl ca -ss_cert` (subject + SPKI from the cert).
 set -euo pipefail
 
+# Git Bash / MSYS convert args that look like Unix paths (e.g. -subj "/CN=…")
+# into Windows paths before openssl.exe sees them. Disable that conversion.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="${MSYS2_ARG_CONV_EXCL:-*}"
+
 usage() {
   cat <<'EOF'
 Usage: make_test_cas.sh [bootstrap|append] [options]
@@ -110,8 +115,23 @@ cert_to_txt() {
   # One-line base64 DER (ACME cert field style) without PEM headers.
   local cert="$1"
   local out="$2"
-  openssl x509 -in "${cert}" -outform DER | openssl base64 -A >"${out}"
+  if openssl base64 -A </dev/null >/dev/null 2>&1; then
+    openssl x509 -in "${cert}" -outform DER | openssl base64 -A >"${out}"
+  else
+    openssl x509 -in "${cert}" -outform DER | openssl base64 | tr -d '\r\n' >"${out}"
+  fi
   printf '\n' >>"${out}"
+}
+
+mktemp_work() {
+  # Prefer a forward-slash temp root so paths embedded in openssl.cnf stay valid
+  # under Git Bash on Windows (TMPDIR is often C:\Users\...\Temp).
+  local prefix="$1"
+  local root="/tmp"
+  if [[ ! -d "${root}" ]]; then
+    root="${TMPDIR:-.}"
+  fi
+  mktemp -d "${root}/${prefix}.XXXXXX"
 }
 
 need_openssl() {
@@ -127,7 +147,7 @@ bootstrap_ca() {
   OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
 
   local WORK
-  WORK="$(mktemp -d "${TMPDIR:-/tmp}/a2c-bootstrap-cas.XXXXXX")"
+  WORK="$(mktemp_work a2c-bootstrap-cas)"
   # shellcheck disable=SC2064
   trap "rm -rf '${WORK}'" EXIT
 
@@ -172,7 +192,7 @@ distinguished_name = req_dn
 prompt             = no
 
 [ req_dn ]
-CN = placeholder
+CN = root-ca
 
 [ v3_root ]
 basicConstraints       = critical,CA:true
@@ -203,7 +223,11 @@ EOF
     -config "${CNF}" \
     -extensions v3_root
 
-  openssl genrsa -aes256 -passout "pass:${PASS}" -out "${OUT_DIR}/sub-ca-key.pem" 4096
+  # Encrypt sub-CA key (passphrase). Use genpkey for OpenSSL 3 / Windows parity.
+  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 \
+    -aes-256-cbc -pass "pass:${PASS}" \
+    -out "${OUT_DIR}/sub-ca-key.pem" 2>/dev/null \
+  || openssl genrsa -aes256 -passout "pass:${PASS}" -out "${OUT_DIR}/sub-ca-key.pem" 4096
   openssl req -new -key "${OUT_DIR}/sub-ca-key.pem" -passin "pass:${PASS}" \
     -subj "/CN=sub-ca" \
     -out "${WORK}/sub-ca.csr" \
@@ -362,7 +386,7 @@ append_cas() {
   local SUB_DN
   SUB_DN="$(dn_slash "${SUB_CERT}")"
   local WORK
-  WORK="$(mktemp -d "${TMPDIR:-/tmp}/a2c-test-cas.XXXXXX")"
+  WORK="$(mktemp_work a2c-test-cas)"
   # shellcheck disable=SC2064
   trap "rm -rf '${WORK}'" EXIT
 

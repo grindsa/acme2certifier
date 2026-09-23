@@ -137,7 +137,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
 
       - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
+        uses: ./.github/actions/generate_a2c_certs
 
       - name: "Setup openssl ca_handler"
         uses: ./.github/actions/setup_openssl_cahandler
@@ -318,7 +318,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
 
       - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
+        uses: ./.github/actions/generate_a2c_certs
 
       - name: "Setup openssl ca_handler"
         uses: ./.github/actions/setup_openssl_cahandler
@@ -596,7 +596,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
 
       - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
+        uses: ./.github/actions/generate_a2c_certs
 
       - name: "Setup openssl ca_handler"
         uses: ./.github/actions/setup_openssl_cahandler

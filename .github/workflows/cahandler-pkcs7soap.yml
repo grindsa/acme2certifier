@@ -109,7 +109,7 @@ jobs:
           docker compose -f soap_srv.yml logs
 
       - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
+        uses: ./.github/actions/generate_a2c_certs
 
       - name: "Setup a2c with pkcs7_ca_handler"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -226,7 +226,7 @@ jobs:
           docker compose -f soap_srv.yml logs
 
       - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
+        uses: ./.github/actions/generate_a2c_certs
 
       - name: "Setup a2c with pkcs7_ca_handler"
         uses: ./.github/actions/setup_cahandler_cfg

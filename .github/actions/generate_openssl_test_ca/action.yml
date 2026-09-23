@@ -25,6 +25,9 @@ runs:
         PASSPHRASE: ${{ inputs.PASSPHRASE }}
       run: |
         set -euo pipefail
+        # Git Bash on windows-latest converts -subj "/CN=..." unless disabled.
+        export MSYS_NO_PATHCONV=1
+        export MSYS2_ARG_CONV_EXCL="${MSYS2_ARG_CONV_EXCL:-*}"
         case "${FORCE}" in
           true|false) ;;
           *)
@@ -33,7 +36,7 @@ runs:
             ;;
         esac
         if [[ ! -x tools/make_test_cas.sh ]]; then
-          chmod +x tools/make_test_cas.sh
+          chmod +x tools/make_test_cas.sh || true
         fi
         if [[ "${FORCE}" != "true" && -f "${CA_DIR}/sub-ca-key.pem" ]]; then
           echo "OpenSSL test CA already present in ${CA_DIR}"

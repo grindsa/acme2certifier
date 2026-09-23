@@ -31,7 +31,7 @@ runs:
       time: 5s
 
   - name: "Generate keys and certificates"
-    uses: ./.github/actions/cert_gen
+    uses: ./.github/actions/generate_a2c_certs
     with:
       DESTINATION_PATH: ".github"
       EE_KEY: "acme2certifier_key.pem"
