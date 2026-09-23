@@ -1,0 +1,46 @@
+name: "generate_openssl_test_ca"
+description: "Bootstrap openssl lab CA PEMs under test/ca (generate-if-missing)"
+inputs:
+  CA_DIR:
+    description: "Directory to write openssl lab CA material into"
+    required: false
+    default: "test/ca"
+  FORCE:
+    description: "If true, always regenerate even when sub-ca-key.pem exists"
+    required: false
+    default: "false"
+  PASSPHRASE:
+    description: "Passphrase for sub-ca-key.pem"
+    required: false
+    default: "Test1234"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Bootstrap openssl test CA"
+      shell: bash
+      env:
+        CA_DIR: ${{ inputs.CA_DIR }}
+        FORCE: ${{ inputs.FORCE }}
+        PASSPHRASE: ${{ inputs.PASSPHRASE }}
+      run: |
+        set -euo pipefail
+        case "${FORCE}" in
+          true|false) ;;
+          *)
+            echo "ERROR: FORCE must be true|false (got: ${FORCE})" >&2
+            exit 1
+            ;;
+        esac
+        if [[ ! -x tools/make_test_cas.sh ]]; then
+          chmod +x tools/make_test_cas.sh
+        fi
+        if [[ "${FORCE}" != "true" && -f "${CA_DIR}/sub-ca-key.pem" ]]; then
+          echo "OpenSSL test CA already present in ${CA_DIR}"
+          exit 0
+        fi
+        tools/make_test_cas.sh bootstrap -o "${CA_DIR}" -p "${PASSPHRASE}"
+        test -f "${CA_DIR}/sub-ca-key.pem"
+        test -f "${CA_DIR}/sub-ca-cert.pem"
+        test -f "${CA_DIR}/root-ca-cert.pem"
+        test -f "${CA_DIR}/sub-ca-crl.pem"

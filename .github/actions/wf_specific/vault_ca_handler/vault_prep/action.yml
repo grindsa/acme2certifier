@@ -40,6 +40,9 @@ outputs:
 runs:
   using: "composite"
   steps:
+  - name: "Generate openssl test CA"
+    uses: ./.github/actions/generate_openssl_test_ca
+
   - name: "Prepare Environment"
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |

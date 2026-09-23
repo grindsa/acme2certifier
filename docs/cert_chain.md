@@ -52,13 +52,14 @@ cert_chain_append: ["/var/www/acme2certifier/volume/cross-signed-ica.pem", "/var
 
 Typical use: omit the CA's self-signed root, then attach a cross-signed intermediate and the replacement trust anchor.
 
-Local throwaway CAs used for CI (re-uses `acme_srv/ca/sub-ca-key.pk8` and the existing root/sub certs; generates a new-root key):
+Local throwaway CAs used for CI. Bootstrap the openssl lab CA (not stored in git), then build append PEMs:
 
 ```bash
-tools/make_test_cas.sh
+tools/make_test_cas.sh bootstrap   # writes test/ca root/sub key+cert+CRL
+tools/make_test_cas.sh append      # writes test/new_ca new-root / cross PEMs
 ```
 
-The script prints `cert_chain_skip_list` / `cert_chain_append` snippets. Defaults: source `test/ca`, output `test/new_ca`. There is no openssl root private key; the old root is cross-signed from its certificate.
+The append mode prints `cert_chain_skip_list` / `cert_chain_append` snippets. Defaults: source `test/ca`, output `test/new_ca`. Cross-signing the old root uses `openssl ca -ss_cert` (subject + SPKI from the cert).
 
 ## `cert_chain_link_check`
 

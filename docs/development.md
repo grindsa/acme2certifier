@@ -45,6 +45,7 @@ export ACME2CERTIFIER_DEBUG=1
 ```bash
 cp acme2certifier/share/acme_srv.cfg acme_srv.cfg
 # or: cp examples/acme_srv.yaml acme_srv.yaml
+tools/make_test_cas.sh bootstrap   # generates test/ca openssl PEMs (not in git)
 mkdir -p acme_srv/ca/certs
 cp test/ca/sub-ca-key.pem test/ca/sub-ca-cert.pem \
    test/ca/sub-ca-crl.pem test/ca/root-ca-cert.pem \
@@ -76,7 +77,7 @@ challenge_validation_disable: True
 ```
 
 - CA options: [OpenSSL handler](openssl.md), [acme_srv.cfg](acme_srv.md).
-- `test/ca/` is the same lab CA used in CI (`Test1234`). Replace it with your own CA when needed.
+- OpenSSL lab CA under `test/ca/` is generated (`tools/make_test_cas.sh bootstrap` or via `pytest`); passphrase `Test1234`. Replace it with your own CA when needed.
 - `handler: django` selects `acme2certifier.dbhandlers.django_handler`. No `db_handler.py` symlink.
 - Leave `challenge_validation_disable` at `False` if you want real HTTP-01 (then bind port 80, below).
 
@@ -141,7 +142,7 @@ export DJANGO_SETTINGS_MODULE=local_settings
 
 ### Server certificate
 
-Issue a TLS server cert from the lab sub-CA in `test/ca/` (key passphrase `Test1234`). `acme_srv/ssl/` is gitignored.
+Issue a TLS server cert from the lab sub-CA in `test/ca/` (run `tools/make_test_cas.sh bootstrap` first if missing; key passphrase `Test1234`). `acme_srv/ssl/` is gitignored.
 
 ```bash
 mkdir -p acme_srv/ssl

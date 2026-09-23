@@ -53,6 +53,11 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Generate openssl test CA"
+      uses: ./.github/actions/generate_openssl_test_ca
+      with:
+        CA_DIR: ${{ inputs.CA_SOURCE_DIR }}
+
     - name: "Setup openssl ca_handler"
       run: |
         set -euo pipefail

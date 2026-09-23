@@ -225,22 +225,28 @@ else
     -subj "/CN=localhost"
 fi
 
-# Optional lab OpenSSL CA material when present in checkout
+# Optional lab OpenSSL CA material (generate if missing)
 if [[ -d "test/ca" ]]; then
-  echo "==> Installing example OpenSSL CA material from test/ca"
-  ${SUDO} mkdir -p "${APP_ROOT}/volume/acme_ca/certs"
-  ${SUDO} cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
-    test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem \
-    "${APP_ROOT}/volume/acme_ca/" || true
-  if [[ -f ".github/acme_srv.openssl.cfg" ]]; then
-    ${SUDO} cp .github/acme_srv.openssl.cfg "${CFG}"
-    ${SUDO} ln -sfn "${CFG}" "${APP_ROOT}/acme_srv/acme_srv.cfg"
-    if grep -qE '^handler:' "${CFG}"; then
-      ${SUDO} sed -i "s/^handler:.*/handler: ${MODE}/" "${CFG}"
-    elif grep -q '^\[DBhandler\]' "${CFG}"; then
-      ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${MODE}" "${CFG}"
-    else
-      printf '\n[DBhandler]\nhandler: %s\n' "${MODE}" | ${SUDO} tee -a "${CFG}" >/dev/null
+  if [[ ! -f "test/ca/sub-ca-key.pem" && -x "tools/make_test_cas.sh" ]]; then
+    echo "==> Bootstrapping example OpenSSL CA under test/ca"
+    tools/make_test_cas.sh bootstrap || true
+  fi
+  if [[ -f "test/ca/sub-ca-key.pem" ]]; then
+    echo "==> Installing example OpenSSL CA material from test/ca"
+    ${SUDO} mkdir -p "${APP_ROOT}/volume/acme_ca/certs"
+    ${SUDO} cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
+      test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem \
+      "${APP_ROOT}/volume/acme_ca/" || true
+    if [[ -f ".github/acme_srv.openssl.cfg" ]]; then
+      ${SUDO} cp .github/acme_srv.openssl.cfg "${CFG}"
+      ${SUDO} ln -sfn "${CFG}" "${APP_ROOT}/acme_srv/acme_srv.cfg"
+      if grep -qE '^handler:' "${CFG}"; then
+        ${SUDO} sed -i "s/^handler:.*/handler: ${MODE}/" "${CFG}"
+      elif grep -q '^\[DBhandler\]' "${CFG}"; then
+        ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${MODE}" "${CFG}"
+      else
+        printf '\n[DBhandler]\nhandler: %s\n' "${MODE}" | ${SUDO} tee -a "${CFG}" >/dev/null
+      fi
     fi
   fi
 fi

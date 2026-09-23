@@ -49,6 +49,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Generate openssl test CA"
+      uses: ./.github/actions/generate_openssl_test_ca
+
     - name: "generate keys and certificates"
       if: ${{ inputs.OS == 'Linux' }}
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}

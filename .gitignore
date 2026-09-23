@@ -123,6 +123,18 @@ acme_srv/est-myca/*.pem
 acme_srv/est/*.pem
 acme_srv/msca/*.pem
 test/ca/foo-ca-crl.pem
+# Regenerated openssl lab CA (tools/make_test_cas.sh bootstrap / pytest conftest)
+test/ca/root-ca-cert.pem
+test/ca/root-ca-key.pem
+test/ca/root-ca-client.pem
+test/ca/root-ca-client.txt
+test/ca/sub-ca-cert.pem
+test/ca/sub-ca-key.pem
+test/ca/sub-ca-key.pk8
+test/ca/sub-ca-crl.pem
+test/ca/sub-ca-client.pem
+test/ca/sub-ca-client.txt
+test/ca/*.srl
 test/new_ca/
 
 *.csr

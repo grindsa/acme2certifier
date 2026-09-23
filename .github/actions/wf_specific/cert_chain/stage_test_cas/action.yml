@@ -13,6 +13,11 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Generate openssl test CA"
+      uses: ./.github/actions/generate_openssl_test_ca
+      with:
+        CA_DIR: ${{ inputs.CA_SOURCE_DIR }}
+
     - name: "Generate test CAs into volume"
       shell: bash
       env:
@@ -23,7 +28,7 @@ runs:
         dest="${VOLUME_DIR}/acme_ca"
         sudo mkdir -p "${dest}"
         work="$(mktemp -d)"
-        tools/make_test_cas.sh -c "${CA_SOURCE_DIR}" -o "${work}"
+        tools/make_test_cas.sh append -c "${CA_SOURCE_DIR}" -o "${work}"
         sudo cp \
           "${work}/new-root.pem" \
           "${work}/new-root-key.pem" \
