@@ -67,8 +67,9 @@ OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
 dn_slash() {
   # LibreSSL: "subject= /CN=sub-ca". OpenSSL 3: "subject=CN = sub-ca".
   # openssl req -subj requires /type=value[/type=value...] with no spaces.
+  local cert="$1"
   local raw
-  raw="$(openssl x509 -in "$1" -noout -subject)"
+  raw="$(openssl x509 -in "${cert}" -noout -subject)"
   raw="${raw#subject=}"
   raw="${raw#"${raw%%[![:space:]]*}"}"
   raw="${raw%"${raw##*[![:space:]]}"}"
@@ -93,7 +94,8 @@ dn_slash() {
 }
 
 fp() {
-  openssl x509 -in "$1" -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr 'A-Z' 'a-z'
+  local cert="$1"
+  openssl x509 -in "${cert}" -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr 'A-Z' 'a-z'
 }
 
 PASSIN=()
@@ -200,6 +202,7 @@ OLD_SUB_FP="$(fp "${SUB_CERT}")"
 rel_out="${OUT_DIR}"
 case "${OUT_DIR}" in
   "${REPO_ROOT}"/*) rel_out="${OUT_DIR#"${REPO_ROOT}"/}" ;;
+  *) rel_out="${OUT_DIR}" ;;
 esac
 
 echo

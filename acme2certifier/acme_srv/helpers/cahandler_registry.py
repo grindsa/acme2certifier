@@ -81,6 +81,32 @@ def _cert_chain_bind_kwargs(
     }
 
 
+def _eab_overlay_apply_key(
+    key: str,
+    loaded: Any,
+    error: Optional[str],
+    skip_list: List[str],
+    skip_error: Optional[str],
+    append: List[str],
+    append_error: Optional[str],
+    link_check: bool,
+    link_error: Optional[str],
+) -> Tuple[List[str], Optional[str], List[str], Optional[str], bool, Optional[str]]:
+    """Apply one kid-profile cert-chain key onto overlay state."""
+    if key == "cert_chain_skip_list":
+        return loaded or [], error, append, append_error, link_check, link_error
+    if key == "cert_chain_append":
+        return skip_list, skip_error, loaded or [], error, link_check, link_error
+    return (
+        skip_list,
+        skip_error,
+        append,
+        append_error,
+        True if loaded is None else bool(loaded),
+        error,
+    )
+
+
 class BoundCAHandler:
     """Factory binding a CAhandler class to a named config section."""
 
@@ -149,15 +175,24 @@ class BoundCAHandler:
             error, loaded = config_cert_chain_profile_load(
                 logger, key, profile_dic[key]
             )
-            if key == "cert_chain_skip_list":
-                skip_list = loaded or []
-                skip_error = error
-            elif key == "cert_chain_append":
-                append = loaded or []
-                append_error = error
-            else:
-                link_check = True if loaded is None else bool(loaded)
-                link_error = error
+            (
+                skip_list,
+                skip_error,
+                append,
+                append_error,
+                link_check,
+                link_error,
+            ) = _eab_overlay_apply_key(
+                key,
+                loaded,
+                error,
+                skip_list,
+                skip_error,
+                append,
+                append_error,
+                link_check,
+                link_error,
+            )
             if error:
                 return error, self
         if not changed:
