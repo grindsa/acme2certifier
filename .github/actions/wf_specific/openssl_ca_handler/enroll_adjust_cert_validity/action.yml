@@ -1,10 +1,12 @@
 name: "enroll_adjust_cert_validity"
 description: "Enroll and verify adjusted certificate validity period"
 inputs:
-  CA_CERT:
-    description: "Issuing CA certificate used for cert_validity_adjust comparison"
+  CA_CERTS:
+    description: >-
+      Space-separated CA PEM paths (issuing CA + chain). Leaf notAfter must
+      equal the earliest enddate among these (matches cert_validity_adjust).
     required: false
-    default: "examples/Docker/data/acme_ca/sub-ca-cert.pem"
+    default: "examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/acme_ca/root-ca-cert.pem"
 
 runs:
   using: "composite"
@@ -24,14 +26,25 @@ runs:
       docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
       sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout
-      ca_end="$(sudo openssl x509 -in "${CA_CERT}" -noout -enddate)"
+
+      earliest_end=""
+      earliest_epoch=""
+      for f in ${CA_CERTS}; do
+        end="$(sudo openssl x509 -in "${f}" -noout -enddate)"
+        epoch="$(date -u -d "${end#notAfter=}" +%s)"
+        echo "chain ${f}: ${end} (${epoch})"
+        if [[ -z "${earliest_epoch}" || "${epoch}" -lt "${earliest_epoch}" ]]; then
+          earliest_epoch="${epoch}"
+          earliest_end="${end}"
+        fi
+      done
       leaf_end="$(sudo openssl x509 -in certbot/archive/certbot/cert1.pem -noout -enddate)"
-      echo "CA  ${ca_end}"
-      echo "EE  ${leaf_end}"
-      test "${leaf_end}" = "${ca_end}"
+      echo "earliest CA ${earliest_end}"
+      echo "EE         ${leaf_end}"
+      test "${leaf_end}" = "${earliest_end}"
     shell: bash
     env:
-      CA_CERT: ${{ inputs.CA_CERT }}
+      CA_CERTS: ${{ inputs.CA_CERTS }}
 
   - name: "Revoke certbot"
     run: |
