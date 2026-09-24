@@ -8,9 +8,12 @@ import sys
 import os
 from unittest.mock import patch, Mock, mock_open
 import base64
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
+from pyasn1.codec.der import decoder as der_decoder
+from pyasn1_modules import rfc2315
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -649,23 +652,26 @@ class TestACMEHandler(unittest.TestCase):
         payload = "foo"
         self.assertEqual((None, None), self.cahandler._sign(key, payload))
 
-    @patch("cryptography.hazmat.primitives.asymmetric.rsa")
-    def test_032_sign(self, mock_rsa):
-        """test _sign rsa key"""
+    def test_032_sign(self):
+        """test _sign rsa key against live sub-ca material"""
         keyph = b"Test1234"
         with open(self.dir_path + "/ca/sub-ca-key.pem", "rb") as open_file:
             key = serialization.load_pem_private_key(
                 open_file.read(), password=keyph, backend=default_backend()
             )
         payload = b"foo"
-        result = self.cahandler._sign(key, payload)
-        signature = b"4oTEIybGnmkfnG+Fvf0t8Sx8YHSf55tm3WtcdPagvtNM3vLjsidWKc2yliGYVmDqT9E+/wx3tvsMeDrgRiAzMhbjPYOeKwyx30BZT++4Fw9OkRQyriwyLB3ncFReVF8DyBRj/3S1Ftoy6Msa2CCk59LhYm/ubBQAm88gYiBzCFtVhneNOg5vS2s79UuyLjE2J90Yjs3z7OCckWrZ1UxI3UBoaJAWQg83M6fnF4aMkpnO3Jd6oQ4nq7r4EeVKYYEwrOINKKfh/1ykaCLg2K9OAD2LY1b9LilHTG8lcoUhS+bBMJkESHi508EzFQ4IUdsA42porTkEkdc5g9ZmCm7PPjroSRZGtM00R6aV/4z8Tlp4JBaov9x3fUd5wKjGIP0mdLQamAfxhK/pUqzM/lXtndprV7yh07tzypHa1XNvmTn/di2jNu90cq3eGgi3nBY98u+GcHTFnFH2aW2hk7kxqmxT4ymsZhlviIX8GIT4blE2nJgcl91Ktxm9QataRMjny/uJd//olQAXGMcbDwhNpYBfdJe99XoeuY+xNtJtlQt7IciTmJ3DEcK2kTtsNZ2i/lvn+iYR4iD9fJ/S4FedHqPZi48Q+LSnGC61zD21ZgbT8FrzUTnmmgw9BeDTWezGDGgBdOIuG313waZlvdDahk+6AYz9tOxS+bm9Epcj3NY="
-        alg = """AlgorithmIdentifier:\n algorithm=1.2.840.113549.1.1.11\n parameters=0x0500\n"""
-        self.assertEqual(signature, base64.b64encode(result[0]))
-        self.assertEqual(alg, str(result[1]))
+        signature, alg = self.cahandler._sign(key, payload)
+        expected_alg = (
+            "AlgorithmIdentifier:\n"
+            " algorithm=1.2.840.113549.1.1.11\n"
+            " parameters=0x0500\n"
+        )
+        self.assertEqual(expected_alg, str(alg))
+        key.public_key().verify(
+            signature, payload, padding.PKCS1v15(), hashes.SHA256()
+        )
 
-    @patch("cryptography.hazmat.primitives.asymmetric.rsa")
-    def test_033_sign(self, mock_rsa):
+    def test_033_sign(self):
         """test _sign ecc key"""
         ecc_key = b"-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIGCu1fYGkqMdPtsNH7xVc8QBjCWCkcUTVKX6f8vLhtkvoAoGCCqGSM49\nAwEHoUQDQgAEan72++swi7J5B1HVYp1CjXPqckkQquiMIQhz5xYesv9f4KK/ouKS\n1uJ3ZYwPbWUsDd8/03vf9VdlfZzL3W3ZQw==\n-----END EC PRIVATE KEY-----"
         key = serialization.load_pem_private_key(
@@ -677,14 +683,17 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(alg, str(result[1]))
 
     def test_034_certraw_get(self):
-        """ test _certraw_get """ ""
-        with open(self.dir_path + "/ca/sub-ca-client.pem", "r") as fso:
+        """test _certraw_get against live sub-ca-client.pem"""
+        with open(self.dir_path + "/ca/sub-ca-client.pem", "rb") as fso:
             pem_data = fso.read()
-        result = "MIIEGDCCAgCgAwIBAgIJALL8aztMPfV2MA0GCSqGSIb3DQEBCwUAMEgxCzAJBgNVBAYTAkRFMQ8wDQYDVQQIDAZCZXJsaW4xFzAVBgNVBAoMDkFjbWUyQ2VydGlmaWVyMQ8wDQYDVQQDDAZzdWItY2EwHhcNMTkwNjI1MDEyNTAwWhcNMjAwNjI1MDEyNTAwWjBPMQswCQYDVQQGEwJERTEPMA0GA1UEBxMGQmVybGluMRcwFQYDVQQKEw5BY21lMkNlcnRpZmllcjEWMBQGA1UEAwwNY2xpZW50X3N1Yi1jYTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALvoKKg3ciBVWZtquiWyMogWU6ydEfmLbXktK6T+owxzxHVaoePVGH9DZvTZD2pHS8xJ6fpFr3pZYiuqiUHuxdMpj9gVxik5ivBrSJIkZXLxwvNJWpMa1o1Hxz1By3Hrlm3ebKIzfQPqRRcdjWtJgCFbcTpalwhE1RQFMp4Icb08aAE9uEaZQ4uZ8Ls30J6IHC4PG63lGI1tkAtLIoUWupRAmnWDx0ysXzXeN7m+Lff9ols9MZNgzRMgY/zGUq0LzZfi+L+Iev3sztCdoIOBA/K63jv0hOPyYg331L05XIwbLeUoUG41J4pZzafx6MAFp4Zam1w+aafCzEw7ZPHQvn0CAwEAATANBgkqhkiG9w0BAQsFAAOCAgEABPgWo4KAXJNXNfEBbixDuCxtwO1JuphSOTcpIlEp+uNOSDzgNEbrhUXTNM8SPshzFjBpudc29okiyC62CfLD/X+EvIeKo/oa477kN6MuNfqLGZ42a935ES3S00Wy8rbwyIoPCsKWT/6VsHRHUn8XhFNFUBKZ8FGxwXcAVpPanyikURqVH1MgAk62hJQdYjSxdga/GKS1dS39fyxQz7uBPt5WIQZPzL6dr2Yn/4lQUvTUVus2e1cTh3z02yB5EDlEAcMMvMNpfYvNdU5H6QEPwysbkW9E/Ep84aq21zwuPxICh0KdjHWKkHtCqDoEYIADDl1AD5UdJTMQ9LIzUjsBvtB5I6yT7jgsx/iqTDrkJVK/zRf4NeKRa3AW57jsPUIcUstUFnVJbg+MM4fYmapx8Hqm/Aq+II9ip80AM6hXvierTQn4MNQivL0ZJfj0Ro9KEIDAHN3IAfIlFovbkBPLMi9PtfyhuVmXpthE9OaDlgUguWb45LAKwgfu1TFGPPpf5jTw2qVx0F+iCiUwK8ZgnakkXOKE5+KIb8ejL+3pPd5Wt+45w/7gEFOjT6XAzZGnUtcMH/lpxmgbl3/SKkyrW4h7PnF2FEEVC4XnZuQm+ZwD/PpXfmAA52ygKHBzUr9V33CkW0FhvjqkAUya5x9CqWlHoal0RVvFavnw+4ImqbE="
-        self.assertEqual(result, self.cahandler._certraw_get(pem_data))
+        cert = x509.load_pem_x509_certificate(pem_data, default_backend())
+        expected = base64.b64encode(
+            cert.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(expected, self.cahandler._certraw_get(pem_data))
 
     def test_035_pkcs7_create(self):
-        """test pkcs7_create"""
+        """test pkcs7_create embeds CSR and verifies with live sub-ca key"""
         keyph = b"Test1234"
         with open(self.dir_path + "/ca/csr.der", "rb") as open_file:
             csr_der = open_file.read()
@@ -698,11 +707,22 @@ class TestACMEHandler(unittest.TestCase):
             )
 
         decoded_cert = self.cahandler._cert_decode(signing_cert)
-        expected_result = b"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"
-        _error, result = self.cahandler._pkcs7_create(
+        error, result = self.cahandler._pkcs7_create(
             decoded_cert, csr_der, signing_key
         )
-        self.assertEqual(expected_result, base64.b64encode(result))
+        self.assertIsNone(error)
+        self.assertTrue(result)
+
+        content_info, _ = der_decoder.decode(result, asn1Spec=rfc2315.ContentInfo())
+        self.assertEqual(rfc2315.signedData, content_info["contentType"])
+        signed_data, _ = der_decoder.decode(
+            bytes(content_info["content"]), asn1Spec=rfc2315.SignedData()
+        )
+        self.assertEqual(rfc2315.data, signed_data["contentInfo"]["contentType"])
+        encrypted_digest = bytes(signed_data["signerInfos"][0]["encryptedDigest"])
+        signing_key.public_key().verify(
+            encrypted_digest, csr_der, padding.PKCS1v15(), hashes.SHA256()
+        )
 
     @patch("requests.post")
     def test_036_soaprequest_send(self, mock_post):
