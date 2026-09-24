@@ -123,6 +123,18 @@ cert_to_txt() {
   printf '\n' >>"${out}"
 }
 
+native_path() {
+  # Native Windows openssl.exe cannot open MSYS virtual paths (/tmp, /d/...).
+  # With MSYS_NO_PATHCONV=1 those are passed through unchanged and fopen fails.
+  # cygpath -m yields forward-slash Windows paths (C:/...) usable by both.
+  local p="$1"
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -m -- "${p}"
+  else
+    printf '%s\n' "${p}"
+  fi
+}
+
 mktemp_work() {
   # Prefer a forward-slash temp root so paths embedded in openssl.cnf stay valid
   # under Git Bash on Windows (TMPDIR is often C:\Users\...\Temp).
@@ -131,7 +143,7 @@ mktemp_work() {
   if [[ ! -d "${root}" ]]; then
     root="${TMPDIR:-.}"
   fi
-  mktemp -d "${root}/${prefix}.XXXXXX"
+  native_path "$(mktemp -d "${root}/${prefix}.XXXXXX")"
 }
 
 need_openssl() {
@@ -144,7 +156,7 @@ need_openssl() {
 bootstrap_ca() {
   need_openssl
   mkdir -p "${OUT_DIR}"
-  OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
+  OUT_DIR="$(native_path "$(cd "${OUT_DIR}" && pwd)")"
 
   local WORK
   WORK="$(mktemp_work a2c-bootstrap-cas)"
@@ -349,6 +361,7 @@ EOF
 
 append_cas() {
   need_openssl
+  CA_DIR="$(native_path "$(cd "${CA_DIR}" && pwd)")"
   local ROOT_CERT="${CA_DIR}/root-ca-cert.pem"
   local SUB_CERT="${CA_DIR}/sub-ca-cert.pem"
   local SUB_KEY
@@ -371,7 +384,7 @@ append_cas() {
   done
 
   mkdir -p "${OUT_DIR}"
-  OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
+  OUT_DIR="$(native_path "$(cd "${OUT_DIR}" && pwd)")"
 
   local PASSIN=()
   if openssl pkey -in "${SUB_KEY}" -passin "pass:${PASS}" -noout >/dev/null 2>&1; then
