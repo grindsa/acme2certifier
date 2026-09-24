@@ -54,6 +54,23 @@ runs:
           echo "eab_profiling: True"
         } | sudo tee -a "${cfg}" >/dev/null
 
+    - name: "Fingerprint skip targets"
+      id: fp
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+      run: |
+        set -euo pipefail
+        fp() {
+          openssl x509 -in "$1" -noout -fingerprint -sha256 \
+            | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]'
+        }
+        ca="${VOLUME_DIR}/acme_ca"
+        {
+          echo "old_root=$(fp "${ca}/root-ca-cert.pem")"
+          echo "old_sub=$(fp "${ca}/sub-ca-cert.pem")"
+        } >> "${GITHUB_OUTPUT}"
+
     - name: "Stage kid_profiles"
       uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
       with:
@@ -61,3 +78,5 @@ runs:
         DEST: ${{ inputs.KID_PROFILES_DEST }}
         ENVSUBST: "true"
         APPEND_PREFIX: ${{ inputs.APPEND_PREFIX }}
+        OLD_ROOT_FP: ${{ steps.fp.outputs.old_root }}
+        OLD_SUB_FP: ${{ steps.fp.outputs.old_sub }}
