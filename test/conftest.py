@@ -31,6 +31,8 @@ def openssl_test_ca() -> None:
     except FileNotFoundError as exc:
         pytest.fail(f"openssl/bootstrap failed: {exc}")
     except subprocess.CalledProcessError as exc:
-        pytest.fail(f"tools/make_test_cas.sh bootstrap failed with exit {exc.returncode}")
+        pytest.fail(
+            f"tools/make_test_cas.sh bootstrap failed with exit {exc.returncode}"
+        )
     if not _BOOTSTRAP_MARKER.is_file():
         pytest.fail(f"bootstrap did not create {_BOOTSTRAP_MARKER}")

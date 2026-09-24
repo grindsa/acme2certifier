@@ -667,9 +667,7 @@ class TestACMEHandler(unittest.TestCase):
             " parameters=0x0500\n"
         )
         self.assertEqual(expected_alg, str(alg))
-        key.public_key().verify(
-            signature, payload, padding.PKCS1v15(), hashes.SHA256()
-        )
+        key.public_key().verify(signature, payload, padding.PKCS1v15(), hashes.SHA256())
 
     def test_033_sign(self):
         """test _sign ecc key"""
@@ -707,9 +705,7 @@ class TestACMEHandler(unittest.TestCase):
             )
 
         decoded_cert = self.cahandler._cert_decode(signing_cert)
-        error, result = self.cahandler._pkcs7_create(
-            decoded_cert, csr_der, signing_key
-        )
+        error, result = self.cahandler._pkcs7_create(decoded_cert, csr_der, signing_key)
         self.assertIsNone(error)
         self.assertTrue(result)
 
