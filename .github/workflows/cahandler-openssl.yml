@@ -295,6 +295,8 @@ jobs:
 
       - name: "With cert_validity - enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
+        with:
+          CA_CERT: "data/volume/acme_ca/sub-ca-cert.pem"
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -450,6 +452,8 @@ jobs:
 
       - name: "With cert_validity - enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
+        with:
+          CA_CERT: "data/volume/acme_ca/sub-ca-cert.pem"
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush

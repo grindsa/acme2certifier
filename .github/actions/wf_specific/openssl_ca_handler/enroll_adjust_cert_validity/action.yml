@@ -1,5 +1,10 @@
 name: "enroll_adjust_cert_validity"
 description: "Enroll and verify adjusted certificate validity period"
+inputs:
+  CA_CERT:
+    description: "Issuing CA certificate used for cert_validity_adjust comparison"
+    required: false
+    default: "examples/Docker/data/acme_ca/sub-ca-cert.pem"
 
 runs:
   using: "composite"
@@ -15,11 +20,18 @@ runs:
 
   - name: "Enroll certbot"
     run: |
+      set -euo pipefail
       docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
       sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout
-      sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Not After : Jun  9 17:17:00 2030 GMT"
+      ca_end="$(sudo openssl x509 -in "${CA_CERT}" -noout -enddate)"
+      leaf_end="$(sudo openssl x509 -in certbot/archive/certbot/cert1.pem -noout -enddate)"
+      echo "CA  ${ca_end}"
+      echo "EE  ${leaf_end}"
+      test "${leaf_end}" = "${ca_end}"
     shell: bash
+    env:
+      CA_CERT: ${{ inputs.CA_CERT }}
 
   - name: "Revoke certbot"
     run: |
