@@ -147,6 +147,19 @@ keyid_04:
 
 An optional desktop helper to create and edit `kid_profiles` YAML is available in the [a2c-eab-profile-editor](https://github.com/grindsa/a2c-eab-profile-editor) repository.
 
+## Denied and constrained cahandler attributes
+
+EAB profiling applies kid-profile `cahandler` keys onto the selected CA handler instance. A deny-list blocks overrides that would replace handler implementation objects, TLS verification flags, or **executable/script paths**:
+
+- Exact denials include (non-exhaustive) `acme_keypath`, `ca_bundle`, `ssl_verify` / `verify`, `eab_handler`, `eab_profiling`, and `dns_update_script_variables`
+- Suffix denials: `*_handler`, `*_module`, `*_bin`, `*_dic`, `*_store`, `*_script`, `*_shell` (covers `dns_update_script`, `acme_sh_script`, `acme_sh_shell`)
+
+Denied keys are ignored with a warning; enrollment continues with the bound `acme_srv.cfg` values.
+
+For the generic ACME CA handler, profile `acme_keyfile` (string or list, including URL-paired lists) is allowed only when the path resolves under the configured `acme_keypath`. Paths outside that directory are ignored with a warning.
+
+**Credentials and endpoints** (`api_user`, `api_password`, `api_host`, `acme_url`, and similar) remain overridable by design so operators can select per-account CA credentials and upstreams without setting process-wide break-glass. A compromised or misconfigured kid profile can still substitute credentials or redirect enrollment traffic. Profile-store integrity and careful review of kid profiles are the control — the same trust model as unbounded EAB prevalidation lists.
+
 ## Subject Profiling
 
 Starting from v0.36 the eab-profiling feature can be used to check and white-list the certificate subject DN.

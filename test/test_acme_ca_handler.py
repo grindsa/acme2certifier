@@ -1904,6 +1904,7 @@ class TestACMEHandler(unittest.TestCase):
         """test eab_profile_list_check applies acme_keyfile from list profiles"""
         mock_hiv.return_value = ("/var/www/acme2certifier/volume/key.json", None)
         self.cahandler.acme_keyfile = "default.json"
+        self.cahandler.acme_keypath = "/var/www/acme2certifier/volume"
         self.assertFalse(
             self.cahandler.eab_profile_list_check(
                 "eab_handler",
@@ -1916,6 +1917,39 @@ class TestACMEHandler(unittest.TestCase):
             "/var/www/acme2certifier/volume/key.json", self.cahandler.acme_keyfile
         )
         mock_hiv.assert_called_once()
+
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
+    def test_082b_eab_profile_list_check_acme_keyfile_outside_keypath(self, mock_hiv):
+        """acme_keyfile outside acme_keypath is ignored"""
+        mock_hiv.return_value = ("/etc/passwd", None)
+        self.cahandler.acme_keyfile = "default.json"
+        self.cahandler.acme_keypath = "/var/www/acme2certifier/volume"
+        self.assertFalse(
+            self.cahandler.eab_profile_list_check(
+                "eab_handler",
+                "csr",
+                "acme_keyfile",
+                ["/etc/passwd"],
+            )
+        )
+        self.assertEqual("default.json", self.cahandler.acme_keyfile)
+        mock_hiv.assert_called_once()
+
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
+    def test_082c_eab_profile_list_check_dns_update_script_denied(self, mock_hiv):
+        """dns_update_script from EAB profile is denied"""
+        mock_hiv.return_value = ("/tmp/evil.sh", None)
+        self.cahandler.dns_update_script = "/opt/safe.sh"
+        self.assertFalse(
+            self.cahandler.eab_profile_list_check(
+                "eab_handler",
+                "csr",
+                "dns_update_script",
+                ["/tmp/evil.sh"],
+            )
+        )
+        self.assertEqual("/opt/safe.sh", self.cahandler.dns_update_script)
+        mock_hiv.assert_not_called()
 
     @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_083_eab_profile_list_check(self, mock_hiv):

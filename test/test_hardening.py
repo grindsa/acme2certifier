@@ -868,6 +868,42 @@ class TestEabProfileDenylist:
         assert eab_profile_attr_denied("api_user") is False
         assert eab_profile_attr_denied("vault_path") is False
         assert eab_profile_attr_denied("profile_id") is False
+        assert eab_profile_attr_denied("dns_update_script") is True
+        assert eab_profile_attr_denied("acme_sh_script") is True
+        assert eab_profile_attr_denied("acme_sh_shell") is True
+        assert eab_profile_attr_denied("dns_update_script_variables") is True
+
+    def test_038b_path_under_base(self) -> None:
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            eab_profile_path_under_base,
+        )
+
+        logger = logging.getLogger("test_hardening_eab_path")
+        base = "/var/www/acme2certifier/volume/acme"
+        assert (
+            eab_profile_path_under_base(
+                logger, "acme_keyfile", f"{base}/host.json", base
+            )
+            is True
+        )
+        assert (
+            eab_profile_path_under_base(logger, "acme_keyfile", "rel/host.json", base)
+            is True
+        )
+        assert (
+            eab_profile_path_under_base(
+                logger, "acme_keyfile", "/etc/passwd", base
+            )
+            is False
+        )
+        assert (
+            eab_profile_path_under_base(
+                logger, "acme_keyfile", f"{base}/../outside.json", base
+            )
+            is False
+        )
+        assert eab_profile_path_under_base(logger, "acme_keyfile", f"{base}/x", None) is False
+        assert eab_profile_path_under_base(logger, "acme_keyfile", "", base) is False
 
     def test_039_string_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_string_check
@@ -875,15 +911,37 @@ class TestEabProfileDenylist:
         class _Handler:
             ca_bundle = True
             api_user = "default"
+            dns_update_script = "/opt/update.sh"
+            acme_keyfile = "default.json"
+            acme_keypath = "/var/www/acme2certifier/volume/acme"
 
         cahandler = _Handler()
         logger = logging.getLogger("test_hardening_eab_deny")
         with patch.object(logger, "warning") as mock_warn:
             eab_profile_string_check(logger, cahandler, "ca_bundle", "False")
             eab_profile_string_check(logger, cahandler, "api_user", "kid_user")
+            eab_profile_string_check(
+                logger, cahandler, "dns_update_script", "/tmp/evil.sh"
+            )
+            eab_profile_string_check(
+                logger,
+                cahandler,
+                "acme_keyfile",
+                "/etc/passwd",
+            )
+            eab_profile_string_check(
+                logger,
+                cahandler,
+                "acme_keyfile",
+                "/var/www/acme2certifier/volume/acme/ok.json",
+            )
         assert cahandler.ca_bundle is True
         assert cahandler.api_user == "kid_user"
-        assert mock_warn.call_count == 1
+        assert cahandler.dns_update_script == "/opt/update.sh"
+        assert cahandler.acme_keyfile == (
+            "/var/www/acme2certifier/volume/acme/ok.json"
+        )
+        assert mock_warn.call_count >= 3
 
     def test_040_list_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check

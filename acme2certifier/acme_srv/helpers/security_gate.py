@@ -14,7 +14,9 @@ SECURITY_DISABLE_ACK_ENV = "ACME2CERTIFIER_I_KNOW_THE_RISK"
 _SECURITY_DISABLE_ACK_VALUES = frozenset({"1", "true", "yes", "on"})
 
 # EAB profile cahandler keys that must not be overridden from kid_profiles (exact match).
-# acme_url is intentionally allowed: acme_ca_handler EAB profiling selects upstream
+# acme_url is intentionally allowed: acme_ca_handler EAB profiling selects upstream.
+# Credentials/endpoints (api_*, passwords, hosts) remain overridable by design;
+# profile-store integrity is the control (see docs/eab_profiling.md).
 _EAB_PROFILE_DENY_EXACT = frozenset(
     {
         "acme_keypath",
@@ -22,6 +24,7 @@ _EAB_PROFILE_DENY_EXACT = frozenset(
         "config_dic",
         "dbstore",
         "debug",
+        "dns_update_script_variables",
         "error",
         "handler_module",
         "logger",
@@ -36,12 +39,15 @@ _EAB_PROFILE_DENY_EXACT = frozenset(
 )
 
 # Handler implementation attrs (suffix match); not network endpoint patterns.
+# _script / _shell block DNS-update and acme.sh execution paths (RCE via profile).
 _EAB_PROFILE_DENY_SUFFIXES = (
     "_handler",
     "_module",
     "_bin",
     "_dic",
     "_store",
+    "_script",
+    "_shell",
 )
 
 
@@ -60,6 +66,60 @@ def eab_profile_warn_if_denied(logger: logging.Logger, key: str) -> bool:
         "EAB profile: ignoring denied attribute: key: %s",
         key,
     )
+    return True
+
+
+def eab_profile_path_under_base(
+    logger: logging.Logger,
+    key: str,
+    path: Any,
+    base: Optional[str],
+) -> bool:
+    """Return True if *path* resolves under *base*; otherwise log and return False.
+
+    Relative *path* values are resolved against *base* (not the process cwd).
+    Used to constrain EAB ``acme_keyfile`` overrides to configured ``acme_keypath``.
+    """
+    logger.debug("eab_profile_path_under_base()")
+    if not isinstance(path, str) or not path.strip():
+        logger.warning(
+            "EAB profile: ignoring %s; empty or non-string path",
+            key,
+        )
+        logger.debug("eab_profile_path_under_base() returning False because base is not configured")
+        return False
+    if not isinstance(base, str) or not base.strip():
+        logger.warning(
+            "EAB profile: ignoring %s; base directory is not configured",
+            key,
+        )
+        logger.debug("eab_profile_path_under_base() returning False because base is not configured")
+        return False
+
+    try:
+        real_base = os.path.realpath(base)
+        candidate = path if os.path.isabs(path) else os.path.join(base, path)
+        real_path = os.path.realpath(candidate)
+        if os.path.commonpath([real_base, real_path]) != real_base:
+            logger.warning(
+                "EAB profile: ignoring %s; path %s is outside base %s",
+                key,
+                path,
+                base,
+            )
+            logger.debug("eab_profile_path_under_base() returning False because path is outside base")
+            return False
+    except (OSError, ValueError) as err:
+        logger.warning(
+            "EAB profile: ignoring %s; path check failed for %s under %s: %s",
+            key,
+            path,
+            base,
+            err,
+        )
+        logger.debug("eab_profile_path_under_base() returning False because path check failed")
+        return False
+    logger.debug("eab_profile_path_under_base() returning True because path is under base")
     return True
 
 

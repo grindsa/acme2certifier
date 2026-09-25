@@ -44,7 +44,10 @@ from acme2certifier.acme_srv.helper import (
     uts_to_date_utc,
     handler_config_check,
 )
-from acme2certifier.acme_srv.helpers.security_gate import eab_profile_warn_if_denied
+from acme2certifier.acme_srv.helpers.security_gate import (
+    eab_profile_path_under_base,
+    eab_profile_warn_if_denied,
+)
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 
@@ -968,6 +971,10 @@ class CAhandler(object):
             return False
 
         new_value = value[paired_urls.index(self.acme_url)]
+        if not eab_profile_path_under_base(
+            self.logger, key, new_value, self.acme_keypath
+        ):
+            return False
         self.logger.debug(
             "CAhandler._eab_try_set_paired_acme_keyfile(): paired acme_keyfile "
             "for acme_url %s to %s",
@@ -1003,6 +1010,10 @@ class CAhandler(object):
         if not new_value:
             return error
         if eab_profile_warn_if_denied(self.logger, key):
+            return None
+        if key == "acme_keyfile" and not eab_profile_path_under_base(
+            self.logger, key, new_value, self.acme_keypath
+        ):
             return None
 
         self.logger.debug(

@@ -13,7 +13,11 @@ from .config import (
     header_info_lookup,
     header_value_allowlist_resolve,
 )
-from .security_gate import client_header_parameter_decide, eab_profile_warn_if_denied
+from .security_gate import (
+    client_header_parameter_decide,
+    eab_profile_path_under_base,
+    eab_profile_warn_if_denied,
+)
 from .validation import cn_validate
 from .domain_utils import allowed_domainlist_check
 
@@ -383,6 +387,16 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
                 logger, csr, cahandler, key, value
             )
             if new_value:
+                if key == "acme_keyfile" and not eab_profile_path_under_base(
+                    logger,
+                    key,
+                    new_value,
+                    getattr(cahandler, "acme_keypath", None),
+                ):
+                    logger.debug(
+                        "Helper.eab_profile_list_check() ended with: %s", result
+                    )
+                    return result
                 logger.debug(
                     "Helper.eab_profile_list_check(): setting attribute: %s to %s",
                     key,
@@ -414,6 +428,14 @@ def eab_profile_string_check(logger, cahandler, key, value):
 
     if hasattr(cahandler, key):
         if not eab_profile_warn_if_denied(logger, key):
+            if key == "acme_keyfile" and not eab_profile_path_under_base(
+                logger,
+                key,
+                value,
+                getattr(cahandler, "acme_keypath", None),
+            ):
+                logger.debug("Helper.eab_profile_string_check() ended")
+                return
             logger.debug(
                 "Helper.eab_profile_string_check(): setting attribute: %s to %s",
                 key,
