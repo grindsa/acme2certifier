@@ -1480,15 +1480,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
     def test_119_helper_url_get_with_own_dns_connection_cleanup(self, mock_request):
-        """url_get_with_own_dns ensures connection cleanup after exception"""
+        """url_get_with_own_dns clears thread-local custom DNS after exception"""
         mock_request.side_effect = requests.exceptions.ConnectionError(
             "Connection failed"
         )
 
-        # Store original connection function
-        from acme2certifier.acme_srv.helpers.network import connection
-
-        original_create_connection = connection.create_connection
+        from acme2certifier.acme_srv.helpers import network as network_mod
 
         result, status_code, error_msg = self.url_get_with_own_dns(
             self.logger, "http://example.com"
@@ -1501,8 +1498,10 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             "Could not get URL by using the configured DNS servers", error_msg
         )
 
-        # Verify connection was restored after exception
-        self.assertEqual(connection.create_connection, original_create_connection)
+        # Custom-DNS flag must be cleared so other requests are unaffected
+        self.assertFalse(
+            getattr(network_mod._dns_connect_tls, "use_custom_dns", False)
+        )
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
     def test_120_helper_url_get_with_own_dns_server_error(self, mock_request):
@@ -8475,53 +8474,35 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
     def test_628_url_get_dns_pinned_success(self, mock_get):
-        """url_get_dns_pinned keeps hostname URL and pins TCP via create_connection"""
-        from acme2certifier.acme_srv.helpers import network as network_mod
+        """url_get_dns_pinned dials pinned IP URL with logical Host header"""
         from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
 
         mock_resp = Mock()
         mock_resp.text = "token.thumb"
         mock_resp.status_code = 200
         mock_resp.reason = "OK"
-        dialed = []
-        real_create = network_mod.connection.create_connection
+        mock_get.return_value = mock_resp
 
-        def recording_orig(address, *args, **kwargs):
-            dialed.append(address)
-
-        def capture_get(*args, **kwargs):
-            # urllib3 would call create_connection(hostname, port); pin wrapper
-            # must rewrite the peer to the pinned IP.
-            network_mod.connection.create_connection(("example.com", 80))
-            return mock_resp
-
-        mock_get.side_effect = capture_get
-        network_mod.connection.create_connection = recording_orig
-        try:
-            result, status, err = url_get_dns_pinned(
-                self.logger,
-                host="example.com",
-                path="/.well-known/acme-challenge/tok",
-                pinned_ips=["8.8.8.8"],
-                verify=False,
-                timeout=5,
-            )
-        finally:
-            network_mod.connection.create_connection = real_create
+        result, status, err = url_get_dns_pinned(
+            self.logger,
+            host="example.com",
+            path="/.well-known/acme-challenge/tok",
+            pinned_ips=["8.8.8.8"],
+            verify=False,
+            timeout=5,
+        )
 
         self.assertEqual("token.thumb", result)
         self.assertEqual(200, status)
         self.assertIsNone(err)
         args, kwargs = mock_get.call_args
-        self.assertEqual("http://example.com/.well-known/acme-challenge/tok", args[0])
-        self.assertNotIn("Host", kwargs["headers"])
+        self.assertEqual("http://8.8.8.8/.well-known/acme-challenge/tok", args[0])
+        self.assertEqual("example.com", kwargs["headers"]["Host"])
         self.assertEqual({}, kwargs["proxies"])
-        self.assertEqual([("8.8.8.8", 80)], dialed)
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
     def test_629_url_get_dns_pinned_ipv6_host_and_peer(self, mock_get):
-        """FQDN stays in URL; IPv6 identifier is bracketed; peer is pinned"""
-        from acme2certifier.acme_srv.helpers import network as network_mod
+        """IPv6 pin and identifier are bracketed in URL and Host"""
         from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
 
         mock_resp = Mock()
@@ -8536,34 +8517,19 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             path="/path",
             pinned_ips=["2606:4700:4700::1111"],
         )
-        args, _kwargs = mock_get.call_args
-        self.assertEqual("http://example.com/path", args[0])
-
-        dialed = []
-        real_create = network_mod.connection.create_connection
-
-        def recording_orig(address, *args, **kwargs):
-            dialed.append(address)
-
-        def capture_get(*args, **kwargs):
-            network_mod.connection.create_connection(("2606:4700:4700::1111", 80))
-            return mock_resp
-
-        mock_get.side_effect = capture_get
-        network_mod.connection.create_connection = recording_orig
-        try:
-            url_get_dns_pinned(
-                self.logger,
-                host="2606:4700:4700::1111",
-                path="/path",
-                pinned_ips=["2606:4700:4700::1111"],
-            )
-        finally:
-            network_mod.connection.create_connection = real_create
-
-        args, _kwargs = mock_get.call_args
+        args, kwargs = mock_get.call_args
         self.assertEqual("http://[2606:4700:4700::1111]/path", args[0])
-        self.assertEqual([("2606:4700:4700::1111", 80)], dialed)
+        self.assertEqual("example.com", kwargs["headers"]["Host"])
+
+        url_get_dns_pinned(
+            self.logger,
+            host="2606:4700:4700::1111",
+            path="/path",
+            pinned_ips=["2606:4700:4700::1111"],
+        )
+        args, kwargs = mock_get.call_args
+        self.assertEqual("http://[2606:4700:4700::1111]/path", args[0])
+        self.assertEqual("[2606:4700:4700::1111]", kwargs["headers"]["Host"])
 
     def test_630_legacy_acme_get_load_default_false(self):
         """legacy_acme_get defaults to False"""

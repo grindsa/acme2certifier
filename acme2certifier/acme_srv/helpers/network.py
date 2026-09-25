@@ -8,6 +8,7 @@ import ssl
 import logging
 import json
 import re
+import threading
 import time
 from typing import Any, List, Dict, Tuple, Union, Optional
 from urllib.parse import urlparse, quote
@@ -240,13 +241,57 @@ def dns_server_list_load() -> List[str]:
     return dns_server_list
 
 
-def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: no cover
-    """Wrap urllib3's create_connection to resolve the name elsewhere"""
-    # load dns-servers from config file
-    dns_server_list = dns_server_list_load()
-    # resolve hostname to an ip address; use your own resolver
+# Thread-local flag for custom-DNS urllib3 connects (avoids process-global
+# create_connection swap races). Wrapper is installed once; inactive when unset.
+_dns_connect_tls = threading.local()
+_dns_connect_install_lock = threading.Lock()
+_dns_connect_wrapper_installed = False
+
+
+def _first_resolved_address(
+    resolved: Union[str, List[str], None], fallback: str
+) -> str:
+    """Pick a single connect address from fqdn_resolve output."""
+    if isinstance(resolved, list):
+        return resolved[0] if resolved else fallback
+    if isinstance(resolved, str) and resolved:
+        return resolved
+    return fallback
+
+
+def _thread_local_create_connection(address, *args, **kwargs):  # pragma: no cover
+    """urllib3 create_connection that optionally uses configured DNS servers."""
     host, port = address
-    hostname, _invalid, _error = fqdn_resolve(host, dns_server_list)
+    if getattr(_dns_connect_tls, "use_custom_dns", False):
+        dns_server_list = dns_server_list_load()
+        resolved, _invalid, _error = fqdn_resolve(host, dns_server_list)
+        host = _first_resolved_address(resolved, host)
+    # pylint: disable=W0212
+    return connection._orig_create_connection((host, port), *args, **kwargs)
+
+
+def _ensure_custom_dns_connect_wrapper() -> None:
+    """Install the thread-local urllib3 create_connection wrapper once."""
+    global _dns_connect_wrapper_installed
+    if _dns_connect_wrapper_installed:
+        return
+    with _dns_connect_install_lock:
+        if _dns_connect_wrapper_installed:
+            return
+        # pylint: disable=W0212
+        if getattr(connection, "_orig_create_connection", None) is None:
+            connection._orig_create_connection = connection.create_connection
+        connection.create_connection = _thread_local_create_connection
+        _dns_connect_wrapper_installed = True
+
+
+def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: no cover
+    """Resolve via configured DNS then connect (legacy entry point / tests)."""
+    _ensure_custom_dns_connect_wrapper()
+    host, port = address
+    dns_server_list = dns_server_list_load()
+    resolved, _invalid, _error = fqdn_resolve(host, dns_server_list)
+    hostname = _first_resolved_address(resolved, host)
     # pylint: disable=W0212
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
 
@@ -287,10 +332,8 @@ def url_get_with_own_dns(
 ) -> Tuple[Optional[str], int, Optional[str]]:
     """request by using an own dns resolver"""
     logger.debug("Helper.url_get_with_own_dns(%s)", url)
-    # patch an own connection handler into URL lib
-    # pylint: disable=W0212
-    connection._orig_create_connection = connection.create_connection
-    connection.create_connection = patched_create_connection
+    _ensure_custom_dns_connect_wrapper()
+    _dns_connect_tls.use_custom_dns = True
     try:
         req = requests.get(
             url,
@@ -315,8 +358,8 @@ def url_get_with_own_dns(
             f"Could not get URL by using the configured DNS servers: {str(err_)}"
         )
         logger.error(error_msg)
-    # cleanup
-    connection.create_connection = connection._orig_create_connection
+    finally:
+        _dns_connect_tls.use_custom_dns = False
     return result, status_code, error_msg
 
 
@@ -483,18 +526,18 @@ def filter_http01_target_ips(
     return allowed, None
 
 
-def _pinned_create_connection(pinned_ip: str):
-    """Return a create_connection that dials ``pinned_ip`` instead of resolving.
+def _http_url_host(host: str) -> str:
+    """Bracket IPv6 literals for use in an HTTP URL authority."""
+    try:
+        addr = ipaddress.ip_address(host)
+        return f"[{host}]" if isinstance(addr, ipaddress.IPv6Address) else host
+    except ValueError:
+        return host
 
-    Same monkey-patch style as ``patched_create_connection`` / ``url_get_with_own_dns``.
-    """
 
-    def _create_connection(address, *args, **kwargs):
-        _hostname, port = address
-        # pylint: disable=W0212
-        return connection._orig_create_connection((pinned_ip, port), *args, **kwargs)
-
-    return _create_connection
+def _http_host_header(host: str) -> str:
+    """Host header value for the logical HTTP-01 identifier."""
+    return _http_url_host(host)
 
 
 def url_get_dns_pinned(
@@ -505,11 +548,11 @@ def url_get_dns_pinned(
     verify: bool = True,
     timeout: int = 20,
 ) -> Tuple[Optional[str], int, Optional[str]]:
-    """HTTP GET using a hostname URL while forcing the TCP peer to a pinned IP.
+    """HTTP GET to a pinned peer IP while keeping the logical Host header.
 
-    Keeps ``http://<host>/...`` in the request (normal Host / ingress behavior)
-    and overrides urllib3 ``create_connection`` so the socket connects to a
-    pre-resolved address without a second DNS lookup (rebinding mitigation).
+    Uses ``http://<pinned-ip>/...`` with ``Host: <host>`` so the TCP peer is
+    bound without a process-global urllib3 ``create_connection`` monkey-patch
+    (avoids cross-request pin races). Proxy-based HTTP-01 skips this helper.
     """
     logger.debug(
         "Helper.url_get_dns_pinned(host=%s, path=%s, ips=%s)", host, path, pinned_ips
@@ -517,17 +560,12 @@ def url_get_dns_pinned(
     if not path.startswith("/"):
         path = f"/{path}"
 
-    try:
-        host_addr = ipaddress.ip_address(host)
-        url_host = f"[{host}]" if isinstance(host_addr, ipaddress.IPv6Address) else host
-    except ValueError:
-        url_host = host
-
-    url = f"http://{url_host}{path}"
+    host_header = _http_host_header(host)
     headers = {
         "Connection": "close",
         "Accept-Encoding": "gzip",
         "User-Agent": USER_AGENT,
+        "Host": host_header,
     }
 
     last_error: Optional[str] = "No pinned IP addresses provided"
@@ -539,9 +577,7 @@ def url_get_dns_pinned(
             last_error = f"Invalid pinned IP: {ip_str}"
             continue
 
-        # pylint: disable=W0212
-        connection._orig_create_connection = connection.create_connection
-        connection.create_connection = _pinned_create_connection(ip_str)
+        url = f"http://{_http_url_host(ip_str)}{path}"
         try:
             req = requests.get(
                 url,
@@ -576,8 +612,6 @@ def url_get_dns_pinned(
             last_status = 500
             last_error = f"Could not fetch URL via pinned IP {ip_str}: {err}"
             logger.error(last_error)
-        finally:
-            connection.create_connection = connection._orig_create_connection
 
     logger.debug(
         "Helper.url_get_dns_pinned() ended with status: %s, error: %s",

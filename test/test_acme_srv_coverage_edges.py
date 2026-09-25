@@ -82,8 +82,9 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
 
         self.assertEqual(body, "body")
         self.assertEqual(code, 404)
-        self.assertEqual(error, "http://example.org/token-path Not Found")
-        self.assertEqual(mock_get.call_args.args[0], "http://example.org/token-path")
+        self.assertEqual(error, "http://203.0.113.10/token-path Not Found")
+        self.assertEqual(mock_get.call_args.args[0], "http://203.0.113.10/token-path")
+        self.assertEqual(mock_get.call_args.kwargs["headers"]["Host"], "example.org")
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
     def test_005_url_get_dns_pinned_read_timeout_returns_last_error(
