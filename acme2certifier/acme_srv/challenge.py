@@ -22,6 +22,9 @@ from acme2certifier.acme_srv.helper import (
     eab_profile_as_bool,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+from acme2certifier.acme_srv.helpers.security_gate import (
+    challenge_validation_disable_decide,
+)
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     ownership_lookup_failed,
@@ -758,11 +761,6 @@ class Challenge:
         """Load address check configuration."""
         self.logger.debug("Challenge._load_address_check_configuration()")
 
-        self.config.validation_disabled = config_dic.getboolean(
-            "Challenge", "challenge_validation_disable", fallback=False
-        )
-        if self.config.validation_disabled:
-            self.logger.info("Challenge validation is globally disabled.")
         if config_dic.getboolean("Challenge", "source_address_check", fallback=False):
             self.logger.warning(
                 "source_address_check is deprecated, please use forward_address_check instead"
@@ -774,6 +772,16 @@ class Challenge:
             )
         self.config.reverse_address_check = config_dic.getboolean(
             "Challenge", "reverse_address_check", fallback=False
+        )
+        requested_disable = config_dic.getboolean(
+            "Challenge", "challenge_validation_disable", fallback=False
+        )
+        self.config.validation_disabled = challenge_validation_disable_decide(
+            self.logger,
+            requested_disable,
+            forward_address_check=self.config.forward_address_check,
+            reverse_address_check=self.config.reverse_address_check,
+            source="[Challenge]",
         )
         self.config.http01_block_private_ips = config_dic.getboolean(
             "Challenge", "http01_block_private_ips", fallback=False
@@ -1049,13 +1057,6 @@ class Challenge:
             "Challenge._apply_eab_profile_settings() for kid: %s", eab_kid
         )
 
-        if settings.get("challenge_validation_disable"):
-            self.logger.info(
-                "Challenge validation is disabled via EAB profiling (eab_kid: %s).",
-                eab_kid,
-            )
-            self.config.validation_disabled = True
-
         if settings.get("forward_address_check"):
             self.logger.info(
                 "Forward address check is enabled via EAB profiling (eab_kid: %s).",
@@ -1069,6 +1070,17 @@ class Challenge:
                 eab_kid,
             )
             self.config.reverse_address_check = True
+
+        # Decide after address-check overlay so global forward/reverse combine
+        # with a profile that only sets challenge_validation_disable.
+        if settings.get("challenge_validation_disable"):
+            self.config.validation_disabled = challenge_validation_disable_decide(
+                self.logger,
+                True,
+                forward_address_check=self.config.forward_address_check,
+                reverse_address_check=self.config.reverse_address_check,
+                source=f"EAB profile (eab_kid: {eab_kid})",
+            )
 
         challenge_types_changed = False
         for key in CHALLENGE_TYPE_SUPPORT_KEYS:

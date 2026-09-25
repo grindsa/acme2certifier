@@ -19,7 +19,8 @@
       "api_password": "api_password_2"
     },
     "challenge": {
-      "challenge_validation_disable": "True"
+      "challenge_validation_disable": "True",
+      "forward_address_check": "True"
     }
   },
   "keyid_02": {
@@ -29,7 +30,7 @@
     },
     "challenge": {
       "challenge_validation_disable": "True",
-      "foward_address_check": "True",
+      "forward_address_check": "True",
       "reverse_address_check": "True"
     }
   },

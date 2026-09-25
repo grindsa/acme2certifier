@@ -521,8 +521,48 @@ class TestChallenge(unittest.TestCase):
         self.assertTrue(self.challenge.config.forward_address_check)
         self.assertTrue(self.challenge.config.reverse_address_check)
         self.assertTrue(self.challenge.config.validation_disabled)
-        self.assertIn(
-            "INFO:test_a2c:Challenge validation is globally disabled.", lcm.output
+        self.assertTrue(
+            any(
+                "challenge_validation_disable is active with address checks" in line
+                for line in lcm.output
+            )
+        )
+
+    def test_035a_load_address_check_configuration_naked_disable_ignored(self):
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.security_gate import SECURITY_DISABLE_ACK_ENV
+
+        config_dic = ConfigParser()
+        config_dic.add_section("Challenge")
+        config_dic.set("Challenge", "challenge_validation_disable", "True")
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                self.challenge._load_address_check_configuration(config_dic)
+        self.assertFalse(self.challenge.config.validation_disabled)
+        self.assertTrue(
+            any(
+                "Ignoring [Challenge] challenge_validation_disable" in line
+                for line in lcm.output
+            )
+        )
+
+    def test_035b_load_address_check_configuration_naked_disable_acknowledged(self):
+        from configparser import ConfigParser
+        from acme2certifier.acme_srv.helpers.security_gate import SECURITY_DISABLE_ACK_ENV
+
+        config_dic = ConfigParser()
+        config_dic.add_section("Challenge")
+        config_dic.set("Challenge", "challenge_validation_disable", "True")
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+                self.challenge._load_address_check_configuration(config_dic)
+        self.assertTrue(self.challenge.config.validation_disabled)
+        self.assertTrue(
+            any(
+                "SECURITY DISABLE ACKNOWLEDGED" in line
+                and "challenge_validation_disable without address checks" in line
+                for line in lcm.output
+            )
         )
 
     def test_036_load_dns_configuration(self):
@@ -2024,27 +2064,56 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(result, {})
 
     def test_113_apply_eab_profile_settings_validation_disable(self):
-        """Test _apply_eab_profile_settings with validation disable setting"""
+        """Naked EAB disable without address checks is ignored without break-glass."""
+        from acme2certifier.acme_srv.helpers.security_gate import SECURITY_DISABLE_ACK_ENV
+
         settings = {
             "challenge_validation_disable": True,
             "forward_address_check": False,
             "reverse_address_check": False,
         }
 
-        # Ensure initial state
         self.challenge.config.validation_disabled = False
+        self.challenge.config.forward_address_check = False
+        self.challenge.config.reverse_address_check = False
+
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs("test_a2c", level="WARNING") as log_context:
+                self.challenge._apply_eab_profile_settings(settings, "test_kid")
+
+        self.assertFalse(self.challenge.config.validation_disabled)
+        self.assertTrue(
+            any(
+                "Ignoring EAB profile (eab_kid: test_kid) challenge_validation_disable"
+                in record.message
+                for record in log_context.records
+                if record.levelname == "WARNING"
+            )
+        )
+
+    def test_113a_apply_eab_profile_settings_validation_disable_with_global_forward(
+        self,
+    ):
+        """EAB disable alone is allowed when global forward_address_check is set."""
+        settings = {
+            "challenge_validation_disable": True,
+            "forward_address_check": False,
+            "reverse_address_check": False,
+        }
+        self.challenge.config.validation_disabled = False
+        self.challenge.config.forward_address_check = True
+        self.challenge.config.reverse_address_check = False
 
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
             self.challenge._apply_eab_profile_settings(settings, "test_kid")
 
         self.assertTrue(self.challenge.config.validation_disabled)
-        # Verify info log message
         self.assertTrue(
             any(
-                "Challenge validation is disabled via EAB profiling (eab_kid: test_kid)."
+                "challenge_validation_disable is active with address checks"
                 in record.message
                 for record in log_context.records
-                if record.levelname == "INFO"
+                if record.levelname == "WARNING"
             )
         )
 
@@ -2118,16 +2187,16 @@ class TestChallenge(unittest.TestCase):
         self.assertTrue(self.challenge.config.forward_address_check)
         self.assertTrue(self.challenge.config.reverse_address_check)
 
-        # Verify all three info log messages
         info_messages = [
             record.message
             for record in log_context.records
             if record.levelname == "INFO"
         ]
-        self.assertIn(
-            "Challenge validation is disabled via EAB profiling (eab_kid: test_kid).",
-            info_messages,
-        )
+        warning_messages = [
+            record.message
+            for record in log_context.records
+            if record.levelname == "WARNING"
+        ]
         self.assertIn(
             "Forward address check is enabled via EAB profiling (eab_kid: test_kid).",
             info_messages,
@@ -2135,6 +2204,12 @@ class TestChallenge(unittest.TestCase):
         self.assertIn(
             "Reverse address check is enabled via EAB profiling (eab_kid: test_kid).",
             info_messages,
+        )
+        self.assertTrue(
+            any(
+                "challenge_validation_disable is active with address checks" in msg
+                for msg in warning_messages
+            )
         )
 
     def test_117_apply_eab_profile_settings_no_settings(self):

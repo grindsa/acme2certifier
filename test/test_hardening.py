@@ -35,6 +35,7 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
 )
 from acme2certifier.acme_srv.helpers.security_gate import (
     SECURITY_DISABLE_ACK_ENV,
+    challenge_validation_disable_decide,
     client_header_parameter_decide,
 )
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
@@ -173,6 +174,74 @@ class TestTkauthFailClosed:
             result = validator.perform_validation(context)
         assert result.success is True
         assert result.invalid is False
+
+
+class TestChallengeValidationDisableDecide:
+    """challenge_validation_disable requires address checks or break-glass."""
+
+    def test_011a_not_requested(self) -> None:
+        logger = logging.getLogger("test_hardening_chal_disable")
+        assert (
+            challenge_validation_disable_decide(
+                logger,
+                False,
+                forward_address_check=False,
+                reverse_address_check=False,
+            )
+            is False
+        )
+
+    def test_011b_combined_with_forward(self) -> None:
+        logger = logging.getLogger("test_hardening_chal_disable")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            assert (
+                challenge_validation_disable_decide(
+                    logger,
+                    True,
+                    forward_address_check=True,
+                    reverse_address_check=False,
+                )
+                is True
+            )
+
+    def test_011c_combined_with_reverse(self) -> None:
+        logger = logging.getLogger("test_hardening_chal_disable")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            assert (
+                challenge_validation_disable_decide(
+                    logger,
+                    True,
+                    forward_address_check=False,
+                    reverse_address_check=True,
+                )
+                is True
+            )
+
+    def test_011d_naked_ignored_without_ack(self) -> None:
+        logger = logging.getLogger("test_hardening_chal_disable")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            assert (
+                challenge_validation_disable_decide(
+                    logger,
+                    True,
+                    forward_address_check=False,
+                    reverse_address_check=False,
+                )
+                is False
+            )
+
+    def test_011e_naked_allowed_with_ack(self) -> None:
+        logger = logging.getLogger("test_hardening_chal_disable")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            assert (
+                challenge_validation_disable_decide(
+                    logger,
+                    True,
+                    forward_address_check=False,
+                    reverse_address_check=False,
+                )
+                is True
+            )
 
 
 class TestOrderResourceOwnership:

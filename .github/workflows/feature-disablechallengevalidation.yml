@@ -111,14 +111,50 @@ jobs:
         with:
           TO_FAIL: "true"
 
-      - name: "Disable challenge validation"
+      - name: "Disable challenge validation (naked; should be ignored)"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
-      - name: "Test enrollment"
+      - name: "Test enrollment (naked disable ignored without break-glass)"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Check logs for ignored naked challenge_validation_disable"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Ignoring [Challenge] challenge_validation_disable"
+          FLUSH: "false"
+
+      - name: "Acknowledge naked challenge_validation_disable via break-glass"
+        working-directory: examples/Docker
+        run: |
+          cat <<'EOF' > docker-compose.override.yml
+          services:
+            acme-srv:
+              environment:
+                ACME2CERTIFIER_I_KNOW_THE_RISK: "1"
+          EOF
+          docker compose up -d --force-recreate --no-build
+
+      - name: "Test enrollment (naked disable with break-glass)"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+
+      - name: "Check logs for acknowledged naked challenge_validation_disable"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "SECURITY DISABLE ACKNOWLEDGED via ACME2CERTIFIER_I_KNOW_THE_RISK: [Challenge] challenge_validation_disable without address checks"
+          FLUSH: "false"
+
+      - name: "Clear break-glass before address-check combined mode"
+        working-directory: examples/Docker
+        run: |
+          rm -f docker-compose.override.yml
+          docker compose up -d --force-recreate --no-build
 
       - name: "Enable forward address check"
         run: |
@@ -246,7 +282,32 @@ jobs:
           PATTERN: "Reverse check passed for lego.acme"
           FLUSH: "true"
 
-      - name: "EAB - Chellenge validation disabled"
+      - name: "EAB - Challenge validation disable alone is ignored without break-glass"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "true"
+          EAB_KID: "keyid_02"
+          EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
+      - name: "Check logs for ignored EAB naked challenge_validation_disable"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Ignoring EAB profile (eab_kid: keyid_02) challenge_validation_disable"
+          FLUSH: "false"
+
+      - name: "Acknowledge EAB naked challenge_validation_disable via break-glass"
+        working-directory: examples/Docker
+        run: |
+          cat <<'EOF' > docker-compose.override.yml
+          services:
+            acme-srv:
+              environment:
+                ACME2CERTIFIER_I_KNOW_THE_RISK: "1"
+          EOF
+          docker compose up -d --force-recreate --no-build
+
+      - name: "EAB - Challenge validation disabled with break-glass"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
         with:
           TO_FAIL: "false"
@@ -338,7 +399,7 @@ jobs:
         with:
           TO_FAIL: "true"
 
-      - name: "Disable challenge validation"
+      - name: "Disable challenge validation (naked; should be ignored)"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
 
@@ -348,8 +409,44 @@ jobs:
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Test enrollment"
+      - name: "Test enrollment (naked disable ignored without break-glass)"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Check logs for ignored naked challenge_validation_disable"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Ignoring [Challenge] challenge_validation_disable"
+          FLUSH: "false"
+
+      - name: "Acknowledge naked challenge_validation_disable via break-glass"
+        run: |
+          docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+            printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+              > /etc/systemd/system.conf.d/a2c-chal-disable.conf && \
+            systemctl daemon-reexec'
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Test enrollment (naked disable with break-glass)"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+
+      - name: "Check logs for acknowledged naked challenge_validation_disable"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "SECURITY DISABLE ACKNOWLEDGED via ACME2CERTIFIER_I_KNOW_THE_RISK: [Challenge] challenge_validation_disable without address checks"
+          FLUSH: "false"
+
+      - name: "Clear break-glass before address-check combined mode"
+        run: |
+          docker exec acme-srv bash -c 'rm -f /etc/systemd/system.conf.d/a2c-chal-disable.conf && systemctl daemon-reexec'
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
 
       - name: "Enable forward address check"
         run: |
@@ -497,7 +594,31 @@ jobs:
           PATTERN: "Reverse check passed for lego.acme"
           FLUSH: "true"
 
-      - name: "EAB - Chellenge validation disabled"
+      - name: "EAB - Challenge validation disable alone is ignored without break-glass"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "true"
+          EAB_KID: "keyid_02"
+          EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
+      - name: "Check logs for ignored EAB naked challenge_validation_disable"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Ignoring EAB profile (eab_kid: keyid_02) challenge_validation_disable"
+          FLUSH: "false"
+
+      - name: "Acknowledge EAB naked challenge_validation_disable via break-glass"
+        run: |
+          docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+            printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+              > /etc/systemd/system.conf.d/a2c-chal-disable.conf && \
+            systemctl daemon-reexec'
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB - Challenge validation disabled with break-glass"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
         with:
           TO_FAIL: "false"
@@ -589,7 +710,7 @@ jobs:
         with:
           TO_FAIL: "true"
 
-      - name: "Disable challenge validation"
+      - name: "Disable challenge validation (naked; should be ignored)"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
 
@@ -600,8 +721,46 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           MODE: ${{ matrix.mode }}
 
-      - name: "Test enrollment"
+      - name: "Test enrollment (naked disable ignored without break-glass)"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+        with:
+          TO_FAIL: "true"
+
+      - name: "Check logs for ignored naked challenge_validation_disable"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: deb
+          PATTERN: "Ignoring [Challenge] challenge_validation_disable"
+          FLUSH: "false"
+
+      - name: "Acknowledge naked challenge_validation_disable via break-glass"
+        run: |
+          docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+            printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+              > /etc/systemd/system.conf.d/a2c-chal-disable.conf && \
+            systemctl daemon-reexec'
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Test enrollment (naked disable with break-glass)"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+
+      - name: "Check logs for acknowledged naked challenge_validation_disable"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: deb
+          PATTERN: "SECURITY DISABLE ACKNOWLEDGED via ACME2CERTIFIER_I_KNOW_THE_RISK: [Challenge] challenge_validation_disable without address checks"
+          FLUSH: "false"
+
+      - name: "Clear break-glass before address-check combined mode"
+        run: |
+          docker exec acme-srv bash -c 'rm -f /etc/systemd/system.conf.d/a2c-chal-disable.conf && systemctl daemon-reexec'
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enable forward address check"
         run: |
@@ -696,7 +855,32 @@ jobs:
           EAB_KID: "keyid_01"
           EAB_HMAC_KEY: "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
 
-      - name: "EAB - Chellenge validation disabled"
+      - name: "EAB - Challenge validation disable alone is ignored without break-glass"
+        uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+        with:
+          TO_FAIL: "true"
+          EAB_KID: "keyid_02"
+          EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
+      - name: "Check logs for ignored EAB naked challenge_validation_disable"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: deb
+          PATTERN: "Ignoring EAB profile (eab_kid: keyid_02) challenge_validation_disable"
+          FLUSH: "false"
+
+      - name: "Acknowledge EAB naked challenge_validation_disable via break-glass"
+        run: |
+          docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+            printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+              > /etc/systemd/system.conf.d/a2c-chal-disable.conf && \
+            systemctl daemon-reexec'
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB - Challenge validation disabled with break-glass"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
         with:
           TO_FAIL: "false"

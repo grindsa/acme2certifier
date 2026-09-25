@@ -71,6 +71,56 @@ def security_disable_acknowledged() -> bool:
     )
 
 
+def challenge_validation_disable_decide(
+    logger: logging.Logger,
+    requested: bool,
+    *,
+    forward_address_check: bool,
+    reverse_address_check: bool,
+    source: str = "[Challenge]",
+) -> bool:
+    """Return True only when challenge_validation_disable may take effect.
+
+    Allowed without break-glass when combined with forward or reverse address
+    checks (enterprise client-IP binding mode). Naked disable requires
+    ``ACME2CERTIFIER_I_KNOW_THE_RISK``.
+    """
+    logger.debug("challenge_validation_disable_decide()")
+    if not requested:
+        return False
+
+    if forward_address_check or reverse_address_check:
+        logger.warning(
+            "%s challenge_validation_disable is active with address checks "
+            "(forward=%s, reverse=%s); ACME challenge proof is skipped",
+            source,
+            forward_address_check,
+            reverse_address_check,
+        )
+        logger.debug("challenge_validation_disable_decide() returning True")
+        return True
+
+    if security_disable_acknowledged():
+        logger.critical(
+            "**** SECURITY DISABLE ACKNOWLEDGED via %s: %s "
+            "challenge_validation_disable without address checks ****",
+            SECURITY_DISABLE_ACK_ENV,
+            source,
+        )
+        logger.debug("challenge_validation_disable_decide() returning True")
+        return True
+
+    logger.warning(
+        "Ignoring %s challenge_validation_disable; challenge validation "
+        "remains enabled. Combine with forward_address_check or "
+        "reverse_address_check, or set %s=1 only for testing.",
+        source,
+        SECURITY_DISABLE_ACK_ENV,
+    )
+    logger.debug("challenge_validation_disable_decide() returning False")
+    return False
+
+
 def client_header_parameter_decide(
     logger: logging.Logger,
     field: str,

@@ -10,6 +10,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- `[Challenge] challenge_validation_disable` without `forward_address_check` or `reverse_address_check` is ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (challenge validation stays enabled and a warning is logged); acknowledgement is logged at `CRITICAL`. Combined with either address check (enterprise client-IP binding) remains allowed without the break-glass env. Same gate applies to EAB profile `challenge.challenge_validation_disable`
 - Parse `acme_srv.cfg` once per worker and pass that ConfigParser into ACME objects; CAhandler still self-configures via `_config_load()` (named `[CAhandler:<name>]` overlay unchanged). Restart the process after config edits ([#384](https://github.com/grindsa/acme2certifier/issues/384))
 - Multi-CAhandler: ACME profiles that only select a named handler (`profile_cahandler` identity maps such as `harica` → `harica`) no longer overwrite that handler's `profile_mapping_field` (HARICA was sending `transactionType=harica` instead of `OV`)
 - OpenSSL CA handler honors `enrollment_config_log` / `enrollment_config_log_skip_list` (same as XCA and the other handlers)
