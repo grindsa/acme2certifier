@@ -675,13 +675,23 @@ def servercert_get(
     port: int = 443,
     proxy_server: str = None,
     sni: str = None,
-) -> str:
-    """get server certificate from an ssl connection"""
-    logger.debug("Helper.servercert_get(%s:%s)", hostname, port)
+    connect_host: Optional[str] = None,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Fetch peer certificate over TLS with ALPN ``acme-tls/1``.
+
+    Returns ``(pem_cert, selected_alpn)``. When *connect_host* is set, TCP
+    connects to that address while SNI remains *sni* (or *hostname*) so DNS
+    validation can pin the resolved IP (RFC 8737 / rebinding mitigation).
+    """
+    logger.debug(
+        "Helper.servercert_get(%s:%s connect_host=%s)", hostname, port, connect_host
+    )
 
     pem_cert = None
+    selected_alpn = None
+    connect_target = connect_host or hostname
 
-    if ipv6_chk(logger, hostname):
+    if ipv6_chk(logger, connect_target):
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     else:
         sock = socks.socksocket()
@@ -712,14 +722,16 @@ def servercert_get(
             logger.debug("servercert_get(): configure proxy")
             sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
     try:
-        sock.connect((hostname, port))
+        sock.connect((connect_target, port))
         with context.wrap_socket(sock, server_hostname=sni) as sslsock:
+            selected_alpn = sslsock.selected_alpn_protocol()
             logger.debug(
-                "servercert_get(): %s:%s:%s version: %s",
-                hostname,
+                "servercert_get(): %s:%s:%s version: %s alpn: %s",
+                connect_target,
                 sni,
                 port,
                 sslsock.version(),
+                selected_alpn,
             )
             der_cert = sslsock.getpeercert(True)
             # from binary DER format to PEM
@@ -728,15 +740,17 @@ def servercert_get(
     except Exception as err_:
         logger.error("Could not get peer certificate. Error: %s", err_)  # NOSONAR
         pem_cert = None
+        selected_alpn = None
 
     if pem_cert:
         logger.debug(
-            "Helper.servercert_get() ended with: %s",
+            "Helper.servercert_get() ended with: %s alpn=%s",
             b64_encode(logger, convert_string_to_byte(pem_cert)),
+            selected_alpn,
         )
     else:
         logger.debug("Helper.servercert_get() ended with: None")
-    return pem_cert
+    return pem_cert, selected_alpn
 
 
 def v6_adjust(logger: logging.Logger, url: str) -> Tuple[Dict[str, str], str]:

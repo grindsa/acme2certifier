@@ -984,3 +984,72 @@ class TestEabProfileDenylist:
         assert cahandler.profile_id == "p1"
         mock_warn.assert_called_once()
         mock_validate.assert_called_once()
+
+
+def _tls_alpn_test_cert_pem(digest: bytes, *, critical: bool = True) -> str:
+    """Build a short-lived self-signed cert with id-pe-acmeIdentifier."""
+    from datetime import datetime, timedelta, timezone
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    oid = x509.ObjectIdentifier("1.3.6.1.5.5.7.1.31")
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "example.com")])
+    builder = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(1)
+        .not_valid_before(datetime.now(timezone.utc) - timedelta(minutes=1))
+        .not_valid_after(datetime.now(timezone.utc) + timedelta(days=1))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("example.com")]),
+            critical=False,
+        )
+        .add_extension(
+            x509.UnrecognizedExtension(oid, b"\x04\x20" + digest),
+            critical=critical,
+        )
+    )
+    cert = builder.sign(key, hashes.SHA256())
+    return cert.public_bytes(serialization.Encoding.PEM).decode()
+
+
+class TestTlsAlpnExtensionCheck:
+    def test_041_critical_oid_match(self) -> None:
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+
+        digest = b"\xab" * 32
+        pem = _tls_alpn_test_cert_pem(digest, critical=True)
+        logger = logging.getLogger("test_hardening_tls_alpn")
+        assert (
+            cert_acme_tls_alpn_extension_ok(logger, pem, digest.hex(), recode=False)
+            is True
+        )
+
+    def test_042_non_critical_rejected(self) -> None:
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+
+        digest = b"\xcd" * 32
+        pem = _tls_alpn_test_cert_pem(digest, critical=False)
+        logger = logging.getLogger("test_hardening_tls_alpn")
+        assert (
+            cert_acme_tls_alpn_extension_ok(logger, pem, digest.hex(), recode=False)
+            is False
+        )
+
+    def test_043_wrong_digest_rejected(self) -> None:
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+
+        digest = b"\x11" * 32
+        pem = _tls_alpn_test_cert_pem(digest, critical=True)
+        logger = logging.getLogger("test_hardening_tls_alpn")
+        assert (
+            cert_acme_tls_alpn_extension_ok(logger, pem, ("22" * 32), recode=False)
+            is False
+        )

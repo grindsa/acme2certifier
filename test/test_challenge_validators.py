@@ -1199,14 +1199,12 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
     @patch("acme2certifier.acme_srv.helper.sha256_hash_hex")
-    @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
     def test_053_perform_validation_basic_functionality(
         self,
         mock_proxy_check,
         mock_servercert_get,
-        mock_b64_encode,
         mock_sha256_hash_hex,
         mock_fqdn_resolve,
     ):
@@ -1220,8 +1218,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
-        mock_b64_encode.return_value = "mocked_extension"
-        mock_servercert_get.return_value = None
+        mock_servercert_get.return_value = (None, None)
         mock_proxy_check.return_value = None
 
         context = ChallengeContext(
@@ -1238,14 +1235,12 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
     @patch("acme2certifier.acme_srv.helper.sha256_hash_hex")
-    @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
     def test_054_perform_validation_dns_success(
         self,
         mock_proxy_check,
         mock_servercert_get,
-        mock_b64_encode,
         mock_sha256_hash_hex,
         mock_fqdn_resolve,
     ):
@@ -1255,8 +1250,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
-        mock_b64_encode.return_value = "expected_extension"
-        mock_servercert_get.return_value = "mock_certificate"
+        mock_servercert_get.return_value = ("mock_certificate", "acme-tls/1")
         mock_proxy_check.return_value = None
 
         # Mock the certificate validation method
@@ -1283,7 +1277,12 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
                 self.logger, "test_token.test_thumb"
             )
             mock_servercert_get.assert_called_once_with(
-                self.logger, "example.com", 443, None, "example.com"
+                self.logger,
+                "example.com",
+                443,
+                None,
+                "example.com",
+                connect_host="192.168.1.1",
             )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
@@ -1310,14 +1309,12 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helper.ip_validate")
     @patch("acme2certifier.acme_srv.helper.sha256_hash_hex")
-    @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
     def test_056_perform_validation_ip_success(
         self,
         mock_proxy_check,
         mock_servercert_get,
-        mock_b64_encode,
         mock_sha256_hash_hex,
         mock_ip_validate,
     ):
@@ -1327,8 +1324,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
-        mock_b64_encode.return_value = "expected_extension"
-        mock_servercert_get.return_value = "mock_certificate"
+        mock_servercert_get.return_value = ("mock_certificate", "acme-tls/1")
         mock_proxy_check.return_value = None
 
         # Mock the certificate validation method
@@ -1350,6 +1346,14 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
             # Verify IP validation was called
             mock_ip_validate.assert_called_once_with(self.logger, "192.168.1.1")
+            mock_servercert_get.assert_called_once_with(
+                self.logger,
+                "192.168.1.1",
+                443,
+                None,
+                "192.168.1.1",
+                connect_host="192.168.1.1",
+            )
 
     @patch("acme2certifier.acme_srv.helper.ip_validate")
     def test_057_perform_validation_invalid_ip(self, mock_ip_validate):
@@ -1394,14 +1398,12 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
     @patch("acme2certifier.acme_srv.helper.sha256_hash_hex")
-    @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
     def test_059_perform_validation_cert_retrieval_failed(
         self,
         mock_proxy_check,
         mock_servercert_get,
-        mock_b64_encode,
         mock_sha256_hash_hex,
         mock_fqdn_resolve,
     ):
@@ -1411,8 +1413,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
-        mock_b64_encode.return_value = "expected_extension"
-        mock_servercert_get.return_value = None  # Simulate failure
+        mock_servercert_get.return_value = (None, None)  # Simulate failure
         mock_proxy_check.return_value = None
 
         context = ChallengeContext(
@@ -1434,14 +1435,12 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
     @patch("acme2certifier.acme_srv.helper.sha256_hash_hex")
-    @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
     def test_060_perform_validation_cert_validation_failed(
         self,
         mock_proxy_check,
         mock_servercert_get,
-        mock_b64_encode,
         mock_sha256_hash_hex,
         mock_fqdn_resolve,
     ):
@@ -1451,8 +1450,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
-        mock_b64_encode.return_value = "expected_extension"
-        mock_servercert_get.return_value = "mock_certificate"
+        mock_servercert_get.return_value = ("mock_certificate", "acme-tls/1")
         mock_proxy_check.return_value = None
 
         # Mock the certificate validation method to return False
@@ -1476,36 +1474,61 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
                 '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Certificate extension validation failed"}',
             )
 
+    @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
+    @patch("acme2certifier.acme_srv.helper.sha256_hash_hex")
+    @patch("acme2certifier.acme_srv.helper.servercert_get")
+    @patch("acme2certifier.acme_srv.helper.proxy_check")
+    def test_060b_perform_validation_alpn_mismatch(
+        self,
+        mock_proxy_check,
+        mock_servercert_get,
+        mock_sha256_hash_hex,
+        mock_fqdn_resolve,
+    ):
+        """TLS-ALPN validation fails when negotiated ALPN is wrong"""
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
+        mock_sha256_hash_hex.return_value = "a" * 64
+        mock_servercert_get.return_value = ("mock_certificate", "http/1.1")
+        mock_proxy_check.return_value = None
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+        )
+        result = self.validator.perform_validation(context)
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertIn("Negotiated ALPN", result.error_message)
+
     @patch("acme2certifier.acme_srv.helper.cert_san_get")
     @patch("acme2certifier.acme_srv.helper.fqdn_in_san_check")
-    @patch("acme2certifier.acme_srv.helper.cert_extensions_get")
+    @patch("acme2certifier.acme_srv.helper.cert_acme_tls_alpn_extension_ok")
     def test_061_validate_certificate_extensions_success(
-        self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get
+        self, mock_ext_ok, mock_fqdn_in_san_check, mock_cert_san_get
     ):
         """Test _validate_certificate_extensions with successful validation"""
-        # Setup mocks
         mock_cert_san_get.return_value = ["example.com", "www.example.com"]
         mock_fqdn_in_san_check.return_value = True
-        mock_cert_extensions_get.return_value = [
-            "expected_extension",
-            "other_extension",
-        ]
+        mock_ext_ok.return_value = True
+        digest = "a" * 64
 
         result = self.validator._validate_certificate_extensions(
-            cert="mock_cert", extension_value="expected_extension", fqdn="example.com"
+            cert="mock_cert", sha256_digest_hex=digest, fqdn="example.com"
         )
 
         self.assertTrue(result)
 
-        # Verify function calls
         mock_cert_san_get.assert_called_once_with(
             self.logger, "mock_cert", recode=False
         )
         mock_fqdn_in_san_check.assert_called_once_with(
             self.logger, ["example.com", "www.example.com"], "example.com"
         )
-        mock_cert_extensions_get.assert_called_once_with(
-            self.logger, "mock_cert", recode=False
+        mock_ext_ok.assert_called_once_with(
+            self.logger, "mock_cert", digest, recode=False
         )
 
     @patch("acme2certifier.acme_srv.helper.cert_san_get")
@@ -1519,46 +1542,43 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         mock_fqdn_in_san_check.return_value = False
 
         result = self.validator._validate_certificate_extensions(
-            cert="mock_cert", extension_value="expected_extension", fqdn="example.com"
+            cert="mock_cert", sha256_digest_hex="a" * 64, fqdn="example.com"
         )
 
         self.assertFalse(result)
 
     @patch("acme2certifier.acme_srv.helper.cert_san_get")
     @patch("acme2certifier.acme_srv.helper.fqdn_in_san_check")
-    @patch("acme2certifier.acme_srv.helper.cert_extensions_get")
+    @patch("acme2certifier.acme_srv.helper.cert_acme_tls_alpn_extension_ok")
     def test_063_validate_certificate_extensions_extension_not_found(
-        self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get
+        self, mock_ext_ok, mock_fqdn_in_san_check, mock_cert_san_get
     ):
         """Test _validate_certificate_extensions with extension not found"""
-        # Setup mocks
         mock_cert_san_get.return_value = ["example.com"]
         mock_fqdn_in_san_check.return_value = True
-        mock_cert_extensions_get.return_value = ["other_extension", "wrong_extension"]
+        mock_ext_ok.return_value = False
 
         result = self.validator._validate_certificate_extensions(
-            cert="mock_cert", extension_value="expected_extension", fqdn="example.com"
+            cert="mock_cert", sha256_digest_hex="a" * 64, fqdn="example.com"
         )
 
         self.assertFalse(result)
 
     @patch("acme2certifier.acme_srv.helper.cert_san_get")
     @patch("acme2certifier.acme_srv.helper.fqdn_in_san_check")
-    @patch("acme2certifier.acme_srv.helper.cert_extensions_get")
+    @patch("acme2certifier.acme_srv.helper.cert_acme_tls_alpn_extension_ok")
     def test_064_validate_certificate_extensions_basic_functionality(
-        self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get
+        self, mock_ext_ok, mock_fqdn_in_san_check, mock_cert_san_get
     ):
         """Test _validate_certificate_extensions basic functionality"""
-        # Setup mocks to avoid actual certificate parsing
         mock_cert_san_get.return_value = ["example.com"]
         mock_fqdn_in_san_check.return_value = True
-        mock_cert_extensions_get.return_value = ["expected_extension"]
+        mock_ext_ok.return_value = True
 
         result = self.validator._validate_certificate_extensions(
-            cert="mock_cert", extension_value="expected_extension", fqdn="example.com"
+            cert="mock_cert", sha256_digest_hex="a" * 64, fqdn="example.com"
         )
 
-        # Should return True when everything matches
         self.assertTrue(result)
 
     def test_065_validate_certificate_extensions_import_error(self):
@@ -1579,7 +1599,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
             result = self.validator._validate_certificate_extensions(
                 cert="mock_cert",
-                extension_value="expected_extension",
+                sha256_digest_hex="a" * 64,
                 fqdn="example.com",
             )
 
@@ -1588,14 +1608,12 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
     @patch("acme2certifier.acme_srv.helper.sha256_hash_hex")
-    @patch("acme2certifier.acme_srv.helper.b64_encode")
     @patch("acme2certifier.acme_srv.helper.servercert_get")
     @patch("acme2certifier.acme_srv.helper.proxy_check")
     def test_066_perform_validation_with_proxy_servers(
         self,
         mock_proxy_check,
         mock_servercert_get,
-        mock_b64_encode,
         mock_sha256_hash_hex,
         mock_fqdn_resolve,
     ):
@@ -1605,8 +1623,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
-        mock_b64_encode.return_value = "expected_extension"
-        mock_servercert_get.return_value = "mock_certificate"
+        mock_servercert_get.return_value = ("mock_certificate", "acme-tls/1")
         mock_proxy_check.return_value = (
             "proxy.example.com:8080"  # Return a proxy server
         )
@@ -1640,9 +1657,14 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
                 "example.com",
                 ["proxy1.example.com:8080", "proxy2.example.com:8080"],
             )
-            # Verify that servercert_get was called with the proxy server
+            # Verify that servercert_get was called with the proxy server and pinned IP
             mock_servercert_get.assert_called_once_with(
-                self.logger, "example.com", 443, "proxy.example.com:8080", "example.com"
+                self.logger,
+                "example.com",
+                443,
+                "proxy.example.com:8080",
+                "example.com",
+                connect_host="192.168.1.1",
             )
 
 

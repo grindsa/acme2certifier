@@ -35,6 +35,9 @@ from pyasn1_modules import rfc5280
 
 _OID_SKI = "2.5.29.14"
 _OID_AKI = "2.5.29.35"
+# id-pe-acmeIdentifier (RFC 8737)
+ACME_TLS_ALPN_OID = x509.ObjectIdentifier("1.3.6.1.5.5.7.1.31")
+ACME_TLS_ALPN_PROTOCOL = "acme-tls/1"
 
 
 def _cert_pem_to_der(logger: logging.Logger, certificate: str) -> bytes:
@@ -317,6 +320,61 @@ def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool =
 
     logger.debug("Helper.cert_extensions_get() ended with: %s", extension_list)
     return extension_list
+
+
+def cert_acme_tls_alpn_extension_ok(
+    logger: logging.Logger,
+    certificate: str,
+    sha256_digest_hex: str,
+    recode: bool = False,
+) -> bool:
+    """Return True when cert has a critical id-pe-acmeIdentifier with expected digest.
+
+    RFC 8737 §3: extension OID 1.3.6.1.5.5.7.1.31 MUST be critical and contain an
+    OCTET STRING of the SHA-256 digest of the key authorization.
+    """
+    logger.debug("Helper.cert_acme_tls_alpn_extension_ok()")
+    try:
+        cert = cert_load(logger, certificate, recode=recode)
+        extension = cert.extensions.get_extension_for_oid(ACME_TLS_ALPN_OID)
+    except x509.ExtensionNotFound:
+        logger.warning("tls-alpn-01: id-pe-acmeIdentifier extension not found")
+        return False
+    except Exception as err:
+        logger.warning("tls-alpn-01: failed to parse ACME identifier extension: %s", err)
+        return False
+
+    if not extension.critical:
+        logger.warning("tls-alpn-01: id-pe-acmeIdentifier extension is not critical")
+        return False
+
+    try:
+        digest = bytes.fromhex(sha256_digest_hex)
+    except ValueError:
+        logger.warning("tls-alpn-01: invalid expected digest hex")
+        return False
+    if len(digest) != 32:
+        logger.warning("tls-alpn-01: expected digest must be 32 bytes")
+        return False
+
+    # DER OCTET STRING: tag 0x04, length 0x20, then digest
+    expected_der = b"\x04\x20" + digest
+    raw = getattr(extension.value, "value", None)
+    if raw is None:
+        try:
+            raw = extension.value.public_bytes()
+        except Exception as err:
+            logger.warning(
+                "tls-alpn-01: cannot read ACME identifier extension value: %s", err
+            )
+            return False
+
+    if raw not in (expected_der, digest):
+        logger.warning("tls-alpn-01: ACME identifier extension value mismatch")
+        return False
+
+    logger.debug("Helper.cert_acme_tls_alpn_extension_ok() ended with: True")
+    return True
 
 
 def cert_serial_get(logger: logging.Logger, certificate: str, hexformat: bool = False):

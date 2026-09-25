@@ -33,6 +33,7 @@ from .helpers.certificates import (
     cert_bound_names_get,
     cert_ski_get,
     cert_extensions_get,
+    cert_acme_tls_alpn_extension_ok,
     cert_serial_get,
     pembundle_to_list,
     cert_chain_skip,

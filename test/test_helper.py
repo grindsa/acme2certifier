@@ -3251,7 +3251,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_sock = Mock()
         mock_context = Mock()
         mock_cert.return_value = "foo"
-        self.assertEqual("foo", self.servercert_get(self.logger, "hostname"))
+        pem, _alpn = self.servercert_get(self.logger, "hostname")
+        self.assertEqual("foo", pem)
         self.assertFalse(mock_convert.called)
 
     @patch("acme2certifier.acme_srv.helpers.network.ipv6_chk")
@@ -3268,7 +3269,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_ipchk.return_value = True
         mock_context = Mock()
         mock_cert.return_value = "foo"
-        self.assertEqual("foo", self.servercert_get(self.logger, "hostname"))
+        pem, _alpn = self.servercert_get(self.logger, "hostname")
+        self.assertEqual("foo", pem)
         self.assertTrue(mock_ssock.called)
         self.assertFalse(mock_sock.called)
 
@@ -3284,9 +3286,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_convert.return_value = ("proxy_proto", "proxy_addr", "proxy_port")
         mock_context = Mock()
         mock_cert.return_value = "foo"
-        self.assertEqual(
-            "foo", self.servercert_get(self.logger, "hostname", 443, "proxy")
-        )
+        pem, _alpn = self.servercert_get(self.logger, "hostname", 443, "proxy")
+        self.assertEqual("foo", pem)
         self.assertTrue(mock_convert.called)
         self.assertFalse(mock_ssock.called)
 
@@ -3299,7 +3300,9 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_context.side_effect = Exception("exc_warp_sock")
         mock_cert.return_value = "foo"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(None, self.servercert_get(self.logger, "hostname", 443))
+            self.assertEqual(
+                (None, None), self.servercert_get(self.logger, "hostname", 443)
+            )
         self.assertFalse(mock_cert.called)
         self.assertIn(
             "ERROR:test_a2c:Could not get peer certificate. Error: exc_warp_sock",
@@ -3320,7 +3323,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_context = Mock()
         mock_cert.return_value = "foo"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual("foo", self.servercert_get(self.logger, "hostname"))
+            pem, _alpn = self.servercert_get(self.logger, "hostname")
+            self.assertEqual("foo", pem)
         self.assertIn(
             "ERROR:test_a2c:Error while getting the peer certifiate: minimum tls version not supported",
             lcm.output,
