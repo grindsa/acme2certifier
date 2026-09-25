@@ -890,6 +890,31 @@ class Authorization(object):
             authz_name, auth_details, id_type, id_value, authz_info
         )
 
+    def _warn_eab_unbounded_prevalidation(
+        self, eab_kid: str, key: str, value: List[str]
+    ) -> None:
+        """WARNING when an EAB profile applies full-universe prevalidation (intentional; not break-glass-gated)."""
+        if key == "prevalidated_domainlist" and self._is_unbounded_domain_prevalidation(
+            value
+        ):
+            self.logger.warning(
+                "EAB profile (eab_kid: %s) applies prevalidated_domainlist=['*']; "
+                "challenge validation is skipped for all DNS identifiers for this account",
+                eab_kid,
+            )
+            return
+        if key == "prevalidated_iplist":
+            unbounded = [
+                entry for entry in value if self._is_unbounded_ip_network(entry)
+            ]
+            if unbounded:
+                self.logger.warning(
+                    "EAB profile (eab_kid: %s) applies unbounded IP prevalidation %s; "
+                    "challenge validation is skipped for those address spaces for this account",
+                    eab_kid,
+                    unbounded,
+                )
+
     def _apply_eab_profile(self, authz_name, auth_details):
         if not self.config.eab_profiling:
             return
@@ -914,6 +939,7 @@ class Authorization(object):
                         self.logger.debug(
                             f"Authorization._apply_eab_and_domain_whitelist() - apply {key} from eab profile."
                         )
+                        self._warn_eab_unbounded_prevalidation(eab_kid, key, value)
                         setattr(self.config, attr, value)
         except Exception as err:
             self.logger.error(

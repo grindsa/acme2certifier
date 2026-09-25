@@ -3120,6 +3120,111 @@ class TestAuthorization(unittest.TestCase):
                 )
                 mock_payload.assert_not_called()
 
+    def _mock_eab_profile(self, profile_dic):
+        mock_context = Mock()
+        mock_context.key_file_load.return_value = profile_dic
+        mock_context.__enter__ = Mock(return_value=mock_context)
+        mock_context.__exit__ = Mock(return_value=None)
+        self.authorization.config.eab_profiling = True
+        self.authorization.config.eab_handler = Mock(return_value=mock_context)
+
+    def test_146_eab_unbounded_domainlist_applies_with_warning(self):
+        """EAB prevalidated_domainlist=['*'] applies without break-glass; WARNING logged"""
+        self._mock_eab_profile(
+            {"kid": {"authorization": {"prevalidated_domainlist": ["*"]}}}
+        )
+        self.authorization._apply_eab_profile(
+            "authz", {"order__account__eab_kid": "kid"}
+        )
+        self.assertEqual(self.authorization.config.prevalidated_domainlist, ["*"])
+        warning_messages = [
+            (
+                str(call.args[0]) % call.args[1:]
+                if len(call.args) > 1
+                else str(call.args[0])
+            )
+            for call in self.mock_logger.warning.call_args_list
+            if call.args
+        ]
+        self.assertTrue(
+            any(
+                "EAB profile (eab_kid: kid) applies prevalidated_domainlist=['*']" in msg
+                for msg in warning_messages
+            )
+        )
+        self.mock_logger.critical.assert_not_called()
+
+    def test_147_eab_unbounded_iplist_applies_with_warning(self):
+        """EAB prevalidated_iplist with /0 applies without break-glass; WARNING logged"""
+        self._mock_eab_profile(
+            {
+                "kid": {
+                    "authorization": {
+                        "prevalidated_iplist": ["0.0.0.0/0", "10.0.0.0/8"]
+                    }
+                }
+            }
+        )
+        self.authorization._apply_eab_profile(
+            "authz", {"order__account__eab_kid": "kid"}
+        )
+        self.assertEqual(
+            self.authorization.config.prevalidated_iplist, ["0.0.0.0/0", "10.0.0.0/8"]
+        )
+        warning_messages = [
+            (
+                str(call.args[0]) % call.args[1:]
+                if len(call.args) > 1
+                else str(call.args[0])
+            )
+            for call in self.mock_logger.warning.call_args_list
+            if call.args
+        ]
+        self.assertTrue(
+            any(
+                "EAB profile (eab_kid: kid) applies unbounded IP prevalidation" in msg
+                and "0.0.0.0/0" in msg
+                for msg in warning_messages
+            )
+        )
+        self.mock_logger.critical.assert_not_called()
+
+    def test_148_eab_scoped_prevalidation_no_unbounded_warning(self):
+        """Scoped EAB prevalidation lists apply without unbounded WARNING"""
+        self._mock_eab_profile(
+            {
+                "kid": {
+                    "authorization": {
+                        "prevalidated_domainlist": ["*.example.com"],
+                        "prevalidated_iplist": ["10.0.0.0/8"],
+                    }
+                }
+            }
+        )
+        self.authorization._apply_eab_profile(
+            "authz", {"order__account__eab_kid": "kid"}
+        )
+        self.assertEqual(
+            self.authorization.config.prevalidated_domainlist, ["*.example.com"]
+        )
+        self.assertEqual(self.authorization.config.prevalidated_iplist, ["10.0.0.0/8"])
+        warning_messages = [
+            (
+                str(call.args[0]) % call.args[1:]
+                if len(call.args) > 1
+                else str(call.args[0])
+            )
+            for call in self.mock_logger.warning.call_args_list
+            if call.args
+        ]
+        self.assertFalse(
+            any(
+                "prevalidated_domainlist=['*']" in msg
+                or "unbounded IP prevalidation" in msg
+                for msg in warning_messages
+            )
+        )
+
 
 class TestAuthorizationExceptions(unittest.TestCase):
     # Test custom exception classes

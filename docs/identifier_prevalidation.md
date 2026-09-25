@@ -17,14 +17,16 @@ When enabled, any ACME authorization request for a matching domain, IP, or email
 
 **These features introduce significant security risks if misused.**
 
-### Full-universe wildcards (global config only)
+### Full-universe wildcards
 
 The following entries in `[Authorization]` disable DCV for *all* identifiers of that type and are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set (testing only); acknowledgement is logged at `CRITICAL`:
 
 - `prevalidated_domainlist = ["*"]` (sole entry; spaces around `*` are ignored)
 - `prevalidated_iplist` entries with prefix length 0 (`0.0.0.0/0`, `::/0`)
 
-Scoped patterns such as `*.example.com` or `10.0.0.0/8` are **not** gated. The same unbounded entries supplied via EAB profiling are also not gated.
+Scoped patterns such as `*.example.com` or `10.0.0.0/8` are **not** gated.
+
+**EAB profiling:** The same unbounded entries in an account's `authorization` profile section are **not** break-glass-gated. EAB profiling is an operator-controlled feature; profile-store integrity and careful review of kid profiles are the control. Applying EAB `["*"]` or `/0` IP networks is logged at `WARNING`. Do not set `ACME2CERTIFIER_I_KNOW_THE_RISK` solely to enable these via EAB — that env also unlocks unrelated security disables.
 
 ## How It Works
 
@@ -85,6 +87,7 @@ When an account with key ID `keyid_03` requests authorization, the specified dom
 - Use these features only in tightly controlled environments, such as internal PKIs or for legacy migration scenarios.
 - Always audit and restrict the lists to the minimum set of identifiers required.
 - Consider using EAB profiling to scope prevalidation to specific accounts rather than globally.
+- Treat EAB `["*"]` / `/0` as intentional full-account DCV bypass; protect the profile store and review kid profiles carefully. Unbounded EAB apply is logged at WARNING.
 
 ## Example Configuration
 
