@@ -63,14 +63,19 @@ runs:
         fi
         grep -n 'csr_binding_strict\|challenge_validation_disable\|prevalidated_domainlist' "${ACME_CFG}"
         python3 -c "import configparser, os; c=configparser.ConfigParser(); assert c.read(os.environ['ACME_CFG'], encoding='utf8')"
-        cd examples/Docker/
-        docker compose restart
       shell: bash
       env:
         ACME_CFG: ${{ inputs.ACME_CFG }}
         DOMAIN_A: ${{ inputs.DOMAIN_A }}
         DOMAIN_B: ${{ inputs.DOMAIN_B }}
         DOMAIN_EXTRA: ${{ inputs.DOMAIN_EXTRA }}
+
+    - name: "Acknowledge naked challenge_validation_disable"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/set_break_glass
+      with:
+        DEPLOYMENT_TYPE: container
+        RECREATE: "true"
 
     - name: "Wait for ACME directory after csr-binding enable"
       if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}

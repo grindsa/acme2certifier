@@ -168,11 +168,16 @@ runs:
         set -euo pipefail
         sudo sed -i 's/challenge_validation_disable: False/challenge_validation_disable: True/' "${ACME_CFG}"
         grep -n 'challenge_validation_disable' "${ACME_CFG}"
-        cd examples/Docker/
-        docker compose restart
       shell: bash
       env:
         ACME_CFG: ${{ inputs.ACME_CFG }}
+
+    - name: "Acknowledge naked challenge_validation_disable"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+      uses: ./.github/actions/set_break_glass
+      with:
+        DEPLOYMENT_TYPE: container
+        RECREATE: "true"
 
     - name: "Wait for ACME directory after challenge_validation_disable enable"
       if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}

@@ -88,6 +88,11 @@ jobs:
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
         with:
@@ -163,6 +168,11 @@ jobs:
       - name: "Prepare acme_srv.cfg with openssl_ca_handler (config)"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Execute install script"
         run: |
@@ -242,6 +252,11 @@ jobs:
       - name: "Prepare acme_srv.cfg with openssl_ca_handler (config)"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Execute install script"
         run: |

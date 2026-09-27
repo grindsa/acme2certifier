@@ -131,8 +131,12 @@ jobs:
       - name: "Disable Challenge validation"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: container
+          RECREATE: "true"
 
       #- name: "Enroll via acme-email"
       #  uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
@@ -264,6 +268,11 @@ jobs:
       - name: "Disable challenge validation"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Reconfigure a2c"
         run: |
@@ -401,6 +410,11 @@ jobs:
       - name: "Disable challenge validation"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Reconfigure a2c "
         run: |

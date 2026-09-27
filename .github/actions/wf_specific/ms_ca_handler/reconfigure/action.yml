@@ -162,13 +162,26 @@ runs:
       env:
         VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
 
+    - name: "Acknowledge naked challenge_validation_disable"
+      if: ${{ inputs.DISABLE_CHALLENGE_VALIDATION == 'true' }}
+      uses: ./.github/actions/set_break_glass
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        # force-recreate only if restart is skipped; Restart step handles recreate below
+        RECREATE: "false"
+
     - name: "Restart a2c"
       if: ${{ inputs.RESTART == 'true' }}
       run: |
         set -euo pipefail
         case "${DEPLOYMENT_TYPE}" in
           container)
-            (cd examples/Docker && docker compose restart)
+            if [[ "${DISABLE_CHALLENGE_VALIDATION}" == "true" ]]; then
+              # override env only applies on recreate, not restart
+              (cd examples/Docker && docker compose up -d --force-recreate --no-build)
+            else
+              (cd examples/Docker && docker compose restart)
+            fi
             ;;
           rpm)
             docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
@@ -189,3 +202,4 @@ runs:
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         WEBSRV: ${{ inputs.WEBSRV }}
+        DISABLE_CHALLENGE_VALIDATION: ${{ inputs.DISABLE_CHALLENGE_VALIDATION }}

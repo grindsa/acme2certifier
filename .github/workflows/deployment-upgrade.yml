@@ -435,6 +435,8 @@ jobs:
 
       - name: "EAB enrollment"
         uses: ./.github/actions/wf_specific/upgrade/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -687,6 +689,8 @@ jobs:
 
       - name: "EAB enrollment"
         uses: ./.github/actions/wf_specific/upgrade/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -826,6 +830,9 @@ jobs:
 
       - name: "EAB enrollment"
         uses: ./.github/actions/wf_specific/upgrade/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: nginx
 
       - name: "Channel teardown"
         if: ${{ always() }}

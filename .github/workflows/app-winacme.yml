@@ -304,6 +304,7 @@ jobs:
 
           "ACME_SRV_CONFIGFILE=$repoRoot\volume\acme_srv.cfg" >> $env:GITHUB_ENV
           "ACME2CERTIFIER_BASE_DIR=$repoRoot" >> $env:GITHUB_ENV
+          "ACME2CERTIFIER_I_KNOW_THE_RISK=1" >> $env:GITHUB_ENV
           "ACME2CERTIFIER_SECRET_KEY=$secretKey" >> $env:GITHUB_ENV
           "ACME2CERTIFIER_ALLOWED_HOSTS=$allowedHosts" >> $env:GITHUB_ENV
           "PYTHONPATH=$repoRoot;$repoRoot\volume" >> $env:GITHUB_ENV

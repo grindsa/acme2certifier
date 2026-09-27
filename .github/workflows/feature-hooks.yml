@@ -412,6 +412,11 @@ jobs:
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
         with:
@@ -795,6 +800,11 @@ jobs:
           sudo echo "rcpt: $JUM_ADDR" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nappname: acme2certifier\nsmtp_server: mailserver.acme\nsmtp_port: 465\nsmtp_use_tls: True\nconnection_timeout: 30\nusername: $JUM_ADDR\npassword: $JUM_PASSWORD\nemail_address: $A2C_ADDR\n/g" data/volume/acme_srv.cfg
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Execute install script"
         run: |

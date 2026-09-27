@@ -217,6 +217,8 @@ jobs:
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -261,6 +263,8 @@ jobs:
 
       - name: "EAB subject profiling - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -336,6 +340,8 @@ jobs:
 
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -632,6 +638,8 @@ jobs:
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -761,6 +769,8 @@ jobs:
 
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -958,6 +968,9 @@ jobs:
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -1007,6 +1020,7 @@ jobs:
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
         with:
           DEPLOYMENT_TYPE: "deb"
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -1089,6 +1103,9 @@ jobs:
 
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
         if: ${{ always() }}

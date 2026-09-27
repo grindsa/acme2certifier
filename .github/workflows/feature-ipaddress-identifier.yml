@@ -98,12 +98,19 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "Reconfigure allowed_iplist"
+        working-directory: examples/Docker
         run: |
-          sudo rm -rf lego/*
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s#tnauthlist_support: False#tnauthlist_support: False\nallowed_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]\n#g" examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+          sudo rm -rf ../../lego/*
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
+          sudo sed -i "s#tnauthlist_support: False#tnauthlist_support: False\nallowed_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]\n#g" data/acme_srv.cfg
+          # naked challenge_validation_disable requires break-glass (48ab01c7)
+          cat <<'EOF' > docker-compose.override.yml
+          services:
+            acme-srv:
+              environment:
+                ACME2CERTIFIER_I_KNOW_THE_RISK: "1"
+          EOF
+          docker compose up -d --force-recreate --no-build
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients_enroll
@@ -180,6 +187,11 @@ jobs:
           sudo rm -rf lego/*
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s#tnauthlist_support: False#tnauthlist_support: False\nallowed_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]\n#g" data/volume/acme_srv.cfg
+          # naked challenge_validation_disable requires break-glass (48ab01c7)
+          docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+            printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+              > /etc/systemd/system.conf.d/a2c-chal-disable.conf && \
+            systemctl daemon-reexec'
 
       - name: "Reconfigure a2c"
         run: |
@@ -267,6 +279,11 @@ jobs:
           sudo rm -rf lego/*
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s#tnauthlist_support: False#tnauthlist_support: False\nallowed_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]\n#g" data/volume/acme_srv.cfg
+          # naked challenge_validation_disable requires break-glass (48ab01c7)
+          docker exec acme-srv bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+            printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+              > /etc/systemd/system.conf.d/a2c-chal-disable.conf && \
+            systemctl daemon-reexec'
 
       - name: "Reconfigure a2c "
         run: |

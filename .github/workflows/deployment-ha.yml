@@ -380,6 +380,16 @@ jobs:
           docker exec alma9-c1 systemctl start lsyncd
           docker exec alma9-c2 systemctl start lsyncd
 
+      - name: "Acknowledge naked challenge_validation_disable"
+        run: |
+          set -euo pipefail
+          for host in alma9-c1 alma9-c2; do
+            docker exec "${host}" bash -c 'mkdir -p /etc/systemd/system.conf.d && \
+              printf "[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n" \
+                > /etc/systemd/system.conf.d/a2c-break-glass.conf && \
+              systemctl daemon-reexec'
+          done
+
       - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Sleep for 20s"
         uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
         with:

@@ -85,6 +85,11 @@ jobs:
           sudo cp examples/trigger/ci_seed_processing_order.py examples/Docker/data/trigger/
           sudo chmod 755 examples/Docker/data/trigger/certifier_trigger.sh
 
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: container
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
         with:

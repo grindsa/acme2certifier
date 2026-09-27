@@ -104,6 +104,11 @@ jobs:
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 120\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
 
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
         with:
@@ -211,6 +216,11 @@ jobs:
           # enrollment_timeout must stay below lego ResponseHeaderTimeout (~30s); enroll
           # continues in-thread after finalize returns processing (same pattern as certifier).
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
