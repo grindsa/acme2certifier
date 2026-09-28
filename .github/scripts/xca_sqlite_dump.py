@@ -8,9 +8,41 @@ has no `--escape off`. Neither MariaDB nor PostgreSQL accept that dump as-is.
 from __future__ import annotations
 
 import argparse
+import os
 import sqlite3
 import sys
-from typing import Any, Optional, TextIO
+from typing import Any, Optional, Sequence, TextIO
+
+
+def _allowed_bases() -> list[str]:
+    bases = [os.path.realpath(os.getcwd()), os.path.realpath("/tmp")]
+    workspace = os.environ.get("GITHUB_WORKSPACE")
+    if workspace:
+        bases.append(os.path.realpath(workspace))
+    return bases
+
+
+def _safe_path(
+    path: str,
+    *,
+    must_exist: bool = False,
+    allowed_bases: Sequence[str] | None = None,
+) -> str:
+    """Resolve *path* and require it under an allowlisted base directory."""
+    if not path or "\x00" in path:
+        raise SystemExit(f"invalid path: {path!r}")
+    # Block URI / query injection into sqlite connection strings.
+    if any(c in path for c in ("?", "#", "&", "\n", "\r")):
+        raise SystemExit(f"invalid path characters: {path!r}")
+    resolved = os.path.realpath(path)
+    bases = list(allowed_bases) if allowed_bases is not None else _allowed_bases()
+    if not any(
+        resolved == base or resolved.startswith(base + os.sep) for base in bases
+    ):
+        raise SystemExit(f"path outside allowed directories: {path}")
+    if must_exist and not os.path.isfile(resolved):
+        raise SystemExit(f"file not found: {path}")
+    return resolved
 
 
 def sql_literal(value: Any, dialect: str = "mysql") -> str:
@@ -41,12 +73,21 @@ def quote_ident(name: str, dialect: str) -> str:
     return f'"{ident}"'
 
 
-def dump_xca_sqlite(xdb_path: str, dialect: str, out: TextIO) -> None:
+def dump_xca_sqlite(
+    xdb_path: str,
+    dialect: str,
+    out: TextIO,
+    *,
+    allowed_bases: Sequence[str] | None = None,
+) -> None:
     """Write CREATE/INSERT/VIEW/INDEX statements for *xdb_path* to *out*."""
     if dialect not in ("mysql", "postgresql"):
         raise ValueError(f"unsupported dialect {dialect}")
 
-    con = sqlite3.connect(f"file:{xdb_path}?mode=ro", uri=True)
+    # Path-only connect (no URI) avoids connection-string injection (S8706).
+    safe_xdb = _safe_path(xdb_path, must_exist=True, allowed_bases=allowed_bases)
+    con = sqlite3.connect(safe_xdb)
+    con.execute("PRAGMA query_only = ON")
     con.row_factory = sqlite3.Row
     try:
         if dialect == "mysql":
@@ -97,11 +138,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    bases = _allowed_bases()
     if args.output == "-":
-        dump_xca_sqlite(args.xdb, args.dialect, sys.stdout)
+        dump_xca_sqlite(args.xdb, args.dialect, sys.stdout, allowed_bases=bases)
         return 0
-    with open(args.output, "w", encoding="utf-8", newline="\n") as handle:
-        dump_xca_sqlite(args.xdb, args.dialect, handle)
+    output_path = _safe_path(args.output, allowed_bases=bases)
+    with open(output_path, "w", encoding="utf-8", newline="\n") as handle:
+        dump_xca_sqlite(args.xdb, args.dialect, handle, allowed_bases=bases)
     return 0
 
 

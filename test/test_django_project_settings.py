@@ -409,10 +409,10 @@ class TestDjangoProjectSettings(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp) / "settings.py"
             dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
-            patch_file(dest, "mariadb", _DB_CA)
+            patch_file(dest, "mariadb", _DB_CA, allowed_bases=[Path(tmp)])
             text = dest.read_text(encoding="utf-8")
             self.assertIn(f'"ssl": {{"ca": "{_DB_CA}"}}', text)
-            patch_file(dest, "mariadb", _DB_CA)
+            patch_file(dest, "mariadb", _DB_CA, allowed_bases=[Path(tmp)])
             self.assertEqual(
                 text.count('"ssl"'), dest.read_text(encoding="utf-8").count('"ssl"')
             )
@@ -424,7 +424,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp) / "settings.py"
             dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
-            patch_file(dest, "psql", _DB_CA)
+            patch_file(dest, "psql", _DB_CA, allowed_bases=[Path(tmp)])
             text = dest.read_text(encoding="utf-8")
             self.assertIn('"sslmode": "verify-ca"', text)
             self.assertIn(f'"sslrootcert": "{_DB_CA}"', text)
@@ -437,7 +437,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 text,
             )
             self.assertNotIn("HOME", text)
-            patch_file(dest, "psql", _DB_CA)
+            patch_file(dest, "psql", _DB_CA, allowed_bases=[Path(tmp)])
             twice = dest.read_text(encoding="utf-8")
             self.assertEqual(twice.count("sslrootcert"), text.count("sslrootcert"))
 
@@ -448,7 +448,29 @@ class TestDjangoProjectSettings(unittest.TestCase):
             dest = Path(tmp) / "settings.py"
             dest.write_text("DATABASES = {}\n", encoding="utf-8")
             with self.assertRaises(SystemExit):
-                patch_file(dest, "mssql", _DB_CA)
+                patch_file(dest, "mssql", _DB_CA, allowed_bases=[Path(tmp)])
+
+    def test_022b_patch_rejects_path_outside_allowed_bases(self) -> None:
+        """settings paths outside allowed_bases are rejected (path traversal)"""
+        mod = _load_github_script("patch_django_db_ssl")
+        with tempfile.TemporaryDirectory() as tmp:
+            allowed = Path(tmp) / "allowed"
+            allowed.mkdir()
+            outside = Path(tmp) / "outside" / "settings.py"
+            outside.parent.mkdir()
+            outside.write_text("DATABASES = {}\n", encoding="utf-8")
+            with self.assertRaises(SystemExit) as ctx:
+                mod.patch_file(
+                    outside, "mariadb", _DB_CA, allowed_bases=[allowed]
+                )
+            self.assertIn("outside allowed directories", str(ctx.exception))
+            # .. escape from an allowed-looking relative path
+            escape = allowed / ".." / "outside" / "settings.py"
+            with self.assertRaises(SystemExit) as ctx2:
+                mod.patch_file(
+                    escape, "mariadb", _DB_CA, allowed_bases=[allowed]
+                )
+            self.assertIn("outside allowed directories", str(ctx2.exception))
 
     def _run_ssl_verify_with_connection(self, vendor: str, fetchone) -> int:
         verify = _load_github_script("django_db_ssl_verify")
