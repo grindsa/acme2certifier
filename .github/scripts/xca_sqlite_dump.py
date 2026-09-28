@@ -15,7 +15,8 @@ from typing import Any, Optional, Sequence, TextIO
 
 
 def _allowed_bases() -> list[str]:
-    bases = [os.path.realpath(os.getcwd()), os.path.realpath("/tmp")]
+    # Prefer workspace / cwd; avoid world-writable /tmp (S5443).
+    bases = [os.path.realpath(os.getcwd())]
     workspace = os.environ.get("GITHUB_WORKSPACE")
     if workspace:
         bases.append(os.path.realpath(workspace))
@@ -141,10 +142,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     bases = _allowed_bases()
     if args.output == "-":
         dump_xca_sqlite(args.xdb, args.dialect, sys.stdout, allowed_bases=bases)
-        return 0
-    output_path = _safe_path(args.output, allowed_bases=bases)
-    with open(output_path, "w", encoding="utf-8", newline="\n") as handle:
-        dump_xca_sqlite(args.xdb, args.dialect, handle, allowed_bases=bases)
+    else:
+        output_path = _safe_path(args.output, allowed_bases=bases)
+        with open(output_path, "w", encoding="utf-8", newline="\n") as handle:
+            dump_xca_sqlite(args.xdb, args.dialect, handle, allowed_bases=bases)
     return 0
 
 

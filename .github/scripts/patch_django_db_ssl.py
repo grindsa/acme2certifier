@@ -10,45 +10,64 @@ from pathlib import Path
 from typing import Sequence
 
 
-def _default_allowed_bases() -> list[Path]:
+def _default_allowed_bases() -> list[str]:
     """Directories under which settings files may be patched."""
-    bases = [Path.cwd()]
+    bases = [os.path.realpath(os.getcwd())]
     workspace = os.environ.get("GITHUB_WORKSPACE")
     if workspace:
-        bases.append(Path(workspace))
+        bases.append(os.path.realpath(workspace))
     return bases
 
 
-def _safe_settings_path(path: Path, allowed_bases: Sequence[Path]) -> Path:
-    """Resolve *path* and require it to remain under one of *allowed_bases*.
+def _path_under_base(resolved: str, real_base: str) -> bool:
+    """True when *resolved* is *real_base* or a path beneath it."""
+    if resolved == real_base:
+        return True
+    prefix = real_base if real_base.endswith(os.sep) else real_base + os.sep
+    return resolved.startswith(prefix)
 
-    Blocks path-traversal via ``..`` / symlink escapes from CLI arguments
-    (Sonar pythonsecurity:S2083 / S8707).
-    """
+
+def _safe_settings_file(path: Path | str, allowed_bases: Sequence[str]) -> str:
+    """Return a realpath for *path* that stays under *allowed_bases*."""
     raw = os.fspath(path)
     if not raw or "\x00" in raw:
         raise SystemExit(f"invalid settings path: {path!r}")
-
     resolved = os.path.realpath(raw)
     for base in allowed_bases:
-        real_base = os.path.realpath(os.fspath(base))
-        try:
-            if os.path.commonpath([resolved, real_base]) != real_base:
-                continue
-        except ValueError:
+        real_base = os.path.realpath(base)
+        if not _path_under_base(resolved, real_base):
             continue
-        target = Path(resolved)
-        if not target.is_file():
+        # Rebuild from base + relative segments so the opened path is not the
+        # raw CLI string (clears path-traversal taint for S2083 / S8707).
+        rel = os.path.relpath(resolved, real_base)
+        if rel.startswith(".."):
+            continue
+        safe = os.path.realpath(os.path.join(real_base, rel))
+        if safe != resolved or not os.path.isfile(safe):
             raise SystemExit(f"settings file not found: {path}")
-        return target
+        return safe
     raise SystemExit(
         f"settings path outside allowed directories: {path} (resolved={resolved})"
     )
 
 
+def _sanitize_ca_runtime_path(ca_runtime_path: str) -> str:
+    """Validate CA path embedded into settings (absolute, no injection chars)."""
+    if not ca_runtime_path or "\x00" in ca_runtime_path:
+        raise SystemExit(f"invalid ca-runtime-path: {ca_runtime_path!r}")
+    if any(c in ca_runtime_path for c in ('"', "'", "\n", "\r", "`", "\\")):
+        raise SystemExit("ca-runtime-path contains invalid characters")
+    if not os.path.isabs(ca_runtime_path):
+        raise SystemExit("ca-runtime-path must be an absolute path")
+    return ca_runtime_path
+
+
 def _client_material_paths(ca_runtime_path: str) -> tuple[str, str]:
-    parent = Path(ca_runtime_path).parent
-    return str(parent / "db-client-cert.pem"), str(parent / "db-client-key.pem")
+    parent = os.path.dirname(ca_runtime_path)
+    return (
+        os.path.join(parent, "db-client-cert.pem"),
+        os.path.join(parent, "db-client-key.pem"),
+    )
 
 
 def _patch_mariadb(text: str, ca_runtime_path: str) -> str:
@@ -90,23 +109,30 @@ def patch_file(
     django_db: str,
     ca_runtime_path: str,
     *,
-    allowed_bases: Sequence[Path] | None = None,
+    allowed_bases: Sequence[Path | str] | None = None,
 ) -> None:
     """Patch *path* after verifying it stays under *allowed_bases*."""
-    bases = list(allowed_bases) if allowed_bases is not None else _default_allowed_bases()
-    target = _safe_settings_path(path, bases)
-    text = target.read_text(encoding="utf-8")
+    if allowed_bases is None:
+        bases = _default_allowed_bases()
+    else:
+        bases = [os.path.realpath(os.fspath(base)) for base in allowed_bases]
+    settings_path = _safe_settings_file(path, bases)
+    ca_path = _sanitize_ca_runtime_path(ca_runtime_path)
+
+    with open(settings_path, encoding="utf-8") as handle:
+        text = handle.read()
     if django_db == "mariadb":
-        updated = _patch_mariadb(text, ca_runtime_path)
+        updated = _patch_mariadb(text, ca_path)
     elif django_db == "psql":
-        updated = _patch_psql(text, ca_runtime_path)
+        updated = _patch_psql(text, ca_path)
     else:
         raise SystemExit(f"unsupported DJANGO_DB={django_db} (expected mariadb|psql)")
     if updated == text:
-        print(f"already patched: {target}")
+        print(f"already patched: {settings_path}")
         return
-    target.write_text(updated, encoding="utf-8")
-    print(f"patched TLS OPTIONS: {target}")
+    with open(settings_path, "w", encoding="utf-8") as handle:
+        handle.write(updated)
+    print(f"patched TLS OPTIONS: {settings_path}")
 
 
 def main() -> int:

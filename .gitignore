@@ -196,6 +196,7 @@ settings.json
 coverage.lcov
 .github/acme2certifier_cert.pem
 .github/acme2certifier_key.pem
+.github/ci-artifacts/
 # apple stuff
 .DS_Store
 

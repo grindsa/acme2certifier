@@ -82,11 +82,11 @@ class TestXcaSqliteDump(unittest.TestCase):
         with self.assertRaises(SystemExit):
             _safe_path("/etc/passwd", allowed_bases=[_repo_base()])
 
-    def test_006_main_writes_under_allowed_tmp(self):
-        """main() dumps to an allowlisted output path"""
+    def test_006_main_writes_under_repo(self):
+        """main() dumps to an allowlisted path under the repository"""
         import tempfile
 
-        with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+        with tempfile.TemporaryDirectory(dir=_repo_base()) as tmp:
             out = os.path.join(tmp, "dump.sql")
             rc = main(
                 [

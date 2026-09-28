@@ -472,6 +472,24 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 )
             self.assertIn("outside allowed directories", str(ctx2.exception))
 
+    def test_022c_patch_rejects_unsafe_ca_runtime_path(self) -> None:
+        """ca-runtime-path must be absolute and free of injection characters"""
+        patch_file = _load_github_script("patch_django_db_ssl").patch_file
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "settings.py"
+            dest.write_text('"use_unicode": True,\n', encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                patch_file(
+                    dest, "mariadb", 'rel/ca.pem', allowed_bases=[Path(tmp)]
+                )
+            with self.assertRaises(SystemExit):
+                patch_file(
+                    dest,
+                    "mariadb",
+                    '/var/www/acme2certifier/volume/db-ca.pem"',
+                    allowed_bases=[Path(tmp)],
+                )
+
     def _run_ssl_verify_with_connection(self, vendor: str, fetchone) -> int:
         verify = _load_github_script("django_db_ssl_verify")
         cursor = MagicMock()

@@ -148,11 +148,12 @@ runs:
         set -euo pipefail
         XDB="${GITHUB_WORKSPACE}/test/ca/acme2certifier-clean.xdb"
         test -f "$XDB"
+        mkdir -p "${GITHUB_WORKSPACE}/.github/ci-artifacts"
         python3 "${GITHUB_WORKSPACE}/.github/scripts/xca_sqlite_dump.py" \
-          --dialect postgresql "$XDB" -o /tmp/xca-pgsql.sql
+          --dialect postgresql "$XDB" -o "${GITHUB_WORKSPACE}/.github/ci-artifacts/xca-pgsql.sql"
         docker exec postgresdbsrv psql -U postgres -c "DROP DATABASE IF EXISTS xca;"
         docker exec postgresdbsrv psql -U postgres -c "CREATE DATABASE xca;"
         docker exec postgresdbsrv psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE xca TO acme2certifier;"
-        docker exec -i postgresdbsrv psql -v ON_ERROR_STOP=1 -U postgres -d xca < /tmp/xca-pgsql.sql
+        docker exec -i postgresdbsrv psql -v ON_ERROR_STOP=1 -U postgres -d xca < "${GITHUB_WORKSPACE}/.github/ci-artifacts/xca-pgsql.sql"
         docker exec postgresdbsrv psql -U postgres -d xca -c "GRANT ALL ON SCHEMA public TO acme2certifier; GRANT ALL ON ALL TABLES IN SCHEMA public TO acme2certifier; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO acme2certifier;"
       shell: bash

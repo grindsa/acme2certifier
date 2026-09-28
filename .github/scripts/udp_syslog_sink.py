@@ -15,7 +15,8 @@ import sys
 
 
 def _allowed_bases() -> list[str]:
-    bases = [os.path.realpath(os.getcwd()), os.path.realpath("/tmp"), os.path.realpath("/out")]
+    # Prefer workspace / cwd / docker mount; avoid world-writable /tmp (S5443).
+    bases = [os.path.realpath(os.getcwd()), os.path.realpath("/out")]
     workspace = os.environ.get("GITHUB_WORKSPACE")
     if workspace:
         bases.append(os.path.realpath(workspace))
