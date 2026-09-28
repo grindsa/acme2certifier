@@ -1274,6 +1274,84 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(
             context_kwargs["options"]["issuer_domain_names"], ["acme.local"]
         )
+        self.assertFalse(context_kwargs["options"]["wildcard_request"])
+
+    @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
+    def test_066b_get_authorization_details_jit_passes_wildcard_request(
+        self, mock_uts_to_date
+    ):
+        """JIT context must carry wildcard_request when authz is a wildcard order."""
+        mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
+
+        mock_repository = Mock()
+        mock_business_logic = Mock()
+        mock_challenge_manager = Mock()
+
+        auth_details = {
+            "status__name": "pending",
+            "type": "dns",
+            "value": "*.example.com",
+            "order__name": "order_w",
+            "order__account__name": "acct_1",
+            "order__account__eab_kid": "kid_1",
+        }
+        mock_repository.find_authorization_by_name.side_effect = [
+            {"name": "test_authz"},
+            auth_details,
+        ]
+        mock_business_logic.extract_authorization_name_from_url.return_value = (
+            "test_authz"
+        )
+        mock_business_logic.resolve_authorization_token_and_expiry.return_value = (
+            "token",
+            1234567890,
+            True,
+        )
+        mock_business_logic.enrich_authorization_with_identifier_info.return_value = (
+            {
+                "status": "pending",
+                "identifier": {"type": "dns", "value": "example.com"},
+                "wildcard": True,
+            },
+            False,
+        )
+        mock_business_logic.extract_identifier_info_for_challenge.return_value = (
+            "dns",
+            "example.com",
+            True,
+        )
+
+        self.authorization.server_name = "https://example.com"
+        self.authorization.config.dns_persist_01_support = True
+        self.authorization.config.dns_persist_jit_validation = True
+        self.authorization.config.dns_persist_allow_policy_wildcard = True
+        self.authorization.config.dns_server_list = ["1.1.1.1"]
+        self.authorization.config.caaidentities = ["acme.local"]
+        self.authorization.repository = mock_repository
+        self.authorization.business_logic = mock_business_logic
+        self.authorization.challenge_manager = mock_challenge_manager
+
+        with patch(
+            "acme2certifier.acme_srv.authorization.ChallengeContext"
+        ) as mock_context:
+            with patch(
+                "acme2certifier.acme_srv.authorization.DnsPersistChallengeValidator"
+            ) as mock_validator_cls:
+                mock_context.return_value = object()
+                mock_validator = Mock()
+                mock_validator.perform_validation.return_value = Mock(
+                    success=True, invalid=False
+                )
+                mock_validator_cls.return_value = mock_validator
+
+                result = self.authorization.get_authorization_details(
+                    "http://example.com/authz/test"
+                )
+
+        self.assertEqual(result["status"], "valid")
+        context_kwargs = mock_context.call_args.kwargs
+        self.assertEqual(context_kwargs["authorization_value"], "example.com")
+        self.assertTrue(context_kwargs["options"]["wildcard_request"])
 
     @patch("acme2certifier.acme_srv.authorization.uts_to_date_utc")
     def test_067_get_authorization_details_jit_validation_invalid_result_fallback(

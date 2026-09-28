@@ -57,7 +57,11 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         allow_policy_wildcard = bool(
             (context.options or {}).get("allow_policy_wildcard", False)
         )
-        wildcard_request = context.authorization_value.startswith("*.")
+        wildcard_request = bool(
+            (context.options or {}).get("wildcard_request", False)
+        ) or bool(
+            context.authorization_value and context.authorization_value.startswith("*.")
+        )
 
         fqdn = self._normalize_fqdn_for_dns_query(
             self._handle_wildcard_domain(context.authorization_value)

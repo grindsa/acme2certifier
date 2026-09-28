@@ -686,6 +686,7 @@ class Authorization(object):
         token: str,
         id_value: Optional[str],
         auth_details: Optional[Dict[str, str]],
+        is_wildcard: bool = False,
     ) -> ChallengeContext:
         """Build context object used by the dns-persist JIT validator."""
         account_name = (
@@ -711,6 +712,9 @@ class Authorization(object):
                 "allow_policy_wildcard": getattr(
                     self.config, "dns_persist_allow_policy_wildcard", False
                 ),
+                # Identifier value is normalized without "*."; carry the flag
+                # so policy=wildcard checks still apply for wildcard orders.
+                "wildcard_request": bool(is_wildcard),
             },
             dns_servers=self.config.dns_server_list,
             proxy_servers=None,
@@ -723,11 +727,12 @@ class Authorization(object):
         token: str,
         id_value: Optional[str],
         auth_details: Optional[Dict[str, str]],
+        is_wildcard: bool = False,
     ) -> bool:
         """Run dns-persist JIT validation and return True on successful validation."""
         try:
             validator_context = self._build_jit_validation_context(
-                authz_name, token, id_value, auth_details
+                authz_name, token, id_value, auth_details, is_wildcard=is_wildcard
             )
             self.logger.debug("JIT validator context: %s", validator_context)
 
@@ -836,7 +841,7 @@ class Authorization(object):
             and getattr(self.config, "dns_persist_jit_validation", False)
         ):
             jit_valid = self._run_jit_dns_validation(
-                authz_name, token, id_value, auth_details
+                authz_name, token, id_value, auth_details, is_wildcard=is_wildcard
             )
 
         if jit_valid:
