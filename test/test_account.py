@@ -1007,6 +1007,14 @@ class TestAccount(unittest.TestCase):
             log_cm.output,
         )
 
+    def test_036b__handle_key_change_rejects_non_keychange_http_target(self):
+        """Key-change payload posted to /acct/... must be rejected"""
+        self.account.message.request_url = "http://tester.local/acme/acct/1"
+        protected = {"url": "http://tester.local/acme/key-change"}
+        result = self.account._handle_key_change("test_account", {"payload": {}}, protected)
+        self.assertEqual(result["data"]["status"], 400)
+        self.assertIn("key-change URL", result["data"]["detail"])
+
     def test_037__rollover_account_key_validation_success(self):
         """test _rollover_account_key success"""
         self.account.repository.update_account.return_value = True

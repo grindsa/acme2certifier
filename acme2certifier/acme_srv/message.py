@@ -13,6 +13,7 @@ from acme2certifier.acme_srv.helper import (
     eab_handler_load,
     uts_to_date_utc,
     uts_now,
+    protected_url_matches_request,
 )
 from acme2certifier.acme_srv.error import Error
 from acme2certifier.acme_srv.db_handler import DBstore
@@ -101,6 +102,8 @@ class Message(object):
         self.repo = AccountRepository(self.dbstore)
         self.server_name = srv_name
         self.config = self._load_configuration()
+        # Absolute HTTP request URL for RFC 8555 §6.4 binding (set by views).
+        self.request_url: Optional[str] = None
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -108,6 +111,36 @@ class Message(object):
 
     def __exit__(self, *args):
         """Close the connection at the end of the context"""
+
+    def _reject_protected_url_mismatch(
+        self, protected: Optional[Dict[str, str]], request_url: str
+    ) -> Optional[Tuple[int, str, str]]:
+        """RFC 8555 §6.4: protected url must equal the HTTP request target."""
+        if not isinstance(protected, dict):
+            return (
+                400,
+                ACME_ERROR_MALFORMED,
+                "url missing in protected header",
+            )
+        protected_url = protected.get("url")
+        if not protected_url:
+            return (
+                400,
+                ACME_ERROR_MALFORMED,
+                "url missing in protected header",
+            )
+        if not protected_url_matches_request(protected_url, request_url):
+            self.logger.warning(
+                "Rejecting JWS protected url mismatch protected=%s request=%s",
+                protected_url,
+                request_url,
+            )
+            return (
+                400,
+                ACME_ERROR_MALFORMED,
+                "JWS protected 'url' does not match the request URL",
+            )
+        return None
 
     def _apply_security_disable_gate(
         self, nonce_check_disable: bool, signature_check_disable: bool
@@ -418,6 +451,7 @@ class Message(object):
         content: str,
         protected: Dict[str, str],
         use_emb_key: bool,
+        request_url: Optional[str] = None,
     ) -> Tuple[int, str, str, str]:
         """Decoding successful - check nonce for anti replay protection and signature."""
         self.logger.debug("Message._validate_message_and_check_signature()")
@@ -426,6 +460,12 @@ class Message(object):
         if mixed is not None:
             code, message, detail = mixed
             return (code, message, detail, None)
+
+        if request_url is not None:
+            url_mismatch = self._reject_protected_url_mismatch(protected, request_url)
+            if url_mismatch is not None:
+                code, message, detail = url_mismatch
+                return (code, message, detail, None)
 
         code, message, detail = self._check_nonce_for_replay_protection(
             skip_nonce_check, protected
@@ -466,7 +506,12 @@ class Message(object):
 
     # pylint: disable=R0914
     def check(
-        self, content: str, use_emb_key: bool = False, skip_nonce_check: bool = False
+        self,
+        content: str,
+        use_emb_key: bool = False,
+        skip_nonce_check: bool = False,
+        request_url: Optional[str] = None,
+        skip_request_url_check: bool = False,
     ) -> Tuple[int, str, str, Dict[str, str], Dict[str, str], str]:
         """validate message"""
         self.logger.debug("Message.check()")
@@ -480,6 +525,12 @@ class Message(object):
         else:
             skip_signature_check = False
 
+        bind_url: Optional[str] = None
+        if not skip_request_url_check:
+            candidate = request_url if request_url is not None else self.request_url
+            if isinstance(candidate, str):
+                bind_url = candidate
+
         # decode message
         result, error_detail, protected, payload, _signature = decode_message(
             self.logger, content
@@ -492,7 +543,12 @@ class Message(object):
                 detail,
                 account_name,
             ) = self._validate_message_and_check_signature(
-                skip_nonce_check, skip_signature_check, content, protected, use_emb_key
+                skip_nonce_check,
+                skip_signature_check,
+                content,
+                protected,
+                use_emb_key,
+                request_url=bind_url,
             )
         else:
             code = 400

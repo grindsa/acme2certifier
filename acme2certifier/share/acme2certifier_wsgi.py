@@ -126,9 +126,15 @@ def get_request_body(environ):
     return request_body
 
 
+def _bind_message_request_url(handler, environ) -> None:
+    """Bind Message.check to the absolute HTTP request URL (RFC 8555 §6.4)."""
+    handler.message.request_url = get_url(environ, include_path=True)
+
+
 def acct(environ, start_response):
     """account handling"""
     with Account(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as account:
+        _bind_message_request_url(account, environ)
         request_body = get_request_body(environ)
         response_dic = account.parse(request_body)
 
@@ -168,6 +174,7 @@ def authz(environ, start_response):
             except ValueError:
                 request_body_size = 0
             request_body = environ[WSGI_INPUT].read(request_body_size)
+            _bind_message_request_url(authorization, environ)
             response_dic = authorization.new_post(request_body)
 
             # create header
@@ -208,6 +215,7 @@ def newaccount(environ, start_response):
     if environ["REQUEST_METHOD"] == "POST":
 
         with Account(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as account:
+            _bind_message_request_url(account, environ)
             request_body = get_request_body(environ)
             response_dic = account.new(request_body)
 
@@ -258,6 +266,7 @@ def cert(environ, start_response):
     """create new account"""
     with Certificate(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as certificate:
         if environ["REQUEST_METHOD"] == "POST":
+            _bind_message_request_url(certificate, environ)
             request_body = get_request_body(environ)
             response_dic = certificate.new_post(request_body)
             # create header
@@ -305,6 +314,7 @@ def chall(environ, start_response):
     ) as challenge:
         if environ["REQUEST_METHOD"] == "POST":
 
+            _bind_message_request_url(challenge, environ)
             request_body = get_request_body(environ)
             response_dic = challenge.parse(request_body)
 
@@ -377,6 +387,7 @@ def neworders(environ, start_response):
     """generate a new order"""
     if environ["REQUEST_METHOD"] == "POST":
         with Order(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as norder:
+            _bind_message_request_url(norder, environ)
             request_body = get_request_body(environ)
             response_dic = norder.new(request_body)
 
@@ -401,6 +412,7 @@ def order(environ, start_response):
     """order_handler"""
     if environ["REQUEST_METHOD"] == "POST":
         with Order(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as eorder:
+            _bind_message_request_url(eorder, environ)
             request_body = get_request_body(environ)
             response_dic = eorder.parse(request_body, environ)
 
@@ -427,6 +439,7 @@ def renewalinfo(environ, start_response):
         DEBUG, get_url(environ), LOGGER, config_dic=CONFIG
     ) as renewalinfo_:
         if environ["REQUEST_METHOD"] == "POST":
+            _bind_message_request_url(renewalinfo_, environ)
             request_body = get_request_body(environ)
             response_dic = renewalinfo_.update(request_body)
             error_body = response_dic.get("code", 200) >= 400 and "data" in response_dic
@@ -475,6 +488,7 @@ def revokecert(environ, start_response):
         with Certificate(
             DEBUG, get_url(environ), LOGGER, config_dic=CONFIG
         ) as certificate:
+            _bind_message_request_url(certificate, environ)
             request_body = get_request_body(environ)
             response_dic = certificate.revoke(request_body)
 
@@ -600,29 +614,29 @@ def redirect(environ, start_response):
     return []
 
 
-# map urls to functions
+# map urls to functions (resource routes require / or end-of-path)
 URLS = [
     (r"^$", redirect),
-    (r"^acme/acct", acct),
-    (r"^acme/authz", authz),
-    (r"^acme/cert", cert),
-    (r"^acme/chall", chall),
-    (r"^acme/directory", directory),
-    (r"^acme/key-change", acct),
+    (r"^acme/acct(/.*)?$", acct),
+    (r"^acme/authz(/.*)?$", authz),
+    (r"^acme/cert(/.*)?$", cert),
+    (r"^acme/chall(/.*)?$", chall),
+    (r"^acme/directory$", directory),
+    (r"^acme/key-change$", acct),
     (r"^acme/newaccount$", newaccount),
     (r"^acme/newnonce$", newnonce),
     (r"^acme/neworders$", neworders),
-    (r"^acme/order", order),
-    (r"^acme/renewal-info", renewalinfo),
-    (r"^acme/revokecert", revokecert),
+    (r"^acme/order(/.*)?$", order),
+    (r"^acme/renewal-info(/.*)?$", renewalinfo),
+    (r"^acme/revokecert$", revokecert),
     (r"^directory?$", directory),
 ]
 
 if HOUSEKEEPING_CLI_ENABLED:
-    URLS.append((r"^housekeeping", housekeeping))
+    URLS.append((r"^housekeeping(/.*)?$", housekeeping))
 
 if TRIGGER_ENDPOINT_ENABLED:
-    URLS.append((r"^trigger", trigger))
+    URLS.append((r"^trigger(/.*)?$", trigger))
 
 
 # Helper to extract path with prefix

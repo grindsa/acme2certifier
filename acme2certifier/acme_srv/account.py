@@ -651,6 +651,19 @@ class Account:
     ) -> Dict[str, str]:
         """Handle key change for an account."""
         self.logger.debug("Account._handle_key_change(%s)", account_name)
+        request_url = self.message.request_url
+        if isinstance(request_url, str) and "key-change" not in request_url:
+            self.logger.warning(
+                "Key-change rejected: HTTP target is not key-change account=%s url=%s",
+                account_name,
+                request_url,
+            )
+            return self._build_response(
+                400,
+                self.err_msg_dic["malformed"],
+                "Key-change requests must target the key-change URL",
+                account_name=account_name,
+            )
         if "url" in protected and "key-change" in protected["url"]:
             (
                 code,
@@ -660,7 +673,10 @@ class Account:
                 inner_payload,
                 _,
             ) = self.message.check(
-                json.dumps(payload), use_emb_key=True, skip_nonce_check=True
+                json.dumps(payload),
+                use_emb_key=True,
+                skip_nonce_check=True,
+                skip_request_url_check=True,
             )
             if code != 200:
                 self.logger.warning(

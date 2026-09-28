@@ -965,6 +965,85 @@ class TestACMEHandler(unittest.TestCase):
         rejected = self.message._reject_mixed_kid_and_jwk({"kid": "x", "jwk": {}})
         self.assertEqual(400, rejected[0])
 
+    @patch("acme2certifier.acme_srv.message.decode_message")
+    def test_049e_message_check_rejects_protected_url_mismatch(self, mock_decode):
+        """RFC 8555 §6.4: protected url must match the HTTP request URL"""
+        protected = {
+            "kid": "http://tester.local/acme/acct/1",
+            "url": "http://tester.local/acme/key-change",
+            "alg": "RS256",
+            "nonce": "n",
+        }
+        mock_decode.return_value = (True, None, protected, {}, "sig")
+        code, message, detail, *_rest = self.message.check(
+            '{"foo":"bar"}',
+            request_url="http://tester.local/acme/acct/1",
+        )
+        self.assertEqual(400, code)
+        self.assertEqual("urn:ietf:params:acme:error:malformed", message)
+        self.assertIn("does not match", detail)
+
+    @patch("acme2certifier.acme_srv.message.decode_message")
+    @patch("acme2certifier.acme_srv.message.Signature.check")
+    @patch("acme2certifier.acme_srv.message.Nonce.check")
+    def test_049f_message_check_accepts_matching_protected_url(
+        self, mock_nonce, mock_sig, mock_decode
+    ):
+        """Matching protected url and request URL continues validation"""
+        protected = {
+            "kid": "http://tester.local/acme/acct/1",
+            "url": "http://tester.local/acme/acct/1",
+            "alg": "RS256",
+            "nonce": "n",
+        }
+        mock_decode.return_value = (True, None, protected, {"contact": []}, "sig")
+        mock_nonce.return_value = (200, None, None)
+        mock_sig.return_value = (True, None, None)
+        self.message.config.eabkid_check_disable = True
+        self.message.request_url = "http://tester.local/acme/acct/1/"
+        code, message, detail, *_rest = self.message.check('{"foo":"bar"}')
+        self.assertEqual(200, code)
+        self.assertIsNone(message)
+        self.assertIsNone(detail)
+
+    def test_049g_normalize_and_match_request_url(self):
+        """URL normalization ignores trailing slash and case of scheme/host"""
+        from acme2certifier.acme_srv.helper import (
+            normalize_request_url,
+            protected_url_matches_request,
+        )
+
+        self.assertEqual(
+            normalize_request_url("HTTPS://Tester.Local/acme/acct/1/"),
+            "https://tester.local/acme/acct/1",
+        )
+        self.assertTrue(
+            protected_url_matches_request(
+                "http://tester.local/acme/key-change",
+                "HTTP://tester.local/acme/key-change/",
+            )
+        )
+        self.assertFalse(
+            protected_url_matches_request(
+                "http://tester.local/acme/key-change",
+                "http://tester.local/acme/acct/1",
+            )
+        )
+
+    def test_049h_reject_protected_url_mismatch_helper(self):
+        """Helper rejects missing url and mismatches"""
+        self.assertIsNotNone(
+            self.message._reject_protected_url_mismatch(
+                {}, "http://tester.local/acme/acct/1"
+            )
+        )
+        self.assertIsNone(
+            self.message._reject_protected_url_mismatch(
+                {"url": "http://tester.local/acme/acct/1"},
+                "http://tester.local/acme/acct/1",
+            )
+        )
+
     def test_050_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()

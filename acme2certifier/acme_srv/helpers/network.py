@@ -11,7 +11,7 @@ import re
 import threading
 import time
 from typing import Any, List, Dict, Tuple, Union, Optional
-from urllib.parse import urlparse, quote
+from urllib.parse import urlparse, urlunparse, quote
 from urllib3.util import connection
 import socks
 import dns.resolver
@@ -861,6 +861,29 @@ def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
     else:
         result = f"{proto}://{server_name}"
     return result
+
+
+def normalize_request_url(url: str) -> str:
+    """Normalize an absolute URL for RFC 8555 §6.4 comparison."""
+    if not url:
+        return ""
+    parsed = urlparse(url.strip())
+    path = parsed.path.rstrip("/") or "/"
+    return urlunparse(
+        (
+            (parsed.scheme or "").lower(),
+            (parsed.netloc or "").lower(),
+            path,
+            "",
+            parsed.query,
+            "",
+        )
+    )
+
+
+def protected_url_matches_request(protected_url: str, request_url: str) -> bool:
+    """True when protected JWS url equals the HTTP request target (RFC 8555 §6.4)."""
+    return normalize_request_url(protected_url) == normalize_request_url(request_url)
 
 
 def parse_url(logger: logging.Logger, url: str) -> Dict[str, str]:

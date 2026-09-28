@@ -32,6 +32,12 @@ TRIGGER_ENDPOINT_ENABLED = _STACK.trigger_endpoint_enabled
 HOUSEKEEPING_CLI_ENABLED = _STACK.housekeeping_cli_enabled
 LEGACY_ACME_GET = _STACK.legacy_acme_get
 
+
+def _bind_message_request_url(handler, environ) -> None:
+    """Bind Message.check to the absolute HTTP request URL (RFC 8555 §6.4)."""
+    handler.message.request_url = get_url(environ, include_path=True)
+
+
 METHOD_NOT_ALLOWED = "Method Not Allowed"
 ERR_DATA_POST = {
     "status": 405,
@@ -113,6 +119,7 @@ def newaccount(request):
         with Account(
             DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
         ) as account:
+            _bind_message_request_url(account, request.META)
             response_dic = account.new(request.body)
             # create the response
             response = JsonResponse(
@@ -175,6 +182,7 @@ def servername_get(request):
 def acct(request):
     """xxxx command"""
     with Account(DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG) as account:
+        _bind_message_request_url(account, request.META)
         response_dic = account.parse(request.body)
         # create the response
         response = JsonResponse(status=response_dic["code"], data=response_dic["data"])
@@ -195,6 +203,7 @@ def neworders(request):
     """new account"""
     if request.method == "POST":
         with Order(DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG) as norder:
+            _bind_message_request_url(norder, request.META)
             response_dic = norder.new(request.body)
             # create the response
             response = JsonResponse(
@@ -227,6 +236,7 @@ def authz(request):
         with Authorization(
             DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
         ) as authorization:
+            _bind_message_request_url(authorization, request.META)
             response_dic = authorization.new_post(request.body)
             # create the response
             response = JsonResponse(
@@ -280,6 +290,7 @@ def chall(request):
     ) as challenge:
         # pylint: disable=R1705
         if request.method == "POST":
+            _bind_message_request_url(challenge, request.META)
             response_dic = challenge.parse(request.body)
             # create the response
             response = JsonResponse(
@@ -317,6 +328,7 @@ def order(request):
     """order request"""
     if request.method == "POST":
         with Order(DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG) as eorder:
+            _bind_message_request_url(eorder, request.META)
             response_dic = eorder.parse(request.body, request.META)
             # create the response
             response = JsonResponse(
@@ -346,6 +358,7 @@ def cert(request):
             DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
         ) as certificate:
             if request.method == "POST":
+                _bind_message_request_url(certificate, request.META)
                 response_dic = certificate.new_post(request.body)
             else:
                 response_dic = certificate.new_get(request.build_absolute_uri())
@@ -379,6 +392,7 @@ def revokecert(request):
         with Certificate(
             DEBUG, get_url(request.META), LOGGER, config_dic=CONFIG
         ) as certificate:
+            _bind_message_request_url(certificate, request.META)
             response_dic = certificate.revoke(request.body)
             # create the response
             if "data" in response_dic:
@@ -472,6 +486,7 @@ def _renewalinfo_build_response(method: str, response_dic: dict):
 def _renewalinfo_dispatch(renewalinfo_, request):
     """Invoke GET get() or POST update() on the Renewalinfo handler."""
     if request.method == "POST":
+        _bind_message_request_url(renewalinfo_, request.META)
         return renewalinfo_.update(request.body)
     return renewalinfo_.get(request.build_absolute_uri())
 
