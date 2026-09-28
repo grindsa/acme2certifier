@@ -1731,10 +1731,24 @@ class TestACMEHandler(unittest.TestCase):
         mock_load.side_effect = Exception("ex_user_key_load")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                (500, "urn:ietf:params:acme:error:serverInternal", "ex_user_key_load"),
+                (500, "urn:ietf:params:acme:error:serverInternal", "revocation failed"),
                 self.cahandler.revoke("cert", "reason", "date"),
             )
         self.assertIn("ERROR:test_a2c:Revocation error: ex_user_key_load", lcm.output)
+
+    @patch("builtins.open", mock_open(read_data="mock_open"), create=True)
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
+    @patch("os.path.exists")
+    def test_072c_revoke_forwards_exception_when_enabled(self, mock_exists, mock_load):
+        """raw revocation text is returned only when ca_error_details_forward is set"""
+        self.cahandler.acme_keyfile = "keyfile"
+        self.cahandler.ca_error_details_forward = True
+        mock_exists.return_value = True
+        mock_load.side_effect = Exception("ex_user_key_load")
+        self.assertEqual(
+            (500, "urn:ietf:params:acme:error:serverInternal", "ex_user_key_load"),
+            self.cahandler.revoke("cert", "reason", "date"),
+        )
 
     def _assert_zerossl_eab_post(self, mock_post):
         """ZeroSSL EAB bootstrap must be HTTPS and must not follow redirects."""

@@ -1011,11 +1011,35 @@ class TestCertificate(unittest.TestCase):
     def test_072_enrollment_error_poll_identifier(self):
         with patch.object(self.cert, "_store_certificate_error") as mock_store_error:
             result, error, detail = self.cert._handle_enrollment_error(
-                "error", "poll", "order", "cert_name"
+                "error", "https://ca.example/poll/1", "order", "cert_name"
             )
             self.assertIsNone(result)
-            self.assertEqual(detail, "poll")
+            self.assertEqual(error, "serverinternal")
+            self.assertEqual(detail, "enrollment failed")
+            self.assertNotIn("ca.example", detail)
             mock_store_error.assert_called()
+
+    def test_072b_enrollment_pending_keeps_poll_identifier(self):
+        with patch.object(self.cert, "_store_certificate_error"):
+            result, error, detail = self.cert._handle_enrollment_error(
+                None, "https://ca.example/poll/1", "order", "cert_name"
+            )
+            self.assertIsNone(result)
+            self.assertIsNone(error)
+            self.assertEqual(detail, "https://ca.example/poll/1")
+
+    def test_072c_enrollment_error_with_poll_forwards_ca_text(self):
+        self.cert.config.ca_error_details_forward = True
+        with patch.object(self.cert, "_store_certificate_error"):
+            _result, error, detail = self.cert._handle_enrollment_error(
+                "poll URL host does not match configured api_host",
+                "https://ca.example/poll/1",
+                "order",
+                "cert_name",
+            )
+            self.assertEqual(error, "serverinternal")
+            self.assertEqual(detail, "poll URL host does not match configured api_host")
+            self.assertNotIn("ca.example", detail)
 
     def test_073_execute_pre_enrollment_hooks(self):
         self.cert.hook_handler = MagicMock()
@@ -1057,7 +1081,7 @@ class TestCertificate(unittest.TestCase):
                 "Exception during post_hook execution: %s", unittest.mock.ANY
             )
             self.assertIn("Hook error", mock_logger_error.call_args[0][1].args[0])
-            self.assertIsInstance(hook_errors, list)
+            self.assertEqual(hook_errors, (None, "post_hook_error", "post-hook failed"))
 
     def test_077_handle_processing_certificate(self):
         # Ensure 'ratelimited' key exists in err_msg_dic to avoid KeyError
@@ -2789,7 +2813,7 @@ class TestCertificate(unittest.TestCase):
             mock_logger_error.assert_called_with(
                 "Exception during success_hook execution: %s", unittest.mock.ANY
             )
-            self.assertEqual(error, (None, "success_hook_error", "success_hook failed"))
+            self.assertEqual(error, (None, "success_hook_error", "success-hook failed"))
 
     def test_191_store_certificate_and_update_order_success_hook_exception_ignore(self):
         # Covers exception in success_hook with ignore_success_hook_failure True (no error returned)
@@ -2823,7 +2847,18 @@ class TestCertificate(unittest.TestCase):
             mock_logger_error.assert_called_with(
                 "Exception during pre_hook execution: %s", unittest.mock.ANY
             )
-            self.assertEqual(result, (None, "pre_hook_error", "pre_hook failed"))
+            self.assertEqual(result, (None, "pre_hook_error", "pre-hook failed"))
+
+    def test_192b_execute_pre_enrollment_hooks_forwards_detail(self):
+        mock_hooks = MagicMock()
+        mock_hooks.pre_hook.side_effect = Exception("pre_hook failed")
+        self.cert.hooks = mock_hooks
+        self.cert.config.ignore_pre_hook_failure = False
+        self.cert.config.hook_error_details_forward = True
+        result = self.cert._execute_pre_enrollment_hooks(
+            "cert_name", "order_name", "csr"
+        )
+        self.assertEqual(result, (None, "pre_hook_error", "pre_hook failed"))
 
     def test_193_handle_enrollment_error_no_poll_identifier(self):
         # Covers branch where poll_identifier is None and error is not special string

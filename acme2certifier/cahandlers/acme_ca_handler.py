@@ -32,6 +32,7 @@ from acme2certifier.acme_srv.helper import (
     config_headerinfo_load,
     config_enroll_config_log_load,
     config_profile_load,
+    eab_profile_as_bool,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     enrollment_config_log,
@@ -51,6 +52,7 @@ from acme2certifier.acme_srv.helpers.security_gate import (
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 _ZEROSSL_EAB_URL = "https://api.zerossl.com/acme/eab-credentials-email"
+_ACME_ERR_SERVER_INTERNAL = "urn:ietf:params:acme:error:serverInternal"
 
 
 class CAhandler(object):
@@ -70,6 +72,7 @@ class CAhandler(object):
         self.dns_update_script_variables = None
         self.dns_validation_timeout = 20
         self.dns_record_dic = {}
+        self.ca_error_details_forward = False
         self.eab_handler = None
         self.eab_kid = None
         self.eab_hmac_key = None
@@ -236,6 +239,9 @@ class CAhandler(object):
             # load account configuration and paramters
             self._config_account_load(config_dic)
             self._config_parameters_load(config_dic)
+            self.ca_error_details_forward = config_dic.getboolean(
+                "CAhandler", "ca_error_details_forward", fallback=False
+            )
 
             self.logger.debug("CAhandler._config_load() ended")
         else:
@@ -1399,6 +1405,72 @@ class CAhandler(object):
         self.logger.debug("CAhandler.poll() ended")
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
+    def _revocation_exception_detail(self, err: BaseException) -> str:
+        """Client-visible revocation detail. Raw text only when explicitly enabled."""
+        if eab_profile_as_bool(self.ca_error_details_forward, default=False):
+            return str(err)
+        return "revocation failed"
+
+    def _revoke_loaded_key(self, cert: str) -> Tuple[int, Optional[str], Optional[str]]:
+        """Load the upstream account key and revoke *cert*. Drops the key afterwards."""
+        user_key = None
+        try:
+            if not os.path.exists(self.acme_keyfile):
+                self.logger.error(
+                    "Error during revocation: Could not load user_key %s",
+                    self.acme_keyfile,
+                )
+                return (
+                    500,
+                    _ACME_ERR_SERVER_INTERNAL,
+                    "Internal Error",
+                )
+            user_key = self._user_key_load()
+            if not user_key:
+                return 500, _ACME_ERR_SERVER_INTERNAL, None
+            return self._revoke_for_account(user_key, cert)
+        finally:
+            del user_key
+
+    def _revoke_for_account(
+        self, user_key: josepy.jwk.JWKRSA, cert: str
+    ) -> Tuple[int, Optional[str], Optional[str]]:
+        """Revoke *cert* with an already loaded upstream account key."""
+        net = client.ClientNetwork(user_key)
+        directory = messages.Directory.from_json(
+            net.get(f"{self.acme_url}{self.path_dic['directory_path']}").json()
+        )
+        acmeclient = client.ClientV2(directory, net=net)
+        reg = messages.NewRegistration.from_data(
+            key=user_key,
+            email=self.email,
+            terms_of_service_agreed=True,
+            only_return_existing=True,
+        )
+        if not self.account:
+            self._account_lookup(acmeclient, reg, directory)
+        if not self.account:
+            self.logger.error(
+                "Error during revocation operation. Could not find account key "
+                "and lookup at acme-endpoint failed."
+            )
+            return 500, _ACME_ERR_SERVER_INTERNAL, "account lookup failed"
+
+        regr = messages.RegistrationResource(
+            uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}",
+            body=reg,
+        )
+        self.logger.debug("CAhandler.revoke() checking remote registration status")
+        regr = acmeclient.query_registration(regr)
+        if regr.body.status != "valid":
+            self.logger.error("Enrollment error: Bad ACME account: %s", regr.body.error)
+            return 500, _ACME_ERR_SERVER_INTERNAL, f"Bad ACME account: {regr.body.error}"
+
+        self.logger.debug("CAhandler.revoke() issuing revocation order")
+        self._revoke_or_fallback(acmeclient, cert)
+        self.logger.debug("CAhandler.revoke() successful")
+        return 200, None, None
+
     def revoke(
         self,
         _cert: str,
@@ -1408,9 +1480,8 @@ class CAhandler(object):
         """revoke certificate"""
         self.logger.debug("CAhandler.revoke()")
 
-        user_key = None
         code = 500
-        message = "urn:ietf:params:acme:error:serverInternal"
+        message = _ACME_ERR_SERVER_INTERNAL
         detail = None
 
         # modify handler configuration in case of eab profiling
@@ -1418,68 +1489,10 @@ class CAhandler(object):
             eab_profile_revocation_check(self.logger, self, _cert)
 
         try:
-            if os.path.exists(self.acme_keyfile):
-                user_key = self._user_key_load()
-
-            if user_key:
-                net = client.ClientNetwork(user_key)
-
-                directory = messages.Directory.from_json(
-                    net.get(f"{self.acme_url}{self.path_dic['directory_path']}").json()
-                )
-                acmeclient = client.ClientV2(directory, net=net)
-
-                reg = messages.NewRegistration.from_data(
-                    key=user_key,
-                    email=self.email,
-                    terms_of_service_agreed=True,
-                    only_return_existing=True,
-                )
-
-                if not self.account:
-                    self._account_lookup(acmeclient, reg, directory)
-
-                if self.account:
-                    regr = messages.RegistrationResource(
-                        uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}",
-                        body=reg,
-                    )
-                    self.logger.debug(
-                        "CAhandler.revoke() checking remote registration status"
-                    )
-                    regr = acmeclient.query_registration(regr)
-
-                    if regr.body.status == "valid":
-                        self.logger.debug("CAhandler.revoke() issuing revocation order")
-                        # revoke certificate
-                        self._revoke_or_fallback(acmeclient, _cert)
-                        self.logger.debug("CAhandler.revoke() successful")
-                        code = 200
-                        message = None
-                    else:
-                        self.logger.error(
-                            "Enrollment error: Bad ACME account: %s", regr.body.error
-                        )
-                        detail = f"Bad ACME account: {regr.body.error}"
-
-                else:
-                    self.logger.error(
-                        "Error during revocation operation. Could not find account key and lookup at acme-endpoint failed."
-                    )
-                    detail = "account lookup failed"
-            else:
-                self.logger.error(
-                    "Error during revocation: Could not load user_key %s",
-                    self.acme_keyfile,
-                )
-                detail = "Internal Error"
-
+            code, message, detail = self._revoke_loaded_key(_cert)
         except Exception as err:
             self.logger.error("Revocation error: %s", err)
-            detail = str(err)
-
-        finally:
-            del user_key
+            detail = self._revocation_exception_detail(err)
 
         self.logger.debug("Certificate.revoke() ended")
         return (code, message, detail)

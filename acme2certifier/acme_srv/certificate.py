@@ -270,6 +270,7 @@ class CertificateConfiguration:
     ignore_pre_hook_failure: bool = False
     ignore_post_hook_failure: bool = True
     ignore_success_hook_failure: bool = False
+    hook_error_details_forward: bool = False
     ca_error_details_forward: bool = False
 
 
@@ -628,6 +629,9 @@ class Certificate(object):
             )
             self.config.ignore_success_hook_failure = config_dic.getboolean(
                 "Hooks", "ignore_success_hook_failure", fallback=False
+            )
+            self.config.hook_error_details_forward = config_dic.getboolean(
+                "Hooks", "hook_error_details_forward", fallback=False
             )
 
         self.logger.debug("Certificate._load_hooks_configuration() ended")
@@ -1162,7 +1166,11 @@ class Certificate(object):
                         "Exception during success_hook execution: %s", err
                     )
                     if not self.config.ignore_success_hook_failure:
-                        error = (None, "success_hook_error", str(err))
+                        error = (
+                            None,
+                            "success_hook_error",
+                            self._hook_failure_detail("success-hook failed", err),
+                        )
 
         except Exception as err_:
             result = None
@@ -1180,7 +1188,7 @@ class Certificate(object):
         self, raw_error: str, poll_identifier: Optional[str]
     ) -> Tuple[str, str]:
         """Map internal enrollment failure to ACME type and client-visible detail."""
-        if poll_identifier:
+        if poll_identifier and not raw_error:
             return raw_error, poll_identifier
         if raw_error == "Either CN or SANs are not allowed by configuration":
             return (
@@ -1237,20 +1245,30 @@ class Certificate(object):
             except Exception as err:
                 self.logger.error("Exception during pre_hook execution: %s", err)
                 if not self.config.ignore_pre_hook_failure:
-                    hook_error = (None, "pre_hook_error", str(err))
+                    hook_error = (
+                        None,
+                        "pre_hook_error",
+                        self._hook_failure_detail("pre-hook failed", err),
+                    )
 
         self.logger.debug("Certificate._execute_pre_enrollment_hooks(%s)", hook_error)
         return hook_error
 
+    def _hook_failure_detail(self, fallback: str, err: BaseException) -> str:
+        """Client-visible hook detail. Raw text only when explicitly enabled."""
+        if self.config.hook_error_details_forward:
+            return str(err)
+        return fallback
+
     def _execute_post_enrollment_hooks(
         self, certificate_name: str, order_name: str, csr: str, error: str
-    ) -> List[str]:
+    ) -> Optional[Tuple[None, str, str]]:
         self.logger.debug(
             "Certificate._execute_post_enrollment_hooks(%s, %s",
             certificate_name,
             order_name,
         )
-        hook_error = []
+        hook_error = None
         if self.hooks:
             try:
                 self.hooks.post_hook(certificate_name, order_name, csr, error)
@@ -1260,9 +1278,11 @@ class Certificate(object):
             except Exception as err:
                 self.logger.error("Exception during post_hook execution: %s", err)
                 if not self.config.ignore_post_hook_failure:
-                    hook_error.append(
-                        str(err)
-                    )  # Append error message to hook_error list
+                    hook_error = (
+                        None,
+                        "post_hook_error",
+                        self._hook_failure_detail("post-hook failed", err),
+                    )
 
         self.logger.debug("Certificate._execute_post_enrollment_hooks(%s)", hook_error)
         return hook_error
