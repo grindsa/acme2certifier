@@ -478,9 +478,8 @@ class CAhandler(object):
                         )
                 else:
                     self.logger.debug(
-                        "CAhandler._environment_variables_handle(): setting environment variable: %s=%s",
+                        "CAhandler._environment_variables_handle(): setting environment variable: %s",
                         key,
-                        value,
                     )
                     os.environ[key] = value
             else:

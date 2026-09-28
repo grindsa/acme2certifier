@@ -21,6 +21,23 @@ from .security_gate import (
 from .validation import cn_validate
 from .domain_utils import allowed_domainlist_check
 
+_EAB_CREDENTIAL_KEY_MARKERS = (
+    "password",
+    "passphrase",
+    "secret",
+    "token",
+    "hmac",
+    "api_key",
+)
+
+
+def eab_profile_value_for_log(key: str, value: Any) -> Any:
+    """Return *value* for debug logs, redacting credential-like profile keys."""
+    key_l = str(key).lower()
+    if any(marker in key_l for marker in _EAB_CREDENTIAL_KEY_MARKERS):
+        return "<redacted>"
+    return value
+
 
 def eab_profile_as_bool(value: Any, default: bool = False) -> bool:
     """Normalize EAB profile boolean values (bool or 'True'/'False' strings)."""
@@ -363,7 +380,9 @@ def eab_profile_check(
 def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
     """check if a for a list value taken from profile if its a variable inside a class and apply value"""
     logger.debug(
-        "Helper.eab_profile_list_check(): list: key: %s, value: %s", key, value
+        "Helper.eab_profile_list_check(): list: key: %s, value: %s",
+        key,
+        eab_profile_value_for_log(key, value),
     )
 
     result = None
@@ -400,16 +419,15 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
                 logger.debug(
                     "Helper.eab_profile_list_check(): setting attribute: %s to %s",
                     key,
-                    new_value,
+                    eab_profile_value_for_log(key, new_value),
                 )
                 setattr(cahandler, key, new_value)
             else:
                 result = error
     else:
         logger.warning(
-            "EAP profile list checking: ignoring unrecognized list attribute: key: %s value: %s",
+            "EAP profile list checking: ignoring unrecognized list attribute: key: %s",
             key,
-            value,
         )
 
     logger.debug("Helper.eab_profile_list_check() ended with: %s", result)
@@ -419,7 +437,9 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
 def eab_profile_string_check(logger, cahandler, key, value):
     """check if a for a string value taken from profile if its a variable inside a class and apply value"""
     logger.debug(
-        "Helper.eab_profile_string_check(): string: key: %s, value: %s", key, value
+        "Helper.eab_profile_string_check(): string: key: %s, value: %s",
+        key,
+        eab_profile_value_for_log(key, value),
     )
 
     if key == "cahandler_name":
@@ -439,14 +459,13 @@ def eab_profile_string_check(logger, cahandler, key, value):
             logger.debug(
                 "Helper.eab_profile_string_check(): setting attribute: %s to %s",
                 key,
-                value,
+                eab_profile_value_for_log(key, value),
             )
             setattr(cahandler, key, value)
     else:
         logger.warning(
-            "EAB profile string checking: ignoring unrecognized string attribute: key: %s value: %s",
+            "EAB profile string checking: ignoring unrecognized string attribute: key: %s",
             key,
-            value,
         )
 
     logger.debug("Helper.eab_profile_string_check() ended")

@@ -876,7 +876,11 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
     logger.debug("_config_proxy_load()")
 
     # Lazy import to avoid circular dependency
-    from .network import parse_url, proxy_check  # pylint: disable=C0415
+    from .network import (  # pylint: disable=C0415
+        parse_url,
+        proxy_check,
+        proxy_url_for_log,
+    )
 
     proxy = {}
     if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
@@ -894,7 +898,13 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
                 err_,
             )
 
-    logger.debug("config_proxy_load() ended with: %s", proxy)
+    logger.debug(
+        "config_proxy_load() ended with: %s",
+        {
+            scheme: proxy_url_for_log(target) if isinstance(target, str) else target
+            for scheme, target in proxy.items()
+        },
+    )
     return proxy
 
 

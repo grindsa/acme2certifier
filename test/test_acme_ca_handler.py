@@ -2700,10 +2700,14 @@ class TestACMEHandler(unittest.TestCase):
             "FORBIDDEN_VAR": "should_not_set",
         }
 
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.cahandler._environment_variables_handle(unset=False)
         self.assertEqual(os.environ.get("TEST_VAR"), "test_value")
         self.assertNotEqual(os.environ.get("PATH"), "should_not_set")
+        joined = "\n".join(lcm.output)
+        self.assertNotIn("test_value", joined)
+        self.assertNotIn("should_not_set", joined)
+        self.assertIn("TEST_VAR", joined)
         self.assertIn(
             'WARNING:test_a2c:CAhandler._environment_variables_handle(): environment variable "PATH" is forbidden and will not be changed',
             lcm.output,

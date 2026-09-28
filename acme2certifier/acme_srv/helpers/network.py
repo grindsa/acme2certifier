@@ -296,6 +296,18 @@ def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: n
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
 
 
+def proxy_url_for_log(proxy_server: Any) -> Any:
+    """Return a proxy URL safe for debug logs, with userinfo removed."""
+    if not isinstance(proxy_server, str) or "@" not in proxy_server:
+        return proxy_server
+    if "://" in proxy_server:
+        proto, rest = proxy_server.split("://", 1)
+        _userinfo, hostport = rest.rsplit("@", 1)
+        return f"{proto}://***@{hostport}"
+    _userinfo, hostport = proxy_server.rsplit("@", 1)
+    return f"***@{hostport}"
+
+
 def proxy_check(
     logger: logging.Logger, fqdn: str, proxy_server_list: Dict[str, str]
 ) -> str:
@@ -323,7 +335,7 @@ def proxy_check(
         logger.debug("Helper.proxy_check() wildcard match found: fqdn: %s", fqdn)
         proxy = proxy_server_list_new["*"]
 
-    logger.debug("Helper.proxy_check() ended with %s", proxy)
+    logger.debug("Helper.proxy_check() ended with %s", proxy_url_for_log(proxy))
     return proxy
 
 
@@ -645,7 +657,7 @@ def proxystring_convert(
     logger: logging.Logger, proxy_server: str
 ) -> Tuple[str, str, str]:
     """convert proxy string"""
-    logger.debug("Helper.proxystring_convert(%s)", proxy_server)
+    logger.debug("Helper.proxystring_convert(%s)", proxy_url_for_log(proxy_server))
 
     proxy_proto_dic = {
         "http": socks.PROXY_TYPE_HTTP,
@@ -655,10 +667,7 @@ def proxystring_convert(
     try:
         proxy_proto, proxy = proxy_server.split("://")
     except Exception:
-        logger.error(
-            "Error while splitting proxy_server string: %s",
-            proxy_server,
-        )
+        logger.error("Error while splitting proxy_server string")
         proxy = None
         proxy_proto = None
 
@@ -666,7 +675,7 @@ def proxystring_convert(
         try:
             proxy_addr, proxy_port = proxy.split(":")
         except Exception:
-            logger.error("Error while splitting proxy into host/port: %s", proxy)
+            logger.error("Error while splitting proxy into host/port")
             proxy_addr = None
             proxy_port = None
     else:
@@ -680,24 +689,22 @@ def proxystring_convert(
             logger.error("Unknown proxy protocol: %s", proxy_proto)
             proto_string = None
     else:
-        logger.error(
-            "proxy_proto (%s), proxy_addr (%s) or proxy_port (%s) missing",
-            proxy_proto,
-            proxy_addr,
-            proxy_port,
-        )
+        logger.error("Proxy protocol, address, or port is missing")
         proto_string = None
 
     try:
         proxy_port = int(proxy_port)
     except Exception:
-        logger.error("Unknown proxy port: %s", proxy_port)
+        logger.error("Unknown proxy port")
         proxy_port = None
 
+    log_addr = proxy_addr
+    if isinstance(proxy_server, str) and "@" in proxy_server and proxy_addr:
+        log_addr = "***"
     logger.debug(
         "Helper.proxystring_convert() ended with %s, %s, %s",
         proto_string,
-        proxy_addr,
+        log_addr,
         proxy_port,
     )
     return (proto_string, proxy_addr, proxy_port)

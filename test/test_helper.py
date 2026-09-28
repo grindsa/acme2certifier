@@ -1499,9 +1499,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         )
 
         # Custom-DNS flag must be cleared so other requests are unaffected
-        self.assertFalse(
-            getattr(network_mod._dns_connect_tls, "use_custom_dns", False)
-        )
+        self.assertFalse(getattr(network_mod._dns_connect_tls, "use_custom_dns", False))
 
     @patch("acme2certifier.acme_srv.helpers.network.requests.get")
     def test_120_helper_url_get_with_own_dns_server_error(self, mock_request):
@@ -3408,7 +3406,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 (3, "proxy", None),
                 self.proxystring_convert(self.logger, "http://proxy:ftp"),
             )
-        self.assertIn("ERROR:test_a2c:Unknown proxy port: ftp", lcm.output)
+        self.assertIn("ERROR:test_a2c:Unknown proxy port", lcm.output)
+        self.assertNotIn("ftp", "\n".join(lcm.output))
 
     def test_269_proxystring_convert(self):
         """convert proxy_string porxy sting without protocol"""
@@ -3417,11 +3416,11 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 (None, None, None), self.proxystring_convert(self.logger, "proxy")
             )
         self.assertIn(
-            "ERROR:test_a2c:Error while splitting proxy_server string: proxy",
+            "ERROR:test_a2c:Error while splitting proxy_server string",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:proxy_proto (None), proxy_addr (None) or proxy_port (None) missing",
+            "ERROR:test_a2c:Proxy protocol, address, or port is missing",
             lcm.output,
         )
 
@@ -3433,13 +3432,25 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 self.proxystring_convert(self.logger, "http://proxy"),
             )
         self.assertIn(
-            "ERROR:test_a2c:Error while splitting proxy into host/port: proxy",
+            "ERROR:test_a2c:Error while splitting proxy into host/port",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:proxy_proto (http), proxy_addr (None) or proxy_port (None) missing",
+            "ERROR:test_a2c:Proxy protocol, address, or port is missing",
             lcm.output,
         )
+        self.assertNotIn("http://proxy", "\n".join(lcm.output))
+
+    def test_270b_proxystring_convert_redacts_userinfo(self):
+        """proxy userinfo must not appear in debug or error logs"""
+        secret = "s3cret-pass"
+        proxy = f"http://alice:{secret}@proxy.example"
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.proxystring_convert(self.logger, proxy)
+        joined = "\n".join(lcm.output)
+        self.assertNotIn(secret, joined)
+        self.assertNotIn("alice", joined)
+        self.assertIn("http://***@proxy.example", joined)
 
     def test_271_proxy_check(self):
         """check proxy for empty list"""
@@ -4898,6 +4909,28 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.eab_profile_string_check(self.logger, cahandler, "foo", "bar")
         self.assertEqual("bar", cahandler.foo)
 
+    def test_409b_eab_profile_string_check_redacts_credential(self):
+        """credential-like profile values are applied but not logged"""
+        cahandler = FakeDBStore()
+        cahandler.api_password = "old"
+        secret = "s3cret-value"
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.eab_profile_string_check(
+                self.logger, cahandler, "api_password", secret
+            )
+        self.assertEqual(secret, cahandler.api_password)
+        joined = "\n".join(lcm.output)
+        self.assertNotIn(secret, joined)
+        self.assertIn("<redacted>", joined)
+
+    def test_409c_eab_profile_string_check_logs_non_credential(self):
+        """non-credential profile values remain in debug logs"""
+        cahandler = FakeDBStore()
+        cahandler.foo = "old"
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.eab_profile_string_check(self.logger, cahandler, "foo", "bar")
+        self.assertIn("value: bar", "\n".join(lcm.output))
+
     def test_410_eab_profile_string_check(self):
         """test _eab_profile_string_check()"""
         cahandler = FakeDBStore()
@@ -4906,7 +4939,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.eab_profile_string_check(self.logger, cahandler, "foobar", "bar")
         self.assertEqual("foo", cahandler.foo)
         self.assertIn(
-            "WARNING:test_a2c:EAB profile string checking: ignoring unrecognized string attribute: key: foobar value: bar",
+            "WARNING:test_a2c:EAB profile string checking: ignoring unrecognized string attribute: key: foobar",
             lcm.output,
         )
 
@@ -4936,7 +4969,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         self.assertEqual("foo", cahandler.foo)
         self.assertIn(
-            "WARNING:test_a2c:EAP profile list checking: ignoring unrecognized list attribute: key: foobar value: bar",
+            "WARNING:test_a2c:EAP profile list checking: ignoring unrecognized list attribute: key: foobar",
             lcm.output,
         )
 
@@ -6577,8 +6610,6 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
         expected = {"http": "proxy.example.com:8080", "https": "proxy.example.com:8080"}
         self.assertEqual(result, expected)
-
-        # Verify the mocks were called correctly
         mock_parse_url.assert_called_once_with(self.logger, host_name)
         mock_proxy_check.assert_called_once_with(
             self.logger,
@@ -6588,6 +6619,28 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 "*.test.com": "proxy.test.com:3128",
             },
         )
+
+    @patch("acme2certifier.acme_srv.helpers.network.proxy_check")
+    @patch("acme2certifier.acme_srv.helpers.network.parse_url")
+    def test_527b_config_proxy_load_redacts_userinfo(
+        self, mock_parse_url, mock_proxy_check
+    ):
+        """debug log of the selected proxy must not include userinfo"""
+        config_dic = {
+            "DEFAULT": {"proxy_server_list": '{"example.com": "http://proxy:8080"}'}
+        }
+        secret = "s3cret-pass"
+        mock_parse_url.return_value = {"host": "api.example.com"}
+        mock_proxy_check.return_value = f"http://alice:{secret}@proxy.example:8080"
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            result = self.config_proxy_load(
+                self.logger, config_dic, "https://api.example.com/test"
+            )
+        self.assertEqual(result["http"], f"http://alice:{secret}@proxy.example:8080")
+        joined = "\n".join(lcm.output)
+        self.assertNotIn(secret, joined)
+        self.assertNotIn("alice", joined)
+        self.assertIn("http://***@proxy.example:8080", joined)
 
     def test_528_config_proxy_load_no_default_section(self):
         """test config_proxy_load() with no DEFAULT section"""
