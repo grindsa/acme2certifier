@@ -377,6 +377,40 @@ def eab_profile_check(
     return result
 
 
+def _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value):
+    """Validate CSR against an EAB allowed_domainlist profile value."""
+    if "allowed_domains_check" in dir(eab_handler):
+        logger.info("Execute allowed_domains_check() from eab handler")
+        return eab_handler.allowed_domains_check(csr, value)
+    logger.debug(
+        "Helper.eab_profile_list_check(): execute default allowed_domainlist_check()"
+    )
+    return allowed_domainlist_check(logger, csr, value)
+
+
+def _eab_profile_list_apply_attr(logger, cahandler, csr, key, value):
+    """Validate and apply a list profile attribute onto *cahandler*."""
+    if eab_profile_warn_if_denied(logger, key):
+        return None
+    new_value, error = client_parameter_validate(logger, csr, cahandler, key, value)
+    if not new_value:
+        return error
+    if key == "acme_keyfile" and not eab_profile_path_under_base(
+        logger,
+        key,
+        new_value,
+        getattr(cahandler, "acme_keypath", None),
+    ):
+        return None
+    logger.debug(
+        "Helper.eab_profile_list_check(): setting attribute: %s to %s",
+        key,
+        eab_profile_value_for_log(key, new_value),
+    )
+    setattr(cahandler, key, new_value)
+    return None
+
+
 def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
     """check if a for a list value taken from profile if its a variable inside a class and apply value"""
     logger.debug(
@@ -387,43 +421,9 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
 
     result = None
     if key == "allowed_domainlist":
-        # check if csr contains allowed domains
-        if "allowed_domains_check" in dir(eab_handler):
-            # execute a function from eab_handler
-            logger.info("Execute allowed_domains_check() from eab handler")
-            error = eab_handler.allowed_domains_check(csr, value)
-        else:
-            # execute default adl function from helper
-            logger.debug(
-                "Helper.eab_profile_list_check(): execute default allowed_domainlist_check()"
-            )
-            error = allowed_domainlist_check(logger, csr, value)
-        if error:
-            result = error
+        result = _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value)
     elif hasattr(cahandler, key):
-        if not eab_profile_warn_if_denied(logger, key):
-            new_value, error = client_parameter_validate(
-                logger, csr, cahandler, key, value
-            )
-            if new_value:
-                if key == "acme_keyfile" and not eab_profile_path_under_base(
-                    logger,
-                    key,
-                    new_value,
-                    getattr(cahandler, "acme_keypath", None),
-                ):
-                    logger.debug(
-                        "Helper.eab_profile_list_check() ended with: %s", result
-                    )
-                    return result
-                logger.debug(
-                    "Helper.eab_profile_list_check(): setting attribute: %s to %s",
-                    key,
-                    eab_profile_value_for_log(key, new_value),
-                )
-                setattr(cahandler, key, new_value)
-            else:
-                result = error
+        result = _eab_profile_list_apply_attr(logger, cahandler, csr, key, value)
     else:
         logger.warning(
             "EAP profile list checking: ignoring unrecognized list attribute: key: %s",

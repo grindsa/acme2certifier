@@ -13,6 +13,7 @@ TLS_ALPN_VALIDATION_FAILED_LOG = (
     "tls-alpn-01 validation failed: challenge=%s host=%s reason=%s"
 )
 ACME_TLS_ALPN_PROTOCOL = "acme-tls/1"
+ACME_ERROR_INCORRECT_RESPONSE = "urn:ietf:params:acme:error:incorrectResponse"
 
 
 class TlsAlpnChallengeValidator(ChallengeValidator):
@@ -82,7 +83,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 error_message=json.dumps(
                     {
                         "status": 400,
-                        "type": "urn:ietf:params:acme:error:incorrectResponse",
+                        "type": ACME_ERROR_INCORRECT_RESPONSE,
                         "detail": detail,
                     }
                 ),
@@ -105,7 +106,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 error_message=json.dumps(
                     {
                         "status": 403,
-                        "type": "urn:ietf:params:acme:error:incorrectResponse",
+                        "type": ACME_ERROR_INCORRECT_RESPONSE,
                         "detail": detail,
                     }
                 ),
@@ -140,7 +141,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 else json.dumps(
                     {
                         "status": 403,
-                        "type": "urn:ietf:params:acme:error:incorrectResponse",
+                        "type": ACME_ERROR_INCORRECT_RESPONSE,
                         "detail": "Certificate extension validation failed",
                     }
                 )

@@ -943,16 +943,19 @@ def _is_credential_header(name: str) -> bool:
         return True
     if "api-key" in lower or "apikey" in lower:
         return True
-    if lower.endswith("-token") or lower.endswith("_token"):
+    if lower.endswith(("-token", "_token")):
         return True
     return False
 
 
 def _strip_credential_headers(prepared_request) -> None:
     """Remove credential headers from a prepared request."""
-    for key in list(prepared_request.headers.keys()):
-        if _is_credential_header(key):
-            del prepared_request.headers[key]
+    for key in [
+        header
+        for header in prepared_request.headers
+        if _is_credential_header(header)
+    ]:
+        del prepared_request.headers[key]
 
 
 def _a2c_session_rebuild_auth(self, prepared_request, response):

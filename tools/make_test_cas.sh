@@ -158,26 +158,26 @@ bootstrap_ca() {
   mkdir -p "${OUT_DIR}"
   OUT_DIR="$(native_path "$(cd "${OUT_DIR}" && pwd)")"
 
-  local WORK
-  WORK="$(mktemp_work a2c-bootstrap-cas)"
+  local work
+  work="$(mktemp_work a2c-bootstrap-cas)"
   # shellcheck disable=SC2064
-  trap "rm -rf '${WORK}'" EXIT
+  trap "rm -rf '${work}'" EXIT
 
-  mkdir -p "${WORK}/newcerts" "${WORK}/crl"
-  touch "${WORK}/index.txt"
-  printf '01\n' >"${WORK}/serial"
-  printf '01\n' >"${WORK}/crlnumber"
+  mkdir -p "${work}/newcerts" "${work}/crl"
+  touch "${work}/index.txt"
+  printf '01\n' >"${work}/serial"
+  printf '01\n' >"${work}/crlnumber"
 
-  local CNF="${WORK}/openssl.cnf"
-  cat >"${CNF}" <<EOF
+  local cnf="${work}/openssl.cnf"
+  cat >"${cnf}" <<EOF
 [ ca ]
 default_ca = CA_default
 
 [ CA_default ]
-dir               = ${WORK}
-database          = ${WORK}/index.txt
-serial            = ${WORK}/serial
-new_certs_dir     = ${WORK}/newcerts
+dir               = ${work}
+database          = ${work}/index.txt
+serial            = ${work}/serial
+new_certs_dir     = ${work}/newcerts
 certificate       = ${OUT_DIR}/root-ca-cert.pem
 private_key       = ${OUT_DIR}/root-ca-key.pem
 default_days      = ${DAYS}
@@ -187,7 +187,7 @@ x509_extensions   = v3_ca
 copy_extensions   = none
 unique_subject    = no
 email_in_dn       = no
-crlnumber         = ${WORK}/crlnumber
+crlnumber         = ${work}/crlnumber
 default_crl_days  = 3650
 
 [ policy_any ]
@@ -232,7 +232,7 @@ EOF
     -days "${DAYS}" \
     -subj "/CN=root-ca" \
     -sha256 \
-    -config "${CNF}" \
+    -config "${cnf}" \
     -extensions v3_root
 
   # Encrypt sub-CA key (passphrase). Use genpkey for OpenSSL 3 / Windows parity.
@@ -242,29 +242,29 @@ EOF
   || openssl genrsa -aes256 -passout "pass:${PASS}" -out "${OUT_DIR}/sub-ca-key.pem" 4096
   openssl req -new -key "${OUT_DIR}/sub-ca-key.pem" -passin "pass:${PASS}" \
     -subj "/CN=sub-ca" \
-    -out "${WORK}/sub-ca.csr" \
+    -out "${work}/sub-ca.csr" \
     -sha256
 
-  openssl x509 -req -in "${WORK}/sub-ca.csr" \
+  openssl x509 -req -in "${work}/sub-ca.csr" \
     -CA "${OUT_DIR}/root-ca-cert.pem" \
     -CAkey "${OUT_DIR}/root-ca-key.pem" \
-    -CAserial "${WORK}/serial" \
+    -CAserial "${work}/serial" \
     -days "${DAYS}" \
     -sha256 \
-    -extfile "${CNF}" \
+    -extfile "${cnf}" \
     -extensions v3_ca \
     -out "${OUT_DIR}/sub-ca-cert.pem"
 
   # Re-point CA_default at the issuing CA for CRL + client leaves.
-  cat >"${CNF}" <<EOF
+  cat >"${cnf}" <<EOF
 [ ca ]
 default_ca = CA_default
 
 [ CA_default ]
-dir               = ${WORK}
-database          = ${WORK}/index.txt
-serial            = ${WORK}/serial
-new_certs_dir     = ${WORK}/newcerts
+dir               = ${work}
+database          = ${work}/index.txt
+serial            = ${work}/serial
+new_certs_dir     = ${work}/newcerts
 certificate       = ${OUT_DIR}/sub-ca-cert.pem
 private_key       = ${OUT_DIR}/sub-ca-key.pem
 default_days      = ${DAYS}
@@ -274,7 +274,7 @@ x509_extensions   = v3_ee
 copy_extensions   = none
 unique_subject    = no
 email_in_dn       = no
-crlnumber         = ${WORK}/crlnumber
+crlnumber         = ${work}/crlnumber
 default_crl_days  = 3650
 
 [ policy_any ]
@@ -295,39 +295,39 @@ authorityKeyIdentifier = keyid:always
 EOF
 
   openssl ca -gencrl -batch \
-    -config "${CNF}" \
+    -config "${cnf}" \
     -passin "pass:${PASS}" \
     -out "${OUT_DIR}/sub-ca-crl.pem"
 
-  openssl genrsa -out "${WORK}/sub-client-key.pem" 2048
-  openssl req -new -key "${WORK}/sub-client-key.pem" \
+  openssl genrsa -out "${work}/sub-client-key.pem" 2048
+  openssl req -new -key "${work}/sub-client-key.pem" \
     -subj "/C=DE/L=Berlin/O=Acme2Certifier/CN=client_sub-ca" \
-    -out "${WORK}/sub-client.csr" \
+    -out "${work}/sub-client.csr" \
     -sha256
-  openssl x509 -req -in "${WORK}/sub-client.csr" \
+  openssl x509 -req -in "${work}/sub-client.csr" \
     -CA "${OUT_DIR}/sub-ca-cert.pem" \
     -CAkey "${OUT_DIR}/sub-ca-key.pem" \
     -passin "pass:${PASS}" \
     -CAcreateserial \
     -days "${DAYS}" \
     -sha256 \
-    -extfile "${CNF}" \
+    -extfile "${cnf}" \
     -extensions v3_ee \
     -out "${OUT_DIR}/sub-ca-client.pem"
   cert_to_txt "${OUT_DIR}/sub-ca-client.pem" "${OUT_DIR}/sub-ca-client.txt"
 
-  openssl genrsa -out "${WORK}/root-client-key.pem" 2048
-  openssl req -new -key "${WORK}/root-client-key.pem" \
+  openssl genrsa -out "${work}/root-client-key.pem" 2048
+  openssl req -new -key "${work}/root-client-key.pem" \
     -subj "/C=DE/L=Berlin/O=Acme2Certifier/CN=client_root-ca" \
-    -out "${WORK}/root-client.csr" \
+    -out "${work}/root-client.csr" \
     -sha256
-  openssl x509 -req -in "${WORK}/root-client.csr" \
+  openssl x509 -req -in "${work}/root-client.csr" \
     -CA "${OUT_DIR}/root-ca-cert.pem" \
     -CAkey "${OUT_DIR}/root-ca-key.pem" \
     -CAcreateserial \
     -days "${DAYS}" \
     -sha256 \
-    -extfile "${CNF}" \
+    -extfile "${cnf}" \
     -extensions v3_ee \
     -out "${OUT_DIR}/root-ca-client.pem"
   cert_to_txt "${OUT_DIR}/root-ca-client.pem" "${OUT_DIR}/root-ca-client.txt"
@@ -362,20 +362,20 @@ EOF
 append_cas() {
   need_openssl
   CA_DIR="$(native_path "$(cd "${CA_DIR}" && pwd)")"
-  local ROOT_CERT="${CA_DIR}/root-ca-cert.pem"
-  local SUB_CERT="${CA_DIR}/sub-ca-cert.pem"
-  local SUB_KEY
+  local root_cert="${CA_DIR}/root-ca-cert.pem"
+  local sub_cert="${CA_DIR}/sub-ca-cert.pem"
+  local sub_key
   if [[ -f "${CA_DIR}/sub-ca-key.pk8" ]]; then
-    SUB_KEY="${CA_DIR}/sub-ca-key.pk8"
+    sub_key="${CA_DIR}/sub-ca-key.pk8"
   elif [[ -f "${CA_DIR}/sub-ca-key.pem" ]]; then
-    SUB_KEY="${CA_DIR}/sub-ca-key.pem"
+    sub_key="${CA_DIR}/sub-ca-key.pem"
   else
     echo "No sub-ca key in ${CA_DIR} (expected sub-ca-key.pk8 or sub-ca-key.pem)" >&2
     echo "Run: tools/make_test_cas.sh bootstrap" >&2
     exit 1
   fi
 
-  for f in "${ROOT_CERT}" "${SUB_CERT}" "${SUB_KEY}"; do
+  for f in "${root_cert}" "${sub_cert}" "${sub_key}"; do
     if [[ ! -f "${f}" ]]; then
       echo "Missing ${f}" >&2
       echo "Run: tools/make_test_cas.sh bootstrap" >&2
@@ -386,37 +386,37 @@ append_cas() {
   mkdir -p "${OUT_DIR}"
   OUT_DIR="$(native_path "$(cd "${OUT_DIR}" && pwd)")"
 
-  local PASSIN=()
-  if openssl pkey -in "${SUB_KEY}" -passin "pass:${PASS}" -noout >/dev/null 2>&1; then
-    PASSIN=(-passin "pass:${PASS}")
-  elif openssl pkey -in "${SUB_KEY}" -noout >/dev/null 2>&1; then
-    PASSIN=()
+  local passin=()
+  if openssl pkey -in "${sub_key}" -passin "pass:${PASS}" -noout >/dev/null 2>&1; then
+    passin=(-passin "pass:${PASS}")
+  elif openssl pkey -in "${sub_key}" -noout >/dev/null 2>&1; then
+    passin=()
   else
-    echo "Failed to load ${SUB_KEY} (try -p PASS)" >&2
+    echo "Failed to load ${sub_key} (try -p PASS)" >&2
     exit 1
   fi
 
-  local SUB_DN
-  SUB_DN="$(dn_slash "${SUB_CERT}")"
-  local WORK
-  WORK="$(mktemp_work a2c-test-cas)"
+  local sub_dn
+  sub_dn="$(dn_slash "${sub_cert}")"
+  local work
+  work="$(mktemp_work a2c-test-cas)"
   # shellcheck disable=SC2064
-  trap "rm -rf '${WORK}'" EXIT
+  trap "rm -rf '${work}'" EXIT
 
-  mkdir -p "${WORK}/newcerts"
-  touch "${WORK}/index.txt"
-  printf '01\n' >"${WORK}/serial"
+  mkdir -p "${work}/newcerts"
+  touch "${work}/index.txt"
+  printf '01\n' >"${work}/serial"
 
-  local CNF="${WORK}/openssl.cnf"
-  cat >"${CNF}" <<EOF
+  local cnf="${work}/openssl.cnf"
+  cat >"${cnf}" <<EOF
 [ ca ]
 default_ca = CA_default
 
 [ CA_default ]
-dir               = ${WORK}
-database          = ${WORK}/index.txt
-serial            = ${WORK}/serial
-new_certs_dir     = ${WORK}/newcerts
+dir               = ${work}
+database          = ${work}/index.txt
+serial            = ${work}/serial
+new_certs_dir     = ${work}/newcerts
 certificate       = ${OUT_DIR}/new-root.pem
 private_key       = ${OUT_DIR}/new-root-key.pem
 default_days      = ${DAYS}
@@ -463,33 +463,33 @@ EOF
     -days "${DAYS}" \
     -subj "/CN=new-root" \
     -sha256 \
-    -config "${CNF}" \
+    -config "${cnf}" \
     -extensions v3_root
 
-  openssl req -new -key "${SUB_KEY}" "${PASSIN[@]}" \
-    -subj "${SUB_DN}" \
-    -out "${WORK}/sub-ca.csr" \
+  openssl req -new -key "${sub_key}" "${passin[@]}" \
+    -subj "${sub_dn}" \
+    -out "${work}/sub-ca.csr" \
     -sha256
 
-  openssl x509 -req -in "${WORK}/sub-ca.csr" \
+  openssl x509 -req -in "${work}/sub-ca.csr" \
     -CA "${OUT_DIR}/new-root.pem" \
     -CAkey "${OUT_DIR}/new-root-key.pem" \
-    -CAserial "${WORK}/serial" \
+    -CAserial "${work}/serial" \
     -days "${DAYS}" \
     -sha256 \
-    -extfile "${CNF}" \
+    -extfile "${cnf}" \
     -extensions v3_ca \
     -out "${OUT_DIR}/sub-ca-cross.pem"
 
   openssl ca -batch -notext \
-    -config "${CNF}" \
-    -ss_cert "${ROOT_CERT}" \
+    -config "${cnf}" \
+    -ss_cert "${root_cert}" \
     -days "${DAYS}" \
     -out "${OUT_DIR}/root-ca-cross.pem"
 
-  local OLD_ROOT_FP OLD_SUB_FP rel_out
-  OLD_ROOT_FP="$(fp "${ROOT_CERT}")"
-  OLD_SUB_FP="$(fp "${SUB_CERT}")"
+  local old_root_fp old_sub_fp rel_out
+  old_root_fp="$(fp "${root_cert}")"
+  old_sub_fp="$(fp "${sub_cert}")"
   rel_out="${OUT_DIR}"
   case "${OUT_DIR}" in
     "${REPO_ROOT}"/*) rel_out="${OUT_DIR#"${REPO_ROOT}"/}" ;;
@@ -509,14 +509,14 @@ EOF
   echo
   echo "acme_srv.cfg — layout B (re-issued ICA). Skip old sub-ca + old root:"
   cat <<EOF
-cert_chain_skip_list: ["${OLD_SUB_FP}", "${OLD_ROOT_FP}"]
+cert_chain_skip_list: ["${old_sub_fp}", "${old_root_fp}"]
 cert_chain_append: ["${rel_out}/sub-ca-cross.pem", "${rel_out}/new-root.pem"]
 # cert_chain_link_check: True
 EOF
   echo
   echo "acme_srv.cfg — layout A (cross-signed old root). Skip old root only:"
   cat <<EOF
-cert_chain_skip_list: ["${OLD_ROOT_FP}"]
+cert_chain_skip_list: ["${old_root_fp}"]
 cert_chain_append: ["${rel_out}/root-ca-cross.pem", "${rel_out}/new-root.pem"]
 # cert_chain_link_check: True
 EOF

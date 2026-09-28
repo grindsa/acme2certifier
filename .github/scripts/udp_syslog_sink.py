@@ -61,8 +61,9 @@ def main() -> int:
     sock.bind((args.bind, args.port))
 
     if ready_path:
-        with open(ready_path, "w", encoding="utf-8"):
-            pass
+        # Empty sentinel so CI can wait until the socket is bound.
+        with open(ready_path, "w", encoding="utf-8") as ready_file:
+            ready_file.write("")
 
     print(
         f"udp syslog sink listening on {args.bind}:{args.port} -> {output_path}",
