@@ -5,7 +5,7 @@ from __future__ import print_function
 import textwrap
 import math
 import time
-from typing import List, Tuple, Dict
+from typing import Any, List, Tuple, Dict, Optional
 from urllib.parse import urlencode
 import requests
 from requests.auth import HTTPBasicAuth
@@ -97,18 +97,10 @@ class CAhandler(object):
         cert_raw = None
 
         if "certificate" in request_dic:
-            # poll identifier for later storage
-            _code, cert_dic = request_operation(
-                self.logger,
-                url=request_dic["certificate"],
-                method="get",
-                verify=self.ca_bundle,
-                proxy=self.proxy,
-                timeout=self.request_timeout,
-                session=self.session,
-                retries=self.request_retries,
-                retry_backoff=self.request_retry_backoff,
-            )
+            error, cert_dic = self._api_get_json(request_dic["certificate"])
+            if error:
+                self.logger.debug("CAhandler._api_poll() ended")
+                return (error, cert_bundle, cert_raw)
             if isinstance(cert_dic, dict) and "certificateBase64" in cert_dic:
                 # this is a valid cert generate the bundle
                 error = None
@@ -495,20 +487,11 @@ class CAhandler(object):
             if request_dic["status"] == "accepted":
 
                 if "certificate" in request_dic:
-                    # poll identifier for later storage
-                    _code, cert_dic = request_operation(
-                        self.logger,
-                        url=request_dic["certificate"],
-                        method="get",
-                        verify=self.ca_bundle,
-                        proxy=self.proxy,
-                        timeout=self.request_timeout,
-                        session=self.session,
-                        retries=self.request_retries,
-                        retry_backoff=self.request_retry_backoff,
-                    )
-                    # pylint: disable=R1723
-                    if isinstance(cert_dic, dict) and "certificateBase64" in cert_dic:
+                    url_error, cert_dic = self._api_get_json(request_dic["certificate"])
+                    if url_error:
+                        error = url_error
+                        break_loop = True
+                    elif isinstance(cert_dic, dict) and "certificateBase64" in cert_dic:
                         # this is a valid cert generate the bundle
                         error = None
                         cert_bundle = self._pem_cert_chain_generate(cert_dic)
@@ -536,6 +519,33 @@ class CAhandler(object):
             return False
         base = self.api_host.rstrip("/")
         return request_url == base or request_url.startswith(base + "/")
+
+    def _api_url_allowed(self, request_url: str) -> bool:
+        """Alias: allow CA-provided nested URLs under the same api_host policy."""
+        return self._poll_url_allowed(request_url)
+
+    def _api_get_json(self, url: str) -> Tuple[Optional[str], Any]:
+        """GET *url* only when allowed under api_host; return (error, content)."""
+        if not self._api_url_allowed(url):
+            self.logger.warning(
+                "Rejecting CA-provided URL %s (api_host=%s)", url, self.api_host
+            )
+            return (
+                "CA-provided URL host does not match configured api_host",
+                None,
+            )
+        _code, content = request_operation(
+            self.logger,
+            url=url,
+            method="get",
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            session=self.session,
+            retries=self.request_retries,
+            retry_backoff=self.request_retry_backoff,
+        )
+        return (None, content)
 
     def _loop_poll(self, request_url: str) -> Tuple[str, str, str, str]:
         """poll request"""
@@ -597,46 +607,22 @@ class CAhandler(object):
         self.logger.debug("CAhandler._pem_list_cert_get()")
         if "issuer" in cert_dic:
             self.logger.debug("issuer found: %s", cert_dic["issuer"])
-            _code, ca_cert_dic = request_operation(
-                self.logger,
-                url=cert_dic["issuer"],
-                method="get",
-                verify=self.ca_bundle,
-                proxy=self.proxy,
-                timeout=self.request_timeout,
-                session=self.session,
-                retries=self.request_retries,
-                retry_backoff=self.request_retry_backoff,
-            )
+            url_error, ca_cert_dic = self._api_get_json(cert_dic["issuer"])
         else:
             self.logger.debug("issuer found: %s", cert_dic["issuerCa"])
-            _code, ca_cert_dic = request_operation(
-                self.logger,
-                url=cert_dic["issuerCa"],
-                method="get",
-                verify=self.ca_bundle,
-                proxy=self.proxy,
-                timeout=self.request_timeout,
-                session=self.session,
-                retries=self.request_retries,
-                retry_backoff=self.request_retry_backoff,
-            )
+            url_error, ca_cert_dic = self._api_get_json(cert_dic["issuerCa"])
+
+        if url_error:
+            self.logger.debug("CAhandler._pem_list_cert_get() ended")
+            return {}
 
         cert_dic = {}
         if isinstance(ca_cert_dic, dict) and "certificates" in ca_cert_dic:
             if "active" in ca_cert_dic["certificates"]:
-                _code, cert_dic = request_operation(
-                    self.logger,
-                    url=ca_cert_dic["certificates"]["active"],
-                    method="get",
-                    verify=self.ca_bundle,
-                    proxy=self.proxy,
-                    timeout=self.request_timeout,
-                    session=self.session,
-                    retries=self.request_retries,
-                    retry_backoff=self.request_retry_backoff,
+                url_error, cert_dic = self._api_get_json(
+                    ca_cert_dic["certificates"]["active"]
                 )
-                if not isinstance(cert_dic, dict):
+                if url_error or not isinstance(cert_dic, dict):
                     cert_dic = {}
 
         self.logger.debug("CAhandler._pem_list_cert_get() ended")
