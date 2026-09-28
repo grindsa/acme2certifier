@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import uuid
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.helper import uts_now, load_config
@@ -151,9 +151,11 @@ class Nonce(object):
         self.logger.debug("Nonce.generate_and_add() ended with:%s", nonce)
         return nonce
 
-    def expire_nonces(self, timestamp: int = uts_now()) -> Tuple[list, list]:
+    def expire_nonces(self, timestamp: Optional[int] = None) -> Tuple[list, list]:
         """Expire nonces based on expiry date."""
         self.logger.debug("Nonce.expire_nonces()")
+        if timestamp is None:
+            timestamp = uts_now()
         nonce_list = []
         total_deleted = 0
 

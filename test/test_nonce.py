@@ -220,6 +220,21 @@ class TestNonce(unittest.TestCase):
         repo_mock.search_expired_nonces.assert_called_once_with(4880)
         repo_mock.delete_nonces.assert_not_called()
 
+    @patch("acme2certifier.acme_srv.nonce.uts_now", return_value=9000)
+    def test_015b_expire_nonces_default_timestamp_uses_uts_now(self, mock_uts):
+        """Default timestamp must be evaluated at call time, not import time."""
+        repo_mock = MagicMock()
+        repo_mock.search_expired_nonces.return_value = []
+        from acme2certifier.acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger, repo=repo_mock)
+        nonce.config.validity = 1000
+
+        nonce.expire_nonces()
+
+        mock_uts.assert_called()
+        repo_mock.search_expired_nonces.assert_called_once_with(8000)
+
     def test_016_expire_nonces_with_expired_entries(self):
         """test expire_nonces() deletes found expired nonces"""
         repo_mock = MagicMock()
