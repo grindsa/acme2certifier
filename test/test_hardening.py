@@ -179,7 +179,7 @@ class TestTkauthFailClosed:
 class TestChallengeValidationDisableDecide:
     """challenge_validation_disable requires address checks or break-glass."""
 
-    def test_011a_not_requested(self) -> None:
+    def test_012_not_requested(self) -> None:
         logger = logging.getLogger("test_hardening_chal_disable")
         assert (
             challenge_validation_disable_decide(
@@ -191,7 +191,7 @@ class TestChallengeValidationDisableDecide:
             is False
         )
 
-    def test_011b_combined_with_forward(self) -> None:
+    def test_013_combined_with_forward(self) -> None:
         logger = logging.getLogger("test_hardening_chal_disable")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
             assert (
@@ -204,7 +204,7 @@ class TestChallengeValidationDisableDecide:
                 is True
             )
 
-    def test_011c_combined_with_reverse(self) -> None:
+    def test_014_combined_with_reverse(self) -> None:
         logger = logging.getLogger("test_hardening_chal_disable")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
             assert (
@@ -217,7 +217,7 @@ class TestChallengeValidationDisableDecide:
                 is True
             )
 
-    def test_011d_naked_ignored_without_ack(self) -> None:
+    def test_015_naked_ignored_without_ack(self) -> None:
         logger = logging.getLogger("test_hardening_chal_disable")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
             assert (
@@ -230,7 +230,7 @@ class TestChallengeValidationDisableDecide:
                 is False
             )
 
-    def test_011e_naked_allowed_with_ack(self) -> None:
+    def test_016_naked_allowed_with_ack(self) -> None:
         logger = logging.getLogger("test_hardening_chal_disable")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
             assert (
@@ -266,7 +266,7 @@ class TestOrderResourceOwnership:
             }
             yield order_obj
 
-    def test_012_account_order_request_denied(self, order) -> None:
+    def test_017_account_order_request_denied(self, order) -> None:
         order.message.check.return_value = (
             200,
             None,
@@ -290,7 +290,7 @@ class TestOrderResourceOwnership:
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
 
-    def test_013_account_order_request_allowed(self, order) -> None:
+    def test_018_account_order_request_allowed(self, order) -> None:
         order.message.check.return_value = (
             200,
             None,
@@ -317,7 +317,7 @@ class TestOrderResourceOwnership:
             result = order.parse_order_content("content")
         assert result["code"] == 200
 
-    def test_014_owner_lookup_unavailable_denied(self, order) -> None:
+    def test_019_owner_lookup_unavailable_denied(self, order) -> None:
         order.message.check.return_value = (
             200,
             None,
@@ -366,7 +366,7 @@ class TestCertificateResourceOwnership:
         )
         yield cert
 
-    def test_015_account_certificate_download_denied(self, certificate) -> None:
+    def test_020_account_certificate_download_denied(self, certificate) -> None:
         certificate._validate_certificate_request_message = MagicMock(
             return_value=(
                 200,
@@ -388,7 +388,7 @@ class TestCertificateResourceOwnership:
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
 
-    def test_016_account_certificate_download_allowed(self, certificate) -> None:
+    def test_021_account_certificate_download_allowed(self, certificate) -> None:
         certificate._validate_certificate_request_message = MagicMock(
             return_value=(
                 200,
@@ -438,7 +438,7 @@ class TestChallengeResourceOwnership:
         )
         yield ch
 
-    def test_017_account_challenge_post_denied(self, challenge) -> None:
+    def test_022_account_challenge_post_denied(self, challenge) -> None:
         challenge.message.check.return_value = (
             200,
             None,
@@ -455,7 +455,7 @@ class TestChallengeResourceOwnership:
         mock_handle.assert_not_called()
         assert result["code"] == 403
 
-    def test_018_account_challenge_post_allowed(self, challenge) -> None:
+    def test_023_account_challenge_post_allowed(self, challenge) -> None:
         challenge.message.check.return_value = (
             200,
             None,
@@ -485,7 +485,7 @@ class TestAuthorizationResourceOwnership:
         auth.business_logic.extract_authorization_name_from_url.return_value = "authz1"
         yield auth
 
-    def test_019_account_authorization_post_denied(self, authorization) -> None:
+    def test_024_account_authorization_post_denied(self, authorization) -> None:
         authorization.message.check.return_value = (
             200,
             "ok",
@@ -507,7 +507,7 @@ class TestAuthorizationResourceOwnership:
         assert result["code"] == 403
         assert result["type"] == UNAUTHORIZED_TYPE
 
-    def test_020_account_authorization_post_allowed(self, authorization) -> None:
+    def test_025_account_authorization_post_allowed(self, authorization) -> None:
         authorization.message.check.return_value = (
             200,
             "ok",
@@ -529,7 +529,7 @@ class TestAuthorizationResourceOwnership:
         result = authorization.handle_post_request("content")
         assert result["code"] == 200
 
-    def test_021_owner_lookup_db_error_returns_500(self, authorization) -> None:
+    def test_026_owner_lookup_db_error_returns_500(self, authorization) -> None:
         authorization.message.check.return_value = (
             200,
             "ok",
@@ -557,7 +557,7 @@ class TestRenewalinfoResourceOwnership:
         info.repository = MagicMock()
         yield info
 
-    def test_022_account_replaced_update_denied(self, renewalinfo) -> None:
+    def test_027_account_replaced_update_denied(self, renewalinfo) -> None:
         renewalinfo.message.check.return_value = (
             200,
             None,
@@ -583,7 +583,7 @@ class TestRenewalinfoResourceOwnership:
         renewalinfo.repository.mark_certificate_replaced.assert_not_called()
         assert result["code"] == 403
 
-    def test_023_account_replaced_update_allowed(self, renewalinfo) -> None:
+    def test_028_account_replaced_update_allowed(self, renewalinfo) -> None:
         renewalinfo.message.check.return_value = (
             200,
             None,
@@ -621,7 +621,7 @@ class TestCsrBinding:
         }
         yield cert
 
-    def test_024_strict_exact_match_allows_enrollment(self, certificate) -> None:
+    def test_029_strict_exact_match_allows_enrollment(self, certificate) -> None:
         csr = _build_csr_b64(
             cn="example.com",
             dns_sans=["example.com"],
@@ -652,7 +652,7 @@ class TestCsrBinding:
         assert error is None
         assert detail == ""
 
-    def test_025_strict_extra_email_san_rejected(self, certificate) -> None:
+    def test_030_strict_extra_email_san_rejected(self, certificate) -> None:
         csr = _build_csr_b64(
             cn="user@example.com",
             email_sans=["user@example.com", "attacker@evil.com"],
@@ -676,7 +676,7 @@ class TestCsrBinding:
         assert error == "urn:ietf:params:acme:error:badCSR"
         assert detail == "CSR validation failed"
 
-    def test_026_strict_missing_order_identifier_rejected(self, certificate) -> None:
+    def test_031_strict_missing_order_identifier_rejected(self, certificate) -> None:
         csr = _build_csr_b64(dns_sans=["a.example.com"])
         identifiers = _identifiers_json(
             ("dns", "a.example.com"),
@@ -692,7 +692,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_027_strict_cn_mismatch_rejected(self, certificate) -> None:
+    def test_032_strict_cn_mismatch_rejected(self, certificate) -> None:
         csr = _build_csr_b64(
             cn="evil.example.com",
             dns_sans=["example.com"],
@@ -708,7 +708,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_028_strict_cn_only_email_allowed(self, certificate) -> None:
+    def test_033_strict_cn_only_email_allowed(self, certificate) -> None:
         csr = _build_csr_b64(cn="user@example.com")
         identifiers = _identifiers_json(("email", "user@example.com"))
         with patch.object(
@@ -721,7 +721,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_029_legacy_non_strict_allows_subset(self, certificate) -> None:
+    def test_034_legacy_non_strict_allows_subset(self, certificate) -> None:
         certificate.config.csr_binding_strict = False
         csr = _build_csr_b64(dns_sans=["a.example.com"])
         identifiers = _identifiers_json(
@@ -738,7 +738,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_030_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
+    def test_035_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
         """email_identifier_rewrite: dns:user@host order matches CSR DNS+EMAIL SANs."""
         certificate.config.email_identifier_rewrite = True
         csr = _build_csr_b64(
@@ -757,7 +757,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_031_rewrite_still_rejects_extra_email(self, certificate) -> None:
+    def test_036_rewrite_still_rejects_extra_email(self, certificate) -> None:
         certificate.config.email_identifier_rewrite = True
         csr = _build_csr_b64(
             cn="jum@mailserver.acme",
@@ -779,7 +779,7 @@ class TestCsrBinding:
 class TestClientHeaderParameterGate:
     """Client-selected CA template/profile via header_info without allowlist."""
 
-    def test_032_empty_allowlist_ignored_without_ack(self) -> None:
+    def test_037_empty_allowlist_ignored_without_ack(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
             with patch.object(logger, "warning") as mock_warn:
@@ -789,7 +789,7 @@ class TestClientHeaderParameterGate:
         assert result == "WebServer"
         mock_warn.assert_called_once()
 
-    def test_033_empty_allowlist_permitted_with_ack(self) -> None:
+    def test_038_empty_allowlist_permitted_with_ack(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
             with patch.object(logger, "critical") as mock_crit:
@@ -799,14 +799,14 @@ class TestClientHeaderParameterGate:
         assert result == "Privileged"
         mock_crit.assert_called_once()
 
-    def test_034_nonempty_allowlist_applies_listed_value(self) -> None:
+    def test_039_nonempty_allowlist_applies_listed_value(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         result = client_header_parameter_decide(
             logger, "template", "WebServer", ["WebServer", "User"], "User"
         )
         assert result == "WebServer"
 
-    def test_035_nonempty_allowlist_ignores_unlisted_value(self) -> None:
+    def test_040_nonempty_allowlist_ignores_unlisted_value(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         with patch.object(logger, "warning") as mock_warn:
             result = client_header_parameter_decide(
@@ -815,7 +815,7 @@ class TestClientHeaderParameterGate:
         assert result == "User"
         mock_warn.assert_called_once()
 
-    def test_036_header_info_path_ignores_without_ack(self) -> None:
+    def test_041_header_info_path_ignores_without_ack(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_header_info_check
 
         cahandler = MagicMock()
@@ -840,7 +840,7 @@ class TestClientHeaderParameterGate:
         assert err is None
         assert cahandler.template == "WebServer"
 
-    def test_037_empty_client_value_keeps_default(self) -> None:
+    def test_042_empty_client_value_keeps_default(self) -> None:
         logger = logging.getLogger("test_hardening_header_param")
         result = client_header_parameter_decide(
             logger, "template", None, ["WebServer"], "WebServer"
@@ -853,7 +853,7 @@ class TestClientHeaderParameterGate:
 
 
 class TestEabProfileDenylist:
-    def test_038_exact_and_suffix_denied(self) -> None:
+    def test_043_exact_and_suffix_denied(self) -> None:
         from acme2certifier.acme_srv.helpers.security_gate import (
             eab_profile_attr_denied,
         )
@@ -873,7 +873,7 @@ class TestEabProfileDenylist:
         assert eab_profile_attr_denied("acme_sh_shell") is True
         assert eab_profile_attr_denied("dns_update_script_variables") is True
 
-    def test_038b_path_under_base(self) -> None:
+    def test_044_path_under_base(self) -> None:
         from acme2certifier.acme_srv.helpers.security_gate import (
             eab_profile_path_under_base,
         )
@@ -891,9 +891,7 @@ class TestEabProfileDenylist:
             is True
         )
         assert (
-            eab_profile_path_under_base(
-                logger, "acme_keyfile", "/etc/passwd", base
-            )
+            eab_profile_path_under_base(logger, "acme_keyfile", "/etc/passwd", base)
             is False
         )
         assert (
@@ -902,10 +900,13 @@ class TestEabProfileDenylist:
             )
             is False
         )
-        assert eab_profile_path_under_base(logger, "acme_keyfile", f"{base}/x", None) is False
+        assert (
+            eab_profile_path_under_base(logger, "acme_keyfile", f"{base}/x", None)
+            is False
+        )
         assert eab_profile_path_under_base(logger, "acme_keyfile", "", base) is False
 
-    def test_038c_path_under_base_oserror(self) -> None:
+    def test_045_path_under_base_oserror(self) -> None:
         """eab_profile_path_under_base returns False when realpath raises"""
         from acme2certifier.acme_srv.helpers.security_gate import (
             eab_profile_path_under_base,
@@ -927,7 +928,7 @@ class TestEabProfileDenylist:
         mock_warn.assert_called()
         assert "path check failed" in mock_warn.call_args[0][0]
 
-    def test_039_string_check_skips_denied_attr(self) -> None:
+    def test_046_string_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_string_check
 
         class _Handler:
@@ -960,12 +961,10 @@ class TestEabProfileDenylist:
         assert cahandler.ca_bundle is True
         assert cahandler.api_user == "kid_user"
         assert cahandler.dns_update_script == "/opt/update.sh"
-        assert cahandler.acme_keyfile == (
-            "/var/www/acme2certifier/volume/acme/ok.json"
-        )
+        assert cahandler.acme_keyfile == ("/var/www/acme2certifier/volume/acme/ok.json")
         assert mock_warn.call_count >= 3
 
-    def test_040_list_check_skips_denied_attr(self) -> None:
+    def test_047_list_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
 
         class _Handler:
@@ -1007,7 +1006,7 @@ class TestEabProfileDenylist:
         mock_warn.assert_called_once()
         mock_validate.assert_called_once()
 
-    def test_040b_list_check_acme_keyfile_outside_keypath(self) -> None:
+    def test_048_list_check_acme_keyfile_outside_keypath(self) -> None:
         """eab_profile_list_check ignores acme_keyfile outside acme_keypath"""
         from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
 
@@ -1062,7 +1061,7 @@ def _tls_alpn_test_cert_pem(digest: bytes, *, critical: bool = True) -> str:
 
 
 class TestTlsAlpnExtensionCheck:
-    def test_041_critical_oid_match(self) -> None:
+    def test_049_critical_oid_match(self) -> None:
         from acme2certifier.acme_srv.helpers.certificates import (
             cert_acme_tls_alpn_extension_ok,
         )
@@ -1075,7 +1074,7 @@ class TestTlsAlpnExtensionCheck:
             is True
         )
 
-    def test_042_non_critical_rejected(self) -> None:
+    def test_050_non_critical_rejected(self) -> None:
         from acme2certifier.acme_srv.helpers.certificates import (
             cert_acme_tls_alpn_extension_ok,
         )
@@ -1088,7 +1087,7 @@ class TestTlsAlpnExtensionCheck:
             is False
         )
 
-    def test_043_wrong_digest_rejected(self) -> None:
+    def test_051_wrong_digest_rejected(self) -> None:
         from acme2certifier.acme_srv.helpers.certificates import (
             cert_acme_tls_alpn_extension_ok,
         )
@@ -1101,7 +1100,7 @@ class TestTlsAlpnExtensionCheck:
             is False
         )
 
-    def test_044_extension_missing(self) -> None:
+    def test_052_extension_missing(self) -> None:
         from acme2certifier.acme_srv.helpers.certificates import (
             cert_acme_tls_alpn_extension_ok,
         )
@@ -1118,9 +1117,11 @@ class TestTlsAlpnExtensionCheck:
             .not_valid_before(datetime.now(timezone.utc) - timedelta(minutes=1))
             .not_valid_after(datetime.now(timezone.utc) + timedelta(days=1))
         )
-        pem = builder.sign(key, hashes.SHA256()).public_bytes(
-            serialization.Encoding.PEM
-        ).decode()
+        pem = (
+            builder.sign(key, hashes.SHA256())
+            .public_bytes(serialization.Encoding.PEM)
+            .decode()
+        )
         logger = logging.getLogger("test_a2c")
         with patch.object(logger, "warning") as mock_warn:
             assert (
@@ -1132,7 +1133,7 @@ class TestTlsAlpnExtensionCheck:
             for c in mock_warn.call_args_list
         )
 
-    def test_045_extension_parse_error(self) -> None:
+    def test_053_extension_parse_error(self) -> None:
         from acme2certifier.acme_srv.helpers.certificates import (
             cert_acme_tls_alpn_extension_ok,
         )
@@ -1154,7 +1155,7 @@ class TestTlsAlpnExtensionCheck:
             for c in mock_warn.call_args_list
         )
 
-    def test_046_invalid_digest_hex(self) -> None:
+    def test_054_invalid_digest_hex(self) -> None:
         from acme2certifier.acme_srv.helpers.certificates import (
             cert_acme_tls_alpn_extension_ok,
         )
@@ -1167,9 +1168,11 @@ class TestTlsAlpnExtensionCheck:
                 cert_acme_tls_alpn_extension_ok(logger, pem, "not-hex", recode=False)
                 is False
             )
-        assert any("invalid expected digest hex" in str(c) for c in mock_warn.call_args_list)
+        assert any(
+            "invalid expected digest hex" in str(c) for c in mock_warn.call_args_list
+        )
 
-    def test_047_digest_wrong_length(self) -> None:
+    def test_055_digest_wrong_length(self) -> None:
         from acme2certifier.acme_srv.helpers.certificates import (
             cert_acme_tls_alpn_extension_ok,
         )
@@ -1183,10 +1186,11 @@ class TestTlsAlpnExtensionCheck:
                 is False
             )
         assert any(
-            "expected digest must be 32 bytes" in str(c) for c in mock_warn.call_args_list
+            "expected digest must be 32 bytes" in str(c)
+            for c in mock_warn.call_args_list
         )
 
-    def test_048_extension_value_unreadable(self) -> None:
+    def test_056_extension_value_unreadable(self) -> None:
         from acme2certifier.acme_srv.helpers.certificates import (
             cert_acme_tls_alpn_extension_ok,
             ACME_TLS_ALPN_OID,

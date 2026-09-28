@@ -1464,7 +1464,11 @@ class CAhandler(object):
         regr = acmeclient.query_registration(regr)
         if regr.body.status != "valid":
             self.logger.error("Enrollment error: Bad ACME account: %s", regr.body.error)
-            return 500, _ACME_ERR_SERVER_INTERNAL, f"Bad ACME account: {regr.body.error}"
+            return (
+                500,
+                _ACME_ERR_SERVER_INTERNAL,
+                f"Bad ACME account: {regr.body.error}",
+            )
 
         self.logger.debug("CAhandler.revoke() issuing revocation order")
         self._revoke_or_fallback(acmeclient, cert)

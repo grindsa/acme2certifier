@@ -86,14 +86,18 @@ def eab_profile_path_under_base(
             "EAB profile: ignoring %s; empty or non-string path",
             key,
         )
-        logger.debug("eab_profile_path_under_base() returning False because base is not configured")
+        logger.debug(
+            "eab_profile_path_under_base() returning False because base is not configured"
+        )
         return False
     if not isinstance(base, str) or not base.strip():
         logger.warning(
             "EAB profile: ignoring %s; base directory is not configured",
             key,
         )
-        logger.debug("eab_profile_path_under_base() returning False because base is not configured")
+        logger.debug(
+            "eab_profile_path_under_base() returning False because base is not configured"
+        )
         return False
 
     try:
@@ -107,7 +111,9 @@ def eab_profile_path_under_base(
                 path,
                 base,
             )
-            logger.debug("eab_profile_path_under_base() returning False because path is outside base")
+            logger.debug(
+                "eab_profile_path_under_base() returning False because path is outside base"
+            )
             return False
     except (OSError, ValueError) as err:
         logger.warning(
@@ -117,9 +123,13 @@ def eab_profile_path_under_base(
             base,
             err,
         )
-        logger.debug("eab_profile_path_under_base() returning False because path check failed")
+        logger.debug(
+            "eab_profile_path_under_base() returning False because path check failed"
+        )
         return False
-    logger.debug("eab_profile_path_under_base() returning True because path is under base")
+    logger.debug(
+        "eab_profile_path_under_base() returning True because path is under base"
+    )
     return True
 
 

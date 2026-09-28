@@ -341,7 +341,9 @@ def cert_acme_tls_alpn_extension_ok(
         logger.warning("tls-alpn-01: id-pe-acmeIdentifier extension not found")
         return False
     except Exception as err:
-        logger.warning("tls-alpn-01: failed to parse ACME identifier extension: %s", err)
+        logger.warning(
+            "tls-alpn-01: failed to parse ACME identifier extension: %s", err
+        )
         return False
 
     if not extension.critical:

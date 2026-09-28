@@ -1531,7 +1531,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(wsgi_mod.HOUSEKEEPING_CLI_ENABLED)
         self.assertTrue(wsgi_mod.TRIGGER_ENDPOINT_ENABLED)
 
-    def test_079b_urls_reject_unanchored_resource_aliases(self):
+    def test_080_urls_reject_unanchored_resource_aliases(self):
         """Resource routes do not match aliases like acctFOO or orderstuff"""
         import re
         import importlib
@@ -1562,7 +1562,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
     @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.update")
     @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.get")
-    def test_080_renewalinfo_post_error_body(
+    def test_081_renewalinfo_post_error_body(
         self, mock_get, mock_post, mock_url, mock_header, mock_body
     ):
         """renewalinfo POST with ACME problem returns JSON body"""

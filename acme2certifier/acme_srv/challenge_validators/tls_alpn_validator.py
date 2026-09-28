@@ -40,7 +40,9 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 details={"import_error": str(e)},
             )
 
-        sni, connect_host, early_failure = self._resolve_target(context, fqdn_resolve, ip_validate)
+        sni, connect_host, early_failure = self._resolve_target(
+            context, fqdn_resolve, ip_validate
+        )
         if early_failure is not None:
             return early_failure
 

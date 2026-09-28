@@ -899,8 +899,9 @@ class Authorization(object):
         self, eab_kid: str, key: str, value: List[str]
     ) -> None:
         """WARNING when an EAB profile applies full-universe prevalidation (intentional; not break-glass-gated)."""
-        if key == "prevalidated_domainlist" and self._is_unbounded_domain_prevalidation(
-            value
+        if (
+            key == "prevalidated_domainlist"
+            and self._is_unbounded_domain_prevalidation(value)
         ):
             self.logger.warning(
                 "EAB profile (eab_kid: %s) applies prevalidated_domainlist=['*']; "

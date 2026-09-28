@@ -928,7 +928,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.acme_srv.message.decode_message")
-    def test_049b_message_check_rejects_mixed_kid_and_jwk(self, mock_decode):
+    def test_050_message_check_rejects_mixed_kid_and_jwk(self, mock_decode):
         """RFC 8555 §6.2: Message.check rejects protected headers with both kid and jwk"""
         protected = {
             "kid": "http://tester.local/acme/acct/attacker",
@@ -945,7 +945,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("jwk", detail)
 
     @patch("acme2certifier.acme_srv.message.decode_message")
-    def test_049c_cli_check_rejects_mixed_kid_and_jwk(self, mock_decode):
+    def test_051_cli_check_rejects_mixed_kid_and_jwk(self, mock_decode):
         """cli_check also rejects mixed kid and jwk"""
         protected = {
             "kid": "http://tester.local/acme/acct/attacker",
@@ -957,7 +957,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("urn:ietf:params:acme:error:malformed", message)
         self.assertIn("kid", detail)
 
-    def test_049d_reject_mixed_kid_and_jwk_helper(self):
+    def test_052_reject_mixed_kid_and_jwk_helper(self):
         """Helper returns None when only one of kid/jwk is present"""
         self.assertIsNone(self.message._reject_mixed_kid_and_jwk({"kid": "x"}))
         self.assertIsNone(self.message._reject_mixed_kid_and_jwk({"jwk": {}}))
@@ -966,7 +966,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(400, rejected[0])
 
     @patch("acme2certifier.acme_srv.message.decode_message")
-    def test_049e_message_check_rejects_protected_url_mismatch(self, mock_decode):
+    def test_053_message_check_rejects_protected_url_mismatch(self, mock_decode):
         """RFC 8555 §6.4: protected url must match the HTTP request URL"""
         protected = {
             "kid": "http://tester.local/acme/acct/1",
@@ -986,7 +986,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.acme_srv.message.decode_message")
     @patch("acme2certifier.acme_srv.message.Signature.check")
     @patch("acme2certifier.acme_srv.message.Nonce.check")
-    def test_049f_message_check_accepts_matching_protected_url(
+    def test_054_message_check_accepts_matching_protected_url(
         self, mock_nonce, mock_sig, mock_decode
     ):
         """Matching protected url and request URL continues validation"""
@@ -1006,7 +1006,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(message)
         self.assertIsNone(detail)
 
-    def test_049g_normalize_and_match_request_url(self):
+    def test_055_normalize_and_match_request_url(self):
         """URL normalization ignores trailing slash and case of scheme/host"""
         from acme2certifier.acme_srv.helper import (
             normalize_request_url,
@@ -1030,7 +1030,7 @@ class TestACMEHandler(unittest.TestCase):
             )
         )
 
-    def test_049h_reject_protected_url_mismatch_helper(self):
+    def test_056_reject_protected_url_mismatch_helper(self):
         """Helper rejects missing url and mismatches"""
         self.assertIsNotNone(
             self.message._reject_protected_url_mismatch(
@@ -1044,7 +1044,7 @@ class TestACMEHandler(unittest.TestCase):
             )
         )
 
-    def test_049i_reject_protected_url_non_dict(self):
+    def test_057_reject_protected_url_non_dict(self):
         """_reject_protected_url_mismatch rejects non-dict protected header"""
         code, message, detail = self.message._reject_protected_url_mismatch(
             None, "http://tester.local/acme/acct/1"
@@ -1053,7 +1053,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("urn:ietf:params:acme:error:malformed", message)
         self.assertEqual("url missing in protected header", detail)
 
-    def test_050_invalid_eab_check(self):
+    def test_058_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -1068,7 +1068,7 @@ class TestACMEHandler(unittest.TestCase):
             self.message._check_and_handle_invalid_eab_credentials("account_name"),
         )
 
-    def test_051_invalid_eab_check(self):
+    def test_059_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -1087,7 +1087,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_052_invalid_eab_check(self):
+    def test_060_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -1113,7 +1113,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(self.message.repo.account_update.called)
 
-    def test_053_invalid_eab_check(self):
+    def test_061_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -1131,7 +1131,7 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Account account_name has no eab credentials", lcm.output
         )
 
-    def test_054_invalid_eab_check(self):
+    def test_062_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -1149,7 +1149,7 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Account lookup for account_name failed.", lcm.output
         )
 
-    def test_055_invalid_eab_check_non_strict_no_eab_kid(self):
+    def test_063_invalid_eab_check_non_strict_no_eab_kid(self):
         """test _invalid_eab_check allows missing eab_kid in non-strict mode"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = None
@@ -1167,7 +1167,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_056__safe_account_lookup_db_error(self):
+    def test_064__safe_account_lookup_db_error(self):
         """test _safe_account_lookup - dbstore.account_lookup raises an exception"""
         self.message.repo = MagicMock()
         self.message.repo.account_lookup.side_effect = Exception(
@@ -1180,7 +1180,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_057_eab_mac_key_exists_exception(self):
+    def test_065_eab_mac_key_exists_exception(self):
         """Test _eab_mac_key_exists handles exception and returns False"""
         self.message.config.eab_handler = MagicMock()
         # Simulate eab_handler raising an exception when called
@@ -1190,7 +1190,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(result)
         self.assertIn("ERROR:test_a2c:EAB handler error: handler error", lcm.output)
 
-    def test_058_handle_missing_eab_credentials_db_error(self):
+    def test_066_handle_missing_eab_credentials_db_error(self):
         """Test _handle_missing_eab_credentials handles db error gracefully"""
         self.message.repo = MagicMock()
         self.message.repo.account_update.side_effect = Exception("db error")
@@ -1211,7 +1211,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.acme_srv.message.Message._extract_account_name_from_content")
-    def test_059_extract_account_name_from_content(self, mock_name_get):
+    def test_067_extract_account_name_from_content(self, mock_name_get):
         """Test _extract_account_name_from_content handles unexpected exceptions gracefully"""
         mock_name_get.return_value = "account_name"
         protected = {"jwk": {"n": "n"}, "url": "http://tester.local/acme/revokecert"}
@@ -1219,7 +1219,7 @@ class TestACMEHandler(unittest.TestCase):
             "account_name", self.message.extract_account_name_from_content(protected)
         )
 
-    def test_063_injected_config_skips_load_config(self):
+    def test_068_injected_config_skips_load_config(self):
         """Message.__init__ uses injected config_dic and does not call load_config()"""
         from acme2certifier.acme_srv.message import Message
 
@@ -1234,7 +1234,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIs(message.config_dic, parser)
 
     @patch("acme2certifier.acme_srv.nonce.Nonce.generate_and_add")
-    def test_064_message_finish_response_wraps_prepare_response(self, mock_nnonce):
+    def test_069_message_finish_response_wraps_prepare_response(self, mock_nnonce):
         """finish_response builds the standard status dict for prepare_response"""
         mock_nnonce.return_value = "new_nonce"
         result = self.message.finish_response(
@@ -1266,19 +1266,19 @@ class TestAccountRepository(unittest.TestCase):
             "acme2certifier.acme_srv.message"
         ).AccountRepository(self.mock_dbstore)
 
-    def test_060_account_lookup_calls_dbstore(self):
+    def test_070_account_lookup_calls_dbstore(self):
         self.mock_dbstore.account_lookup.return_value = "result"
         result = self.repo.account_lookup("key", "value")
         self.mock_dbstore.account_lookup.assert_called_once_with("key", "value")
         self.assertEqual(result, "result")
 
-    def test_061_account_update_calls_dbstore(self):
+    def test_071_account_update_calls_dbstore(self):
         self.mock_dbstore.account_update.return_value = "updated"
         result = self.repo.account_update({"foo": "bar"}, True)
         self.mock_dbstore.account_update.assert_called_once_with({"foo": "bar"}, True)
         self.assertEqual(result, "updated")
 
-    def test_062_cli_permissions_get_calls_dbstore(self):
+    def test_072_cli_permissions_get_calls_dbstore(self):
         self.mock_dbstore.cli_permissions_get.return_value = {"perm": True}
         result = self.repo.cli_permissions_get("account_name")
         self.mock_dbstore.cli_permissions_get.assert_called_once_with("account_name")
