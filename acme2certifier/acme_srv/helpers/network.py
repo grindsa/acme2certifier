@@ -907,6 +907,77 @@ def encode_url(logger: logging.Logger, input_string: str) -> str:
 
 RETRYABLE_STATUS_CODES = {500, 502, 503, 504}
 
+# Credential headers stripped on cross-origin redirects (requests only strips Authorization).
+_SENSITIVE_REDIRECT_HEADERS = frozenset(
+    {
+        "authorization",
+        "proxy-authorization",
+        "x-vault-token",
+        "x-dc-devkey",
+        "x-api-key",
+    }
+)
+
+# Unpatched requests.Session.rebuild_auth (captured once before our wrapper).
+if not getattr(requests.Session, "_a2c_rebuild_auth_patched", False):
+    _ORIGINAL_SESSION_REBUILD_AUTH = requests.Session.rebuild_auth
+else:  # pragma: no cover - module reload
+    _ORIGINAL_SESSION_REBUILD_AUTH = getattr(
+        requests.Session,
+        "_a2c_original_rebuild_auth",
+        requests.Session.rebuild_auth,
+    )
+
+
+def _is_credential_header(name: str) -> bool:
+    """True when *name* is an auth/API-key header that must not cross origins."""
+    lower = name.lower()
+    if lower in _SENSITIVE_REDIRECT_HEADERS:
+        return True
+    if "api-key" in lower or "apikey" in lower:
+        return True
+    if lower.endswith("-token") or lower.endswith("_token"):
+        return True
+    return False
+
+
+def _strip_credential_headers(prepared_request) -> None:
+    """Remove credential headers from a prepared request."""
+    for key in list(prepared_request.headers.keys()):
+        if _is_credential_header(key):
+            del prepared_request.headers[key]
+
+
+def _a2c_session_rebuild_auth(self, prepared_request, response):
+    """Like requests' rebuild_auth, also drop custom CA API credential headers."""
+    strip = self.should_strip_auth(response.request.url, prepared_request.url)
+    _ORIGINAL_SESSION_REBUILD_AUTH(self, prepared_request, response)
+    if strip:
+        _strip_credential_headers(prepared_request)
+
+
+def _install_session_rebuild_auth_patch() -> None:
+    """Patch requests.Session so requests.get/post and custom Sessions all strip."""
+    if getattr(requests.Session, "_a2c_rebuild_auth_patched", False):
+        return
+    requests.Session._a2c_original_rebuild_auth = _ORIGINAL_SESSION_REBUILD_AUTH
+    requests.Session.rebuild_auth = _a2c_session_rebuild_auth
+    requests.Session._a2c_rebuild_auth_patched = True
+
+
+_install_session_rebuild_auth_patch()
+
+
+class RedirectCredentialStripSession(requests.Session):
+    """Session with credential-aware redirect auth (class patch also covers stock Session)."""
+
+
+def resolve_request_session(session: Any) -> Any:
+    """Normalize session for request_operation; keep ``requests`` module for API mocks."""
+    if session is None:
+        return requests
+    return session
+
 
 def _retry_wait_seconds(retry_backoff: float, attempt: int) -> float:
     """Calculate exponential backoff delay for a retry attempt."""
@@ -990,6 +1061,7 @@ def request_operation(
     """Execute an HTTP request with optional retry on transient failures."""
     logger.debug("Helper.api_operation(): method: %s", method)
 
+    session = resolve_request_session(session)
     attempts = 1 + max(retries, 0)
 
     for attempt in range(1, attempts + 1):
