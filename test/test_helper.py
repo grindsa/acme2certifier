@@ -9591,6 +9591,75 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.assertIsNone(_explicit_default_debug({"DEFAULT": {"debug": "maybe"}}))
             self.assertFalse(_explicit_default_debug({"DEFAULT": {"debug": False}}))
 
+    def test_691_eab_profile_check_non_str_non_list_value(self):
+        """Non-string, non-list profile values are ignored."""
+        self.cahandler = MagicMock()
+        self.cahandler.header_info_field = False
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {
+            "boolFlag": True,
+            "nested": {"foo": 1},
+        }
+        self.assertIsNone(
+            self.eab_profile_check(self.logger, self.cahandler, "csr", "boolFlag")
+        )
+
+    def test_692_eab_profile_check_cert_chain_skip_list(self):
+        """cert_chain_skip_list is validated and not setattr'd onto the handler"""
+        cahandler = FakeDBStore()
+        cahandler.header_info_field = None
+        eab_handler = MagicMock()
+        cahandler.eab_handler = MagicMock()
+        cahandler.eab_handler.return_value.__enter__.return_value = eab_handler
+        eab_handler.eab_profile_get.return_value = {
+            "cert_chain_skip_list": ["aabbccdd"]
+        }
+        with (
+            patch(
+                "acme2certifier.acme_srv.helpers.eab.eab_profile_string_check"
+            ) as mock_string,
+            patch(
+                "acme2certifier.acme_srv.helpers.eab.eab_profile_list_check"
+            ) as mock_list,
+        ):
+            self.assertIsNone(
+                self.eab_profile_check(self.logger, cahandler, "csr", "field")
+            )
+        mock_string.assert_not_called()
+        mock_list.assert_not_called()
+        self.assertFalse(hasattr(cahandler, "cert_chain_skip_list"))
+
+    def test_693_eab_profile_check_cert_chain_skip_list_invalid(self):
+        """invalid kid skip-list fails eab_profile_check"""
+        cahandler = FakeDBStore()
+        cahandler.header_info_field = None
+        eab_handler = MagicMock()
+        cahandler.eab_handler = MagicMock()
+        cahandler.eab_handler.return_value.__enter__.return_value = eab_handler
+        eab_handler.eab_profile_get.return_value = {"cert_chain_skip_list": "nope"}
+        self.assertEqual(
+            "Configuration error: Failed to parse cert_chain_skip_list",
+            self.eab_profile_check(self.logger, cahandler, "csr", "field"),
+        )
+        self.assertFalse(hasattr(cahandler, "cert_chain_skip_list"))
+
+    def test_694_eab_profile_check_cert_chain_append_missing_file(self):
+        """missing kid append PEM fails eab_profile_check"""
+        cahandler = FakeDBStore()
+        cahandler.header_info_field = None
+        eab_handler = MagicMock()
+        cahandler.eab_handler = MagicMock()
+        cahandler.eab_handler.return_value.__enter__.return_value = eab_handler
+        eab_handler.eab_profile_get.return_value = {
+            "cert_chain_append": ["/no/such/file.pem"]
+        }
+        result = self.eab_profile_check(self.logger, cahandler, "csr", "field")
+        self.assertTrue(
+            result.startswith(
+                "Configuration error: Failed to read cert_chain_append file"
+            )
+        )
+        self.assertFalse(hasattr(cahandler, "cert_chain_append"))
+
 
 if __name__ == "__main__":
     unittest.main()
