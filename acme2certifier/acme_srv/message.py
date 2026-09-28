@@ -29,6 +29,8 @@ from acme2certifier.acme_srv.helpers.security_gate import (  # noqa: F401
     security_disable_acknowledged,
 )
 
+ACME_ERROR_MALFORMED = "urn:ietf:params:acme:error:malformed"
+
 
 def finish_response(
     handler: Any,
@@ -392,6 +394,23 @@ class Message(object):
         )
         return (code, message, detail)
 
+    def _reject_mixed_kid_and_jwk(
+        self, protected: Optional[Dict[str, str]]
+    ) -> Optional[Tuple[int, str, str]]:
+        """RFC 8555 §6.2: protected headers must not contain both kid and jwk."""
+        if not isinstance(protected, dict):
+            return None
+        if "kid" in protected and "jwk" in protected:
+            self.logger.warning(
+                "Rejecting JWS protected header containing both kid and jwk"
+            )
+            return (
+                400,
+                ACME_ERROR_MALFORMED,
+                "The request included both 'kid' and 'jwk' fields; only one is allowed",
+            )
+        return None
+
     def _validate_message_and_check_signature(
         self,
         skip_nonce_check: bool,
@@ -402,6 +421,11 @@ class Message(object):
     ) -> Tuple[int, str, str, str]:
         """Decoding successful - check nonce for anti replay protection and signature."""
         self.logger.debug("Message._validate_message_and_check_signature()")
+
+        mixed = self._reject_mixed_kid_and_jwk(protected)
+        if mixed is not None:
+            code, message, detail = mixed
+            return (code, message, detail, None)
 
         code, message, detail = self._check_nonce_for_replay_protection(
             skip_nonce_check, protected
@@ -472,7 +496,7 @@ class Message(object):
             )
         else:
             code = 400
-            message = "urn:ietf:params:acme:error:malformed"
+            message = ACME_ERROR_MALFORMED
             detail = error_detail
 
         self.logger.debug("Message._check() ended with:%s", code)
@@ -491,6 +515,19 @@ class Message(object):
         account_name = None
         permissions = {}
         if result:
+            mixed = self._reject_mixed_kid_and_jwk(protected)
+            if mixed is not None:
+                code, message, detail = mixed
+                self.logger.debug("Message.cli_check() ended with:%s", code)
+                return (
+                    code,
+                    message,
+                    detail,
+                    protected,
+                    payload,
+                    None,
+                    permissions,
+                )
             # check signature
             account_name = self._extract_account_name_from_content(protected)
             signature = Signature(self.debug, self.server_name, self.logger)
@@ -511,7 +548,7 @@ class Message(object):
         else:
             # message could not get decoded
             code = 400
-            message = "urn:ietf:params:acme:error:malformed"
+            message = ACME_ERROR_MALFORMED
             detail = error_detail
 
         self.logger.debug("Message.cli_check() ended with:%s", code)

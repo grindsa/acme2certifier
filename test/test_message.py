@@ -927,6 +927,44 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+    @patch("acme2certifier.acme_srv.message.decode_message")
+    def test_049b_message_check_rejects_mixed_kid_and_jwk(self, mock_decode):
+        """RFC 8555 §6.2: Message.check rejects protected headers with both kid and jwk"""
+        protected = {
+            "kid": "http://tester.local/acme/acct/attacker",
+            "jwk": {"kty": "RSA", "n": "victim", "e": "AQAB"},
+            "url": "http://tester.local/acme/newaccount",
+            "alg": "RS256",
+            "nonce": "n",
+        }
+        mock_decode.return_value = (True, None, protected, {}, "sig")
+        code, message, detail, *_rest = self.message.check('{"foo":"bar"}', True)
+        self.assertEqual(400, code)
+        self.assertEqual("urn:ietf:params:acme:error:malformed", message)
+        self.assertIn("kid", detail)
+        self.assertIn("jwk", detail)
+
+    @patch("acme2certifier.acme_srv.message.decode_message")
+    def test_049c_cli_check_rejects_mixed_kid_and_jwk(self, mock_decode):
+        """cli_check also rejects mixed kid and jwk"""
+        protected = {
+            "kid": "http://tester.local/acme/acct/attacker",
+            "jwk": {"kty": "RSA", "n": "victim", "e": "AQAB"},
+        }
+        mock_decode.return_value = (True, None, protected, {}, "sig")
+        code, message, detail, *_rest = self.message.cli_check('{"foo":"bar"}')
+        self.assertEqual(400, code)
+        self.assertEqual("urn:ietf:params:acme:error:malformed", message)
+        self.assertIn("kid", detail)
+
+    def test_049d_reject_mixed_kid_and_jwk_helper(self):
+        """Helper returns None when only one of kid/jwk is present"""
+        self.assertIsNone(self.message._reject_mixed_kid_and_jwk({"kid": "x"}))
+        self.assertIsNone(self.message._reject_mixed_kid_and_jwk({"jwk": {}}))
+        self.assertIsNone(self.message._reject_mixed_kid_and_jwk({}))
+        rejected = self.message._reject_mixed_kid_and_jwk({"kid": "x", "jwk": {}})
+        self.assertEqual(400, rejected[0])
+
     def test_050_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
