@@ -6,6 +6,7 @@
 import unittest
 import importlib
 import configparser
+import json
 import sys
 from unittest.mock import patch, MagicMock, Mock
 
@@ -337,11 +338,18 @@ class TestExternalAccountBinding(unittest.TestCase):
         """test check success"""
         import base64
 
-        protected = {"jwk": {"kty": "oct", "k": "abc"}}
+        newaccount_url = "http://tester.local/acme/newaccount"
+        protected = {
+            "jwk": {"kty": "oct", "k": "abc"},
+            "url": newaccount_url,
+        }
+        eab_protected = base64.b64encode(
+            json.dumps({"kid": "test_kid", "url": newaccount_url}).encode()
+        ).decode()
         payload = {
             "externalaccountbinding": {
                 "payload": base64.b64encode(b'{"kty": "oct", "k": "abc"}').decode(),
-                "protected": base64.b64encode(b'{"kid": "test_kid"}').decode(),
+                "protected": eab_protected,
             }
         }
         self.eabhandler.return_value.__enter__.return_value.mac_key_get.return_value = (
@@ -359,6 +367,7 @@ class TestExternalAccountBinding(unittest.TestCase):
                     "malformed": "malformed",
                     "externalaccountrequired": "externalaccountrequired",
                 },
+                request_url=newaccount_url,
             )
             self.assertEqual(code, 200)
             self.assertIsNone(message)
@@ -455,6 +464,104 @@ class TestExternalAccountBinding(unittest.TestCase):
         self.assertEqual(detail, "invalid eab credentials")
         self.assertTrue(
             any("EAB kid lookup failed kid=None" in line for line in log_cm.output),
+            log_cm.output,
+        )
+
+    def _eab_err_dic(self):
+        return {
+            "unauthorized": "unauthorized",
+            "malformed": "malformed",
+            "externalaccountrequired": "externalaccountrequired",
+        }
+
+    def test_020_check_rejects_inner_outer_url_mismatch(self):
+        """RFC 8555 §7.3.4: EAB inner url must match outer protected url"""
+        import base64
+
+        protected = {
+            "jwk": {"kty": "oct", "k": "abc"},
+            "url": "http://tester.local/acme/newaccount",
+        }
+        eab_protected = base64.b64encode(
+            json.dumps(
+                {
+                    "kid": "test_kid",
+                    "url": "https://other.example/acme/newaccount",
+                }
+            ).encode()
+        ).decode()
+        payload = {
+            "externalaccountbinding": {
+                "payload": base64.b64encode(b'{"kty": "oct", "k": "abc"}').decode(),
+                "protected": eab_protected,
+            }
+        }
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.eab.check(
+                protected, payload, self._eab_err_dic()
+            )
+        self.assertEqual(code, 403)
+        self.assertEqual(message, "malformed")
+        self.assertEqual(detail, "Malformed request")
+        self.assertTrue(
+            any("EAB url mismatch" in line for line in log_cm.output),
+            log_cm.output,
+        )
+
+    def test_021_check_rejects_missing_inner_url(self):
+        """EAB protected header without url is rejected"""
+        import base64
+
+        protected = {
+            "jwk": {"kty": "oct", "k": "abc"},
+            "url": "http://tester.local/acme/newaccount",
+        }
+        payload = {
+            "externalaccountbinding": {
+                "payload": base64.b64encode(b'{"kty": "oct", "k": "abc"}').decode(),
+                "protected": base64.b64encode(b'{"kid": "test_kid"}').decode(),
+            }
+        }
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.eab.check(
+                protected, payload, self._eab_err_dic()
+            )
+        self.assertEqual(code, 403)
+        self.assertEqual(message, "malformed")
+        self.assertIn(
+            "WARNING:test_a2c:EAB malformed: missing url in protected header",
+            log_cm.output,
+        )
+
+    def test_022_check_rejects_request_url_mismatch(self):
+        """EAB inner url must also match the HTTP newAccount request URL"""
+        import base64
+
+        newaccount_url = "http://tester.local/acme/newaccount"
+        protected = {
+            "jwk": {"kty": "oct", "k": "abc"},
+            "url": newaccount_url,
+        }
+        eab_protected = base64.b64encode(
+            json.dumps({"kid": "test_kid", "url": newaccount_url}).encode()
+        ).decode()
+        payload = {
+            "externalaccountbinding": {
+                "payload": base64.b64encode(b'{"kty": "oct", "k": "abc"}').decode(),
+                "protected": eab_protected,
+            }
+        }
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            code, message, detail = self.eab.check(
+                protected,
+                payload,
+                self._eab_err_dic(),
+                request_url="http://other.local/acme/newaccount",
+            )
+        self.assertEqual(code, 403)
+        self.assertEqual(message, "malformed")
+        self.assertTrue(
+            any("request=" in line for line in log_cm.output),
             log_cm.output,
         )
 
@@ -1011,7 +1118,9 @@ class TestAccount(unittest.TestCase):
         """Key-change payload posted to /acct/... must be rejected"""
         self.account.message.request_url = "http://tester.local/acme/acct/1"
         protected = {"url": "http://tester.local/acme/key-change"}
-        result = self.account._handle_key_change("test_account", {"payload": {}}, protected)
+        result = self.account._handle_key_change(
+            "test_account", {"payload": {}}, protected
+        )
         self.assertEqual(result["data"]["status"], 400)
         self.assertIn("key-change URL", result["data"]["detail"])
 
