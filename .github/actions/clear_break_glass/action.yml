@@ -43,17 +43,25 @@ runs:
             fi
             ;;
           rpm|deb)
+            # deb+apache2 runs under apache2/mod_wsgi (no acme2certifier unit).
+            # rpm and deb+nginx use acme2certifier.service (uWSGI).
+            if [ "${DEPLOYMENT_TYPE}" = "deb" ] && [ "${WEBSRV}" = "apache2" ]; then
+              UNIT="apache2.service"
+            else
+              UNIT="acme2certifier.service"
+            fi
             # EL8 systemd can retain manager DefaultEnvironment across a soft
-            # restart; remove drop-in, UnsetEnvironment on the unit, reexec,
-            # stop/start, then assert the running process no longer has the env.
+            # restart; remove drop-in, UnsetEnvironment on the app unit, reexec,
+            # restart, then assert the running process no longer has the env.
             docker exec "${CONTAINER}" bash -c "
               set -euo pipefail
+              unit='${UNIT}'
               rm -f /etc/systemd/system.conf.d/${CONF_NAME}
-              mkdir -p /etc/systemd/system/acme2certifier.service.d
+              mkdir -p \"/etc/systemd/system/\${unit}.d\"
               printf '%s\n' \
                 '[Service]' \
                 'UnsetEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK' \
-                > /etc/systemd/system/acme2certifier.service.d/clear-break-glass.conf
+                > \"/etc/systemd/system/\${unit}.d/clear-break-glass.conf\"
               systemctl daemon-reload
               systemctl daemon-reexec
             "
@@ -71,24 +79,25 @@ runs:
                 fi
                 docker exec "${CONTAINER}" bash -c "
                   set -euo pipefail
-                  systemctl stop acme2certifier.service || true
+                  systemctl stop '${UNIT}' || true
                   bash /tmp/acme2certifier/a2c-deb.sh restart ${WEBSRV}
                 "
               fi
             fi
-            docker exec "${CONTAINER}" bash -c '
+            docker exec "${CONTAINER}" bash -c "
               set -euo pipefail
-              pid="$(systemctl show -p MainPID --value acme2certifier.service)"
-              if [ -z "${pid}" ] || [ "${pid}" = "0" ]; then
-                echo "ERROR: acme2certifier MainPID unavailable after clear" >&2
+              unit='${UNIT}'
+              pid=\"\$(systemctl show -p MainPID --value \"\${unit}\")\"
+              if [ -z \"\${pid}\" ] || [ \"\${pid}\" = \"0\" ]; then
+                echo \"ERROR: \${unit} MainPID unavailable after clear\" >&2
                 exit 1
               fi
-              if tr "\0" "\n" < "/proc/${pid}/environ" | grep -qx "ACME2CERTIFIER_I_KNOW_THE_RISK=1"; then
-                echo "ERROR: ACME2CERTIFIER_I_KNOW_THE_RISK still set in pid ${pid}" >&2
+              if tr '\0' '\n' < \"/proc/\${pid}/environ\" | grep -qx 'ACME2CERTIFIER_I_KNOW_THE_RISK=1'; then
+                echo \"ERROR: ACME2CERTIFIER_I_KNOW_THE_RISK still set in \${unit} pid \${pid}\" >&2
                 exit 1
               fi
-              echo "break-glass cleared (pid ${pid})"
-            '
+              echo \"break-glass cleared (\${unit} pid \${pid})\"
+            "
             ;;
           *)
             echo "ERROR: unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2

@@ -50,12 +50,22 @@ runs:
           rpm|deb)
             # Drop any prior UnsetEnvironment from clear_break_glass so the
             # manager DefaultEnvironment can take effect on the unit again.
-            docker exec "${CONTAINER}" bash -c "mkdir -p /etc/systemd/system.conf.d && \
-              rm -f /etc/systemd/system/acme2certifier.service.d/clear-break-glass.conf && \
+            # deb+apache2 uses apache2.service; rpm/deb+nginx use acme2certifier.
+            if [ "${DEPLOYMENT_TYPE}" = "deb" ] && [ "${WEBSRV}" = "apache2" ]; then
+              UNIT="apache2.service"
+            else
+              UNIT="acme2certifier.service"
+            fi
+            docker exec "${CONTAINER}" bash -c "
+              set -euo pipefail
+              unit='${UNIT}'
+              mkdir -p /etc/systemd/system.conf.d
+              rm -f \"/etc/systemd/system/\${unit}.d/clear-break-glass.conf\"
               printf '[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n' \
-                > /etc/systemd/system.conf.d/${CONF_NAME} && \
-              systemctl daemon-reload && \
-              systemctl daemon-reexec"
+                > /etc/systemd/system.conf.d/${CONF_NAME}
+              systemctl daemon-reload
+              systemctl daemon-reexec
+            "
             if [ "${RESTART}" = "true" ]; then
               if [ "${DEPLOYMENT_TYPE}" = "rpm" ]; then
                 docker exec "${CONTAINER}" bash /tmp/acme2certifier/a2c-rpm.sh restart

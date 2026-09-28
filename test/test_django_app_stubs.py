@@ -104,7 +104,7 @@ class TestDjangoAppStubs(unittest.TestCase):
         """Path suffixes must not pass extra positional args into Django views."""
         import re
 
-        from django.urls import resolve
+        from django.urls import clear_url_caches, resolve
 
         mock_hk = MagicMock()
         mock_cm = MagicMock()
@@ -129,6 +129,7 @@ class TestDjangoAppStubs(unittest.TestCase):
                 f"capturing group in {regex!r} would break view arity",
             )
 
+        clear_url_caches()
         for path in (
             "authz/UJd0j258FXIs",
             "order/f10UwlTs5bMc",
@@ -138,7 +139,9 @@ class TestDjangoAppStubs(unittest.TestCase):
             "cert/abc",
             "renewal-info/abc",
         ):
-            match = resolve("/" + path)
+            # Pass urlconf explicitly: another suite may have configured Django
+            # first without ROOT_URLCONF. Leading slash is required by resolve().
+            match = resolve("/" + path, urlconf=urls_mod)
             self.assertEqual(match.args, ())
 
 
