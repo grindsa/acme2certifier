@@ -3593,6 +3593,30 @@ class TestACMEHandler(unittest.TestCase):
             )
         )
 
+    @patch("acme2certifier.cahandlers.acme_ca_handler.eab_profile_path_under_base")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.eab_profile_warn_if_denied")
+    def test_169_eab_try_set_paired_acme_keyfile_outside_base(
+        self, mock_denied, mock_path
+    ):
+        """_eab_try_set_paired_acme_keyfile returns False when path fails allowlist"""
+        mock_denied.return_value = False
+        mock_path.return_value = False
+        self.cahandler.acme_url = "https://acme.example/dir"
+        self.cahandler.acme_keypath = "/var/www/acme2certifier/volume/acme"
+        self.cahandler._eab_paired_acme_url_list = [
+            "https://acme.example/dir",
+            "https://other.example/dir",
+        ]
+        self.cahandler.acme_keyfile = "default.json"
+        self.assertFalse(
+            self.cahandler._eab_try_set_paired_acme_keyfile(
+                "acme_keyfile",
+                ["/etc/passwd", "/var/www/acme2certifier/volume/acme/ok.json"],
+            )
+        )
+        self.assertEqual("default.json", self.cahandler.acme_keyfile)
+        mock_path.assert_called_once()
+
     def test_167_eab_apply_acme_url_side_effects_missing_keypath(self):
         """_eab_apply_acme_url_side_effects errors when acme_keypath is missing"""
         self.cahandler.acme_keypath = None

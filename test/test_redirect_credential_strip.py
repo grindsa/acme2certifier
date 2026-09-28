@@ -115,6 +115,61 @@ class TestRedirectCredentialStrip(unittest.TestCase):
         self.assertIsNone(prepared.headers.get("X-DC-DEVKEY"))
         self.assertEqual(prepared.headers.get("Accept"), "application/json")
 
+    def test_007_is_credential_header_apikey_and_token_suffix(self):
+        """Heuristic matches apikey substring and *-token / *_token suffixes"""
+        self.assertTrue(self.is_cred("X-Custom-Apikey"))
+        self.assertTrue(self.is_cred("X-Service-Token"))
+        self.assertTrue(self.is_cred("x_refresh_token"))
+        self.assertFalse(self.is_cred("X-Request-Id"))
+
+    def test_008_normalize_request_url_empty_and_match(self):
+        """normalize_request_url handles empty input; match helper compares"""
+        self.assertEqual(self.network.normalize_request_url(""), "")
+        self.assertEqual(self.network.normalize_request_url(None), "")
+        self.assertTrue(
+            self.network.protected_url_matches_request(
+                "HTTPS://Host.Example/acme/new/",
+                "https://host.example/acme/new",
+            )
+        )
+
+    def test_009_first_resolved_address_variants(self):
+        """_first_resolved_address picks list/str or falls back"""
+        first = self.network._first_resolved_address
+        self.assertEqual(first(["10.0.0.1", "10.0.0.2"], "fallback"), "10.0.0.1")
+        self.assertEqual(first([], "fallback"), "fallback")
+        self.assertEqual(first("10.0.0.9", "fallback"), "10.0.0.9")
+        self.assertEqual(first("", "fallback"), "fallback")
+        self.assertEqual(first(None, "fallback"), "fallback")
+
+    def test_010_ensure_custom_dns_connect_wrapper_races_and_idempotent(self):
+        """Second check inside lock returns early; install is idempotent"""
+        from unittest.mock import patch
+
+        # Already installed: first-line early return
+        self.network._dns_connect_wrapper_installed = True
+        self.network._ensure_custom_dns_connect_wrapper()
+
+        # Simulate race: flag becomes True after outer check, before inner check
+        self.network._dns_connect_wrapper_installed = False
+
+        class _RaceLock:
+            def __enter__(self_inner):
+                self.network._dns_connect_wrapper_installed = True
+                return self_inner
+
+            def __exit__(self_inner, *args):
+                return False
+
+        with patch.object(self.network, "_dns_connect_install_lock", _RaceLock()):
+            self.network._ensure_custom_dns_connect_wrapper()
+        self.assertTrue(self.network._dns_connect_wrapper_installed)
+
+    def test_011_install_session_rebuild_auth_patch_idempotent(self):
+        """_install_session_rebuild_auth_patch returns early when already patched"""
+        self.assertTrue(getattr(requests.Session, "_a2c_rebuild_auth_patched", False))
+        self.network._install_session_rebuild_auth_patch()
+
 
 if __name__ == "__main__":
     unittest.main()

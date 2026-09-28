@@ -3273,5 +3273,26 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
         )
 
 
+class TestTlsAlpnFirstResolvedIp(unittest.TestCase):
+    """Coverage for TlsAlpnChallengeValidator._first_resolved_ip"""
+
+    def setUp(self):
+        self.logger = Mock(spec=logging.Logger)
+        self.validator = TlsAlpnChallengeValidator(self.logger)
+
+    def test_149_first_resolved_ip_string_and_empty(self):
+        """String address is returned; empty/None yield None"""
+        self.assertEqual(
+            self.validator._first_resolved_ip("203.0.113.10"), "203.0.113.10"
+        )
+        self.assertIsNone(self.validator._first_resolved_ip(""))
+        self.assertIsNone(self.validator._first_resolved_ip(None))
+        self.assertIsNone(self.validator._first_resolved_ip([]))
+        self.assertEqual(
+            self.validator._first_resolved_ip(["198.51.100.1", "198.51.100.2"]),
+            "198.51.100.1",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -565,6 +565,54 @@ class TestExternalAccountBinding(unittest.TestCase):
             log_cm.output,
         )
 
+    def test_023_decode_protected_non_object_json(self):
+        """_decode_protected returns None when JSON is not an object"""
+        import base64
+
+        protected = base64.b64encode(b'["not", "an", "object"]').decode()
+        self.assertIsNone(self.eab._decode_protected(protected))
+
+    def test_024_reject_eab_url_undecodable_protected(self):
+        """_reject_eab_url_mismatch rejects undecodable EAB protected header"""
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            result = self.eab._reject_eab_url_mismatch(
+                {"url": "http://tester.local/acme/newaccount"},
+                "not-valid-base64!!!",
+                self._eab_err_dic(),
+            )
+        self.assertEqual(
+            result,
+            (403, "malformed", self.eab.MALFORMED_REQUEST_DETAIL),
+        )
+        self.assertIn(
+            "WARNING:test_a2c:EAB malformed: protected header not decodable",
+            log_cm.output,
+        )
+
+    def test_025_reject_eab_url_missing_outer_url(self):
+        """_reject_eab_url_mismatch rejects missing outer protected url"""
+        import base64
+
+        eab_protected = base64.b64encode(
+            json.dumps(
+                {"kid": "test_kid", "url": "http://tester.local/acme/newaccount"}
+            ).encode()
+        ).decode()
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            result = self.eab._reject_eab_url_mismatch(
+                {},
+                eab_protected,
+                self._eab_err_dic(),
+            )
+        self.assertEqual(
+            result,
+            (403, "malformed", self.eab.MALFORMED_REQUEST_DETAIL),
+        )
+        self.assertIn(
+            "WARNING:test_a2c:EAB malformed: missing url in outer protected header",
+            log_cm.output,
+        )
+
 
 class TestAccount(unittest.TestCase):
     """test class for Account"""

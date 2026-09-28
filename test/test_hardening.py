@@ -905,6 +905,28 @@ class TestEabProfileDenylist:
         assert eab_profile_path_under_base(logger, "acme_keyfile", f"{base}/x", None) is False
         assert eab_profile_path_under_base(logger, "acme_keyfile", "", base) is False
 
+    def test_038c_path_under_base_oserror(self) -> None:
+        """eab_profile_path_under_base returns False when realpath raises"""
+        from acme2certifier.acme_srv.helpers.security_gate import (
+            eab_profile_path_under_base,
+        )
+
+        logger = logging.getLogger("test_a2c")
+        with patch(
+            "acme2certifier.acme_srv.helpers.security_gate.os.path.realpath",
+            side_effect=OSError("boom"),
+        ):
+            with patch.object(logger, "warning") as mock_warn:
+                result = eab_profile_path_under_base(
+                    logger,
+                    "acme_keyfile",
+                    "/var/www/acme2certifier/volume/acme/x.json",
+                    "/var/www/acme2certifier/volume/acme",
+                )
+        assert result is False
+        mock_warn.assert_called()
+        assert "path check failed" in mock_warn.call_args[0][0]
+
     def test_039_string_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_string_check
 
@@ -985,6 +1007,31 @@ class TestEabProfileDenylist:
         mock_warn.assert_called_once()
         mock_validate.assert_called_once()
 
+    def test_040b_list_check_acme_keyfile_outside_keypath(self) -> None:
+        """eab_profile_list_check ignores acme_keyfile outside acme_keypath"""
+        from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
+
+        class _Handler:
+            acme_keyfile = "default.json"
+            acme_keypath = "/var/www/acme2certifier/volume/acme"
+
+        cahandler = _Handler()
+        logger = logging.getLogger("test_a2c")
+        with patch(
+            "acme2certifier.acme_srv.helpers.eab.client_parameter_validate",
+            return_value=("/etc/passwd", None),
+        ):
+            result = eab_profile_list_check(
+                logger,
+                cahandler,
+                MagicMock(),
+                "csr",
+                "acme_keyfile",
+                ["/etc/passwd"],
+            )
+        assert result is None
+        assert cahandler.acme_keyfile == "default.json"
+
 
 def _tls_alpn_test_cert_pem(digest: bytes, *, critical: bool = True) -> str:
     """Build a short-lived self-signed cert with id-pe-acmeIdentifier."""
@@ -1052,4 +1099,127 @@ class TestTlsAlpnExtensionCheck:
         assert (
             cert_acme_tls_alpn_extension_ok(logger, pem, ("22" * 32), recode=False)
             is False
+        )
+
+    def test_044_extension_missing(self) -> None:
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+        from datetime import datetime, timedelta, timezone
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "x")])
+        builder = (
+            x509.CertificateBuilder()
+            .subject_name(name)
+            .issuer_name(name)
+            .public_key(key.public_key())
+            .serial_number(1)
+            .not_valid_before(datetime.now(timezone.utc) - timedelta(minutes=1))
+            .not_valid_after(datetime.now(timezone.utc) + timedelta(days=1))
+        )
+        pem = builder.sign(key, hashes.SHA256()).public_bytes(
+            serialization.Encoding.PEM
+        ).decode()
+        logger = logging.getLogger("test_a2c")
+        with patch.object(logger, "warning") as mock_warn:
+            assert (
+                cert_acme_tls_alpn_extension_ok(logger, pem, "ab" * 32, recode=False)
+                is False
+            )
+        assert any(
+            "id-pe-acmeIdentifier extension not found" in str(c)
+            for c in mock_warn.call_args_list
+        )
+
+    def test_045_extension_parse_error(self) -> None:
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+
+        logger = logging.getLogger("test_a2c")
+        with patch(
+            "acme2certifier.acme_srv.helpers.certificates.cert_load",
+            side_effect=ValueError("bad cert"),
+        ):
+            with patch.object(logger, "warning") as mock_warn:
+                assert (
+                    cert_acme_tls_alpn_extension_ok(
+                        logger, "pem", "ab" * 32, recode=False
+                    )
+                    is False
+                )
+        assert any(
+            "failed to parse ACME identifier extension" in str(c)
+            for c in mock_warn.call_args_list
+        )
+
+    def test_046_invalid_digest_hex(self) -> None:
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+
+        digest = b"\xab" * 32
+        pem = _tls_alpn_test_cert_pem(digest, critical=True)
+        logger = logging.getLogger("test_a2c")
+        with patch.object(logger, "warning") as mock_warn:
+            assert (
+                cert_acme_tls_alpn_extension_ok(logger, pem, "not-hex", recode=False)
+                is False
+            )
+        assert any("invalid expected digest hex" in str(c) for c in mock_warn.call_args_list)
+
+    def test_047_digest_wrong_length(self) -> None:
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+
+        digest = b"\xab" * 32
+        pem = _tls_alpn_test_cert_pem(digest, critical=True)
+        logger = logging.getLogger("test_a2c")
+        with patch.object(logger, "warning") as mock_warn:
+            assert (
+                cert_acme_tls_alpn_extension_ok(logger, pem, "ab" * 16, recode=False)
+                is False
+            )
+        assert any(
+            "expected digest must be 32 bytes" in str(c) for c in mock_warn.call_args_list
+        )
+
+    def test_048_extension_value_unreadable(self) -> None:
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+            ACME_TLS_ALPN_OID,
+        )
+
+        class _BadValue:
+            def public_bytes(self):
+                raise RuntimeError("no bytes")
+
+        class _Ext:
+            critical = True
+            value = _BadValue()
+
+        class _Cert:
+            class extensions:
+                @staticmethod
+                def get_extension_for_oid(oid):
+                    assert oid == ACME_TLS_ALPN_OID
+                    return _Ext()
+
+        logger = logging.getLogger("test_a2c")
+        with patch(
+            "acme2certifier.acme_srv.helpers.certificates.cert_load",
+            return_value=_Cert(),
+        ):
+            with patch.object(logger, "warning") as mock_warn:
+                assert (
+                    cert_acme_tls_alpn_extension_ok(
+                        logger, "pem", "ab" * 32, recode=False
+                    )
+                    is False
+                )
+        assert any(
+            "cannot read ACME identifier extension value" in str(c)
+            for c in mock_warn.call_args_list
         )

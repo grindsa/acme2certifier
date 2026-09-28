@@ -1044,6 +1044,15 @@ class TestACMEHandler(unittest.TestCase):
             )
         )
 
+    def test_049i_reject_protected_url_non_dict(self):
+        """_reject_protected_url_mismatch rejects non-dict protected header"""
+        code, message, detail = self.message._reject_protected_url_mismatch(
+            None, "http://tester.local/acme/acct/1"
+        )
+        self.assertEqual(400, code)
+        self.assertEqual("urn:ietf:params:acme:error:malformed", message)
+        self.assertEqual("url missing in protected header", detail)
+
     def test_050_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
