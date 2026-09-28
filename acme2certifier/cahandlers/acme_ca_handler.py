@@ -50,6 +50,8 @@ from acme2certifier.acme_srv.helpers.security_gate import (
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
+_ZEROSSL_EAB_URL = "https://api.zerossl.com/acme/eab-credentials-email"
+
 
 class CAhandler(object):
     """EST CA  handler"""
@@ -921,22 +923,40 @@ class CAhandler(object):
             except Exception as err:
                 self.logger.error("Could not map account to keyfile: %s", err)
 
-    def _zerossl_eab_get(self):
-        """get eab credentials from zerossl"""
+    def _zerossl_eab_get(self) -> None:
+        """Fetch ZeroSSL EAB credentials over HTTPS without following redirects."""
         self.logger.debug("CAhandler._zerossl_eab_get()")
 
-        zero_eab_email = "http://api.zerossl.com/acme/eab-credentials-email"
+        zero_eab_email = "https://api.zerossl.com/acme/eab-credentials-email"
         data = {"email": self.email}
 
-        response = requests.post(zero_eab_email, data=data, timeout=20)
+        response = requests.post(
+            zero_eab_email, data=data, timeout=20, allow_redirects=False
+        )
+        if response.is_redirect:
+            self.logger.error(
+                "Could not get eab credentials from ZeroSSL: HTTP %s",
+                response.status_code,
+            )
+            return
+
+        try:
+            payload = response.json()
+        except ValueError:
+            self.logger.error(
+                "Could not get eab credentials from ZeroSSL: HTTP %s",
+                response.status_code,
+            )
+            return
+
         if (
-            "success" in response.json()
-            and response.json()["success"]
-            and "eab_kid" in response.json()
-            and "eab_hmac_key" in response.json()
+            isinstance(payload, dict)
+            and payload.get("success")
+            and "eab_kid" in payload
+            and "eab_hmac_key" in payload
         ):
-            self.eab_kid = response.json()["eab_kid"]
-            self.eab_hmac_key = response.json()["eab_hmac_key"]
+            self.eab_kid = payload["eab_kid"]
+            self.eab_hmac_key = payload["eab_hmac_key"]
             self.logger.debug("CAhandler._zerossl_eab_get() ended successfully")
         else:
             self.logger.error(

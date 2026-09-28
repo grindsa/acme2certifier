@@ -1736,22 +1736,33 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertIn("ERROR:test_a2c:Revocation error: ex_user_key_load", lcm.output)
 
+    def _assert_zerossl_eab_post(self, mock_post):
+        """ZeroSSL EAB bootstrap must be HTTPS and must not follow redirects."""
+        mock_post.assert_called_once_with(
+            "https://api.zerossl.com/acme/eab-credentials-email",
+            data={"email": self.cahandler.email},
+            timeout=20,
+            allow_redirects=False,
+        )
+
     @patch("requests.post")
     def test_073__zerossl_eab_get(self, mock_post):
         """CAhandler._zerossl_eab_get() - all ok"""
+        mock_post.return_value.is_redirect = False
         mock_post.return_value.json.return_value = {
             "success": True,
             "eab_kid": "eab_kid",
             "eab_hmac_key": "eab_hmac_key",
         }
         self.cahandler._zerossl_eab_get()
-        self.assertTrue(mock_post.called)
+        self._assert_zerossl_eab_post(mock_post)
         self.assertEqual("eab_kid", self.cahandler.eab_kid)
         self.assertEqual("eab_hmac_key", self.cahandler.eab_hmac_key)
 
     @patch("requests.post")
     def test_074__zerossl_eab_get(self, mock_post):
         """CAhandler._zerossl_eab_get() - success false"""
+        mock_post.return_value.is_redirect = False
         mock_post.return_value.json.return_value = {
             "success": False,
             "eab_kid": "eab_kid",
@@ -1760,7 +1771,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value.text = "text"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._zerossl_eab_get()
-        self.assertTrue(mock_post.called)
+        self._assert_zerossl_eab_post(mock_post)
         self.assertFalse(self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
@@ -1771,6 +1782,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.post")
     def test_075__zerossl_eab_get(self, mock_post):
         """CAhandler._zerossl_eab_get() - no success key"""
+        mock_post.return_value.is_redirect = False
         mock_post.return_value.json.return_value = {
             "eab_kid": "eab_kid",
             "eab_hmac_key": "eab_hmac_key",
@@ -1778,7 +1790,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value.text = "text"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._zerossl_eab_get()
-        self.assertTrue(mock_post.called)
+        self._assert_zerossl_eab_post(mock_post)
         self.assertFalse(self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
@@ -1789,6 +1801,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.post")
     def test_076__zerossl_eab_get(self, mock_post):
         """CAhandler._zerossl_eab_get() - no eab_kid key"""
+        mock_post.return_value.is_redirect = False
         mock_post.return_value.json.return_value = {
             "success": True,
             "eab_hmac_key": "eab_hmac_key",
@@ -1796,7 +1809,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value.text = "text"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._zerossl_eab_get()
-        self.assertTrue(mock_post.called)
+        self._assert_zerossl_eab_post(mock_post)
         self.assertFalse(self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
@@ -1807,6 +1820,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.post")
     def test_077__zerossl_eab_get(self, mock_post):
         """CAhandler._zerossl_eab_get() - no eab_mac key"""
+        mock_post.return_value.is_redirect = False
         mock_post.return_value.json.return_value = {
             "success": True,
             "eab_kid": "eab_kid",
@@ -1814,11 +1828,32 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value.text = "text"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._zerossl_eab_get()
-        self.assertTrue(mock_post.called)
+        self._assert_zerossl_eab_post(mock_post)
         self.assertFalse(self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
             "ERROR:test_a2c:Could not get eab credentials from ZeroSSL: text",
+            lcm.output,
+        )
+
+    @patch("requests.post")
+    def test_077b__zerossl_eab_get_redirect(self, mock_post):
+        """CAhandler._zerossl_eab_get() - redirect is not followed"""
+        mock_post.return_value.is_redirect = True
+        mock_post.return_value.status_code = 302
+        mock_post.return_value.json.return_value = {
+            "success": True,
+            "eab_kid": "eab_kid",
+            "eab_hmac_key": "eab_hmac_key",
+        }
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._zerossl_eab_get()
+        self._assert_zerossl_eab_post(mock_post)
+        self.assertFalse(self.cahandler.eab_kid)
+        self.assertFalse(self.cahandler.eab_hmac_key)
+        mock_post.return_value.json.assert_not_called()
+        self.assertIn(
+            "ERROR:test_a2c:Could not get eab credentials from ZeroSSL: HTTP 302",
             lcm.output,
         )
 
