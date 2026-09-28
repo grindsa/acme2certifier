@@ -48,9 +48,13 @@ runs:
             fi
             ;;
           rpm|deb)
+            # Drop any prior UnsetEnvironment from clear_break_glass so the
+            # manager DefaultEnvironment can take effect on the unit again.
             docker exec "${CONTAINER}" bash -c "mkdir -p /etc/systemd/system.conf.d && \
+              rm -f /etc/systemd/system/acme2certifier.service.d/clear-break-glass.conf && \
               printf '[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n' \
                 > /etc/systemd/system.conf.d/${CONF_NAME} && \
+              systemctl daemon-reload && \
               systemctl daemon-reexec"
             if [ "${RESTART}" = "true" ]; then
               if [ "${DEPLOYMENT_TYPE}" = "rpm" ]; then
