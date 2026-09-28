@@ -38,6 +38,9 @@ from acme2certifier.acme_srv.challenge_validators import (
     ChallengeContext,
     ValidationResult,
 )
+from acme2certifier.acme_srv.challenge_validators.http_validator import (
+    http01_url_for_log,
+)
 from acme2certifier.acme_srv.challenge_registry_setup import (
     create_challenge_validator_registry,
 )
@@ -1363,8 +1366,6 @@ class Challenge:
         extras: List[str] = []
 
         if "expected" in details or "received" in details:
-            extras.append(f"expected={details.get('expected')!r}")
-            extras.append(f"received={details.get('received')!r}")
             return extras
 
         if "expected_hash" in details:
@@ -1376,7 +1377,7 @@ class Challenge:
             return extras
 
         if details.get("url") is not None:
-            extras.append(f"url={details.get('url')}")
+            extras.append(f"url={http01_url_for_log(str(details.get('url')))}")
 
         return extras
 

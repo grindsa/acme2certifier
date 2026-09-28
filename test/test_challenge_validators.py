@@ -715,13 +715,28 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self.assertFalse(result.invalid)
         self.assertEqual(
             result.error_message,
-            '{"status": 403, "type": "urn:ietf:params:acme:error:connection", "detail": "HTTP request failed: 500 Connection failed"}',
+            '{"status": 403, "type": "urn:ietf:params:acme:error:connection", "detail": "HTTP request failed: 500"}',
         )
         self.assertIn("url", result.details)
         self.assertEqual(
             result.details["url"],
             "http://example.com/.well-known/acme-challenge/test_token",
         )
+        self.logger.warning.assert_called_with(
+            "http-01 fetch failed: challenge=%s status=%s",
+            "test",
+            500,
+        )
+        debug_text = " ".join(str(call) for call in self.logger.debug.call_args_list)
+        self.assertIn(
+            "http://example.com/.well-known/acme-challenge/test_token", debug_text
+        )
+        self.assertIn("Connection failed", debug_text)
+        warning_text = " ".join(
+            str(call) for call in self.logger.warning.call_args_list
+        )
+        self.assertNotIn("test_token", warning_text)
+        self.assertNotIn("Connection failed", warning_text)
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
     @patch("acme2certifier.acme_srv.helper.url_get_dns_pinned")
@@ -752,10 +767,24 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self.assertTrue(result.invalid)
         self.assertEqual(
             result.error_message,
-            '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Keyauthorization mismatch (expected=\'test_token.test_thumb\', received=\'wrong_response\')"}',
+            '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Keyauthorization mismatch"}',
         )
         self.assertEqual(result.details["expected"], "test_token.test_thumb")
         self.assertEqual(result.details["received"], "wrong_response")
+        self.logger.warning.assert_called_with(
+            "http-01 keyauthorization mismatch: challenge=%s",
+            "test",
+        )
+        warning_text = " ".join(
+            str(call) for call in self.logger.warning.call_args_list
+        )
+        debug_text = " ".join(str(call) for call in self.logger.debug.call_args_list)
+        self.assertNotIn("test_token", warning_text)
+        self.assertNotIn("wrong_response", warning_text)
+        self.assertIn("test_token.test_thumb", debug_text)
+        self.assertIn("wrong_response", debug_text)
+        self.assertIn("example.com", debug_text)
+        self.assertIn("/.well-known/acme-challenge/***", debug_text)
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
     @patch("acme2certifier.acme_srv.helper.url_get")

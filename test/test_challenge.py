@@ -941,7 +941,7 @@ class TestChallenge(unittest.TestCase):
             )
         joined = "\n".join(log_cm.output)
         self.assertIn(
-            "Challenge validation failed: challenge=c2 type=http-01 host=foo.bar reason=Keyauthorization mismatch; expected='tok.thumb' received='wrong'",
+            "Challenge validation failed: challenge=c2 type=http-01 host=foo.bar reason=Keyauthorization mismatch",
             joined,
         )
 
@@ -3514,7 +3514,7 @@ class TestChallenge(unittest.TestCase):
         reason = self.challenge._format_challenge_validation_reason(validation_result)
         self.assertEqual(
             reason,
-            "HTTP request failed; url=http://example.com/.well-known/acme-challenge/t",
+            "HTTP request failed; url=http://example.com/.well-known/acme-challenge/***",
         )
 
     def test_168_format_challenge_validation_reason_empty_error_message(self):
