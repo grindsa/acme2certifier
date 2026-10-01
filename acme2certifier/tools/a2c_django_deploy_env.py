@@ -20,8 +20,8 @@ _DEPLOY_KEYS = (
 def _unquote_uwsgi_value(raw: str) -> str:
     val = raw.strip()
     if len(val) >= 2 and val[0] == val[-1] == '"':
-        return val[1:-1].replace("$$", "$")
-    return val
+        val = val[1:-1]
+    return val.replace("$$", "$")
 
 
 def _read_uwsgi_env(ini_path: Path) -> Dict[str, str]:

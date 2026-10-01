@@ -104,9 +104,9 @@ runs:
         sed -i "/^env = ACME2CERTIFIER_SECRET_KEY=/d" "${UWSGI_INI}"
         sed -i "/^env = ACME2CERTIFIER_DATABASE_URL=/d" "${UWSGI_INI}"
         sed -i "/^env = ACME2CERTIFIER_ALLOWED_HOSTS=/d" "${UWSGI_INI}"
-        printf "env = ACME2CERTIFIER_SECRET_KEY=\"%s\"\n" "${ACME2CERTIFIER_SECRET_KEY}" >> "${UWSGI_INI}"
-        printf "env = ACME2CERTIFIER_DATABASE_URL=\"%s\"\n" "${ACME2CERTIFIER_DATABASE_URL}" >> "${UWSGI_INI}"
-        printf "env = ACME2CERTIFIER_ALLOWED_HOSTS=\"%s\"\n" "${ACME2CERTIFIER_ALLOWED_HOSTS}" >> "${UWSGI_INI}"
+        printf "env = ACME2CERTIFIER_SECRET_KEY=%s\n" "${ACME2CERTIFIER_SECRET_KEY}" >> "${UWSGI_INI}"
+        printf "env = ACME2CERTIFIER_DATABASE_URL=%s\n" "${ACME2CERTIFIER_DATABASE_URL}" >> "${UWSGI_INI}"
+        printf "env = ACME2CERTIFIER_ALLOWED_HOSTS=%s\n" "${ACME2CERTIFIER_ALLOWED_HOSTS}" >> "${UWSGI_INI}"
         export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
         export ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier
         export DJANGO_SETTINGS_MODULE=acme2certifier.django_project.settings
