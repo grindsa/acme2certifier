@@ -87,8 +87,9 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
         self.assertEqual({}, _read_uwsgi_env(Path("/no/such/acme2certifier.ini")))
 
     def test_006_unquote_uwsgi_value_unquoted(self) -> None:
-        """_unquote_uwsgi_value leaves unquoted values unchanged"""
+        """_unquote_uwsgi_value leaves plain values unchanged and expands $$"""
         self.assertEqual("plain", _unquote_uwsgi_value("plain"))
+        self.assertEqual("sek$ret", _unquote_uwsgi_value("sek$$ret"))
 
     def test_007_parse_apache_export_invalid_lines(self) -> None:
         """_parse_apache_export returns None for non-export and malformed lines"""

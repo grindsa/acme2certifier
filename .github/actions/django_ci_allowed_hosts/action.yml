@@ -84,7 +84,7 @@ runs:
             echo "DEBUG: uWSGI ini before patch (${UWSGI_INI})"
             cat "${UWSGI_INI}"
             sed -i '/^env = ACME2CERTIFIER_ALLOWED_HOSTS=/d' "${UWSGI_INI}"
-            printf 'env = ACME2CERTIFIER_ALLOWED_HOSTS="%s"\n' "${CI_HOSTS}" >> "${UWSGI_INI}"
+            printf 'env = ACME2CERTIFIER_ALLOWED_HOSTS=%s\n' "${CI_HOSTS}" >> "${UWSGI_INI}"
             echo "DEBUG: uWSGI ini after patch (${UWSGI_INI})"
             cat "${UWSGI_INI}"
             systemctl restart acme2certifier
