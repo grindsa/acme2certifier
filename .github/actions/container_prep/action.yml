@@ -58,12 +58,11 @@ runs:
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        # Always present for docker-compose env_file (empty for wsgi).
+        # Always present for docker-compose env_file. Unset DJANGO_DB is sqlite
+        # (wsgi ignores settings.py; django jobs without an external DB use it).
         sudo touch examples/Docker/data/django.env
-        if [ -z "$DJANGO_DB" ]; then
-            echo "No DJANGO_DB (wsgi); empty django.env"
-        elif [ "$DJANGO_DB" = "sqlite3" ]; then
-            echo "Using sqlite3 django settings overlay"
+        if [ -z "$DJANGO_DB" ] || [ "$DJANGO_DB" = "sqlite3" ]; then
+            echo "Using default django settings for sqlite3"
             sudo cp .github/django_settings.py examples/Docker/data/settings.py
             bash "${GITHUB_WORKSPACE}/.github/scripts/django_ci_database_url.sh" \
               --django-db sqlite3 \
