@@ -60,7 +60,9 @@ runs:
         sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
         # Always present for docker-compose env_file. Unset DJANGO_DB is sqlite
         # (wsgi ignores settings.py; django jobs without an external DB use it).
+        # data/ is root-owned; the URL script runs unprivileged and must be able to truncate this file.
         sudo touch examples/Docker/data/django.env
+        sudo chown "$(id -u):$(id -g)" examples/Docker/data/django.env
         if [ -z "$DJANGO_DB" ] || [ "$DJANGO_DB" = "sqlite3" ]; then
             echo "Using default django settings for sqlite3"
             sudo cp .github/django_settings.py examples/Docker/data/settings.py
