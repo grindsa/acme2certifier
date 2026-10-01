@@ -124,6 +124,23 @@ resolve_defaults() {
       VOLUME_DIR="/tmp/acme2certifier/volume"
     fi
   fi
+  load_ci_django_env
+}
+
+load_ci_django_env() {
+  local f
+  for f in \
+    ${DATA_DIR:+"${DATA_DIR}/django.env"} \
+    "/tmp/acme2certifier/django.env" \
+    ${VOLUME_DIR:+"${VOLUME_DIR}/django.env"}; do
+    [[ -n "${f}" && -f "${f}" ]] || continue
+    echo "==> Loading Django CI env from ${f}"
+    set -a
+    # shellcheck disable=SC1090
+    source "${f}"
+    set +a
+    return 0
+  done
 }
 
 normalize_websrv() {

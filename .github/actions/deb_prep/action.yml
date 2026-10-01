@@ -41,6 +41,17 @@ runs:
 
     - name: "Generate keys and certificates"
       uses: ./.github/actions/generate_a2c_certs
+      with:
+        DESTINATION_PATH: ".github"
+        EE_KEY: "acme2certifier_key.pem"
+        EE_CERT: "acme2certifier_cert.pem"
+        EE_CSR: "acme2certifier_csr.pem"
+        EE_BUNDLE: "acme2certifier.pem"
+        CA_BUNDLE: "acme2certifier_cabundle.pem"
+        ISSUING_CA_KEY: "test/ca/sub-ca-key.pem"
+        ISSUING_CA_CERT: "test/ca/sub-ca-cert.pem"
+        ISSUING_CA_PASSPHRASE: "Test1234"
+        ROOT_CA_CERT: "test/ca/root-ca-cert.pem"
 
     - name: "Setup environment for ubuntu installation"
       run: |
@@ -65,29 +76,26 @@ runs:
         if [ -z "$DJANGO_DB" ] || [ "$DJANGO_DB" == "sqlite3" ]; then
             echo "Using default django settings for sqlite3"
             sudo cp .github/django_settings.py data/volume/acme2certifier/settings.py
+            bash "${GITHUB_WORKSPACE}/.github/scripts/django_ci_database_url.sh" \
+              --django-db sqlite3 \
+              --secret "${ACME2CERTIFIER_SECRET_KEY:-}" \
+              --env-file data/django.env \
+              --github-env
         else
-            sudo cp .github/django_settings_$DJANGO_DB.py data/volume/acme2certifier/settings.py
+            echo "Using ACME2CERTIFIER_DATABASE_URL for $DJANGO_DB (no vendor settings.py)"
+            bash "${GITHUB_WORKSPACE}/.github/scripts/django_ci_database_url.sh" \
+              --django-db "$DJANGO_DB" \
+              --secret "${ACME2CERTIFIER_SECRET_KEY:-}" \
+              --env-file data/django.env \
+              --github-env
+            sudo cp data/django.env data/volume/django.env
         fi
       env:
         DJANGO_DB: ${{ inputs.DJANGO_DB }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         IPV6: ${{ inputs.IPV6 }}
+        ACME2CERTIFIER_SECRET_KEY: ${{ env.ACME2CERTIFIER_SECRET_KEY }}
       shell: bash
-
-    - name: "Generate keys and certificates"
-      uses: ./.github/actions/generate_a2c_certs
-      with:
-        DESTINATION_PATH: ".github"
-        EE_KEY: "acme2certifier_key.pem"
-        EE_CERT: "acme2certifier_cert.pem"
-        EE_CSR: "acme2certifier_csr.pem"
-        EE_BUNDLE: "acme2certifier.pem"
-        CA_BUNDLE: "acme2certifier_cabundle.pem"
-        ISSUING_CA_KEY: "test/ca/sub-ca-key.pem"
-        ISSUING_CA_CERT: "test/ca/sub-ca-cert.pem"
-        ISSUING_CA_PASSPHRASE: "Test1234"
-        ROOT_CA_CERT: "test/ca/root-ca-cert.pem"
-
 
     - name: "Instanciate Mariadb"
       if: inputs.DJANGO_DB == 'mariadb'

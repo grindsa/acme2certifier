@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inject Django DATABASES TLS OPTIONS for CI MariaDB/PostgreSQL settings files."""
+"""Append Django DB TLS query params to ACME2CERTIFIER_DATABASE_URL in a CI env file."""
 
 from __future__ import annotations
 
@@ -7,11 +7,11 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Sequence
+from typing import Dict, List, Sequence
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 
 def _default_allowed_bases() -> list[str]:
-    """Directories under which settings files may be patched."""
     bases = [os.path.realpath(os.getcwd())]
     workspace = os.environ.get("GITHUB_WORKSPACE")
     if workspace:
@@ -20,39 +20,34 @@ def _default_allowed_bases() -> list[str]:
 
 
 def _path_under_base(resolved: str, real_base: str) -> bool:
-    """True when *resolved* is *real_base* or a path beneath it."""
     if resolved == real_base:
         return True
     prefix = real_base if real_base.endswith(os.sep) else real_base + os.sep
     return resolved.startswith(prefix)
 
 
-def _safe_settings_file(path: Path | str, allowed_bases: Sequence[str]) -> str:
-    """Return a realpath for *path* that stays under *allowed_bases*."""
+def _safe_env_file(path: Path | str, allowed_bases: Sequence[str]) -> str:
     raw = os.fspath(path)
     if not raw or "\x00" in raw:
-        raise SystemExit(f"invalid settings path: {path!r}")
+        raise SystemExit(f"invalid env file path: {path!r}")
     resolved = os.path.realpath(raw)
     for base in allowed_bases:
         real_base = os.path.realpath(base)
         if not _path_under_base(resolved, real_base):
             continue
-        # Rebuild from base + relative segments so the opened path is not the
-        # raw CLI string (clears path-traversal taint for S2083 / S8707).
         rel = os.path.relpath(resolved, real_base)
         if rel.startswith(".."):
             continue
         safe = os.path.realpath(os.path.join(real_base, rel))
         if safe != resolved or not os.path.isfile(safe):
-            raise SystemExit(f"settings file not found: {path}")
+            raise SystemExit(f"env file not found: {path}")
         return safe
     raise SystemExit(
-        f"settings path outside allowed directories: {path} (resolved={resolved})"
+        f"env file path outside allowed directories: {path} (resolved={resolved})"
     )
 
 
 def _sanitize_ca_runtime_path(ca_runtime_path: str) -> str:
-    """Validate CA path embedded into settings (absolute, no injection chars)."""
     if not ca_runtime_path or "\x00" in ca_runtime_path:
         raise SystemExit(f"invalid ca-runtime-path: {ca_runtime_path!r}")
     if any(c in ca_runtime_path for c in ('"', "'", "\n", "\r", "`", "\\")):
@@ -70,69 +65,89 @@ def _client_material_paths(ca_runtime_path: str) -> tuple[str, str]:
     )
 
 
-def _patch_mariadb(text: str, ca_runtime_path: str) -> str:
-    ssl_snippet = f'"ssl": {{"ca": "{ca_runtime_path}"}}'
-    if ssl_snippet in text:
-        return text
-    needle = '"use_unicode": True,'
-    if needle not in text:
-        raise SystemExit("MariaDB settings: expected OPTIONS use_unicode key")
-    return text.replace(
-        needle,
-        needle + f"\n            {ssl_snippet},",
-        1,
-    )
+def _read_env_file(path: str) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, val = stripped.split("=", 1)
+            out[key] = val
+    return out
 
 
-def _patch_psql(text: str, ca_runtime_path: str) -> str:
-    if '"sslmode"' in text and "sslrootcert" in text:
-        return text
-    sslcert, sslkey = _client_material_paths(ca_runtime_path)
-    options = (
-        '        "OPTIONS": {\n'
-        '            "sslmode": "verify-ca",\n'
-        f'            "sslrootcert": "{ca_runtime_path}",\n'
-        f'            "sslcert": "{sslcert}",\n'
-        f'            "sslkey": "{sslkey}",\n'
-        "        },\n"
-    )
-    needle = '"PORT": "",\n'
-    if needle in text:
-        return text.replace(needle, needle + options, 1)
-    if '"PORT": "",' in text:
-        return text.replace('"PORT": "",', '"PORT": "",\n' + options.rstrip("\n"), 1)
-    raise SystemExit("PostgreSQL settings: expected PORT key to inject OPTIONS")
+def _write_env_file(path: str, values: Dict[str, str], order: List[str]) -> None:
+    lines = []
+    seen = set()
+    for key in order:
+        if key in values:
+            lines.append(f"{key}={values[key]}\n")
+            seen.add(key)
+    for key, val in values.items():
+        if key not in seen:
+            lines.append(f"{key}={val}\n")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.writelines(lines)
 
 
-def patch_file(
-    path: Path,
+def _append_query(url: str, extra: Dict[str, str]) -> str:
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    for key, val in extra.items():
+        query.setdefault(key, val)
+    return urlunparse(parsed._replace(query=urlencode(query, safe="/")))
+
+
+def tls_query_params(django_db: str, ca_runtime_path: str) -> Dict[str, str]:
+    if django_db == "mariadb":
+        return {"ca": ca_runtime_path}
+    if django_db == "psql":
+        sslcert, sslkey = _client_material_paths(ca_runtime_path)
+        return {
+            "sslmode": "verify-ca",
+            "sslrootcert": ca_runtime_path,
+            "sslcert": sslcert,
+            "sslkey": sslkey,
+        }
+    raise SystemExit(f"unsupported DJANGO_DB={django_db} (expected mariadb|psql)")
+
+
+def patch_env_file(
+    path: Path | str,
     django_db: str,
     ca_runtime_path: str,
     *,
     allowed_bases: Sequence[Path | str] | None = None,
-) -> None:
-    """Patch *path* after verifying it stays under *allowed_bases*."""
+) -> str:
+    """Append TLS query params to ACME2CERTIFIER_DATABASE_URL; return new URL."""
     if allowed_bases is None:
         bases = _default_allowed_bases()
     else:
         bases = [os.path.realpath(os.fspath(base)) for base in allowed_bases]
-    settings_path = _safe_settings_file(path, bases)
+    env_path = _safe_env_file(path, bases)
     ca_path = _sanitize_ca_runtime_path(ca_runtime_path)
+    values = _read_env_file(env_path)
+    url = values.get("ACME2CERTIFIER_DATABASE_URL", "").strip()
+    if not url:
+        raise SystemExit(f"ACME2CERTIFIER_DATABASE_URL missing in {env_path}")
+    updated = _append_query(url, tls_query_params(django_db, ca_path))
+    if updated == url:
+        print(f"already TLS-patched: {env_path}")
+        return url
+    values["ACME2CERTIFIER_DATABASE_URL"] = updated
+    order = [
+        "ACME2CERTIFIER_SECRET_KEY",
+        "ACME2CERTIFIER_ALLOWED_HOSTS",
+        "ACME2CERTIFIER_DATABASE_URL",
+    ]
+    _write_env_file(env_path, values, order)
+    print(f"patched TLS into DATABASE_URL: {env_path}")
+    return updated
 
-    with open(settings_path, encoding="utf-8") as handle:
-        text = handle.read()
-    if django_db == "mariadb":
-        updated = _patch_mariadb(text, ca_path)
-    elif django_db == "psql":
-        updated = _patch_psql(text, ca_path)
-    else:
-        raise SystemExit(f"unsupported DJANGO_DB={django_db} (expected mariadb|psql)")
-    if updated == text:
-        print(f"already patched: {settings_path}")
-        return
-    with open(settings_path, "w", encoding="utf-8") as handle:
-        handle.write(updated)
-    print(f"patched TLS OPTIONS: {settings_path}")
+
+# Back-compat alias used by older tests / imports.
+patch_file = patch_env_file
 
 
 def main() -> int:
@@ -145,18 +160,24 @@ def main() -> int:
     parser.add_argument(
         "--ca-runtime-path",
         required=True,
-        help="Path Django opens at runtime (inside the a2c container/host)",
+        help="Path Django opens at runtime for the CA PEM",
     )
     parser.add_argument(
-        "settings_files",
+        "env_files",
         nargs="+",
         type=Path,
-        help="settings.py file(s) to patch",
+        help="django.env file(s) containing ACME2CERTIFIER_DATABASE_URL",
     )
     args = parser.parse_args()
     bases = _default_allowed_bases()
-    for settings in args.settings_files:
-        patch_file(settings, args.django_db, args.ca_runtime_path, allowed_bases=bases)
+    last_url = ""
+    for env_file in args.env_files:
+        last_url = patch_env_file(
+            env_file, args.django_db, args.ca_runtime_path, allowed_bases=bases
+        )
+    if os.environ.get("GITHUB_ENV") and last_url:
+        with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+            handle.write(f"ACME2CERTIFIER_DATABASE_URL={last_url}\n")
     return 0
 
 

@@ -19,11 +19,16 @@ BASE_DIR = os.environ.get(
 
 TBR = "TO BE REPLACED"
 
-SECRET_KEY = TBR
+SECRET_KEY = os.environ.get("ACME2CERTIFIER_SECRET_KEY", TBR)
 
 DEBUG = False
 
-ALLOWED_HOSTS = ["127.0.0.1"]
+_hosts = os.environ.get("ACME2CERTIFIER_ALLOWED_HOSTS", "").strip()
+ALLOWED_HOSTS = (
+    [h.strip() for h in _hosts.split(",") if h.strip()]
+    if _hosts
+    else ["127.0.0.1"]
+)
 
 INSTALLED_APPS = [
     "django.contrib.auth",

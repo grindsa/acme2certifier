@@ -142,7 +142,7 @@ jobs:
         uses: ./.github/actions/wf_specific/django/django_db_ssl
         with:
           DJANGO_DB: ${{ matrix.database }}
-          SETTINGS_FILE: examples/Docker/data/settings.py
+          ENV_FILE: examples/Docker/data/django.env
           VOLUME_DIR: examples/Docker/data
           CA_RUNTIME_PATH: /var/www/acme2certifier/volume/db-ca.pem
 
@@ -278,7 +278,7 @@ jobs:
         uses: ./.github/actions/wf_specific/django/django_db_ssl
         with:
           DJANGO_DB: ${{ matrix.database }}
-          SETTINGS_FILE: data/volume/settings.py data/acme2certifier/settings.py
+          ENV_FILE: data/django.env
           VOLUME_DIR: data/volume
           CA_RUNTIME_PATH: /opt/acme2certifier/volume/db-ca.pem
 
@@ -399,7 +399,7 @@ jobs:
         uses: ./.github/actions/wf_specific/django/django_db_ssl
         with:
           DJANGO_DB: ${{ matrix.database }}
-          SETTINGS_FILE: data/volume/acme2certifier/settings.py
+          ENV_FILE: data/django.env
           VOLUME_DIR: data/volume
           CA_RUNTIME_PATH: /var/www/acme2certifier/volume/db-ca.pem
 

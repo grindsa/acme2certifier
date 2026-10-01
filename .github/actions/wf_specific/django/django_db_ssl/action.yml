@@ -1,11 +1,11 @@
 name: "django_db_ssl"
-description: "Stage DB TLS CA on the a2c volume and patch Django DATABASES OPTIONS"
+description: "Stage DB TLS CA on the a2c volume and append TLS query params to ACME2CERTIFIER_DATABASE_URL"
 inputs:
   DJANGO_DB:
     description: "Django database (mariadb or psql)"
     required: true
-  SETTINGS_FILE:
-    description: "Whitespace-separated path(s) to settings.py to patch"
+  ENV_FILE:
+    description: "Whitespace-separated path(s) to django.env containing ACME2CERTIFIER_DATABASE_URL"
     required: true
   VOLUME_DIR:
     description: "Host directory mounted as the a2c volume"
@@ -21,7 +21,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: "Stage DB CA and patch Django TLS OPTIONS"
+    - name: "Stage DB CA and patch DATABASE_URL TLS query"
       run: |
         set -euo pipefail
         DJANGO_DB="${{ inputs.DJANGO_DB }}"
@@ -69,5 +69,11 @@ runs:
         sudo python3 "${GITHUB_WORKSPACE}/.github/scripts/patch_django_db_ssl.py" \
           --django-db "$DJANGO_DB" \
           --ca-runtime-path "${{ inputs.CA_RUNTIME_PATH }}" \
-          ${{ inputs.SETTINGS_FILE }}
+          ${{ inputs.ENV_FILE }}
+        # Keep volume copy in sync when ENV_FILE is under data/
+        for envf in ${{ inputs.ENV_FILE }}; do
+          if [[ -f "$envf" && -d "$VOLUME_DIR" ]]; then
+            sudo cp "$envf" "$VOLUME_DIR/django.env"
+          fi
+        done
       shell: bash

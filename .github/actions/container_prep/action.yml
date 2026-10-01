@@ -58,21 +58,31 @@ runs:
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        # Always present for docker-compose env_file (empty for wsgi).
+        sudo touch examples/Docker/data/django.env
         if [ -z "$DJANGO_DB" ]; then
+            echo "No DJANGO_DB (wsgi); empty django.env"
+        elif [ "$DJANGO_DB" = "sqlite3" ]; then
+            echo "Using sqlite3 django settings overlay"
             sudo cp .github/django_settings.py examples/Docker/data/settings.py
+            bash "${GITHUB_WORKSPACE}/.github/scripts/django_ci_database_url.sh" \
+              --django-db sqlite3 \
+              --secret "${ACME2CERTIFIER_SECRET_KEY:-}" \
+              --env-file examples/Docker/data/django.env \
+              --github-env
         else
-            if [ "$DJANGO_DB" != "sqlite3" ]; then
-                echo "Using $DJANGO_DB as django database"
-                sudo cp .github/django_settings_$DJANGO_DB.py examples/Docker/data/settings.py
-            else
-                echo "Using sqlite3 as django database"
-                sudo cp .github/django_settings.py examples/Docker/data/settings.py
-            fi
+            echo "Using ACME2CERTIFIER_DATABASE_URL for $DJANGO_DB (no vendor settings.py)"
+            bash "${GITHUB_WORKSPACE}/.github/scripts/django_ci_database_url.sh" \
+              --django-db "$DJANGO_DB" \
+              --secret "${ACME2CERTIFIER_SECRET_KEY:-}" \
+              --env-file examples/Docker/data/django.env \
+              --github-env
         fi
       env:
         DJANGO_DB: ${{ inputs.DJANGO_DB }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         IPV6: ${{ inputs.IPV6 }}
+        ACME2CERTIFIER_SECRET_KEY: ${{ env.ACME2CERTIFIER_SECRET_KEY }}
       shell: bash
 
     - name: "Build docker compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"

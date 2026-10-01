@@ -22,7 +22,6 @@ _INSECURE = "django-insecure-change-me-run-a2c-django-secret-keygen"
 _LOAD_CONFIG = "acme2certifier.acme_srv.helpers.config.load_config"
 _SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "..", ".github", "scripts")
 _DB_CA = "/var/www/acme2certifier/volume/db-ca.pem"
-_REPO = Path(__file__).resolve().parents[1]
 
 
 def _load_github_script(name: str):
@@ -407,70 +406,79 @@ class TestDjangoProjectSettings(unittest.TestCase):
         mock_setup.assert_called_with(True)
         mock_logger.info.assert_called()
 
+    def _write_django_env(self, path: Path, url: str) -> None:
+        path.write_text(
+            "ACME2CERTIFIER_SECRET_KEY=sekrit\n"
+            "ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,*\n"
+            f"ACME2CERTIFIER_DATABASE_URL={url}\n",
+            encoding="utf-8",
+        )
+
     def test_020_patch_mariadb_injects_ssl(self) -> None:
-        """MariaDB OPTIONS gain ssl.ca pointing at the runtime CA path"""
+        """MariaDB DATABASE_URL gains ca= query pointing at the runtime CA path"""
         patch_file = _load_github_script("patch_django_db_ssl").patch_file
-        src = _REPO / ".github" / "django_settings_mariadb.py"
         with tempfile.TemporaryDirectory() as tmp:
-            dest = Path(tmp) / "settings.py"
-            dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            dest = Path(tmp) / "django.env"
+            self._write_django_env(
+                dest, "mysql://acme2certifier:pw@mariadbsrv.acme/acme2certifier"
+            )
             patch_file(dest, "mariadb", _DB_CA, allowed_bases=[Path(tmp)])
             text = dest.read_text(encoding="utf-8")
-            self.assertIn(f'"ssl": {{"ca": "{_DB_CA}"}}', text)
+            self.assertIn(f"ca={_DB_CA}", text)
             patch_file(dest, "mariadb", _DB_CA, allowed_bases=[Path(tmp)])
-            self.assertEqual(
-                text.count('"ssl"'), dest.read_text(encoding="utf-8").count('"ssl"')
-            )
+            self.assertEqual(text, dest.read_text(encoding="utf-8"))
 
     def test_021_patch_psql_injects_sslmode(self) -> None:
-        """PostgreSQL DATABASES gain sslmode verify-ca and sslrootcert"""
+        """PostgreSQL DATABASE_URL gains sslmode/sslrootcert/sslcert/sslkey"""
         patch_file = _load_github_script("patch_django_db_ssl").patch_file
-        src = _REPO / ".github" / "django_settings_psql.py"
         with tempfile.TemporaryDirectory() as tmp:
-            dest = Path(tmp) / "settings.py"
-            dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            dest = Path(tmp) / "django.env"
+            self._write_django_env(
+                dest, "postgres://acme2certifier:pw@postgresdbsrv/acme2certifier"
+            )
             patch_file(dest, "psql", _DB_CA, allowed_bases=[Path(tmp)])
             text = dest.read_text(encoding="utf-8")
-            self.assertIn('"sslmode": "verify-ca"', text)
-            self.assertIn(f'"sslrootcert": "{_DB_CA}"', text)
+            self.assertIn("sslmode=verify-ca", text)
+            self.assertIn(f"sslrootcert={_DB_CA}", text)
             self.assertIn(
-                '"sslcert": "/var/www/acme2certifier/volume/db-client-cert.pem"',
+                "sslcert=/var/www/acme2certifier/volume/db-client-cert.pem",
                 text,
             )
             self.assertIn(
-                '"sslkey": "/var/www/acme2certifier/volume/db-client-key.pem"',
+                "sslkey=/var/www/acme2certifier/volume/db-client-key.pem",
                 text,
             )
-            self.assertNotIn("HOME", text)
             patch_file(dest, "psql", _DB_CA, allowed_bases=[Path(tmp)])
-            twice = dest.read_text(encoding="utf-8")
-            self.assertEqual(twice.count("sslrootcert"), text.count("sslrootcert"))
+            self.assertEqual(text, dest.read_text(encoding="utf-8"))
 
     def test_022_patch_rejects_unknown_engine(self) -> None:
         """unsupported DJANGO_DB values fail closed"""
         patch_file = _load_github_script("patch_django_db_ssl").patch_file
         with tempfile.TemporaryDirectory() as tmp:
-            dest = Path(tmp) / "settings.py"
-            dest.write_text("DATABASES = {}\n", encoding="utf-8")
+            dest = Path(tmp) / "django.env"
+            self._write_django_env(
+                dest, "mssql://u:p@ms-sql.acme:1433/acme2certifier"
+            )
             with self.assertRaises(SystemExit):
                 patch_file(dest, "mssql", _DB_CA, allowed_bases=[Path(tmp)])
 
     def test_022b_patch_rejects_path_outside_allowed_bases(self) -> None:
-        """settings paths outside allowed_bases are rejected (path traversal)"""
+        """env file paths outside allowed_bases are rejected (path traversal)"""
         mod = _load_github_script("patch_django_db_ssl")
         with tempfile.TemporaryDirectory() as tmp:
             allowed = Path(tmp) / "allowed"
             allowed.mkdir()
-            outside = Path(tmp) / "outside" / "settings.py"
+            outside = Path(tmp) / "outside" / "django.env"
             outside.parent.mkdir()
-            outside.write_text("DATABASES = {}\n", encoding="utf-8")
+            self._write_django_env(
+                outside, "mysql://acme2certifier:pw@mariadbsrv.acme/acme2certifier"
+            )
             with self.assertRaises(SystemExit) as ctx:
                 mod.patch_file(
                     outside, "mariadb", _DB_CA, allowed_bases=[allowed]
                 )
             self.assertIn("outside allowed directories", str(ctx.exception))
-            # .. escape from an allowed-looking relative path
-            escape = allowed / ".." / "outside" / "settings.py"
+            escape = allowed / ".." / "outside" / "django.env"
             with self.assertRaises(SystemExit) as ctx2:
                 mod.patch_file(
                     escape, "mariadb", _DB_CA, allowed_bases=[allowed]
@@ -481,11 +489,13 @@ class TestDjangoProjectSettings(unittest.TestCase):
         """ca-runtime-path must be absolute and free of injection characters"""
         patch_file = _load_github_script("patch_django_db_ssl").patch_file
         with tempfile.TemporaryDirectory() as tmp:
-            dest = Path(tmp) / "settings.py"
-            dest.write_text('"use_unicode": True,\n', encoding="utf-8")
+            dest = Path(tmp) / "django.env"
+            self._write_django_env(
+                dest, "mysql://acme2certifier:pw@mariadbsrv.acme/acme2certifier"
+            )
             with self.assertRaises(SystemExit):
                 patch_file(
-                    dest, "mariadb", 'rel/ca.pem', allowed_bases=[Path(tmp)]
+                    dest, "mariadb", "rel/ca.pem", allowed_bases=[Path(tmp)]
                 )
             with self.assertRaises(SystemExit):
                 patch_file(
