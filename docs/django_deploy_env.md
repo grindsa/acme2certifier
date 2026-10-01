@@ -15,8 +15,9 @@ When `[DBhandler] handler: django`, Django uses `acme2certifier.django_project.s
 | `ACME2CERTIFIER_ALLOWED_HOSTS` | recommended | Comma-separated hostnames/IPs Django accepts in the `Host` header. Default without override: `127.0.0.1,localhost`. When `[DEFAULT] server_name` is set in `acme_srv.cfg`, that hostname is merged into `ALLOWED_HOSTS` at worker startup (see below). |
 | `ACME2CERTIFIER_BASE_DIR` | no | Application root (default `/var/www/acme2certifier` or `/opt/acme2certifier`). |
 | `ACME2CERTIFIER_DEBUG` | no | Set to `1` for local development only (Django `DEBUG`). ACME Helper debug uses this only when `[DEFAULT] debug` is unset in `acme_srv.cfg`; an explicit cfg value always wins. |
+| `ACME2CERTIFIER_DATABASE_URL` | no | Django `DATABASES['default']` as a URI (`sqlite:////path`, `mysql://…`, `postgres://…`, `mssql://…`). Unset → SQLite `$ACME2CERTIFIER_BASE_DIR/db.sqlite3`. MySQL TLS: `?ca=/path/to/db-ca.pem`. Postgres TLS: `?sslmode=verify-ca&sslrootcert=/path`. Optional `$ACME2CERTIFIER_BASE_DIR/.env` (process env wins). |
 
-MySQL / external DB templates: [`examples/django/settings.py`](../examples/django/settings.py).
+MySQL / external DB templates: [`examples/django/settings.py`](../examples/django/settings.py) (honors `ACME2CERTIFIER_DATABASE_URL` when set).
 
 ### `server_name` from `acme_srv.cfg`
 
@@ -84,7 +85,7 @@ sudo systemctl restart acme2certifier
 
 ## CLI and migration tools
 
-- **`a2c-manage`** (one-off shell): export `ACME2CERTIFIER_SECRET_KEY` and `ACME2CERTIFIER_ALLOWED_HOSTS` in the same shell, or use **`a2c-django-update`** instead of separate migrate + loaddata.
+- **`a2c-manage`** (one-off shell): export `ACME2CERTIFIER_SECRET_KEY`, `ACME2CERTIFIER_ALLOWED_HOSTS`, and `ACME2CERTIFIER_DATABASE_URL` in the same shell, or use **`a2c-django-update`** instead of separate migrate + loaddata.
 - **`a2c-wsgi2django`** `import` / `check` and **`a2c-django-update`**: load `ACME2CERTIFIER_*` from uWSGI ini or Apache envvars when unset in the environment.
 
 ## Related

@@ -767,6 +767,7 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   fi
   echo "==> Installed Django package: ${DJANGO_RPM}"
   for cand in python3-pyyaml python3-mysqlclient python3-PyMySQL python3-psycopg2 python3-sqlparse \
+              python3-django-environ python39-django-environ \
               python39-pyyaml python39-mysqlclient python39-PyMySQL python39-psycopg2; do
     ${SUDO} ${PKG} install -y "${cand}" 2>/dev/null || true
   done
@@ -803,6 +804,14 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]] \
   && ! ${SUDO} "${PY_BIN}" -c "import django; print('${MODE_DJANGO}', django.get_version())"; then
   echo "ERROR: Django installed but 'import django' failed with ${PY_BIN}" >&2
   exit 1
+fi
+if [[ "${MODE}" == "${MODE_DJANGO}" ]] \
+  && ! ${SUDO} "${PY_BIN}" -c "import environ"; then
+  echo "==> django-environ not in distro packages; pip install"
+  if ! ${SUDO} "${PY_BIN}" -m pip install 'django-environ>=0.11.2'; then
+    echo "ERROR: could not install django-environ" >&2
+    exit 1
+  fi
 fi
 
 ${SUDO} mkdir -p "${APP_ROOT}/volume" /run/uwsgi
@@ -951,11 +960,16 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     ${SUDO} sed -i '/^env = ACME2CERTIFIER_ALLOWED_HOSTS=/d' "${UWSGI_INI}"
     a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
   fi
+  if [[ -n "${ACME2CERTIFIER_DATABASE_URL:-}" ]]; then
+    ${SUDO} sed -i '/^env = ACME2CERTIFIER_DATABASE_URL=/d' "${UWSGI_INI}"
+    a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
+  fi
   ${SUDO} env \
     PYTHONPATH="${APP_ROOT}" \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-django-update
   ${SUDO} env \
@@ -963,6 +977,7 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-manage loaddata status
 fi

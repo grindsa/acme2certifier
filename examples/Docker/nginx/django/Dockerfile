@@ -19,6 +19,7 @@ RUN apt-get update  && \
     libkrb5-3 \
     nginx \
     python3-django \
+    python3-django-environ \
     python3-gssapi \
     python3-impacket \
     python3-mssql-django \

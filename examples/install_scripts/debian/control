@@ -40,6 +40,7 @@ Depends:
  python3-idna,
  python3-werkzeug,
  python3-django,
+ python3-django-environ,
  python3-mysqldb,
  python3-pymysql,
  python3-psycopg2,

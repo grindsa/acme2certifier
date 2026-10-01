@@ -11,6 +11,20 @@ All [databases supported by Django](https://docs.djangoproject.com/en/5.0/ref/da
 
 The following documentation explains how to configure Django-based database access depending on your installation method.
 
+You can also set **`ACME2CERTIFIER_DATABASE_URL`** instead of editing `DATABASES` in a Python settings file:
+
+```bash
+export ACME2CERTIFIER_DATABASE_URL='mysql://acme2certifier:a2cpasswd@dbhost/acme2certifier'
+# Postgres:
+# export ACME2CERTIFIER_DATABASE_URL='postgres://acme2certifier:a2cpasswd@dbhost/acme2certifier'
+# MariaDB TLS (CA on the volume):
+# export ACME2CERTIFIER_DATABASE_URL='mysql://acme2certifier:a2cpasswd@dbhost/acme2certifier?ca=/var/www/acme2certifier/volume/db-ca.pem'
+# Postgres TLS:
+# export ACME2CERTIFIER_DATABASE_URL='postgres://acme2certifier:a2cpasswd@dbhost/acme2certifier?sslmode=verify-ca&sslrootcert=/var/www/acme2certifier/volume/db-ca.pem'
+```
+
+Install scripts persist the variable into uWSGI `env =` / Apache `envvars` when it is set at install time. A copied `examples/django/settings.py` still works; if the URL is set it wins over the MySQL template in that file.
+
 This guide focuses on Docker and **Ubuntu 24.04**-based deb deployments; however, adapting it to other Linux distributions should not be difficult.
 
 ## Preparation

@@ -688,6 +688,10 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
       ${SUDO} sed -i '/^env = ACME2CERTIFIER_ALLOWED_HOSTS=/d' "${UWSGI_INI}"
       a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
     fi
+    if [[ -n "${ACME2CERTIFIER_DATABASE_URL:-}" ]]; then
+      ${SUDO} sed -i '/^env = ACME2CERTIFIER_DATABASE_URL=/d' "${UWSGI_INI}"
+      a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
+    fi
   elif [[ "${WEBSRV}" == "${WEBSRV_APACHE2}" ]]; then
     if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' /etc/apache2/envvars 2>/dev/null; then
       a2c_apache_envvar_set ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
@@ -696,17 +700,23 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
       ${SUDO} sed -i '/^export ACME2CERTIFIER_ALLOWED_HOSTS=/d' /etc/apache2/envvars
       a2c_apache_envvar_set ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
     fi
+    if [[ -n "${ACME2CERTIFIER_DATABASE_URL:-}" ]]; then
+      ${SUDO} sed -i '/^export ACME2CERTIFIER_DATABASE_URL=/d' /etc/apache2/envvars
+      a2c_apache_envvar_set ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
+    fi
   fi
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-django-update
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-manage loaddata status
   if [[ "${WEBSRV}" == "${WEBSRV_NGINX}" ]]; then

@@ -31,7 +31,8 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
             ini = Path(tmp) / "acme2certifier.ini"
             ini.write_text(
                 'env = ACME2CERTIFIER_SECRET_KEY="sek$$ret"\n'
-                "env = ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv\n",
+                "env = ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv\n"
+                "env = ACME2CERTIFIER_DATABASE_URL=mysql://acme2certifier:p@db/acme2certifier\n",
                 encoding="utf-8",
             )
             env = _read_uwsgi_env(ini)
@@ -39,6 +40,10 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
             self.assertEqual(
                 "127.0.0.1,localhost,acme-srv",
                 env["ACME2CERTIFIER_ALLOWED_HOSTS"],
+            )
+            self.assertEqual(
+                "mysql://acme2certifier:p@db/acme2certifier",
+                env["ACME2CERTIFIER_DATABASE_URL"],
             )
 
     def test_003_parse_apache_export(self) -> None:
@@ -53,7 +58,8 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
             base = Path(tmp)
             (base / "acme2certifier.ini").write_text(
                 'env = ACME2CERTIFIER_SECRET_KEY="from-ini"\n'
-                "env = ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv\n",
+                "env = ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,localhost,acme-srv\n"
+                "env = ACME2CERTIFIER_DATABASE_URL=postgres://u:p@db/acme2certifier\n",
                 encoding="utf-8",
             )
             env = dict(os.environ)
@@ -61,6 +67,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
                 "ACME2CERTIFIER_SECRET_KEY",
                 "ACME2CERTIFIER_ALLOWED_HOSTS",
                 "ACME2CERTIFIER_DEBUG",
+                "ACME2CERTIFIER_DATABASE_URL",
             ):
                 env.pop(key, None)
             with patch.dict(os.environ, env, clear=True):
@@ -69,6 +76,10 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
                 self.assertEqual(
                     "127.0.0.1,localhost,acme-srv",
                     os.environ["ACME2CERTIFIER_ALLOWED_HOSTS"],
+                )
+                self.assertEqual(
+                    "postgres://u:p@db/acme2certifier",
+                    os.environ["ACME2CERTIFIER_DATABASE_URL"],
                 )
 
     def test_005_read_uwsgi_env_missing_file(self) -> None:

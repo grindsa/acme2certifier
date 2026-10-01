@@ -39,9 +39,14 @@ class TestDjangoProjectSettings(unittest.TestCase):
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
         sys.modules.pop(_SETTINGS, None)
+        self._saved_db_url = os.environ.pop("ACME2CERTIFIER_DATABASE_URL", None)
 
     def tearDown(self) -> None:
         sys.modules.pop(_SETTINGS, None)
+        if self._saved_db_url is not None:
+            os.environ["ACME2CERTIFIER_DATABASE_URL"] = self._saved_db_url
+        else:
+            os.environ.pop("ACME2CERTIFIER_DATABASE_URL", None)
 
     def _reload(self):
         return importlib.import_module(_SETTINGS)
@@ -568,6 +573,148 @@ class TestDjangoProjectSettings(unittest.TestCase):
             finally:
                 if inserted and sys.path and sys.path[0] == str(root):
                     sys.path.pop(0)
+
+    def test_029_database_url_sqlite_merges_timeout(self) -> None:
+        """sqlite URL sets NAME and keeps busy_timeout OPTIONS"""
+        with tempfile.TemporaryDirectory() as tmp:
+            dbfile = os.path.join(tmp, "ci.sqlite3")
+            url = f"sqlite:///{dbfile}"
+            with patch.dict(
+                os.environ,
+                {
+                    "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                    "ACME2CERTIFIER_DEBUG": "1",
+                    "ACME2CERTIFIER_DATABASE_URL": url,
+                },
+                clear=False,
+            ):
+                mod = self._reload()
+            self.assertTrue(mod.DATABASES["default"]["ENGINE"].endswith("sqlite3"))
+            self.assertEqual(dbfile, mod.DATABASES["default"]["NAME"])
+            self.assertEqual(30, mod.DATABASES["default"]["OPTIONS"]["timeout"])
+
+    def test_030_database_url_mysql_merges_charset(self) -> None:
+        """mysql URL keeps default charset/init_command OPTIONS"""
+        with patch.dict(
+            os.environ,
+            {
+                "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                "ACME2CERTIFIER_DEBUG": "1",
+                "ACME2CERTIFIER_DATABASE_URL": (
+                    "mysql://acme2certifier:pass@mariadbsrv.acme/acme2certifier"
+                ),
+            },
+            clear=False,
+        ):
+            mod = self._reload()
+        db = mod.DATABASES["default"]
+        self.assertIn("mysql", db["ENGINE"])
+        self.assertEqual("acme2certifier", db["NAME"])
+        self.assertEqual("mariadbsrv.acme", db["HOST"])
+        self.assertEqual("utf8mb4", db["OPTIONS"]["charset"])
+        self.assertIn("STRICT_TRANS_TABLES", db["OPTIONS"]["init_command"])
+
+    def test_031_database_url_mysql_ca_nests_ssl(self) -> None:
+        """mysql URL ?ca= becomes OPTIONS['ssl']['ca']"""
+        with patch.dict(
+            os.environ,
+            {
+                "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                "ACME2CERTIFIER_DEBUG": "1",
+                "ACME2CERTIFIER_DATABASE_URL": (
+                    "mysql://acme2certifier:pass@db/acme2certifier"
+                    f"?ca={_DB_CA}"
+                ),
+            },
+            clear=False,
+        ):
+            mod = self._reload()
+        ssl_opt = mod.DATABASES["default"]["OPTIONS"]["ssl"]
+        self.assertEqual(_DB_CA, ssl_opt["ca"])
+        self.assertNotIn("ca", mod.DATABASES["default"]["OPTIONS"])
+
+    def test_032_database_url_postgres_ssl_query(self) -> None:
+        """postgres URL sslmode/sslrootcert land in OPTIONS"""
+        with patch.dict(
+            os.environ,
+            {
+                "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                "ACME2CERTIFIER_DEBUG": "1",
+                "ACME2CERTIFIER_DATABASE_URL": (
+                    "postgres://acme2certifier:pass@postgresdbsrv/acme2certifier"
+                    f"?sslmode=verify-ca&sslrootcert={_DB_CA}"
+                ),
+            },
+            clear=False,
+        ):
+            mod = self._reload()
+        options = mod.DATABASES["default"]["OPTIONS"]
+        self.assertEqual("verify-ca", options["sslmode"])
+        self.assertEqual(_DB_CA, options["sslrootcert"])
+
+    def test_033_database_url_mssql_engine_and_driver(self) -> None:
+        """mssql URL uses ENGINE mssql and default ODBC driver"""
+        with patch.dict(
+            os.environ,
+            {
+                "ACME2CERTIFIER_SECRET_KEY": "sekrit",
+                "ACME2CERTIFIER_DEBUG": "1",
+                "ACME2CERTIFIER_DATABASE_URL": (
+                    "mssql://acme2certifier_user:pass@ms-sql.acme:1433/acme2certifier"
+                    "?extra_params=Encrypt%3Dno%3BTrustServerCertificate%3Dyes"
+                ),
+            },
+            clear=False,
+        ):
+            mod = self._reload()
+        db = mod.DATABASES["default"]
+        self.assertEqual("mssql", db["ENGINE"])
+        self.assertEqual("ODBC Driver 18 for SQL Server", db["OPTIONS"]["driver"])
+        self.assertIn("Encrypt=no", db["OPTIONS"].get("extra_params", ""))
+
+    def test_034_dotenv_in_base_dir_is_read(self) -> None:
+        """BASE_DIR/.env supplies SECRET_KEY when process env is unset"""
+        from acme2certifier.django_project import settings_env
+
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / ".env").write_text(
+                "ACME2CERTIFIER_SECRET_KEY=from-dotenv\n",
+                encoding="utf-8",
+            )
+            env = dict(os.environ)
+            env.pop("ACME2CERTIFIER_SECRET_KEY", None)
+            env["ACME2CERTIFIER_BASE_DIR"] = tmp
+            env["ACME2CERTIFIER_DEBUG"] = "1"
+            with patch.dict(os.environ, env, clear=True):
+                loaded = settings_env.load_settings_env()
+            self.assertEqual("from-dotenv", loaded["SECRET_KEY"])
+
+    def test_035_cwd_dotenv_is_ignored(self) -> None:
+        """A .env in CWD is not read when BASE_DIR is elsewhere"""
+        from acme2certifier.django_project import settings_env
+
+        with tempfile.TemporaryDirectory() as base, tempfile.TemporaryDirectory() as cwd:
+            (Path(cwd) / ".env").write_text(
+                "ACME2CERTIFIER_SECRET_KEY=from-cwd\n", encoding="utf-8"
+            )
+            env = dict(os.environ)
+            env.pop("ACME2CERTIFIER_SECRET_KEY", None)
+            env["ACME2CERTIFIER_BASE_DIR"] = base
+            env["ACME2CERTIFIER_DEBUG"] = "1"
+            with (
+                patch.dict(os.environ, env, clear=True),
+                patch("os.getcwd", return_value=cwd),
+            ):
+                loaded = settings_env.load_settings_env()
+            self.assertEqual(settings_env.INSECURE_SECRET_KEY, loaded["SECRET_KEY"])
+
+    def test_036_missing_django_environ_raises(self) -> None:
+        """ImportError for django-environ becomes ImproperlyConfigured"""
+        from acme2certifier.django_project import settings_env
+
+        with patch.object(settings_env, "environ", None):
+            with self.assertRaises(ImproperlyConfigured):
+                settings_env.load_settings_env()
 
 
 if __name__ == "__main__":

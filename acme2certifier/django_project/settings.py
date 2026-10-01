@@ -1,53 +1,42 @@
 """
 Django settings for acme2certifier (pip / a2c-manage default).
 
-Override via ACME2CERTIFIER_* env vars, or replace/symlink this module for
-production DB credentials (see examples/django for a MySQL template).
+Override via ACME2CERTIFIER_* env vars (including ACME2CERTIFIER_DATABASE_URL),
+or replace/symlink this module for production DB credentials (see
+examples/django for a MySQL template).
 """
 
-import os
 import warnings
 
-import django
 from django.core.exceptions import ImproperlyConfigured
 from acme2certifier.acme_srv.helpers.config import load_config  # noqa: E402
 from acme2certifier.acme_srv.helpers.logging_utils import (  # noqa: E402
     apply_log_levels,
     config_debug_get,
-    env_debug_get,
     logger_setup,
 )
 from acme2certifier.acme_srv.helpers.network import (  # noqa: E402
     configured_server_name_get,
     server_name_allowed_host,
 )
-
-_DEFAULT_BASE = "/var/www/acme2certifier"
-BASE_DIR = os.environ.get(
-    "ACME2CERTIFIER_BASE_DIR",
-    _DEFAULT_BASE if os.path.isdir(_DEFAULT_BASE) else os.getcwd(),
+from acme2certifier.django_project.settings_env import (  # noqa: E402
+    INSECURE_SECRET_KEY,
+    load_settings_env,
 )
 
-_INSECURE_SECRET_KEY = "django-insecure-change-me-run-a2c-django-secret-keygen"
-SECRET_KEY = os.environ.get("ACME2CERTIFIER_SECRET_KEY", _INSECURE_SECRET_KEY)
+_cfg_env = load_settings_env()
+BASE_DIR = _cfg_env["BASE_DIR"]
+SECRET_KEY = _cfg_env["SECRET_KEY"]
+DEBUG = _cfg_env["DEBUG"]
+ALLOWED_HOSTS = _cfg_env["ALLOWED_HOSTS"]
+DATABASES = _cfg_env["DATABASES"]
 
-DEBUG = env_debug_get()
-
-if SECRET_KEY == _INSECURE_SECRET_KEY and not DEBUG:
+if SECRET_KEY == INSECURE_SECRET_KEY and not DEBUG:
     raise ImproperlyConfigured(
         "ACME2CERTIFIER_SECRET_KEY is unset or still the insecure default. "
         "Set ACME2CERTIFIER_SECRET_KEY (e.g. via a2c-django-secret-keygen), "
         "or set ACME2CERTIFIER_DEBUG=1 for local development only."
     )
-
-_DEFAULT_ALLOWED_HOSTS = "127.0.0.1,*" if DEBUG else "127.0.0.1,localhost"
-ALLOWED_HOSTS = [
-    h.strip()
-    for h in os.environ.get(
-        "ACME2CERTIFIER_ALLOWED_HOSTS", _DEFAULT_ALLOWED_HOSTS
-    ).split(",")
-    if h.strip()
-]
 
 if "*" in ALLOWED_HOSTS and not DEBUG:
     warnings.warn(
@@ -103,19 +92,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
-
-_SQLITE_BUSY_TIMEOUT = int(os.environ.get("ACME2CERTIFIER_SQLITE_TIMEOUT", "30"))
-_SQLITE_OPTIONS: dict = {"timeout": _SQLITE_BUSY_TIMEOUT}
-if django.VERSION >= (5, 1):
-    _SQLITE_OPTIONS["transaction_mode"] = "IMMEDIATE"
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
-        "OPTIONS": _SQLITE_OPTIONS,
-    }
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {

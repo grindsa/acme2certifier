@@ -52,12 +52,14 @@ ntlm = [
 ]
 django = [
     "Django",
+    "django-environ>=0.11.2",
 ]
 full = [
     "gssapi",
     "requests_gssapi",
     "requests_ntlm",
     "Django",
+    "django-environ>=0.11.2",
     "PyMySQL",
     "psycopg2-binary",
 ]
@@ -65,6 +67,7 @@ test = [
     "pytest",
     "pytest-cov",
     "Django",
+    "django-environ>=0.11.2",
     "requests_ntlm",
 ]
 
