@@ -65,6 +65,21 @@ def _client_material_paths(ca_runtime_path: str) -> tuple[str, str]:
     )
 
 
+def _unquote_env_value(val: str) -> str:
+    """Drop one pair of matching quotes so a sourced django.env round-trips."""
+    if len(val) >= 2 and val[0] == val[-1] and val[0] in {"'", '"'}:
+        inner = val[1:-1]
+        if val[0] == "'":
+            return inner.replace("'\\''", "'")
+        return inner
+    return val
+
+
+def _shell_single_quote(val: str) -> str:
+    """Quote for bash source. Ampersands in query strings stay inside the value."""
+    return "'" + val.replace("'", "'\\''") + "'"
+
+
 def _read_env_file(path: str) -> Dict[str, str]:
     out: Dict[str, str] = {}
     with open(path, encoding="utf-8") as handle:
@@ -73,7 +88,7 @@ def _read_env_file(path: str) -> Dict[str, str]:
             if not stripped or stripped.startswith("#") or "=" not in stripped:
                 continue
             key, val = stripped.split("=", 1)
-            out[key] = val
+            out[key] = _unquote_env_value(val)
     return out
 
 
@@ -82,11 +97,11 @@ def _write_env_file(path: str, values: Dict[str, str], order: List[str]) -> None
     seen = set()
     for key in order:
         if key in values:
-            lines.append(f"{key}={values[key]}\n")
+            lines.append(f"{key}={_shell_single_quote(values[key])}\n")
             seen.add(key)
     for key, val in values.items():
         if key not in seen:
-            lines.append(f"{key}={val}\n")
+            lines.append(f"{key}={_shell_single_quote(val)}\n")
     with open(path, "w", encoding="utf-8") as handle:
         handle.writelines(lines)
 

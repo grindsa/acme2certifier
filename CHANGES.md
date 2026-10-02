@@ -8,27 +8,29 @@ and pick the appropriate release branch.
 
 ## Changes in 0.46
 
+- The database schema has been updated. Please ensure you run the appropriate update after upgrading:
+  - Use `a2c-db-update` if you are using `[DBhandler] handler: wsgi`
+  - Use `a2c-django-update` if you are using `[DBhandler] handler: django`
+
+**New Features**:
+
+- Multi-CAhandler support: configure several CA handler plugins in one instance (`multi_handler`, named `[CAhandler:<name>]` sections, EAB `cahandler_name`, `profile_cahandler`, `route_domainlist` using the same exact/wildcard matching as `[Order] allowed_domainlist`, `orders.cahandler` persistence); INI and YAML config; see [`docs/multi_cahandler.md`](docs/multi_cahandler.md)
+- [HARICA CertManager](docs/harica.md) REST CA handler (`harica_ca_handler`) for SSL enrollment against prevalidated domains (login/2FA, poll, optional `auto_approve`, revoke); credentials via `requester_*` / `approver_*` or matching `*_variable` environment variable names
+- [`a2c-harica-totp`](docs/harica.md) CLI to print the current CertManager TOTP code from configured seeds (portal login / troubleshooting)
+- Django: optional `ACME2CERTIFIER_DATABASE_URL` (via [django-environ](https://django-environ.readthedocs.io/)) for `DATABASES['default']` instead of editing a Python settings overlay — SQLite / MySQL / PostgreSQL / MSSQL URIs, MySQL `?ca=` and Postgres `sslmode`/`sslrootcert` TLS query params, optional `$ACME2CERTIFIER_BASE_DIR/.env`; install scripts and Docker `env_file` persist the URL for uWSGI/Apache. See [`docs/django_deploy_env.md`](docs/django_deploy_env.md) and [`docs/external_database_support.md`](docs/external_database_support.md)
+- Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377)); per-account overrides via EAB profile `challenge` section
+- Optional `[CAhandler] cert_chain_skip_list` (JSON list of SHA-256 fingerprints) and `cert_chain_append` (JSON list of PEM files) to rewrite the PEM bundle after the CA handler returns it (enroll, poll, trigger). Skip drops matching certificates (intended as a suffix of the chain; remaining links are checked); append adds local PEMs that must certify the previous certificate unless `cert_chain_link_check` is `False` (warning, still stored). Kid-profile `cahandler` blocks can set the same keys (replace bound values, not setattr on the handler). Typical use: omit a self-signed root and attach a cross-signed replacement. See [`docs/cert_chain.md`](docs/cert_chain.md)
+- [XCA CA handler](docs/xca.md) can use the same MySQL/MariaDB or PostgreSQL database as the XCA GUI (`xdb_engine`, `xdb_host` / `xdb_name` / `xdb_user` / `xdb_password`, optional table prefix and TLS); SQLite `.xdb` remains the default ([#386](https://github.com/grindsa/acme2certifier/issues/386))
+
 **Bug Fixes and Improvements**:
 
 - `[Challenge] challenge_validation_disable` without `forward_address_check` or `reverse_address_check` is ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (challenge validation stays enabled and a warning is logged); acknowledgement is logged at `CRITICAL`. Combined with either address check (enterprise client-IP binding) remains allowed without the break-glass env. Same gate applies to EAB profile `challenge.challenge_validation_disable`
 - EAB kid-profile `cahandler` blocks cannot override script/shell paths (`dns_update_script`, `acme_sh_script`, `acme_sh_shell`, `dns_update_script_variables`, and `*_script` / `*_shell` suffixes). Profile `acme_keyfile` values must resolve under configured `acme_keypath`. Credential and endpoint overrides remain intentional; protect the profile store (see [`docs/eab_profiling.md`](docs/eab_profiling.md))
-- Parse `acme_srv.cfg` once per worker and pass that ConfigParser into ACME objects; CAhandler still self-configures via `_config_load()` (named `[CAhandler:<name>]` overlay unchanged). Restart the process after config edits ([#384](https://github.com/grindsa/acme2certifier/issues/384))
-- Multi-CAhandler: ACME profiles that only select a named handler (`profile_cahandler` identity maps such as `harica` → `harica`) no longer overwrite that handler's `profile_mapping_field` (HARICA was sending `transactionType=harica` instead of `OV`)
-- OpenSSL CA handler honors `enrollment_config_log` / `enrollment_config_log_skip_list` (same as XCA and the other handlers)
+- OpenSSL CA handler honors `enrollment_config_log` / `enrollment_config_log_skip_list` (same the other handlers)
 - Log the resolved CA handler name (and config section) at INFO before certificate enrollment
 - Multi-CAhandler: do not fall back to deprecated `acme_srv.ca_handler` (or log CRITICAL) when `multi_handler` is enabled; `[CAhandler]` is a registry, not a plugin
-- `logger_setup(False)` applies INFO to the root logger and quiets urllib3/requests so HTTP wire traces are not emitted when `debug` is off
 - ACME Helper debug: explicit `[DEFAULT] debug` in `acme_srv.cfg` overrides `ACME2CERTIFIER_DEBUG`; the env var is used only when `debug` is unset. Django `DEBUG` stays independent.
 - EJBCA: `username` is optional when `username_append_cn` is set, so the end-entity can be named after the certificate CN alone ([#395](https://github.com/grindsa/acme2certifier/pull/395))
-
-**New Features**:
-
-- Optional `[CAhandler] cert_chain_skip_list` (JSON list of SHA-256 fingerprints) and `cert_chain_append` (JSON list of PEM files) to rewrite the PEM bundle after the CA handler returns it (enroll, poll, trigger). Skip drops matching certificates (intended as a suffix of the chain; remaining links are checked); append adds local PEMs that must certify the previous certificate unless `cert_chain_link_check` is `False` (warning, still stored). Kid-profile `cahandler` blocks can set the same keys (replace bound values, not setattr on the handler). Typical use: omit a self-signed root and attach a cross-signed replacement. See [`docs/cert_chain.md`](docs/cert_chain.md)
-- Multi-CAhandler support: configure several CA handler plugins in one instance (`multi_handler`, named `[CAhandler:<name>]` sections, EAB `cahandler_name`, `profile_cahandler`, `route_domainlist` using the same exact/wildcard matching as `[Order] allowed_domainlist`, `orders.cahandler` persistence); INI and YAML config; see [`docs/multi_cahandler.md`](docs/multi_cahandler.md)
-- Options `[Challenge] http_01_support`, `dns_01_support`, and `tls_alpn_01_support` to disable individual RFC 8555 challenge types (enabled by default for backwards compatibility) ([#377](https://github.com/grindsa/acme2certifier/issues/377)); per-account overrides via EAB profile `challenge` section
-- [HARICA CertManager](docs/harica.md) REST CA handler (`harica_ca_handler`) for SSL enrollment against prevalidated domains (login/2FA, poll, optional `auto_approve`, revoke); credentials via `requester_*` / `approver_*` or matching `*_variable` environment variable names
-- [`a2c-harica-totp`](docs/harica.md) CLI to print the current CertManager TOTP code from configured seeds (portal login / troubleshooting)
-- [XCA CA handler](docs/xca.md) can use the same MySQL/MariaDB or PostgreSQL database as the XCA GUI (`xdb_engine`, `xdb_host` / `xdb_name` / `xdb_user` / `xdb_password`, optional table prefix and TLS); SQLite `.xdb` remains the default ([#386](https://github.com/grindsa/acme2certifier/issues/386))
 
 ## Changes in 0.45.3
 

@@ -286,6 +286,37 @@ jobs:
           sleep 20
           docker exec alma9-c1 ls -la /opt/acme2certifier/volume/  | grep -i lsycd_test.txt -vqz
 
+      - name: "Parse GH_CFG"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "Install django-environ from SBOM"
+        run: |
+          set -euo pipefail
+          bash examples/install_scripts/fetch-sbom-rpms.sh -v 9 -s python3 -d data
+          shopt -s nullglob
+          rpms=(data/python3-django-environ-*.rpm)
+          if ((${#rpms[@]} == 0)); then
+            echo "ERROR: python3-django-environ RPM missing from the EL9 SBOM leaf" >&2
+            exit 1
+          fi
+          for host in alma9-c1 alma9-c2; do
+            docker exec "${host}" bash -c '
+              set -euo pipefail
+              shopt -s nullglob
+              rpms=(/tmp/acme2certifier/python3-django-environ-*.rpm)
+              if ((${#rpms[@]} == 0)); then
+                echo "ERROR: python3-django-environ RPM not visible in /tmp/acme2certifier" >&2
+                exit 1
+              fi
+              yum localinstall -y "${rpms[@]}"
+            '
+          done
+        env:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+
       - name: "Install acme2certifier"
         run: |
           set -euo pipefail
@@ -426,11 +457,10 @@ jobs:
               export ACME2CERTIFIER_BASE_DIR=/opt/acme2certifier
               export DJANGO_SETTINGS_MODULE=acme2certifier.django_project.settings
               cd /opt/acme2certifier
-              # EPEL python3-django4.2 ships no gettext catalogs. Double quotes:
-              # this script is already inside bash -c '...'.
+              # EPEL python3-django4.2 ships no gettext catalogs (same as a2c-rpm.sh).
               sed -i \
-                -e "s/^USE_I18N = True/USE_I18N = False/" \
-                -e "s/^USE_L10N = True/USE_L10N = False/" \
+                -e 's/^USE_I18N = True/USE_I18N = False/' \
+                -e 's/^USE_L10N = True/USE_L10N = False/' \
                 acme2certifier/django_project/settings.py
               a2c-manage migrate
               a2c-manage loaddata status

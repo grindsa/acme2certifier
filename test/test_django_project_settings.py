@@ -438,7 +438,9 @@ class TestDjangoProjectSettings(unittest.TestCase):
             )
             patch_file(dest, "psql", _DB_CA, allowed_bases=[Path(tmp)])
             text = dest.read_text(encoding="utf-8")
+            self.assertIn("ACME2CERTIFIER_DATABASE_URL='", text)
             self.assertIn("sslmode=verify-ca", text)
+            self.assertIn("&", text)
             self.assertIn(f"sslrootcert={_DB_CA}", text)
             self.assertIn(
                 "sslcert=/var/www/acme2certifier/volume/db-client-cert.pem",

@@ -33,7 +33,7 @@ runs:
           ca_cert_chain_list: ["root-ca"]
           template_name: ${{ env.XCA_TEMPLATE }}
 
-    - name: "Refresh django DATABASE_URL if needed"
+    - name: "Refresh django settings and DATABASE_URL if needed"
       if: inputs.DJANGO == 'true'
       shell: bash
       env:
@@ -66,16 +66,23 @@ runs:
           --secret "${secret}" \
           --env-file "${env_file}" \
           --github-env
+        # Replace the from-tag settings.py. Installers symlink this file over
+        # packaged settings. ≤0.44 still lists acme_srv / acme2certifier.urls.
+        settings_src="examples/django/settings.py"
         case "${DEPLOYMENT_TYPE}" in
           container)
+            sudo cp "${settings_src}" "${VOLUME_DIR}/settings.py"
             ;;
           rpm)
-            sudo mkdir -p data/volume
+            sudo mkdir -p data/volume data/acme2certifier
             sudo cp "${env_file}" data/volume/django.env
             sudo cp "${env_file}" "${VOLUME_DIR}/django.env"
+            sudo cp "${settings_src}" data/acme2certifier/settings.py
+            sudo cp "${settings_src}" "${VOLUME_DIR}/settings.py"
             ;;
           deb)
-            sudo mkdir -p "${VOLUME_DIR}"
+            sudo mkdir -p "${VOLUME_DIR}/acme2certifier"
             sudo cp "${env_file}" "${VOLUME_DIR}/django.env"
+            sudo cp "${settings_src}" "${VOLUME_DIR}/acme2certifier/settings.py"
             ;;
         esac
