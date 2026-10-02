@@ -92,7 +92,7 @@ case "${DJANGO_DB}" in
     ;;
   mssql)
     : "${DB_HOST:=ms-sql.acme}"
-    DATABASE_URL="mssql://acme2certifier_user:${DB_PASSWORD}@${DB_HOST}:1433/acme2certifier?driver=ODBC+Driver+18+for+SQL+Server&extra_params=Encrypt%3Dno%3BTrustServerCertificate%3Dyes"
+    DATABASE_URL="mssql://acme2certifier_user:${DB_PASSWORD}@${DB_HOST}:1433/acme2certifier?driver=ODBC+Driver+18+for+SQL+Server&extra_params=Encrypt%3Dyes%3BTrustServerCertificate%3Dyes"
     ;;
   *)
     echo "ERROR: unsupported --django-db=${DJANGO_DB} (expected mariadb|psql|mssql|sqlite3)" >&2
