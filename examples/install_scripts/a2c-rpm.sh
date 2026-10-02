@@ -471,6 +471,18 @@ link_django_settings_from_volume() {
   fi
 }
 
+# EPEL python3-django4.2 ships no gettext catalogs. Without --follow-symlinks,
+# sed -i replaces the volume symlink with a regular file, and the next restart
+# loads the unpatched target (OSError: No translation files found for en-us).
+disable_django_i18n() {
+  local settings_py="${APP_ROOT}/acme2certifier/django_project/settings.py"
+  [[ -e "${settings_py}" ]] || return 0
+  ${SUDO} sed -i --follow-symlinks \
+    -e 's/^USE_I18N = True/USE_I18N = False/' \
+    -e 's/^USE_L10N = True/USE_L10N = False/' \
+    "${settings_py}"
+}
+
 # Normalize handler / handler_module value to short name (wsgi|django) or empty.
 normalize_dbhandler_mode() {
   local value="${1:-}"
@@ -599,6 +611,9 @@ do_restart() {
     fi
   fi
   set_dbhandler_mode "${effective_mode}"
+  if [[ "${effective_mode}" == "${MODE_DJANGO}" ]]; then
+    disable_django_i18n
+  fi
   ${SUDO} chown -R "${NGINX_USER}:${NGINX_USER}" "${APP_ROOT}/volume" || true
   restart_services
   echo "Done. restarted nginx + acme2certifier mode=${effective_mode}"
@@ -962,13 +977,7 @@ fi
 if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   link_django_settings_from_volume "${VOLUME_DIR}"
   echo "==> Django migrate + fixtures"
-  SETTINGS_PY="${APP_ROOT}/acme2certifier/django_project/settings.py"
-  if [[ -f "${SETTINGS_PY}" ]]; then
-    ${SUDO} sed -i \
-      -e 's/^USE_I18N = True/USE_I18N = False/' \
-      -e 's/^USE_L10N = True/USE_L10N = False/' \
-      "${SETTINGS_PY}"
-  fi
+  disable_django_i18n
   export ACME_SRV_CONFIGFILE="${CFG}"
   export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
   export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}"
