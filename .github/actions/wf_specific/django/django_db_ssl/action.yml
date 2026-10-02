@@ -73,6 +73,10 @@ runs:
         # Keep volume copy in sync when ENV_FILE is under data/
         for envf in ${{ inputs.ENV_FILE }}; do
           if [[ -f "$envf" && -d "$VOLUME_DIR" ]]; then
+            # Container TLS uses the same path for ENV_FILE and the volume.
+            if [[ "$envf" -ef "$VOLUME_DIR/django.env" ]]; then
+              continue
+            fi
             sudo cp "$envf" "$VOLUME_DIR/django.env"
           fi
         done
