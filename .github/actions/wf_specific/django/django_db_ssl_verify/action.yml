@@ -69,6 +69,22 @@ runs:
             exit 1
           fi
           echo "Using $py for Django TLS session check"
+          # uWSGI/Apache already loaded django.env. This exec does not.
+          django_env=""
+          for envf in ${APP_ROOT:+"$APP_ROOT/volume/django.env"} \
+            /tmp/acme2certifier/volume/django.env \
+            /tmp/acme2certifier/django.env; do
+            if [[ -f "$envf" ]]; then
+              django_env=$envf
+              break
+            fi
+          done
+          if [[ -n "$django_env" ]]; then
+            set -a
+            # shellcheck disable=SC1090
+            source "$django_env"
+            set +a
+          fi
           app_user=""
           for u in www-data nginx apache; do
             if getent passwd "$u" >/dev/null 2>&1; then

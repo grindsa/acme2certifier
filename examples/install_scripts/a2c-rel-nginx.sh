@@ -87,7 +87,7 @@ else
 fi
 
 # Leave values unquoted. uWSGI 2.0.24 (Debian) drops only the first " on an
-# env line and keeps the closing quote in the value. $$ is uWSGI's escape for $.
+# env line and keeps the closing quote in the value. $$ is uWSGI's escape for $, %% for %.
 # Reject @( / %( placeholders (uWSGI opens them as files / interpolates).
 a2c_uwsgi_env_set() {
   local ini="$1" key="$2" value="$3" escaped
@@ -99,7 +99,7 @@ a2c_uwsgi_env_set() {
     echo "ERROR: ${key} contains a newline or double quote" >&2
     return 1
   fi
-  escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/\$/$$/g')"
+  escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/\$/$$/g; s/%/%%/g')"
   printf 'env = %s=%s\n' "$key" "$escaped" | ${SUDO} tee -a "$ini" >/dev/null
 }
 
