@@ -152,6 +152,89 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
                 printed = " ".join(str(c) for c in mock_print.call_args_list)
                 self.assertIn("ACME2CERTIFIER_SECRET_KEY is set", printed)
 
+    def test_011_load_deploy_env_reads_opt_ini(self) -> None:
+        """Unset BASE_DIR loads ACME2CERTIFIER_* from the /opt uWSGI ini."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            www = root / "var" / "www" / "acme2certifier"
+            opt = root / "opt" / "acme2certifier"
+            opt.mkdir(parents=True)
+            (opt / "acme2certifier.ini").write_text(
+                "env = ACME2CERTIFIER_DATABASE_URL="
+                "mysql://acme2certifier:p@db/acme2certifier\n"
+                "env = ACME2CERTIFIER_ALLOWED_HOSTS=127.0.0.1,*\n",
+                encoding="utf-8",
+            )
+            env = dict(os.environ)
+            for key in (
+                "ACME2CERTIFIER_SECRET_KEY",
+                "ACME2CERTIFIER_ALLOWED_HOSTS",
+                "ACME2CERTIFIER_DEBUG",
+                "ACME2CERTIFIER_DATABASE_URL",
+                "ACME2CERTIFIER_BASE_DIR",
+            ):
+                env.pop(key, None)
+            with patch.dict(os.environ, env, clear=True):
+                with patch(
+                    "acme2certifier.tools.a2c_django_deploy_env._INSTALL_ROOTS",
+                    (www, opt),
+                ):
+                    with patch(
+                        "acme2certifier.tools.a2c_django_secret_keygen.generate_secret_key",
+                        return_value="generated-secret",
+                    ):
+                        load_deploy_env()
+                self.assertEqual(
+                    "mysql://acme2certifier:p@db/acme2certifier",
+                    os.environ["ACME2CERTIFIER_DATABASE_URL"],
+                )
+                self.assertEqual(
+                    "127.0.0.1,*",
+                    os.environ["ACME2CERTIFIER_ALLOWED_HOSTS"],
+                )
+                self.assertEqual(str(opt), os.environ["ACME2CERTIFIER_BASE_DIR"])
+
+    def test_012_load_deploy_env_prefers_www_ini_over_opt(self) -> None:
+        """When both install roots have an ini, /var/www wins."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            www = root / "www"
+            opt = root / "opt"
+            www.mkdir()
+            opt.mkdir()
+            (www / "acme2certifier.ini").write_text(
+                "env = ACME2CERTIFIER_DATABASE_URL=mysql://from-www/db\n",
+                encoding="utf-8",
+            )
+            (opt / "acme2certifier.ini").write_text(
+                "env = ACME2CERTIFIER_DATABASE_URL=mysql://from-opt/db\n",
+                encoding="utf-8",
+            )
+            env = dict(os.environ)
+            for key in (
+                "ACME2CERTIFIER_SECRET_KEY",
+                "ACME2CERTIFIER_ALLOWED_HOSTS",
+                "ACME2CERTIFIER_DEBUG",
+                "ACME2CERTIFIER_DATABASE_URL",
+                "ACME2CERTIFIER_BASE_DIR",
+            ):
+                env.pop(key, None)
+            with patch.dict(os.environ, env, clear=True):
+                with patch(
+                    "acme2certifier.tools.a2c_django_deploy_env._INSTALL_ROOTS",
+                    (www, opt),
+                ):
+                    with patch(
+                        "acme2certifier.tools.a2c_django_secret_keygen.generate_secret_key",
+                        return_value="generated-secret",
+                    ):
+                        load_deploy_env()
+                self.assertEqual(
+                    "mysql://from-www/db",
+                    os.environ["ACME2CERTIFIER_DATABASE_URL"],
+                )
+                self.assertEqual(str(www), os.environ["ACME2CERTIFIER_BASE_DIR"])
+
     def test_010_module_main_guard(self) -> None:
         """Running the module as __main__ invokes main()"""
         import runpy

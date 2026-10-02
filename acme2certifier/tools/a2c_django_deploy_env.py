@@ -15,6 +15,11 @@ _DEPLOY_KEYS = (
     "ACME2CERTIFIER_DEBUG",
     "ACME2CERTIFIER_DATABASE_URL",
 )
+# First root that contains acme2certifier.ini wins. RPM installs live under /opt.
+_INSTALL_ROOTS = (
+    Path("/var/www/acme2certifier"),
+    Path("/opt/acme2certifier"),
+)
 
 
 def _unquote_uwsgi_value(raw: str) -> str:
@@ -62,11 +67,28 @@ def _read_apache_envvars(envvars_path: Path) -> Dict[str, str]:
     return out
 
 
+def deploy_base_dir(base_dir: Optional[str] = None) -> Path:
+    """Return the app root that holds acme2certifier.ini.
+
+    An explicit ``base_dir`` or ``ACME2CERTIFIER_BASE_DIR`` wins. Otherwise use
+    the first install root that contains ``acme2certifier.ini`` (``/var/www``
+    for deb, ``/opt`` for RPM).
+    """
+    explicit = (base_dir or os.environ.get("ACME2CERTIFIER_BASE_DIR") or "").strip()
+    if explicit:
+        return Path(explicit)
+    for cand in _INSTALL_ROOTS:
+        if (cand / "acme2certifier.ini").is_file():
+            return cand
+    return _INSTALL_ROOTS[0]
+
+
 def load_deploy_env(base_dir: Optional[str] = None) -> None:
     """Populate ACME2CERTIFIER_* in os.environ from deployment files when unset."""
-    base = Path(
-        base_dir or os.environ.get("ACME2CERTIFIER_BASE_DIR", "/var/www/acme2certifier")
-    )
+    discovered = base_dir is None and not os.environ.get("ACME2CERTIFIER_BASE_DIR")
+    base = deploy_base_dir(base_dir)
+    if discovered and (base / "acme2certifier.ini").is_file():
+        os.environ["ACME2CERTIFIER_BASE_DIR"] = str(base)
     for source in (
         _read_uwsgi_env(base / "acme2certifier.ini"),
         _read_apache_envvars(Path("/etc/apache2/envvars")),
