@@ -6,8 +6,10 @@
 #     [--host HOST] [--password PASS] [--secret KEY] \
 #     [--env-file PATH] [--github-env] [--allowed-hosts HOSTS]
 #
-# Writes KEY=VALUE lines to --env-file (default: django.env in cwd).
-# With --github-env, also appends to $GITHUB_ENV when set.
+# Writes KEY='VALUE' lines to --env-file (default: django.env in cwd).
+# Single quotes survive `source` when the value contains & (MSSQL, Postgres TLS).
+# With --github-env, appends unquoted lines to $GITHUB_ENV (the runner does not
+# use bash source).
 set -euo pipefail
 
 DJANGO_DB=""
@@ -100,12 +102,19 @@ case "${DJANGO_DB}" in
     ;;
 esac
 
+# bash source: 'it'\''s' is the only safe quote. Values here have no newlines.
+shell_quote() {
+  local v="$1"
+  v="${v//\'/\'\\\'\'}"
+  printf "'%s'" "${v}"
+}
+
 mkdir -p "$(dirname "${ENV_FILE}")"
 {
-  printf 'ACME2CERTIFIER_SECRET_KEY=%s\n' "${SECRET_KEY}"
-  printf 'ACME2CERTIFIER_ALLOWED_HOSTS=%s\n' "${ALLOWED_HOSTS}"
+  printf 'ACME2CERTIFIER_SECRET_KEY=%s\n' "$(shell_quote "${SECRET_KEY}")"
+  printf 'ACME2CERTIFIER_ALLOWED_HOSTS=%s\n' "$(shell_quote "${ALLOWED_HOSTS}")"
   if [[ -n "${DATABASE_URL}" ]]; then
-    printf 'ACME2CERTIFIER_DATABASE_URL=%s\n' "${DATABASE_URL}"
+    printf 'ACME2CERTIFIER_DATABASE_URL=%s\n' "$(shell_quote "${DATABASE_URL}")"
   fi
 } > "${ENV_FILE}"
 
