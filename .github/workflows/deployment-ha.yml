@@ -426,6 +426,12 @@ jobs:
               export ACME2CERTIFIER_BASE_DIR=/opt/acme2certifier
               export DJANGO_SETTINGS_MODULE=acme2certifier.django_project.settings
               cd /opt/acme2certifier
+              # EPEL python3-django4.2 ships no gettext catalogs. Double quotes:
+              # this script is already inside bash -c '...'.
+              sed -i \
+                -e "s/^USE_I18N = True/USE_I18N = False/" \
+                -e "s/^USE_L10N = True/USE_L10N = False/" \
+                acme2certifier/django_project/settings.py
               a2c-manage migrate
               a2c-manage loaddata status
               systemctl restart acme2certifier.service
