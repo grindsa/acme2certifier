@@ -635,11 +635,12 @@ class CAhandler(object):
                 return True
             if name.endswith("." + base):
                 return True
-            # wildcard entry *.example.com
-            if base.startswith("*.") and (
-                name == base[2:] or name.endswith("." + base[2:])
-            ):
-                return True
+            # wildcard entry *.example.com; compare the apex exactly so
+            # notexample.com is not treated as a suffix of example.com
+            if base.startswith("*."):
+                apex = base[2:]
+                if name == apex or name.endswith("." + apex):
+                    return True
         return False
 
     def _domains_allowed_check(

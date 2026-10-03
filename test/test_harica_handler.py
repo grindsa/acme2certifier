@@ -176,6 +176,8 @@ class TestHaricaCAhandler(unittest.TestCase):
             self.cahandler._domain_is_allowed("acme-client.dynamop.de", allowed)
         )
         self.assertTrue(self.cahandler._domain_is_allowed("foo.example.org", allowed))
+        self.assertTrue(self.cahandler._domain_is_allowed("example.org", allowed))
+        self.assertFalse(self.cahandler._domain_is_allowed("notexample.org", allowed))
         self.assertFalse(self.cahandler._domain_is_allowed("other.com", allowed))
 
     def test_012_domains_allowed_check_rejects(self):
