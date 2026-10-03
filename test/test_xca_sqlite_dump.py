@@ -26,9 +26,7 @@ class TestXcaSqliteDump(unittest.TestCase):
     def test_001_mysql_dump_has_no_unistr(self):
         """mysql dump uses literal newlines instead of unistr()/char()"""
         buf = io.StringIO()
-        dump_xca_sqlite(
-            _xdb_path(), "mysql", buf, allowed_bases=[_repo_base()]
-        )
+        dump_xca_sqlite(_xdb_path(), "mysql", buf, allowed_bases=[_repo_base()])
         sql = buf.getvalue()
         self.assertIn("SET SESSION SQL_MODE='ANSI';", sql)
         self.assertNotIn("unistr(", sql)
@@ -40,9 +38,7 @@ class TestXcaSqliteDump(unittest.TestCase):
     def test_002_postgresql_dump_has_no_unistr(self):
         """postgresql dump is free of sqlite dump helpers"""
         buf = io.StringIO()
-        dump_xca_sqlite(
-            _xdb_path(), "postgresql", buf, allowed_bases=[_repo_base()]
-        )
+        dump_xca_sqlite(_xdb_path(), "postgresql", buf, allowed_bases=[_repo_base()])
         sql = buf.getvalue()
         self.assertNotIn("SET SESSION SQL_MODE", sql)
         self.assertNotIn("unistr(", sql)
@@ -53,9 +49,7 @@ class TestXcaSqliteDump(unittest.TestCase):
     def test_003_item_comment_keeps_newline(self):
         """item comments retain the newline that sqlite dumps as unistr"""
         buf = io.StringIO()
-        dump_xca_sqlite(
-            _xdb_path(), "postgresql", buf, allowed_bases=[_repo_base()]
-        )
+        dump_xca_sqlite(_xdb_path(), "postgresql", buf, allowed_bases=[_repo_base()])
         self.assertRegex(
             buf.getvalue(),
             r"angewendet\)\n\(Der Schlüssel",
@@ -64,9 +58,7 @@ class TestXcaSqliteDump(unittest.TestCase):
     def test_004_postgresql_inserts_match_folded_identifiers(self):
         """quoted INSERTs must use folded names to match unquoted CREATE TABLE"""
         buf = io.StringIO()
-        dump_xca_sqlite(
-            _xdb_path(), "postgresql", buf, allowed_bases=[_repo_base()]
-        )
+        dump_xca_sqlite(_xdb_path(), "postgresql", buf, allowed_bases=[_repo_base()])
         sql = buf.getvalue()
         self.assertIn('INSERT INTO "private_keys" ("item", "ownpass", "private")', sql)
         self.assertNotIn('"ownPass"', sql)

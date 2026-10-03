@@ -951,9 +951,7 @@ def _is_credential_header(name: str) -> bool:
 def _strip_credential_headers(prepared_request) -> None:
     """Remove credential headers from a prepared request."""
     for key in [
-        header
-        for header in prepared_request.headers
-        if _is_credential_header(header)
+        header for header in prepared_request.headers if _is_credential_header(header)
     ]:
         del prepared_request.headers[key]
 

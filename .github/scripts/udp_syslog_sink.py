@@ -29,7 +29,8 @@ def _safe_path(path: str, *, must_exist: bool = False) -> str:
         raise SystemExit(f"invalid path: {path!r}")
     resolved = os.path.realpath(path)
     if not any(
-        resolved == base or resolved.startswith(base + os.sep) for base in _allowed_bases()
+        resolved == base or resolved.startswith(base + os.sep)
+        for base in _allowed_bases()
     ):
         raise SystemExit(f"path outside allowed directories: {path}")
     if must_exist and not os.path.isfile(resolved):

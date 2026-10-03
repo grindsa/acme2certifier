@@ -152,7 +152,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
                 printed = " ".join(str(c) for c in mock_print.call_args_list)
                 self.assertIn("ACME2CERTIFIER_SECRET_KEY is set", printed)
 
-    def test_011_load_deploy_env_reads_opt_ini(self) -> None:
+    def test_010_load_deploy_env_reads_opt_ini(self) -> None:
         """Unset BASE_DIR loads ACME2CERTIFIER_* from the /opt uWSGI ini."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -194,7 +194,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
                 )
                 self.assertEqual(str(opt), os.environ["ACME2CERTIFIER_BASE_DIR"])
 
-    def test_012_load_deploy_env_prefers_www_ini_over_opt(self) -> None:
+    def test_011_load_deploy_env_prefers_www_ini_over_opt(self) -> None:
         """When both install roots have an ini, /var/www wins."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -235,7 +235,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
                 )
                 self.assertEqual(str(www), os.environ["ACME2CERTIFIER_BASE_DIR"])
 
-    def test_010_module_main_guard(self) -> None:
+    def test_012_module_main_guard(self) -> None:
         """Running the module as __main__ invokes main()"""
         import runpy
         from acme2certifier.tools.a2c_django_deploy_env import __file__ as mod_file

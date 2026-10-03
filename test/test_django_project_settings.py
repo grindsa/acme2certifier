@@ -458,13 +458,11 @@ class TestDjangoProjectSettings(unittest.TestCase):
         patch_file = _load_github_script("patch_django_db_ssl").patch_file
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp) / "django.env"
-            self._write_django_env(
-                dest, "mssql://u:p@ms-sql.acme:1433/acme2certifier"
-            )
+            self._write_django_env(dest, "mssql://u:p@ms-sql.acme:1433/acme2certifier")
             with self.assertRaises(SystemExit):
                 patch_file(dest, "mssql", _DB_CA, allowed_bases=[Path(tmp)])
 
-    def test_022b_patch_rejects_path_outside_allowed_bases(self) -> None:
+    def test_023_patch_rejects_path_outside_allowed_bases(self) -> None:
         """env file paths outside allowed_bases are rejected (path traversal)"""
         mod = _load_github_script("patch_django_db_ssl")
         with tempfile.TemporaryDirectory() as tmp:
@@ -476,18 +474,14 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 outside, "mysql://acme2certifier:pw@mariadbsrv.acme/acme2certifier"
             )
             with self.assertRaises(SystemExit) as ctx:
-                mod.patch_file(
-                    outside, "mariadb", _DB_CA, allowed_bases=[allowed]
-                )
+                mod.patch_file(outside, "mariadb", _DB_CA, allowed_bases=[allowed])
             self.assertIn("outside allowed directories", str(ctx.exception))
             escape = allowed / ".." / "outside" / "django.env"
             with self.assertRaises(SystemExit) as ctx2:
-                mod.patch_file(
-                    escape, "mariadb", _DB_CA, allowed_bases=[allowed]
-                )
+                mod.patch_file(escape, "mariadb", _DB_CA, allowed_bases=[allowed])
             self.assertIn("outside allowed directories", str(ctx2.exception))
 
-    def test_022c_patch_rejects_unsafe_ca_runtime_path(self) -> None:
+    def test_024_patch_rejects_unsafe_ca_runtime_path(self) -> None:
         """ca-runtime-path must be absolute and free of injection characters"""
         patch_file = _load_github_script("patch_django_db_ssl").patch_file
         with tempfile.TemporaryDirectory() as tmp:
@@ -496,9 +490,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 dest, "mysql://acme2certifier:pw@mariadbsrv.acme/acme2certifier"
             )
             with self.assertRaises(SystemExit):
-                patch_file(
-                    dest, "mariadb", "rel/ca.pem", allowed_bases=[Path(tmp)]
-                )
+                patch_file(dest, "mariadb", "rel/ca.pem", allowed_bases=[Path(tmp)])
             with self.assertRaises(SystemExit):
                 patch_file(
                     dest,
@@ -524,7 +516,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
         ):
             return verify.main()
 
-    def test_023_mysql_cipher_ok(self) -> None:
+    def test_025_mysql_cipher_ok(self) -> None:
         """non-empty Ssl_cipher is success"""
         self.assertEqual(
             0,
@@ -533,13 +525,13 @@ class TestDjangoProjectSettings(unittest.TestCase):
             ),
         )
 
-    def test_024_mysql_empty_cipher_fails(self) -> None:
+    def test_026_mysql_empty_cipher_fails(self) -> None:
         """empty Ssl_cipher fails the check"""
         self.assertEqual(
             1, self._run_ssl_verify_with_connection("mysql", ("Ssl_cipher", ""))
         )
 
-    def test_025_postgresql_ssl_true(self) -> None:
+    def test_027_postgresql_ssl_true(self) -> None:
         """pg_stat_ssl ssl=true is success"""
         self.assertEqual(
             0,
@@ -548,18 +540,18 @@ class TestDjangoProjectSettings(unittest.TestCase):
             ),
         )
 
-    def test_026_postgresql_ssl_false_fails(self) -> None:
+    def test_028_postgresql_ssl_false_fails(self) -> None:
         """pg_stat_ssl ssl=false fails the check"""
         self.assertEqual(
             1,
             self._run_ssl_verify_with_connection("postgresql", (False, None, None)),
         )
 
-    def test_027_unsupported_vendor_fails(self) -> None:
+    def test_029_unsupported_vendor_fails(self) -> None:
         """unknown Django vendor fails closed"""
         self.assertEqual(1, self._run_ssl_verify_with_connection("sqlite", None))
 
-    def test_028_prepare_runtime_adds_app_root(self) -> None:
+    def test_030_prepare_runtime_adds_app_root(self) -> None:
         """RPM/DEB APP_ROOT is prepended so django_project can be imported"""
         verify = _load_github_script("django_db_ssl_verify")
         with tempfile.TemporaryDirectory() as tmp:
@@ -586,7 +578,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 if inserted and sys.path and sys.path[0] == str(root):
                     sys.path.pop(0)
 
-    def test_029_database_url_sqlite_merges_timeout(self) -> None:
+    def test_031_database_url_sqlite_merges_timeout(self) -> None:
         """sqlite URL sets NAME and keeps busy_timeout OPTIONS"""
         with tempfile.TemporaryDirectory() as tmp:
             dbfile = os.path.join(tmp, "ci.sqlite3")
@@ -605,7 +597,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
             self.assertEqual(dbfile, mod.DATABASES["default"]["NAME"])
             self.assertEqual(30, mod.DATABASES["default"]["OPTIONS"]["timeout"])
 
-    def test_030_database_url_mysql_merges_charset(self) -> None:
+    def test_032_database_url_mysql_merges_charset(self) -> None:
         """mysql URL keeps default charset/init_command OPTIONS"""
         with patch.dict(
             os.environ,
@@ -626,7 +618,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
         self.assertEqual("utf8mb4", db["OPTIONS"]["charset"])
         self.assertIn("STRICT_TRANS_TABLES", db["OPTIONS"]["init_command"])
 
-    def test_031_database_url_mysql_ca_nests_ssl(self) -> None:
+    def test_033_database_url_mysql_ca_nests_ssl(self) -> None:
         """mysql URL ?ca= becomes OPTIONS['ssl']['ca']"""
         with patch.dict(
             os.environ,
@@ -634,8 +626,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 "ACME2CERTIFIER_SECRET_KEY": "sekrit",
                 "ACME2CERTIFIER_DEBUG": "1",
                 "ACME2CERTIFIER_DATABASE_URL": (
-                    "mysql://acme2certifier:pass@db/acme2certifier"
-                    f"?ca={_DB_CA}"
+                    "mysql://acme2certifier:pass@db/acme2certifier" f"?ca={_DB_CA}"
                 ),
             },
             clear=False,
@@ -645,7 +636,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
         self.assertEqual(_DB_CA, ssl_opt["ca"])
         self.assertNotIn("ca", mod.DATABASES["default"]["OPTIONS"])
 
-    def test_032_database_url_postgres_ssl_query(self) -> None:
+    def test_034_database_url_postgres_ssl_query(self) -> None:
         """postgres URL sslmode/sslrootcert land in OPTIONS"""
         with patch.dict(
             os.environ,
@@ -664,7 +655,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
         self.assertEqual("verify-ca", options["sslmode"])
         self.assertEqual(_DB_CA, options["sslrootcert"])
 
-    def test_033_database_url_mssql_engine_and_driver(self) -> None:
+    def test_035_database_url_mssql_engine_and_driver(self) -> None:
         """mssql URL uses ENGINE mssql and default ODBC driver"""
         with patch.dict(
             os.environ,
@@ -684,7 +675,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
         self.assertEqual("ODBC Driver 18 for SQL Server", db["OPTIONS"]["driver"])
         self.assertIn("Encrypt=no", db["OPTIONS"].get("extra_params", ""))
 
-    def test_034_dotenv_in_base_dir_is_read(self) -> None:
+    def test_036_dotenv_in_base_dir_is_read(self) -> None:
         """BASE_DIR/.env supplies SECRET_KEY when process env is unset"""
         from acme2certifier.django_project import settings_env
 
@@ -701,11 +692,14 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 loaded = settings_env.load_settings_env()
             self.assertEqual("from-dotenv", loaded["SECRET_KEY"])
 
-    def test_035_cwd_dotenv_is_ignored(self) -> None:
+    def test_037_cwd_dotenv_is_ignored(self) -> None:
         """A .env in CWD is not read when BASE_DIR is elsewhere"""
         from acme2certifier.django_project import settings_env
 
-        with tempfile.TemporaryDirectory() as base, tempfile.TemporaryDirectory() as cwd:
+        with (
+            tempfile.TemporaryDirectory() as base,
+            tempfile.TemporaryDirectory() as cwd,
+        ):
             (Path(cwd) / ".env").write_text(
                 "ACME2CERTIFIER_SECRET_KEY=from-cwd\n", encoding="utf-8"
             )
@@ -720,7 +714,7 @@ class TestDjangoProjectSettings(unittest.TestCase):
                 loaded = settings_env.load_settings_env()
             self.assertEqual(settings_env.INSECURE_SECRET_KEY, loaded["SECRET_KEY"])
 
-    def test_036_missing_django_environ_raises(self) -> None:
+    def test_038_missing_django_environ_raises(self) -> None:
         """ImportError for django-environ becomes ImproperlyConfigured"""
         from acme2certifier.django_project import settings_env
 
