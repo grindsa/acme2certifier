@@ -24,6 +24,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- Drop the `pytz` dependency. UTC formatting uses `datetime.timezone.utc`, which is available on Python 3.6 through 3.14
 - `[Challenge] challenge_validation_disable` without `forward_address_check` or `reverse_address_check` is ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (challenge validation stays enabled and a warning is logged); acknowledgement is logged at `CRITICAL`. Combined with either address check (enterprise client-IP binding) remains allowed without the break-glass env. Same gate applies to EAB profile `challenge.challenge_validation_disable`
 - EAB kid-profile `cahandler` blocks cannot override script/shell paths (`dns_update_script`, `acme_sh_script`, `acme_sh_shell`, `dns_update_script_variables`, and `*_script` / `*_shell` suffixes). Profile `acme_keyfile` values must resolve under configured `acme_keypath`. Credential and endpoint overrides remain intentional; protect the profile store (see [`docs/eab_profiling.md`](docs/eab_profiling.md))
 - OpenSSL CA handler honors `enrollment_config_log` / `enrollment_config_log_skip_list` (same the other handlers)

@@ -2,7 +2,7 @@
 """CA handler using Entrust ECS Enterprise"""
 
 from __future__ import print_function
-from typing import Tuple, Dict, List
+from typing import Any, Tuple, Dict, List
 import datetime
 import os
 import requests
@@ -151,7 +151,7 @@ class CAhandler(object):
             retry_backoff=self.request_retry_backoff,
         )
 
-    def _certificates_get_from_serial(self, cert_serial: str) -> List[str]:
+    def _certificates_get_from_serial(self, cert_serial: str) -> List[Dict[str, Any]]:
         """get certificates"""
         self.logger.debug("CAhandler._certificates_get_from_serial()")
 

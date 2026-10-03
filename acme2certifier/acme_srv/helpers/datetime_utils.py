@@ -6,7 +6,6 @@ import datetime
 import re
 from typing import Union
 
-import pytz
 from dateutil.parser import parse
 
 _DURATION_RE = re.compile(r"^(\d+)\s*([smhdw]?)$", re.IGNORECASE)
@@ -57,7 +56,9 @@ def uts_now():
 
 def uts_to_date_utc(uts: int, tformat: str = "%Y-%m-%dT%H:%M:%SZ") -> str:
     """convert unix timestamp to date format"""
-    return datetime.datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
+    return datetime.datetime.fromtimestamp(int(uts), tz=datetime.timezone.utc).strftime(
+        tformat
+    )
 
 
 def date_to_uts_utc(date_human: str, _tformat: str = "%Y-%m-%dT%H:%M:%S") -> int:

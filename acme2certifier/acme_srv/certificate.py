@@ -1361,7 +1361,11 @@ class Certificate(object):
         return (result, error, detail)
 
     def _check_identifier_match(
-        self, cert_type: str, cert_value: str, identifiers: List[str], san_is_in: bool
+        self,
+        cert_type: str,
+        cert_value: str,
+        identifiers: List[Dict[str, str]],
+        san_is_in: bool,
     ) -> bool:
         """Check if identifier matches certificate values"""
         self.logger.debug(
@@ -1721,7 +1725,9 @@ class Certificate(object):
         self.logger.debug("Certificate._store_certificate_error(%s) ended", cert_id)
         return cert_id
 
-    def _check_for_tnauth_identifiers(self, identifier_dic: Dict[str, str]) -> int:
+    def _check_for_tnauth_identifiers(
+        self, identifier_dic: List[Dict[str, str]]
+    ) -> int:
         """Check if we have TNAuth list identifiers"""
         self.logger.debug("Certificate._check_for_tnauth_identifiers()")
         # check if we have a tnauthlist identifier

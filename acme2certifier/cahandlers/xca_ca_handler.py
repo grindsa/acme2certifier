@@ -1121,7 +1121,7 @@ class CAhandler:
         cert: str,
         ca_cert: str,
         csr_extensions_list: List[str] = None,
-    ) -> List[str]:
+    ) -> List[Dict[str, Any]]:
         """set extension list"""
         self.logger.debug("CAhandler._extension_list_generate()")
 

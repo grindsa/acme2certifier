@@ -1574,7 +1574,7 @@ class Order(object):
         self.logger.debug("Order._order_dic_create() ended")
         return order_dic
 
-    def _get_authorization_list(self, order_name: str) -> List[str]:
+    def _get_authorization_list(self, order_name: str) -> List[Dict[str, Any]]:
         """Lookup authorization list. Returns list or empty list on error."""
         self.logger.debug("Order._get_authorization_list(%s)", order_name)
         try:
@@ -1590,7 +1590,10 @@ class Order(object):
         return authz_list
 
     def _update_validity_list(
-        self, authz_list: List[str], order_dic: Dict[str, str], order_name: str
+        self,
+        authz_list: List[Dict[str, Any]],
+        order_dic: Dict[str, str],
+        order_name: str,
     ):
         """update validity list and order status"""
         self.logger.debug("Order._update_validity_list()")

@@ -16,6 +16,7 @@ _DEPLOY_KEYS = (
     "ACME2CERTIFIER_DATABASE_URL",
 )
 # First root that contains acme2certifier.ini wins. RPM installs live under /opt.
+_UWSGI_INI_NAME = "acme2certifier.ini"
 _INSTALL_ROOTS = (
     Path("/var/www/acme2certifier"),
     Path("/opt/acme2certifier"),
@@ -78,7 +79,7 @@ def deploy_base_dir(base_dir: Optional[str] = None) -> Path:
     if explicit:
         return Path(explicit)
     for cand in _INSTALL_ROOTS:
-        if (cand / "acme2certifier.ini").is_file():
+        if (cand / _UWSGI_INI_NAME).is_file():
             return cand
     return _INSTALL_ROOTS[0]
 
@@ -87,10 +88,10 @@ def load_deploy_env(base_dir: Optional[str] = None) -> None:
     """Populate ACME2CERTIFIER_* in os.environ from deployment files when unset."""
     discovered = base_dir is None and not os.environ.get("ACME2CERTIFIER_BASE_DIR")
     base = deploy_base_dir(base_dir)
-    if discovered and (base / "acme2certifier.ini").is_file():
+    if discovered and (base / _UWSGI_INI_NAME).is_file():
         os.environ["ACME2CERTIFIER_BASE_DIR"] = str(base)
     for source in (
-        _read_uwsgi_env(base / "acme2certifier.ini"),
+        _read_uwsgi_env(base / _UWSGI_INI_NAME),
         _read_apache_envvars(Path("/etc/apache2/envvars")),
     ):
         for key, val in source.items():

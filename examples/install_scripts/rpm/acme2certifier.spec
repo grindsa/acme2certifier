@@ -54,7 +54,6 @@ Summary:        acme2certifier runtime for system Python 3 (python3-*)
 Requires:       %{name} = %{version}-%{release}
 Requires:       python3
 Requires:       python3-dateutil
-Requires:       python3-pytz
 Requires:       python3-setuptools
 Requires:       python3-jwcrypto
 Requires:       python3-cryptography
@@ -89,7 +88,6 @@ Summary:        acme2certifier runtime for Python 3.9 (python39-*)
 Requires:       %{name} = %{version}-%{release}
 Requires:       python39
 Requires:       python39-dateutil
-Requires:       python39-pytz
 Requires:       python39-setuptools
 Requires:       python39-jwcrypto
 Requires:       python39-cryptography
