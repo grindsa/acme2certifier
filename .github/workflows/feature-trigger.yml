@@ -83,7 +83,7 @@ jobs:
           sudo mkdir -p examples/Docker/data/trigger
           sudo cp examples/trigger/certifier_trigger.sh examples/Docker/data/trigger/
           sudo cp examples/trigger/ci_seed_processing_order.py examples/Docker/data/trigger/
-          sudo chmod 755 examples/Docker/data/trigger/certifier_trigger.sh
+          sudo chmod -R 777 examples/Docker/data/trigger
 
 
       - name: "Acknowledge naked challenge_validation_disable"
@@ -115,7 +115,7 @@ jobs:
             -CA "${CA}/sub-ca-cert.pem" \
             -CAkey "${CA}/sub-ca-key.pem" \
             -passin pass:Test1234 \
-            -CAcreateserial \
+            -CAserial "${WORK}/ee.srl" \
             -out "${WORK}/ee.pem" \
             -days 2
           docker exec -w /var/www/acme2certifier acme-srv \
