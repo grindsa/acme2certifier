@@ -24,7 +24,7 @@ inputs:
     required: false
     default: "2"
   legacy_django:
-    description: "Use pre-0.45 Django module paths (acme_srv / acme2certifier.urls) for N-1 images"
+    description: "N-1 Django image. Below 0.45, rewrite module paths to acme_srv. Below 0.46, drop settings imports those images do not export."
     required: false
     default: "false"
 
@@ -53,6 +53,7 @@ runs:
       shell: bash
       env:
         LEGACY_DJANGO: ${{ inputs.legacy_django }}
+        IMAGE: ${{ inputs.image }}
       run: |
         set -euo pipefail
         # 0.44 ignores handler_module; keep handler_file for N-1 images that
@@ -63,13 +64,56 @@ runs:
         fi
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/django_settings.py examples/Docker/data/settings.py
-        # 0.44 Django layout: acme_srv app, not acme2certifier.django_app.
         if [[ "${LEGACY_DJANGO}" == "true" ]]; then
-          sudo sed -i \
-            -e 's/"acme2certifier.django_app.apps.AcmeSrvConfig"/"acme_srv"/' \
-            -e 's/"acme2certifier.django_project.urls"/"acme2certifier.urls"/' \
-            -e 's/"acme2certifier.django_project.wsgi.application"/"acme2certifier.wsgi.application"/' \
-            examples/Docker/data/settings.py
+          image_ref="${IMAGE##*:}"
+          image_tag="${image_ref%%-*}"
+          if [[ ! "${image_tag}" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "legacy_django requires a numeric image tag, got '${image_tag}'" >&2
+            exit 1
+          fi
+          version_lt() {
+            [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" == "$1" && "$1" != "$2" ]]
+          }
+          # 0.44 Django layout: acme_srv app, not acme2certifier.django_app.
+          # 0.45 already ships django_app paths.
+          if version_lt "${image_tag}" "0.45"; then
+            sudo sed -i \
+              -e 's/"acme2certifier.django_app.apps.AcmeSrvConfig"/"acme_srv"/' \
+              -e 's/"acme2certifier.django_project.urls"/"acme2certifier.urls"/' \
+              -e 's/"acme2certifier.django_project.wsgi.application"/"acme2certifier.wsgi.application"/' \
+              examples/Docker/data/settings.py
+          fi
+          # 0.45.x has neither apply_log_levels nor server_name_allowed_host.
+          # Keep import django and the sqlite OPTIONS block.
+          if version_lt "${image_tag}" "0.46"; then
+            python3 - <<'PY'
+        from pathlib import Path
+
+        src = Path("examples/Docker/data/settings.py")
+        text = src.read_text()
+        start = text.find("from acme2certifier.acme_srv.helpers.config import")
+        end = text.find("# Build paths inside the project")
+        if start == -1 or end == -1 or start > end:
+            raise SystemExit("0.46 helper imports not found in django settings overlay")
+        text = text[:start] + text[end:]
+        block = """apply_log_levels(False)
+        _cfg = load_config()
+        _host = server_name_allowed_host(configured_server_name_get(_cfg) or "")
+        if _host and _host not in ALLOWED_HOSTS:
+            logger_setup(config_debug_get(_cfg)).info(
+                "Adding %s to ALLOWED_HOSTS from acme_srv.cfg server_name", _host
+            )
+            ALLOWED_HOSTS.append(_host)
+
+
+        """
+        if block not in text:
+            raise SystemExit("0.46 ALLOWED_HOSTS block not found in django settings overlay")
+        Path("/tmp/n1-django-settings.py").write_text(text.replace(block, "", 1))
+        PY
+            sudo cp /tmp/n1-django-settings.py examples/Docker/data/settings.py
+            rm -f /tmp/n1-django-settings.py
+          fi
         fi
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
