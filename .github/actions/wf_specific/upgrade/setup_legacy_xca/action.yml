@@ -12,7 +12,7 @@ inputs:
     required: false
     default: "0.31"
   DJANGO_SETTINGS_TAG:
-    description: "Git tag for legacy django_settings_mariadb.py (django only)"
+    description: "Git tag for legacy django_settings_mariadb.py (django only). HTTP 404 skips the overlay; 0.46+ reads ACME2CERTIFIER_DATABASE_URL from django.env."
     required: false
     default: "0.44"
   DJANGO:
@@ -94,24 +94,33 @@ runs:
         sudo chmod 777 "${VOLUME_DIR}/acme_srv.cfg"
 
         if [[ "${DJANGO}" == "true" ]]; then
-          curl -fsSL \
-            "https://raw.githubusercontent.com/grindsa/acme2certifier/${DJANGO_SETTINGS_TAG}/.github/django_settings_mariadb.py" \
-            -o /tmp/django_settings_mariadb.py
-          bash .github/actions/wf_specific/upgrade/patch_django_ci_settings.sh /tmp/django_settings_mariadb.py
-          case "${DEPLOYMENT_TYPE}" in
-            container)
-              sudo cp /tmp/django_settings_mariadb.py "${VOLUME_DIR}/settings.py"
-              ;;
-            rpm)
-              sudo mkdir -p data/acme2certifier
-              sudo cp /tmp/django_settings_mariadb.py data/acme2certifier/settings.py
-              sudo sed -i "s|/var/www/|/opt/|g" data/acme2certifier/settings.py
-              sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
-              sudo cp data/acme2certifier/settings.py "${VOLUME_DIR}/settings.py"
-              ;;
-            deb)
-              sudo mkdir -p "${VOLUME_DIR}/acme2certifier"
-              sudo cp /tmp/django_settings_mariadb.py "${VOLUME_DIR}/acme2certifier/settings.py"
-              ;;
-          esac
+          # ≤0.45 published a MariaDB settings overlay. 0.46+ dropped it and
+          # reads ACME2CERTIFIER_DATABASE_URL from django.env (already staged).
+          settings_url="https://raw.githubusercontent.com/grindsa/acme2certifier/${DJANGO_SETTINGS_TAG}/.github/django_settings_mariadb.py"
+          http_code="$(curl -sS -o /tmp/django_settings_mariadb.py -w '%{http_code}' "${settings_url}" || true)"
+          if [[ "${http_code}" == "200" ]]; then
+            bash .github/actions/wf_specific/upgrade/patch_django_ci_settings.sh /tmp/django_settings_mariadb.py
+            case "${DEPLOYMENT_TYPE}" in
+              container)
+                sudo cp /tmp/django_settings_mariadb.py "${VOLUME_DIR}/settings.py"
+                ;;
+              rpm)
+                sudo mkdir -p data/acme2certifier
+                sudo cp /tmp/django_settings_mariadb.py data/acme2certifier/settings.py
+                sudo sed -i "s|/var/www/|/opt/|g" data/acme2certifier/settings.py
+                sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
+                sudo cp data/acme2certifier/settings.py "${VOLUME_DIR}/settings.py"
+                ;;
+              deb)
+                sudo mkdir -p "${VOLUME_DIR}/acme2certifier"
+                sudo cp /tmp/django_settings_mariadb.py "${VOLUME_DIR}/acme2certifier/settings.py"
+                ;;
+            esac
+          elif [[ "${http_code}" == "404" ]]; then
+            rm -f /tmp/django_settings_mariadb.py
+            echo "No django_settings_mariadb.py at ${DJANGO_SETTINGS_TAG}; using ACME2CERTIFIER_DATABASE_URL from django.env"
+          else
+            echo "ERROR: fetching ${settings_url} returned HTTP ${http_code}" >&2
+            exit 1
+          fi
         fi
