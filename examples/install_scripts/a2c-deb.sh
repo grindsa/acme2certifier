@@ -124,6 +124,23 @@ resolve_defaults() {
       VOLUME_DIR="/tmp/acme2certifier/volume"
     fi
   fi
+  load_ci_django_env
+}
+
+load_ci_django_env() {
+  local f
+  for f in \
+    ${DATA_DIR:+"${DATA_DIR}/django.env"} \
+    "/tmp/acme2certifier/django.env" \
+    ${VOLUME_DIR:+"${VOLUME_DIR}/django.env"}; do
+    [[ -n "${f}" && -f "${f}" ]] || continue
+    echo "==> Loading Django CI env from ${f}"
+    set -a
+    # shellcheck disable=SC1090
+    source "${f}"
+    set +a
+    return 0
+  done
 }
 
 normalize_websrv() {
@@ -191,6 +208,19 @@ normalize_dbhandler_mode() {
   esac
 }
 
+# True when the first non-empty, non-comment line is not an INI [section].
+cfg_is_yaml() {
+  local cfg="${1:-${CFG}}"
+  ${SUDO} awk '
+    BEGIN { rc=1 }
+    /^[[:space:]]*$/ { next }
+    /^[[:space:]]*[#;]/ { next }
+    /^\[/ { rc=1; exit }
+    { rc=0; exit }
+    END { exit rc }
+  ' "${cfg}"
+}
+
 # Read [DBhandler] handler / handler_module from cfg (short name or empty).
 get_dbhandler_mode() {
   local cfg="${1:-${CFG}}"
@@ -199,16 +229,29 @@ get_dbhandler_mode() {
     echo ""
     return 0
   fi
-  raw="$(${SUDO} awk '
-    /^\[DBhandler\]/ { in_sec=1; next }
-    /^\[/ { in_sec=0 }
-    in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
-      sub(/^[^:]*:[[:space:]]*/, "")
-      gsub(/[[:space:]]/, "")
-      print
-      exit
-    }
-  ' "${cfg}" 2>/dev/null || true)"
+  if cfg_is_yaml "${cfg}"; then
+    raw="$(${SUDO} awk '
+      /^DBhandler:/ { in_sec=1; next }
+      in_sec && /^[^[:space:]#].*:/ { in_sec=0 }
+      in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
+        sub(/^[^:]*:[[:space:]]*/, "")
+        gsub(/[[:space:]]/, "")
+        print
+        exit
+      }
+    ' "${cfg}" 2>/dev/null || true)"
+  else
+    raw="$(${SUDO} awk '
+      /^\[DBhandler\]/ { in_sec=1; next }
+      /^\[/ { in_sec=0 }
+      in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
+        sub(/^[^:]*:[[:space:]]*/, "")
+        gsub(/[[:space:]]/, "")
+        print
+        exit
+      }
+    ' "${cfg}" 2>/dev/null || true)"
+  fi
   normalize_dbhandler_mode "${raw}"
 }
 
@@ -216,6 +259,18 @@ get_dbhandler_mode() {
 set_dbhandler_mode() {
   local mode="$1"
   echo "==> Setting DBhandler to ${mode}"
+  if cfg_is_yaml "${CFG}"; then
+    if ${SUDO} grep -q '^DBhandler:' "${CFG}"; then
+      ${SUDO} sed -i \
+        '/^DBhandler:/,/^[^[:space:]#]/{
+          /^[[:space:]]*#*[[:space:]]*handler[[:space:]]*:/d
+        }' "${CFG}"
+      ${SUDO} sed -i "/^DBhandler:/a\\  handler: ${mode}" "${CFG}"
+    else
+      printf '\nDBhandler:\n  handler: %s\n' "${mode}" | ${SUDO} tee -a "${CFG}" >/dev/null
+    fi
+    return 0
+  fi
   if ! ${SUDO} grep -q '^\[DBhandler\]' "${CFG}"; then
     printf '\n[DBhandler]\nhandler: %s\n' "${mode}" | ${SUDO} tee -a "${CFG}" >/dev/null
     return 0
@@ -370,6 +425,28 @@ if [[ $(id -u) -eq 0 ]]; then
 else
   SUDO="sudo"
 fi
+
+# Leave values unquoted. uWSGI 2.0.24 (Debian) drops only the first " on an
+# env line and keeps the closing quote in the value. $$ is uWSGI's escape for $, %% for %.
+# Reject @( / %( placeholders (uWSGI opens them as files / interpolates).
+a2c_uwsgi_env_set() {
+  local ini="$1" key="$2" value="$3" escaped
+  if [[ "$value" == *'@('* || "$value" == *'%('* ]]; then
+    echo "ERROR: ${key} contains uWSGI placeholder syntax @( or %(" >&2
+    return 1
+  fi
+  if [[ "$value" == *$'\n'* || "$value" == *'"'* ]]; then
+    echo "ERROR: ${key} contains a newline or double quote" >&2
+    return 1
+  fi
+  escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/\$/$$/g; s/%/%%/g')"
+  printf 'env = %s=%s\n' "$key" "$escaped" | ${SUDO} tee -a "$ini" >/dev/null
+}
+
+a2c_apache_envvar_set() {
+  local key="$1" value="$2"
+  printf 'export %s=%q\n' "$key" "$value" | ${SUDO} tee -a /etc/apache2/envvars >/dev/null
+}
 
 resolve_defaults
 
@@ -538,7 +615,7 @@ else
       /etc/nginx/sites-available/acme_srv_ssl.conf
     CERT="${APP_ROOT}/volume/acme2certifier_cert.pem"
     KEY="${APP_ROOT}/volume/acme2certifier_key.pem"
-    if [[ (! -f "${CERT}" || ! -f "${KEY}") && -f /etc/nginx/acme2certifier_cert.pem && -f /etc/nginx/acme2certifier_key.pem ]]; then
+    if [[ ! -f "${CERT}" || ! -f "${KEY}" ]] && [[ -f /etc/nginx/acme2certifier_cert.pem && -f /etc/nginx/acme2certifier_key.pem ]]; then
       echo "==> Seeding TLS cert/key from /etc/nginx"
       ${SUDO} cp -f /etc/nginx/acme2certifier_cert.pem "${CERT}"
       ${SUDO} cp -f /etc/nginx/acme2certifier_key.pem "${KEY}"
@@ -626,18 +703,49 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$(a2c-django-secret-keygen)"
   fi
+  UWSGI_INI="${APP_ROOT}/acme2certifier.ini"
+  if [[ "${WEBSRV}" == "${WEBSRV_NGINX}" ]]; then
+    if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' "${UWSGI_INI}"; then
+      a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
+    fi
+    if [[ -n "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
+      ${SUDO} sed -i '/^env = ACME2CERTIFIER_ALLOWED_HOSTS=/d' "${UWSGI_INI}"
+      a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
+    fi
+    if [[ -n "${ACME2CERTIFIER_DATABASE_URL:-}" ]]; then
+      ${SUDO} sed -i '/^env = ACME2CERTIFIER_DATABASE_URL=/d' "${UWSGI_INI}"
+      a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
+    fi
+  elif [[ "${WEBSRV}" == "${WEBSRV_APACHE2}" ]]; then
+    if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' /etc/apache2/envvars 2>/dev/null; then
+      a2c_apache_envvar_set ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
+    fi
+    if [[ -n "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
+      ${SUDO} sed -i '/^export ACME2CERTIFIER_ALLOWED_HOSTS=/d' /etc/apache2/envvars
+      a2c_apache_envvar_set ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
+    fi
+    if [[ -n "${ACME2CERTIFIER_DATABASE_URL:-}" ]]; then
+      ${SUDO} sed -i '/^export ACME2CERTIFIER_DATABASE_URL=/d' /etc/apache2/envvars
+      a2c_apache_envvar_set ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
+    fi
+  fi
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-django-update
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-manage loaddata status
+  if [[ "${WEBSRV}" == "${WEBSRV_NGINX}" ]]; then
+    ${SUDO} systemctl restart acme2certifier
+  fi
 fi
 
 echo "==> Ownership and start ${WEBSRV}"

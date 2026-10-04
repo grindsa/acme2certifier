@@ -5,7 +5,7 @@
 from __future__ import print_function
 import json
 import logging
-from typing import Tuple, Dict, List, Optional
+from typing import Any, Tuple, Dict, List, Optional
 from dataclasses import dataclass
 from acme2certifier.acme_srv.helper import (
     decode_message,
@@ -13,6 +13,7 @@ from acme2certifier.acme_srv.helper import (
     eab_handler_load,
     uts_to_date_utc,
     uts_now,
+    protected_url_matches_request,
 )
 from acme2certifier.acme_srv.error import Error
 from acme2certifier.acme_srv.db_handler import DBstore
@@ -28,6 +29,26 @@ from acme2certifier.acme_srv.helpers.security_gate import (  # noqa: F401
     SECURITY_DISABLE_ACK_ENV,
     security_disable_acknowledged,
 )
+
+ACME_ERROR_MALFORMED = "urn:ietf:params:acme:error:malformed"
+
+
+def finish_response(
+    handler: Any,
+    response_dic: Optional[Dict[str, str]],
+    code: int,
+    message: Optional[str],
+    detail: Optional[str] = None,
+    add_nonce: bool = True,
+    account_name: Optional[str] = None,
+) -> Dict[str, str]:
+    """Build the standard ACME status dict and pass it to ``prepare_response``."""
+    return handler.prepare_response(
+        response_dic or {},
+        {"code": code, "type": message, "detail": detail},
+        add_nonce=add_nonce,
+        account_name=account_name,
+    )
 
 
 @dataclass
@@ -67,15 +88,22 @@ class Message(object):
     """Message handler"""
 
     def __init__(
-        self, debug: bool = False, srv_name: str = None, logger: object = None
+        self,
+        debug: bool = False,
+        srv_name: str = None,
+        logger: object = None,
+        config_dic=None,
     ):
         self.debug = debug
         self.logger = logger
-        self.nonce = Nonce(self.debug, self.logger)
+        self.config_dic = config_dic
+        self.nonce = Nonce(self.debug, self.logger, config_dic=config_dic)
         self.dbstore = DBstore(self.debug, self.logger)
         self.repo = AccountRepository(self.dbstore)
         self.server_name = srv_name
         self.config = self._load_configuration()
+        # Absolute HTTP request URL for RFC 8555 §6.4 binding (set by views).
+        self.request_url: Optional[str] = None
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -83,6 +111,36 @@ class Message(object):
 
     def __exit__(self, *args):
         """Close the connection at the end of the context"""
+
+    def _reject_protected_url_mismatch(
+        self, protected: Optional[Dict[str, str]], request_url: str
+    ) -> Optional[Tuple[int, str, str]]:
+        """RFC 8555 §6.4: protected url must equal the HTTP request target."""
+        if not isinstance(protected, dict):
+            return (
+                400,
+                ACME_ERROR_MALFORMED,
+                "url missing in protected header",
+            )
+        protected_url = protected.get("url")
+        if not protected_url:
+            return (
+                400,
+                ACME_ERROR_MALFORMED,
+                "url missing in protected header",
+            )
+        if not protected_url_matches_request(protected_url, request_url):
+            self.logger.warning(
+                "Rejecting JWS protected url mismatch protected=%s request=%s",
+                protected_url,
+                request_url,
+            )
+            return (
+                400,
+                ACME_ERROR_MALFORMED,
+                "JWS protected 'url' does not match the request URL",
+            )
+        return None
 
     def _apply_security_disable_gate(
         self, nonce_check_disable: bool, signature_check_disable: bool
@@ -137,7 +195,7 @@ class Message(object):
     def _load_configuration(self) -> MessageConfiguration:
         """Load and parse config from file and return MessageConfiguration dataclass."""
         self.logger.debug("Message._load_configuration()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
         msg_config = MessageConfiguration()
         if "Nonce" in config_dic:
             nonce_check_disable = config_dic.getboolean(
@@ -369,6 +427,23 @@ class Message(object):
         )
         return (code, message, detail)
 
+    def _reject_mixed_kid_and_jwk(
+        self, protected: Optional[Dict[str, str]]
+    ) -> Optional[Tuple[int, str, str]]:
+        """RFC 8555 §6.2: protected headers must not contain both kid and jwk."""
+        if not isinstance(protected, dict):
+            return None
+        if "kid" in protected and "jwk" in protected:
+            self.logger.warning(
+                "Rejecting JWS protected header containing both kid and jwk"
+            )
+            return (
+                400,
+                ACME_ERROR_MALFORMED,
+                "The request included both 'kid' and 'jwk' fields; only one is allowed",
+            )
+        return None
+
     def _validate_message_and_check_signature(
         self,
         skip_nonce_check: bool,
@@ -376,9 +451,21 @@ class Message(object):
         content: str,
         protected: Dict[str, str],
         use_emb_key: bool,
+        request_url: Optional[str] = None,
     ) -> Tuple[int, str, str, str]:
         """Decoding successful - check nonce for anti replay protection and signature."""
         self.logger.debug("Message._validate_message_and_check_signature()")
+
+        mixed = self._reject_mixed_kid_and_jwk(protected)
+        if mixed is not None:
+            code, message, detail = mixed
+            return (code, message, detail, None)
+
+        if request_url is not None:
+            url_mismatch = self._reject_protected_url_mismatch(protected, request_url)
+            if url_mismatch is not None:
+                code, message, detail = url_mismatch
+                return (code, message, detail, None)
 
         code, message, detail = self._check_nonce_for_replay_protection(
             skip_nonce_check, protected
@@ -419,7 +506,12 @@ class Message(object):
 
     # pylint: disable=R0914
     def check(
-        self, content: str, use_emb_key: bool = False, skip_nonce_check: bool = False
+        self,
+        content: str,
+        use_emb_key: bool = False,
+        skip_nonce_check: bool = False,
+        request_url: Optional[str] = None,
+        skip_request_url_check: bool = False,
     ) -> Tuple[int, str, str, Dict[str, str], Dict[str, str], str]:
         """validate message"""
         self.logger.debug("Message.check()")
@@ -433,6 +525,12 @@ class Message(object):
         else:
             skip_signature_check = False
 
+        bind_url: Optional[str] = None
+        if not skip_request_url_check:
+            candidate = request_url if request_url is not None else self.request_url
+            if isinstance(candidate, str):
+                bind_url = candidate
+
         # decode message
         result, error_detail, protected, payload, _signature = decode_message(
             self.logger, content
@@ -445,11 +543,16 @@ class Message(object):
                 detail,
                 account_name,
             ) = self._validate_message_and_check_signature(
-                skip_nonce_check, skip_signature_check, content, protected, use_emb_key
+                skip_nonce_check,
+                skip_signature_check,
+                content,
+                protected,
+                use_emb_key,
+                request_url=bind_url,
             )
         else:
             code = 400
-            message = "urn:ietf:params:acme:error:malformed"
+            message = ACME_ERROR_MALFORMED
             detail = error_detail
 
         self.logger.debug("Message._check() ended with:%s", code)
@@ -468,6 +571,19 @@ class Message(object):
         account_name = None
         permissions = {}
         if result:
+            mixed = self._reject_mixed_kid_and_jwk(protected)
+            if mixed is not None:
+                code, message, detail = mixed
+                self.logger.debug("Message.cli_check() ended with:%s", code)
+                return (
+                    code,
+                    message,
+                    detail,
+                    protected,
+                    payload,
+                    None,
+                    permissions,
+                )
             # check signature
             account_name = self._extract_account_name_from_content(protected)
             signature = Signature(self.debug, self.server_name, self.logger)
@@ -488,7 +604,7 @@ class Message(object):
         else:
             # message could not get decoded
             code = 400
-            message = "urn:ietf:params:acme:error:malformed"
+            message = ACME_ERROR_MALFORMED
             detail = error_detail
 
         self.logger.debug("Message.cli_check() ended with:%s", code)
@@ -554,3 +670,17 @@ class Message(object):
             response_dic["header"]["Replay-Nonce"] = self.nonce.generate_and_add()
 
         return response_dic
+
+    def finish_response(
+        self,
+        response_dic: Optional[Dict[str, str]],
+        code: int,
+        message: Optional[str],
+        detail: Optional[str] = None,
+        add_nonce: bool = True,
+        account_name: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """Wrap ``prepare_response`` with the standard ACME status dict."""
+        return finish_response(
+            self, response_dic, code, message, detail, add_nonce, account_name
+        )

@@ -6,8 +6,8 @@ from __future__ import print_function
 # pylint: disable= e0401, w0105, w0212
 import json
 import textwrap
-import os.path
-from typing import Tuple, Dict
+import os
+from typing import Any, Dict, Optional, Tuple
 import requests
 import josepy
 import subprocess
@@ -32,6 +32,7 @@ from acme2certifier.acme_srv.helper import (
     config_headerinfo_load,
     config_enroll_config_log_load,
     config_profile_load,
+    eab_profile_as_bool,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     enrollment_config_log,
@@ -44,7 +45,14 @@ from acme2certifier.acme_srv.helper import (
     uts_to_date_utc,
     handler_config_check,
 )
+from acme2certifier.acme_srv.helpers.security_gate import (
+    eab_profile_path_under_base,
+    eab_profile_warn_if_denied,
+)
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
+
+_ZEROSSL_EAB_URL = "https://api.zerossl.com/acme/eab-credentials-email"
+_ACME_ERR_SERVER_INTERNAL = "urn:ietf:params:acme:error:serverInternal"
 
 
 class CAhandler(object):
@@ -64,6 +72,7 @@ class CAhandler(object):
         self.dns_update_script_variables = None
         self.dns_validation_timeout = 20
         self.dns_record_dic = {}
+        self.ca_error_details_forward = False
         self.eab_handler = None
         self.eab_kid = None
         self.eab_hmac_key = None
@@ -230,6 +239,9 @@ class CAhandler(object):
             # load account configuration and paramters
             self._config_account_load(config_dic)
             self._config_parameters_load(config_dic)
+            self.ca_error_details_forward = config_dic.getboolean(
+                "CAhandler", "ca_error_details_forward", fallback=False
+            )
 
             self.logger.debug("CAhandler._config_load() ended")
         else:
@@ -362,7 +374,7 @@ class CAhandler(object):
         )
 
         fqdn = f"_acme-challenge.{fqdn}"
-        self.logger.debug("fqdn: %s, txt_record_value: %s", fqdn, txt_record_value)
+        self.logger.debug("fqdn: %s, txt_record_value: <redacted>", fqdn)
 
         basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[0]
 
@@ -415,7 +427,11 @@ class CAhandler(object):
                 # wait for dns update
                 time.sleep(sleep_interval)
                 query_record_value = txt_get(self.logger, fqdn)
-                self.logger.debug("%s txt_record_value: %s", cnt, query_record_value)
+                self.logger.debug(
+                    "%s txt_record_lookup: found=%s",
+                    cnt,
+                    bool(query_record_value),
+                )
                 cnt += 1
                 if query_record_value and txt_record_value in query_record_value:
                     # stop waiting if we found the record in DNS
@@ -468,9 +484,8 @@ class CAhandler(object):
                         )
                 else:
                     self.logger.debug(
-                        "CAhandler._environment_variables_handle(): setting environment variable: %s=%s",
+                        "CAhandler._environment_variables_handle(): setting environment variable: %s",
                         key,
-                        value,
                     )
                     os.environ[key] = value
             else:
@@ -555,13 +570,20 @@ class CAhandler(object):
             user_key = self._key_generate()
             # dump keyfile to file
             try:
-                with open(self.acme_keyfile, "w", encoding="utf8") as keyf:
-                    keyf.write(json.dumps(user_key.to_json()))
+                self._keyfile_write(self.acme_keyfile, json.dumps(user_key.to_json()))
             except Exception as err:
                 self.logger.error("Error during key dumping: %s", err)
 
         self.logger.debug("CAhandler._user_key_load() ended with: %s", bool(user_key))
         return user_key
+
+    def _keyfile_write(self, path: str, content: str) -> None:
+        """Write *content* to *path* with mode 0600 (create or replace)."""
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        fd = os.open(path, flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf8") as keyf:
+            keyf.write(content)
+        os.chmod(path, 0o600)
 
     def _order_authorization(
         self,
@@ -660,7 +682,10 @@ class CAhandler(object):
         self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str
     ) -> Tuple[str, str, str]:
         """isuse order"""
-        self.logger.debug("CAhandler._order_issue() csr: " + str(csr_pem))
+        self.logger.debug(
+            "CAhandler._order_issue() csr_len=%s",
+            len(csr_pem) if csr_pem is not None else 0,
+        )
 
         # create new order
         order = self._order_new(acmeclient, csr_pem)
@@ -899,75 +924,143 @@ class CAhandler(object):
                     key_dic = json.loads(keyf.read())
                     key_dic["account"] = self.account
 
-                with open(self.acme_keyfile, "w", encoding="utf8") as keyf:
-                    keyf.write(json.dumps(key_dic))
+                self._keyfile_write(self.acme_keyfile, json.dumps(key_dic))
             except Exception as err:
                 self.logger.error("Could not map account to keyfile: %s", err)
 
-    def _zerossl_eab_get(self):
-        """get eab credentials from zerossl"""
+    def _zerossl_eab_get(self) -> None:
+        """Fetch ZeroSSL EAB credentials over HTTPS without following redirects."""
         self.logger.debug("CAhandler._zerossl_eab_get()")
 
-        zero_eab_email = "http://api.zerossl.com/acme/eab-credentials-email"
+        zero_eab_email = "https://api.zerossl.com/acme/eab-credentials-email"
         data = {"email": self.email}
 
-        response = requests.post(zero_eab_email, data=data, timeout=20)
+        response = requests.post(
+            zero_eab_email, data=data, timeout=20, allow_redirects=False
+        )
+        if response.is_redirect:
+            self.logger.error(
+                "Could not get eab credentials from ZeroSSL: HTTP %s",
+                response.status_code,
+            )
+            return
+
+        try:
+            payload = response.json()
+        except ValueError:
+            self.logger.error(
+                "Could not get eab credentials from ZeroSSL: HTTP %s",
+                response.status_code,
+            )
+            return
+
         if (
-            "success" in response.json()
-            and response.json()["success"]
-            and "eab_kid" in response.json()
-            and "eab_hmac_key" in response.json()
+            isinstance(payload, dict)
+            and payload.get("success")
+            and "eab_kid" in payload
+            and "eab_hmac_key" in payload
         ):
-            self.eab_kid = response.json()["eab_kid"]
-            self.eab_hmac_key = response.json()["eab_hmac_key"]
+            self.eab_kid = payload["eab_kid"]
+            self.eab_hmac_key = payload["eab_hmac_key"]
             self.logger.debug("CAhandler._zerossl_eab_get() ended successfully")
         else:
             self.logger.error(
                 "Could not get eab credentials from ZeroSSL: %s", response.text
             )
 
-    def _eab_profile_list_set(self, csr: str, key: str, value: str) -> str:
+    def _eab_remember_paired_acme_urls(self, key: str, value: Any) -> None:
+        """Cache acme_url list so a later acme_keyfile list can be index-paired."""
+        self.logger.debug("CAhandler._eab_remember_paired_acme_urls(%s)", key)
+        if key == "acme_url":
+            self._eab_paired_acme_url_list = value if isinstance(value, list) else None
+
+    def _eab_try_set_paired_acme_keyfile(self, key: str, value: Any) -> bool:
+        """Set acme_keyfile from a list paired by current acme_url index.
+
+        Returns True when the paired value was applied (caller should skip
+        client_parameter_validate).
+        """
+        self.logger.debug("CAhandler._eab_try_set_paired_acme_keyfile(%s)", key)
+        if key != "acme_keyfile" or not isinstance(value, list):
+            return False
+        if eab_profile_warn_if_denied(self.logger, key):
+            return False
+
+        paired_urls = getattr(self, "_eab_paired_acme_url_list", None)
+        if not (
+            paired_urls
+            and self.acme_url
+            and self.acme_url in paired_urls
+            and len(paired_urls) == len(value)
+        ):
+            return False
+
+        new_value = value[paired_urls.index(self.acme_url)]
+        if not eab_profile_path_under_base(
+            self.logger, key, new_value, self.acme_keypath
+        ):
+            return False
+        self.logger.debug(
+            "CAhandler._eab_try_set_paired_acme_keyfile(): paired acme_keyfile "
+            "for acme_url %s to %s",
+            self.acme_url,
+            new_value,
+        )
+        setattr(self, key, new_value)
+        return True
+
+    def _eab_apply_acme_url_side_effects(self, new_value: str) -> Optional[str]:
+        """Update URL-derived state after an allowed acme_url profile change."""
+        self.logger.debug("CAhandler._eab_apply_acme_url_side_effects(%s)", new_value)
+        if not self.acme_keypath:
+            self.logger.error("acme_keypath is missing in config")
+            return "acme_keypath is missing in config"
+        self.acme_url_dic = parse_url(self.logger, new_value)
+        self.acme_keyfile = (
+            f"{self.acme_keypath.rstrip('/')}/"
+            f"{self.acme_url_dic['host'].replace(':', '.')}.json"
+        )
+        return None
+
+    def _eab_profile_list_set(self, csr: str, key: str, value: str) -> Optional[str]:
         self.logger.debug(
             "CAhandler._acme_keyfile_set(): list: key: %s, value: %s", key, value
         )
 
-        result = None
-        new_value, error = client_parameter_validate(self.logger, csr, self, key, value)
-        if new_value:
-            self.logger.debug(
-                "CAhandler._eab_profile_list_set(): setting attribute: %s to %s",
-                key,
-                new_value,
-            )
-            setattr(self, key, new_value)
-            if key == "acme_url":
-                if not self.acme_keypath:
-                    result = "acme_keypath is missing in config"
-                    self.logger.error("acme_keypath is missing in config")
-                else:
-                    self.acme_url_dic = parse_url(self.logger, new_value)
-                    self.acme_keyfile = f"{self.acme_keypath.rstrip('/')}/{self.acme_url_dic['host'].replace(':', '.')}.json"
-        else:
-            result = error
+        self._eab_remember_paired_acme_urls(key, value)
+        if self._eab_try_set_paired_acme_keyfile(key, value):
+            return None
 
-        return result
+        new_value, error = client_parameter_validate(self.logger, csr, self, key, value)
+        if not new_value:
+            return error
+        if eab_profile_warn_if_denied(self.logger, key):
+            return None
+        if key == "acme_keyfile" and not eab_profile_path_under_base(
+            self.logger, key, new_value, self.acme_keypath
+        ):
+            return None
+
+        self.logger.debug(
+            "CAhandler._eab_profile_list_set(): setting attribute: %s to %s",
+            key,
+            new_value,
+        )
+        setattr(self, key, new_value)
+        if key == "acme_url":
+            return self._eab_apply_acme_url_side_effects(new_value)
+        return None
 
     def eab_profile_list_check(
         self, eab_handler: str, csr: str, key: str, value: str
-    ) -> str:
+    ) -> Optional[str]:
         """check eab profile list"""
         self.logger.debug(
             "CAhandler._eab_profile_list_check(): list: key: %s, value: %s", key, value
         )
 
         result = None
-        if hasattr(self, key) and key != "allowed_domainlist":
-            if key == "acme_keyfile":
-                self.logger.error("acme_keyfile is not allowed in profile")
-            else:
-                result = self._eab_profile_list_set(csr, key, value)
-
-        elif key == "allowed_domainlist":
+        if key == "allowed_domainlist":
             # check if csr contains allowed domains
             if "allowed_domains_check" in dir(eab_handler):
                 # execute a function from eab_handler
@@ -981,6 +1074,9 @@ class CAhandler(object):
                 error = allowed_domainlist_check(self.logger, csr, value)
             if error:
                 result = error
+        elif hasattr(self, key):
+            if not eab_profile_warn_if_denied(self.logger, key):
+                result = self._eab_profile_list_set(csr, key, value)
         else:
             self.logger.error(
                 "handler specific EAB profile list checking: ignore list attribute: key: %s value: %s",
@@ -1107,7 +1203,6 @@ class CAhandler(object):
         )
         if not error:
             if self.enrollment_config_log:
-                self.enrollment_config_log_skip_list.extend(["dbstore", "eab_mac_key"])
                 enrollment_config_log(
                     self.logger, self, self.enrollment_config_log_skip_list
                 )
@@ -1310,6 +1405,76 @@ class CAhandler(object):
         self.logger.debug("CAhandler.poll() ended")
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
+    def _revocation_exception_detail(self, err: BaseException) -> str:
+        """Client-visible revocation detail. Raw text only when explicitly enabled."""
+        if eab_profile_as_bool(self.ca_error_details_forward, default=False):
+            return str(err)
+        return "revocation failed"
+
+    def _revoke_loaded_key(self, cert: str) -> Tuple[int, Optional[str], Optional[str]]:
+        """Load the upstream account key and revoke *cert*. Drops the key afterwards."""
+        user_key = None
+        try:
+            if not os.path.exists(self.acme_keyfile):
+                self.logger.error(
+                    "Error during revocation: Could not load user_key %s",
+                    self.acme_keyfile,
+                )
+                return (
+                    500,
+                    _ACME_ERR_SERVER_INTERNAL,
+                    "Internal Error",
+                )
+            user_key = self._user_key_load()
+            if not user_key:
+                return 500, _ACME_ERR_SERVER_INTERNAL, None
+            return self._revoke_for_account(user_key, cert)
+        finally:
+            del user_key
+
+    def _revoke_for_account(
+        self, user_key: josepy.jwk.JWKRSA, cert: str
+    ) -> Tuple[int, Optional[str], Optional[str]]:
+        """Revoke *cert* with an already loaded upstream account key."""
+        net = client.ClientNetwork(user_key)
+        directory = messages.Directory.from_json(
+            net.get(f"{self.acme_url}{self.path_dic['directory_path']}").json()
+        )
+        acmeclient = client.ClientV2(directory, net=net)
+        reg = messages.NewRegistration.from_data(
+            key=user_key,
+            email=self.email,
+            terms_of_service_agreed=True,
+            only_return_existing=True,
+        )
+        if not self.account:
+            self._account_lookup(acmeclient, reg, directory)
+        if not self.account:
+            self.logger.error(
+                "Error during revocation operation. Could not find account key "
+                "and lookup at acme-endpoint failed."
+            )
+            return 500, _ACME_ERR_SERVER_INTERNAL, "account lookup failed"
+
+        regr = messages.RegistrationResource(
+            uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}",
+            body=reg,
+        )
+        self.logger.debug("CAhandler.revoke() checking remote registration status")
+        regr = acmeclient.query_registration(regr)
+        if regr.body.status != "valid":
+            self.logger.error("Enrollment error: Bad ACME account: %s", regr.body.error)
+            return (
+                500,
+                _ACME_ERR_SERVER_INTERNAL,
+                f"Bad ACME account: {regr.body.error}",
+            )
+
+        self.logger.debug("CAhandler.revoke() issuing revocation order")
+        self._revoke_or_fallback(acmeclient, cert)
+        self.logger.debug("CAhandler.revoke() successful")
+        return 200, None, None
+
     def revoke(
         self,
         _cert: str,
@@ -1319,9 +1484,8 @@ class CAhandler(object):
         """revoke certificate"""
         self.logger.debug("CAhandler.revoke()")
 
-        user_key = None
         code = 500
-        message = "urn:ietf:params:acme:error:serverInternal"
+        message = _ACME_ERR_SERVER_INTERNAL
         detail = None
 
         # modify handler configuration in case of eab profiling
@@ -1329,68 +1493,10 @@ class CAhandler(object):
             eab_profile_revocation_check(self.logger, self, _cert)
 
         try:
-            if os.path.exists(self.acme_keyfile):
-                user_key = self._user_key_load()
-
-            if user_key:
-                net = client.ClientNetwork(user_key)
-
-                directory = messages.Directory.from_json(
-                    net.get(f"{self.acme_url}{self.path_dic['directory_path']}").json()
-                )
-                acmeclient = client.ClientV2(directory, net=net)
-
-                reg = messages.NewRegistration.from_data(
-                    key=user_key,
-                    email=self.email,
-                    terms_of_service_agreed=True,
-                    only_return_existing=True,
-                )
-
-                if not self.account:
-                    self._account_lookup(acmeclient, reg, directory)
-
-                if self.account:
-                    regr = messages.RegistrationResource(
-                        uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}",
-                        body=reg,
-                    )
-                    self.logger.debug(
-                        "CAhandler.revoke() checking remote registration status"
-                    )
-                    regr = acmeclient.query_registration(regr)
-
-                    if regr.body.status == "valid":
-                        self.logger.debug("CAhandler.revoke() issuing revocation order")
-                        # revoke certificate
-                        self._revoke_or_fallback(acmeclient, _cert)
-                        self.logger.debug("CAhandler.revoke() successful")
-                        code = 200
-                        message = None
-                    else:
-                        self.logger.error(
-                            "Enrollment error: Bad ACME account: %s", regr.body.error
-                        )
-                        detail = f"Bad ACME account: {regr.body.error}"
-
-                else:
-                    self.logger.error(
-                        "Error during revocation operation. Could not find account key and lookup at acme-endpoint failed."
-                    )
-                    detail = "account lookup failed"
-            else:
-                self.logger.error(
-                    "Error during revocation: Could not load user_key %s",
-                    self.acme_keyfile,
-                )
-                detail = "Internal Error"
-
+            code, message, detail = self._revoke_loaded_key(_cert)
         except Exception as err:
             self.logger.error("Revocation error: %s", err)
-            detail = str(err)
-
-        finally:
-            del user_key
+            detail = self._revocation_exception_detail(err)
 
         self.logger.debug("Certificate.revoke() ended")
         return (code, message, detail)

@@ -27,6 +27,10 @@ inputs:
     description: "Replacement for PATH_REWRITE_FROM"
     required: false
     default: ""
+  ENABLE_EAB:
+    description: "If true, append EABhandler (kid profiling). Off for ACME-profile tests."
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -74,8 +78,25 @@ runs:
           ca_bundle: False
           route_domainlist: ["*.hashi-corp.acme"]
 
-          [EABhandler]
-          eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-          key_file: volume/acme_ca/kid_profiles.json
-          eab_profiling: True
-          eab_strict_mode: False
+    - name: "Append EABhandler"
+      if: ${{ inputs.ENABLE_EAB == 'true' }}
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
+        PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
+      run: |
+        set -euo pipefail
+        key_file="volume/acme_ca/kid_profiles.json"
+        if [[ -n "${PATH_REWRITE_FROM}" ]]; then
+          key_file="${key_file//${PATH_REWRITE_FROM}/${PATH_REWRITE_TO}}"
+        fi
+        {
+          echo
+          echo "[EABhandler]"
+          echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler"
+          echo "key_file: ${key_file}"
+          echo "eab_profiling: True"
+          echo "eab_strict_mode: False"
+        } | sudo tee -a "${VOLUME_DIR}/acme_srv.cfg" >/dev/null
+        sudo chmod 777 "${VOLUME_DIR}/acme_srv.cfg"

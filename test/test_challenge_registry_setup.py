@@ -16,6 +16,9 @@ class MockConfig:
     """Mock configuration object for testing"""
 
     def __init__(self, **kwargs):
+        self.http_01_support = kwargs.get("http_01_support", True)
+        self.dns_01_support = kwargs.get("dns_01_support", True)
+        self.tls_alpn_01_support = kwargs.get("tls_alpn_01_support", True)
         self.email_identifier_support = kwargs.get("email_identifier_support", False)
         self.tnauthlist_support = kwargs.get("tnauthlist_support", False)
         self.dns_persist_01_support = kwargs.get("dns_persist_01_support", False)
@@ -463,7 +466,68 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_006_create_challenge_validator_registry_none_config(self):
+    def test_006_create_challenge_validator_registry_http_disabled(self):
+        """Test registry creation with http-01 support disabled."""
+
+        mock_registry = Mock()
+        mock_registry_instance = Mock()
+        mock_registry_instance.get_supported_types.return_value = [
+            "dns-01",
+            "tls-alpn-01",
+        ]
+        mock_registry.return_value = mock_registry_instance
+
+        mock_http_validator = Mock()
+        mock_dns_validator = Mock()
+        mock_tls_validator = Mock()
+        mock_email_validator = Mock()
+        mock_tkauth_validator = Mock()
+        mock_source_validator = Mock()
+
+        with (
+            patch.multiple(
+                "acme2certifier.acme_srv.challenge_validators",
+                ChallengeValidatorRegistry=mock_registry,
+                HttpChallengeValidator=mock_http_validator,
+                DnsChallengeValidator=mock_dns_validator,
+                TlsAlpnChallengeValidator=mock_tls_validator,
+                EmailReplyChallengeValidator=mock_email_validator,
+                TkauthChallengeValidator=mock_tkauth_validator,
+                SourceAddressValidator=mock_source_validator,
+            ),
+            patch.multiple(
+                "acme2certifier.acme_srv.challenge_registry_setup",
+                ChallengeValidatorRegistry=mock_registry,
+                HttpChallengeValidator=mock_http_validator,
+                DnsChallengeValidator=mock_dns_validator,
+                TlsAlpnChallengeValidator=mock_tls_validator,
+                EmailReplyChallengeValidator=mock_email_validator,
+                TkauthChallengeValidator=mock_tkauth_validator,
+                SourceAddressValidator=mock_source_validator,
+            ),
+        ):
+            from acme2certifier.acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
+
+            config = MockConfig(http_01_support=False)
+            create_challenge_validator_registry(self.logger, config)
+
+            mock_http_validator.assert_not_called()
+            mock_dns_validator.assert_called_once_with(self.logger)
+            mock_tls_validator.assert_called_once_with(self.logger)
+
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
+        },
+    )
+    def test_007_create_challenge_validator_registry_none_config(self):
         """Test registry creation with None config"""
 
         # Mock all the validator classes
@@ -525,7 +589,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_007_create_challenge_validator_registry_registry_exception(self):
+    def test_008_create_challenge_validator_registry_registry_exception(self):
         """Test registry creation when registry constructor raises exception"""
 
         # Mock all the validator classes
@@ -584,7 +648,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_008_create_custom_registry_basic(self):
+    def test_009_create_custom_registry_basic(self):
         """Test basic custom registry creation"""
 
         # Mock all the validator classes
@@ -655,7 +719,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_009_create_custom_registry_empty_validators(self):
+    def test_010_create_custom_registry_empty_validators(self):
         """Test custom registry creation with empty validator list"""
 
         # Mock all the validator classes
@@ -709,7 +773,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_010_create_custom_registry_none_validator_classes(self):
+    def test_011_create_custom_registry_none_validator_classes(self):
         """Test custom registry creation with None validator classes"""
 
         # Mock all the validator classes
@@ -747,7 +811,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_011_create_custom_registry_validator_exception(self):
+    def test_012_create_custom_registry_validator_exception(self):
         """Test custom registry creation when validator constructor raises exception"""
 
         # Mock all the validator classes
@@ -791,7 +855,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_012_create_custom_registry_registration_exception(self):
+    def test_013_create_custom_registry_registration_exception(self):
         """Test custom registry creation when validator registration raises exception"""
 
         # Mock all the validator classes
@@ -839,7 +903,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_013_create_challenge_validator_registry_tnauthlist_support(self):
+    def test_014_create_challenge_validator_registry_tnauthlist_support(self):
         """Test registry creation with tnauthlist support enabled"""
 
         # Mock the module's imports
@@ -919,7 +983,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_014_create_challenge_validator_registry_forward_address_check(self):
+    def test_015_create_challenge_validator_registry_forward_address_check(self):
         """Test registry creation with forward address checking enabled"""
 
         # Mock the module's imports
@@ -998,7 +1062,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_015_create_challenge_validator_registry_reverse_address_check(self):
+    def test_016_create_challenge_validator_registry_reverse_address_check(self):
         """Test registry creation with reverse address checking enabled"""
 
         # Mock the module's imports
@@ -1073,7 +1137,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_016_create_challenge_validator_registry_both_address_checks(self):
+    def test_017_create_challenge_validator_registry_both_address_checks(self):
         """Test registry creation with both forward and reverse address checking enabled"""
 
         # Mock the module's imports
@@ -1145,7 +1209,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_017_create_custom_registry_with_config(self):
+    def test_018_create_custom_registry_with_config(self):
         """Test custom registry creation with config parameter"""
 
         # Mock all the validator classes
@@ -1196,7 +1260,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_018_create_custom_registry_get_supported_types_exception(self):
+    def test_019_create_custom_registry_get_supported_types_exception(self):
         """Test custom registry creation when get_supported_types raises exception"""
 
         # Mock all the validator classes
@@ -1244,7 +1308,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_019_create_custom_registry_mixed_validator_types(self):
+    def test_020_create_custom_registry_mixed_validator_types(self):
         """Test custom registry creation with different validator types"""
 
         # Mock all the validator classes
@@ -1310,7 +1374,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_020_create_challenge_validator_registry_validator_exception(self):
+    def test_021_create_challenge_validator_registry_validator_exception(self):
         """Test registry creation when validator constructor raises exception"""
 
         # Mock all the validator classes
@@ -1371,7 +1435,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_021_create_challenge_validator_registry_missing_config_attributes(self):
+    def test_022_create_challenge_validator_registry_missing_config_attributes(self):
         """Test registry creation with config missing some attributes"""
 
         # Mock all the validator classes
@@ -1435,7 +1499,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
-    def test_022_create_challenge_validator_registry_registration_exception(self):
+    def test_023_create_challenge_validator_registry_registration_exception(self):
         """Test registry creation when validator registration raises exception"""
 
         # Mock all the validator classes

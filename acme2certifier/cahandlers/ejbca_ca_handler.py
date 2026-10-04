@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """ejbca rest ca handler"""
 
-import os
-from typing import Tuple, Dict
+from typing import List, Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 
@@ -17,10 +16,11 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_option_load,
+    config_ca_bundle_load,
     config_profile_load,
     convert_byte_to_string,
-    csr_cn_get,
-    csr_san_get,
+    csr_cn_lookup,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     encode_url,
@@ -28,6 +28,7 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     load_config,
     request_operation,
+    client_session_apply,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -155,38 +156,14 @@ class CAhandler(object):
                 )
                 self.request_retry_backoff = 2.0
 
-            self.ca_bundle = config_dic.get("CAhandler", "ca_bundle", fallback=True)
-            if self.ca_bundle == "False":
-                self.ca_bundle = False
+            self.ca_bundle = config_ca_bundle_load(
+                self.logger, config_dic, current=self.ca_bundle
+            )
 
         self.logger.debug("CAhandler._config_server_load() ended")
 
     def _config_authuser_load(self, config_dic: Dict[str, str]):
         self.logger.debug("CAhandler._config_authuser_load()")
-        if (
-            "username_variable" in config_dic["CAhandler"]
-            or "username" in config_dic["CAhandler"]
-        ):
-            if "username_variable" in config_dic["CAhandler"]:
-                try:
-                    self.username = os.environ[
-                        config_dic.get("CAhandler", "username_variable", fallback=None)
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load username_variable:%s",
-                        err,
-                    )
-
-            if "username" in config_dic["CAhandler"]:
-                if self.username:
-                    self.logger.info("Overwrite username parameter")
-                self.username = config_dic.get("CAhandler", "username", fallback=None)
-        else:
-            self.logger.error(
-                '%s: "username" parameter is missing in config file',
-                CONFIGURATION_ERROR_DETAIL,
-            )
 
         # check if we need to add the common name of a certificate to the username
         try:
@@ -199,6 +176,19 @@ class CAhandler(object):
             )
             self.username_append_cn = False
 
+        if (
+            "username_variable" in config_dic["CAhandler"]
+            or "username" in config_dic["CAhandler"]
+        ):
+            self.username = config_option_load(
+                self.logger, config_dic, "username", current=self.username
+            )
+        elif not self.username_append_cn:
+            self.logger.error(
+                '%s: "username" parameter is missing in config file',
+                CONFIGURATION_ERROR_DETAIL,
+            )
+
         self.logger.debug("CAhandler._config_auth_load() ended")
 
     def _config_enrollmentcode_load(self, config_dic: Dict[str, str]):
@@ -207,21 +197,9 @@ class CAhandler(object):
             "enrollment_code_variable" in config_dic["CAhandler"]
             or "enrollment_code" in config_dic["CAhandler"]
         ):
-            if "enrollment_code_variable" in config_dic["CAhandler"]:
-                try:
-                    self.enrollment_code = os.environ[
-                        config_dic.get("CAhandler", "enrollment_code_variable")
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load enrollment_code_variable:%s",
-                        err,
-                    )
-
-            if "enrollment_code" in config_dic["CAhandler"]:
-                if self.enrollment_code:
-                    self.logger.info("Overwrite enrollment_code")
-                self.enrollment_code = config_dic.get("CAhandler", "enrollment_code")
+            self.enrollment_code = config_option_load(
+                self.logger, config_dic, "enrollment_code", current=self.enrollment_code
+            )
         else:
             self.logger.error(
                 '%s: "enrollment_code" parameter is missing in config file',
@@ -237,25 +215,9 @@ class CAhandler(object):
             "cert_passphrase_variable" in config_dic["CAhandler"]
             or "cert_passphrase" in config_dic["CAhandler"]
         ):
-            if "cert_passphrase_variable" in config_dic["CAhandler"]:
-                try:
-                    self.cert_passphrase = os.environ[
-                        config_dic.get(
-                            "CAhandler", "cert_passphrase_variable", fallback=None
-                        )
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load cert_passphrase_variable:%s",
-                        err,
-                    )
-
-            if "cert_passphrase" in config_dic["CAhandler"]:
-                if self.cert_passphrase:
-                    self.logger.info(
-                        "CAhandler._config_load() overwrite cert_passphrase"
-                    )
-                self.cert_passphrase = config_dic.get("CAhandler", "cert_passphrase")
+            self.cert_passphrase = config_option_load(
+                self.logger, config_dic, "cert_passphrase", current=self.cert_passphrase
+            )
 
         if (
             config_dic
@@ -263,12 +225,12 @@ class CAhandler(object):
             and self.cert_passphrase
         ):
             with requests.Session() as self.session:
-                self.session.mount(
-                    self.api_host,
-                    Pkcs12Adapter(
-                        pkcs12_filename=config_dic["CAhandler"]["cert_file"],
-                        pkcs12_password=self.cert_passphrase,
-                    ),
+                client_session_apply(
+                    self.session,
+                    pkcs12_filename=config_dic["CAhandler"]["cert_file"],
+                    pkcs12_password=self.cert_passphrase,
+                    mount_url=self.api_host,
+                    pkcs12_adapter_cls=Pkcs12Adapter,
                 )
         else:
             self.logger.error(
@@ -305,6 +267,19 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_cainfo_load() ended")
 
+    def _mandatory_parameter_list(self) -> List[str]:
+        """parameters which must be set for the handler to operate"""
+        parameter_list = [
+            "api_host",
+            self.profile_mapping_field,
+            "ee_profile_name",
+            "ca_name",
+            "enrollment_code",
+        ]
+        if not self.username_append_cn:
+            parameter_list.append("username")
+        return parameter_list
+
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_load()")
@@ -327,14 +302,7 @@ class CAhandler(object):
 
         # check configuration for completeness
         variable_dic = self.__dict__
-        for ele in [
-            "api_host",
-            self.profile_mapping_field,
-            "ee_profile_name",
-            "ca_name",
-            "username",
-            "enrollment_code",
-        ]:
+        for ele in self._mandatory_parameter_list():
             if not variable_dic[ele]:
                 self.logger.error(
                     '%s: parameter "%s" is missing in configuration file',
@@ -371,22 +339,7 @@ class CAhandler(object):
     def _csr_cn_get(self, csr: str) -> str:
         """get CN from csr"""
         self.logger.debug("CAhandler._csr_cn_get()")
-
-        cn = csr_cn_get(self.logger, csr)
-
-        if not cn:
-            self.logger.info("CN not found in CSR")
-            san_list = csr_san_get(self.logger, csr)
-            if san_list:
-                _type, san_value = san_list[0].split(":")
-                cn = san_value
-                self.logger.info(
-                    "CN not found in CSR. Using first SAN entry as CN: %s",
-                    san_value,
-                )
-            else:
-                self.logger.error("CN not found in CSR. No SAN entries found")
-
+        cn = csr_cn_lookup(self.logger, csr)
         self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
         return cn
 
@@ -453,7 +406,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._sign()")
 
         if self.username_append_cn:
-            username = f"{self.username}{self._csr_cn_get(csr)}"
+            username = f"{self.username or ''}{self._csr_cn_get(csr)}"
         else:
             username = self.username
         self.logger.debug("CAhandler._sign() username: %s", username)
@@ -527,16 +480,7 @@ class CAhandler(object):
         """check if handler is ready"""
         self.logger.debug("CAhandler.check()")
         error = handler_config_check(
-            self.logger,
-            self,
-            [
-                "api_host",
-                self.profile_mapping_field,
-                "ee_profile_name",
-                "ca_name",
-                "username",
-                "enrollment_code",
-            ],
+            self.logger, self, self._mandatory_parameter_list()
         )
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error

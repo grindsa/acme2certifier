@@ -387,9 +387,10 @@ sudo chown nginx:nginx /opt/acme2certifier/acme_srv.db
 If upgrading a Django deployment:
 
 1. Point settings at `acme2certifier.django_app` / `acme2certifier.django_project` (see [Django settings](#django-settings-django-installs-only)).
-2. Ensure uWSGI uses `module = acme2certifier.django_project.wsgi:application`.
-3. Set `[DBhandler] handler: django`.
-4. Migrate:
+1. Ensure uWSGI uses `module = acme2certifier.django_project.wsgi:application`.
+1. Set `[DBhandler] handler: django`.
+1. Set `ACME2CERTIFIER_ALLOWED_HOSTS` (and ensure `ACME2CERTIFIER_SECRET_KEY` is persisted) — see [Django deployment environment variables](django_deploy_env.md).
+1. Migrate:
 
 ```bash
 export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
@@ -456,7 +457,7 @@ ______________________________________________________________________
 | --- | --- |
 | OpenSSL CA | `acme2certifier.cahandlers.openssl_ca_handler` |
 | MS-ICPR CA | `acme2certifier.cahandlers.msicpr_ca_handler` (deprecated alias: `mswcce_ca_handler`) |
-| Skeleton CA | `acme2certifier.cahandlers.skeleton_ca_handler` |
+| Skeleton CA (template) | copy from `acme2certifier/share/skeletons/ca_handler/` (not a runtime module) |
 | ACME proxy CA | `acme2certifier.cahandlers.acme_ca_handler` |
 | EAB file | `acme2certifier.eabhandlers.file_handler` |
 | EAB JSON | `acme2certifier.eabhandlers.json_handler` |

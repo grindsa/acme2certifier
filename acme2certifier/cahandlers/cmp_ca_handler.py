@@ -14,6 +14,7 @@ from acme2certifier.acme_srv.helper import (
     build_pem_file,
     b64_url_recode,
     config_profile_load,
+    config_option_load,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -78,16 +79,12 @@ class CAhandler(object):
     def _config_refsecret_load(self, config_dic: Dict[str, str]):
         """ " load ref secrets from file"""
         self.logger.debug("CAhandler._config_refsecret_load()")
-
-        if "CAhandler" in config_dic and "cmp_ref" in config_dic["CAhandler"]:
-            if self.ref:
-                self.logger.info("Overwrite cmp_ref variable")
-            self.ref = config_dic["CAhandler"]["cmp_ref"]
-        if "CAhandler" in config_dic and "cmp_secret" in config_dic["CAhandler"]:
-            if self.secret:
-                self.logger.info("Overwrite cmp_secret variable")
-            self.secret = config_dic["CAhandler"]["cmp_secret"]
-
+        self.ref = config_option_load(
+            self.logger, config_dic, "cmp_ref", current=self.ref
+        )
+        self.secret = config_option_load(
+            self.logger, config_dic, "cmp_secret", current=self.secret
+        )
         self.logger.debug("CAhandler._config_refsecret_load() ended")
 
     def _config_paramters_load(self):
@@ -138,20 +135,12 @@ class CAhandler(object):
             self.openssl_bin = config_dic["CAhandler"]["cmp_openssl_bin"]
         elif ele == "cmp_recipient":
             self._config_cmprecipient_load(config_dic)
-        elif ele == "cmp_ref_variable":
-            try:
-                self.ref = os.environ[config_dic["CAhandler"]["cmp_ref_variable"]]
-            except Exception as err:
-                self.logger.error("Could not load cmp_ref:%s", err)
-        elif ele == "cmp_secret_variable":
-            try:
-                self.secret = os.environ[config_dic["CAhandler"]["cmp_secret_variable"]]
-            except Exception as err:
-                self.logger.error(
-                    "Could not load cmp_secret_variable:%s",
-                    err,
-                )
-        elif ele in ("cmp_secret", "cmp_ref"):
+        elif ele in (
+            "cmp_secret",
+            "cmp_ref",
+            "cmp_ref_variable",
+            "cmp_secret_variable",
+        ):
             self.logger.debug("CAhandler._config_cmpparameter_load() ignore %s", ele)
         else:
             if (
@@ -186,6 +175,22 @@ class CAhandler(object):
         self.profiles = config_profile_load(self.logger, config_dic)
         self.logger.debug("CAhandler._config_load() ended")
 
+    @staticmethod
+    def _opensslcmd_log_repr(cmd_list: List[str]) -> str:
+        """Return cmd_list as a log-safe string (redact values after -secret/-ref)."""
+        parts: List[str] = []
+        redact_next = False
+        for arg in cmd_list:
+            if redact_next:
+                parts.append("***")
+                redact_next = False
+            elif arg in ("-secret", "-ref"):
+                parts.append(arg)
+                redact_next = True
+            else:
+                parts.append(arg)
+        return " ".join(parts)
+
     def _opensslcmd_build(self) -> List[str]:
         """build openssl command"""
         self.logger.debug("CAhandler._opensslcmd_build()")
@@ -213,13 +218,14 @@ class CAhandler(object):
         if "-total_timeout" not in cmd_list:
             cmd_list.extend(["-total_timeout", "10"])
 
+        log_cmd = self._opensslcmd_log_repr(cmd_list)
         if self.secret and self.ref:
-            cmd_list.extend(["-ref", self.ref])
-        if self.secret and self.ref:
-            cmd_list.extend(["-secret", self.secret])
+            cmd_list.extend(["-ref", self.ref, "-secret", self.secret])
+            log_cmd = f"{log_cmd} -ref *** -secret ***"
 
         self.logger.debug(
-            "CAhandler._opensslcmd_build() ended with: %s", " ".join(cmd_list)
+            "CAhandler._opensslcmd_build() ended with: %s",
+            log_cmd,
         )
         return cmd_list
 

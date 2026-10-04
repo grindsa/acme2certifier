@@ -8,7 +8,10 @@ inputs:
     description: "xdb_file path for the target deployment"
     required: true
   DJANGO:
-    description: "If true, refresh django settings to current package layout"
+    description: >
+      If true, overlay current-branch django CI settings. Use only after the
+      FROM package is stopped / about to be replaced. 0.45.x logging_utils has
+      no apply_log_levels; overlaying too early breaks the FROM hop.
     required: false
     default: "false"
   DEPLOYMENT_TYPE:
@@ -30,7 +33,7 @@ runs:
           ca_cert_chain_list: ["root-ca"]
           template_name: ${{ env.XCA_TEMPLATE }}
 
-    - name: "Refresh django settings if needed"
+    - name: "Refresh django settings and DATABASE_URL if needed"
       if: inputs.DJANGO == 'true'
       shell: bash
       env:
@@ -38,24 +41,48 @@ runs:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       run: |
         set -euo pipefail
-        src=".github/django_settings_mariadb.py"
-        tmp="$(mktemp)"
-        cp "${src}" "${tmp}"
-        bash .github/actions/wf_specific/upgrade/patch_django_ci_settings.sh "${tmp}"
+        secret="${ACME2CERTIFIER_SECRET_KEY:-$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')}"
         case "${DEPLOYMENT_TYPE}" in
           container)
-            sudo cp "${tmp}" "${VOLUME_DIR}/settings.py"
+            env_file="${VOLUME_DIR}/django.env"
+            host="mariadbsrv.acme"
             ;;
           rpm)
-            sudo mkdir -p data/acme2certifier
-            sudo cp "${tmp}" data/acme2certifier/settings.py
-            sudo sed -i "s|/var/www/|/opt/|g" data/acme2certifier/settings.py
-            sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
-            sudo cp data/acme2certifier/settings.py "${VOLUME_DIR}/settings.py"
+            env_file="data/django.env"
+            host="mariadbsrv.acme"
+            ;;
+          deb)
+            env_file="data/django.env"
+            host="mariadbsrv.acme"
+            ;;
+          *)
+            echo "Unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+        bash .github/scripts/django_ci_database_url.sh \
+          --django-db mariadb \
+          --host "${host}" \
+          --secret "${secret}" \
+          --env-file "${env_file}" \
+          --github-env
+        # Replace the from-tag settings.py. Installers symlink this file over
+        # packaged settings. ≤0.44 still lists acme_srv / acme2certifier.urls.
+        settings_src="examples/django/settings.py"
+        case "${DEPLOYMENT_TYPE}" in
+          container)
+            sudo cp "${settings_src}" "${VOLUME_DIR}/settings.py"
+            ;;
+          rpm)
+            sudo mkdir -p data/volume data/acme2certifier
+            sudo cp "${env_file}" data/volume/django.env
+            sudo cp "${env_file}" "${VOLUME_DIR}/django.env"
+            sudo cp "${settings_src}" data/acme2certifier/settings.py
+            sudo cp "${settings_src}" "${VOLUME_DIR}/settings.py"
             ;;
           deb)
             sudo mkdir -p "${VOLUME_DIR}/acme2certifier"
-            sudo cp "${tmp}" "${VOLUME_DIR}/acme2certifier/settings.py"
+            sudo cp "${env_file}" "${VOLUME_DIR}/django.env"
+            sudo cp "${settings_src}" "${VOLUME_DIR}/acme2certifier/settings.py"
             ;;
         esac
-        rm -f "${tmp}"

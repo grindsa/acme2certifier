@@ -116,7 +116,7 @@ jobs:
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"ACME\", \"ACME_2\"]/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up

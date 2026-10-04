@@ -169,7 +169,9 @@ def allowed_domainlist_check(
     return error
 
 
-def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
+def sancheck_lists_create(
+    logger, csr: str, include_cn: bool = True
+) -> Tuple[List[str], List[str]]:
     """create lists for san check"""
     logger.debug("Helper.sancheck_lists_create()")
 
@@ -193,14 +195,15 @@ def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
                     san,
                 )
 
-    # get common name and attach it to san_list
-    cn = csr_cn_get(logger, csr)
+    if include_cn:
+        # get common name and attach it to san_list
+        cn = csr_cn_get(logger, csr)
 
-    if cn:
-        cn = cn.lower()
-        if cn not in san_list:
-            # append cn to san_list
-            logger.debug("Helper.sancheck_lists_create()): append cn to san_list")
-            san_list.append(cn)
+        if cn:
+            cn = cn.lower()
+            if cn not in san_list:
+                # append cn to san_list
+                logger.debug("Helper.sancheck_lists_create()): append cn to san_list")
+                san_list.append(cn)
 
     return (san_list, check_list)

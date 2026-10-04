@@ -2,7 +2,7 @@
 """CA handler using Entrust ECS Enterprise"""
 
 from __future__ import print_function
-from typing import Tuple, Dict, List
+from typing import Any, Tuple, Dict, List
 import datetime
 import os
 import requests
@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_option_load,
     config_profile_load,
     csr_cn_lookup,
     eab_profile_header_info_check,
@@ -27,11 +28,11 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     header_info_get,
     load_config,
-    request_operation,
+    ca_api_request,
+    client_session_apply,
     uts_now,
     uts_to_date_utc,
 )
-from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 CONTENT_TYPE = "application/json"
 
@@ -104,14 +105,12 @@ class CAhandler(object):
 
     def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_get()")
         headers = {"Content-Type": CONTENT_TYPE}
-
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
+            "get",
+            url,
             session=self.session,
-            method="get",
-            url=url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -119,18 +118,15 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-        self.logger.debug("CAhandler._api_get() ended with code: %s", code)
-        return code, content
 
     def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_post()")
         headers = {"Content-Type": CONTENT_TYPE}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
+            "post",
+            url,
             session=self.session,
-            method="post",
-            url=url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -138,18 +134,15 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-        self.logger.debug("CAhandler._api_post() ended with code: %s", code)
-        return code, content
 
     def _api_put(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_put()")
         headers = {"Content-Type": CONTENT_TYPE}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
+            "put",
+            url,
             session=self.session,
-            method="put",
-            url=url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -158,10 +151,7 @@ class CAhandler(object):
             retry_backoff=self.request_retry_backoff,
         )
 
-        self.logger.debug("CAhandler._api_put() ended with code: %s", code)
-        return code, content
-
-    def _certificates_get_from_serial(self, cert_serial: str) -> List[str]:
+    def _certificates_get_from_serial(self, cert_serial: str) -> List[Dict[str, Any]]:
         """get certificates"""
         self.logger.debug("CAhandler._certificates_get_from_serial()")
 
@@ -282,37 +272,9 @@ class CAhandler(object):
     def _config_passphrase_load(self, config_dic: Dict[str, str]):
         """load passphrase"""
         self.logger.debug("CAhandler._config_passphrase_load()")
-        if (
-            "cert_passphrase_variable" in config_dic["CAhandler"]
-            or "cert_passphrase" in config_dic["CAhandler"]
-        ):
-            if "cert_passphrase_variable" in config_dic["CAhandler"]:
-                self.logger.debug(
-                    "CAhandler._config_passphrase_load(): load passphrase from environment variable"
-                )
-                try:
-                    self.cert_passphrase = os.environ[
-                        config_dic.get(
-                            "CAhandler",
-                            "cert_passphrase_variable",
-                            fallback=self.cert_passphrase,
-                        )
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load cert_passphrase_variable:%s",
-                        err,
-                    )
-
-            if "cert_passphrase" in config_dic["CAhandler"]:
-                self.logger.debug(
-                    "CAhandler._config_passphrase_load(): load passphrase from config file"
-                )
-                if self.cert_passphrase:
-                    self.logger.info("Overwrite cert_passphrase")
-                self.cert_passphrase = config_dic.get(
-                    "CAhandler", "cert_passphrase", fallback=self.cert_passphrase
-                )
+        self.cert_passphrase = config_option_load(
+            self.logger, config_dic, "cert_passphrase", current=self.cert_passphrase
+        )
         self.logger.debug("CAhandler._config_passphrase_load() ended")
 
     def _config_root_load(self, config_dic: Dict[str, str]):
@@ -349,9 +311,10 @@ class CAhandler(object):
                 self.logger.debug(
                     "CAhandler._config_session_load() cert and key in pem format"
                 )
-                self.session.cert = (
-                    config_dic.get("CAhandler", "client_cert"),
-                    config_dic.get("CAhandler", "client_key"),
+                client_session_apply(
+                    self.session,
+                    pem_cert=config_dic.get("CAhandler", "client_cert"),
+                    pem_key=config_dic.get("CAhandler", "client_key"),
                 )
 
             else:
@@ -360,12 +323,12 @@ class CAhandler(object):
                     self.logger.debug(
                         "CAhandler._config_session_load() cert and passphrase"
                     )
-                    self.session.mount(
-                        self.api_url,
-                        Pkcs12Adapter(
-                            pkcs12_filename=config_dic.get("CAhandler", "client_cert"),
-                            pkcs12_password=self.cert_passphrase,
-                        ),
+                    client_session_apply(
+                        self.session,
+                        pkcs12_filename=config_dic.get("CAhandler", "client_cert"),
+                        pkcs12_password=self.cert_passphrase,
+                        mount_url=self.api_url,
+                        pkcs12_adapter_cls=Pkcs12Adapter,
                     )
                 else:
                     self.logger.warning(
@@ -457,14 +420,9 @@ class CAhandler(object):
     def _config_check(self) -> str:
         """check config"""
         self.logger.debug("CAhandler._config_check()")
-
-        error = None
-        for ele in ["api_url", "username", "password", "organization_name"]:
-            if not getattr(self, ele):
-                error = f"{ele} parameter in missing in config file"
-                self.logger.error("%s: %s", CONFIGURATION_ERROR_DETAIL, error)
-                break
-
+        error = handler_config_check(
+            self.logger, self, ["api_url", "username", "password", "organization_name"]
+        )
         self.logger.debug("CAhandler._config_check() ended with: %s", error)
         return error
 
@@ -561,9 +519,6 @@ class CAhandler(object):
         poll_indentifier = None
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(
-                ["cert_passphrase", "client_key"]
-            )
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )

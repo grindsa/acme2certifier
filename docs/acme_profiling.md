@@ -9,6 +9,8 @@ The [Automated Certificate Management Environment (ACME) Profiles Extension draf
 
 acme2certifier supports acme profiling starting from version v0.38.
 
+With [multi-CAhandler mode](multi_cahandler.md), `[Order] profile_cahandler` maps each advertised ACME profile to a named handler registry entry (for example `{"short": "openssl", "long": "ejbca"}`). Identity maps (`{"harica": "harica"}`) select the handler only and do not replace `profile_mapping_field`; use CA parameter names (`OV` / `EV`) when that overwrite is intended.
+
 ACME profiling must be specified in `acme_srv.cfg`:
 
 ```config
@@ -37,6 +39,7 @@ Depending on the CA-handler the profile value replaces a certain value in the CA
 | [ACME Handler](acme_ca.md)                                                      | profile                 |
 | [DigiCert® CertCentral](digicert.md)                                            | cert_type               |
 | [EJBCA](ejbca.md)                                                               | cert_profile_name       |
+| [HARICA CertManager](harica.md)                                               | transaction_type        |
 | [Insta ActiveCMS](asa.md)                                                       | profile_name            |
 | [Microsoft Certificate Enrollment Web Services](mscertsrv.md)                   | template                |
 | [Microsoft ICertPassage Remote Protocol (MS-ICPR)](msicpr.md)                   | template                |

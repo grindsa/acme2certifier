@@ -1,0 +1,34 @@
+DEFAULT:
+  debug: true
+
+Nonce:
+  # disable nonce/signature checks. THIS IS A SEVERE SECURITY ISSUE!
+  # Ignored unless ACME2CERTIFIER_I_KNOW_THE_RISK=1 is set (checks stay enabled).
+  # Please use only for testing/debugging purposes.
+  nonce_check_disable: false
+  # signature_check_disable: false
+
+Certificate:
+  revocation_reason_check_disable: false
+
+Challenge:
+  # when true disable challenge validation. Challenge will be set to 'valid' without further checking
+  # THIS IS A SEVERE SECURTIY ISSUE! Please do only for testing/debugging purposes
+  challenge_validation_disable: false
+
+Order:
+  tnauthlist_support: false
+  retry_after_timeout: 15
+
+CAhandler:
+  # CA specific options
+  # Paths below are relative to ACME2CERTIFIER_BASE_DIR (required under Apache/mod_wsgi).
+  handler_module: acme2certifier.cahandlers.openssl_ca_handler
+  ca_cert_chain_list:
+    - volume/acme_ca/root-ca-cert.pem
+  issuing_ca_key: volume/acme_ca/sub-ca-key.pem
+  issuing_ca_key_passphrase: Test1234
+  issuing_ca_cert: volume/acme_ca/sub-ca-cert.pem
+  issuing_ca_crl: volume/acme_ca/sub-ca-crl.pem
+  cert_validity_days: 30
+  cert_save_path: volume/acme_ca/certs

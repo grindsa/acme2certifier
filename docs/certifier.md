@@ -3,7 +3,7 @@
 <!-- wiki-title: CA Handler for NetGuard Certificate Manager and Insta Certifier -->
 <!-- wiki-category: CA Handlers -->
 
-# Connecting to Insta Certifier
+# Connecting to [Insta Certifier](https://www.insta.fi/en/cybersecurity/services/pki-solutions/insta-certifier10-ca/)
 
 ## Prerequisites
 

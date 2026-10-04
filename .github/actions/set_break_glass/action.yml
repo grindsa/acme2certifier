@@ -1,0 +1,94 @@
+name: "set_break_glass"
+description: "Acknowledge ACME2CERTIFIER_I_KNOW_THE_RISK for CI security-disable gates"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+  COMPOSE_DIR:
+    description: "docker compose directory (container)"
+    required: false
+    default: "examples/Docker"
+  CONTAINER:
+    description: "Host container name (rpm/deb)"
+    required: false
+    default: "acme-srv"
+  RECREATE:
+    description: "container: force-recreate so env applies when already running"
+    required: false
+    default: "false"
+  RESTART:
+    description: "rpm/deb: restart a2c so DefaultEnvironment is picked up"
+    required: false
+    default: "false"
+  WEBSRV:
+    description: "Web server for deb restart (apache2|nginx)"
+    required: false
+    default: ""
+  CONF_NAME:
+    description: "systemd drop-in filename (rpm/deb)"
+    required: false
+    default: "a2c-break-glass.conf"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Set ACME2CERTIFIER_I_KNOW_THE_RISK (${{ inputs.DEPLOYMENT_TYPE }})"
+      run: |
+        set -euo pipefail
+        case "${DEPLOYMENT_TYPE}" in
+          container)
+            printf '%s\n' \
+              'services:' \
+              '  acme-srv:' \
+              '    environment:' \
+              '      ACME2CERTIFIER_I_KNOW_THE_RISK: "1"' \
+              > "${COMPOSE_DIR}/docker-compose.override.yml"
+            if [ "${RECREATE}" = "true" ]; then
+              (cd "${COMPOSE_DIR}" && docker compose up -d --force-recreate --no-build)
+            fi
+            ;;
+          rpm|deb)
+            # Drop any prior UnsetEnvironment from clear_break_glass so the
+            # manager DefaultEnvironment can take effect on the unit again.
+            # deb+apache2 uses apache2.service; rpm/deb+nginx use acme2certifier.
+            if [ "${DEPLOYMENT_TYPE}" = "deb" ] && [ "${WEBSRV}" = "apache2" ]; then
+              UNIT="apache2.service"
+            else
+              UNIT="acme2certifier.service"
+            fi
+            docker exec "${CONTAINER}" bash -c "
+              set -euo pipefail
+              unit='${UNIT}'
+              mkdir -p /etc/systemd/system.conf.d
+              rm -f \"/etc/systemd/system/\${unit}.d/clear-break-glass.conf\"
+              printf '[Manager]\nDefaultEnvironment=ACME2CERTIFIER_I_KNOW_THE_RISK=1\n' \
+                > /etc/systemd/system.conf.d/${CONF_NAME}
+              systemctl daemon-reload
+              systemctl daemon-reexec
+            "
+            if [ "${RESTART}" = "true" ]; then
+              if [ "${DEPLOYMENT_TYPE}" = "rpm" ]; then
+                docker exec "${CONTAINER}" bash /tmp/acme2certifier/a2c-rpm.sh restart
+              else
+                if [ -z "${WEBSRV}" ]; then
+                  echo "ERROR: WEBSRV is required for deb restart" >&2
+                  exit 1
+                fi
+                docker exec "${CONTAINER}" bash /tmp/acme2certifier/a2c-deb.sh restart "${WEBSRV}"
+              fi
+            fi
+            ;;
+          *)
+            echo "ERROR: unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        COMPOSE_DIR: ${{ inputs.COMPOSE_DIR }}
+        CONTAINER: ${{ inputs.CONTAINER }}
+        RECREATE: ${{ inputs.RECREATE }}
+        RESTART: ${{ inputs.RESTART }}
+        WEBSRV: ${{ inputs.WEBSRV }}
+        CONF_NAME: ${{ inputs.CONF_NAME }}

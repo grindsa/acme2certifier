@@ -4,6 +4,10 @@ inputs:
   DEPLOYMENT_TYPE:
     description: "container | rpm | deb"
     required: true
+  SUITE:
+    description: "profile-domain | eab"
+    required: false
+    default: "profile-domain"
 
 runs:
   using: "composite"
@@ -17,7 +21,9 @@ runs:
       uses: ./.github/actions/wait_for_directory
 
     # --- 1. ACME profile routing (lego.acme does not match route_domainlist) ---
+    # EAB must be off: eab_profiling True skips ACME profile template_name overwrite.
     - name: "Profile — openssl"
+      if: ${{ inputs.SUITE == 'profile-domain' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
@@ -28,6 +34,7 @@ runs:
         ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with handler 'openssl'"
 
     - name: "Profile — xca / acme template"
+      if: ${{ inputs.SUITE == 'profile-domain' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
@@ -38,6 +45,7 @@ runs:
         ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with handler 'xca'"
 
     - name: "Profile — xca / template template"
+      if: ${{ inputs.SUITE == 'profile-domain' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
@@ -48,6 +56,7 @@ runs:
         ENROLL_PATTERN: "CAHandlerRegistry.resolve() ended with handler 'xca'"
 
     - name: "Profile — hashi-corp / vault"
+      if: ${{ inputs.SUITE == 'profile-domain' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
@@ -59,6 +68,7 @@ runs:
 
     # --- 2. Domain routing via route_domainlist ---
     - name: "Domain — *.openssl.acme"
+      if: ${{ inputs.SUITE == 'profile-domain' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
@@ -68,6 +78,7 @@ runs:
         ENROLL_PATTERN: "CAHandlerRegistry._resolve_by_csr() ended with 'openssl'"
 
     - name: "Domain — *.xca.acme"
+      if: ${{ inputs.SUITE == 'profile-domain' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
@@ -77,6 +88,7 @@ runs:
         ENROLL_PATTERN: "CAHandlerRegistry._resolve_by_csr() ended with 'xca'"
 
     - name: "Domain — *.hashi-corp.acme"
+      if: ${{ inputs.SUITE == 'profile-domain' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
@@ -87,6 +99,7 @@ runs:
 
     # --- 3. EAB kid profiling (cahandler_name; xca also sets template_name) ---
     - name: "EAB — openssl (keyid_00)"
+      if: ${{ inputs.SUITE == 'eab' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
@@ -98,6 +111,7 @@ runs:
         EAB_HMAC: V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw
 
     - name: "EAB — xca + template_name (keyid_01)"
+      if: ${{ inputs.SUITE == 'eab' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
@@ -109,6 +123,7 @@ runs:
         EAB_HMAC: YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg
 
     - name: "EAB — hashi-corp / vault (keyid_02)"
+      if: ${{ inputs.SUITE == 'eab' }}
       uses: ./.github/actions/wf_specific/multi_cahandler/lego_enroll_revoke
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}

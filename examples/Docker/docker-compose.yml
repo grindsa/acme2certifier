@@ -5,6 +5,8 @@ services:
       context: ../../.
       dockerfile: examples/Docker/$WEBSERVER/$CONTEXT/Dockerfile
     image: acme2certifier/$CONTEXT
+    env_file:
+      - ./data/django.env
     volumes:
       - type: bind
         source: ./data

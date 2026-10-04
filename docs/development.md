@@ -28,22 +28,25 @@ The editable install (`-e`) puts `a2c-manage` and the other [CLI tools](../tools
 
 ```bash
 export ACME2CERTIFIER_BASE_DIR="$PWD"
-export ACME_SRV_CONFIGFILE="$PWD/acme_srv.cfg"
+export ACME_SRV_CONFIGFILE="$PWD/acme_srv.cfg"   # or acme_srv.yaml / acme_srv.yml
 export ACME2CERTIFIER_DEBUG=1
 ```
 
 | Variable                  | Role                                                           |
 | ------------------------- | -------------------------------------------------------------- |
 | `ACME2CERTIFIER_BASE_DIR` | Deploy root: Django `db.sqlite3`, relative `dbfile` / CA paths |
-| `ACME_SRV_CONFIGFILE`     | Absolute path to cfg (beats `/var/www/...` and `/opt/...`)     |
-| `ACME2CERTIFIER_DEBUG`    | Django `DEBUG` (`1` / `true`)                                  |
+| `ACME_SRV_CONFIGFILE`     | Absolute path to `acme_srv.cfg` or `acme_srv.yaml` / `.yml` (beats `/var/www/...` and `/opt/...`) |
+| `ACME2CERTIFIER_DEBUG`    | Django `DEBUG` (`1` / `true`). ACME Helper debug follows this only when `[DEFAULT] debug` is unset in `acme_srv.cfg`; an explicit cfg `debug` always wins. |
+| `ACME2CERTIFIER_DATABASE_URL` | Optional Django DB URI. Unset → `$ACME2CERTIFIER_BASE_DIR/db.sqlite3`. Optional `$ACME2CERTIFIER_BASE_DIR/.env`. |
 
 ## 3. Config and a local OpenSSL CA
 
-`acme_srv.cfg` at the repo root is gitignored.
+`acme_srv.cfg` (and `acme_srv.yaml` / `acme_srv.yml`) at the repo root is gitignored.
 
 ```bash
 cp acme2certifier/share/acme_srv.cfg acme_srv.cfg
+# or: cp examples/acme_srv.yaml acme_srv.yaml
+tools/make_test_cas.sh bootstrap   # generates test/ca openssl PEMs (not in git)
 mkdir -p acme_srv/ca/certs
 cp test/ca/sub-ca-key.pem test/ca/sub-ca-cert.pem \
    test/ca/sub-ca-crl.pem test/ca/root-ca-cert.pem \
@@ -75,7 +78,7 @@ challenge_validation_disable: True
 ```
 
 - CA options: [OpenSSL handler](openssl.md), [acme_srv.cfg](acme_srv.md).
-- `test/ca/` is the same lab CA used in CI (`Test1234`). Replace it with your own CA when needed.
+- OpenSSL lab CA under `test/ca/` is generated (`tools/make_test_cas.sh bootstrap` or via `pytest`); passphrase `Test1234`. Replace it with your own CA when needed.
 - `handler: django` selects `acme2certifier.dbhandlers.django_handler`. No `db_handler.py` symlink.
 - Leave `challenge_validation_disable` at `False` if you want real HTTP-01 (then bind port 80, below).
 
@@ -140,7 +143,7 @@ export DJANGO_SETTINGS_MODULE=local_settings
 
 ### Server certificate
 
-Issue a TLS server cert from the lab sub-CA in `test/ca/` (key passphrase `Test1234`). `acme_srv/ssl/` is gitignored.
+Issue a TLS server cert from the lab sub-CA in `test/ca/` (run `tools/make_test_cas.sh bootstrap` first if missing; key passphrase `Test1234`). `acme_srv/ssl/` is gitignored.
 
 ```bash
 mkdir -p acme_srv/ssl

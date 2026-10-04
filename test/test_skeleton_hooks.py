@@ -18,7 +18,7 @@ class TestSkeletonHooks(unittest.TestCase):
         """setup unittest"""
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from acme2certifier.hookhandlers.skeleton_hooks import Hooks
+        from acme2certifier.share.skeletons.hooks.skeleton_hooks import Hooks
 
         self.hooks = Hooks(self.logger)
 

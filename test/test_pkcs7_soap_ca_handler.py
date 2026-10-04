@@ -8,9 +8,12 @@ import sys
 import os
 from unittest.mock import patch, Mock, mock_open
 import base64
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
+from pyasn1.codec.der import decoder as der_decoder
+from pyasn1_modules import rfc2315
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -69,12 +72,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
@@ -93,12 +95,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("email", self.cahandler.email)
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
             "ERROR:test_a2c:Signing key option is missing in configuration file.",
@@ -116,11 +117,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
@@ -139,12 +139,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
             "ERROR:test_a2c:Signing key option is missing in configuration file.",
@@ -175,9 +174,21 @@ class TestACMEHandler(unittest.TestCase):
         ]
         self.assertEqual(error_buffer, lcm.output)
 
+    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
+    def test_008_config_load_ca_bundle_false(self, mock_load_cfg):
+        """explicit ca_bundle False keeps warning"""
+        mock_load_cfg.return_value = {"CAhandler": {"ca_bundle": False}}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertIn(
+            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
+            lcm.output,
+        )
+
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_008_config_load(self, mock_load_cfg, mock_file):
+    def test_009_config_load(self, mock_load_cfg, mock_file):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = False
         mock_load_cfg.return_value = {"CAhandler": {"signing_cert": "signing_cert"}}
@@ -192,7 +203,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate file not found: signing_cert",
@@ -204,7 +214,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.x509.load_pem_x509_certificate")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_009_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_010_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_cert"
@@ -220,7 +230,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing key option is missing in configuration file.",
@@ -229,7 +238,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_010_config_load(self, mock_load_cfg, mock_file):
+    def test_011_config_load(self, mock_load_cfg, mock_file):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = False
         mock_load_cfg.return_value = {"CAhandler": {"password": "password"}}
@@ -245,7 +254,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_011_config_load(self, mock_load_cfg, mock_file):
+    def test_012_config_load(self, mock_load_cfg, mock_file):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = False
         mock_load_cfg.return_value = {"CAhandler": {"signing_key": "signing_key"}}
@@ -260,7 +269,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
@@ -272,7 +280,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_012_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_013_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -288,7 +296,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:Signing certificate option is missing in configuration file.",
@@ -299,7 +306,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_013_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_014_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -318,7 +325,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -331,7 +337,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_014_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_015_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -356,50 +362,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_csr_path option is missing in configuration file.",
-            "ERROR:test_a2c:signing_config_variant option is missing in configuration file.",
-        ]
-        self.assertEqual(error_buffer, lcm.output)
-
-    @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
-    @patch("os.path.exists")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_015_config_load(self, mock_load_cfg, mock_file, mock_load):
-        """test _config_load signing cert configured but does not exist"""
-        mock_file.return_value = True
-        mock_load.return_value = "signing_key"
-        mock_load_cfg.return_value = {
-            "CAhandler": {
-                "signing_script": "signing_script",
-                "signing_csr_path": "signing_csr_path",
-            }
-        }
-        self.maxDiff = None
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_load()
-        self.assertFalse(self.cahandler.soap_srv)
-        self.assertFalse(self.cahandler.profilename)
-        self.assertFalse(self.cahandler.email)
-        self.assertFalse(self.cahandler.signing_cert)
-        self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.password)
-        self.assertEqual(
-            {
-                "signing_csr_path": "signing_csr_path",
-                "signing_script": "signing_script",
-            },
-            self.cahandler.signing_script_dic,
-        )
-        error_buffer = [
-            "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
-            "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
-            "ERROR:test_a2c:Email option is missing in configuration file.",
-            "ERROR:test_a2c:signing_alias option is missing in configuration file.",
             "ERROR:test_a2c:signing_config_variant option is missing in configuration file.",
         ]
         self.assertEqual(error_buffer, lcm.output)
@@ -415,6 +380,45 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {
             "CAhandler": {
                 "signing_script": "signing_script",
+                "signing_csr_path": "signing_csr_path",
+            }
+        }
+        self.maxDiff = None
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.soap_srv)
+        self.assertFalse(self.cahandler.profilename)
+        self.assertFalse(self.cahandler.email)
+        self.assertFalse(self.cahandler.signing_cert)
+        self.assertFalse(self.cahandler.signing_key)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual(
+            {
+                "signing_csr_path": "signing_csr_path",
+                "signing_script": "signing_script",
+            },
+            self.cahandler.signing_script_dic,
+        )
+        error_buffer = [
+            "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
+            "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
+            "ERROR:test_a2c:Email option is missing in configuration file.",
+            "ERROR:test_a2c:signing_alias option is missing in configuration file.",
+            "ERROR:test_a2c:signing_config_variant option is missing in configuration file.",
+        ]
+        self.assertEqual(error_buffer, lcm.output)
+
+    @patch("builtins.open", mock_open(read_data="foo"), create=True)
+    @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
+    @patch("os.path.exists")
+    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
+    def test_017_config_load(self, mock_load_cfg, mock_file, mock_load):
+        """test _config_load signing cert configured but does not exist"""
+        mock_file.return_value = True
+        mock_load.return_value = "signing_key"
+        mock_load_cfg.return_value = {
+            "CAhandler": {
+                "signing_script": "signing_script",
                 "signing_config_variant": "signing_config_variant",
             }
         }
@@ -436,7 +440,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -448,7 +451,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
     @patch("os.path.exists")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_017_config_load(self, mock_load_cfg, mock_file, mock_load):
+    def test_018_config_load(self, mock_load_cfg, mock_file, mock_load):
         """test _config_load signing cert configured but does not exist"""
         mock_file.return_value = True
         mock_load.return_value = "signing_key"
@@ -473,48 +476,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
-            "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
-            "ERROR:test_a2c:Email option is missing in configuration file.",
-            "ERROR:test_a2c:signing_alias option is missing in configuration file.",
-            "ERROR:test_a2c:signing_csr_path option is missing in configuration file.",
-            "ERROR:test_a2c:signing_config_variant option is missing in configuration file.",
-        ]
-        self.assertEqual(error_buffer, lcm.output)
-
-    @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
-    @patch("os.path.exists")
-    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
-    def test_018_config_load(self, mock_load_cfg, mock_file, mock_load):
-        """test _config_load signing cert configured but does not exist"""
-        mock_file.return_value = True
-        mock_load.return_value = "signing_key"
-        mock_load_cfg.return_value = {
-            "CAhandler": {
-                "signing_script": "signing_script",
-                "signing_sleep_timer": "signing_sleep_timer",
-            }
-        }
-        self.maxDiff = None
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_load()
-        self.assertFalse(self.cahandler.soap_srv)
-        self.assertFalse(self.cahandler.profilename)
-        self.assertFalse(self.cahandler.email)
-        self.assertFalse(self.cahandler.signing_cert)
-        self.assertFalse(self.cahandler.signing_key)
-        self.assertFalse(self.cahandler.password)
-        self.assertEqual(
-            {
-                "signing_script": "signing_script",
-                "signing_sleep_timer": "signing_sleep_timer",
-            },
-            self.cahandler.signing_script_dic,
-        )
-        error_buffer = [
-            "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -534,6 +495,46 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {
             "CAhandler": {
                 "signing_script": "signing_script",
+                "signing_sleep_timer": "signing_sleep_timer",
+            }
+        }
+        self.maxDiff = None
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.soap_srv)
+        self.assertFalse(self.cahandler.profilename)
+        self.assertFalse(self.cahandler.email)
+        self.assertFalse(self.cahandler.signing_cert)
+        self.assertFalse(self.cahandler.signing_key)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual(
+            {
+                "signing_script": "signing_script",
+                "signing_sleep_timer": "signing_sleep_timer",
+            },
+            self.cahandler.signing_script_dic,
+        )
+        error_buffer = [
+            "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
+            "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
+            "ERROR:test_a2c:Email option is missing in configuration file.",
+            "ERROR:test_a2c:signing_alias option is missing in configuration file.",
+            "ERROR:test_a2c:signing_csr_path option is missing in configuration file.",
+            "ERROR:test_a2c:signing_config_variant option is missing in configuration file.",
+        ]
+        self.assertEqual(error_buffer, lcm.output)
+
+    @patch("builtins.open", mock_open(read_data="foo"), create=True)
+    @patch("cryptography.hazmat.primitives.serialization.load_pem_private_key")
+    @patch("os.path.exists")
+    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
+    def test_020_config_load(self, mock_load_cfg, mock_file, mock_load):
+        """test _config_load signing cert configured but does not exist"""
+        mock_file.return_value = True
+        mock_load.return_value = "signing_key"
+        mock_load_cfg.return_value = {
+            "CAhandler": {
+                "signing_script": "signing_script",
                 "signing_interpreter": "signing_interpreter",
             }
         }
@@ -555,7 +556,6 @@ class TestACMEHandler(unittest.TestCase):
         )
         error_buffer = [
             "ERROR:test_a2c:SOAP server URL (soap_srv) is missing in configuration file.",
-            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             "ERROR:test_a2c:Profile name (profilename) is missing in configuration file.",
             "ERROR:test_a2c:Email option is missing in configuration file.",
             "ERROR:test_a2c:signing_alias option is missing in configuration file.",
@@ -565,38 +565,38 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(error_buffer, lcm.output)
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._config_load")
-    def test_020_enter(self, mock_cfgload):
+    def test_021_enter(self, mock_cfgload):
         """enter - no soap server configured"""
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._config_load")
-    def test_021_enter(self, mock_cfgload):
+    def test_022_enter(self, mock_cfgload):
         """enter soap server configured"""
         self.cahandler.soap_srv = "mock_srv"
         self.cahandler.__enter__()
         self.assertFalse(mock_cfgload.called)
 
-    def test_022_exit(self):
+    def test_023_exit(self):
         """enter - no soap server configured"""
         self.cahandler.__exit__()
 
     @patch("pyasn1.codec.der.decoder.decode")
-    def test_023_cert_decode(self, mock_der):
+    def test_024_cert_decode(self, mock_der):
         """test _cert_decode()"""
         mock_der.return_value = "decode"
         cert = Mock()
         cert.public_bytes = Mock()
         self.assertEqual("decode", self.cahandler._cert_decode(cert))
 
-    def test_024_poll(self):
+    def test_025_poll(self):
         """test poll"""
         self.assertEqual(
             (None, None, None, "poll_identifier", False),
             self.cahandler.poll("cert_name", "poll_identifier", "csr"),
         )
 
-    def test_025_revoke(self):
+    def test_026_revoke(self):
         """test revoke"""
         self.assertEqual(
             (
@@ -607,11 +607,11 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert_name", "reason", "date"),
         )
 
-    def test_026_trigger(self):
+    def test_027_trigger(self):
         """test revoke"""
         self.assertEqual((None, None, None), self.cahandler.trigger("identifier"))
 
-    def test_027_soaprequest_build(self):
+    def test_028_soaprequest_build(self):
         """test soap request build"""
         self.cahandler.profilename = "profilename"
         self.cahandler.email = "email"
@@ -634,41 +634,42 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_028_binary_read(self, mock_isfile):
+    def test_029_binary_read(self, mock_isfile):
         """test read binary file"""
         mock_isfile.return_value = True
         self.assertEqual("foo", self.binary_read(self.logger, "filename"))
 
     @patch("os.path.isdir")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_029_binary_write(self, mock_isdir):
+    def test_030_binary_write(self, mock_isdir):
         """test wrote binary file"""
         mock_isdir.return_value = True
         self.assertFalse(self.binary_write(self.logger, "filename", "content"))
 
-    def test_030_sign(self):
+    def test_031_sign(self):
         """test _sign unkown key format"""
         key = "key"
         payload = "foo"
         self.assertEqual((None, None), self.cahandler._sign(key, payload))
 
-    @patch("cryptography.hazmat.primitives.asymmetric.rsa")
-    def test_031_sign(self, mock_rsa):
-        """test _sign rsa key"""
+    def test_032_sign(self):
+        """test _sign rsa key against live sub-ca material"""
         keyph = b"Test1234"
         with open(self.dir_path + "/ca/sub-ca-key.pem", "rb") as open_file:
             key = serialization.load_pem_private_key(
                 open_file.read(), password=keyph, backend=default_backend()
             )
         payload = b"foo"
-        result = self.cahandler._sign(key, payload)
-        signature = b"4oTEIybGnmkfnG+Fvf0t8Sx8YHSf55tm3WtcdPagvtNM3vLjsidWKc2yliGYVmDqT9E+/wx3tvsMeDrgRiAzMhbjPYOeKwyx30BZT++4Fw9OkRQyriwyLB3ncFReVF8DyBRj/3S1Ftoy6Msa2CCk59LhYm/ubBQAm88gYiBzCFtVhneNOg5vS2s79UuyLjE2J90Yjs3z7OCckWrZ1UxI3UBoaJAWQg83M6fnF4aMkpnO3Jd6oQ4nq7r4EeVKYYEwrOINKKfh/1ykaCLg2K9OAD2LY1b9LilHTG8lcoUhS+bBMJkESHi508EzFQ4IUdsA42porTkEkdc5g9ZmCm7PPjroSRZGtM00R6aV/4z8Tlp4JBaov9x3fUd5wKjGIP0mdLQamAfxhK/pUqzM/lXtndprV7yh07tzypHa1XNvmTn/di2jNu90cq3eGgi3nBY98u+GcHTFnFH2aW2hk7kxqmxT4ymsZhlviIX8GIT4blE2nJgcl91Ktxm9QataRMjny/uJd//olQAXGMcbDwhNpYBfdJe99XoeuY+xNtJtlQt7IciTmJ3DEcK2kTtsNZ2i/lvn+iYR4iD9fJ/S4FedHqPZi48Q+LSnGC61zD21ZgbT8FrzUTnmmgw9BeDTWezGDGgBdOIuG313waZlvdDahk+6AYz9tOxS+bm9Epcj3NY="
-        alg = """AlgorithmIdentifier:\n algorithm=1.2.840.113549.1.1.11\n parameters=0x0500\n"""
-        self.assertEqual(signature, base64.b64encode(result[0]))
-        self.assertEqual(alg, str(result[1]))
+        signature, alg = self.cahandler._sign(key, payload)
+        expected_alg = (
+            "AlgorithmIdentifier:\n"
+            " algorithm=1.2.840.113549.1.1.11\n"
+            " parameters=0x0500\n"
+        )
+        self.assertEqual(expected_alg, str(alg))
+        key.public_key().verify(signature, payload, padding.PKCS1v15(), hashes.SHA256())
 
-    @patch("cryptography.hazmat.primitives.asymmetric.rsa")
-    def test_032_sign(self, mock_rsa):
+    def test_033_sign(self):
         """test _sign ecc key"""
         ecc_key = b"-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIGCu1fYGkqMdPtsNH7xVc8QBjCWCkcUTVKX6f8vLhtkvoAoGCCqGSM49\nAwEHoUQDQgAEan72++swi7J5B1HVYp1CjXPqckkQquiMIQhz5xYesv9f4KK/ouKS\n1uJ3ZYwPbWUsDd8/03vf9VdlfZzL3W3ZQw==\n-----END EC PRIVATE KEY-----"
         key = serialization.load_pem_private_key(
@@ -679,15 +680,18 @@ class TestACMEHandler(unittest.TestCase):
         alg = """AlgorithmIdentifier:\n algorithm=1.2.840.10045.4.3.2\n"""
         self.assertEqual(alg, str(result[1]))
 
-    def test_033_certraw_get(self):
-        """ test _certraw_get """ ""
-        with open(self.dir_path + "/ca/sub-ca-client.pem", "r") as fso:
+    def test_034_certraw_get(self):
+        """test _certraw_get against live sub-ca-client.pem"""
+        with open(self.dir_path + "/ca/sub-ca-client.pem", "rb") as fso:
             pem_data = fso.read()
-        result = "MIIEGDCCAgCgAwIBAgIJALL8aztMPfV2MA0GCSqGSIb3DQEBCwUAMEgxCzAJBgNVBAYTAkRFMQ8wDQYDVQQIDAZCZXJsaW4xFzAVBgNVBAoMDkFjbWUyQ2VydGlmaWVyMQ8wDQYDVQQDDAZzdWItY2EwHhcNMTkwNjI1MDEyNTAwWhcNMjAwNjI1MDEyNTAwWjBPMQswCQYDVQQGEwJERTEPMA0GA1UEBxMGQmVybGluMRcwFQYDVQQKEw5BY21lMkNlcnRpZmllcjEWMBQGA1UEAwwNY2xpZW50X3N1Yi1jYTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALvoKKg3ciBVWZtquiWyMogWU6ydEfmLbXktK6T+owxzxHVaoePVGH9DZvTZD2pHS8xJ6fpFr3pZYiuqiUHuxdMpj9gVxik5ivBrSJIkZXLxwvNJWpMa1o1Hxz1By3Hrlm3ebKIzfQPqRRcdjWtJgCFbcTpalwhE1RQFMp4Icb08aAE9uEaZQ4uZ8Ls30J6IHC4PG63lGI1tkAtLIoUWupRAmnWDx0ysXzXeN7m+Lff9ols9MZNgzRMgY/zGUq0LzZfi+L+Iev3sztCdoIOBA/K63jv0hOPyYg331L05XIwbLeUoUG41J4pZzafx6MAFp4Zam1w+aafCzEw7ZPHQvn0CAwEAATANBgkqhkiG9w0BAQsFAAOCAgEABPgWo4KAXJNXNfEBbixDuCxtwO1JuphSOTcpIlEp+uNOSDzgNEbrhUXTNM8SPshzFjBpudc29okiyC62CfLD/X+EvIeKo/oa477kN6MuNfqLGZ42a935ES3S00Wy8rbwyIoPCsKWT/6VsHRHUn8XhFNFUBKZ8FGxwXcAVpPanyikURqVH1MgAk62hJQdYjSxdga/GKS1dS39fyxQz7uBPt5WIQZPzL6dr2Yn/4lQUvTUVus2e1cTh3z02yB5EDlEAcMMvMNpfYvNdU5H6QEPwysbkW9E/Ep84aq21zwuPxICh0KdjHWKkHtCqDoEYIADDl1AD5UdJTMQ9LIzUjsBvtB5I6yT7jgsx/iqTDrkJVK/zRf4NeKRa3AW57jsPUIcUstUFnVJbg+MM4fYmapx8Hqm/Aq+II9ip80AM6hXvierTQn4MNQivL0ZJfj0Ro9KEIDAHN3IAfIlFovbkBPLMi9PtfyhuVmXpthE9OaDlgUguWb45LAKwgfu1TFGPPpf5jTw2qVx0F+iCiUwK8ZgnakkXOKE5+KIb8ejL+3pPd5Wt+45w/7gEFOjT6XAzZGnUtcMH/lpxmgbl3/SKkyrW4h7PnF2FEEVC4XnZuQm+ZwD/PpXfmAA52ygKHBzUr9V33CkW0FhvjqkAUya5x9CqWlHoal0RVvFavnw+4ImqbE="
-        self.assertEqual(result, self.cahandler._certraw_get(pem_data))
+        cert = x509.load_pem_x509_certificate(pem_data, default_backend())
+        expected = base64.b64encode(
+            cert.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        self.assertEqual(expected, self.cahandler._certraw_get(pem_data))
 
-    def test_034_pkcs7_create(self):
-        """test pkcs7_create"""
+    def test_035_pkcs7_create(self):
+        """test pkcs7_create embeds CSR and verifies with live sub-ca key"""
         keyph = b"Test1234"
         with open(self.dir_path + "/ca/csr.der", "rb") as open_file:
             csr_der = open_file.read()
@@ -701,14 +705,23 @@ class TestACMEHandler(unittest.TestCase):
             )
 
         decoded_cert = self.cahandler._cert_decode(signing_cert)
-        expected_result = b"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"
-        _error, result = self.cahandler._pkcs7_create(
-            decoded_cert, csr_der, signing_key
+        error, result = self.cahandler._pkcs7_create(decoded_cert, csr_der, signing_key)
+        self.assertIsNone(error)
+        self.assertTrue(result)
+
+        content_info, _ = der_decoder.decode(result, asn1Spec=rfc2315.ContentInfo())
+        self.assertEqual(rfc2315.signedData, content_info["contentType"])
+        signed_data, _ = der_decoder.decode(
+            bytes(content_info["content"]), asn1Spec=rfc2315.SignedData()
         )
-        self.assertEqual(expected_result, base64.b64encode(result))
+        self.assertEqual(rfc2315.data, signed_data["contentInfo"]["contentType"])
+        encrypted_digest = bytes(signed_data["signerInfos"][0]["encryptedDigest"])
+        signing_key.public_key().verify(
+            encrypted_digest, csr_der, padding.PKCS1v15(), hashes.SHA256()
+        )
 
     @patch("requests.post")
-    def test_035_soaprequest_send(self, mock_post):
+    def test_036_soaprequest_send(self, mock_post):
         """soaprequest_send() - request exception"""
         mock_post.side_effect = Exception("exc_api_post")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -721,7 +734,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("xmltodict.parse")
     @patch("requests.post")
-    def test_036_soaprequest_send(self, mock_post, mock_xml_parse):
+    def test_037_soaprequest_send(self, mock_post, mock_xml_parse):
         """soaprequest_send() - 200 xml-parsing error"""
         mock_post.return_value = Mock(status_code=200)
         mock_xml_parse.return_value = {"foo": "bar"}
@@ -736,7 +749,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("xmltodict.parse")
     @patch("requests.post")
-    def test_037_soaprequest_send(self, mock_post, mock_xml_parse):
+    def test_038_soaprequest_send(self, mock_post, mock_xml_parse):
         """soaprequest_send() - 200 xml-parsing successful"""
         mock_post.return_value = Mock(status_code=200)
         mock_xml_parse.return_value = {
@@ -752,7 +765,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("xmltodict.parse")
     @patch("requests.post")
-    def test_038_soaprequest_send(self, mock_post, mock_xml_parse):
+    def test_039_soaprequest_send(self, mock_post, mock_xml_parse):
         """soaprequest_send() - 400 xml-parsing error"""
         mock_post.return_value = Mock(status_code=400)
         mock_xml_parse.return_value = {"foo": "bar"}
@@ -771,7 +784,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("xmltodict.parse")
     @patch("requests.post")
-    def test_039_soaprequest_send(self, mock_post, mock_xml_parse):
+    def test_040_soaprequest_send(self, mock_post, mock_xml_parse):
         """soaprequest_send() - 400 xml-parsing successful"""
         mock_post.return_value = Mock(status_code=400)
         mock_xml_parse.return_value = {
@@ -798,7 +811,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_040_get_certificates(self):
+    def test_041_get_certificates(self):
         """test pkcs7_create"""
         with open(self.dir_path + "/ca/certs_der.p7b", "rb") as open_file:
             pkcs7_bundle = open_file.read()
@@ -808,7 +821,7 @@ class TestACMEHandler(unittest.TestCase):
         ]
         self.assertEqual(result, self.cahandler._get_certificate(pkcs7_bundle))
 
-    def test_041_pkcs7_signing_config_verify(self):
+    def test_042_pkcs7_signing_config_verify(self):
         """test _pkcs7_signing_config_verify()"""
         self.cahandler.signing_script_dic = {}
         self.assertEqual(
@@ -816,7 +829,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._pkcs7_signing_config_verify(),
         )
 
-    def test_042_pkcs7_signing_config_verify(self):
+    def test_043_pkcs7_signing_config_verify(self):
         """test _pkcs7_signing_config_verify()"""
         self.cahandler.signing_script_dic = {"signing_script": "signing_script"}
         self.assertEqual(
@@ -824,7 +837,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._pkcs7_signing_config_verify(),
         )
 
-    def test_043_pkcs7_signing_config_verify(self):
+    def test_044_pkcs7_signing_config_verify(self):
         """test _pkcs7_signing_config_verify()"""
         self.cahandler.signing_script_dic = {
             "signing_script": "signing_script",
@@ -836,7 +849,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("os.path.isdir")
-    def test_044_pkcs7_signing_config_verify(self, mock_path):
+    def test_045_pkcs7_signing_config_verify(self, mock_path):
         """test _pkcs7_signing_config_verify()"""
         mock_path.return_value = False
         self.cahandler.signing_script_dic = {
@@ -850,7 +863,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("os.path.isdir")
-    def test_045_pkcs7_signing_config_verify(self, mock_path):
+    def test_046_pkcs7_signing_config_verify(self, mock_path):
         """test _pkcs7_signing_config_verify()"""
         mock_path.return_value = True
         self.cahandler.signing_script_dic = {
@@ -864,7 +877,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("os.path.isdir")
-    def test_046_pkcs7_signing_config_verify(self, mock_path):
+    def test_047_pkcs7_signing_config_verify(self, mock_path):
         """test _pkcs7_signing_config_verify()"""
         mock_path.return_value = True
         self.cahandler.signing_script_dic = {
@@ -875,13 +888,6 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(None, self.cahandler._pkcs7_signing_config_verify())
 
-    def test_047_signing_command_build(self):
-        """test _signing_command_build()"""
-        self.cahandler.signing_script_dic = {}
-        self.assertEqual(
-            [], self.cahandler._signing_command_build("csr_unsigned", "csr_signed")
-        )
-
     def test_048_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {}
@@ -891,12 +897,19 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_049_signing_command_build(self):
         """test _signing_command_build()"""
-        self.cahandler.signing_script_dic = {"signing_user": "signing_user"}
+        self.cahandler.signing_script_dic = {}
         self.assertEqual(
             [], self.cahandler._signing_command_build("csr_unsigned", "csr_signed")
         )
 
     def test_050_signing_command_build(self):
+        """test _signing_command_build()"""
+        self.cahandler.signing_script_dic = {"signing_user": "signing_user"}
+        self.assertEqual(
+            [], self.cahandler._signing_command_build("csr_unsigned", "csr_signed")
+        )
+
+    def test_051_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_user": "signing_user",
@@ -907,7 +920,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._signing_command_build("csr_unsigned", "csr_signed"),
         )
 
-    def test_051_signing_command_build(self):
+    def test_052_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_user": "signing_user",
@@ -926,7 +939,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._signing_command_build("csr_unsigned", "csr_signed"),
         )
 
-    def test_052_signing_command_build(self):
+    def test_053_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_script": "signing_script",
@@ -937,7 +950,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._signing_command_build("csr_unsigned", "csr_signed"),
         )
 
-    def test_053_signing_command_build(self):
+    def test_054_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_script": "signing_script",
@@ -949,7 +962,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._signing_command_build("csr_unsigned", "csr_signed"),
         )
 
-    def test_054_signing_command_build(self):
+    def test_055_signing_command_build(self):
         """test _signing_command_build()"""
         self.cahandler.signing_script_dic = {
             "signing_script": "signing_script",
@@ -981,7 +994,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
     )
-    def test_055_pkcs7_sign_external(
+    def test_056_pkcs7_sign_external(
         self,
         mock_vrf,
         mock_rand,
@@ -1023,7 +1036,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
     )
-    def test_056_pkcs7_sign_external(
+    def test_057_pkcs7_sign_external(
         self,
         mock_vrf,
         mock_rand,
@@ -1063,7 +1076,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
     )
-    def test_057_pkcs7_sign_external(
+    def test_058_pkcs7_sign_external(
         self,
         mock_vrf,
         mock_rand,
@@ -1101,7 +1114,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler.CAhandler._pkcs7_signing_config_verify"
     )
-    def test_058_pkcs7_sign_external(
+    def test_059_pkcs7_sign_external(
         self,
         mock_vrf,
         mock_rand,
@@ -1148,7 +1161,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_059_enroll(
+    def test_060_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1196,7 +1209,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_060_enroll(
+    def test_061_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1245,7 +1258,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_061_enroll(
+    def test_062_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1296,7 +1309,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_062_enroll(
+    def test_063_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1347,7 +1360,7 @@ class TestACMEHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_decode")
     @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.b64_url_recode")
-    def test_063_enroll(
+    def test_064_enroll(
         self,
         mock_recode,
         mock_decode,
@@ -1381,7 +1394,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cert_get.called)
         self.assertTrue(mock_cert_raw.called)
 
-    def test_064_validate_binary_path_invalid_input(self):
+    def test_065_validate_binary_path_invalid_input(self):
         """_validate_binary_path rejects empty, null-byte, and traversal paths"""
         from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
             _validate_binary_path,
@@ -1401,7 +1414,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("Path traversal detected", str(err.exception))
 
     @patch("os.path.isdir", return_value=False)
-    def test_065_validate_binary_path_write_missing_dir(self, _mock_isdir):
+    def test_066_validate_binary_path_write_missing_dir(self, _mock_isdir):
         """_validate_binary_path rejects write targets with missing directories"""
         from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
             _validate_binary_path,
@@ -1411,7 +1424,7 @@ class TestACMEHandler(unittest.TestCase):
             _validate_binary_path("/tmp/missing-dir/file.bin", for_write=True)
         self.assertEqual("Target directory does not exist", str(err.exception))
 
-    def test_066_sanitize_config_file_path_invalid_input(self):
+    def test_067_sanitize_config_file_path_invalid_input(self):
         """_sanitize_config_file_path rejects empty, null-byte, and traversal paths"""
         from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
             _sanitize_config_file_path,
@@ -1430,7 +1443,7 @@ class TestACMEHandler(unittest.TestCase):
             _sanitize_config_file_path("..")
         self.assertEqual("Path traversal detected", str(err.exception))
 
-    def test_067_sanitize_signing_path_logs_error(self):
+    def test_068_sanitize_signing_path_logs_error(self):
         """_sanitize_signing_path returns None and logs on invalid path"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertIsNone(
@@ -1443,7 +1456,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_068_validated_signing_file_path_sanitize_failure(self):
+    def test_069_validated_signing_file_path_sanitize_failure(self):
         """_validated_signing_file_path returns None when sanitize fails"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertIsNone(
@@ -1466,7 +1479,7 @@ class TestACMEHandler(unittest.TestCase):
         "acme2certifier.cahandlers.pkcs7_soap_ca_handler._sanitize_config_file_path",
         return_value="/abs/path",
     )
-    def test_069_validated_signing_file_path_validate_failure(
+    def test_070_validated_signing_file_path_validate_failure(
         self, _mock_sanitize, _mock_validate
     ):
         """_validated_signing_file_path logs non-missing validation errors"""
@@ -1480,6 +1493,30 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertIn(
             "ERROR:test_a2c:Invalid signing certificate path: Path traversal detected",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
+    def test_071_config_load_ca_bundle_string_false(self, mock_load_cfg):
+        """ca_bundle string 'False' disables TLS verify and warns"""
+        mock_load_cfg.return_value = {"CAhandler": {"ca_bundle": "False"}}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertIn(
+            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
+            lcm.output,
+        )
+
+    @patch("acme2certifier.cahandlers.pkcs7_soap_ca_handler.load_config")
+    def test_072_config_load_ca_bundle_string_true(self, mock_load_cfg):
+        """ca_bundle string 'True' enables system trust without warning"""
+        mock_load_cfg.return_value = {"CAhandler": {"ca_bundle": "True"}}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+        self.assertTrue(self.cahandler.ca_bundle)
+        self.assertNotIn(
+            "WARNING:test_a2c:SOAP server certificate validation is disabled.",
             lcm.output,
         )
 

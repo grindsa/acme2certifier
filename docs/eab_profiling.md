@@ -7,11 +7,14 @@
 
 Starting with version 0.34 acme2certifier supports the configuration of account specific enrollment configuration. Depending on the handler to be used the feature allows the definition of individual authentication credentials, enrollment profiles or certificate authorities.
 
+When [multi-CAhandler mode](multi_cahandler.md) is enabled, a kid-level `cahandler_name` selects which registered handler serves that account (see the multi-handler doc for precedence vs `profile_cahandler` and domain routing).
+
 Currently the following ca-handlers have been modified and support this feature:
 
 - [generic ACME](acme_ca.md)
 - [Digicert](digicert.md)
 - [EJBCA](ejbca.md)
+- [HARICA CertManager](harica.md)
 - [Insta ActiveCMS](asa.md)
 - [Insta certifier/NetGuard Certificate manager](certifier.md)
 - [Microsoft Certificate Enrollment Web Services](mscertsrv.md)
@@ -74,6 +77,13 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
   "hmac": "hmac-key",
   "authorization": {
     "prevalidated_domainlist": ["www.example.fi", "*.acme"]
+  },
+  "keyid_04": {
+    "hmac": "hmac-key",
+    "challenge": {
+      "http_01_support": "False",
+      "tls_alpn_01_support": "False"
+    }
   }
 }
 ```
@@ -82,6 +92,7 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
 - ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg. Furthermore the challenge validation got disabled for this user which means that acme2certifier will accept any CN/SAN matching the pattern "*.example.fi" or "*.acme".
 - ACME accounts created with keyid "keyid_02" do not have any special enrollment configuration as all parameters will be taken from the \[CAhandler\] section in ´acme_srv.cfg´. Furthermore, challenge validation got disabled, ACME profile-name validation is skipped (`order.profiles_check_disable`), and both forward and reverse address checking gets activated.
 - ACME accounts created with keyid "keyid_03" can use the [pre-validation domainlist](identifier_prevalidation.md) feature to enroll certificates for `www.example.fi` and `*.acme` without challenge-validation
+- ACME accounts created with keyid "keyid_04" are restricted to [dns-01](https://tools.ietf.org/html/rfc8555#section-8.4) challenges only (`http_01_support` and `tls_alpn_01_support` disabled in the EAB profile), regardless of global `[Challenge]` settings
 
 Starting from v0.36 acme2certifier does support profile configuration in yaml format. Below a configuration example providing the same level of functionality as the above JSON configuration
 
@@ -127,9 +138,27 @@ keyid_03:
     prevalidated_domainlist:
     - "www.example.fi"
     - "*.acme"
+keyid_04:
+  hmac: "hmac-key"
+  challenge:
+    http_01_support: False
+    tls_alpn_01_support: False
 ```
 
 An optional desktop helper to create and edit `kid_profiles` YAML is available in the [a2c-eab-profile-editor](https://github.com/grindsa/a2c-eab-profile-editor) repository.
+
+## Denied and constrained cahandler attributes
+
+EAB profiling applies kid-profile `cahandler` keys onto the selected CA handler instance. A deny-list blocks overrides that would replace handler implementation objects, TLS verification flags, or **executable/script paths**:
+
+- Exact denials include (non-exhaustive) `acme_keypath`, `ca_bundle`, `ssl_verify` / `verify`, `eab_handler`, `eab_profiling`, and `dns_update_script_variables`
+- Suffix denials: `*_handler`, `*_module`, `*_bin`, `*_dic`, `*_store`, `*_script`, `*_shell` (covers `dns_update_script`, `acme_sh_script`, `acme_sh_shell`)
+
+Denied keys are ignored with a warning; enrollment continues with the bound `acme_srv.cfg` values.
+
+For the generic ACME CA handler, profile `acme_keyfile` (string or list, including URL-paired lists) is allowed only when the path resolves under the configured `acme_keypath`. Paths outside that directory are ignored with a warning.
+
+**Credentials and endpoints** (`api_user`, `api_password`, `api_host`, `acme_url`, and similar) remain overridable by design so operators can select per-account CA credentials and upstreams without setting process-wide break-glass. A compromised or misconfigured kid profile can still substitute credentials or redirect enrollment traffic. Profile-store integrity and careful review of kid profiles are the control — the same trust model as unbounded EAB prevalidation lists.
 
 ## Subject Profiling
 

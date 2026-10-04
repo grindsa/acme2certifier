@@ -97,6 +97,7 @@ runs:
           -d --rm
           --network "${NAME_SPACE}"
           --name "${LESIM_NAME}"
+          -e ACME2CERTIFIER_I_KNOW_THE_RISK=1
           -v "$(pwd)/${LESIM_NAME}":/var/www/acme2certifier/volume/
         )
         if [[ "${MODERN}" == "true" ]]; then

@@ -42,7 +42,7 @@ runs:
         sudo mkdir -p examples/Docker/data/acme_ca/certs
 
     - name: Generate keys and certificates
-      uses: ./.github/actions/cert_gen
+      uses: ./.github/actions/generate_a2c_certs
 
     - name: Setup openssl ca_handler volume
       uses: ./.github/actions/setup_openssl_cahandler

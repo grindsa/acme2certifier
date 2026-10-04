@@ -81,6 +81,11 @@ else
   SUDO="sudo"
 fi
 
+a2c_apache_envvar_set() {
+  local key="$1" value="$2"
+  printf 'export %s=%q\n' "$key" "$value" | ${SUDO} tee -a /etc/apache2/envvars >/dev/null
+}
+
 echo "==> Installing system packages"
 ${SUDO} apt-get update
 ${SUDO} apt-get install -y \
@@ -196,23 +201,29 @@ else
     '${APP_ROOT}/volume/acme2certifier-key.pem' > '${PEM}'"
 fi
 
-# Optional lab OpenSSL CA material when present in checkout
+# Optional lab OpenSSL CA material (generate if missing)
 if [[ -d "test/ca" ]]; then
-  echo "==> Installing example OpenSSL CA material from test/ca"
-  ${SUDO} mkdir -p "${APP_ROOT}/volume/acme_ca/certs"
-  ${SUDO} cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
-    test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem \
-    "${APP_ROOT}/volume/acme_ca/" || true
-  if [[ -f ".github/acme_srv.openssl.cfg" ]]; then
-    ${SUDO} cp .github/acme_srv.openssl.cfg "${CFG}"
-    ${SUDO} ln -sfn "${CFG}" "${APP_ROOT}/acme_srv/acme_srv.cfg"
-    # re-apply handler after overwriting cfg
-    if grep -qE '^handler:' "${CFG}"; then
-      ${SUDO} sed -i "s/^handler:.*/handler: ${MODE}/" "${CFG}"
-    elif grep -q '^\[DBhandler\]' "${CFG}"; then
-      ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${MODE}" "${CFG}"
-    else
-      printf '\n[DBhandler]\nhandler: %s\n' "${MODE}" | ${SUDO} tee -a "${CFG}" >/dev/null
+  if [[ ! -f "test/ca/sub-ca-key.pem" && -x "tools/make_test_cas.sh" ]]; then
+    echo "==> Bootstrapping example OpenSSL CA under test/ca"
+    tools/make_test_cas.sh bootstrap || true
+  fi
+  if [[ -f "test/ca/sub-ca-key.pem" ]]; then
+    echo "==> Installing example OpenSSL CA material from test/ca"
+    ${SUDO} mkdir -p "${APP_ROOT}/volume/acme_ca/certs"
+    ${SUDO} cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
+      test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem \
+      "${APP_ROOT}/volume/acme_ca/" || true
+    if [[ -f ".github/acme_srv.openssl.cfg" ]]; then
+      ${SUDO} cp .github/acme_srv.openssl.cfg "${CFG}"
+      ${SUDO} ln -sfn "${CFG}" "${APP_ROOT}/acme_srv/acme_srv.cfg"
+      # re-apply handler after overwriting cfg
+      if grep -qE '^handler:' "${CFG}"; then
+        ${SUDO} sed -i "s/^handler:.*/handler: ${MODE}/" "${CFG}"
+      elif grep -q '^\[DBhandler\]' "${CFG}"; then
+        ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${MODE}" "${CFG}"
+      else
+        printf '\n[DBhandler]\nhandler: %s\n' "${MODE}" | ${SUDO} tee -a "${CFG}" >/dev/null
+      fi
     fi
   fi
 fi
@@ -225,16 +236,29 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$("${VENV}/bin/a2c-django-secret-keygen")"
   fi
+  if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' /etc/apache2/envvars 2>/dev/null; then
+    a2c_apache_envvar_set ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
+  fi
+  if [[ -n "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
+    ${SUDO} sed -i '/^export ACME2CERTIFIER_ALLOWED_HOSTS=/d' /etc/apache2/envvars
+    a2c_apache_envvar_set ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
+  fi
+  if [[ -n "${ACME2CERTIFIER_DATABASE_URL:-}" ]]; then
+    ${SUDO} sed -i '/^export ACME2CERTIFIER_DATABASE_URL=/d' /etc/apache2/envvars
+    a2c_apache_envvar_set ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
+  fi
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" migrate
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" loaddata status
 fi

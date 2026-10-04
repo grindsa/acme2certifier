@@ -23,4 +23,12 @@ python3 -m acme2certifier.tools.a2c_eab_chk -c /path/to/acme_srv.cfg -v
 python3 -m acme2certifier.tools.a2c_cert_poll
 ```
 
+Repo-local helpers (not installed):
+
+```bash
+tools/check_test_naming.py
+tools/make_test_cas.sh bootstrap   # openssl lab CA under test/ca (keys not in git)
+tools/make_test_cas.sh append      # throwaway new-root / cross PEMs for cert_chain_append
+```
+
 Example configs and skeletons ship as package data under `acme2certifier/share/` (importable via `importlib.resources`).

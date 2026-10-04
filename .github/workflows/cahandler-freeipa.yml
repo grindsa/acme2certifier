@@ -159,8 +159,13 @@ jobs:
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"IECUserRoles\": \"http:\/\/foo.bar\/iecuserroles\", \"caIPAserviceCert\": \"http:\/\/foo.bar\/caipaservicecert\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: container
+          RECREATE: "true"
+
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
@@ -308,6 +313,11 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"IECUserRoles\": \"http:\/\/foo.bar\/iecuserroles\", \"caIPAserviceCert\": \"http:\/\/foo.bar\/caipaservicecert\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
         env:
           SAEC: ${{ env.SAEC }}
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Reconfigure a2c"
         run: |
@@ -469,6 +479,11 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"IECUserRoles\": \"http:\/\/foo.bar\/iecuserroles\", \"caIPAserviceCert\": \"http:\/\/foo.bar\/caipaservicecert\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
         env:
           SAEC: ${{ env.SAEC }}
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Reconfigure a2c "
         run: |

@@ -1,0 +1,9 @@
+{
+  "keyid_chaltypes": {
+    "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+    "challenge": {
+      "http_01_support": "False",
+      "tls_alpn_01_support": "False"
+    }
+  }
+}

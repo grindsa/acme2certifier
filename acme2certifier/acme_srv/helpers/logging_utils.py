@@ -210,12 +210,84 @@ def _attach_file_handler(
         logger.error("Failed to attach FileHandler for %s: %s", log_file, err)
 
 
+def env_debug_get() -> bool:
+    """True when ACME2CERTIFIER_DEBUG is 1/true/True."""
+    return os.environ.get("ACME2CERTIFIER_DEBUG", "0") in ("1", "true", "True")
+
+
+_DEBUG_TRUE = ("1", "true", "yes", "on")
+_DEBUG_FALSE = ("0", "false", "no", "off")
+
+
+def _debug_value_as_bool(value: Any) -> Optional[bool]:
+    """Parse a DEFAULT.debug value; None if unset-style or invalid."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in _DEBUG_TRUE:
+            return True
+        if lowered in _DEBUG_FALSE:
+            return False
+    return None
+
+
+def _configparser_default_debug(config_dic: Any) -> Optional[bool]:
+    """Read DEFAULT.debug from a ConfigParser-like object."""
+    try:
+        if not config_dic.has_option("DEFAULT", "debug"):
+            return None
+        return config_dic.getboolean("DEFAULT", "debug")
+    except (ValueError, TypeError):
+        return None
+
+
+def _mapping_default_debug(config_dic: Any) -> Optional[bool]:
+    """Read DEFAULT.debug from a mapping-like object."""
+    try:
+        default_sec = config_dic.get("DEFAULT")
+    except (AttributeError, TypeError, KeyError):
+        return None
+    if not isinstance(default_sec, dict) or "debug" not in default_sec:
+        return None
+    return _debug_value_as_bool(default_sec["debug"])
+
+
+def _explicit_default_debug(config_dic: Any) -> Optional[bool]:
+    """Return DEFAULT.debug when the key is set; None if unset or invalid."""
+    if config_dic is None:
+        return None
+    if hasattr(config_dic, "has_option") and hasattr(config_dic, "getboolean"):
+        return _configparser_default_debug(config_dic)
+    return _mapping_default_debug(config_dic)
+
+
+def config_debug_get(config_dic: Any = None) -> bool:
+    """ACME debug: explicit DEFAULT.debug overrides ACME2CERTIFIER_DEBUG."""
+    if config_dic is None:
+        config_dic = load_config()
+    cfg_debug = _explicit_default_debug(config_dic)
+    if cfg_debug is not None:
+        return cfg_debug
+    return env_debug_get()
+
+
+def apply_log_levels(debug: bool) -> None:
+    """Set root/acme2certifier/HTTP logger levels from the ACME debug flag."""
+    log_mode = logging.DEBUG if debug else logging.INFO
+    logging.getLogger().setLevel(log_mode)
+    logging.getLogger("acme2certifier").setLevel(log_mode)
+    http_level = logging.DEBUG if debug else logging.WARNING
+    logging.getLogger("urllib3").setLevel(http_level)
+    logging.getLogger("requests").setLevel(http_level)
+
+
 def logger_setup(debug: bool) -> logging.Logger:
     """setup logger; optional syslog/file handlers via Helper config"""
-    if debug:
-        log_mode = logging.DEBUG
-    else:
-        log_mode = logging.INFO
+    # Apply levels before load_config() so Helper.load_config DEBUG cannot leak
+    # when ACME debug is off.
+    apply_log_levels(debug)
+    log_mode = logging.DEBUG if debug else logging.INFO
 
     config_dic = load_config()
 
@@ -225,8 +297,10 @@ def logger_setup(debug: bool) -> logging.Logger:
         log_format = config_dic["Helper"]["log_format"]
 
     logging.basicConfig(format=log_format, datefmt="%Y-%m-%d %H:%M:%S", level=log_mode)
+    # basicConfig is a no-op when handlers already exist; still apply the
+    # requested level so urllib3/requests do not keep DEBUG from an earlier setup.
+    apply_log_levels(debug)
     logger = logging.getLogger("acme2certifier")
-    logger.setLevel(log_mode)
 
     formatter = logging.Formatter(fmt=log_format, datefmt="%Y-%m-%d %H:%M:%S")
     _attach_syslog_handler(logger, config_dic, formatter)

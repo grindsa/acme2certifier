@@ -11,6 +11,22 @@ inputs:
     description: "If true, run envsubst on the fixture before writing DEST"
     required: false
     default: "false"
+  ACME_KEYPATH:
+    description: "Substituted for ${ACME_KEYPATH} when ENVSUBST is true"
+    required: false
+    default: ""
+  APPEND_PREFIX:
+    description: "Substituted for ${APPEND_PREFIX} when ENVSUBST is true"
+    required: false
+    default: ""
+  OLD_ROOT_FP:
+    description: "Substituted for ${OLD_ROOT_FP} when ENVSUBST is true (SHA-256 of root-ca-cert.pem)"
+    required: false
+    default: ""
+  OLD_SUB_FP:
+    description: "Substituted for ${OLD_SUB_FP} when ENVSUBST is true (SHA-256 of sub-ca-cert.pem)"
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -26,7 +42,8 @@ runs:
             sudo apt-get install -y -qq gettext-base
           fi
           # shellcheck disable=SC2016
-          envsubst < "${SOURCE}" | sudo tee "${DEST}" >/dev/null
+          envsubst '${ACME_KEYPATH} ${APPEND_PREFIX} ${OLD_ROOT_FP} ${OLD_SUB_FP}' \
+            < "${SOURCE}" | sudo tee "${DEST}" >/dev/null
         else
           sudo cp "${SOURCE}" "${DEST}"
         fi
@@ -35,3 +52,7 @@ runs:
         SOURCE: ${{ inputs.SOURCE }}
         DEST: ${{ inputs.DEST }}
         ENVSUBST: ${{ inputs.ENVSUBST }}
+        ACME_KEYPATH: ${{ inputs.ACME_KEYPATH }}
+        APPEND_PREFIX: ${{ inputs.APPEND_PREFIX }}
+        OLD_ROOT_FP: ${{ inputs.OLD_ROOT_FP }}
+        OLD_SUB_FP: ${{ inputs.OLD_SUB_FP }}

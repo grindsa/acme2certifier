@@ -4,11 +4,11 @@
 from __future__ import print_function
 import csv
 import json
-from typing import List, Tuple, Dict
+from typing import Any, List, Tuple, Dict
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.authorization import Authorization
 from acme2certifier.acme_srv.certificate import Certificate
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.helper import (
@@ -49,10 +49,11 @@ def resolve_housekeeping_cli_endpoint(
 class Housekeeping(object):
     """Housekeeping class"""
 
-    def __init__(self, debug: bool = False, logger: object = None):
+    def __init__(self, debug: bool = False, logger: object = None, config_dic=None):
         self.logger = logger
+        self.config_dic = config_dic
         self.dbstore = DBstore(debug, self.logger)
-        self.message = Message(debug, None, self.logger)
+        self.message = Message(debug, None, self.logger, config_dic=config_dic)
         self.error_msg_dic = error_dic_get(self.logger)
         self.debug = debug
         self.cli_enabled = False
@@ -204,7 +205,7 @@ class Housekeeping(object):
     def _config_load(self):
         """load config from file"""
         self.logger.debug("Housekeeping._config_load()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
         self.cli_enabled = housekeeping_cli_enabled(config_dic)
         self.logger.debug(
             "Housekeeping._config_load() cli_enabled=%s", self.cli_enabled
@@ -252,7 +253,7 @@ class Housekeeping(object):
         self.logger.debug("Housekeeping._cert_serial_add() ended")
         return serial
 
-    def _convert_data(self, cert_list: List[str]) -> List[str]:
+    def _convert_data(self, cert_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """convert data from uts to real date"""
         self.logger.debug("Housekeeping._convert_dates()")
 
@@ -394,7 +395,7 @@ class Housekeeping(object):
 
         return field_list, new_list
 
-    def _account_list_convert(self, tmp_json: List[str]) -> List[str]:
+    def _account_list_convert(self, tmp_json: Dict[str, Any]) -> List[Dict[str, Any]]:
         """create account list"""
         self.logger.debug("Housekeeping._account_list_convert()")
 
@@ -441,13 +442,13 @@ class Housekeeping(object):
 
     def _dicstructure_create(
         self,
-        tmp_json: Dict[str, str],
-        ele: str,
+        tmp_json: Dict[str, Any],
+        ele: Dict[str, Any],
         account_field: str,
         order_field: str,
         authz_field: str,
         chall_field: str,
-    ) -> Dict[str, str]:
+    ) -> Dict[str, Any]:
         # pylint: disable=r0913
         """create dictionary structure"""
         self.logger.debug("Housekeeping._dicstructure_create()")
@@ -490,8 +491,8 @@ class Housekeeping(object):
         return tmp_json
 
     def _account_dic_create(
-        self, account_list: List[str]
-    ) -> Tuple[Dict[str, str], List[str]]:
+        self, account_list: List[Dict[str, Any]]
+    ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         """account list create"""
         self.logger.debug("Housekeeping._account_dic_create()")
 
@@ -540,7 +541,7 @@ class Housekeeping(object):
         self.logger.debug("Housekeeping._account_dic_create() ended")
         return (tmp_json, error_list)
 
-    def _to_acc_json(self, account_list: List[str]) -> List[str]:
+    def _to_acc_json(self, account_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """stack list to json"""
         self.logger.debug("Housekeeping._to_acc_json()")
 
@@ -556,7 +557,9 @@ class Housekeeping(object):
 
         return account_list
 
-    def _to_list(self, field_list: List[str], cert_list: List[str]) -> List[str]:
+    def _to_list(
+        self, field_list: List[str], cert_list: List[Dict[str, Any]]
+    ) -> List[str]:
         """convert query to csv format"""
         self.logger.debug("Housekeeping._to_list()")
         csv_list = []
@@ -661,7 +664,9 @@ class Housekeeping(object):
         """scan certificates and update issue/expiry date"""
         self.logger.debug("Housekeeping.certificate_dates_update()")
 
-        with Certificate(self.debug, None, self.logger) as certificate:
+        with Certificate(
+            self.debug, None, self.logger, config_dic=self.config_dic
+        ) as certificate:
             certificate.dates_update()
 
     def certificates_cleanup(
@@ -676,7 +681,9 @@ class Housekeeping(object):
         if not uts:
             uts = uts_now()
 
-        with Certificate(self.debug, None, self.logger) as certificate:
+        with Certificate(
+            self.debug, None, self.logger, config_dic=self.config_dic
+        ) as certificate:
             field_list, cert_list = certificate.cleanup(timestamp=uts, purge=purge)
 
             # normalize lists
@@ -744,7 +751,9 @@ class Housekeeping(object):
         """authorizations cleanup based on expiry date"""
         self.logger.debug("Housekeeping.authorization_invalidate(%s)", uts)
 
-        with Authorization(self.debug, None, self.logger) as authorization:
+        with Authorization(
+            self.debug, None, self.logger, config_dic=self.config_dic
+        ) as authorization:
             # get expired orders
             field_list, authorization_list = authorization.invalidate(timestamp=uts)
             # normalize lists
@@ -809,7 +818,7 @@ class Housekeeping(object):
         """nonce cleanup based on expiry date"""
         self.logger.debug("Housekeeping.nonce_cleanup()")
 
-        with Nonce(self.debug, self.logger) as nonce:
+        with Nonce(self.debug, self.logger, config_dic=self.config_dic) as nonce:
             # get expired orders
             _field_list, order_list = nonce.expire_nonces(timestamp=uts)
 
@@ -822,7 +831,7 @@ class Housekeeping(object):
         """orders cleanup based on expiry date"""
         self.logger.debug("Housekeeping.orders_invalidate(%s)", uts)
 
-        with Order(self.debug, None, self.logger) as order:
+        with Order(self.debug, None, self.logger, config_dic=self.config_dic) as order:
             # get expired orders
             field_list, order_list = order.invalidate(timestamp=uts)
             # normalize lists
@@ -908,9 +917,14 @@ class Housekeeping(object):
                 detail = "either type field or data field is missing in payload"
 
         # prepare/enrich response
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, False, account_name=account_name
+        response_dic = finish_response(
+            self.message,
+            response_dic,
+            code,
+            message,
+            detail,
+            add_nonce=False,
+            account_name=account_name,
         )
         self.logger.debug("Housekeeping.parse() returned something.")
 

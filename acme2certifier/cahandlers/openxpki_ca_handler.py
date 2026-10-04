@@ -3,7 +3,6 @@
 
 import math
 import time
-import os
 from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
@@ -17,6 +16,8 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_option_load,
+    config_ca_bundle_load,
     config_profile_load,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
@@ -25,6 +26,7 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
     load_config,
     request_operation,
+    client_session_apply,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 from acme2certifier.acme_srv.db_handler import DBstore
@@ -169,15 +171,9 @@ class CAhandler(object):
             self.cert_profile_name = config_dic.get(
                 "CAhandler", self.profile_mapping_field, fallback=self.cert_profile_name
             )
-            if "ca_bundle" in config_dic["CAhandler"]:
-                try:
-                    self.ca_bundle = config_dic.getboolean("CAhandler", "ca_bundle")
-                except Exception as err:
-                    self.logger.debug(
-                        "CAhandler._config_server_load(): failed to load ca_bundle option: %s",
-                        err,
-                    )
-                    self.ca_bundle = config_dic.get("CAhandler", "ca_bundle")
+            self.ca_bundle = config_ca_bundle_load(
+                self.logger, config_dic, current=self.ca_bundle
+            )
 
             if "polling_timeout" in config_dic["CAhandler"]:
                 try:
@@ -194,33 +190,9 @@ class CAhandler(object):
     def _config_passphrase_load(self, config_dic: Dict[str, str]):
         """load passphrase"""
         self.logger.debug("CAhandler._config_passphrase_load()")
-
-        if (
-            "cert_passphrase_variable" in config_dic["CAhandler"]
-            or "cert_passphrase" in config_dic["CAhandler"]
-        ):
-            if "cert_passphrase_variable" in config_dic["CAhandler"]:
-                self.logger.debug(
-                    "CAhandler._config_passphrase_load(): load passphrase from environment variable"
-                )
-                try:
-                    self.cert_passphrase = os.environ[
-                        config_dic.get("CAhandler", "cert_passphrase_variable")
-                    ]
-                except Exception as err:
-                    self.logger.error(
-                        "Could not load cert_passphrase_variable from environment: %s",
-                        err,
-                    )
-
-            if "cert_passphrase" in config_dic["CAhandler"]:
-                self.logger.debug(
-                    "CAhandler._config_passphrase_load(): load passphrase from config file"
-                )
-                if self.cert_passphrase:
-                    self.logger.info("Overwrite cert_passphrase")
-                self.cert_passphrase = config_dic.get("CAhandler", "cert_passphrase")
-
+        self.cert_passphrase = config_option_load(
+            self.logger, config_dic, "cert_passphrase", current=self.cert_passphrase
+        )
         self.logger.debug("CAhandler._config_passphrase_load() ended")
 
     def _config_session_load(self, config_dic: Dict[str, str]):
@@ -236,20 +208,21 @@ class CAhandler(object):
                 self.logger.debug(
                     "CAhandler._config_session_load() cert and key in pem format"
                 )
-                self.session.cert = (
-                    config_dic.get("CAhandler", "client_cert"),
-                    config_dic.get("CAhandler", "client_key"),
+                client_session_apply(
+                    self.session,
+                    pem_cert=config_dic.get("CAhandler", "client_cert"),
+                    pem_key=config_dic.get("CAhandler", "client_key"),
                 )
 
             else:
                 self._config_passphrase_load(config_dic)
                 if "client_cert" in config_dic["CAhandler"] and self.cert_passphrase:
-                    self.session.mount(
-                        self.host,
-                        Pkcs12Adapter(
-                            pkcs12_filename=config_dic["CAhandler"]["client_cert"],
-                            pkcs12_password=self.cert_passphrase,
-                        ),
+                    client_session_apply(
+                        self.session,
+                        pkcs12_filename=config_dic["CAhandler"]["client_cert"],
+                        pkcs12_password=self.cert_passphrase,
+                        mount_url=self.host,
+                        pkcs12_adapter_cls=Pkcs12Adapter,
                     )
                 else:
                     self.logger.error(
@@ -319,7 +292,6 @@ class CAhandler(object):
         break_loop = False
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["cert_passphrase"])
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )

@@ -16,11 +16,20 @@ inputs:
     description: "chmod -R 777 the acme subdir (true/false)"
     required: false
     default: "true"
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb (auto: examples/Docker* → container, else rpm/deb systemd)"
+    required: false
+    default: ""
+  COMPOSE_DIR:
+    description: "docker compose directory (container)"
+    required: false
+    default: "examples/Docker"
 
 runs:
   using: "composite"
   steps:
     - name: "Post-cfg common"
+      id: cfg
       run: |
         set -euo pipefail
         cfg="${VOLUME_DIR}/acme_srv.cfg"
@@ -36,9 +45,24 @@ runs:
         if [ -n "${EXTRA_SED}" ]; then
           sudo sed -i "${EXTRA_SED}" "${cfg}"
         fi
+        dt="${DEPLOYMENT_TYPE}"
+        if [ -z "${dt}" ]; then
+          case "${VOLUME_DIR}" in
+            examples/Docker*|*/examples/Docker*) dt=container ;;
+            *) dt=rpm ;;
+          esac
+        fi
+        echo "deployment_type=${dt}" >> "${GITHUB_OUTPUT}"
       shell: bash
       env:
         VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
         ACME_SUBDIR: ${{ inputs.ACME_SUBDIR }}
         EXTRA_SED: ${{ inputs.EXTRA_SED }}
         CHMOD_777: ${{ inputs.CHMOD_777 }}
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Acknowledge naked challenge_validation_disable"
+      uses: ./.github/actions/set_break_glass
+      with:
+        DEPLOYMENT_TYPE: ${{ steps.cfg.outputs.deployment_type }}
+        COMPOSE_DIR: ${{ inputs.COMPOSE_DIR }}

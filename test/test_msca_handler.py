@@ -368,7 +368,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertIn(
-            "ERROR:test_a2c:Could not load host_variable from environment: 'doesnotexist'",
+            "ERROR:test_a2c:Could not load host_variable:'doesnotexist'",
             lcm.output,
         )
 
@@ -405,7 +405,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.user)
         self.assertIn(
-            "ERROR:test_a2c:Could not load user_variable from environment: 'doesnotexist'",
+            "ERROR:test_a2c:Could not load user_variable:'doesnotexist'",
             lcm.output,
         )
 
@@ -442,7 +442,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.password)
         self.assertIn(
-            "ERROR:test_a2c:Could not load password_variable from environment: 'doesnotexist'",
+            "ERROR:test_a2c:Could not load password_variable:'doesnotexist'",
             lcm.output,
         )
 
@@ -461,43 +461,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("password_local", self.cahandler.password)
         self.assertIn("INFO:test_a2c:Overwrite password", lcm.output)
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.proxy_check")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
-    def test_033_config_load(self, mock_load_cfg, mock_json, mock_chk):
+    def test_033_config_load(self, mock_load_cfg, mock_proxy):
         """test _config_load ca_handler configured load proxies"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
         mock_load_cfg.return_value = parser
-        mock_json.return_value = "foo.bar.local"
-        mock_chk.return_value = "proxy.bar.local"
+        mock_proxy.return_value = {
+            "http": "proxy.bar.local",
+            "https": "proxy.bar.local",
+        }
         self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertTrue(mock_chk.called)
+        self.assertTrue(mock_proxy.called)
         self.assertEqual(
             {"http": "proxy.bar.local", "https": "proxy.bar.local"},
             self.cahandler.proxy,
         )
 
-    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.proxy_check")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
-    def test_034_config_load(self, mock_load_cfg, mock_json, mock_chk):
+    def test_034_config_load(self, mock_load_cfg, mock_proxy):
         """test _config_load ca_handler configured load proxies failed with exception in json.load"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
-        mock_json.side_effect = Exception("exc_load_config")
         mock_load_cfg.return_value = parser
-        mock_chk.side = "proxy.bar.local"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertFalse(mock_chk.called)
+        mock_proxy.return_value = {}
+        self.cahandler._config_load()
+        self.assertTrue(mock_proxy.called)
         self.assertFalse(self.cahandler.proxy)
-        self.assertIn(
-            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: exc_load_config",
-            lcm.output,
-        )
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.config_eab_profile_load")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
@@ -1075,7 +1067,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_url_load(parser)
         self.assertFalse(self.cahandler.url)
         self.assertIn(
-            "ERROR:test_a2c:Could not load url_variable from environment: 'doesnotexist'",
+            "ERROR:test_a2c:Could not load url_variable:'doesnotexist'",
             lcm.output,
         )
 
@@ -1117,24 +1109,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("host or url", error)
         self.assertTrue(any("host or url" in msg for msg in lcm.output))
 
-    def test_075_config_kerberos_parameter_item_load_env_error(self):
-        """_config_kerberos_parameter_item_load logs missing env variables"""
+    def test_075_config_kerberos_parameters_load_env_error(self):
+        """_config_kerberos_parameters_load logs missing env variables"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"krb5_principal_variable": "DOES_NOT_EXIST"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            value = self.cahandler._config_kerberos_parameter_item_load(
-                parser,
-                None,
-                "krb5_principal",
-                "krb5_principal_variable",
-                "Could not load krb5_principal_variable from environment: %s",
-            )
-        self.assertIsNone(value)
+            self.cahandler._config_kerberos_parameters_load(parser)
+        self.assertIsNone(self.cahandler.krb5_principal)
         self.assertTrue(
-            any(
-                "Could not load krb5_principal_variable from environment" in msg
-                for msg in lcm.output
-            )
+            any("Could not load krb5_principal_variable" in msg for msg in lcm.output)
         )
 
     def test_076_config_kerberos_parameters_load_missing_section(self):
@@ -2451,6 +2434,32 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.krb5_config = None
         self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_password_backend())
         self.assertTrue(mock_cleanup.called)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_156_config_load_prefers_order_allowed_header_values(self, mock_load_cfg):
+        """Order.allowed_header_values takes precedence over CAhandler.allowed_templates"""
+        parser = configparser.ConfigParser()
+        parser["Order"] = {"allowed_header_values": '["FromOrder", "AlsoOrder"]'}
+        parser["CAhandler"] = {"allowed_templates": '["FromCA"]'}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual(["FromOrder", "AlsoOrder"], self.cahandler.allowed_templates)
+
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.load_config")
+    def test_157_config_load_allowed_templates_deprecation_warning(self, mock_load_cfg):
+        """reading CAhandler allowed_templates logs migration warning"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"allowed_templates": '["WebServer"]'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+        self.assertEqual(["WebServer"], self.cahandler.allowed_templates)
+        self.assertTrue(
+            any(
+                "allowed_templates is deprecated for header allowlisting" in msg
+                for msg in lcm.output
+            )
+        )
 
 
 if __name__ == "__main__":

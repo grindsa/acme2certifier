@@ -27,6 +27,7 @@ from acme2certifier.acme_srv.helper import (
     convert_byte_to_string,
     convert_string_to_byte,
     generate_random_string,
+    config_ca_bundle_load,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -111,7 +112,7 @@ class CAhandler(object):
         self.password = None
         self.signing_cert = None
         self.signing_key = None
-        self.ca_bundle = False
+        self.ca_bundle = True
         self.email = None
         self.signing_script_dic = {}
 
@@ -238,9 +239,10 @@ class CAhandler(object):
                 "SOAP server URL (soap_srv) is missing in configuration file."
             )
 
-        if "ca_bundle" in config_dic["CAhandler"]:
-            self.ca_bundle = config_dic["CAhandler"]["ca_bundle"]
-        else:
+        self.ca_bundle = config_ca_bundle_load(
+            self.logger, config_dic, current=self.ca_bundle
+        )
+        if self.ca_bundle is False:
             self.logger.warning("SOAP server certificate validation is disabled.")
 
         if "profilename" in config_dic["CAhandler"]:

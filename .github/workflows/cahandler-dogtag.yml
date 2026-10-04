@@ -146,8 +146,13 @@ jobs:
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebserverSanOnly\": \"http:\/\/foo.bar\/WebserverSanOnly\", \"WebserverSanOnlyTLSClient\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSClient\", \"WebserverSanOnlyTLSServer\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSServer\"}/g" examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: container
+          RECREATE: "true"
+
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/dogtag_ca_handler/enroll_acmeprofile
@@ -284,6 +289,11 @@ jobs:
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebserverSanOnly\": \"http:\/\/foo.bar\/WebserverSanOnly\", \"WebserverSanOnlyTLSClient\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSClient\", \"WebserverSanOnlyTLSServer\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSServer\"}/g" data/volume/acme_srv.cfg
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Reconfigure a2c"
         run: |
@@ -439,6 +449,11 @@ jobs:
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebserverSanOnly\": \"http:\/\/foo.bar\/WebserverSanOnly\", \"WebserverSanOnlyTLSClient\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSClient\", \"WebserverSanOnlyTLSServer\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSServer\"}/g" data/volume/acme_srv.cfg
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Reconfigure a2c "
         run: |

@@ -5,6 +5,10 @@ inputs:
     description: "Deployment type"
     required: true
     default: "container"
+  WEBSRV:
+    description: "Web server for deb restart"
+    required: false
+    default: ""
 
 
 runs:
@@ -301,6 +305,14 @@ runs:
     with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       PATTERN: "failed for: ['countryName']"
+
+  - name: "Acknowledge EAB naked challenge_validation_disable"
+    uses: ./.github/actions/set_break_glass
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      RECREATE: ${{ inputs.DEPLOYMENT_TYPE == 'container' && 'true' || 'false' }}
+      RESTART: ${{ inputs.DEPLOYMENT_TYPE != 'container' && 'true' || 'false' }}
+      WEBSRV: ${{ inputs.WEBSRV }}
 
   - name: "EAB - 05a - Enroll acme with challenge validation disabled in kid.json"
     run: |

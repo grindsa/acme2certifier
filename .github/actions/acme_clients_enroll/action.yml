@@ -55,9 +55,9 @@ runs:
 
     - name: "Create directories"
       run: |
+        sudo rm -rf acme-sh certbot lego
         mkdir -p acme-sh/
         sudo mkdir -p certbot/
-        sudo rm -rf lego
         sudo mkdir -p lego/ca
         sudo cp .github/acme2certifier_cabundle.pem certbot/
         sudo cp .github/acme2certifier_cabundle.pem lego/

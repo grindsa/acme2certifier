@@ -63,6 +63,9 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v7
 
+      - name: Generate openssl test CA
+        uses: ./.github/actions/generate_openssl_test_ca
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup
         with:
@@ -106,7 +109,7 @@ jobs:
           docker compose -f soap_srv.yml logs
 
       - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
+        uses: ./.github/actions/generate_a2c_certs
 
       - name: "Setup a2c with pkcs7_ca_handler"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -177,6 +180,9 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v7
 
+      - name: Generate openssl test CA
+        uses: ./.github/actions/generate_openssl_test_ca
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup
         with:
@@ -220,7 +226,7 @@ jobs:
           docker compose -f soap_srv.yml logs
 
       - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
+        uses: ./.github/actions/generate_a2c_certs
 
       - name: "Setup a2c with pkcs7_ca_handler"
         uses: ./.github/actions/setup_cahandler_cfg

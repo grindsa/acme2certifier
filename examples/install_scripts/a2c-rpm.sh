@@ -55,8 +55,8 @@ set -euo pipefail
 readonly MODE_DJANGO="django"
 readonly MODE_WSGI="wsgi"
 readonly DJANGO_SETTINGS="acme2certifier.django_project.settings"
-readonly PKG_BASE="acme2certifier"
-readonly PKG_MIN="${PKG_BASE}-min"
+readonly PKG_FULL="acme2certifier"
+readonly PKG_MIN="acme2certifier-min"
 readonly DEFAULT_DATA_DIR="/tmp/acme2certifier"
 
 MODE="wsgi"
@@ -84,7 +84,7 @@ usage() {
 }
 
 pkg_name() {
-  printf '%s' "${PKG_BASE}${NAME_SUFFIX}"
+  printf '%s' "${PKG_FULL}${NAME_SUFFIX}"
 }
 
 normalize_name_suffix() {
@@ -102,22 +102,19 @@ is_main_rpm_basename() {
   local base="$1"
   local pkg="${2:-}"
   case "${base}" in
-    *-python*.rpm|*-python*.RPM)
-      return 1
-      ;;
-    *)
-      if [[ -n "${pkg}" ]]; then
-        case "${base}" in
-          "${pkg}"-[0-9]*.rpm|"${pkg}"-[0-9]*.RPM) return 0 ;;
-          *) return 1 ;;
-        esac
-      fi
-      case "${base}" in
-        "${PKG_MIN}"-[0-9]*.rpm|"${PKG_MIN}"-[0-9]*.RPM) return 0 ;;
-        "${PKG_BASE}"-[0-9]*.rpm|"${PKG_BASE}"-[0-9]*.RPM) return 0 ;;
-        *) return 1 ;;
-      esac
-      ;;
+    *-python*.rpm|*-python*.RPM) return 1 ;;
+    *) ;;
+  esac
+  if [[ -n "${pkg}" ]]; then
+    case "${base}" in
+      "${pkg}"-[0-9]*.rpm|"${pkg}"-[0-9]*.RPM) return 0 ;;
+      *) return 1 ;;
+    esac
+  fi
+  case "${base}" in
+    acme2certifier-min-[0-9]*.rpm|acme2certifier-min-[0-9]*.RPM) return 0 ;;
+    acme2certifier-[0-9]*.rpm|acme2certifier-[0-9]*.RPM) return 0 ;;
+    *) return 1 ;;
   esac
 }
 
@@ -184,15 +181,16 @@ find_rpm() {
     append_pkg_globs candidates ".." "$(pkg_name)"
     append_pkg_globs candidates "${DEFAULT_DATA_DIR}" "$(pkg_name)"
   else
-    local search_roots=()
-    local root pkg
-    [[ -n "${DATA_DIR}" ]] && search_roots+=("${DATA_DIR}")
-    search_roots+=("." ".." "${DEFAULT_DATA_DIR}")
-    for root in "${search_roots[@]}"; do
-      for pkg in "${PKG_MIN}" "${PKG_BASE}"; do
-        append_pkg_globs candidates "${root}" "${pkg}"
-      done
-    done
+    if [[ -n "${DATA_DIR}" ]]; then
+      append_pkg_globs candidates "${DATA_DIR}" "${PKG_MIN}"
+      append_pkg_globs candidates "${DATA_DIR}" "${PKG_FULL}"
+    fi
+    append_pkg_globs candidates "." "${PKG_MIN}"
+    append_pkg_globs candidates "." "${PKG_FULL}"
+    append_pkg_globs candidates ".." "${PKG_MIN}"
+    append_pkg_globs candidates ".." "${PKG_FULL}"
+    append_pkg_globs candidates "${DEFAULT_DATA_DIR}" "${PKG_MIN}"
+    append_pkg_globs candidates "${DEFAULT_DATA_DIR}" "${PKG_FULL}"
   fi
   for candidate in "${candidates[@]}"; do
     # shellcheck disable=SC2086
@@ -310,6 +308,23 @@ uwsgi_plugins_value() {
   esac
 }
 
+# Leave values unquoted. uWSGI 2.0.24 (Debian) drops only the first " on an
+# env line and keeps the closing quote in the value. $$ is uWSGI's escape for $, %% for %.
+# Reject @( / %( placeholders (uWSGI opens them as files / interpolates).
+a2c_uwsgi_env_set() {
+  local ini="$1" key="$2" value="$3" escaped
+  if [[ "$value" == *'@('* || "$value" == *'%('* ]]; then
+    echo "ERROR: ${key} contains uWSGI placeholder syntax @( or %(" >&2
+    return 1
+  fi
+  if [[ "$value" == *$'\n'* || "$value" == *'"'* ]]; then
+    echo "ERROR: ${key} contains a newline or double quote" >&2
+    return 1
+  fi
+  escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/\$/$$/g; s/%/%%/g')"
+  printf 'env = %s=%s\n' "$key" "$escaped" | ${SUDO} tee -a "$ini" >/dev/null
+}
+
 resolve_flavor_name() {
   local el="$1"
   local opt="${2:-}"
@@ -383,6 +398,23 @@ resolve_defaults() {
       VOLUME_DIR="${DEFAULT_DATA_DIR}/volume"
     fi
   fi
+  load_ci_django_env
+}
+
+load_ci_django_env() {
+  local f
+  for f in \
+    ${DATA_DIR:+"${DATA_DIR}/django.env"} \
+    "${DEFAULT_DATA_DIR}/django.env" \
+    ${VOLUME_DIR:+"${VOLUME_DIR}/django.env"}; do
+    [[ -n "${f}" && -f "${f}" ]] || continue
+    echo "==> Loading Django CI env from ${f}"
+    set -a
+    # shellcheck disable=SC1090
+    source "${f}"
+    set +a
+    return 0
+  done
 }
 
 sync_volume() {
@@ -439,6 +471,18 @@ link_django_settings_from_volume() {
   fi
 }
 
+# EPEL python3-django4.2 ships no gettext catalogs. Without --follow-symlinks,
+# sed -i replaces the volume symlink with a regular file, and the next restart
+# loads the unpatched target (OSError: No translation files found for en-us).
+disable_django_i18n() {
+  local settings_py="${APP_ROOT}/acme2certifier/django_project/settings.py"
+  [[ -e "${settings_py}" ]] || return 0
+  ${SUDO} sed -i --follow-symlinks \
+    -e 's/^USE_I18N = True/USE_I18N = False/' \
+    -e 's/^USE_L10N = True/USE_L10N = False/' \
+    "${settings_py}"
+}
+
 # Normalize handler / handler_module value to short name (wsgi|django) or empty.
 normalize_dbhandler_mode() {
   local value="${1:-}"
@@ -449,6 +493,19 @@ normalize_dbhandler_mode() {
   esac
 }
 
+# True when the first non-empty, non-comment line is not an INI [section].
+cfg_is_yaml() {
+  local cfg="${1:-${CFG}}"
+  ${SUDO} awk '
+    BEGIN { rc=1 }
+    /^[[:space:]]*$/ { next }
+    /^[[:space:]]*[#;]/ { next }
+    /^\[/ { rc=1; exit }
+    { rc=0; exit }
+    END { exit rc }
+  ' "${cfg}"
+}
+
 # Read [DBhandler] handler / handler_module from cfg (short name or empty).
 get_dbhandler_mode() {
   local cfg="${1:-${CFG}}"
@@ -457,16 +514,29 @@ get_dbhandler_mode() {
     echo ""
     return 0
   fi
-  raw="$(${SUDO} awk '
-    /^\[DBhandler\]/ { in_sec=1; next }
-    /^\[/ { in_sec=0 }
-    in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
-      sub(/^[^:]*:[[:space:]]*/, "")
-      gsub(/[[:space:]]/, "")
-      print
-      exit
-    }
-  ' "${cfg}" 2>/dev/null || true)"
+  if cfg_is_yaml "${cfg}"; then
+    raw="$(${SUDO} awk '
+      /^DBhandler:/ { in_sec=1; next }
+      in_sec && /^[^[:space:]#].*:/ { in_sec=0 }
+      in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
+        sub(/^[^:]*:[[:space:]]*/, "")
+        gsub(/[[:space:]]/, "")
+        print
+        exit
+      }
+    ' "${cfg}" 2>/dev/null || true)"
+  else
+    raw="$(${SUDO} awk '
+      /^\[DBhandler\]/ { in_sec=1; next }
+      /^\[/ { in_sec=0 }
+      in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
+        sub(/^[^:]*:[[:space:]]*/, "")
+        gsub(/[[:space:]]/, "")
+        print
+        exit
+      }
+    ' "${cfg}" 2>/dev/null || true)"
+  fi
   normalize_dbhandler_mode "${raw}"
 }
 
@@ -474,6 +544,18 @@ get_dbhandler_mode() {
 set_dbhandler_mode() {
   local mode="$1"
   echo "==> Setting DBhandler to ${mode}"
+  if cfg_is_yaml "${CFG}"; then
+    if ${SUDO} grep -q '^DBhandler:' "${CFG}"; then
+      ${SUDO} sed -i \
+        '/^DBhandler:/,/^[^[:space:]#]/{
+          /^[[:space:]]*#*[[:space:]]*handler[[:space:]]*:/d
+        }' "${CFG}"
+      ${SUDO} sed -i "/^DBhandler:/a\\  handler: ${mode}" "${CFG}"
+    else
+      printf '\nDBhandler:\n  handler: %s\n' "${mode}" | ${SUDO} tee -a "${CFG}" >/dev/null
+    fi
+    return 0
+  fi
   if ! ${SUDO} grep -q '^\[DBhandler\]' "${CFG}"; then
     printf '\n[DBhandler]\nhandler: %s\n' "${mode}" | ${SUDO} tee -a "${CFG}" >/dev/null
     return 0
@@ -529,6 +611,9 @@ do_restart() {
     fi
   fi
   set_dbhandler_mode "${effective_mode}"
+  if [[ "${effective_mode}" == "${MODE_DJANGO}" ]]; then
+    disable_django_i18n
+  fi
   ${SUDO} chown -R "${NGINX_USER}:${NGINX_USER}" "${APP_ROOT}/volume" || true
   restart_services
   echo "Done. restarted nginx + acme2certifier mode=${effective_mode}"
@@ -719,6 +804,7 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   fi
   echo "==> Installed Django package: ${DJANGO_RPM}"
   for cand in python3-pyyaml python3-mysqlclient python3-PyMySQL python3-psycopg2 python3-sqlparse \
+              python3-django-environ python39-django-environ \
               python39-pyyaml python39-mysqlclient python39-PyMySQL python39-psycopg2; do
     ${SUDO} ${PKG} install -y "${cand}" 2>/dev/null || true
   done
@@ -755,6 +841,14 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]] \
   && ! ${SUDO} "${PY_BIN}" -c "import django; print('${MODE_DJANGO}', django.get_version())"; then
   echo "ERROR: Django installed but 'import django' failed with ${PY_BIN}" >&2
   exit 1
+fi
+if [[ "${MODE}" == "${MODE_DJANGO}" ]] \
+  && ! ${SUDO} "${PY_BIN}" -c "import environ"; then
+  echo "==> django-environ not in distro packages; pip install"
+  if ! ${SUDO} "${PY_BIN}" -m pip install 'django-environ>=0.11.2'; then
+    echo "ERROR: could not install django-environ" >&2
+    exit 1
+  fi
 fi
 
 ${SUDO} mkdir -p "${APP_ROOT}/volume" /run/uwsgi
@@ -883,13 +977,7 @@ fi
 if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   link_django_settings_from_volume "${VOLUME_DIR}"
   echo "==> Django migrate + fixtures"
-  SETTINGS_PY="${APP_ROOT}/acme2certifier/django_project/settings.py"
-  if [[ -f "${SETTINGS_PY}" ]]; then
-    ${SUDO} sed -i \
-      -e 's/^USE_I18N = True/USE_I18N = False/' \
-      -e 's/^USE_L10N = True/USE_L10N = False/' \
-      "${SETTINGS_PY}"
-  fi
+  disable_django_i18n
   export ACME_SRV_CONFIGFILE="${CFG}"
   export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
   export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}"
@@ -897,14 +985,22 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     export ACME2CERTIFIER_SECRET_KEY="$(a2c-django-secret-keygen)"
   fi
   if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' "${UWSGI_INI}"; then
-    echo "env = ACME2CERTIFIER_SECRET_KEY=${ACME2CERTIFIER_SECRET_KEY}" \
-      | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
+    a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
+  fi
+  if [[ -n "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
+    ${SUDO} sed -i '/^env = ACME2CERTIFIER_ALLOWED_HOSTS=/d' "${UWSGI_INI}"
+    a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
+  fi
+  if [[ -n "${ACME2CERTIFIER_DATABASE_URL:-}" ]]; then
+    ${SUDO} sed -i '/^env = ACME2CERTIFIER_DATABASE_URL=/d' "${UWSGI_INI}"
+    a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
   fi
   ${SUDO} env \
     PYTHONPATH="${APP_ROOT}" \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-django-update
   ${SUDO} env \
@@ -912,6 +1008,7 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-manage loaddata status
 fi

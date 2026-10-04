@@ -1,0 +1,112 @@
+name: django_ci_allowed_hosts
+description: CI-only Django ALLOWED_HOSTS configure (nginx) and verify (apache2)
+inputs:
+  WEBSRV:
+    description: Web server (apache2 or nginx)
+    required: false
+    default: nginx
+runs:
+  using: composite
+  steps:
+    - name: Configure Django ALLOWED_HOSTS for CI
+      run: |
+        set -euo pipefail
+        docker exec -i -e "WEBSRV=${{ inputs.WEBSRV }}" acme-srv bash -s <<'EOF'
+        set -euo pipefail
+        CI_HOSTS="127.0.0.1,localhost,acme-srv,*"
+        WEBSRV="${WEBSRV:-nginx}"
+        APP_ROOT=""
+        for cand in /var/www/acme2certifier /opt/acme2certifier; do
+          if [[ -d "${cand}" ]]; then
+            APP_ROOT="${cand}"
+            break
+          fi
+        done
+        if [[ -z "${APP_ROOT}" ]]; then
+          echo "ERROR: acme2certifier install root not found" >&2
+          exit 1
+        fi
+
+        load_uwsgi_ini_env() {
+          local ini="$1" line key val
+          while IFS= read -r line; do
+            [[ "${line}" =~ ^env\ =\ ([A-Za-z0-9_]+)=(.*)$ ]] || continue
+            key="${BASH_REMATCH[1]}"
+            val="${BASH_REMATCH[2]}"
+            if [[ "${val}" == \"*\" && "${val}" == *\" ]]; then
+              val="${val:1:${#val}-2}"
+            fi
+            val="${val//\$\$/\$}"
+            export "${key}=${val}"
+          done < <(grep '^env = ' "${ini}" 2>/dev/null || true)
+        }
+
+        load_apache_envvars() {
+          local envvars="/etc/apache2/envvars" line
+          while IFS= read -r line; do
+            [[ "${line}" == export\ ACME* ]] || continue
+            eval "${line}"
+          done < <(grep '^export ACME' "${envvars}" 2>/dev/null || true)
+        }
+
+        debug_allowed_hosts() {
+          local label="$1"
+          echo "DEBUG: ${label} worker env ACME2CERTIFIER_ALLOWED_HOSTS=${ACME2CERTIFIER_ALLOWED_HOSTS:-<unset>}"
+          APP_ROOT="${APP_ROOT}" "${APP_ROOT}/venv/bin/python" - <<'PY'
+        import os
+        import importlib.util
+
+        app_root = os.environ["APP_ROOT"]
+        settings_path = None
+        for root, _dirs, files in os.walk(f"{app_root}/venv/lib"):
+            if "settings.py" in files and root.endswith("acme2certifier/django_project"):
+                settings_path = os.path.join(root, "settings.py")
+                break
+        if not settings_path:
+            print("DEBUG: Django settings.py not found for verification")
+            raise SystemExit(0)
+        os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.django_project.settings")
+        spec = importlib.util.spec_from_file_location("_a2c_ci_settings", settings_path)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        print(f"DEBUG: Django ALLOWED_HOSTS={mod.ALLOWED_HOSTS!r}")
+        PY
+        }
+
+        case "${WEBSRV}" in
+          nginx)
+            UWSGI_INI="${APP_ROOT}/acme2certifier.ini"
+            if [[ ! -f "${UWSGI_INI}" ]]; then
+              echo "ERROR: ${UWSGI_INI} not found" >&2
+              exit 1
+            fi
+            echo "DEBUG: uWSGI ini before patch (${UWSGI_INI})"
+            cat "${UWSGI_INI}"
+            sed -i '/^env = ACME2CERTIFIER_ALLOWED_HOSTS=/d' "${UWSGI_INI}"
+            printf 'env = ACME2CERTIFIER_ALLOWED_HOSTS=%s\n' "${CI_HOSTS}" >> "${UWSGI_INI}"
+            echo "DEBUG: uWSGI ini after patch (${UWSGI_INI})"
+            cat "${UWSGI_INI}"
+            systemctl restart acme2certifier
+            load_uwsgi_ini_env "${UWSGI_INI}"
+            debug_allowed_hosts "uWSGI"
+            ;;
+          apache2)
+            APACHE_ENVVARS="/etc/apache2/envvars"
+            if [[ ! -f "${APACHE_ENVVARS}" ]]; then
+              echo "ERROR: ${APACHE_ENVVARS} not found" >&2
+              exit 1
+            fi
+            echo "DEBUG: Apache envvars (${APACHE_ENVVARS})"
+            cat "${APACHE_ENVVARS}"
+            load_apache_envvars
+            debug_allowed_hosts "Apache"
+            systemctl restart apache2
+            ;;
+          *)
+            echo "ERROR: unsupported WEBSRV=${WEBSRV} (expected apache2 or nginx)" >&2
+            exit 1
+            ;;
+        esac
+        EOF
+      shell: bash

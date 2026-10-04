@@ -183,6 +183,8 @@ During startup, the **entry-point script** checks for missing configuration file
 
 For **Django images** (when the resolved DB handler is `django`), a **project-specific `settings.py`** and migrations are also created/linked under `data/`. The entrypoint does **not** write `handler: django` into `acme_srv.cfg`; the image default comes from `ACME_SRV_DB_HANDLER`.
 
+When the MariaDB or PostgreSQL server requires TLS, put the server CA on the volume as `db-ca.pem` and set `DATABASES['OPTIONS']` as described in [external database support](../../docs/external_database_support.md#encrypting-the-django-database-connection-tls).
+
 ______________________________________________________________________
 
 ## Verifying the Container

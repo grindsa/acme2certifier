@@ -6,7 +6,7 @@
 
 Frozen handoff format for `a2c-wsgi2django` (Phase 0). Source of truth for export/import/check.
 
-**Sources:** `dbhandlers/wsgi_handler.py` (`_db_create`), `django_app/models.py`, `django_app/fixture/status.yaml`, `acme_srv/version.py` (`__dbversion__ = "0.41"`).
+**Sources:** `dbhandlers/wsgi_handler.py` (`_db_create`), `django_app/models.py`, `django_app/fixtures/status.yaml`, `acme_srv/version.py` (`__dbversion__`).
 
 ## Dump JSON schema (v1)
 
@@ -42,7 +42,7 @@ Rules:
 - Dump keys use **WSGI table names** (`orders`, not `order`).
 - Row dicts use **WSGI column names**, including `*_id` FKs.
 - Every row includes integer `id` (preserved PK).
-- **`status` is verify-only** — export may include it for audit/`check`; **import never writes Status**; Django owns rows via fixture (`django_app/fixture/status.yaml` / `a2c-django-update`).
+- **`status` is verify-only** — export may include it for audit/`check`; **import never writes Status**; Django owns rows via fixture (`django_app/fixtures/status.yaml` / `a2c-django-update`).
 - `nonce` is omitted or empty unless `meta.include_nonces` is true.
 - Timestamps are ISO-8601 strings (or SQLite `TIMESTAMP` strings as stored); importer parses to aware datetimes when `USE_TZ=True`.
 - Booleans may appear as `0`/`1` in the dump; importer coerces to `bool`.
@@ -68,7 +68,7 @@ Rules:
 
 ## Status (verify-only; not migrated)
 
-Django loads Status during install (`fixture/status.yaml` / `a2c-django-update`). WSGI seeds the same eight names in the same order. Migrating status rows is redundant and unsafe.
+Django loads Status during install (`django_app/fixtures/status.yaml` / `a2c-django-update`). WSGI seeds the same eight names in the same order. Migrating status rows is redundant and unsafe.
 
 | Step | Behavior |
 | --- | --- |

@@ -23,6 +23,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Generate openssl test CA"
+      uses: ./.github/actions/generate_openssl_test_ca
+
     - name: "Stage legacy xca handler + cfg"
       shell: bash
       env:

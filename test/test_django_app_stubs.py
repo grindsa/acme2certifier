@@ -100,6 +100,50 @@ class TestDjangoAppStubs(unittest.TestCase):
         self.assertIn("directory", names)
         self.assertIn("newaccount", names)
 
+    def test_004_resource_routes_no_capture_args(self) -> None:
+        """Path suffixes must not pass extra positional args into Django views."""
+        import re
+
+        from django.urls import clear_url_caches, resolve
+
+        mock_hk = MagicMock()
+        mock_cm = MagicMock()
+        mock_cm.__enter__.return_value = mock_hk
+        mock_cm.__exit__.return_value = False
+
+        for name in (
+            "acme2certifier.django_app.urls",
+            "acme2certifier.django_app.views",
+        ):
+            sys.modules.pop(name, None)
+
+        with patch(
+            "acme2certifier.acme_srv.housekeeping.Housekeeping", return_value=mock_cm
+        ):
+            import acme2certifier.django_app.urls as urls_mod
+
+        for pattern in urls_mod.urlpatterns:
+            regex = str(getattr(pattern, "pattern", ""))
+            self.assertFalse(
+                re.search(r"\([^?][^)]*\)", regex),
+                f"capturing group in {regex!r} would break view arity",
+            )
+
+        clear_url_caches()
+        for path in (
+            "authz/UJd0j258FXIs",
+            "order/f10UwlTs5bMc",
+            "order/f10UwlTs5bMc/finalize",
+            "acct/abc",
+            "chall/xyz",
+            "cert/abc",
+            "renewal-info/abc",
+        ):
+            # Pass urlconf explicitly: another suite may have configured Django
+            # first without ROOT_URLCONF. Leading slash is required by resolve().
+            match = resolve("/" + path, urlconf=urls_mod)
+            self.assertEqual(match.args, ())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -71,6 +71,9 @@ pip install .
 Modify the server configuration (`acme_srv/acme_srv.cfg`) and add the following parameters:
 
 ```ini
+[Order]
+allowed_header_values: ["WebServer", "WebServerModified"]
+
 [CAhandler]
 handler_module: acme2certifier.cahandlers.msicpr_ca_handler
 host: <hostname>
@@ -89,7 +92,6 @@ ca_bundle: <filename>
 template: <template_name>
 timeout: 5
 use_kerberos: False
-allowed_templates: ["WebServer", "WebServerModified"]
 allowed_domainlist: ["example.com", "*.example2.com"]
 ```
 
@@ -118,7 +120,7 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **dns_server** *(optional)* – IP address of the DNS server.
 - **ca_bundle** *(optional)* – Local CA certificate chain in PEM format used as a packaging fallback when the enrollment response does not include a CMS chain. Appended to the issued certificate only; it does not verify the AD CS enrollment endpoint.
 - **template** – Certificate template used for enrollment.
-- **allowed_templates** *(optional)* – JSON list of ADCS templates permitted for enrollment (including templates selected via ACME profiles, `header_info`, or EAB). An empty or unset list allows any template and logs a warning (backwards compatible). When non-empty, enrollment is rejected if the selected template is not listed. EAB per-account template restrictions still apply on top of this global ceiling. MS-ICPR has no Web Enrollment template discovery API; CA-side membership checks are mscertsrv-only.
+- **allowed_templates** *(optional, deprecated for header allowlisting)* – JSON list of ADCS templates permitted for enrollment. Prefer `[Order] allowed_header_values` (see [header_info.md](header_info.md)). When `allowed_header_values` is set, it is used instead. When only `allowed_templates` is set, a deprecation warning is logged and the list is still honored (including MS enrollment membership checks). When neither list is set, client-selected templates from `header_info` are **ignored** unless `ACME2CERTIFIER_I_KNOW_THE_RISK` is set. EAB per-account template restrictions still apply on top of this global ceiling. MS-ICPR has no Web Enrollment template discovery API; CA-side membership checks are mscertsrv-only.
 - **timeout** *(optional)* – Enrollment timeout in seconds (default: `5`).
 - **use_kerberos** – Use Kerberos for authentication. If `False`, authentication is done via NTLM. Due to Microsoft's [October 2023 announcement](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848), Kerberos is recommended, but NTLM remains the default for backward compatibility. Startup logs a warning when Kerberos is disabled.
 - **allowed_domainlist** *(optional)* – List of allowed domains for enrollment (JSON format).
@@ -215,7 +217,10 @@ Further, this handler uses the [header_info_list feature](header_info.md), allow
 ```ini
 [Order]
 header_info_list: ["HTTP_USER_AGENT"]
+allowed_header_values: ["WebServer", "WebServerModified"]
 ```
+
+Configure a non-empty `allowed_header_values` list so client-selected values are accepted. Without that list (and without `ACME2CERTIFIER_I_KNOW_THE_RISK`), header-supplied templates are ignored. `[CAhandler] allowed_templates` remains a deprecated compatibility alias.
 
 ## Example Usage
 

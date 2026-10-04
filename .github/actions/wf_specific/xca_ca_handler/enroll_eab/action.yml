@@ -1,5 +1,14 @@
 name: "enroll_eab"
 description: "enroll_eab"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: false
+    default: "container"
+  WEBSRV:
+    description: "Web server for deb restart"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -193,6 +202,14 @@ runs:
       echo "legofail outcome is ${{steps.legofail03.outcome }}"
       exit 1
     shell: bash
+
+  - name: "Acknowledge EAB naked challenge_validation_disable"
+    uses: ./.github/actions/set_break_glass
+    with:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      RECREATE: ${{ inputs.DEPLOYMENT_TYPE == 'container' && 'true' || 'false' }}
+      RESTART: ${{ inputs.DEPLOYMENT_TYPE != 'container' && 'true' || 'false' }}
+      WEBSRV: ${{ inputs.WEBSRV }}
 
   - name: "EAB - 07a - Enroll acme with challenge validation disabled in kid.json"
     run: |

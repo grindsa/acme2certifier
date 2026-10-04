@@ -45,6 +45,8 @@ chmod a+rx examples/install_scripts/a2c-rpm.sh
 
 Works with `dnf` or `yum` on EL8 and EL9. The remainder of this guide is the manual equivalent.
 
+For **`--mode django`**, export `ACME2CERTIFIER_ALLOWED_HOSTS` before running the script; it is persisted into `/opt/acme2certifier/acme2certifier.ini`. See [Django deployment environment variables](django_deploy_env.md).
+
 ## Layout
 
 | Path | Purpose |

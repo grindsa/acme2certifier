@@ -105,6 +105,8 @@ jobs:
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
           DEST: examples/Docker/data/kid_profiles.json
+          ENVSUBST: "true"
+          ACME_KEYPATH: /var/www/acme2certifier/volume/acme
 
       - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
         with:
@@ -252,6 +254,8 @@ jobs:
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
           DEST: data/volume/acme_ca/kid_profiles.json
+          ENVSUBST: "true"
+          ACME_KEYPATH: /opt/acme2certifier/volume/acme_ca
 
       - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
         with:
@@ -387,6 +391,8 @@ jobs:
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
           DEST: data/volume/acme_ca/kid_profiles.json
+          ENVSUBST: "true"
+          ACME_KEYPATH: /var/www/acme2certifier/volume/acme_ca
 
       - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
         with:

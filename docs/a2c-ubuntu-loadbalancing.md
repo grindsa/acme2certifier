@@ -541,7 +541,7 @@ python3 -m acme2certifier.tools.a2c_django_secret_keygen
 - modify `/var/www/acme2certifier/acme2certifier/django_project/settings.py` and
   - insert the secret-key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both ip-address and fqdn of the node
-  - configure a connection to mariadb as shown below
+  - configure a connection to mariadb as shown below. Optional TLS (`ssl` / `sslmode` in `OPTIONS`) is documented in [external database support](external_database_support.md#encrypting-the-django-database-connection-tls).
 
 ```python
 SECRET_KEY = "+%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e"
@@ -624,7 +624,7 @@ python3 -m acme2certifier.tools.a2c_django_secret_keygen
 - modify `/var/www/acme2certifier/acme2certifier/django_project/settings.py` and
   - insert a secret key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both IP-Adress and fqdn of the node
-  - configure a connection to mariadb as shown below
+  - configure a connection to mariadb as shown below. Optional TLS (`ssl` / `sslmode` in `OPTIONS`) is documented in [external database support](external_database_support.md#encrypting-the-django-database-connection-tls).
 
 ```python
 SECRET_KEY = "5@@wlvvi!hb(6qc%*77j55@jt8ib4^f1o&+pz-^z*#v3e7u3o!"

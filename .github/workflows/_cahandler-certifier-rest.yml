@@ -168,6 +168,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False
@@ -237,6 +238,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False
@@ -291,6 +293,11 @@ jobs:
           sudo cp .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.yml examples/Docker/data/kid_profiles.yml
           sudo chmod 777 examples/Docker/data/kid_profiles.yml
           sudo rm -f examples/Docker/data/kid_profiles.json
+
+      - name: "Restart a2c"
+        run: |
+          cd examples/Docker/
+          docker compose restart
 
       - name: "kid-file in yaml format - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -536,6 +543,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False
@@ -603,6 +611,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False
@@ -880,6 +889,7 @@ jobs:
             enrollment_timeout: 15
           ORDER_OPTIONS: |
             header_info_list: ["HTTP_USER_AGENT"]
+            allowed_header_values: ["101", "102"]
           OPTIONS: |
             api_host: https://forwarder.acme:8084
             ca_bundle: False

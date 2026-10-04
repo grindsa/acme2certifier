@@ -8,9 +8,11 @@ import os
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-os.environ.setdefault(
-    "DJANGO_SETTINGS_MODULE", "acme2certifier.django_project.settings"
-)
+from acme2certifier.acme_srv.helpers.django_boot import (
+    configure_django_settings_module,
+)  # noqa: E402
+
+configure_django_settings_module()
 
 # Global variables to store imported modules (for testing)
 django = None
@@ -36,6 +38,9 @@ def setup_django():
     global django, call_command, Status, Housekeeping, __dbversion__
 
     try:
+        from acme2certifier.tools.a2c_django_deploy_env import load_deploy_env
+
+        load_deploy_env()
         import django as django_module  # nopep8
 
         django = django_module

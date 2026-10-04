@@ -318,6 +318,7 @@ class DBstore(object):
                             orders.name as order__name,
                             orders.status_id as order__status_id,
                             orders.profile as order__profile,
+                            orders.cahandler as order__cahandler,
                             account.name as order__account__name,
                             account.eab_kid as order__account__eab_kid,
                             account.contact as order__account__contact
@@ -437,7 +438,7 @@ class DBstore(object):
         """)
         self.logger.debug("create orders")
         self.cursor.execute("""
-            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "profile" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "profile" varchar(64), "cahandler" varchar(64) DEFAULT '', "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         """)
         self.logger.debug("create authorization")
         self.cursor.execute("""
@@ -445,7 +446,7 @@ class DBstore(object):
         """)
         self.logger.debug("create challenge")
         self.cursor.execute("""
-            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(15) NOT NULL, "keyauthorization" varchar(128), "source" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "validation_error" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(15) NOT NULL, "keyauthorization" varchar(128), "source" varchar(128), "challenge_message_id" varchar(255), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "validation_error" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         """)
         self.logger.debug("create certificate")
         self.cursor.execute("""
@@ -607,6 +608,12 @@ class DBstore(object):
                 """ALTER TABLE challenge ADD COLUMN source varchar(128)"""
             )
 
+        if "challenge_message_id" not in challenges_column_list:
+            self.logger.info("alter challenge table - add challenge_message_id")
+            self.cursor.execute(
+                """ALTER TABLE challenge ADD COLUMN challenge_message_id varchar(255)"""
+            )
+
     def _db_update_cliaccount(self):
         """alter cliaccount table"""
         self.logger.debug("DBStore._db_update_cliaccount()")
@@ -718,6 +725,12 @@ class DBstore(object):
             self.logger.info("alter challenge orders - add profile")
             self.cursor.execute(
                 """ALTER TABLE orders ADD COLUMN profile varchar(64) DEFAULT \'\'"""
+            )
+
+        if "cahandler" not in order_column_list:
+            self.logger.info("alter orders table - add cahandler")
+            self.cursor.execute(
+                """ALTER TABLE orders ADD COLUMN cahandler varchar(64) DEFAULT \'\'"""
             )
 
     def _db_update_status(self):
@@ -1447,6 +1460,7 @@ class DBstore(object):
                             orders.id as order__id,
                             orders.name as order__name,
                             orders.profile as order__profile,
+                            orders.cahandler as order__cahandler,
                             orders.status_id as order__status_id,
                             account.name as order__account__name
                             from certificate
@@ -1593,9 +1607,12 @@ class DBstore(object):
         if "source" not in data_dic:
             data_dic["source"] = lookup["source"]
 
+        if "challenge_message_id" not in data_dic:
+            data_dic["challenge_message_id"] = lookup.get("challenge_message_id")
+
         self._db_open()
         self.cursor.execute(
-            """UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization, source= :source, validated = :validated WHERE name = :name""",
+            """UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization, source = :source, challenge_message_id = :challenge_message_id, validated = :validated WHERE name = :name""",
             data_dic,
         )
         self._db_close()
@@ -1901,13 +1918,23 @@ class DBstore(object):
     def order_update(self, data_dic: Dict[str, str]):
         """update order"""
         self.logger.debug("order_update(%s)", data_dic)
+        set_parts = []
+        params = {"name": data_dic["name"]}
         if "status" in data_dic:
-            data_dic["status"] = dict_from_row(
+            params["status"] = dict_from_row(
                 self._status_search("name", data_dic["status"])
             )["id"]
+            set_parts.append("status_id = :status")
+        if "cahandler" in data_dic:
+            params["cahandler"] = data_dic["cahandler"]
+            set_parts.append("cahandler = :cahandler")
+        if not set_parts:
+            self.logger.debug("DBStore.order_update() ended without changes")
+            return
         self._db_open()
         self.cursor.execute(
-            """UPDATE orders SET status_id = :status WHERE name = :name""", data_dic
+            f"""UPDATE orders SET {", ".join(set_parts)} WHERE name = :name""",
+            params,
         )
         self._db_close()
         self.logger.debug("DBStore.order_update() ended")

@@ -17,6 +17,8 @@ from acme2certifier.acme_srv.helper import (
     cert_bound_names_get,
     cert_serial_get,
     certid_asn1_get,
+    config_eab_profile_load,
+    cahandler_lookup,
     csr_san_get,
     csr_bound_names_get,
     csr_extensions_get,
@@ -26,15 +28,21 @@ from acme2certifier.acme_srv.helper import (
     hooks_load,
     load_config,
     pembundle_to_list,
+    profile_lookup,
     string_sanitize,
     uts_now,
     uts_to_date_utc,
     config_async_mode_load,
     config_dryrun_load,
 )
+from acme2certifier.acme_srv.helpers.cahandler_registry import (
+    BoundCAHandler,
+    CAHandlerRegistry,
+    resolve_default_ca_handler,
+)
 from acme2certifier.acme_srv.helpers.csr import _normalize_bound_name
 from acme2certifier.acme_srv.db_handler import DBstore
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 from acme2certifier.acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 from acme2certifier.acme_srv.certificate_manager import CertificateManager
 from acme2certifier.acme_srv.certificate_repository import DatabaseCertificateRepository
@@ -45,10 +53,8 @@ from acme2certifier.acme_srv.helpers.global_variables import (
 )
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
-    log_ownership_denial,
     ownership_lookup_failed,
-    ownership_unauthorized,
-    resource_owner_matches,
+    resolve_resource_ownership,
 )
 
 
@@ -264,6 +270,7 @@ class CertificateConfiguration:
     ignore_pre_hook_failure: bool = False
     ignore_post_hook_failure: bool = True
     ignore_success_hook_failure: bool = False
+    hook_error_details_forward: bool = False
     ca_error_details_forward: bool = False
 
 
@@ -277,10 +284,13 @@ class Certificate(object):
     # Error message constants
     INVALID_INPUT_PARAMS_MSG = "Invalid input parameters: %s"
 
-    def __init__(self, debug: bool = False, srv_name: str = None, logger=None):
+    def __init__(
+        self, debug: bool = False, srv_name: str = None, logger=None, config_dic=None
+    ):
         self.debug = debug
         self.logger = logger
         self.server_name = srv_name
+        self.config_dic = config_dic
 
         self.path_dic = {"cert_path": "/acme/cert/"}
 
@@ -293,9 +303,14 @@ class Certificate(object):
 
         # Legacy properties for backward compatibility
         self.cahandler = None
+        self.cahandler_registry = None
+        self.eab_profiling = False
+        self.eab_handler_class = None
         self.err_msg_dic = error_dic_get(self.logger)
         self.hooks = None
-        self.message = Message(self.debug, self.server_name, self.logger)
+        self.message = Message(
+            self.debug, self.server_name, self.logger, config_dic=config_dic
+        )
 
         # Initialize the new architecture components with configuration
         self.certificate_manager = CertificateManager(
@@ -373,16 +388,13 @@ class Certificate(object):
         self, certificate_name: str, account_name: Optional[str]
     ) -> Tuple[int, str, str]:
         """Verify the requester owns the certificate."""
-        try:
-            owner = self._lookup_certificate_owner_account(certificate_name)
-        except ResourceOwnershipLookupError:
-            return ownership_lookup_failed()
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(
-                self.logger, account_name, "certificate", certificate_name
-            )
-            return ownership_unauthorized()
-        return (200, None, None)
+        return resolve_resource_ownership(
+            self.logger,
+            account_name,
+            "certificate",
+            certificate_name,
+            lambda: self._lookup_certificate_owner_account(certificate_name),
+        )
 
     def _parse_order_identifiers(self, identifier_dic: Dict[str, str]) -> list:
         """Load order identifiers JSON; return [] on parse failure."""
@@ -618,6 +630,9 @@ class Certificate(object):
             self.config.ignore_success_hook_failure = config_dic.getboolean(
                 "Hooks", "ignore_success_hook_failure", fallback=False
             )
+            self.config.hook_error_details_forward = config_dic.getboolean(
+                "Hooks", "hook_error_details_forward", fallback=False
+            )
 
         self.logger.debug("Certificate._load_hooks_configuration() ended")
 
@@ -713,16 +728,17 @@ class Certificate(object):
     def _load_configuration(self):
         """Load certificate configuration from file"""
         self.logger.debug("Certificate._load_configuration()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
+        self.config_dic = config_dic
 
-        # load ca_handler according to configuration
-        ca_handler_module = ca_handler_load(self.logger, config_dic)
+        self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
+        self.cahandler = resolve_default_ca_handler(
+            self.logger, self.cahandler_registry, config_dic, ca_handler_load
+        )
 
-        if ca_handler_module:
-            # store handler in variable
-            self.cahandler = ca_handler_module.CAhandler
-        else:
-            self.logger.critical("No ca_handler loaded")
+        self.eab_profiling, self.eab_handler_class = config_eab_profile_load(
+            self.logger, config_dic
+        )
 
         # load hooks
         self._load_hooks_configuration(config_dic)
@@ -738,8 +754,137 @@ class Certificate(object):
             self.logger, config_dic
         )
 
-        self.logger.debug("ca_handler: %s", ca_handler_module)
+        self.logger.debug("ca_handler: %s", self.cahandler)
         self.logger.debug("Certificate._load_configuration() ended.")
+
+    def _eab_cahandler_name(
+        self, lookup_value: Optional[str], revocation: bool
+    ) -> Optional[str]:
+        """Return EAB-configured CA handler name, if any."""
+        if not (
+            self.eab_profiling and self.eab_handler_class is not None and lookup_value
+        ):
+            return None
+        try:
+            with self.eab_handler_class(self.logger) as eab_handler:
+                if hasattr(eab_handler, "cahandler_name_get"):
+                    return eab_handler.cahandler_name_get(
+                        lookup_value, revocation=revocation
+                    )
+        except Exception as err:
+            self.logger.warning(
+                "Failed to look up cahandler_name via EAB handler: %s", err
+            )
+        return None
+
+    def _eab_cahandler_profile(self, csr: Optional[str]) -> dict:
+        """Return the per-kid cahandler profile dict, if EAB profiling is on."""
+        if not (self.eab_profiling and self.eab_handler_class is not None and csr):
+            return {}
+        try:
+            with self.eab_handler_class(self.logger) as eab_handler:
+                if hasattr(eab_handler, "eab_profile_get"):
+                    return eab_handler.eab_profile_get(csr) or {}
+        except Exception as err:
+            self.logger.warning("Failed to look up EAB cahandler profile: %s", err)
+        return {}
+
+    def _cahandler_hints_from_order(
+        self, order_name: str
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Return (order_profile, stored_name) from an order record."""
+        try:
+            order_dic = self.repository.order_lookup(
+                "name", order_name, ["profile", "cahandler"]
+            )
+        except Exception as err:
+            self.logger.warning(
+                "Failed to load order profile/cahandler for %s: %s",
+                order_name,
+                err,
+            )
+            return None, None
+        if not order_dic:
+            return None, None
+        return order_dic.get("profile") or None, order_dic.get("cahandler") or None
+
+    def _cahandler_lookup_hints(
+        self,
+        csr: Optional[str],
+        cert_raw: Optional[str],
+        order_name: Optional[str],
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Return (order_profile, stored_name) from CSR, cert, or order."""
+        if csr:
+            return (
+                profile_lookup(self.logger, csr),
+                cahandler_lookup(self.logger, csr=csr),
+            )
+        if cert_raw:
+            return None, cahandler_lookup(self.logger, cert_raw=cert_raw)
+        if order_name:
+            return self._cahandler_hints_from_order(order_name)
+        return None, None
+
+    def _bound_cahandler_or_fallback(
+        self,
+        bound: Optional[BoundCAHandler],
+        cahandler_name: Optional[str],
+    ) -> Optional[BoundCAHandler]:
+        """Use resolved handler, or default unless an unknown EAB name was requested."""
+        if bound is not None:
+            self.logger.debug("Certificate._resolve_cahandler() -> %s", bound.name)
+            return bound
+        if cahandler_name:
+            return None
+        self.logger.error(
+            "Certificate._resolve_cahandler: no handler resolved; using default"
+        )
+        return self.cahandler
+
+    def _resolve_cahandler(
+        self,
+        csr: Optional[str] = None,
+        order_name: Optional[str] = None,
+        revocation: bool = False,
+        cert_raw: Optional[str] = None,
+    ) -> Optional[BoundCAHandler]:
+        """Resolve the CAhandler factory for enroll/revoke/poll."""
+        self.logger.debug("Certificate._resolve_cahandler()")
+        if self.cahandler_registry is None:
+            return self.cahandler
+
+        lookup_value = cert_raw if revocation and cert_raw else csr
+        cahandler_name = self._eab_cahandler_name(lookup_value, revocation)
+        order_profile, stored_name = self._cahandler_lookup_hints(
+            csr, cert_raw, order_name
+        )
+        bound = self.cahandler_registry.resolve(
+            cahandler_name=cahandler_name,
+            order_profile=order_profile,
+            csr=csr if not revocation else None,
+            stored_name=stored_name,
+        )
+        return self._bound_cahandler_or_fallback(bound, cahandler_name)
+
+    def _persist_order_cahandler(
+        self, order_name: Optional[str], handler_name: Optional[str]
+    ) -> None:
+        if not order_name or not handler_name:
+            return
+        if not self.cahandler_registry or not self.cahandler_registry.multi_handler:
+            return
+        try:
+            self.repository.order_update(
+                {"name": order_name, "cahandler": handler_name}
+            )
+        except Exception as err:
+            self.logger.warning(
+                "Failed to persist cahandler '%s' on order %s: %s",
+                handler_name,
+                order_name,
+                err,
+            )
 
     def _load_and_validate_identifiers(
         self, identifier_dic: Dict[str, str], csr: str
@@ -877,13 +1022,38 @@ class Certificate(object):
             self.logger.debug(
                 "Certificate._process_certificate_enrollment(): trigger enrollment"
             )
-            with self.cahandler(self.debug, self.logger) as ca_handler:
+            handler_factory = self._resolve_cahandler(csr=csr, order_name=order_name)
+            if handler_factory is None:
+                return (
+                    self.err_msg_dic.get("serverinternal", "Internal error"),
+                    None,
+                    None,
+                    None,
+                    False,
+                )
+            self._persist_order_cahandler(
+                order_name, getattr(handler_factory, "name", None)
+            )
+            handler_name = getattr(handler_factory, "name", None)
+            handler_section = getattr(handler_factory, "section", None)
+            if not isinstance(handler_name, str):
+                handler_name = "unknown"
+            extra = f" ({handler_section})" if isinstance(handler_section, str) else ""
+            self.logger.info(
+                "Certificate enrollment via CA handler '%s'%s",
+                handler_name,
+                extra,
+            )
+            with handler_factory(self.debug, self.logger) as ca_handler:
                 (
                     error,
                     certificate,
                     certificate_raw,
                     poll_identifier,
                 ) = ca_handler.enroll(csr)
+                error, certificate, certificate_raw = self._cert_bundle_rewrite(
+                    error, certificate, certificate_raw, handler_factory, csr
+                )
             cert_reusage = False
         else:
             self.logger.info("Reuse existing certificate")
@@ -892,15 +1062,61 @@ class Certificate(object):
         self.logger.debug("Certificate._process_certificate_enrollment() ended")
         return (error, certificate, certificate_raw, poll_identifier, cert_reusage)
 
-    def _get_certificate_renewal_info(self, certificate: str) -> str:
+    def _cert_bundle_rewrite(
+        self,
+        error: Optional[str],
+        certificate: Optional[str],
+        certificate_raw: Optional[str],
+        handler_factory: Optional[BoundCAHandler] = None,
+        csr: Optional[str] = None,
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Apply the resolved CAhandler chain rewrite to a PEM bundle."""
+        self.logger.debug("Certificate._cert_bundle_rewrite()")
+        if error or not certificate:
+            self.logger.debug("Certificate._cert_bundle_rewrite() skipped")
+            return error, certificate, certificate_raw
+
+        if isinstance(handler_factory, BoundCAHandler):
+            factory = handler_factory
+            if self.eab_profiling and self.eab_handler_class and csr:
+                profile = self._eab_cahandler_profile(csr)
+                overlay_error, factory = handler_factory.eab_chain_overlay(
+                    self.logger, profile
+                )
+                if overlay_error:
+                    self.logger.error(
+                        "Certificate chain rewrite failed: %s", overlay_error
+                    )
+                    self.logger.debug(
+                        "Certificate._cert_bundle_rewrite() ended with error"
+                    )
+                    return overlay_error, None, None
+            rewrite_error, certificate = factory.cert_chain_rewrite(
+                self.logger, certificate
+            )
+            if rewrite_error:
+                self.logger.error("Certificate chain rewrite failed: %s", rewrite_error)
+                self.logger.debug("Certificate._cert_bundle_rewrite() ended with error")
+                return rewrite_error, None, None
+
+        self.logger.debug("Certificate._cert_bundle_rewrite() ended")
+        return error, certificate, certificate_raw
+
+    def _get_certificate_renewal_info(self, certificate: str) -> Optional[str]:
         """get renewal info"""
         self.logger.debug("Certificate._renewal_info_get()")
 
         certificate_list = pembundle_to_list(self.logger, certificate)
 
-        renewal_info_hex = certid_asn1_get(
-            self.logger, certificate_list[0], certificate_list[1]
-        )
+        if len(certificate_list) > 1:
+            renewal_info_hex = certid_asn1_get(
+                self.logger, certificate_list[0], certificate_list[1]
+            )
+        else:
+            self.logger.warning(
+                "Skipping renewal info calculation, less than two certificates found in bundle"
+            )
+            renewal_info_hex = None
 
         self.logger.debug(
             "Certificate.certid_asn1_get() ended with %s", renewal_info_hex
@@ -950,7 +1166,11 @@ class Certificate(object):
                         "Exception during success_hook execution: %s", err
                     )
                     if not self.config.ignore_success_hook_failure:
-                        error = (None, "success_hook_error", str(err))
+                        error = (
+                            None,
+                            "success_hook_error",
+                            self._hook_failure_detail("success-hook failed", err),
+                        )
 
         except Exception as err_:
             result = None
@@ -968,7 +1188,7 @@ class Certificate(object):
         self, raw_error: str, poll_identifier: Optional[str]
     ) -> Tuple[str, str]:
         """Map internal enrollment failure to ACME type and client-visible detail."""
-        if poll_identifier:
+        if poll_identifier and not raw_error:
             return raw_error, poll_identifier
         if raw_error == "Either CN or SANs are not allowed by configuration":
             return (
@@ -1025,20 +1245,30 @@ class Certificate(object):
             except Exception as err:
                 self.logger.error("Exception during pre_hook execution: %s", err)
                 if not self.config.ignore_pre_hook_failure:
-                    hook_error = (None, "pre_hook_error", str(err))
+                    hook_error = (
+                        None,
+                        "pre_hook_error",
+                        self._hook_failure_detail("pre-hook failed", err),
+                    )
 
         self.logger.debug("Certificate._execute_pre_enrollment_hooks(%s)", hook_error)
         return hook_error
 
+    def _hook_failure_detail(self, fallback: str, err: BaseException) -> str:
+        """Client-visible hook detail. Raw text only when explicitly enabled."""
+        if self.config.hook_error_details_forward:
+            return str(err)
+        return fallback
+
     def _execute_post_enrollment_hooks(
         self, certificate_name: str, order_name: str, csr: str, error: str
-    ) -> List[str]:
+    ) -> Optional[Tuple[None, str, str]]:
         self.logger.debug(
             "Certificate._execute_post_enrollment_hooks(%s, %s",
             certificate_name,
             order_name,
         )
-        hook_error = []
+        hook_error = None
         if self.hooks:
             try:
                 self.hooks.post_hook(certificate_name, order_name, csr, error)
@@ -1048,9 +1278,11 @@ class Certificate(object):
             except Exception as err:
                 self.logger.error("Exception during post_hook execution: %s", err)
                 if not self.config.ignore_post_hook_failure:
-                    hook_error.append(
-                        str(err)
-                    )  # Append error message to hook_error list
+                    hook_error = (
+                        None,
+                        "post_hook_error",
+                        self._hook_failure_detail("post-hook failed", err),
+                    )
 
         self.logger.debug("Certificate._execute_post_enrollment_hooks(%s)", hook_error)
         return hook_error
@@ -1129,7 +1361,11 @@ class Certificate(object):
         return (result, error, detail)
 
     def _check_identifier_match(
-        self, cert_type: str, cert_value: str, identifiers: List[str], san_is_in: bool
+        self,
+        cert_type: str,
+        cert_value: str,
+        identifiers: List[Dict[str, str]],
+        san_is_in: bool,
     ) -> bool:
         """Check if identifier matches certificate values"""
         self.logger.debug(
@@ -1489,7 +1725,9 @@ class Certificate(object):
         self.logger.debug("Certificate._store_certificate_error(%s) ended", cert_id)
         return cert_id
 
-    def _check_for_tnauth_identifiers(self, identifier_dic: Dict[str, str]) -> int:
+    def _check_for_tnauth_identifiers(
+        self, identifier_dic: List[Dict[str, str]]
+    ) -> int:
         """Check if we have TNAuth list identifiers"""
         self.logger.debug("Certificate._check_for_tnauth_identifiers()")
         # check if we have a tnauthlist identifier
@@ -1801,9 +2039,13 @@ class Certificate(object):
     ) -> Dict[str, str]:
         """Prepare and format certificate response"""
         try:
-            status_dic = {"code": code, "type": message, "detail": detail}
-            response_dic = self.message.prepare_response(
-                response_dic, status_dic, account_name=account_name
+            response_dic = finish_response(
+                self.message,
+                response_dic,
+                code,
+                message,
+                detail,
+                account_name=account_name,
             )
 
             # Serialize dict data to JSON if needed
@@ -1959,7 +2201,13 @@ class Certificate(object):
 
             # Perform revocation
             rev_date = uts_to_date_utc(uts_now())
-            with self.cahandler(self.debug, self.logger) as ca_handler:
+            handler_factory = self._resolve_cahandler(
+                cert_raw=payload.get("certificate"),
+                revocation=True,
+            )
+            if handler_factory is None:
+                return 500, self.err_msg_dic["serverinternal"], None
+            with handler_factory(self.debug, self.logger) as ca_handler:
                 code, message, detail = ca_handler.revoke(
                     payload["certificate"], error, rev_date
                 )
@@ -2001,13 +2249,12 @@ class Certificate(object):
             validation_errors = self._validate_input_parameters(content=content)
             if validation_errors:
                 self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
-                return self.message.prepare_response(
+                return finish_response(
+                    self.message,
                     {},
-                    {
-                        "code": 400,
-                        "type": self.err_msg_dic["malformed"],
-                        "detail": "Invalid content",
-                    },
+                    400,
+                    self.err_msg_dic["malformed"],
+                    "Invalid content",
                 )
 
             self.logger.debug("Certificate.revoke_certificate()")
@@ -2037,9 +2284,8 @@ class Certificate(object):
                     detail = "certificate not found"
 
             # Prepare response
-            status_dic = {"code": code, "type": message, "detail": detail}
-            response_dic = self.message.prepare_response(
-                {}, status_dic, account_name=account_name
+            response_dic = finish_response(
+                self.message, {}, code, message, detail, account_name=account_name
             )
 
             self.logger.debug(
@@ -2049,12 +2295,13 @@ class Certificate(object):
 
         except Exception as err:
             self.logger.critical("Unexpected error in revoke_certificate: %s", err)
-            error_response = {
-                "code": 500,
-                "type": self.err_msg_dic["serverinternal"],
-                "detail": "Unexpected error during revocation",
-            }
-            return self.message.prepare_response({}, error_response)
+            return finish_response(
+                self.message,
+                {},
+                500,
+                self.err_msg_dic["serverinternal"],
+                "Unexpected error during revocation",
+            )
 
     def _handle_successful_certificate_poll(
         self,
@@ -2146,7 +2393,12 @@ class Certificate(object):
 
             # Poll certificate from CA handler
             try:
-                with self.cahandler(self.debug, self.logger) as ca_handler:
+                handler_factory = self._resolve_cahandler(
+                    csr=csr, order_name=order_name
+                )
+                if handler_factory is None:
+                    return None
+                with handler_factory(self.debug, self.logger) as ca_handler:
                     (
                         error,
                         certificate,
@@ -2154,6 +2406,9 @@ class Certificate(object):
                         poll_identifier,
                         rejected,
                     ) = ca_handler.poll(certificate_name, poll_identifier, csr)
+                    error, certificate, certificate_raw = self._cert_bundle_rewrite(
+                        error, certificate, certificate_raw, handler_factory, csr
+                    )
             except Exception as err:
                 self.logger.error("Error polling certificate from CA handler: %s", err)
                 return None

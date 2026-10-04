@@ -20,7 +20,7 @@ runs:
   using: "composite"
   steps:
     - name: "Generate keys and certificates"
-      uses: ./.github/actions/cert_gen
+      uses: ./.github/actions/generate_a2c_certs
 
     - name: "Create docker network"
       run: |

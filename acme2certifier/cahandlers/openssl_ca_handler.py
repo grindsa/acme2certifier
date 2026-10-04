@@ -8,7 +8,6 @@ import json
 from typing import List, Tuple, Dict, Optional
 import base64
 import uuid
-import re
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
@@ -29,20 +28,35 @@ from acme2certifier.acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
     b64_url_recode,
+    b64_decode,
+    b64_encode,
+    cert_pem2der,
+    cert_der2pem,
     cert_serial_get,
     convert_string_to_byte,
     convert_byte_to_string,
     csr_cn_get,
-    csr_san_get,
+    config_enroll_config_log_load,
+    config_option_load,
+    enrollment_config_log,
+)
+from acme2certifier.acme_srv.helpers.eab_profile import (
+    chk_san_lists_get,
+    list_regex_check,
+    wllist_check,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 BLOCK_ALL_DOMAIN = "block.all"
 ACME_ERR_SERVER_INTERNAL = "urn:ietf:params:acme:error:serverInternal"
+_TRIGGER_ENDED_WITH_ERROR = "CAhandler.trigger() ended with error: %s"
 
 
 class CAhandler(object):
     """CA  handler"""
+
+    # Opt into the /trigger HTTP callback endpoint (see [Trigger] enabled).
+    supports_trigger = True
 
     def __init__(self, debug: bool = False, logger: object = None):
         self.debug = debug
@@ -61,6 +75,8 @@ class CAhandler(object):
         self.allowed_domainlist = []
         self.blocked_domainlist = []
         self.cn_enforce = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -449,28 +465,18 @@ class CAhandler(object):
             "CAhandler", "issuing_ca_cert", fallback=None
         )
 
-        if "issuing_ca_key_passphrase_variable" in config_dic["CAhandler"]:
-            try:
-                self.issuer_dict["passphrase"] = os.environ[
-                    config_dic.get("CAhandler", "issuing_ca_key_passphrase_variable")
-                ]
-            except Exception as err:
-                self.logger.error(
-                    "Unable to load issuing_ca_key_passphrase_variable from environment: %s",
-                    err,
-                )
-        if "issuing_ca_key_passphrase" in config_dic["CAhandler"]:
-            if "passphrase" in self.issuer_dict and self.issuer_dict["passphrase"]:
-                self.logger.info("Overwrite issuing_ca_key_passphrase_variable")
-            self.issuer_dict["passphrase"] = config_dic.get(
-                "CAhandler", "issuing_ca_key_passphrase"
+        if (
+            "issuing_ca_key_passphrase_variable" in config_dic["CAhandler"]
+            or "issuing_ca_key_passphrase" in config_dic["CAhandler"]
+        ):
+            passphrase = config_option_load(
+                self.logger,
+                config_dic,
+                "issuing_ca_key_passphrase",
+                current=self.issuer_dict.get("passphrase"),
             )
-
-        # convert passphrase
-        if "passphrase" in self.issuer_dict:
-            self.issuer_dict["passphrase"] = self.issuer_dict["passphrase"].encode(
-                "ascii"
-            )
+            if isinstance(passphrase, str):
+                self.issuer_dict["passphrase"] = passphrase.encode("ascii")
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
 
@@ -532,6 +538,11 @@ class CAhandler(object):
             "CAhandler", "save_cert_as_hex", fallback=False
         )
 
+        (
+            self.enrollment_config_log,
+            self.enrollment_config_log_skip_list,
+        ) = config_enroll_config_log_load(self.logger, config_dic)
+
         # relative volume/... paths → $ACME2CERTIFIER_BASE_DIR when set
         self._config_paths_resolve()
 
@@ -540,29 +551,9 @@ class CAhandler(object):
     def _chk_san_lists_get(self, csr: str) -> Tuple[List[str], List[bool]]:
         """check lists"""
         self.logger.debug("CAhandler._chk_san_lists_get()")
-
-        # get sans and build a list
-        _san_list = csr_san_get(self.logger, csr)
-
-        check_list = []
-        san_list = []
-
-        if _san_list:
-            for san in _san_list:
-                try:
-                    # SAN list must be modified/filtered)
-                    _san_type, san_value = san.lower().split(":")
-                    san_list.append(san_value)
-                except Exception:
-                    # force check to fail as something went wrong during parsing
-                    check_list.append(False)
-                    self.logger.debug(
-                        "CAhandler._csr_check(): san_list parsing failed at entry: %s",
-                        san,
-                    )
-
+        result = chk_san_lists_get(self.logger, csr)
         self.logger.debug("CAhandler._chk_san_lists_get() ended")
-        return (san_list, check_list)
+        return result
 
     def _cn_add(self, csr: str, san_list: List[str]) -> Tuple[List[str], str]:
         """add CN if required"""
@@ -628,16 +619,7 @@ class CAhandler(object):
     def _list_regex_check(self, entry: str, list_: List[str]) -> bool:
         """check entry against regex"""
         self.logger.debug("CAhandler._list_regex_check()")
-
-        check_result = False
-        for regex in list_:
-            if regex.startswith("*."):
-                regex = regex.replace("*.", ".")
-            regex_compiled = re.compile(regex)
-            if bool(regex_compiled.search(entry)):
-                # parameter is in set flag accordingly and stop loop
-                check_result = True
-
+        check_result = list_regex_check(self.logger, entry, list_)
         self.logger.debug("CAhandler._list_regex_check() ended with: %s", check_result)
         return check_result
 
@@ -645,21 +627,7 @@ class CAhandler(object):
         """check string against list"""
         self.logger.debug("CAhandler._list_check(%s:%s)", entry, toggle)
         self.logger.debug("check against list: %s", str(list_))
-
-        # default setting
-        check_result = False
-
-        if entry:
-            if list_:
-                check_result = self._list_regex_check(entry, list_)
-            else:
-                # empty list, flip parameter to make the check successful
-                check_result = True
-
-        if toggle:
-            # toggle result if this is a blocked_domainlist
-            check_result = not check_result
-
+        check_result = wllist_check(self.logger, entry, list_, toggle)
         self.logger.debug("CAhandler._list_check() ended with: %s", check_result)
         return check_result
 
@@ -902,6 +870,12 @@ class CAhandler(object):
         error = self._config_check()
 
         if not error:
+            if self.enrollment_config_log:
+                # passphrase lives inside issuer_dict
+                skip_list = self.enrollment_config_log_skip_list
+                if isinstance(skip_list, list):
+                    skip_list = skip_list + ["issuer_dict"]
+                enrollment_config_log(self.logger, self, skip_list)
             try:
                 # check CN and SAN against black/whitlist
                 result, enforce_cn = self._csr_check(csr)
@@ -1110,13 +1084,49 @@ class CAhandler(object):
         self.logger.debug("CAhandler.revoke() ended")
         return self._revoke_return(200)
 
-    def trigger(self, _payload: str) -> Tuple[str, str, str]:
+    def _trigger_error_return(
+        self, error: str
+    ) -> Tuple[str, Optional[str], Optional[str]]:
+        """Log a trigger failure and return the standard error triple."""
+        self.logger.debug(_TRIGGER_ENDED_WITH_ERROR, error)
+        return (error, None, None)
+
+    def _trigger_leaf_from_payload(self, payload: str) -> Tuple[str, str]:
+        """Decode trigger payload as PEM or DER; return (leaf_pem, cert_raw_b64)."""
+        cert = b64_decode(self.logger, payload)
+        try:
+            leaf_pem = cert if isinstance(cert, str) else convert_byte_to_string(cert)
+            cert_raw = b64_encode(self.logger, cert_pem2der(leaf_pem))
+            return (leaf_pem, cert_raw)
+        except Exception:
+            der_bytes = convert_string_to_byte(cert) if isinstance(cert, str) else cert
+            cert_raw = b64_encode(self.logger, der_bytes)
+            leaf_pem = convert_byte_to_string(cert_der2pem(der_bytes))
+            return (leaf_pem, cert_raw)
+
+    def _trigger_issuing_ca_path(self) -> Optional[str]:
+        """Ensure issuing CA cert is configured and exists on disk."""
+        if not self.issuer_dict.get("issuing_ca_cert"):
+            self._config_load()
+        issuing_ca_cert = self.issuer_dict.get("issuing_ca_cert")
+        if issuing_ca_cert and os.path.exists(issuing_ca_cert):
+            return issuing_ca_cert
+        return None
+
+    def trigger(self, payload: str) -> Tuple[str, str, str]:
         """process trigger message and return certificate"""
         self.logger.debug("CAhandler.trigger()")
 
-        error = "Method not implemented."
-        cert_bundle = None
-        cert_raw = None
+        if not payload:
+            return self._trigger_error_return("No payload given")
 
-        self.logger.debug("CAhandler.trigger() ended with error: %s", error)
-        return (error, cert_bundle, cert_raw)
+        issuing_ca_cert = self._trigger_issuing_ca_path()
+        if not issuing_ca_cert:
+            return self._trigger_error_return("issuing_ca_cert missing or unreadable")
+
+        leaf_pem, cert_raw = self._trigger_leaf_from_payload(payload)
+        with open(issuing_ca_cert, "r", encoding="utf8") as ca_fso:
+            cert_bundle = self._pemcertchain_generate(leaf_pem, ca_fso.read())
+
+        self.logger.debug(_TRIGGER_ENDED_WITH_ERROR, None)
+        return (None, cert_bundle, cert_raw)

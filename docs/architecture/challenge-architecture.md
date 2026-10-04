@@ -76,7 +76,7 @@ challenge_validators/
 
 1. **`HttpChallengeValidator`**: HTTP-01 challenge validation
 1. **`DnsChallengeValidator`**: DNS-01 challenge validation
-1. **`TlsAlpnChallengeValidator`**: TLS-ALPN-01 challenge validation
+1. **`TlsAlpnChallengeValidator`**: TLS-ALPN-01 challenge validation (RFC 8737: negotiated ALPN `acme-tls/1`, critical `id-pe-acmeIdentifier`, DNS connect pinned to the resolved address)
 1. **`EmailReplyChallengeValidator`**: Email-reply-00 challenge validation
 1. **`TkauthChallengeValidator`**: TKAuth-01 challenge validation
 1. **`SourceAddressValidator`**: Source address validation support

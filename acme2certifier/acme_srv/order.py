@@ -33,11 +33,10 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     DB_ERROR_MSG,
 )
 from acme2certifier.acme_srv.helpers.resource_ownership import (
-    log_ownership_denial,
-    ownership_unauthorized,
-    resource_owner_matches,
+    ResourceOwnershipLookupError,
+    resolve_resource_ownership,
 )
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 
 
 class OrderDatabaseError(Exception):
@@ -206,11 +205,16 @@ class Order(object):
     """class for order handling"""
 
     def __init__(
-        self, debug: bool = None, server_name: str = None, logger: object = None
+        self,
+        debug: bool = None,
+        server_name: str = None,
+        logger: object = None,
+        config_dic=None,
     ) -> None:
         """Initialize the Order handler"""
         self.debug = debug
         self.server_name = server_name
+        self.config_dic = config_dic
         self.config = OrderConfiguration()
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
@@ -220,7 +224,9 @@ class Order(object):
             "cert_path": "/acme/cert/",
         }
         self.repository = OrderRepository(self.dbstore, self.logger)
-        self.message = Message(self.debug, self.server_name, self.logger)
+        self.message = Message(
+            self.debug, self.server_name, self.logger, config_dic=config_dic
+        )
         self.error_msg_dic = error_dic_get(self.logger)
 
     def __enter__(self) -> "Order":
@@ -725,7 +731,7 @@ class Order(object):
     def _load_configuration(self):
         """Load all configuration from file."""
         self.logger.debug("Order._load_configuration()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
         # load order config
         self._load_order_config(config_dic)
         self._load_header_info_config(config_dic)
@@ -1223,7 +1229,9 @@ class Order(object):
             self.logger.critical(
                 f"{DB_ERROR_MSG}: failed to look up order account: %s", err_
             )
-            return None
+            raise ResourceOwnershipLookupError(
+                f"failed to look up order account for {order_name}"
+            ) from err_
         if not order_dic:
             return None
         return order_dic.get("account__name") or order_dic.get("account")
@@ -1232,11 +1240,13 @@ class Order(object):
         self, order_name: str, account_name: Optional[str]
     ) -> Tuple[int, str, str]:
         """Verify the requester owns the order."""
-        owner = self._get_order_account_name(order_name)
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(self.logger, account_name, "order", order_name)
-            return ownership_unauthorized()
-        return (200, None, None)
+        return resolve_resource_ownership(
+            self.logger,
+            account_name,
+            "order",
+            order_name,
+            lambda: self._get_order_account_name(order_name),
+        )
 
     def _header_info_lookup(self, header: Optional[Dict[str, Any]]) -> str:
         """lookup header information and serialize them in a string"""
@@ -1490,7 +1500,12 @@ class Order(object):
         self, order_name: str, csr: str, header_info: str
     ) -> Tuple[int, str, str]:
         """Store CSR and perform enrollment for an order."""
-        with Certificate(self.debug, self.server_name, self.logger) as certificate:
+        with Certificate(
+            self.debug,
+            self.server_name,
+            self.logger,
+            config_dic=self.config_dic,
+        ) as certificate:
             certificate.config.ca_error_details_forward = (
                 self.config.ca_error_details_forward
             )
@@ -1559,7 +1574,7 @@ class Order(object):
         self.logger.debug("Order._order_dic_create() ended")
         return order_dic
 
-    def _get_authorization_list(self, order_name: str) -> List[str]:
+    def _get_authorization_list(self, order_name: str) -> List[Dict[str, Any]]:
         """Lookup authorization list. Returns list or empty list on error."""
         self.logger.debug("Order._get_authorization_list(%s)", order_name)
         try:
@@ -1575,7 +1590,10 @@ class Order(object):
         return authz_list
 
     def _update_validity_list(
-        self, authz_list: List[str], order_dic: Dict[str, str], order_name: str
+        self,
+        authz_list: List[Dict[str, Any]],
+        order_dic: Dict[str, str],
+        order_name: str,
     ):
         """update validity list and order status"""
         self.logger.debug("Order._update_validity_list()")
@@ -1725,9 +1743,13 @@ class Order(object):
                 detail = "Could not process order"
 
         # prepare/enrich response
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, account_name=account_name
+        response_dic = finish_response(
+            self.message,
+            response_dic,
+            code,
+            message,
+            detail,
+            account_name=account_name,
         )
 
         self.logger.debug(
@@ -1840,9 +1862,13 @@ class Order(object):
                     ] = f'{self.server_name}{self.path_dic["cert_path"]}{certificate_name}'
 
         # prepare/enrich response
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, account_name=account_name
+        response_dic = finish_response(
+            self.message,
+            response_dic,
+            code,
+            message,
+            detail,
+            account_name=account_name,
         )
 
         self.logger.debug(

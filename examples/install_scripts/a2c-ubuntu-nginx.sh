@@ -82,6 +82,23 @@ else
   SUDO="sudo"
 fi
 
+# Leave values unquoted. uWSGI 2.0.24 (Debian) drops only the first " on an
+# env line and keeps the closing quote in the value. $$ is uWSGI's escape for $, %% for %.
+# Reject @( / %( placeholders (uWSGI opens them as files / interpolates).
+a2c_uwsgi_env_set() {
+  local ini="$1" key="$2" value="$3" escaped
+  if [[ "$value" == *'@('* || "$value" == *'%('* ]]; then
+    echo "ERROR: ${key} contains uWSGI placeholder syntax @( or %(" >&2
+    return 1
+  fi
+  if [[ "$value" == *$'\n'* || "$value" == *'"'* ]]; then
+    echo "ERROR: ${key} contains a newline or double quote" >&2
+    return 1
+  fi
+  escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/\$/$$/g; s/%/%%/g')"
+  printf 'env = %s=%s\n' "$key" "$escaped" | ${SUDO} tee -a "$ini" >/dev/null
+}
+
 echo "==> Installing system packages"
 ${SUDO} apt-get update
 ${SUDO} apt-get install -y \
@@ -213,22 +230,28 @@ else
     -subj "/CN=localhost"
 fi
 
-# Optional lab OpenSSL CA material when present in checkout
+# Optional lab OpenSSL CA material (generate if missing)
 if [[ -d "test/ca" ]]; then
-  echo "==> Installing example OpenSSL CA material from test/ca"
-  ${SUDO} mkdir -p "${APP_ROOT}/volume/acme_ca/certs"
-  ${SUDO} cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
-    test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem \
-    "${APP_ROOT}/volume/acme_ca/" || true
-  if [[ -f ".github/acme_srv.openssl.cfg" ]]; then
-    ${SUDO} cp .github/acme_srv.openssl.cfg "${CFG}"
-    ${SUDO} ln -sfn "${CFG}" "${APP_ROOT}/acme_srv/acme_srv.cfg"
-    if grep -qE '^handler:' "${CFG}"; then
-      ${SUDO} sed -i "s/^handler:.*/handler: ${MODE}/" "${CFG}"
-    elif grep -q '^\[DBhandler\]' "${CFG}"; then
-      ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${MODE}" "${CFG}"
-    else
-      printf '\n[DBhandler]\nhandler: %s\n' "${MODE}" | ${SUDO} tee -a "${CFG}" >/dev/null
+  if [[ ! -f "test/ca/sub-ca-key.pem" && -x "tools/make_test_cas.sh" ]]; then
+    echo "==> Bootstrapping example OpenSSL CA under test/ca"
+    tools/make_test_cas.sh bootstrap || true
+  fi
+  if [[ -f "test/ca/sub-ca-key.pem" ]]; then
+    echo "==> Installing example OpenSSL CA material from test/ca"
+    ${SUDO} mkdir -p "${APP_ROOT}/volume/acme_ca/certs"
+    ${SUDO} cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
+      test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem \
+      "${APP_ROOT}/volume/acme_ca/" || true
+    if [[ -f ".github/acme_srv.openssl.cfg" ]]; then
+      ${SUDO} cp .github/acme_srv.openssl.cfg "${CFG}"
+      ${SUDO} ln -sfn "${CFG}" "${APP_ROOT}/acme_srv/acme_srv.cfg"
+      if grep -qE '^handler:' "${CFG}"; then
+        ${SUDO} sed -i "s/^handler:.*/handler: ${MODE}/" "${CFG}"
+      elif grep -q '^\[DBhandler\]' "${CFG}"; then
+        ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${MODE}" "${CFG}"
+      else
+        printf '\n[DBhandler]\nhandler: %s\n' "${MODE}" | ${SUDO} tee -a "${CFG}" >/dev/null
+      fi
     fi
   fi
 fi
@@ -238,20 +261,30 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     ACME2CERTIFIER_SECRET_KEY="$("${VENV}/bin/a2c-django-secret-keygen")"
   fi
-  # Persist secret for the uWSGI service
+  # Persist Django env for the uWSGI service
   if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' "${UWSGI_INI}"; then
-    echo "env = ACME2CERTIFIER_SECRET_KEY=${ACME2CERTIFIER_SECRET_KEY}" | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
+    a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_SECRET_KEY "${ACME2CERTIFIER_SECRET_KEY}"
+  fi
+  if [[ -n "${ACME2CERTIFIER_ALLOWED_HOSTS:-}" ]]; then
+    ${SUDO} sed -i '/^env = ACME2CERTIFIER_ALLOWED_HOSTS=/d' "${UWSGI_INI}"
+    a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_ALLOWED_HOSTS "${ACME2CERTIFIER_ALLOWED_HOSTS}"
+  fi
+  if [[ -n "${ACME2CERTIFIER_DATABASE_URL:-}" ]]; then
+    ${SUDO} sed -i '/^env = ACME2CERTIFIER_DATABASE_URL=/d' "${UWSGI_INI}"
+    a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
   fi
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" migrate
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
+    ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     "${VENV}/bin/a2c-manage" loaddata status
 fi

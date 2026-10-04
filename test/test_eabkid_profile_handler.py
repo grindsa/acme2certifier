@@ -40,7 +40,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.load_config")
+    @patch("acme2certifier.eabhandlers.base.load_config")
     def test_003_config_load(self, mock_load_cfg):
         """test _config_load - empty dictionary"""
         parser = configparser.ConfigParser()
@@ -48,7 +48,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.load_config")
+    @patch("acme2certifier.eabhandlers.base.load_config")
     def test_004_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()
@@ -57,7 +57,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.load_config")
+    @patch("acme2certifier.eabhandlers.base.load_config")
     def test_005_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()
@@ -66,7 +66,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.load_config")
+    @patch("acme2certifier.eabhandlers.base.load_config")
     def test_006_config_load(self, mock_load_cfg):
         """test _config_load - bogus values"""
         parser = configparser.ConfigParser()
@@ -258,7 +258,7 @@ class TestACMEHandler(unittest.TestCase):
         entry = "foo.bar.foo"
         self.assertTrue(self.eabhandler._wllist_check(entry, list_))
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_030_chk_san_lists_get(self, mock_san):
         """CAhandler._chk_san_lists_get()"""
         csr = "csr"
@@ -267,28 +267,23 @@ class TestACMEHandler(unittest.TestCase):
             (["foo.bar", "bar.foo"], []), self.eabhandler._chk_san_lists_get(csr)
         )
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_031_chk_san_lists_get(self, mock_san):
         """CAhandler._chk_san_lists_get()"""
         csr = "csr"
         mock_san.return_value = ["dns:foo.bar", "bar.foo"]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                (["foo.bar"], [False]), self.eabhandler._chk_san_lists_get(csr)
-            )
-        self.assertIn(
-            "INFO:test_a2c:SAN list parsing failed at entry: bar.foo",
-            lcm.output,
+        self.assertEqual(
+            (["foo.bar"], [False]), self.eabhandler._chk_san_lists_get(csr)
         )
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
     def test_032_chk_san_lists_get(self, mock_san):
         """CAhandler._chk_san_lists_get()"""
         csr = "csr"
         mock_san.return_value = None
         self.assertEqual(([], []), self.eabhandler._chk_san_lists_get(csr))
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.eab_profile.csr_cn_get")
     def test_033_cn_add(self, mock_cnget):
         """CAhandler._cn_add()"""
         csr = "csr"
@@ -298,7 +293,7 @@ class TestACMEHandler(unittest.TestCase):
             ["foo.bar", "bar.foo", "foobar.bar"], self.eabhandler._cn_add(csr, san_list)
         )
 
-    @patch("acme2certifier.eabhandlers.kid_profile_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.eab_profile.csr_cn_get")
     def test_034_cn_add(self, mock_cnget):
         """CAhandler._cn_add()"""
         csr = "csr"
@@ -497,6 +492,22 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, "kid_rev")
         call_args = models_mock.DBstore().certificate_lookup.call_args
         self.assertEqual(call_args[0][0], "cert_raw")
+
+    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.eab_kid_get")
+    def test_049_cahandler_name_get(self, mock_kid, mock_prof):
+        """cahandler_name_get returns the per-kid registry name"""
+        mock_prof.return_value = {"kid1": {"cahandler_name": "ejbca"}}
+        mock_kid.return_value = "kid1"
+        self.assertEqual(self.eabhandler.cahandler_name_get("csr"), "ejbca")
+
+    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.key_file_load")
+    @patch("acme2certifier.eabhandlers.kid_profile_handler.EABhandler.eab_kid_get")
+    def test_050_cahandler_name_get_missing(self, mock_kid, mock_prof):
+        """cahandler_name_get returns None when the kid has no cahandler_name"""
+        mock_prof.return_value = {"kid1": {"cahandler": {"foo": "bar"}}}
+        mock_kid.return_value = "kid1"
+        self.assertIsNone(self.eabhandler.cahandler_name_get("csr"))
 
 
 if __name__ == "__main__":

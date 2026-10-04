@@ -18,7 +18,6 @@ dependencies = [
     "cryptography",
     "pyOpenssl==26.1.0",
     "dnspython",
-    "pytz",
     "python-dateutil",
     "requests",
     "pysocks",
@@ -52,17 +51,22 @@ ntlm = [
 ]
 django = [
     "Django",
+    "django-environ>=0.11.2",
 ]
 full = [
     "gssapi",
     "requests_gssapi",
     "requests_ntlm",
     "Django",
+    "django-environ>=0.11.2",
+    "PyMySQL",
+    "psycopg2-binary",
 ]
 test = [
     "pytest",
     "pytest-cov",
     "Django",
+    "django-environ>=0.11.2",
     "requests_ntlm",
 ]
 
@@ -78,6 +82,7 @@ a2c-cliuser-mgmt = "acme2certifier.tools.a2c_cliuser_mgmt:main"
 a2c-invalidator = "acme2certifier.tools.a2c_invalidator:main"
 a2c-report-generator = "acme2certifier.tools.a2c_report_generator:main"
 a2c-msicpr-connection-test = "acme2certifier.tools.a2c_msicpr_connection_test:main"
+a2c-harica-totp = "acme2certifier.tools.a2c_harica_totp:main"
 a2c-wsgi2django = "acme2certifier.tools.a2c_wsgi2django:main"
 
 [project.urls]
@@ -97,7 +102,6 @@ acme2certifier = [
     "share/skeletons/ca_handler/*",
     "share/skeletons/eab_handler/*",
     "share/skeletons/hooks/*",
-    "django_app/fixture/*",
     "django_app/fixtures/*",
     "django_app/migrations/*",
 ]
@@ -111,4 +115,14 @@ testpaths = ["test"]
 addopts = [
     "--cov=acme2certifier",
     "--cov-report=term:skip-covered",
+    "--cov-report=lcov",
 ]
+
+[tool.coverage.run]
+# Relative paths so IDE coverage (Markis / Testing) maps to workspace files.
+relative_files = true
+
+[tool.black]
+# py314 enables PEP 758 (except TypeError, ValueError without parens), which breaks
+# on Python <3.14 and fights other formatters/linters. Keep parentheses.
+target-version = ["py312"]

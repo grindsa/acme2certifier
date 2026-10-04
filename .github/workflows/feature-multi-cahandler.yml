@@ -31,7 +31,7 @@ permissions: {}
 
 jobs:
   guard:
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     permissions: {}
     uses: ./.github/workflows/_guard.yml
     with:
@@ -93,6 +93,7 @@ jobs:
           XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
           XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
           VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          ENABLE_EAB: "false"
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -100,10 +101,33 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Multi-CAhandler suite"
+      - name: "Profile + domain suite"
         uses: ./.github/actions/wf_specific/multi_cahandler/run_suite
         with:
           DEPLOYMENT_TYPE: container
+          SUITE: profile-domain
+
+      - name: "Enable EAB profiling"
+        uses: ./.github/actions/wf_specific/multi_cahandler/setup_cfg
+        with:
+          VOLUME_DIR: examples/Docker/data
+          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
+          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          ENABLE_EAB: "true"
+
+      - name: "Restart a2c"
+        uses: ./.github/actions/wf_specific/multi_cahandler/restart_a2c
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "EAB suite"
+        uses: ./.github/actions/wf_specific/multi_cahandler/run_suite
+        with:
+          DEPLOYMENT_TYPE: container
+          SUITE: eab
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -165,6 +189,7 @@ jobs:
           XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
           XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
           VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          ENABLE_EAB: "false"
 
       - name: "Execute install script"
         run: |
@@ -172,10 +197,34 @@ jobs:
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Multi-CAhandler suite"
+      - name: "Profile + domain suite"
         uses: ./.github/actions/wf_specific/multi_cahandler/run_suite
         with:
           DEPLOYMENT_TYPE: rpm
+          SUITE: profile-domain
+
+      - name: "Enable EAB profiling"
+        uses: ./.github/actions/wf_specific/multi_cahandler/setup_cfg
+        with:
+          VOLUME_DIR: data/volume
+          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
+          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          ENABLE_EAB: "true"
+
+      - name: "Restart a2c"
+        uses: ./.github/actions/wf_specific/multi_cahandler/restart_a2c
+        with:
+          DEPLOYMENT_TYPE: rpm
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB suite"
+        uses: ./.github/actions/wf_specific/multi_cahandler/run_suite
+        with:
+          DEPLOYMENT_TYPE: rpm
+          SUITE: eab
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -238,6 +287,7 @@ jobs:
           VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
           PATH_REWRITE_FROM: volume
           PATH_REWRITE_TO: /var/www/acme2certifier/volume
+          ENABLE_EAB: "false"
 
       - name: "Execute install script"
         run: |
@@ -246,10 +296,37 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           MODE: ${{ matrix.mode }}
 
-      - name: "Multi-CAhandler suite"
+      - name: "Profile + domain suite"
         uses: ./.github/actions/wf_specific/multi_cahandler/run_suite
         with:
           DEPLOYMENT_TYPE: deb
+          SUITE: profile-domain
+
+      - name: "Enable EAB profiling"
+        uses: ./.github/actions/wf_specific/multi_cahandler/setup_cfg
+        with:
+          VOLUME_DIR: data/volume
+          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
+          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
+          ENABLE_EAB: "true"
+
+      - name: "Restart a2c"
+        uses: ./.github/actions/wf_specific/multi_cahandler/restart_a2c
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "EAB suite"
+        uses: ./.github/actions/wf_specific/multi_cahandler/run_suite
+        with:
+          DEPLOYMENT_TYPE: deb
+          SUITE: eab
 
       - name: "Channel teardown"
         if: ${{ always() }}

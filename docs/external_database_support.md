@@ -11,6 +11,20 @@ All [databases supported by Django](https://docs.djangoproject.com/en/5.0/ref/da
 
 The following documentation explains how to configure Django-based database access depending on your installation method.
 
+You can also set **`ACME2CERTIFIER_DATABASE_URL`** instead of editing `DATABASES` in a Python settings file:
+
+```bash
+export ACME2CERTIFIER_DATABASE_URL='mysql://acme2certifier:a2cpasswd@dbhost/acme2certifier'
+# Postgres:
+# export ACME2CERTIFIER_DATABASE_URL='postgres://acme2certifier:a2cpasswd@dbhost/acme2certifier'
+# MariaDB TLS (CA on the volume):
+# export ACME2CERTIFIER_DATABASE_URL='mysql://acme2certifier:a2cpasswd@dbhost/acme2certifier?ca=/var/www/acme2certifier/volume/db-ca.pem'
+# Postgres TLS:
+# export ACME2CERTIFIER_DATABASE_URL='postgres://acme2certifier:a2cpasswd@dbhost/acme2certifier?sslmode=verify-ca&sslrootcert=/var/www/acme2certifier/volume/db-ca.pem'
+```
+
+Install scripts persist the variable into uWSGI `env =` / Apache `envvars` when it is set at install time. A copied `examples/django/settings.py` still works; if the URL is set it wins over the MySQL template in that file.
+
 This guide focuses on Docker and **Ubuntu 24.04**-based deb deployments; however, adapting it to other Linux distributions should not be difficult.
 
 ## Preparation
@@ -68,35 +82,6 @@ GRANT postgres TO acme2certifier;
 ```bash
 sudo apt-get install python3-django python3-psycopg2
 ```
-
-### When Using SQL Server
-
-_SQL Server support has not been tested in the [release regression](https://github.com/grindsa/acme2certifier/actions/workflows/django_tests.yml) to the same extent as the other two databases._
-
-Note that this part of the guide is written for **Red Hat Enterprise Linux 9**.
-
-It is assumed that SQL Server is already installed and running.
-
-- Open SQL Server Management Studio.
-
-- Create the acme2certifier database and database user:
-
-```SQL
-CREATE DATABASE acme2certifier;
-CREATE LOGIN acme2certifier WITH PASSWORD = 'a2c+passwd';
-CREATE USER acme2certifier FOR LOGIN acme2certifier;
-```
-
-- From Object Explorer, open acme2certifier → Security → Logins → acme2certifier Properties. Under User Mapping, map the user to the database and grant the required roles. Under Server Roles, grant `public` and `sysadmin` as needed so the acme2certifier user has full access to the database.
-
-- Install missing Python modules:
-
-```bash
-pip install mssql-django pyodbc
-sudo dnf install unixODBC
-```
-
-- Follow [these instructions](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver15&tabs=redhat18-install%2Credhat17-install%2Cdebian8-install%2Credhat7-13-install%2Crhel7-offline#17) to install Microsoft ODBC 17.
 
 ## Install and Configure acme2certifier
 
@@ -215,25 +200,44 @@ DATABASES = {
 }
 ```
 
-### Connecting to SQL Server
+### Encrypting the Django database connection (TLS)
 
-- Modify `settings.py` and configure your database connection as below:
+Place the database server CA (PEM) on the acme2certifier volume (for example `/var/www/acme2certifier/volume/db-ca.pem` or `/opt/acme2certifier/volume/db-ca.pem` on RPM) and point Django at it. The DB server must present a certificate signed by that CA. There is no `acme_srv.cfg` key for this; it lives in `DATABASES['OPTIONS']` only. Client-certificate (mTLS) authentication is not used.
+
+**MariaDB** — encrypt and verify the server certificate (`verify-ca`; no hostname check). Add `"ssl"` to the existing `OPTIONS` dict:
 
 ```python
-DATABASES = {
-    "default": {
-        "ENGINE": "mssql",
-        "NAME": "acme2certifier",
-        "USER": "acme2certifier",
-        "PASSWORD": "a2c+passwd",
-        "HOST": "sqlserverdbsrv,1433",
-        "PORT": "",
-        "OPTIONS": {"driver": "ODBC Driver 17 for SQL Server"},
-    }
+"OPTIONS": {
+    "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
+    "charset": "utf8mb4",
+    "use_unicode": True,
+    "ssl": {"ca": "/var/www/acme2certifier/volume/db-ca.pem"},
+    # Optional hostname check (mysqlclient): "ssl_mode": "VERIFY_IDENTITY",
 }
 ```
 
-- You may also need to disable some SELinux settings for Apache, depending on your server configuration.
+**PostgreSQL** — add `OPTIONS` with `sslmode` `verify-ca` (or `verify-full` to also check the hostname). Use **absolute** paths only. libpq otherwise probes `$HOME/.postgresql/postgresql.crt`; after Apache/uWSGI `setuid` that is often `/root/.postgresql/postgresql.crt` and fails with `Permission denied`.
+
+On libpq 17+ disable the client-cert probe:
+
+```python
+"OPTIONS": {
+    "sslmode": "verify-ca",
+    "sslrootcert": "/var/www/acme2certifier/volume/db-ca.pem",
+    "sslcertmode": "disable",
+}
+```
+
+On older libpq, set `sslcert` and `sslkey` to absolute files so the default `~/.postgresql/` paths are never used (the server does not need to require client certs). libpq rejects a key with group/world access: `chmod 600` the key and make it readable by the Apache/uWSGI user (`www-data` or `nginx`).
+
+```python
+"OPTIONS": {
+    "sslmode": "verify-ca",
+    "sslrootcert": "/var/www/acme2certifier/volume/db-ca.pem",
+    "sslcert": "/var/www/acme2certifier/volume/db-client-cert.pem",
+    "sslkey": "/var/www/acme2certifier/volume/db-client-key.pem",
+}
+```
 
 ## Finalize acme2certifier configuration
 

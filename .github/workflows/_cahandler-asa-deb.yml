@@ -132,7 +132,7 @@ jobs:
       - name: "Header-info - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"$ASA_PROFILE1\", \"$ASA_PROFILE2\"]/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
         run: |
@@ -222,7 +222,7 @@ jobs:
       - name: "EAB with headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"$ASA_PROFILE1\", \"$ASA_PROFILE2\"]/g" data/volume/acme_srv.cfg
 
 
       - name: "Reconfigure a2c"

@@ -13,10 +13,20 @@ metadata:
     app: dns-masq
 spec:
   hostname: dnsmasq
+  automountServiceAccountToken: false
   containers:
     - name: dnsmasq
       image: gigantuar/dnsmasq:latest-amd64
       imagePullPolicy: Never
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "50m"
+          ephemeral-storage: "64Mi"
+        limits:
+          memory: "128Mi"
+          cpu: "200m"
+          ephemeral-storage: "128Mi"
       volumeMounts:
         - mountPath: /etc/dnsmasq.conf
           name: dnscfg

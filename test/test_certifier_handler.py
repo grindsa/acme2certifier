@@ -339,7 +339,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.api_user)
         self.assertIn(
-            "ERROR:test_a2c:Could not load user_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load api_user_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -354,10 +354,13 @@ class TestACMEHandler(unittest.TestCase):
             "api_user": "api_user",
         }
         mock_load_cfg.return_value = parser
-        self.cahandler._config_load()
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
         self.assertEqual("api_user", self.cahandler.api_user)
-        # self.assertIn("foo", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Overwrite api_user",
+            lcm.output,
+        )
         self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict("os.environ", {"api_password_var": "password_var"})
@@ -382,7 +385,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.api_password)
         self.assertIn(
-            "ERROR:test_a2c:Could not load passphrase_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load api_password_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -401,70 +404,53 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("api_password", self.cahandler.api_password)
         self.assertIn(
-            "INFO:test_a2c:Overwrite api_password_variable",
+            "INFO:test_a2c:Overwrite api_password",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.parse_url")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
-    def test_021_config_load(self, mock_load_cfg, mock_json, mock_url):
+    def test_021_config_load(self, mock_load_cfg, mock_proxy):
         """test _config_load ca_handler configured load proxies"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
         mock_load_cfg.return_value = parser
-        mock_url.return_value = {"foo": "bar"}
-        mock_json.return_value = "foo"
+        mock_proxy.return_value = {}
         self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertTrue(mock_url.called)
+        self.assertTrue(mock_proxy.called)
         self.assertFalse(self.cahandler.profile_id)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.proxy_check")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.parse_url")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
-    def test_022_config_load(self, mock_load_cfg, mock_json, mock_url, mock_chk):
+    def test_022_config_load(self, mock_load_cfg, mock_proxy):
         """test _config_load ca_handler configured load proxies"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
         mock_load_cfg.return_value = parser
-        mock_url.return_value = {"host": "bar:8888"}
-        mock_json.return_value = "foo.bar.local"
-        mock_chk.return_value = "proxy.bar.local"
+        mock_proxy.return_value = {
+            "http": "proxy.bar.local",
+            "https": "proxy.bar.local",
+        }
         self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertTrue(mock_url.called)
-        self.assertTrue(mock_chk.called)
+        self.assertTrue(mock_proxy.called)
         self.assertEqual(
             {"http": "proxy.bar.local", "https": "proxy.bar.local"},
             self.cahandler.proxy,
         )
         self.assertFalse(self.cahandler.profile_id)
 
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.proxy_check")
-    @patch("acme2certifier.cahandlers.certifier_ca_handler.parse_url")
-    @patch("json.loads")
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.config_proxy_load")
     @patch("acme2certifier.cahandlers.certifier_ca_handler.load_config")
-    def test_023_config_load(self, mock_load_cfg, mock_json, mock_url, mock_chk):
-        """test _config_load ca_handler configured load proxies"""
+    def test_023_config_load(self, mock_load_cfg, mock_proxy):
+        """test _config_load ca_handler configured load proxies with empty result"""
         parser = configparser.ConfigParser()
         parser["DEFAULT"] = {"proxy_server_list": "foo"}
         mock_load_cfg.return_value = parser
-        mock_url.return_value = {"host": "bar"}
-        mock_json.return_value = "foo.bar.local"
-        mock_chk.return_value = "proxy.bar.local"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_load()
-        self.assertTrue(mock_json.called)
-        self.assertTrue(mock_url.called)
-        self.assertFalse(mock_chk.called)
+        mock_proxy.return_value = {}
+        self.cahandler._config_load()
+        self.assertTrue(mock_proxy.called)
         self.assertFalse(self.cahandler.proxy)
-        self.assertIn(
-            "WARNING:test_a2c:Failed to parse proxy_server_list from configuration: not enough values to unpack (expected 2, got 1)",
-            lcm.output,
-        )
         self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict("os.environ", {"api_user_var": "user_var"})
@@ -860,6 +846,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 5
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -876,6 +863,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 5
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -891,6 +879,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -907,6 +896,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -924,6 +914,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
@@ -931,7 +922,7 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse.json = lambda: {
             "status": "accepted",
             "foo": "bar",
-            "certificate": "certificate",
+            "certificate": "request_url/certificate",
         }
         self.assertEqual(
             (
@@ -952,13 +943,14 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.polling_timeout = 6
         self.cahandler.timeout = 0
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         request_url = "request_url"
         mockresponse = Mock()
         mock_get.return_value = mockresponse
         mockresponse.json = lambda: {
             "status": "accepted",
             "foo": "bar",
-            "certificate": "certificate",
+            "certificate": "request_url/certificate",
             "certificateBase64": "certificateBase64",
         }
         mock_chain.return_value = "foo"
@@ -1484,7 +1476,8 @@ class TestACMEHandler(unittest.TestCase):
     def test_093__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - issuer in dict without certificateBase64"""
         self.cahandler.session = requests
-        cert_dic = {"issuer": "issuer"}
+        self.cahandler.api_host = "https://ca.example.com"
+        cert_dic = {"issuer": "https://ca.example.com/issuer"}
         mockresponse = Mock()
         mock_get.return_value = mockresponse
         mockresponse.json = lambda: {"foo": "bar"}
@@ -1494,7 +1487,11 @@ class TestACMEHandler(unittest.TestCase):
     def test_094__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns "certificates" but no active"""
         self.cahandler.session = requests
-        cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
+        self.cahandler.api_host = "https://ca.example.com"
+        cert_dic = {
+            "issuer": "https://ca.example.com/issuer",
+            "certificateBase64": "certificateBase641",
+        }
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": "certificates"}
         mockresponse2 = Mock()
@@ -1509,9 +1506,15 @@ class TestACMEHandler(unittest.TestCase):
     def test_095__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns certificate and active, 2nd request is bogus"""
         self.cahandler.session = requests
-        cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
+        self.cahandler.api_host = "https://ca.example.com"
+        cert_dic = {
+            "issuer": "https://ca.example.com/issuer",
+            "certificateBase64": "certificateBase641",
+        }
         mockresponse1 = Mock()
-        mockresponse1.json = lambda: {"certificates": {"active": "active"}}
+        mockresponse1.json = lambda: {
+            "certificates": {"active": "https://ca.example.com/active"}
+        }
         mockresponse2 = Mock()
         mockresponse2.json = lambda: {"foo": "bar"}
         mock_get.side_effect = [mockresponse1, mockresponse2]
@@ -1524,13 +1527,19 @@ class TestACMEHandler(unittest.TestCase):
     def test_096__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns certificate two certs"""
         self.cahandler.session = requests
-        cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
+        self.cahandler.api_host = "https://ca.example.com"
+        cert_dic = {
+            "issuer": "https://ca.example.com/issuer",
+            "certificateBase64": "certificateBase641",
+        }
         mockresponse1 = Mock()
-        mockresponse1.json = lambda: {"certificates": {"active": "active"}}
+        mockresponse1.json = lambda: {
+            "certificates": {"active": "https://ca.example.com/active"}
+        }
         mockresponse2 = Mock()
         mockresponse2.json = lambda: {
             "certificateBase64": "certificateBase642",
-            "issuer": "issuer",
+            "issuer": "https://ca.example.com/issuer2",
         }
         mockresponse3 = Mock()
         mockresponse3.json = lambda: {"foo": "bar"}
@@ -1544,20 +1553,28 @@ class TestACMEHandler(unittest.TestCase):
     def test_097__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - request returns certificate three certs"""
         self.cahandler.session = requests
-        cert_dic = {"issuer": "issuer", "certificateBase64": "certificateBase641"}
+        self.cahandler.api_host = "https://ca.example.com"
+        cert_dic = {
+            "issuer": "https://ca.example.com/issuer",
+            "certificateBase64": "certificateBase641",
+        }
         mockresponse1 = Mock()
-        mockresponse1.json = lambda: {"certificates": {"active": "active"}}
+        mockresponse1.json = lambda: {
+            "certificates": {"active": "https://ca.example.com/active"}
+        }
         mockresponse2 = Mock()
         mockresponse2.json = lambda: {
             "certificateBase64": "certificateBase642",
-            "issuer": "issuer",
+            "issuer": "https://ca.example.com/issuer2",
         }
         mockresponse3 = Mock()
-        mockresponse3.json = lambda: {"certificates": {"active": "active"}}
+        mockresponse3.json = lambda: {
+            "certificates": {"active": "https://ca.example.com/active2"}
+        }
         mockresponse4 = Mock()
         mockresponse4.json = lambda: {
             "certificateBase64": "certificateBase643",
-            "issuer": "issuer",
+            "issuer": "https://ca.example.com/issuer3",
         }
         mockresponse5 = Mock()
         mockresponse5.json = lambda: {"foo": "bar"}
@@ -1577,7 +1594,11 @@ class TestACMEHandler(unittest.TestCase):
     def test_098__pem_cert_chain_generate(self, mock_get):
         """_pem_cert_chain_generate - issuerCa in"""
         self.cahandler.session = requests
-        cert_dic = {"issuerCa": "issuerCa", "certificateBase64": "certificateBase641"}
+        self.cahandler.api_host = "https://ca.example.com"
+        cert_dic = {
+            "issuerCa": "https://ca.example.com/issuerCa",
+            "certificateBase64": "certificateBase641",
+        }
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"certificates": "certificates"}
         mockresponse2 = Mock()
@@ -1596,6 +1617,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_100_request_poll(self, mock_get):
         """test request poll request returned exception"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         self.cahandler.request_retries = 0
         mock_get.side_effect = Exception("exc_api_get")
         result = ('"status" field not found in response.', None, None, "url", False)
@@ -1609,6 +1631,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_101_request_poll(self, mock_get):
         """test request poll request returned unknown status"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "unknown"}
         mock_get.return_value = mockresponse
@@ -1619,6 +1642,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_102_request_poll(self, mock_get):
         """test request poll request returned status rejected"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "rejected"}
         mock_get.return_value = mockresponse
@@ -1629,6 +1653,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_103_request_poll(self, mock_get):
         """test request poll request returned status accepted but no certinformation in"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "accepted", "foo": "bar"}
         mock_get.return_value = mockresponse
@@ -1645,8 +1670,12 @@ class TestACMEHandler(unittest.TestCase):
     def test_104_request_poll(self, mock_get):
         """test request poll request returned status accepted but no certinformation in"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
-        mockresponse.json = lambda: {"status": "accepted", "certificate": "certificate"}
+        mockresponse.json = lambda: {
+            "status": "accepted",
+            "certificate": "url/certificate",
+        }
         mock_get.return_value = mockresponse
         result = (
             "certificateBase64 is missing in cert request response",
@@ -1664,10 +1693,11 @@ class TestACMEHandler(unittest.TestCase):
     def test_105_request_poll(self, mock_get, mock_pemgen):
         """test request poll request returned status accepted but no certinformation in"""
         self.cahandler.session = requests
+        self.cahandler.api_host = "url"
         mockresponse = Mock()
         mockresponse.json = lambda: {
             "status": "accepted",
-            "certificate": "certificate",
+            "certificate": "url/certificate",
             "certificateBase64": "certificateBase64",
         }
         mock_get.return_value = mockresponse
@@ -1745,21 +1775,151 @@ class TestACMEHandler(unittest.TestCase):
         """CAhandler._loop_poll() - request_operation returns non-dict"""
         self.cahandler.polling_timeout = 5
         self.cahandler.session = requests
+        self.cahandler.api_host = "request_url"
         mock_req_op.return_value = (200, "not_a_dict")
         result = self.cahandler._loop_poll("request_url")
         self.assertEqual((None, None, None, "request_url"), result)
 
+    def test_112_poll_url_allowed(self):
+        """poll URL must be under configured api_host"""
+        self.cahandler.api_host = "https://ca.example.com"
+        self.assertTrue(
+            self.cahandler._poll_url_allowed("https://ca.example.com/v1/requests/1")
+        )
+        self.assertTrue(self.cahandler._poll_url_allowed("https://ca.example.com"))
+        self.assertFalse(
+            self.cahandler._poll_url_allowed("https://evil.example.com/v1/requests/1")
+        )
+        self.assertFalse(
+            self.cahandler._poll_url_allowed("https://ca.example.com.evil/x")
+        )
+        self.assertFalse(self.cahandler._poll_url_allowed("file:///etc/passwd"))
+
+    def test_113_request_poll_rejects_foreign_host(self):
+        """_request_poll refuses URLs outside api_host"""
+        self.cahandler.api_host = "https://ca.example.com"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._request_poll("https://evil.example.com/x")
+        self.assertEqual(
+            (
+                "poll URL host does not match configured api_host",
+                None,
+                None,
+                "https://evil.example.com/x",
+                False,
+            ),
+            result,
+        )
+        self.assertTrue(any("Rejecting poll URL" in line for line in lcm.output))
+
+    def test_114_poll_url_allowed_missing_api_host_or_url(self):
+        """_poll_url_allowed fails closed when api_host or URL is empty"""
+        self.cahandler.api_host = None
+        self.assertFalse(
+            self.cahandler._poll_url_allowed("https://ca.example.com/v1/x")
+        )
+        self.cahandler.api_host = "https://ca.example.com"
+        self.assertFalse(self.cahandler._poll_url_allowed(""))
+        self.assertFalse(self.cahandler._poll_url_allowed(None))
+
+    def test_115_loop_poll_rejects_foreign_host(self):
+        """_loop_poll refuses URLs outside api_host"""
+        self.cahandler.api_host = "https://ca.example.com"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._loop_poll("https://evil.example.com/x")
+        self.assertEqual(
+            (
+                "poll URL host does not match configured api_host",
+                None,
+                None,
+                "https://evil.example.com/x",
+            ),
+            result,
+        )
+        self.assertTrue(any("Rejecting poll URL" in line for line in lcm.output))
+
     @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
-    def test_112__pem_list_cert_get(self, mock_req_op):
+    def test_116__pem_list_cert_get(self, mock_req_op):
         """CAhandler._pem_list_cert_get() - second request_operation returns non-dict"""
         self.cahandler.session = requests
-        cert_dic = {"issuerCa": "issuer_url"}
+        self.cahandler.api_host = "https://ca.example.com"
+        cert_dic = {"issuerCa": "https://ca.example.com/issuer"}
         mock_req_op.side_effect = [
-            (200, {"certificates": {"active": "active_url"}}),
+            (200, {"certificates": {"active": "https://ca.example.com/active"}}),
             (200, "not_a_dict"),
         ]
         result = self.cahandler._pem_list_cert_get(cert_dic)
         self.assertEqual({}, result)
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
+    def test_117_pem_list_cert_get_rejects_foreign_issuer(self, mock_req_op):
+        """Nested issuer URL outside api_host is not fetched"""
+        self.cahandler.session = requests
+        self.cahandler.api_host = "https://ca.example.com"
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            result = self.cahandler._pem_list_cert_get(
+                {"issuer": "https://evil.example.com/issuer"}
+            )
+        self.assertEqual({}, result)
+        mock_req_op.assert_not_called()
+        self.assertTrue(any("Rejecting CA-provided URL" in line for line in lcm.output))
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
+    def test_118_pem_list_cert_get_rejects_foreign_active(self, mock_req_op):
+        """Nested certificates.active URL outside api_host is not fetched"""
+        self.cahandler.session = requests
+        self.cahandler.api_host = "https://ca.example.com"
+        mock_req_op.return_value = (
+            200,
+            {"certificates": {"active": "https://evil.example.com/active"}},
+        )
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            result = self.cahandler._pem_list_cert_get(
+                {"issuer": "https://ca.example.com/issuer"}
+            )
+        self.assertEqual({}, result)
+        self.assertEqual(1, mock_req_op.call_count)
+        self.assertTrue(any("Rejecting CA-provided URL" in line for line in lcm.output))
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
+    def test_119_api_poll_rejects_foreign_certificate(self, mock_req_op):
+        """_api_poll refuses certificate href outside api_host"""
+        self.cahandler.session = requests
+        self.cahandler.api_host = "https://ca.example.com"
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            error, bundle, raw = self.cahandler._api_poll(
+                {"certificate": "https://evil.example.com/cert"}
+            )
+        self.assertEqual(
+            "CA-provided URL host does not match configured api_host", error
+        )
+        self.assertIsNone(bundle)
+        self.assertIsNone(raw)
+        mock_req_op.assert_not_called()
+        self.assertTrue(any("Rejecting CA-provided URL" in line for line in lcm.output))
+
+    @patch("acme2certifier.cahandlers.certifier_ca_handler.request_operation")
+    def test_120_poll_cert_get_rejects_foreign_certificate(self, mock_req_op):
+        """_poll_cert_get refuses nested certificate URL outside api_host"""
+        self.cahandler.session = requests
+        self.cahandler.api_host = "https://ca.example.com"
+        with self.assertLogs("test_a2c", level="WARNING"):
+            error, bundle, raw, poll_id, break_loop = self.cahandler._poll_cert_get(
+                {
+                    "status": "accepted",
+                    "certificate": "https://evil.example.com/cert",
+                },
+                "poll-id",
+                None,
+            )
+        self.assertEqual(
+            "CA-provided URL host does not match configured api_host", error
+        )
+        self.assertIsNone(bundle)
+        self.assertIsNone(raw)
+        self.assertEqual("poll-id", poll_id)
+        self.assertTrue(break_loop)
+        mock_req_op.assert_not_called()
 
 
 if __name__ == "__main__":

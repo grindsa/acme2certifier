@@ -158,7 +158,7 @@ jobs:
           mkdir -p examples/Docker/data
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"ssl_securesite_pro\", \"unknown\"]/g" examples/Docker/data/acme_srv.cfg
 
           cd examples/Docker/
           docker compose restart
@@ -367,7 +367,7 @@ jobs:
           sudo mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"ssl_securesite_pro\", \"unknown\"]/g" data/volume/acme_srv.cfg
 
         env:
           DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
@@ -579,7 +579,7 @@ jobs:
           sudo mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"ssl_securesite_pro\", \"unknown\"]/g" data/volume/acme_srv.cfg
 
         env:
           DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}

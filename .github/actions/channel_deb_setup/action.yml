@@ -46,6 +46,10 @@ inputs:
     description: "Download destination"
     required: false
     default: "data/"
+  TLS:
+    description: "Enable TLS on the Django database server"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -77,6 +81,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         IPV6: ${{ inputs.IPV6 }}
         UBUNTU_IMAGE: ${{ inputs.UBUNTU_IMAGE }}
+        TLS: ${{ inputs.TLS }}
 
     - name: "Download DEB artifact by name from build run"
       uses: ./.github/actions/download_artifact

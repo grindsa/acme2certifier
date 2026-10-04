@@ -32,6 +32,14 @@ inputs:
     description: "Build container during prep"
     required: false
     default: "false"
+  TLS:
+    description: "Enable TLS on the Django database server"
+    required: false
+    default: "false"
+  XCA_DB:
+    description: "Import XCA schema into a dedicated xca database"
+    required: false
+    default: "false"
   ARTIFACT_NAME:
     description: "Image artifact name; empty uses a2c-<run_id>.<websrv>.<dbhandler>.tar"
     required: false
@@ -73,3 +81,5 @@ runs:
         CONTAINER_BUILD: ${{ inputs.CONTAINER_BUILD }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         IPV6: ${{ inputs.IPV6 }}
+        TLS: ${{ inputs.TLS }}
+        XCA_DB: ${{ inputs.XCA_DB }}

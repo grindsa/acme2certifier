@@ -5,9 +5,7 @@ from __future__ import print_function
 from typing import Tuple, Dict, List
 import datetime
 import os
-import requests
 import json
-from requests_pkcs12 import Pkcs12Adapter
 
 # pylint: disable=e0401
 from acme2certifier.acme_srv.helper import (
@@ -28,9 +26,10 @@ from acme2certifier.acme_srv.helper import (
     config_profile_load,
     config_proxy_load,
     enrollment_config_log,
-    request_operation,
+    handler_config_check,
+    config_ca_bundle_load,
+    ca_api_request,
 )
-from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
 CONTENT_TYPE = "application/json"
 
@@ -71,13 +70,11 @@ class CAhandler(object):
 
     def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_get()")
         headers = {"Content-Type": CONTENT_TYPE, "X-Vault-Token": self.vault_token}
-
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
-            method="get",
-            url=url,
+            "get",
+            url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -85,17 +82,14 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-        self.logger.debug("CAhandler._api_get() ended with code: %s", code)
-        return code, content
 
     def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_post()")
         headers = {"Content-Type": CONTENT_TYPE, "X-Vault-Token": self.vault_token}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
-            method="post",
-            url=url,
+            "post",
+            url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -104,17 +98,14 @@ class CAhandler(object):
             retries=self.request_retries,
             retry_backoff=self.request_retry_backoff,
         )
-        self.logger.debug("CAhandler._api_post() ended with code: %s", code)
-        return code, content
 
     def _api_put(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
-        self.logger.debug("CAhandler._api_put()")
         headers = {"Content-Type": CONTENT_TYPE, "X-Vault-Token": self.vault_token}
-        code, content = request_operation(
+        return ca_api_request(
             self.logger,
-            method="put",
-            url=url,
+            "put",
+            url,
             headers=headers,
             proxy=self.proxy,
             timeout=self.request_timeout,
@@ -123,27 +114,19 @@ class CAhandler(object):
             retry_backoff=self.request_retry_backoff,
         )
 
-        self.logger.debug("CAhandler._api_put() ended with code: %s", code)
-        return code, content
-
     def _config_check(self) -> str:
         """check if config is valid"""
         self.logger.debug("CAhandler._config_check()")
-        error = None
-
-        error = None
-        for ele in [
-            "vault_url",
-            "vault_path",
-            self.profile_mapping_field,
-            "vault_token",
-        ]:
-            if not getattr(self, ele):
-
-                error = f"{ele} parameter is missing in config file"
-                self.logger.error("%s: %s", CONFIGURATION_ERROR_DETAIL, error)
-                break
-
+        error = handler_config_check(
+            self.logger,
+            self,
+            [
+                "vault_url",
+                "vault_path",
+                self.profile_mapping_field,
+                "vault_token",
+            ],
+        )
         self.logger.debug("CAhandler._config_check() ended with %s", error)
         return error
 
@@ -202,12 +185,9 @@ class CAhandler(object):
                     err,
                 )
 
-            try:
-                self.ca_bundle = config_dic.getboolean("CAhandler", "ca_bundle")
-            except Exception:
-                self.ca_bundle = config_dic.get(
-                    "CAhandler", "ca_bundle", fallback=self.ca_bundle
-                )
+            self.ca_bundle = config_ca_bundle_load(
+                self.logger, config_dic, current=self.ca_bundle
+            )
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
@@ -294,11 +274,7 @@ class CAhandler(object):
 
             if self.enrollment_config_log:
                 self.enrollment_config_log_skip_list.extend(
-                    [
-                        "vault_token",
-                        "enrollment_config_log_skip_list",
-                        "enrollment_config_log",
-                    ]
+                    ["enrollment_config_log_skip_list", "enrollment_config_log"]
                 )
                 enrollment_config_log(
                     self.logger, self, self.enrollment_config_log_skip_list
@@ -377,11 +353,7 @@ class CAhandler(object):
             if self.enrollment_config_log:
                 # log enrollment config
                 self.enrollment_config_log_skip_list.extend(
-                    [
-                        "vault_token",
-                        "enrollment_config_log_skip_list",
-                        "enrollment_config_log",
-                    ]
+                    ["enrollment_config_log_skip_list", "enrollment_config_log"]
                 )
                 enrollment_config_log(
                     self.logger, self, self.enrollment_config_log_skip_list

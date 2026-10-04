@@ -31,6 +31,9 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v7
 
+      - name: Generate openssl test CA
+        uses: ./.github/actions/generate_openssl_test_ca
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup
         with:
@@ -238,6 +241,9 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v7
 
+      - name: Generate openssl test CA
+        uses: ./.github/actions/generate_openssl_test_ca
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
         with:
@@ -431,6 +437,9 @@ jobs:
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v7
+
+      - name: Generate openssl test CA
+        uses: ./.github/actions/generate_openssl_test_ca
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup

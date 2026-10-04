@@ -58,6 +58,9 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v7
 
+      - name: Generate openssl test CA
+        uses: ./.github/actions/generate_openssl_test_ca
+
       - name: "Channel setup"
         uses: ./.github/actions/channel_container_setup
         with:
@@ -165,7 +168,7 @@ jobs:
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"template\", \"acme\"]/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -206,7 +209,7 @@ jobs:
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"template\", \"acme\"]/g" examples/Docker/data/acme_srv.cfg
 
 
           cd examples/Docker/
@@ -214,6 +217,8 @@ jobs:
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -250,7 +255,7 @@ jobs:
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
 
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"template\", \"acme\"]/g" examples/Docker/data/acme_srv.cfg
 
 
           cd examples/Docker/
@@ -258,6 +263,8 @@ jobs:
 
       - name: "EAB subject profiling - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -333,6 +340,8 @@ jobs:
 
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -340,6 +349,100 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+
+  # ---------------------------------------------------------
+  # Remote XCA schema (MariaDB / PostgreSQL) + Django ACME DB
+  # ---------------------------------------------------------
+  test-containers-remote-xdb:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - backend: mariadb
+            django_db: mariadb
+            xdb_engine: mysql
+            xdb_host: mariadbsrv.acme
+            ssl_ca: /tmp/data/mariadb/ssl/ca.pem
+          - backend: psql
+            django_db: psql
+            xdb_engine: postgresql
+            xdb_host: postgresdbsrv
+            ssl_ca: /tmp/data/pgsql/ssl/ca.pem
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: Generate openssl test CA
+        uses: ./.github/actions/generate_openssl_test_ca
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: apache2
+          DB_HANDLER: django
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+          DJANGO_DB: ${{ matrix.django_db }}
+          TLS: "true"
+          XCA_DB: "true"
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Setup a2c with xca_ca_handler (${{ matrix.backend }})"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_engine: ${{ matrix.xdb_engine }}
+            xdb_host: ${{ matrix.xdb_host }}
+            xdb_name: xca
+            xdb_user: acme2certifier
+            xdb_password: 1mmSvDFl
+            xdb_ssl_ca: volume/xca-db-ca.pem
+            xdb_ssl_mode: verify-ca
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+
+      - name: "Stage TLS CA and issuing CA files"
+        run: |
+          set -euo pipefail
+          sudo cp "${SSL_CA}" examples/Docker/data/xca-db-ca.pem
+          sudo chmod 644 examples/Docker/data/xca-db-ca.pem
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        env:
+          SSL_CA: ${{ matrix.ssl_ca }}
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: django
+          WEB_SRV: apache2
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-remote-xdb-${{ matrix.backend }}.tar.gz
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
@@ -363,6 +466,9 @@ jobs:
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v7
+
+      - name: Generate openssl test CA
+        uses: ./.github/actions/generate_openssl_test_ca
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_rpm_setup
@@ -476,7 +582,7 @@ jobs:
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"template\", \"acme\"]/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -521,7 +627,7 @@ jobs:
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
 
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"template\", \"acme\"]/g" data/volume/acme_srv.cfg
 
 
       - name: "Execute install script"
@@ -532,6 +638,8 @@ jobs:
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -567,7 +675,7 @@ jobs:
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
 
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"template\", \"acme\"]/g" data/volume/acme_srv.cfg
 
 
       - name: "Execute install script"
@@ -661,6 +769,8 @@ jobs:
 
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Channel teardown"
         if: ${{ always() }}
@@ -691,6 +801,9 @@ jobs:
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v7
+
+      - name: Generate openssl test CA
+        uses: ./.github/actions/generate_openssl_test_ca
 
       - name: "Channel setup"
         uses: ./.github/actions/channel_deb_setup
@@ -797,7 +910,7 @@ jobs:
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"template\", \"acme\"]/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
@@ -843,7 +956,7 @@ jobs:
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
 
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"template\", \"acme\"]/g" data/volume/acme_srv.cfg
 
 
       - name: "Reconfigure a2c "
@@ -855,6 +968,9 @@ jobs:
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -890,7 +1006,7 @@ jobs:
           sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
 
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]\nallowed_header_values: [\"template\", \"acme\"]/g" data/volume/acme_srv.cfg
 
 
       - name: "Reconfigure a2c "
@@ -904,6 +1020,7 @@ jobs:
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
         with:
           DEPLOYMENT_TYPE: "deb"
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -986,6 +1103,9 @@ jobs:
 
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "Channel teardown"
         if: ${{ always() }}
