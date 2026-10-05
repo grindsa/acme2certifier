@@ -33,8 +33,11 @@ from .helpers.certificates import (
     cert_bound_names_get,
     cert_ski_get,
     cert_extensions_get,
+    cert_acme_tls_alpn_extension_ok,
     cert_serial_get,
     pembundle_to_list,
+    cert_chain_skip,
+    cert_chain_append,
     certid_asn1_get,
     certid_hex_get,
     certid_check,
@@ -84,6 +87,7 @@ from .helpers.validation import (
     fqdn_in_san_check,
     validate_csr,
     validate_email,
+    normalize_email_address,
     validate_identifier,
     validate_ip,
     validate_fqdn,
@@ -113,11 +117,17 @@ from .helpers.network import (
     v6_adjust,
     header_info_get,
     get_url,
+    normalize_request_url,
+    protected_url_matches_request,
     configured_server_name_get,
     server_name_configuration_validate,
     parse_url,
     encode_url,
     request_operation,
+    client_session_apply,
+    ca_api_request,
+    RedirectCredentialStripSession,
+    resolve_request_session,
 )
 
 # Configuration
@@ -127,6 +137,12 @@ from .helpers.config import (
     config_eab_profile_load,
     config_headerinfo_load,
     config_enroll_config_log_load,
+    config_cert_chain_skip_list_load,
+    config_cert_chain_append_load,
+    config_cert_chain_link_check_load,
+    config_cert_chain_profile_load,
+    config_option_load,
+    config_ca_bundle_load,
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_async_mode_load,
@@ -174,6 +190,13 @@ from .helpers.plugin_loader import (
     eab_handler_load,
     hooks_load,
 )
+from .helpers.cahandler_registry import resolve_default_ca_handler
+
+# Resource ownership
+from .helpers.resource_ownership import (
+    check_resource_ownership,
+    resolve_resource_ownership,
+)
 
 # EAB functions
 from .helpers.eab import (
@@ -185,6 +208,12 @@ from .helpers.eab import (
     eab_profile_check,
     eab_profile_list_check,
     eab_profile_string_check,
+)
+from .helpers.eab_profile import (
+    chk_san_lists_get,
+    cn_add,
+    list_regex_check,
+    wllist_check,
 )
 
 # Domain utilities

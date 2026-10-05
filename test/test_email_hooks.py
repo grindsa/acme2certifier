@@ -1309,9 +1309,9 @@ class TestHooks(unittest.TestCase):
     def test_066_done_logs_debug_info(self, mock_smtp):
         """_done logs detailed debug information about SMTP connection"""
         self.hooks.smtp_use_tls = False
-        self.hooks.smtp_use_starttls = False
+        self.hooks.smtp_use_starttls = True
         self.hooks.smtp_server = "smtp.example.com"
-        self.hooks.smtp_port = 25
+        self.hooks.smtp_port = 587
         self.hooks.smtp_timeout = 30
         self.hooks.smtp_username = "testuser"
         self.hooks.smtp_password = "testpass"
@@ -1337,6 +1337,8 @@ class TestHooks(unittest.TestCase):
     @patch("acme2certifier.hookhandlers.email_hooks.smtplib.SMTP")
     def test_067_done_refuses_cleartext_auth(self, mock_smtp):
         """_done refuses SMTP AUTH when transport is not encrypted"""
+        from acme2certifier.hookhandlers.email_hooks import SECURITY_DISABLE_ACK_ENV
+
         self.hooks.smtp_use_tls = False
         self.hooks.smtp_use_starttls = False
         self.hooks.smtp_server = "smtp.example.com"
@@ -1349,8 +1351,9 @@ class TestHooks(unittest.TestCase):
         smtp_instance = MagicMock()
         mock_smtp.return_value.__enter__.return_value = smtp_instance
 
-        with self.assertLogs(self.logger, level="ERROR") as cm:
-            self.hooks._done()
+        with patch.dict("os.environ", {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with self.assertLogs(self.logger, level="ERROR") as cm:
+                self.hooks._done()
 
         self.assertTrue(
             any("Refusing SMTP AUTH without TLS/STARTTLS" in msg for msg in cm.output)
@@ -1358,7 +1361,7 @@ class TestHooks(unittest.TestCase):
         mock_smtp.return_value.login.assert_not_called()
         mock_smtp.return_value.sendmail.assert_not_called()
 
-    @patch.dict("os.environ", {"ACME2CERTIFIER_I_KNOW_THE_RISK": "1"})
+    @patch.dict("os.environ", {"ACME2CERTIFIER_I_KNOW_THE_RISK": "1"}, clear=False)
     @patch("acme2certifier.hookhandlers.email_hooks.smtplib.SMTP")
     def test_068_done_allows_cleartext_auth_with_break_glass(self, mock_smtp):
         """_done permits cleartext SMTP AUTH when break-glass env is set"""

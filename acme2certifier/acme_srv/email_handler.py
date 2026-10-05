@@ -7,6 +7,7 @@ import imaplib
 import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import make_msgid
 from typing import Dict, List, Callable, Optional, Any
 from acme2certifier.acme_srv.helper import load_config
 
@@ -134,8 +135,10 @@ class EmailHandler:
 
         self.logger.debug("EmailHandler._config_load() ended")
 
-    def send_email_challenge(self, to_address: str = None, token1: str = None):
-        """send challenge email"""
+    def send_email_challenge(
+        self, to_address: str = None, token1: str = None
+    ) -> Optional[str]:
+        """send challenge email and return the outbound Message-ID on success."""
         self.logger.debug("Challenge._email_send(%s)", to_address)
         message_text = f"""
 This is an automatically generated ACME challenge for the email address
@@ -148,7 +151,7 @@ this challenge automatically. Alternatively, you may need to manually
 copy the first token and paste it into the designated verification tool
 or application."""
 
-        self.send(
+        return self.send(
             to_address=to_address, subject=f"ACME: {token1}", message=message_text
         )
 
@@ -159,12 +162,12 @@ or application."""
         message: str,
         from_address: Optional[str] = None,
         html_message: Optional[str] = None,
-    ) -> bool:
-        """Send email via SMTP"""
+    ) -> Optional[str]:
+        """Send email via SMTP; return Message-ID on success, None on failure."""
         self.logger.debug("EmailHandler.send()")
 
         if not self._smtp_config_validate():
-            return False
+            return None
 
         try:
             # Create message
@@ -172,6 +175,7 @@ or application."""
             msg["Subject"] = subject
             msg["From"] = from_address or self.email_address
             msg["To"] = to_address
+            msg["Message-ID"] = make_msgid(domain=self._message_id_domain())
 
             if html_message:
                 # Add both plain text and HTML parts
@@ -198,12 +202,13 @@ or application."""
             server.send_message(msg)
             server.quit()
 
+            message_id = msg.get("Message-ID")
             self.logger.info("Email sent successfully to %s", to_address)
-            return True
+            return message_id
 
         except Exception as err:
             self.logger.error("Failed to send email: %s", err)
-            return False
+            return None
 
     def receive(
         self,
@@ -346,53 +351,93 @@ or application."""
         """Parse email message into dictionary"""
         self.logger.debug("EmailHandler._email_parse()")
 
+        parsed = self._email_parse_headers(email_message)
+        self._email_parse_body(parsed, email_message)
+
+        self.logger.debug("EmailHandler._email_parse() ended")
+        return parsed
+
+    def _email_parse_headers(self, email_message) -> Dict[str, Any]:
+        """Extract standard headers and detect mailing-list headers."""
+        self.logger.debug("EmailHandler._email_parse_headers()")
         parsed = {
             "subject": email_message.get("Subject", ""),
             "from": email_message.get("From", ""),
             "to": email_message.get("To", ""),
             "date": email_message.get("Date", ""),
+            "message_id": email_message.get("Message-ID", ""),
+            "in_reply_to": email_message.get("In-Reply-To", ""),
+            "references": email_message.get("References", ""),
+            "has_list_headers": False,
             "body": "",
             "html_body": "",
             "attachments": [],
         }
+        for header_name in email_message.keys():
+            if header_name.lower().startswith("list-"):
+                parsed["has_list_headers"] = True
+                break
+        return parsed
 
-        # Extract body content
+    @staticmethod
+    def _email_decode_part_payload(part) -> str:
+        """Decode a message part payload as UTF-8 text."""
+        return part.get_payload(decode=True).decode("utf-8", errors="ignore")
+
+    @staticmethod
+    def _email_part_is_attachment(part) -> bool:
+        """True when the part is marked as an attachment."""
+        return "attachment" in str(part.get("Content-Disposition", ""))
+
+    def _email_parse_attachment(
+        self, parsed: Dict[str, Any], part, content_type: str
+    ) -> None:
+        """Append attachment metadata to the parsed email dict."""
+        self.logger.debug("EmailHandler._email_parse_attachment(%s)", content_type)
+        filename = part.get_filename()
+        if not filename:
+            return
+        parsed["attachments"].append(
+            {
+                "filename": filename,
+                "content_type": content_type,
+                "content": part.get_payload(decode=True),
+            }
+        )
+
+    def _email_parse_multipart_part(self, parsed: Dict[str, Any], part) -> None:
+        """Extract body, HTML, or attachment content from a multipart part."""
+        self.logger.debug(
+            "EmailHandler._email_parse_multipart_part(%s)",
+            part.get_content_type(),
+        )
+        content_type = part.get_content_type()
+        if self._email_part_is_attachment(part):
+            self._email_parse_attachment(parsed, part, content_type)
+            return
+
+        if content_type == "text/plain":
+            parsed["body"] = self._email_decode_part_payload(part)
+        elif content_type == "text/html":
+            parsed["html_body"] = self._email_decode_part_payload(part)
+
+    def _email_parse_body(self, parsed: Dict[str, Any], email_message) -> None:
+        """Extract plain-text, HTML, and attachment content from the message."""
+        self.logger.debug("EmailHandler._email_parse_body()")
         if email_message.is_multipart():
             for part in email_message.walk():
-                content_type = part.get_content_type()
-                content_disposition = str(part.get("Content-Disposition", ""))
+                self._email_parse_multipart_part(parsed, part)
+            return
 
-                if (
-                    content_type == "text/plain"
-                    and "attachment" not in content_disposition
-                ):
-                    parsed["body"] = part.get_payload(decode=True).decode(
-                        "utf-8", errors="ignore"
-                    )
-                elif (
-                    content_type == "text/html"
-                    and "attachment" not in content_disposition
-                ):
-                    parsed["html_body"] = part.get_payload(decode=True).decode(
-                        "utf-8", errors="ignore"
-                    )
-                elif "attachment" in content_disposition:
-                    filename = part.get_filename()
-                    if filename:
-                        parsed["attachments"].append(
-                            {
-                                "filename": filename,
-                                "content_type": content_type,
-                                "content": part.get_payload(decode=True),
-                            }
-                        )
-        else:
-            parsed["body"] = email_message.get_payload(decode=True).decode(
-                "utf-8", errors="ignore"
-            )
+        parsed["body"] = self._email_decode_part_payload(email_message)
 
-        self.logger.debug("EmailHandler._email_parse() ended")
-        return parsed
+    def _message_id_domain(self) -> str:
+        """Derive a domain for generated Message-ID headers."""
+        if self.email_address and "@" in self.email_address:
+            return self.email_address.rsplit("@", 1)[1]
+        if self.smtp_server:
+            return self.smtp_server
+        return "localhost"
 
     def _smtp_config_validate(self) -> bool:
         """Validate SMTP configuration"""

@@ -32,16 +32,14 @@ from acme2certifier.acme_srv.helpers.domain_utils import (
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     SERVER_INTERNAL_TYPE,
-    log_ownership_denial,
-    ownership_lookup_failed,
-    ownership_unauthorized,
-    resource_owner_matches,
+    ResourceOwnershipLookupError,
+    resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.helpers.security_gate import (
     SECURITY_DISABLE_ACK_ENV,
     security_disable_acknowledged,
 )
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 from acme2certifier.acme_srv.nonce import Nonce
 
 NO_ORDER_INFO_LOG = "No order information found for authorization %s"
@@ -688,6 +686,7 @@ class Authorization(object):
         token: str,
         id_value: Optional[str],
         auth_details: Optional[Dict[str, str]],
+        is_wildcard: bool = False,
     ) -> ChallengeContext:
         """Build context object used by the dns-persist JIT validator."""
         account_name = (
@@ -713,6 +712,9 @@ class Authorization(object):
                 "allow_policy_wildcard": getattr(
                     self.config, "dns_persist_allow_policy_wildcard", False
                 ),
+                # Identifier value is normalized without "*."; carry the flag
+                # so policy=wildcard checks still apply for wildcard orders.
+                "wildcard_request": bool(is_wildcard),
             },
             dns_servers=self.config.dns_server_list,
             proxy_servers=None,
@@ -725,11 +727,12 @@ class Authorization(object):
         token: str,
         id_value: Optional[str],
         auth_details: Optional[Dict[str, str]],
+        is_wildcard: bool = False,
     ) -> bool:
         """Run dns-persist JIT validation and return True on successful validation."""
         try:
             validator_context = self._build_jit_validation_context(
-                authz_name, token, id_value, auth_details
+                authz_name, token, id_value, auth_details, is_wildcard=is_wildcard
             )
             self.logger.debug("JIT validator context: %s", validator_context)
 
@@ -838,7 +841,7 @@ class Authorization(object):
             and getattr(self.config, "dns_persist_jit_validation", False)
         ):
             jit_valid = self._run_jit_dns_validation(
-                authz_name, token, id_value, auth_details
+                authz_name, token, id_value, auth_details, is_wildcard=is_wildcard
             )
 
         if jit_valid:
@@ -892,6 +895,32 @@ class Authorization(object):
             authz_name, auth_details, id_type, id_value, authz_info
         )
 
+    def _warn_eab_unbounded_prevalidation(
+        self, eab_kid: str, key: str, value: List[str]
+    ) -> None:
+        """WARNING when an EAB profile applies full-universe prevalidation (intentional; not break-glass-gated)."""
+        if (
+            key == "prevalidated_domainlist"
+            and self._is_unbounded_domain_prevalidation(value)
+        ):
+            self.logger.warning(
+                "EAB profile (eab_kid: %s) applies prevalidated_domainlist=['*']; "
+                "challenge validation is skipped for all DNS identifiers for this account",
+                eab_kid,
+            )
+            return
+        if key == "prevalidated_iplist":
+            unbounded = [
+                entry for entry in value if self._is_unbounded_ip_network(entry)
+            ]
+            if unbounded:
+                self.logger.warning(
+                    "EAB profile (eab_kid: %s) applies unbounded IP prevalidation %s; "
+                    "challenge validation is skipped for those address spaces for this account",
+                    eab_kid,
+                    unbounded,
+                )
+
     def _apply_eab_profile(self, authz_name, auth_details):
         if not self.config.eab_profiling:
             return
@@ -916,6 +945,7 @@ class Authorization(object):
                         self.logger.debug(
                             f"Authorization._apply_eab_and_domain_whitelist() - apply {key} from eab profile."
                         )
+                        self._warn_eab_unbounded_prevalidation(eab_kid, key, value)
                         setattr(self.config, attr, value)
         except Exception as err:
             self.logger.error(
@@ -1182,9 +1212,12 @@ class Authorization(object):
 
     def _lookup_authorization_owner_account(self, authz_name: str) -> Optional[str]:
         """Return the account that owns an authorization."""
-        authz = self.repository.find_authorization_by_name(
-            authz_name, ["order__account__name"]
-        )
+        try:
+            authz = self.repository.find_authorization_by_name(
+                authz_name, ["order__account__name"]
+            )
+        except AuthorizationError as err:
+            raise ResourceOwnershipLookupError(str(err)) from err
         if not authz:
             return None
         return authz.get("order__account__name")
@@ -1193,14 +1226,13 @@ class Authorization(object):
         self, authz_name: str, account_name: Optional[str]
     ) -> Tuple[int, str, str]:
         """Verify the requester owns the authorization."""
-        try:
-            owner = self._lookup_authorization_owner_account(authz_name)
-        except AuthorizationError:
-            return ownership_lookup_failed()
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(self.logger, account_name, "authorization", authz_name)
-            return ownership_unauthorized()
-        return (200, None, None)
+        return resolve_resource_ownership(
+            self.logger,
+            account_name,
+            "authorization",
+            authz_name,
+            lambda: self._lookup_authorization_owner_account(authz_name),
+        )
 
     def _expire_authorizations_if_enabled(self) -> None:
         """Expire invalid authorizations unless expiry checks are disabled."""
@@ -1276,9 +1308,13 @@ class Authorization(object):
                 protected, account_name, code, message, detail
             )
 
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, account_name=account_name
+        response_dic = finish_response(
+            self.message,
+            response_dic,
+            code,
+            message,
+            detail,
+            account_name=account_name,
         )
         self.logger.debug(
             "Authorization.handle_post_request() returns: %s", json.dumps(response_dic)

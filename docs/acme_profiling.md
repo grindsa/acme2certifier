@@ -39,6 +39,7 @@ Depending on the CA-handler the profile value replaces a certain value in the CA
 | [ACME Handler](acme_ca.md)                                                      | profile                 |
 | [DigiCert® CertCentral](digicert.md)                                            | cert_type               |
 | [EJBCA](ejbca.md)                                                               | cert_profile_name       |
+| [HARICA CertManager](harica.md)                                               | transaction_type        |
 | [Insta ActiveCMS](asa.md)                                                       | profile_name            |
 | [Microsoft Certificate Enrollment Web Services](mscertsrv.md)                   | template                |
 | [Microsoft ICertPassage Remote Protocol (MS-ICPR)](msicpr.md)                   | template                |

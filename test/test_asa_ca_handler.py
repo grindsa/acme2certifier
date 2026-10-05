@@ -9,9 +9,16 @@ import unittest
 from unittest.mock import patch, Mock, MagicMock
 import requests
 import base64
+import configparser
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
+
+
+def _ca_cfg(options):
+    parser = configparser.ConfigParser()
+    parser["CAhandler"] = options
+    return parser
 
 
 class TestACMEHandler(unittest.TestCase):
@@ -55,7 +62,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_005_config_load(self, mock_config_load):
         """test _config_load"""
-        mock_config_load.return_value = {"CAhandler": {"api_host": "api_host"}}
+        mock_config_load.return_value = _ca_cfg({"api_host": "api_host"})
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
@@ -83,7 +90,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_006_config_load(self, mock_config_load):
         """test _config_load"""
-        mock_config_load.return_value = {"CAhandler": {"api_user": "api_user"}}
+        mock_config_load.return_value = _ca_cfg({"api_user": "api_user"})
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
@@ -111,7 +118,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_007_config_load(self, mock_config_load):
         """test _config_load"""
-        mock_config_load.return_value = {"CAhandler": {"api_password": "api_password"}}
+        mock_config_load.return_value = _ca_cfg({"api_password": "api_password"})
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
@@ -139,7 +146,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_008_config_load(self, mock_config_load):
         """test _config_load"""
-        mock_config_load.return_value = {"CAhandler": {"api_key": "api_key"}}
+        mock_config_load.return_value = _ca_cfg({"api_key": "api_key"})
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
@@ -167,14 +174,14 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")
     def test_009_config_load(self, mock_config_load):
         """test _config_load"""
-        mock_config_load.return_value = {
-            "CAhandler": {
+        mock_config_load.return_value = _ca_cfg(
+            {
                 "api_host": "api_host",
                 "api_user": "api_user",
                 "api_password": "api_password",
                 "api_key": "api_key",
             }
-        }
+        )
         self.cahandler._config_load()
         self.assertEqual("api_host", self.cahandler.api_host)
         self.assertEqual("api_user", self.cahandler.api_user)
@@ -470,7 +477,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._api_post("url", "data"),
             )
         self.assertIn(
-            "ERROR:test_a2c:Could not parse the response for an API post() request: 'str' object is not callable",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: 'str' object is not callable",
             lcm.output,
         )
 
@@ -495,7 +502,7 @@ class TestACMEHandler(unittest.TestCase):
                 (500, "exc_api_post"), self.cahandler._api_post("url", "data")
             )
         self.assertIn(
-            "ERROR:test_a2c:API post() request returned an error: exc_api_post",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_post",
             lcm.output,
         )
 
@@ -523,7 +530,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._api_get("url"),
             )
         self.assertIn(
-            "ERROR:test_a2c:Could not parse the response for an API get() request: 'str' object is not callable",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: 'str' object is not callable",
             lcm.output,
         )
 
@@ -537,7 +544,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((500, "exc_api_get"), self.cahandler._api_get("url"))
         self.assertIn(
-            "ERROR:test_a2c:API get() request returned error: exc_api_get",
+            "ERROR:test_a2c:Request_operation returned error: exc_api_get",
             lcm.output,
         )
 
@@ -571,8 +578,8 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._cert_status_get("cert"),
         )
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_san_get")
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
     def test_029__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = "cn"
@@ -580,34 +587,24 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("cn", self.cahandler._csr_cn_get("csr"))
         self.assertFalse(mock_san.called)
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_san_get")
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
     def test_030__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
         mock_san.return_value = ["dns:san0", "dns:san1"]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual("san0", self.cahandler._csr_cn_get("csr"))
-        self.assertIn("INFO:test_a2c:CN not found in CSR", lcm.output)
-        self.assertIn(
-            "INFO:test_a2c:CN not found in CSR. Using first SAN entry as CN: san0",
-            lcm.output,
-        )
+        self.assertEqual("san0", self.cahandler._csr_cn_get("csr"))
         self.assertTrue(mock_san.called)
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_san_get")
-    @patch("acme2certifier.cahandlers.asa_ca_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_san_get")
+    @patch("acme2certifier.acme_srv.helpers.csr.csr_cn_get")
     def test_031__csr_cn_get(self, mock_cn, mock_san):
         """test _csr_cn_get()"""
         mock_cn.return_value = None
         mock_san.return_value = None
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._csr_cn_get("csr"))
-        self.assertIn("INFO:test_a2c:CN not found in CSR", lcm.output)
-        self.assertIn(
-            "ERROR:test_a2c:CN not found in CSR. No SAN entries found",
-            lcm.output,
-        )
+        self.assertIn("ERROR:test_a2c:No SANs found in CSR", lcm.output)
         self.assertTrue(mock_san.called)
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuers_list")
@@ -709,7 +706,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({"issuers": ["ca_name"]}, self.cahandler._issuers_list())
         self.assertEqual(1, mock_get.call_count)
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.time.sleep")
+    @patch("acme2certifier.acme_srv.helpers.network.time.sleep")
     @patch("requests.get")
     def test_041_api_get_retries(self, mock_req, mock_sleep):
         """_api_get() retries transport failures then succeeds"""
@@ -1200,20 +1197,20 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch.dict("os.environ", {"api_user_var": "user_var"})
     def test_059_config_user_load(self):
         """test _config_load - load template with user variable"""
-        config_dic = {"api_user_variable": "api_user_var"}
-        self.cahandler._config_user_load(config_dic)
+        self.cahandler._config_user_load(_ca_cfg({"api_user_variable": "api_user_var"}))
         self.assertEqual("user_var", self.cahandler.api_user)
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_user_var": "user_var"})
     def test_060_config_user_load(self):
         """test _config_load - load template with user variable"""
-        config_dic = {"api_user_variable": "does_not_exist"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_user_load(config_dic)
+            self.cahandler._config_user_load(
+                _ca_cfg({"api_user_variable": "does_not_exist"})
+            )
         self.assertFalse(self.cahandler.api_user)
         self.assertIn(
-            "ERROR:test_a2c:Could not load user_variable: does_not_exist",
+            "ERROR:test_a2c:Could not load api_user_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_name)
@@ -1221,30 +1218,34 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch.dict("os.environ", {"api_user_var": "user_var"})
     def test_061_config_user_load(self):
         """test _config_load - load template with user variable"""
-        config_dic = {"api_user_variable": "api_user_var", "api_user": "api_user"}
-        self.cahandler._config_user_load(config_dic)
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_user_load(
+                _ca_cfg({"api_user_variable": "api_user_var", "api_user": "api_user"})
+            )
         self.assertEqual("api_user", self.cahandler.api_user)
-        # self.assertIn("foo", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Overwrite api_user",
+            lcm.output,
+        )
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_host_var": "host_var"})
     def test_062_config_host_load(self):
         """test _config_load - load template with host variable"""
-        config_dic = {"api_host_variable": "api_host_var"}
-        self.cahandler._config_host_load(config_dic)
+        self.cahandler._config_host_load(_ca_cfg({"api_host_variable": "api_host_var"}))
         self.assertEqual("host_var", self.cahandler.api_host)
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_host_var": "host_var"})
     def test_063_config_host_load(self):
         """test _config_load - load template with host variable"""
-        config_dic = {"api_host_variable": "does_not_exist"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_host_load(config_dic)
+            self.cahandler._config_host_load(
+                _ca_cfg({"api_host_variable": "does_not_exist"})
+            )
         self.assertFalse(self.cahandler.api_host)
         self.assertIn(
-            "ERROR:test_a2c:Could not load host_variable: does_not_exist",
+            "ERROR:test_a2c:Could not load api_host_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_name)
@@ -1252,30 +1253,34 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch.dict("os.environ", {"api_host_var": "host_var"})
     def test_064_config_host_load(self):
         """test _config_load - load template with host variable"""
-        config_dic = {"api_host_variable": "api_host_var", "api_host": "api_host"}
-        self.cahandler._config_host_load(config_dic)
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_host_load(
+                _ca_cfg({"api_host_variable": "api_host_var", "api_host": "api_host"})
+            )
         self.assertEqual("api_host", self.cahandler.api_host)
-        # self.assertIn("foo", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Overwrite api_host",
+            lcm.output,
+        )
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_key_var": "key_var"})
     def test_065_config_key_load(self):
         """test _config_load - load template with key variable"""
-        config_dic = {"api_key_variable": "api_key_var"}
-        self.cahandler._config_key_load(config_dic)
+        self.cahandler._config_key_load(_ca_cfg({"api_key_variable": "api_key_var"}))
         self.assertEqual("key_var", self.cahandler.api_key)
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_key_var": "key_var"})
     def test_066_config_key_load(self):
         """test _config_load - load template with key variable"""
-        config_dic = {"api_key_variable": "does_not_exist"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_key_load(config_dic)
+            self.cahandler._config_key_load(
+                _ca_cfg({"api_key_variable": "does_not_exist"})
+            )
         self.assertFalse(self.cahandler.api_key)
         self.assertIn(
-            "ERROR:test_a2c:Could not load key_variable: does_not_exist",
+            "ERROR:test_a2c:Could not load api_key_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_name)
@@ -1283,30 +1288,36 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch.dict("os.environ", {"api_key_var": "key_var"})
     def test_067_config_key_load(self):
         """test _config_load - load template with key variable"""
-        config_dic = {"api_key_variable": "api_key_var", "api_key": "api_key"}
-        self.cahandler._config_key_load(config_dic)
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_key_load(
+                _ca_cfg({"api_key_variable": "api_key_var", "api_key": "api_key"})
+            )
         self.assertEqual("api_key", self.cahandler.api_key)
-        # self.assertIn("foo", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Overwrite api_key",
+            lcm.output,
+        )
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_password_var": "password_var"})
     def test_068_config_password_load(self):
         """test _config_load - load template with password variable"""
-        config_dic = {"api_password_variable": "api_password_var"}
-        self.cahandler._config_password_load(config_dic)
+        self.cahandler._config_password_load(
+            _ca_cfg({"api_password_variable": "api_password_var"})
+        )
         self.assertEqual("password_var", self.cahandler.api_password)
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict("os.environ", {"api_password_var": "password_var"})
     def test_069_config_password_load(self):
         """test _config_load - load template with password variable"""
-        config_dic = {"api_password_variable": "does_not_exist"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_password_load(config_dic)
+            self.cahandler._config_password_load(
+                _ca_cfg({"api_password_variable": "does_not_exist"})
+            )
         self.assertFalse(self.cahandler.api_password)
         self.assertIn(
-            "ERROR:test_a2c:Could not load password_variable: does_not_exist",
+            "ERROR:test_a2c:Could not load api_password_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_name)
@@ -1314,14 +1325,20 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch.dict("os.environ", {"api_password_var": "password_var"})
     def test_070_config_password_load(self):
         """test _config_load - load template with password variable"""
-        config_dic = {
-            "api_password_variable": "api_password_var",
-            "api_password": "api_password",
-        }
-        self.cahandler._config_password_load(config_dic)
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_password_load(
+                _ca_cfg(
+                    {
+                        "api_password_variable": "api_password_var",
+                        "api_password": "api_password",
+                    }
+                )
+            )
         self.assertEqual("api_password", self.cahandler.api_password)
-        # self.assertIn("foo", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Overwrite api_password",
+            lcm.output,
+        )
         self.assertFalse(self.cahandler.profile_name)
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._validity_dates_get")
@@ -1348,7 +1365,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
-    @patch("acme2certifier.cahandlers.asa_ca_handler.time.sleep")
+    @patch("acme2certifier.acme_srv.helpers.network.time.sleep")
     @patch("requests.post")
     def test_073_api_post_retries(self, mock_req, mock_sleep):
         """_api_post() retries transport failures then succeeds"""
@@ -1368,9 +1385,8 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
             )
         self.assertEqual(3, mock_req.call_count)
         self.assertEqual(2, mock_sleep.call_count)
-        self.assertIn(
-            "INFO:test_a2c:Retrying API post() attempt 2/3 after 1s",
-            lcm.output,
+        self.assertTrue(
+            any("Request_operation error: timeout" in msg for msg in lcm.output)
         )
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.load_config")

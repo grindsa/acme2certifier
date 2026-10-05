@@ -9,6 +9,14 @@ from typing import List, Optional, Tuple
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
 
+def http01_url_for_log(url: str) -> str:
+    """Return an HTTP-01 URL with the challenge token removed."""
+    marker = "/.well-known/acme-challenge/"
+    if marker not in url:
+        return url
+    return url.split(marker, 1)[0] + marker + "***"
+
+
 class HttpChallengeValidator(ChallengeValidator):
     """Validator for HTTP-01 challenges."""
 
@@ -105,6 +113,11 @@ class HttpChallengeValidator(ChallengeValidator):
 
         if not req or status_code != 200:
             self.logger.warning(
+                "http-01 fetch failed: challenge=%s status=%s",
+                context.challenge_name,
+                status_code,
+            )
+            self.logger.debug(
                 "http-01 fetch failed: challenge=%s host=%s url=%s status=%s error=%s",
                 context.challenge_name,
                 context.authorization_value,
@@ -119,7 +132,7 @@ class HttpChallengeValidator(ChallengeValidator):
                     {
                         "status": 403,
                         "type": "urn:ietf:params:acme:error:connection",
-                        "detail": f"HTTP request failed: {status_code} {error_msg}",
+                        "detail": f"HTTP request failed: {status_code}",
                     }
                 ),
                 details={
@@ -134,10 +147,15 @@ class HttpChallengeValidator(ChallengeValidator):
         success = response_got == response_expected
         if not success:
             self.logger.warning(
-                "http-01 keyauthorization mismatch: challenge=%s host=%s url=%s expected=%r received=%r",
+                "http-01 keyauthorization mismatch: challenge=%s",
+                context.challenge_name,
+            )
+            self.logger.debug(
+                "http-01 keyauthorization mismatch: challenge=%s host=%s url=%s status=%s expected=%r received=%r",
                 context.challenge_name,
                 context.authorization_value,
                 logical_url,
+                status_code,
                 response_expected,
                 response_got,
             )
@@ -151,10 +169,7 @@ class HttpChallengeValidator(ChallengeValidator):
                     {
                         "status": 403,
                         "type": "urn:ietf:params:acme:error:incorrectResponse",
-                        "detail": (
-                            "Keyauthorization mismatch "
-                            f"(expected={response_expected!r}, received={response_got!r})"
-                        ),
+                        "detail": "Keyauthorization mismatch",
                     }
                 )
             ),

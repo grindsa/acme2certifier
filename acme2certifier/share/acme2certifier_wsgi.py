@@ -14,31 +14,23 @@ from acme2certifier.acme_srv.authorization import Authorization
 from acme2certifier.acme_srv.certificate import Certificate
 from acme2certifier.acme_srv.challenge import Challenge
 from acme2certifier.acme_srv.directory import Directory
-from acme2certifier.acme_srv.housekeeping import (
-    Housekeeping,
-    resolve_housekeeping_cli_endpoint,
-)
+from acme2certifier.acme_srv.housekeeping import Housekeeping
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
-from acme2certifier.acme_srv.trigger import Trigger, resolve_trigger_endpoint
+from acme2certifier.acme_srv.trigger import Trigger
 from acme2certifier.acme_srv.helper import (
-    apply_log_levels,
-    config_debug_get,
     get_url,
-    load_config,
-    log_loaded_acme_srv_cfg,
-    logger_setup,
     log_response,
     config_check,
-    legacy_acme_get_load,
     acme_get_method_not_allowed_problem,
-    server_name_configuration_validate,
-    challenge_type_configuration_validate,
-    tnauthlist_configuration_validate,
 )
-from acme2certifier.acme_srv.db_handler import log_active_db_handler
-from acme2certifier.acme_srv.version import __dbversion__, __version__
+from acme2certifier.acme_srv.helpers.acme_http_boot import (
+    CONTENT_TYPE_JSON,
+    acme_response_content_type,
+    boot_acme_http_stack,
+)
+from acme2certifier.acme_srv.version import __version__
 
 # We address a cpdesmells
 HTTP_CODE_DIC = {
@@ -49,6 +41,7 @@ HTTP_CODE_DIC = {
     403: "Forbidden",
     404: "Not Found",
     405: "Method Not Allowed",
+    409: "Conflict",
     500: "serverInternal ",
 }
 
@@ -63,16 +56,15 @@ WRT_ERROR_MSG = json.dumps(
 ACME_GET_ERROR_MSG = json.dumps(acme_get_method_not_allowed_problem(), indent=2).encode(
     "utf-8"
 )
-CONTENT_TYPE_JSON = "application/json"
 WSGI_INPUT = "wsgi.input"
 
-# Quiet Helper.load_config() until DEFAULT.debug / ACME2CERTIFIER_DEBUG is known.
-apply_log_levels(False)
-
-# load config to set debug mode
-CONFIG = load_config()
-DEBUG = config_debug_get(CONFIG)
-
+_STACK = boot_acme_http_stack(log_startup_version=False)
+CONFIG = _STACK.config
+DEBUG = _STACK.debug
+LOGGER = _STACK.logger
+LEGACY_ACME_GET = _STACK.legacy_acme_get
+TRIGGER_ENDPOINT_ENABLED = _STACK.trigger_endpoint_enabled
+HOUSEKEEPING_CLI_ENABLED = _STACK.housekeeping_cli_enabled
 URL_PREFIX = CONFIG.get("Directory", "url_prefix", fallback=None)
 
 
@@ -100,42 +92,16 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     )
 
 
-# initialize logger
-LOGGER = logger_setup(DEBUG)
-log_loaded_acme_srv_cfg(LOGGER)
-log_active_db_handler(LOGGER, CONFIG)
-config_check(LOGGER, CONFIG)
-server_name_configuration_validate(LOGGER, CONFIG)
-tnauthlist_configuration_validate(LOGGER, CONFIG)
-challenge_type_configuration_validate(LOGGER, CONFIG)
-LEGACY_ACME_GET = legacy_acme_get_load(LOGGER, CONFIG)
-
-# Stack-start gate for /trigger (config + CA handler supports_trigger)
-TRIGGER_ENDPOINT_ENABLED = resolve_trigger_endpoint(LOGGER, CONFIG, log_status=True)
-# Stack-start gate for /housekeeping HTTP CLI
-HOUSEKEEPING_CLI_ENABLED = resolve_housekeeping_cli_endpoint(
-    LOGGER, CONFIG, log_status=True
-)
-
-with Housekeeping(DEBUG, LOGGER, config_dic=CONFIG) as housekeeping:
-    housekeeping.dbversion_check(__dbversion__)
-    housekeeping.nonce_cleanup()
-
 # examption handling via logger
 sys.excepthook = handle_exception
 
 
 def create_header(response_dic, add_json_header=True):
     """create header"""
-    # generate header and nonce
     if add_json_header:
-        if "code" in response_dic:
-            if response_dic["code"] in (200, 201):
-                headers = [("Content-Type", CONTENT_TYPE_JSON)]
-            else:
-                headers = [("Content-Type", "application/problem+json")]
-        else:
-            headers = [("Content-Type", CONTENT_TYPE_JSON)]
+        headers = [
+            ("Content-Type", acme_response_content_type(response_dic.get("code")))
+        ]
     else:
         headers = []
 
@@ -160,9 +126,15 @@ def get_request_body(environ):
     return request_body
 
 
+def _bind_message_request_url(handler, environ) -> None:
+    """Bind Message.check to the absolute HTTP request URL (RFC 8555 §6.4)."""
+    handler.message.request_url = get_url(environ, include_path=True)
+
+
 def acct(environ, start_response):
     """account handling"""
     with Account(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as account:
+        _bind_message_request_url(account, environ)
         request_body = get_request_body(environ)
         response_dic = account.parse(request_body)
 
@@ -202,6 +174,7 @@ def authz(environ, start_response):
             except ValueError:
                 request_body_size = 0
             request_body = environ[WSGI_INPUT].read(request_body_size)
+            _bind_message_request_url(authorization, environ)
             response_dic = authorization.new_post(request_body)
 
             # create header
@@ -242,6 +215,7 @@ def newaccount(environ, start_response):
     if environ["REQUEST_METHOD"] == "POST":
 
         with Account(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as account:
+            _bind_message_request_url(account, environ)
             request_body = get_request_body(environ)
             response_dic = account.new(request_body)
 
@@ -292,6 +266,7 @@ def cert(environ, start_response):
     """create new account"""
     with Certificate(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as certificate:
         if environ["REQUEST_METHOD"] == "POST":
+            _bind_message_request_url(certificate, environ)
             request_body = get_request_body(environ)
             response_dic = certificate.new_post(request_body)
             # create header
@@ -339,6 +314,7 @@ def chall(environ, start_response):
     ) as challenge:
         if environ["REQUEST_METHOD"] == "POST":
 
+            _bind_message_request_url(challenge, environ)
             request_body = get_request_body(environ)
             response_dic = challenge.parse(request_body)
 
@@ -411,6 +387,7 @@ def neworders(environ, start_response):
     """generate a new order"""
     if environ["REQUEST_METHOD"] == "POST":
         with Order(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as norder:
+            _bind_message_request_url(norder, environ)
             request_body = get_request_body(environ)
             response_dic = norder.new(request_body)
 
@@ -435,6 +412,7 @@ def order(environ, start_response):
     """order_handler"""
     if environ["REQUEST_METHOD"] == "POST":
         with Order(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as eorder:
+            _bind_message_request_url(eorder, environ)
             request_body = get_request_body(environ)
             response_dic = eorder.parse(request_body, environ)
 
@@ -461,6 +439,7 @@ def renewalinfo(environ, start_response):
         DEBUG, get_url(environ), LOGGER, config_dic=CONFIG
     ) as renewalinfo_:
         if environ["REQUEST_METHOD"] == "POST":
+            _bind_message_request_url(renewalinfo_, environ)
             request_body = get_request_body(environ)
             response_dic = renewalinfo_.update(request_body)
             error_body = response_dic.get("code", 200) >= 400 and "data" in response_dic
@@ -509,6 +488,7 @@ def revokecert(environ, start_response):
         with Certificate(
             DEBUG, get_url(environ), LOGGER, config_dic=CONFIG
         ) as certificate:
+            _bind_message_request_url(certificate, environ)
             request_body = get_request_body(environ)
             response_dic = certificate.revoke(request_body)
 
@@ -551,7 +531,7 @@ def trigger(environ, start_response):
             return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
         with Trigger(DEBUG, get_url(environ), LOGGER, config_dic=CONFIG) as trigger_:
             request_body = get_request_body(environ)
-            response_dic = trigger_.parse(request_body)
+            response_dic = trigger_.parse(request_body, headers=environ)
 
             # create header
             headers = create_header(response_dic)
@@ -634,29 +614,29 @@ def redirect(environ, start_response):
     return []
 
 
-# map urls to functions
+# map urls to functions (resource routes require / or end-of-path)
 URLS = [
     (r"^$", redirect),
-    (r"^acme/acct", acct),
-    (r"^acme/authz", authz),
-    (r"^acme/cert", cert),
-    (r"^acme/chall", chall),
-    (r"^acme/directory", directory),
-    (r"^acme/key-change", acct),
+    (r"^acme/acct(/.*)?$", acct),
+    (r"^acme/authz(/.*)?$", authz),
+    (r"^acme/cert(/.*)?$", cert),
+    (r"^acme/chall(/.*)?$", chall),
+    (r"^acme/directory$", directory),
+    (r"^acme/key-change$", acct),
     (r"^acme/newaccount$", newaccount),
     (r"^acme/newnonce$", newnonce),
     (r"^acme/neworders$", neworders),
-    (r"^acme/order", order),
-    (r"^acme/renewal-info", renewalinfo),
-    (r"^acme/revokecert", revokecert),
+    (r"^acme/order(/.*)?$", order),
+    (r"^acme/renewal-info(/.*)?$", renewalinfo),
+    (r"^acme/revokecert$", revokecert),
     (r"^directory?$", directory),
 ]
 
 if HOUSEKEEPING_CLI_ENABLED:
-    URLS.append((r"^housekeeping", housekeeping))
+    URLS.append((r"^housekeeping(/.*)?$", housekeeping))
 
 if TRIGGER_ENDPOINT_ENABLED:
-    URLS.append((r"^trigger", trigger))
+    URLS.append((r"^trigger(/.*)?$", trigger))
 
 
 # Helper to extract path with prefix

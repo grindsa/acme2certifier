@@ -61,6 +61,7 @@ class Order(models.Model):
     notafter = models.IntegerField(default=0)
     identifiers = models.TextField()
     profile = models.TextField(blank=True)
+    cahandler = models.CharField(max_length=64, blank=True, default="")
     status = models.ForeignKey(Status, default=2, on_delete=models.CASCADE)
     expires = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -97,6 +98,7 @@ class Challenge(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     keyauthorization = models.CharField(max_length=128, blank=True)
     source = models.CharField(max_length=128, blank=True)
+    challenge_message_id = models.CharField(max_length=255, blank=True)
     validated = models.IntegerField(default=0)
     validation_error = models.TextField(blank=True)
 

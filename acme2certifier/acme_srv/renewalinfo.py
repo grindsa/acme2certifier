@@ -2,10 +2,10 @@
 """Renewalinfo class: ACME renewal info handler with separated config and repository helpers."""
 
 from __future__ import print_function
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any, Callable
 from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 from acme2certifier.acme_srv.helper import (
     string_sanitize,
     certid_hex_get,
@@ -19,14 +19,17 @@ from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     b64_decode,
     duration_to_seconds,
+    parse_url,
+)
+from acme2certifier.acme_srv.helpers.cahandler_registry import (
+    CAHandlerRegistry,
+    resolve_default_ca_handler,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
-    log_ownership_denial,
+    check_resource_ownership,
     ownership_lookup_failed,
-    ownership_unauthorized,
-    resource_owner_matches,
 )
 
 
@@ -154,61 +157,85 @@ class Renewalinfo(object):
         self.repository = RenewalinfoRepository(self.dbstore, self.logger)
         self.cahandler = None
 
-    def _load_configuration(self):
+    def _assign_config_option(
+        self,
+        attr: str,
+        loader: Callable[[], Any],
+        error_fmt: str,
+        error_value: Any = None,
+        set_error_value: bool = False,
+    ) -> None:
+        """Set a config attribute from *loader*, optionally resetting on error."""
+        try:
+            setattr(self.config, attr, loader())
+        except Exception as err_:
+            self.logger.error(error_fmt, err_)
+            if set_error_value:
+                setattr(self.config, attr, error_value)
+
+    def _parse_renewal_window_duration(self, config_dic: object) -> None:
+        """Parse Renewalinfo.renewal_window_duration as seconds, or None."""
+        try:
+            raw_duration = config_dic.get(
+                "Renewalinfo", "renewal_window_duration", fallback=None
+            )
+            if raw_duration is None or str(raw_duration).strip() == "":
+                self.config.renewal_window_duration = None
+                return
+            self.config.renewal_window_duration = duration_to_seconds(raw_duration)
+        except Exception as err_:
+            self.logger.error("renewal_window_duration parsing error: %s", err_)
+            self.config.renewal_window_duration = None
+
+    def _parse_renewalinfo_section(self, config_dic: object) -> None:
+        """Parse the [Renewalinfo] section into ``self.config``."""
+        if "Renewalinfo" not in config_dic:
+            return
+        self._assign_config_option(
+            "renewalinfo_disable",
+            lambda: config_dic.getboolean(
+                "Renewalinfo",
+                "renewalinfo_disable",
+                fallback=self.config.renewalinfo_disable,
+            ),
+            "renewalinfo_disable not set: %s",
+        )
+        self._assign_config_option(
+            "renewal_force",
+            lambda: config_dic.getboolean(
+                "Renewalinfo", "renewal_force", fallback=False
+            ),
+            "renewal_force parsing error: %s",
+            False,
+            True,
+        )
+        self._assign_config_option(
+            "renewalthreshold_pctg",
+            lambda: float(
+                config_dic.get("Renewalinfo", "renewalthreshold_pctg", fallback=85.0)
+            ),
+            "renewalthreshold_pctg parsing error: %s",
+            85.0,
+            True,
+        )
+        self._assign_config_option(
+            "retry_after_timeout",
+            lambda: int(
+                config_dic.get("Renewalinfo", "retry_after_timeout", fallback=86400)
+            ),
+            "retry_after_timeout parsing error: %s",
+            86400,
+            True,
+        )
+        self._parse_renewal_window_duration(config_dic)
+
+    def _load_configuration(self) -> None:
         """Load renewalinfo configuration from file (harmonized approach)"""
         self.logger.debug("Renewalinfo._load_configuration()")
-
         config_dic = self.config_dic if self.config_dic is not None else load_config()
-
-        if "Renewalinfo" in config_dic:
-            try:
-                self.config.renewalinfo_disable = config_dic.getboolean(
-                    "Renewalinfo",
-                    "renewalinfo_disable",
-                    fallback=self.config.renewalinfo_disable,
-                )
-            except Exception as err_:
-                self.logger.error("renewalinfo_disable not set: %s", err_)
-            try:
-                self.config.renewal_force = config_dic.getboolean(
-                    "Renewalinfo", "renewal_force", fallback=False
-                )
-            except Exception as err_:
-                self.logger.error("renewal_force parsing error: %s", err_)
-                self.config.renewal_force = False
-            try:
-                self.config.renewalthreshold_pctg = float(
-                    config_dic.get(
-                        "Renewalinfo", "renewalthreshold_pctg", fallback=85.0
-                    )
-                )
-            except Exception as err_:
-                self.logger.error("renewalthreshold_pctg parsing error: %s", err_)
-                self.config.renewalthreshold_pctg = 85.0
-            try:
-                self.config.retry_after_timeout = int(
-                    config_dic.get("Renewalinfo", "retry_after_timeout", fallback=86400)
-                )
-            except Exception as err_:
-                self.logger.error("retry_after_timeout parsing error: %s", err_)
-                self.config.retry_after_timeout = 86400
-            try:
-                raw_duration = config_dic.get(
-                    "Renewalinfo", "renewal_window_duration", fallback=None
-                )
-                if raw_duration is None or str(raw_duration).strip() == "":
-                    self.config.renewal_window_duration = None
-                else:
-                    self.config.renewal_window_duration = duration_to_seconds(
-                        raw_duration
-                    )
-            except Exception as err_:
-                self.logger.error("renewal_window_duration parsing error: %s", err_)
-                self.config.renewal_window_duration = None
-
+        self._parse_renewalinfo_section(config_dic)
         self._load_ca_handler(config_dic)
         self._parse_cahandler_section(config_dic)
-
         self.logger.debug("Renewalinfo._load_configuration() ended.")
 
     def _parse_cahandler_section(self, config_dic: object) -> None:
@@ -233,12 +260,11 @@ class Renewalinfo(object):
         self.logger.debug("Directory._parse_cahandler_section() ended")
 
     def _load_ca_handler(self, config_dic: object) -> None:
-        """Load the CA handler module as configured."""
-        ca_handler_module = ca_handler_load(self.logger, config_dic)
-        if ca_handler_module:
-            self.cahandler = ca_handler_module.CAhandler
-        else:
-            self.logger.critical("No ca_handler loaded")
+        """Load the CA handler registry as configured."""
+        self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
+        self.cahandler = resolve_default_ca_handler(
+            self.logger, self.cahandler_registry, config_dic, ca_handler_load
+        )
 
     def __enter__(self):
         self._load_configuration()
@@ -371,12 +397,13 @@ class Renewalinfo(object):
         return renewalinfo_dic
 
     def _parse_renewalinfo_string_from_url(self, url: str) -> str:
+        """Extract ARI certid from a request URL, ignoring scheme and host."""
         self.logger.debug("Renewalinfo._parse_renewalinfo_string_from_url()")
-        url = url.replace(
-            f'{self.server_name}{self.path_dic["renewalinfo"].rstrip("/")}', ""
+        url_dic = parse_url(self.logger, url)
+        path = url_dic.get("path") or url
+        renewalinfo_string = string_sanitize(
+            self.logger, path.rstrip("/").rsplit("/", 1)[-1]
         )
-        url = url.lstrip("/")
-        renewalinfo_string = string_sanitize(self.logger, url)
         self.logger.debug(
             "Renewalinfo._parse_renewalinfo_string_from_url() - renewalinfo_string: %s",
             renewalinfo_string,
@@ -437,15 +464,20 @@ class Renewalinfo(object):
                 self.logger.error("Error when getting renewal information: %s", err_)
                 renewalinfo_dic = {}
                 rc_code = 400
-        response_dic = {"code": rc_code}
         if renewalinfo_dic:
-            response_dic["data"] = renewalinfo_dic
-            response_dic["header"] = {
-                "Retry-After": f"{self.config.retry_after_timeout}"
+            return {
+                "code": rc_code,
+                "data": renewalinfo_dic,
+                "header": {"Retry-After": f"{self.config.retry_after_timeout}"},
             }
-        else:
-            response_dic["data"] = self.err_msg_dic["malformed"]
-        return response_dic
+        if not rc_code or rc_code < 400:
+            rc_code = 404
+        detail = (
+            "certificate not found"
+            if rc_code == 404
+            else "failed to get renewal information"
+        )
+        return self._problem_response((rc_code, self.err_msg_dic["malformed"], detail))
 
     def _problem_response(
         self,
@@ -454,10 +486,8 @@ class Renewalinfo(object):
     ) -> Dict[str, str]:
         """Build an ACME problem document the same way order/certificate handlers do."""
         code, message, detail = status
-        return self.message.prepare_response(
-            {},
-            {"code": code, "type": message, "detail": detail},
-            account_name=account_name,
+        return finish_response(
+            self.message, {}, code, message, detail, account_name=account_name
         )
 
     def update(self, content: str) -> Dict[str, str]:
@@ -491,14 +521,17 @@ class Renewalinfo(object):
                 account_name,
             )
         owner = cert_dic.get("order__account__name")
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(
-                self.logger,
-                account_name,
-                "certificate",
-                cert_dic.get("name", payload["certid"]),
+        own_code, own_message, own_detail = check_resource_ownership(
+            self.logger,
+            account_name,
+            "certificate",
+            cert_dic.get("name", payload["certid"]),
+            owner,
+        )
+        if own_code != 200:
+            return self._problem_response(
+                (own_code, own_message, own_detail), account_name
             )
-            return self._problem_response(ownership_unauthorized(), account_name)
         cert_name = cert_dic.get("name")
         if not cert_name:
             return self._problem_response(

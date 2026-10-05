@@ -3,9 +3,6 @@
 
 from __future__ import print_function
 from typing import Any, Dict, Optional, Tuple, Union
-import os
-import time
-import requests
 from requests.auth import HTTPBasicAuth
 
 # pylint: disable=e0401
@@ -13,8 +10,7 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     encode_url,
     csr_pubkey_get,
-    csr_cn_get,
-    csr_san_get,
+    csr_cn_lookup,
     uts_now,
     uts_to_date_utc,
     b64_decode,
@@ -26,9 +22,12 @@ from acme2certifier.acme_srv.helper import (
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     config_enroll_config_log_load,
+    config_option_load,
+    config_ca_bundle_load,
     config_profile_load,
     enrollment_config_log,
     handler_config_check,
+    ca_api_request,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 
@@ -82,93 +81,32 @@ class CAhandler(object):
         self.logger.error('Malformed response. "%s" key not found', expected_key)
         return error
 
+    def _api_request(
+        self, method: str, url: str, data: Optional[Dict[str, str]] = None
+    ) -> Tuple[int, ApiContent]:
+        """Call the ASA API via the shared request helper."""
+        retries = max(0, int(self.request_retries) - 1)
+        return ca_api_request(
+            self.logger,
+            method,
+            url,
+            headers={"x-api-key": self.api_key},
+            payload=data,
+            verify=self.ca_bundle,
+            proxy=self.proxy,
+            timeout=self.request_timeout,
+            retries=retries,
+            retry_backoff=1.0,
+            auth=self.auth,
+        )
+
     def _api_get(self, url: str) -> Tuple[int, ApiContent]:
         """GET data from API with retries on transport errors"""
-        self.logger.debug("CAhandler._api_get()")
-        headers = {"x-api-key": self.api_key}
-        attempts = max(1, int(self.request_retries))
-        last_error: Optional[Exception] = None
-
-        for attempt in range(1, attempts + 1):
-            try:
-                api_response = requests.get(
-                    url=url,
-                    headers=headers,
-                    auth=self.auth,
-                    verify=self.ca_bundle,
-                    proxies=self.proxy,
-                    timeout=self.request_timeout,
-                )
-                code = api_response.status_code
-                try:
-                    content: ApiContent = api_response.json()
-                except Exception as err_:
-                    self.logger.error(
-                        "Could not parse the response for an API get() request: %s",
-                        err_,
-                    )
-                    content = str(err_)
-                return code, content
-            except Exception as err_:
-                last_error = err_
-                self.logger.error("API get() request returned error: %s", err_)
-                if attempt < attempts:
-                    sleep_s = min(2 ** (attempt - 1), 8)
-                    self.logger.info(
-                        "Retrying API get() attempt %s/%s after %ss",
-                        attempt + 1,
-                        attempts,
-                        sleep_s,
-                    )
-                    time.sleep(sleep_s)
-
-        return 500, str(last_error)
+        return self._api_request("get", url)
 
     def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, ApiContent]:
         """POST data to API with retries on transport errors"""
-        self.logger.debug("CAhandler._api_post()")
-        headers = {"x-api-key": self.api_key}
-        attempts = max(1, int(self.request_retries))
-        last_error: Optional[Exception] = None
-
-        for attempt in range(1, attempts + 1):
-            try:
-                api_response = requests.post(
-                    url=url,
-                    headers=headers,
-                    json=data,
-                    auth=self.auth,
-                    verify=self.ca_bundle,
-                    proxies=self.proxy,
-                    timeout=self.request_timeout,
-                )
-                code = api_response.status_code
-                if api_response.text:
-                    try:
-                        content: ApiContent = api_response.json()
-                    except Exception as err_:
-                        self.logger.error(
-                            "Could not parse the response for an API post() request: %s",
-                            err_,
-                        )
-                        content = str(err_)
-                else:
-                    content = None
-                return code, content
-            except Exception as err_:
-                last_error = err_
-                self.logger.error("API post() request returned an error: %s", err_)
-                if attempt < attempts:
-                    sleep_s = min(2 ** (attempt - 1), 8)
-                    self.logger.info(
-                        "Retrying API post() attempt %s/%s after %ss",
-                        attempt + 1,
-                        attempts,
-                        sleep_s,
-                    )
-                    time.sleep(sleep_s)
-
-        return 500, str(last_error)
+        return self._api_request("post", url, data)
 
     def _auth_set(self):
         """set basic authentication header"""
@@ -184,19 +122,9 @@ class CAhandler(object):
     def _config_host_load(self, config_dic: Dict[str, str]):
         """load hostname"""
         self.logger.debug("_config_host_load()")
-
-        api_host_variable = config_dic.get("api_host_variable")
-        if api_host_variable:
-            self.api_host = os.environ.get(api_host_variable)
-            if not self.api_host:
-                self.logger.error(f"Could not load host_variable: {api_host_variable}")
-
-        api_host = config_dic.get("api_host")
-        if api_host:
-            if self.api_host:
-                self.logger.info("Overwrite api_host parameter")
-            self.api_host = api_host
-
+        self.api_host = config_option_load(
+            self.logger, config_dic, "api_host", current=self.api_host
+        )
         self.logger.debug("_config_host_load() ended")
 
     def _certificates_list(self) -> Dict[str, str]:
@@ -212,57 +140,25 @@ class CAhandler(object):
     def _config_key_load(self, config_dic: Dict[str, str]):
         """load keyname"""
         self.logger.debug("_config_key_load()")
-
-        api_key_variable = config_dic.get("api_key_variable")
-        if api_key_variable:
-            self.api_key = os.environ.get(api_key_variable)
-            if not self.api_key:
-                self.logger.error(f"Could not load key_variable: {api_key_variable}")
-
-        api_key = config_dic.get("api_key")
-        if api_key:
-            if self.api_key:
-                self.logger.info("Overwrite api_key parameter")
-            self.api_key = api_key
-
+        self.api_key = config_option_load(
+            self.logger, config_dic, "api_key", current=self.api_key
+        )
         self.logger.debug("_config_key_load() ended")
 
     def _config_password_load(self, config_dic: Dict[str, str]):
         """load passwordname"""
         self.logger.debug("_config_password_load()")
-
-        api_password_variable = config_dic.get("api_password_variable")
-        if api_password_variable:
-            self.api_password = os.environ.get(api_password_variable)
-            if not self.api_password:
-                self.logger.error(
-                    f"Could not load password_variable: {api_password_variable}"
-                )
-
-        api_password = config_dic.get("api_password")
-        if api_password:
-            if self.api_password:
-                self.logger.info("Overwrite api_password parameter")
-            self.api_password = api_password
-
+        self.api_password = config_option_load(
+            self.logger, config_dic, "api_password", current=self.api_password
+        )
         self.logger.debug("_config_password_load() ended")
 
     def _config_user_load(self, config_dic: Dict[str, str]):
         """load username"""
         self.logger.debug("_config_user_load()")
-
-        api_user_variable = config_dic.get("api_user_variable")
-        if api_user_variable:
-            self.api_user = os.environ.get(api_user_variable)
-            if not self.api_user:
-                self.logger.error(f"Could not load user_variable: {api_user_variable}")
-
-        api_user = config_dic.get("api_user")
-        if api_user:
-            if self.api_user:
-                self.logger.info("Overwrite api_user parameter")
-            self.api_user = api_user
-
+        self.api_user = config_option_load(
+            self.logger, config_dic, "api_user", current=self.api_user
+        )
         self.logger.debug("_config_user_load() ended")
 
     def _config_load(self):
@@ -272,20 +168,16 @@ class CAhandler(object):
         config_dic = load_config(self.logger, "CAhandler")
 
         if "CAhandler" in config_dic:
-            self._config_host_load(config_dic["CAhandler"])
-            self._config_user_load(config_dic["CAhandler"])
-            self._config_password_load(config_dic["CAhandler"])
-            self._config_key_load(config_dic["CAhandler"])
+            self._config_host_load(config_dic)
+            self._config_user_load(config_dic)
+            self._config_password_load(config_dic)
+            self._config_key_load(config_dic)
             self.ca_name = config_dic["CAhandler"].get("ca_name")
             self.profile_name = config_dic["CAhandler"].get(self.profile_mapping_field)
 
-            if (
-                "ca_bundle" in config_dic["CAhandler"]
-                and config_dic["CAhandler"]["ca_bundle"] == "False"
-            ):
-                self.ca_bundle = False
-            else:
-                self.ca_bundle = config_dic["CAhandler"].get("ca_bundle")
+            self.ca_bundle = config_ca_bundle_load(
+                self.logger, config_dic, current=self.ca_bundle
+            )
 
             try:
                 self.request_timeout = int(
@@ -350,22 +242,7 @@ class CAhandler(object):
     def _csr_cn_get(self, csr: str) -> str:
         """get CN from csr"""
         self.logger.debug("CAhandler._csr_cn_get()")
-
-        cn = csr_cn_get(self.logger, csr)
-
-        if not cn:
-            self.logger.info("CN not found in CSR")
-            san_list = csr_san_get(self.logger, csr)
-            if san_list:
-                _type, san_value = san_list[0].split(":")
-                cn = san_value
-                self.logger.info(
-                    "CN not found in CSR. Using first SAN entry as CN: %s",
-                    san_value,
-                )
-            else:
-                self.logger.error("CN not found in CSR. No SAN entries found")
-
+        cn = csr_cn_lookup(self.logger, csr)
         self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
         return cn
 
@@ -569,7 +446,6 @@ class CAhandler(object):
         )
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["api_password", "auth"])
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )

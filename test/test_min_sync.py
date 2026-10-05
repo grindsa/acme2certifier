@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
+
+import pytest
 
 # `tools` is acme2certifier.tools once other tests put the inner package on
 # sys.path (regular package wins over repo-root tools/ namespace).
@@ -70,54 +73,76 @@ def test_005_strip_pyproject_scripts(tmp_path) -> None:
     assert "testpaths" in text
 
 
-def test_006_ensure_under_root_accepts_inside(tmp_path: Path) -> None:
-    inside = tmp_path / "tools" / "min_sync" / "manifest.yaml"
-    inside.parent.mkdir(parents=True)
-    inside.write_text("min_targets: []\n", encoding="utf-8")
-    resolved = min_sync._ensure_under_root(inside, tmp_path)
-    assert resolved == inside.resolve()
+_POLICY = {
+    "min_targets": ["min-devel", "min"],
+    "full_targets": ["master", "devel"],
+}
 
 
-def test_007_ensure_under_root_rejects_escape(tmp_path: Path) -> None:
-    outside = tmp_path / ".." / "escape.yaml"
-    try:
-        min_sync._ensure_under_root(outside, tmp_path)
-        raised = False
-    except min_sync.SyncError:
-        raised = True
-    assert raised
+def test_006_confine_to_root_accepts_in_repo(tmp_path: Path) -> None:
+    manifest = tmp_path / "tools" / "min_sync" / "manifest.yaml"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("x: 1\n", encoding="utf-8")
+    confined = min_sync._confine_to_root(manifest, tmp_path)
+    assert confined == os.path.realpath(str(manifest))
+    relative = min_sync._confine_to_root(Path("tools/min_sync/manifest.yaml"), tmp_path)
+    assert relative == os.path.realpath(str(manifest))
 
 
-def test_008_load_manifest_rejects_outside_root(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    root.mkdir()
-    outside = tmp_path / "evil.yaml"
-    outside.write_text("min_targets: []\n", encoding="utf-8")
-    try:
-        min_sync._load_manifest(outside, root=root)
-        raised = False
-    except min_sync.SyncError:
-        raised = True
-    assert raised
+def test_007_confine_to_root_rejects_escape(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "secret.yaml"
+    with pytest.raises(min_sync.SyncError, match="outside repository root"):
+        min_sync._confine_to_root(outside, tmp_path)
+    with pytest.raises(min_sync.SyncError, match="outside repository root"):
+        min_sync._confine_to_root(Path("..") / "secret.yaml", tmp_path)
 
 
-def test_009_validate_sync_pair_into_min() -> None:
-    manifest = {
-        "min_targets": ["min-devel", "min"],
-        "full_targets": ["master", "devel"],
-    }
-    assert min_sync._validate_sync_pair("master", "min-devel", manifest) is True
-    assert min_sync._validate_sync_pair("min-devel", "master", manifest) is False
+def test_008_load_manifest_confines_path(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.yaml"
+    manifest.write_text("source_default: master\n", encoding="utf-8")
+    data = min_sync._load_manifest(manifest, tmp_path)
+    assert data["source_default"] == "master"
+    with pytest.raises(min_sync.SyncError, match="outside repository root"):
+        min_sync._load_manifest(tmp_path.parent / "manifest.yaml", tmp_path)
 
 
-def test_010_validate_sync_pair_rejects_same_family() -> None:
-    manifest = {
-        "min_targets": ["min-devel", "min"],
-        "full_targets": ["master", "devel"],
-    }
-    try:
-        min_sync._validate_sync_pair("min-devel", "min", manifest)
-        raised = False
-    except min_sync.SyncError:
-        raised = True
-    assert raised
+def test_009_validate_direction() -> None:
+    assert min_sync._validate_direction("master", "min-devel", _POLICY) is True
+    assert min_sync._validate_direction("min-devel", "master", _POLICY) is False
+    with pytest.raises(min_sync.SyncError, match="Unknown source"):
+        min_sync._validate_direction("other", "min-devel", _POLICY)
+    with pytest.raises(min_sync.SyncError, match="must differ"):
+        min_sync._validate_direction("master", "master", _POLICY)
+    with pytest.raises(min_sync.SyncError, match="min->min"):
+        min_sync._validate_direction("min-devel", "min", _POLICY)
+    with pytest.raises(min_sync.SyncError, match="full->full"):
+        min_sync._validate_direction("master", "devel", _POLICY)
+
+
+def test_010_work_branch_and_mode_label() -> None:
+    assert (
+        min_sync._work_branch_name(
+            local_mode=True,
+            dry_run=False,
+            branch_name="ignored",
+            source="master",
+            target="min-devel",
+            stamp="20260817",
+        )
+        == "min-devel"
+    )
+    assert (
+        min_sync._work_branch_name(
+            local_mode=False,
+            dry_run=True,
+            branch_name=None,
+            source="master",
+            target="min-devel",
+            stamp="20260817",
+        )
+        == "sync/master-to-min-devel-20260817"
+    )
+    assert min_sync._mode_label(True, False, False) == "dry-run"
+    assert min_sync._mode_label(False, True, False) == "local (files only, no commit)"
+    assert min_sync._mode_label(False, False, True) == "commit + PR"
+    assert min_sync._mode_label(False, False, False) == "commit (sync branch)"

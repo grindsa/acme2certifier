@@ -1526,17 +1526,43 @@ class TestACMEHandler(unittest.TestCase):
             wsgi_mod = importlib.import_module(_WSGI_MODULE)
 
         patterns = [pattern for pattern, _callback in wsgi_mod.URLS]
-        self.assertIn("^housekeeping", patterns)
-        self.assertIn("^trigger", patterns)
+        self.assertIn("^housekeeping(/.*)?$", patterns)
+        self.assertIn("^trigger(/.*)?$", patterns)
         self.assertTrue(wsgi_mod.HOUSEKEEPING_CLI_ENABLED)
         self.assertTrue(wsgi_mod.TRIGGER_ENDPOINT_ENABLED)
+
+    def test_080_urls_reject_unanchored_resource_aliases(self):
+        """Resource routes do not match aliases like acctFOO or orderstuff"""
+        import re
+        import importlib
+
+        patterns = {
+            "acct": r"^acme/acct(/.*)?$",
+            "order": r"^acme/order(/.*)?$",
+            "authz": r"^acme/authz(/.*)?$",
+            "key-change": r"^acme/key-change$",
+            "revokecert": r"^acme/revokecert$",
+        }
+        self.assertIsNone(re.search(patterns["acct"], "acme/acctFOO"))
+        self.assertIsNotNone(re.search(patterns["acct"], "acme/acct/abc"))
+        self.assertIsNone(re.search(patterns["order"], "acme/orderstuff"))
+        self.assertIsNotNone(re.search(patterns["order"], "acme/order/x/finalize"))
+        self.assertIsNone(re.search(patterns["authz"], "acme/authzExtra"))
+        self.assertIsNotNone(re.search(patterns["key-change"], "acme/key-change"))
+        self.assertIsNone(re.search(patterns["key-change"], "acme/key-change/extra"))
+        self.assertIsNone(re.search(patterns["revokecert"], "acme/revokecertX"))
+
+        wsgi_mod = importlib.import_module(_WSGI_MODULE)
+        live = {pattern for pattern, _callback in wsgi_mod.URLS}
+        for pattern in patterns.values():
+            self.assertIn(pattern, live)
 
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
     @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
     @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.update")
     @patch("acme2certifier.acme_srv.renewalinfo.Renewalinfo.get")
-    def test_080_renewalinfo_post_error_body(
+    def test_081_renewalinfo_post_error_body(
         self, mock_get, mock_post, mock_url, mock_header, mock_body
     ):
         """renewalinfo POST with ACME problem returns JSON body"""

@@ -9,7 +9,7 @@ The CMPv2 protocol handler is not bound to a specific CA server. Certificate enr
 This handler acts as a wrapper that calls OpenSSL with specific parameters using the `subprocess` module.
 As of today, revocation operations are not supported.
 
-The handler has been tested against [Insta Certifier](https://www.insta.fi/en/services/cyber-security/insta-certifier).
+The handler has been tested against [Insta Certifier](https://www.insta.fi/en/cybersecurity/services/pki-solutions/insta-certifier10-ca/).
 
 ## Prerequisites
 

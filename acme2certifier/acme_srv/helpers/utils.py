@@ -92,27 +92,55 @@ def kerberos_kinit_command_resolve(
     return resolved
 
 
+_ENROLLMENT_CONFIG_LOG_DEFAULT_SKIPLIST = [
+    "logger",
+    "session",
+    "password",
+    "api_key",
+    "api_password",
+    "key",
+    "secret",
+    "token",
+    "err_msg_dic",
+    "dbstore",
+    "cert_passphrase",
+    "passphrase",
+    "client_passphrase",
+    "client_key",
+    "auth",
+    "vault_token",
+    "eab_mac_key",
+    "credential_dic",
+    "headers",
+]
+
+_SECRET_NAME_FRAGMENTS = (
+    "passphrase",
+    "password",
+    "secret",
+    "credential",
+    "private_key",
+)
+
+
+def _enrollment_key_is_sensitive(key: str, skiplist: set) -> bool:
+    """Return True when an attribute name should not be logged."""
+    if key.startswith("__") or key in skiplist:
+        return True
+    lowered = key.lower()
+    return any(fragment in lowered for fragment in _SECRET_NAME_FRAGMENTS)
+
+
 def enrollment_config_log(
     logger: logging.Logger, obj: object, handler_skiplist: List[str] = None
 ):
     """log enrollment configuration"""
     logger.debug("Helper.enrollment_config_log()")
 
-    skiplist = [
-        "logger",
-        "session",
-        "password",
-        "api_key",
-        "api_password",
-        "key",
-        "secret",
-        "token",
-        "err_msg_dic",
-        "dbstore",
-    ]
+    skiplist = set(_ENROLLMENT_CONFIG_LOG_DEFAULT_SKIPLIST)
 
     if handler_skiplist and isinstance(handler_skiplist, list):
-        skiplist.extend(handler_skiplist)
+        skiplist.update(handler_skiplist)
 
     if handler_skiplist and PARSING_ERR_MSG in handler_skiplist:
         logger.error(
@@ -122,7 +150,7 @@ def enrollment_config_log(
     else:
         enroll_parameter_list = []
         for key, value in obj.__dict__.items():
-            if key.startswith("__") or key in skiplist:
+            if _enrollment_key_is_sensitive(key, skiplist):
                 continue
             enroll_parameter_list.append(f"{key}: {value}")
         logger.info("Enrollment configuration: %s", enroll_parameter_list)

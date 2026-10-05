@@ -18,7 +18,6 @@ dependencies = [
     "cryptography",
     "pyOpenssl==26.1.0",
     "dnspython",
-    "pytz",
     "python-dateutil",
     "requests",
     "pysocks",
@@ -52,12 +51,14 @@ ntlm = [
 ]
 django = [
     "Django",
+    "django-environ>=0.11.2",
 ]
 full = [
     "gssapi",
     "requests_gssapi",
     "requests_ntlm",
     "Django",
+    "django-environ>=0.11.2",
     "PyMySQL",
     "psycopg2-binary",
 ]
@@ -65,6 +66,7 @@ test = [
     "pytest",
     "pytest-cov",
     "Django",
+    "django-environ>=0.11.2",
     "requests_ntlm",
 ]
 
@@ -79,6 +81,7 @@ a2c-cert-poll = "acme2certifier.tools.a2c_cert_poll:main"
 a2c-cliuser-mgmt = "acme2certifier.tools.a2c_cliuser_mgmt:main"
 a2c-invalidator = "acme2certifier.tools.a2c_invalidator:main"
 a2c-report-generator = "acme2certifier.tools.a2c_report_generator:main"
+a2c-harica-totp = "acme2certifier.tools.a2c_harica_totp:main"
 a2c-wsgi2django = "acme2certifier.tools.a2c_wsgi2django:main"
 
 [project.urls]

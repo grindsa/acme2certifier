@@ -24,7 +24,7 @@ Classical single-handler setups are unchanged: omit `multi_handler` or set it to
 | `cahandler_name` | EAB kid profile | Per-account handler override (kid level) |
 | `route_domainlist` | `[CAhandler:<name>]` | Optional CSR domain routing. A miss falls through to `default_handler` |
 
-Process-wide flags (`profiles_sync`, `ca_error_details_forward`, …) stay on `[CAhandler]`, not on each named section.
+Process-wide flags (`profiles_sync`, `ca_error_details_forward`, …) stay on `[CAhandler]`, not on each named section. Handler-specific options such as [`cert_chain_skip_list`](cert_chain.md) belong on `[CAhandler:<name>]`.
 
 ## INI example
 

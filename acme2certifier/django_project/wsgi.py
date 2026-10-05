@@ -3,15 +3,15 @@ WSGI config for acme2certifier Django project.
 """
 
 import os
-import sys
+
+from acme2certifier.acme_srv.helpers.django_boot import (
+    configure_django_settings_module,
+    prepend_sys_path_if_dir,
+)
 
 _PROJECT_HOME = os.environ.get("ACME2CERTIFIER_BASE_DIR", "/var/www/acme2certifier")
-if os.path.isdir(_PROJECT_HOME) and _PROJECT_HOME not in sys.path:
-    sys.path.insert(0, _PROJECT_HOME)
-
-os.environ.setdefault(
-    "DJANGO_SETTINGS_MODULE", "acme2certifier.django_project.settings"
-)
+prepend_sys_path_if_dir(_PROJECT_HOME)
+configure_django_settings_module()
 
 from django.core.wsgi import get_wsgi_application  # noqa: E402
 

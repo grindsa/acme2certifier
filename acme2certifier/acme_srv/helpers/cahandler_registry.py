@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
 """CA handler registry for single- and multi-handler mode."""
 
-from __future__ import annotations
-
 import json
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 from .config import (
+    CERT_CHAIN_PROFILE_KEYS,
     cahandler_config_section_reset,
     cahandler_config_section_set,
+    config_cert_chain_append_load,
+    config_cert_chain_link_check_load,
+    config_cert_chain_profile_load,
+    config_cert_chain_skip_list_load,
     load_config,
 )
+from .certificates import cert_chain_append, cert_chain_skip
 from .domain_utils import is_domain_whitelisted
 from .plugin_loader import ca_handler_load_from_section
 
@@ -54,6 +58,55 @@ class _BoundCAHandlerInstance:
         return getattr(self._handler, item)
 
 
+def _cert_chain_bind_kwargs(
+    logger: logging.Logger, config_dic: Any, section: str
+) -> Dict[str, Any]:
+    """Load skip-list and append PEMs for *section*."""
+    skip_error, skip_list = config_cert_chain_skip_list_load(
+        logger, config_dic, section
+    )
+    append_error, append_pems = config_cert_chain_append_load(
+        logger, config_dic, section
+    )
+    link_error, link_check = config_cert_chain_link_check_load(
+        logger, config_dic, section
+    )
+    return {
+        "cert_chain_skip_list": skip_list or [],
+        "cert_chain_skip_list_error": skip_error,
+        "cert_chain_append": append_pems or [],
+        "cert_chain_append_error": append_error,
+        "cert_chain_link_check": link_check,
+        "cert_chain_link_check_error": link_error,
+    }
+
+
+def _eab_overlay_apply_key(
+    key: str,
+    loaded: Any,
+    error: Optional[str],
+    skip_list: List[str],
+    skip_error: Optional[str],
+    append: List[str],
+    append_error: Optional[str],
+    link_check: bool,
+    link_error: Optional[str],
+) -> Tuple[List[str], Optional[str], List[str], Optional[str], bool, Optional[str]]:
+    """Apply one kid-profile cert-chain key onto overlay state."""
+    if key == "cert_chain_skip_list":
+        return loaded or [], error, append, append_error, link_check, link_error
+    if key == "cert_chain_append":
+        return skip_list, skip_error, loaded or [], error, link_check, link_error
+    return (
+        skip_list,
+        skip_error,
+        append,
+        append_error,
+        True if loaded is None else bool(loaded),
+        error,
+    )
+
+
 class BoundCAHandler:
     """Factory binding a CAhandler class to a named config section."""
 
@@ -62,10 +115,125 @@ class BoundCAHandler:
         handler_cls: Type[Any],
         section: str,
         name: str,
+        *,
+        cert_chain_skip_list: Optional[List[str]] = None,
+        cert_chain_skip_list_error: Optional[str] = None,
+        cert_chain_append: Optional[List[str]] = None,
+        cert_chain_append_error: Optional[str] = None,
+        cert_chain_link_check: bool = True,
+        cert_chain_link_check_error: Optional[str] = None,
     ) -> None:
         self.handler_cls = handler_cls
         self.section = section
         self.name = name
+        self.cert_chain_skip_list = cert_chain_skip_list or []
+        self.cert_chain_skip_list_error = cert_chain_skip_list_error
+        self.cert_chain_append = cert_chain_append or []
+        self.cert_chain_append_error = cert_chain_append_error
+        self.cert_chain_link_check = cert_chain_link_check
+        self.cert_chain_link_check_error = cert_chain_link_check_error
+
+    @classmethod
+    def from_config(
+        cls,
+        logger: logging.Logger,
+        handler_cls: Type[Any],
+        section: str,
+        name: str,
+        config_dic: Any,
+    ) -> "BoundCAHandler":
+        """Bind a handler class and load chain-rewrite options from *section*."""
+        return cls(
+            handler_cls,
+            section,
+            name,
+            **_cert_chain_bind_kwargs(logger, config_dic, section),
+        )
+
+    def eab_chain_overlay(
+        self, logger: logging.Logger, profile_dic: Optional[dict]
+    ) -> Tuple[Optional[str], "BoundCAHandler"]:
+        """Return ``(error, factory)`` with kid-profile skip/append overlaid.
+
+        Does not mutate this factory. Keys present in *profile_dic* replace the
+        bound config values, including empty lists. Omitted keys keep the
+        bound values.
+        """
+        if not profile_dic:
+            return None, self
+        skip_list = self.cert_chain_skip_list
+        skip_error = self.cert_chain_skip_list_error
+        append = self.cert_chain_append
+        append_error = self.cert_chain_append_error
+        link_check = self.cert_chain_link_check
+        link_error = self.cert_chain_link_check_error
+        changed = False
+        for key in CERT_CHAIN_PROFILE_KEYS:
+            if key not in profile_dic:
+                continue
+            changed = True
+            error, loaded = config_cert_chain_profile_load(
+                logger, key, profile_dic[key]
+            )
+            (
+                skip_list,
+                skip_error,
+                append,
+                append_error,
+                link_check,
+                link_error,
+            ) = _eab_overlay_apply_key(
+                key,
+                loaded,
+                error,
+                skip_list,
+                skip_error,
+                append,
+                append_error,
+                link_check,
+                link_error,
+            )
+            if error:
+                return error, self
+        if not changed:
+            return None, self
+        return None, BoundCAHandler(
+            self.handler_cls,
+            self.section,
+            self.name,
+            cert_chain_skip_list=skip_list,
+            cert_chain_skip_list_error=skip_error,
+            cert_chain_append=append,
+            cert_chain_append_error=append_error,
+            cert_chain_link_check=link_check,
+            cert_chain_link_check_error=link_error,
+        )
+
+    def cert_chain_rewrite(
+        self, logger: logging.Logger, pem_bundle: Optional[str]
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Apply skip-list then append PEMs to a handler bundle."""
+        error = (
+            self.cert_chain_skip_list_error
+            or self.cert_chain_append_error
+            or self.cert_chain_link_check_error
+        )
+        if error:
+            return error, None
+        error, pem_bundle = cert_chain_skip(
+            logger,
+            pem_bundle,
+            self.cert_chain_skip_list,
+            link_check=self.cert_chain_link_check,
+        )
+        if error:
+            return error, None
+        return cert_chain_append(
+            logger,
+            pem_bundle,
+            self.cert_chain_append,
+            link_check=self.cert_chain_link_check,
+        )
 
     def __call__(self, debug: bool, logger: logging.Logger) -> Any:
         logger.debug(
@@ -81,6 +249,38 @@ class BoundCAHandler:
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self.handler_cls, item)
+
+
+def resolve_default_ca_handler(
+    logger: logging.Logger,
+    registry: "CAHandlerRegistry",
+    config_dic: object,
+    ca_handler_load_fn: Optional[Callable] = None,
+) -> Optional[BoundCAHandler]:
+    """Return the registry default, or wrap the classical ca_handler_load fallback."""
+    default_bound = registry.default_handler()
+    if default_bound is not None:
+        return default_bound
+    loader = ca_handler_load_fn
+    if loader is None:
+        from .plugin_loader import ca_handler_load  # pylint: disable=c0415
+
+        loader = ca_handler_load
+    ca_handler_module = loader(logger, config_dic)
+    if ca_handler_module:
+        try:
+            return BoundCAHandler.from_config(
+                logger,
+                ca_handler_module.CAhandler,
+                "CAhandler",
+                "default",
+                config_dic,
+            )
+        except Exception as err:
+            logger.critical("Failed to load CA handler module: %s", err)
+            return None
+    logger.critical("No ca_handler loaded")
+    return None
 
 
 class CAHandlerRegistry:
@@ -128,8 +328,8 @@ class CAHandlerRegistry:
         """Load the single handler from ``[CAhandler]``."""
         module = ca_handler_load_from_section(self.logger, config_dic, "CAhandler")
         if module is not None:
-            self._single_bound = BoundCAHandler(
-                module.CAhandler, "CAhandler", "default"
+            self._single_bound = BoundCAHandler.from_config(
+                self.logger, module.CAhandler, "CAhandler", "default", config_dic
             )
             self.logger.debug(
                 "CAHandlerRegistry.load() classical mode handler=%s",
@@ -215,10 +415,12 @@ class CAHandlerRegistry:
                     "CAHandlerRegistry: failed to load handler for [%s]", section
                 )
                 continue
+            skip_kwargs = _cert_chain_bind_kwargs(self.logger, config_dic, section)
             self.handlers[name] = {
                 "module": module,
                 "config_section": section,
                 "route_domainlist": self._route_domainlist_load(config_dic, section),
+                **skip_kwargs,
             }
             self.logger.debug(
                 "CAHandlerRegistry: registered handler '%s' (section %s)",
@@ -269,6 +471,100 @@ class CAHandlerRegistry:
         self.logger.debug("CAHandlerRegistry._route_domainlist_load() ended with []")
         return []
 
+    def _bind_resolved(self, name: str, kind: str = "") -> BoundCAHandler:
+        """Bind a registered handler and emit the resolve() completion log."""
+        bound = self._bind(name)
+        label = f"{kind} handler" if kind else "handler"
+        self.logger.debug(
+            "CAHandlerRegistry.resolve() ended with %s %r",
+            label,
+            name,
+        )
+        return bound
+
+    def _bind_if_registered(
+        self, name: str, kind: str = ""
+    ) -> Optional[BoundCAHandler]:
+        """Bind ``name`` when it is registered; otherwise return None."""
+        if name in self.handlers:
+            return self._bind_resolved(name, kind)
+        return None
+
+    def _resolve_classical(self) -> Optional[BoundCAHandler]:
+        """Return the single bound handler used outside multi-handler mode."""
+        self.logger.debug(
+            "CAHandlerRegistry.resolve() ended with classical handler %r",
+            getattr(self._single_bound, "name", None),
+        )
+        return self._single_bound
+
+    def _resolve_stored(self, stored_name: Optional[str]) -> Optional[BoundCAHandler]:
+        """Return a previously stored handler, or None to continue resolving."""
+        if not stored_name:
+            return None
+        bound = self._bind_if_registered(stored_name, "stored")
+        if bound:
+            return bound
+        self.logger.warning(
+            "Stored cahandler '%s' is not registered; re-resolving",
+            stored_name,
+        )
+        return None
+
+    def _resolve_eab(self, cahandler_name: str) -> Optional[BoundCAHandler]:
+        """Return the EAB-named handler, or None without falling back."""
+        bound = self._bind_if_registered(cahandler_name, "EAB")
+        if bound:
+            return bound
+        self.logger.error(
+            "Unknown EAB cahandler_name '%s'; refusing silent fallback",
+            cahandler_name,
+        )
+        return None
+
+    def _profile_handler_name(
+        self, order_profile: Optional[str]
+    ) -> Tuple[Optional[str], bool]:
+        """Map an order profile to a handler name.
+
+        Returns ``(name, hard_fail)``. ``hard_fail`` is True when the profile
+        maps to an unregistered handler and resolve() must stop.
+        """
+        if not (
+            order_profile
+            and self.profile_cahandler
+            and order_profile in self.profile_cahandler
+        ):
+            return None, False
+        mapped = self.profile_cahandler[order_profile]
+        if mapped in self.handlers:
+            return mapped, False
+        self.logger.error(
+            "profile_cahandler maps profile '%s' to unknown handler '%s'",
+            order_profile,
+            mapped,
+        )
+        return None, True
+
+    def _default_handler_name(self) -> Optional[str]:
+        """Return the configured default handler name when it is registered."""
+        if self.default_name and self.default_name in self.handlers:
+            return self.default_name
+        return None
+
+    def _resolve_fallback_name(
+        self, order_profile: Optional[str], csr: Optional[str]
+    ) -> Tuple[Optional[str], bool]:
+        """Resolve via profile mapping, CSR routing, then default_handler."""
+        name, hard_fail = self._profile_handler_name(order_profile)
+        if hard_fail:
+            return None, True
+        if name is None and csr is not None:
+            name = self._resolve_by_csr(csr)
+        if name is None:
+            name = self._default_handler_name()
+        return name, False
+
     def resolve(
         self,
         *,
@@ -285,64 +581,18 @@ class CAHandlerRegistry:
             stored_name,
             bool(csr),
         )
-
         if not self.multi_handler:
-            self.logger.debug(
-                "CAHandlerRegistry.resolve() ended with classical handler %r",
-                getattr(self._single_bound, "name", None),
-            )
-            return self._single_bound
+            return self._resolve_classical()
 
-        if stored_name:
-            if stored_name in self.handlers:
-                bound = self._bind(stored_name)
-                self.logger.debug(
-                    "CAHandlerRegistry.resolve() ended with stored handler %r",
-                    stored_name,
-                )
-                return bound
-            self.logger.warning(
-                "Stored cahandler '%s' is not registered; re-resolving",
-                stored_name,
-            )
-
+        bound = self._resolve_stored(stored_name)
+        if bound:
+            return bound
         if cahandler_name:
-            if cahandler_name in self.handlers:
-                bound = self._bind(cahandler_name)
-                self.logger.debug(
-                    "CAHandlerRegistry.resolve() ended with EAB handler %r",
-                    cahandler_name,
-                )
-                return bound
-            self.logger.error(
-                "Unknown EAB cahandler_name '%s'; refusing silent fallback",
-                cahandler_name,
-            )
+            return self._resolve_eab(cahandler_name)
+
+        name, hard_fail = self._resolve_fallback_name(order_profile, csr)
+        if hard_fail:
             return None
-
-        name: Optional[str] = None
-        if (
-            order_profile
-            and self.profile_cahandler
-            and order_profile in self.profile_cahandler
-        ):
-            mapped = self.profile_cahandler[order_profile]
-            if mapped in self.handlers:
-                name = mapped
-            else:
-                self.logger.error(
-                    "profile_cahandler maps profile '%s' to unknown handler '%s'",
-                    order_profile,
-                    mapped,
-                )
-                return None
-
-        if name is None and csr is not None:
-            name = self._resolve_by_csr(csr)
-
-        if name is None and self.default_name and self.default_name in self.handlers:
-            name = self.default_name
-
         if name is None:
             self.logger.error(
                 "CAHandlerRegistry.resolve: no handler matched "
@@ -352,38 +602,60 @@ class CAHandlerRegistry:
             )
             self.logger.debug("CAHandlerRegistry.resolve() ended with None")
             return None
+        return self._bind_resolved(name)
 
-        bound = self._bind(name)
-        self.logger.debug("CAHandlerRegistry.resolve() ended with handler %r", name)
-        return bound
+    def _csr_dns_sans(self, sans: List[str]) -> List[str]:
+        """Return DNS SAN values, skipping malformed entries."""
+        values: List[str] = []
+        for san in sans:
+            try:
+                san_type, san_value = san.lower().split(":", 1)
+            except ValueError:
+                self.logger.debug(
+                    "CAHandlerRegistry._resolve_by_csr: skipping SAN %s", san
+                )
+                continue
+            if san_type == "dns":
+                values.append(san_value)
+        return values
 
-    def _resolve_by_csr(self, csr: str) -> Optional[str]:
+    def _csr_dns_identifiers(self, csr: str) -> Optional[List[str]]:
+        """Return CN and DNS SAN identifiers from a CSR, or None on parse failure."""
         from acme2certifier.acme_srv.helper import (  # pylint: disable=c0415
             csr_cn_get,
             csr_san_get,
         )
 
-        self.logger.debug("CAHandlerRegistry._resolve_by_csr()")
         identifiers: List[str] = []
         try:
             cn = csr_cn_get(self.logger, csr)
             if cn:
                 identifiers.append(cn.lower())
-            for san in csr_san_get(self.logger, csr) or []:
-                try:
-                    san_type, san_value = san.lower().split(":", 1)
-                    if san_type == "dns":
-                        identifiers.append(san_value)
-                except ValueError:
-                    self.logger.debug(
-                        "CAHandlerRegistry._resolve_by_csr: skipping SAN %s", san
-                    )
+            identifiers.extend(self._csr_dns_sans(csr_san_get(self.logger, csr) or []))
         except Exception as err:
             self.logger.warning(
                 "CAHandlerRegistry._resolve_by_csr: failed to parse CSR: %s", err
             )
             return None
+        return identifiers
 
+    def _csr_route_matches(self, identifiers: List[str]) -> List[str]:
+        """Return handler names whose route_domainlist covers every identifier."""
+        matches: List[str] = []
+        for name, entry in self.handlers.items():
+            patterns = entry.get("route_domainlist") or []
+            if patterns and all(
+                is_domain_whitelisted(self.logger, ident, patterns)
+                for ident in identifiers
+            ):
+                matches.append(name)
+        return matches
+
+    def _resolve_by_csr(self, csr: str) -> Optional[str]:
+        self.logger.debug("CAHandlerRegistry._resolve_by_csr()")
+        identifiers = self._csr_dns_identifiers(csr)
+        if identifiers is None:
+            return None
         if not identifiers:
             self.logger.debug(
                 "CAHandlerRegistry._resolve_by_csr() ended with no identifiers"
@@ -393,17 +665,7 @@ class CAHandlerRegistry:
         self.logger.debug(
             "CAHandlerRegistry._resolve_by_csr() identifiers=%s", identifiers
         )
-        matches: List[str] = []
-        for name, entry in self.handlers.items():
-            patterns = entry.get("route_domainlist") or []
-            if not patterns:
-                continue
-            if all(
-                is_domain_whitelisted(self.logger, ident, patterns)
-                for ident in identifiers
-            ):
-                matches.append(name)
-
+        matches = self._csr_route_matches(identifiers)
         if len(matches) > 1:
             self.logger.warning(
                 "Multiple handlers matched CSR identifiers %s: %s; using '%s'",
@@ -426,6 +688,12 @@ class CAHandlerRegistry:
             entry["module"].CAhandler,
             entry["config_section"],
             name,
+            cert_chain_skip_list=entry.get("cert_chain_skip_list") or [],
+            cert_chain_skip_list_error=entry.get("cert_chain_skip_list_error"),
+            cert_chain_append=entry.get("cert_chain_append") or [],
+            cert_chain_append_error=entry.get("cert_chain_append_error"),
+            cert_chain_link_check=entry.get("cert_chain_link_check", True),
+            cert_chain_link_check_error=entry.get("cert_chain_link_check_error"),
         )
         self.logger.debug(
             "CAHandlerRegistry._bind() ended section=%r handler=%s",
