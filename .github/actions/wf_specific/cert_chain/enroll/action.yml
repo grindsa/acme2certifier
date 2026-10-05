@@ -1,0 +1,226 @@
+name: "enroll"
+description: "Enroll lego and assert the rewritten PEM chain (or expected failure)"
+inputs:
+  LAYOUT:
+    description: "a | b | unlinked | stock"
+    required: true
+  EXPECT:
+    description: "success | fail"
+    required: false
+    default: "success"
+  ASSERT_WARNING:
+    description: "If true, require the link_check=False warning in logs"
+    required: false
+    default: "false"
+  CA_PATH:
+    description: "Host path to volume acme_ca/"
+    required: false
+    default: "examples/Docker/data/acme_ca"
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+    default: "container"
+  EAB_KID:
+    description: "Optional EAB key id"
+    required: false
+    default: ""
+  EAB_HMAC:
+    description: "Optional EAB HMAC"
+    required: false
+    default: ""
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Create lego folder"
+      run: mkdir -p lego
+      shell: bash
+
+    - name: "Pull lego image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: goacme/lego
+
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+      with:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Flush logs"
+      uses: ./.github/actions/logs_flush
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Enroll lego"
+      if: ${{ inputs.EXPECT == 'success' }}
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        EAB_KID: ${{ inputs.EAB_KID }}
+        EAB_HMAC: ${{ inputs.EAB_HMAC }}
+      run: |
+        set -euo pipefail
+        sudo rm -rf lego/*
+        if [[ -n "${EAB_KID}" ]]; then
+          docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network acme \
+            goacme/lego run --tls-skip-verify -s "https://${ACME_SERVER}" -a \
+            --email "lego@example.com" --eab --eab.kid "${EAB_KID}" \
+            --eab.hmac "${EAB_HMAC}" -d lego.acme --http
+        else
+          docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network acme \
+            goacme/lego run --tls-skip-verify -s "https://${ACME_SERVER}" -a \
+            --email "lego@example.com" -d lego.acme --http
+        fi
+
+    - name: "Enroll lego (expect failure)"
+      if: ${{ inputs.EXPECT == 'fail' }}
+      id: lego
+      continue-on-error: true
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        EAB_KID: ${{ inputs.EAB_KID }}
+        EAB_HMAC: ${{ inputs.EAB_HMAC }}
+      run: |
+        set -euo pipefail
+        sudo rm -rf lego/*
+        if [[ -n "${EAB_KID}" ]]; then
+          docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network acme \
+            goacme/lego run --tls-skip-verify -s "https://${ACME_SERVER}" -a \
+            --email "lego@example.com" --eab --eab.kid "${EAB_KID}" \
+            --eab.hmac "${EAB_HMAC}" -d lego.acme --http
+        else
+          docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network acme \
+            goacme/lego run --tls-skip-verify -s "https://${ACME_SERVER}" -a \
+            --email "lego@example.com" -d lego.acme --http
+        fi
+
+    - name: "Expect enroll failure"
+      if: ${{ inputs.EXPECT == 'fail' && steps.lego.outcome != 'failure' }}
+      run: |
+        echo "lego outcome is ${{ steps.lego.outcome }} (expected failure)"
+        exit 1
+      shell: bash
+
+    - name: "Sleep for 10s"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
+      uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
+      with:
+        time: 10s
+
+    - name: "Assert link-check failure in logs"
+      if: ${{ inputs.EXPECT == 'fail' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "certificate does not certify the previous one"
+
+    - name: "Assert rewritten chain"
+      if: ${{ inputs.EXPECT == 'success' }}
+      shell: bash
+      env:
+        LAYOUT: ${{ inputs.LAYOUT }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+      run: |
+        set -euo pipefail
+        case "${LAYOUT}" in
+          a|b|unlinked|stock) ;;
+          *) echo "ERROR: LAYOUT must be a|b|unlinked|stock (got: ${LAYOUT})" >&2; exit 1 ;;
+        esac
+        sudo chmod -R a+rX lego
+        crt="lego/certificates/lego.acme.crt"
+        issuer="lego/certificates/lego.acme.issuer.crt"
+        test -s "${crt}"
+
+        fp() {
+          openssl x509 -in "$1" -noout -fingerprint -sha256 \
+            | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]'
+        }
+        old_root="$(fp "${CA_PATH}/root-ca-cert.pem")"
+        old_sub="$(fp "${CA_PATH}/sub-ca-cert.pem")"
+        new_root="$(fp "${CA_PATH}/new-root.pem")"
+        root_cross="$(fp "${CA_PATH}/root-ca-cross.pem")"
+        sub_cross="$(fp "${CA_PATH}/sub-ca-cross.pem")"
+
+        work="$(mktemp -d)"
+        leaf="${work}/leaf.pem"
+        chain="${work}/chain.pem"
+        openssl x509 -in "${crt}" -out "${leaf}"
+        crt_n="$(grep -c "BEGIN CERTIFICATE" "${crt}" || true)"
+        issuer_n=0
+        if [[ -s "${issuer}" ]]; then
+          issuer_n="$(grep -c "BEGIN CERTIFICATE" "${issuer}" || true)"
+        fi
+        # lego .crt is fullchain (EE first). Remainder is certs 2..n.
+        if [[ "${crt_n}" -gt 1 ]]; then
+          awk 'BEGIN{c=0} /BEGIN CERT/{c++} c>1{print}' "${crt}" > "${chain}"
+        else
+          test -s "${issuer}"
+          cp "${issuer}" "${chain}"
+        fi
+        awk -v d="${work}" 'BEGIN{c=0} /BEGIN CERT/{c++} {print > d "/c" c ".pem"}' "${chain}"
+        n="$(grep -c "BEGIN CERTIFICATE" "${chain}" || true)"
+        echo "issuer chain count=${n} (crt_n=${crt_n} issuer_n=${issuer_n})"
+        found=""
+        for f in "${work}"/c*.pem; do
+          this="$(fp "${f}")"
+          echo "  $(openssl x509 -in "${f}" -noout -subject) fp=${this}"
+          found="${found} ${this}"
+        done
+        has() { [[ " ${found} " == *" $1 "* ]]; }
+
+        verify_new() {
+          openssl verify -CAfile "${CA_PATH}/new-root.pem" -untrusted "${chain}" "${leaf}"
+        }
+        verify_old() {
+          openssl verify -CAfile "${CA_PATH}/root-ca-cert.pem" -untrusted "${chain}" "${leaf}"
+        }
+
+        case "${LAYOUT}" in
+          a)
+            [[ "${n}" == "3" ]] || { echo "expected 3 issuer certs, got ${n}" >&2; exit 1; }
+            has "${old_sub}" || { echo "missing old sub-ca" >&2; exit 1; }
+            has "${root_cross}" || { echo "missing root-ca-cross" >&2; exit 1; }
+            has "${new_root}" || { echo "missing new-root" >&2; exit 1; }
+            has "${old_root}" && { echo "old root still in chain" >&2; exit 1; }
+            verify_new
+            ;;
+          b)
+            [[ "${n}" == "2" ]] || { echo "expected 2 issuer certs, got ${n}" >&2; exit 1; }
+            has "${sub_cross}" || { echo "missing sub-ca-cross" >&2; exit 1; }
+            has "${new_root}" || { echo "missing new-root" >&2; exit 1; }
+            has "${old_sub}" && { echo "old sub-ca still in chain" >&2; exit 1; }
+            has "${old_root}" && { echo "old root still in chain" >&2; exit 1; }
+            verify_new
+            ;;
+          unlinked)
+            [[ "${n}" == "2" ]] || { echo "expected 2 issuer certs, got ${n}" >&2; exit 1; }
+            has "${old_sub}" || { echo "missing old sub-ca" >&2; exit 1; }
+            has "${new_root}" || { echo "missing new-root" >&2; exit 1; }
+            has "${old_root}" && { echo "old root still in chain" >&2; exit 1; }
+            verify_old
+            if verify_new; then
+              echo "unlinked new-root unexpectedly verifies the leaf" >&2
+              exit 1
+            fi
+            echo "new-root verify failed as expected (unlinked append)"
+            ;;
+          stock)
+            [[ "${n}" == "2" ]] || { echo "expected 2 issuer certs, got ${n}" >&2; exit 1; }
+            has "${old_sub}" || { echo "missing old sub-ca" >&2; exit 1; }
+            has "${old_root}" || { echo "missing old root" >&2; exit 1; }
+            has "${new_root}" && { echo "new-root unexpectedly in stock chain" >&2; exit 1; }
+            verify_old
+            ;;
+        esac
+
+    - name: "Assert link-check warning in logs"
+      if: ${{ inputs.EXPECT == 'success' && inputs.ASSERT_WARNING == 'true' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "cert_chain_link_check is False; certificate does not certify the previous one"

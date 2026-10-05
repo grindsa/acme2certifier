@@ -14,6 +14,7 @@ and pick the appropriate release branch.
 
 **New Features**:
 
+- Optional `[CAhandler] cert_chain_skip_list` (JSON list of SHA-256 fingerprints) and `cert_chain_append` (JSON list of PEM files) to rewrite the PEM bundle after the CA handler returns it (enroll, poll, trigger). Skip drops matching certificates (intended as a suffix of the chain; remaining links are checked); append adds local PEMs that must certify the previous certificate unless `cert_chain_link_check` is `False` (warning, still stored). Kid-profile `cahandler` blocks can set the same keys (replace bound values, not setattr on the handler). Typical use: omit a self-signed root and attach a cross-signed replacement. See [`docs/cert_chain.md`](docs/cert_chain.md)
 - Multi-CAhandler support: configure several CA handler plugins in one instance (`multi_handler`, named `[CAhandler:<name>]` sections, EAB `cahandler_name`, `profile_cahandler`, `route_domainlist` using the same exact/wildcard matching as `[Order] allowed_domainlist`, `orders.cahandler` persistence); INI and YAML config; see [`docs/multi_cahandler.md`](docs/multi_cahandler.md)
 - [HARICA CertManager](docs/harica.md) REST CA handler (`harica_ca_handler`) for SSL enrollment against prevalidated domains (login/2FA, poll, optional `auto_approve`, revoke); credentials via `requester_*` / `approver_*` or matching `*_variable` environment variable names
 - [`a2c-harica-totp`](docs/harica.md) CLI to print the current CertManager TOTP code from configured seeds (portal login / troubleshooting)

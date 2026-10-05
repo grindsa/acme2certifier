@@ -123,6 +123,7 @@ acme_srv/est-myca/*.pem
 acme_srv/est/*.pem
 acme_srv/msca/*.pem
 test/ca/foo-ca-crl.pem
+test/new_ca/
 
 *.csr
 *.old
