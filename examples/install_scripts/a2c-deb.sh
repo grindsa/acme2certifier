@@ -658,6 +658,10 @@ else
   if [[ -f "${SHARE}/nginx/acme2certifier.service" ]]; then
     ${SUDO} cp "${SHARE}/nginx/acme2certifier.service" /etc/systemd/system/acme2certifier.service
   else
+    _exec_start_pre=""
+    if [[ -x /usr/bin/a2c-schema-update ]]; then
+      _exec_start_pre="ExecStartPre=/usr/bin/a2c-schema-update"
+    fi
     ${SUDO} tee /etc/systemd/system/acme2certifier.service >/dev/null <<EOF
 [Unit]
 Description=uWSGI instance to serve acme2certifier
@@ -671,7 +675,7 @@ RuntimeDirectory=uwsgi
 Environment="PYTHONPATH=${APP_ROOT}"
 Environment="PATH=${APP_ROOT}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="ACME_SRV_CONFIGFILE=${CFG}"
-ExecStartPre=/usr/bin/a2c-schema-update
+${_exec_start_pre}
 ExecStart=uwsgi --ini ${APP_ROOT}/acme2certifier.ini
 
 [Install]
@@ -684,10 +688,18 @@ EOF
     ${SUDO} sed -i '/^\[Service\]/a RuntimeDirectory=uwsgi' \
       /etc/systemd/system/acme2certifier.service
   fi
-  # Ensure schema update before start (Docker-like; cfg selects django/wsgi).
-  if [[ -f /etc/systemd/system/acme2certifier.service ]] \
+  # Schema update before start when the package ships the unified CLI (not ≤0.46).
+  if [[ -x /usr/bin/a2c-schema-update ]] \
+    && [[ -f /etc/systemd/system/acme2certifier.service ]] \
     && ! grep -q '^ExecStartPre=.*a2c-schema-update' /etc/systemd/system/acme2certifier.service; then
     ${SUDO} sed -i '/^ExecStart=/i ExecStartPre=/usr/bin/a2c-schema-update' \
+      /etc/systemd/system/acme2certifier.service
+  fi
+  # Drop a broken Pre if a unit template mentions the CLI but the binary is absent.
+  if [[ ! -x /usr/bin/a2c-schema-update ]] \
+    && [[ -f /etc/systemd/system/acme2certifier.service ]] \
+    && grep -q '^ExecStartPre=.*a2c-schema-update' /etc/systemd/system/acme2certifier.service; then
+    ${SUDO} sed -i '/^ExecStartPre=.*a2c-schema-update/d' \
       /etc/systemd/system/acme2certifier.service
   fi
   # Older packaged units set PATH=APP_ROOT only, which hides /usr/bin/kinit from uwsgi.
@@ -736,13 +748,17 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
       a2c_apache_envvar_set ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
     fi
   fi
+  _django_schema=(a2c-django-update)
+  if command -v a2c-schema-update >/dev/null 2>&1; then
+    _django_schema=(a2c-schema-update --mode django)
+  fi
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
     ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
-    a2c-schema-update --mode django
+    "${_django_schema[@]}"
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \
