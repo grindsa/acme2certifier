@@ -348,7 +348,9 @@ jobs:
           docker exec alma9-c1 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
           docker exec alma9-c1 sh -c "echo '}' >> /etc/nginx/nginx.conf"
           docker exec alma9-c1 mv /opt/acme2certifier/acme_srv.cfg /opt/acme2certifier/volume/acme_srv.cfg
-          docker exec alma9-c1 bash -c 'CFG=/opt/acme2certifier/volume/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
+          # Do not set handler: django here — ExecStartPre=a2c-schema-update would run
+          # Django migrate before Configure writes ACME2CERTIFIER_* / disables i18n.
+          # Configure sets the django handler after MariaDB + uWSGI env are ready.
           docker exec alma9-c1 ln -s /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
           docker exec alma9-c1 systemctl enable acme2certifier
           docker exec alma9-c1 systemctl start acme2certifier
