@@ -8,9 +8,10 @@ import ssl
 import logging
 import json
 import re
+import threading
 import time
-from typing import List, Dict, Tuple, Union, Optional
-from urllib.parse import urlparse, quote
+from typing import Any, List, Dict, Tuple, Union, Optional
+from urllib.parse import urlparse, urlunparse, quote
 from urllib3.util import connection
 import socks
 import dns.resolver
@@ -24,7 +25,7 @@ from .global_variables import USER_AGENT
 urllib3_cn = connection
 
 
-def _caaidentities_parse(value: str) -> List[str]:
+def _caaidentities_parse(logger: logging.Logger, value: str) -> List[str]:
     """Parse caaidentities from JSON list or comma-separated string."""
     if not value:
         return []
@@ -33,7 +34,7 @@ def _caaidentities_parse(value: str) -> List[str]:
         if isinstance(parsed, list):
             return [str(item).strip() for item in parsed if str(item).strip()]
     except Exception:
-        pass
+        logger.debug("Error parsing caaidentities as json: %s", value)
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
@@ -48,6 +49,19 @@ def configured_server_name_get(config_dic) -> Optional[str]:
     return None
 
 
+def server_name_allowed_host(server_name: str) -> Optional[str]:
+    """Return host[:port] from configured server_name for Django ALLOWED_HOSTS."""
+    raw = str(server_name).strip()
+    if not raw:
+        return None
+    if "://" in raw:
+        host = urlparse(raw).netloc
+    else:
+        host = raw.split("/", 1)[0]
+    host = host.strip()
+    return host or None
+
+
 def server_name_configuration_validate(logger: logging.Logger, config_dic) -> None:
     """Emit startup warnings for server_name fallback and CAA alignment."""
     server_name = configured_server_name_get(config_dic)
@@ -59,7 +73,7 @@ def server_name_configuration_validate(logger: logging.Logger, config_dic) -> No
         return
 
     caa_raw = config_dic.get("Directory", "caaidentities", fallback=None)
-    caaidentities = _caaidentities_parse(caa_raw) if caa_raw else []
+    caaidentities = _caaidentities_parse(logger, caa_raw) if caa_raw else []
     if caaidentities and server_name not in caaidentities:
         logger.warning(
             "Configured server_name '%s' is not listed in Directory.caaidentities %s",
@@ -227,15 +241,71 @@ def dns_server_list_load() -> List[str]:
     return dns_server_list
 
 
-def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: no cover
-    """Wrap urllib3's create_connection to resolve the name elsewhere"""
-    # load dns-servers from config file
-    dns_server_list = dns_server_list_load()
-    # resolve hostname to an ip address; use your own resolver
+# Thread-local flag for custom-DNS urllib3 connects (avoids process-global
+# create_connection swap races). Wrapper is installed once; inactive when unset.
+_dns_connect_tls = threading.local()
+_dns_connect_install_lock = threading.Lock()
+_dns_connect_wrapper_installed = False
+
+
+def _first_resolved_address(
+    resolved: Union[str, List[str], None], fallback: str
+) -> str:
+    """Pick a single connect address from fqdn_resolve output."""
+    if isinstance(resolved, list):
+        return resolved[0] if resolved else fallback
+    if isinstance(resolved, str) and resolved:
+        return resolved
+    return fallback
+
+
+def _thread_local_create_connection(address, *args, **kwargs):  # pragma: no cover
+    """urllib3 create_connection that optionally uses configured DNS servers."""
     host, port = address
-    hostname, _invalid, _error = fqdn_resolve(host, dns_server_list)
+    if getattr(_dns_connect_tls, "use_custom_dns", False):
+        dns_server_list = dns_server_list_load()
+        resolved, _invalid, _error = fqdn_resolve(host, dns_server_list)
+        host = _first_resolved_address(resolved, host)
+    # pylint: disable=W0212
+    return connection._orig_create_connection((host, port), *args, **kwargs)
+
+
+def _ensure_custom_dns_connect_wrapper() -> None:
+    """Install the thread-local urllib3 create_connection wrapper once."""
+    global _dns_connect_wrapper_installed
+    if _dns_connect_wrapper_installed:
+        return
+    with _dns_connect_install_lock:
+        if _dns_connect_wrapper_installed:
+            return
+        # pylint: disable=W0212
+        if getattr(connection, "_orig_create_connection", None) is None:
+            connection._orig_create_connection = connection.create_connection
+        connection.create_connection = _thread_local_create_connection
+        _dns_connect_wrapper_installed = True
+
+
+def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: no cover
+    """Resolve via configured DNS then connect (legacy entry point / tests)."""
+    _ensure_custom_dns_connect_wrapper()
+    host, port = address
+    dns_server_list = dns_server_list_load()
+    resolved, _invalid, _error = fqdn_resolve(host, dns_server_list)
+    hostname = _first_resolved_address(resolved, host)
     # pylint: disable=W0212
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
+
+
+def proxy_url_for_log(proxy_server: Any) -> Any:
+    """Return a proxy URL safe for debug logs, with userinfo removed."""
+    if not isinstance(proxy_server, str) or "@" not in proxy_server:
+        return proxy_server
+    if "://" in proxy_server:
+        proto, rest = proxy_server.split("://", 1)
+        _userinfo, hostport = rest.rsplit("@", 1)
+        return f"{proto}://***@{hostport}"
+    _userinfo, hostport = proxy_server.rsplit("@", 1)
+    return f"***@{hostport}"
 
 
 def proxy_check(
@@ -265,7 +335,7 @@ def proxy_check(
         logger.debug("Helper.proxy_check() wildcard match found: fqdn: %s", fqdn)
         proxy = proxy_server_list_new["*"]
 
-    logger.debug("Helper.proxy_check() ended with %s", proxy)
+    logger.debug("Helper.proxy_check() ended with %s", proxy_url_for_log(proxy))
     return proxy
 
 
@@ -274,10 +344,8 @@ def url_get_with_own_dns(
 ) -> Tuple[Optional[str], int, Optional[str]]:
     """request by using an own dns resolver"""
     logger.debug("Helper.url_get_with_own_dns(%s)", url)
-    # patch an own connection handler into URL lib
-    # pylint: disable=W0212
-    connection._orig_create_connection = connection.create_connection
-    connection.create_connection = patched_create_connection
+    _ensure_custom_dns_connect_wrapper()
+    _dns_connect_tls.use_custom_dns = True
     try:
         req = requests.get(
             url,
@@ -302,8 +370,8 @@ def url_get_with_own_dns(
             f"Could not get URL by using the configured DNS servers: {str(err_)}"
         )
         logger.error(error_msg)
-    # cleanup
-    connection.create_connection = connection._orig_create_connection
+    finally:
+        _dns_connect_tls.use_custom_dns = False
     return result, status_code, error_msg
 
 
@@ -470,18 +538,18 @@ def filter_http01_target_ips(
     return allowed, None
 
 
-def _pinned_create_connection(pinned_ip: str):
-    """Return a create_connection that dials ``pinned_ip`` instead of resolving.
+def _http_url_host(host: str) -> str:
+    """Bracket IPv6 literals for use in an HTTP URL authority."""
+    try:
+        addr = ipaddress.ip_address(host)
+        return f"[{host}]" if isinstance(addr, ipaddress.IPv6Address) else host
+    except ValueError:
+        return host
 
-    Same monkey-patch style as ``patched_create_connection`` / ``url_get_with_own_dns``.
-    """
 
-    def _create_connection(address, *args, **kwargs):
-        _hostname, port = address
-        # pylint: disable=W0212
-        return connection._orig_create_connection((pinned_ip, port), *args, **kwargs)
-
-    return _create_connection
+def _http_host_header(host: str) -> str:
+    """Host header value for the logical HTTP-01 identifier."""
+    return _http_url_host(host)
 
 
 def url_get_dns_pinned(
@@ -492,11 +560,11 @@ def url_get_dns_pinned(
     verify: bool = True,
     timeout: int = 20,
 ) -> Tuple[Optional[str], int, Optional[str]]:
-    """HTTP GET using a hostname URL while forcing the TCP peer to a pinned IP.
+    """HTTP GET to a pinned peer IP while keeping the logical Host header.
 
-    Keeps ``http://<host>/...`` in the request (normal Host / ingress behavior)
-    and overrides urllib3 ``create_connection`` so the socket connects to a
-    pre-resolved address without a second DNS lookup (rebinding mitigation).
+    Uses ``http://<pinned-ip>/...`` with ``Host: <host>`` so the TCP peer is
+    bound without a process-global urllib3 ``create_connection`` monkey-patch
+    (avoids cross-request pin races). Proxy-based HTTP-01 skips this helper.
     """
     logger.debug(
         "Helper.url_get_dns_pinned(host=%s, path=%s, ips=%s)", host, path, pinned_ips
@@ -504,17 +572,12 @@ def url_get_dns_pinned(
     if not path.startswith("/"):
         path = f"/{path}"
 
-    try:
-        host_addr = ipaddress.ip_address(host)
-        url_host = f"[{host}]" if isinstance(host_addr, ipaddress.IPv6Address) else host
-    except ValueError:
-        url_host = host
-
-    url = f"http://{url_host}{path}"
+    host_header = _http_host_header(host)
     headers = {
         "Connection": "close",
         "Accept-Encoding": "gzip",
         "User-Agent": USER_AGENT,
+        "Host": host_header,
     }
 
     last_error: Optional[str] = "No pinned IP addresses provided"
@@ -526,9 +589,7 @@ def url_get_dns_pinned(
             last_error = f"Invalid pinned IP: {ip_str}"
             continue
 
-        # pylint: disable=W0212
-        connection._orig_create_connection = connection.create_connection
-        connection.create_connection = _pinned_create_connection(ip_str)
+        url = f"http://{_http_url_host(ip_str)}{path}"
         try:
             req = requests.get(
                 url,
@@ -563,8 +624,6 @@ def url_get_dns_pinned(
             last_status = 500
             last_error = f"Could not fetch URL via pinned IP {ip_str}: {err}"
             logger.error(last_error)
-        finally:
-            connection.create_connection = connection._orig_create_connection
 
     logger.debug(
         "Helper.url_get_dns_pinned() ended with status: %s, error: %s",
@@ -598,7 +657,7 @@ def proxystring_convert(
     logger: logging.Logger, proxy_server: str
 ) -> Tuple[str, str, str]:
     """convert proxy string"""
-    logger.debug("Helper.proxystring_convert(%s)", proxy_server)
+    logger.debug("Helper.proxystring_convert(%s)", proxy_url_for_log(proxy_server))
 
     proxy_proto_dic = {
         "http": socks.PROXY_TYPE_HTTP,
@@ -608,10 +667,7 @@ def proxystring_convert(
     try:
         proxy_proto, proxy = proxy_server.split("://")
     except Exception:
-        logger.error(
-            "Error while splitting proxy_server string: %s",
-            proxy_server,
-        )
+        logger.error("Error while splitting proxy_server string")
         proxy = None
         proxy_proto = None
 
@@ -619,7 +675,7 @@ def proxystring_convert(
         try:
             proxy_addr, proxy_port = proxy.split(":")
         except Exception:
-            logger.error("Error while splitting proxy into host/port: %s", proxy)
+            logger.error("Error while splitting proxy into host/port")
             proxy_addr = None
             proxy_port = None
     else:
@@ -633,24 +689,22 @@ def proxystring_convert(
             logger.error("Unknown proxy protocol: %s", proxy_proto)
             proto_string = None
     else:
-        logger.error(
-            "proxy_proto (%s), proxy_addr (%s) or proxy_port (%s) missing",
-            proxy_proto,
-            proxy_addr,
-            proxy_port,
-        )
+        logger.error("Proxy protocol, address, or port is missing")
         proto_string = None
 
     try:
         proxy_port = int(proxy_port)
     except Exception:
-        logger.error("Unknown proxy port: %s", proxy_port)
+        logger.error("Unknown proxy port")
         proxy_port = None
 
+    log_addr = proxy_addr
+    if isinstance(proxy_server, str) and "@" in proxy_server and proxy_addr:
+        log_addr = "***"
     logger.debug(
         "Helper.proxystring_convert() ended with %s, %s, %s",
         proto_string,
-        proxy_addr,
+        log_addr,
         proxy_port,
     )
     return (proto_string, proxy_addr, proxy_port)
@@ -662,13 +716,23 @@ def servercert_get(
     port: int = 443,
     proxy_server: str = None,
     sni: str = None,
-) -> str:
-    """get server certificate from an ssl connection"""
-    logger.debug("Helper.servercert_get(%s:%s)", hostname, port)
+    connect_host: Optional[str] = None,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Fetch peer certificate over TLS with ALPN ``acme-tls/1``.
+
+    Returns ``(pem_cert, selected_alpn)``. When *connect_host* is set, TCP
+    connects to that address while SNI remains *sni* (or *hostname*) so DNS
+    validation can pin the resolved IP (RFC 8737 / rebinding mitigation).
+    """
+    logger.debug(
+        "Helper.servercert_get(%s:%s connect_host=%s)", hostname, port, connect_host
+    )
 
     pem_cert = None
+    selected_alpn = None
+    connect_target = connect_host or hostname
 
-    if ipv6_chk(logger, hostname):
+    if ipv6_chk(logger, connect_target):
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     else:
         sock = socks.socksocket()
@@ -699,14 +763,16 @@ def servercert_get(
             logger.debug("servercert_get(): configure proxy")
             sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
     try:
-        sock.connect((hostname, port))
+        sock.connect((connect_target, port))
         with context.wrap_socket(sock, server_hostname=sni) as sslsock:
+            selected_alpn = sslsock.selected_alpn_protocol()
             logger.debug(
-                "servercert_get(): %s:%s:%s version: %s",
-                hostname,
+                "servercert_get(): %s:%s:%s version: %s alpn: %s",
+                connect_target,
                 sni,
                 port,
                 sslsock.version(),
+                selected_alpn,
             )
             der_cert = sslsock.getpeercert(True)
             # from binary DER format to PEM
@@ -715,15 +781,17 @@ def servercert_get(
     except Exception as err_:
         logger.error("Could not get peer certificate. Error: %s", err_)  # NOSONAR
         pem_cert = None
+        selected_alpn = None
 
     if pem_cert:
         logger.debug(
-            "Helper.servercert_get() ended with: %s",
+            "Helper.servercert_get() ended with: %s alpn=%s",
             b64_encode(logger, convert_string_to_byte(pem_cert)),
+            selected_alpn,
         )
     else:
         logger.debug("Helper.servercert_get() ended with: None")
-    return pem_cert
+    return pem_cert, selected_alpn
 
 
 def v6_adjust(logger: logging.Logger, url: str) -> Tuple[Dict[str, str], str]:
@@ -802,6 +870,29 @@ def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
     return result
 
 
+def normalize_request_url(url: str) -> str:
+    """Normalize an absolute URL for RFC 8555 §6.4 comparison."""
+    if not url:
+        return ""
+    parsed = urlparse(url.strip())
+    path = parsed.path.rstrip("/") or "/"
+    return urlunparse(
+        (
+            (parsed.scheme or "").lower(),
+            (parsed.netloc or "").lower(),
+            path,
+            "",
+            parsed.query,
+            "",
+        )
+    )
+
+
+def protected_url_matches_request(protected_url: str, request_url: str) -> bool:
+    """True when protected JWS url equals the HTTP request target (RFC 8555 §6.4)."""
+    return normalize_request_url(protected_url) == normalize_request_url(request_url)
+
+
 def parse_url(logger: logging.Logger, url: str) -> Dict[str, str]:
     """split url into pieces"""
     logger.debug("Helper.parse_url()")
@@ -823,6 +914,80 @@ def encode_url(logger: logging.Logger, input_string: str) -> str:
 
 RETRYABLE_STATUS_CODES = {500, 502, 503, 504}
 
+# Credential headers stripped on cross-origin redirects (requests only strips Authorization).
+_SENSITIVE_REDIRECT_HEADERS = frozenset(
+    {
+        "authorization",
+        "proxy-authorization",
+        "x-vault-token",
+        "x-dc-devkey",
+        "x-api-key",
+    }
+)
+
+# Unpatched requests.Session.rebuild_auth (captured once before our wrapper).
+if not getattr(requests.Session, "_a2c_rebuild_auth_patched", False):
+    _ORIGINAL_SESSION_REBUILD_AUTH = requests.Session.rebuild_auth
+else:  # pragma: no cover - module reload
+    _ORIGINAL_SESSION_REBUILD_AUTH = getattr(
+        requests.Session,
+        "_a2c_original_rebuild_auth",
+        requests.Session.rebuild_auth,
+    )
+
+
+def _is_credential_header(name: str) -> bool:
+    """True when *name* is an auth/API-key header that must not cross origins."""
+    lower = name.lower()
+    if lower in _SENSITIVE_REDIRECT_HEADERS:
+        return True
+    if "api-key" in lower or "apikey" in lower:
+        return True
+    if lower.endswith(("-token", "_token")):
+        return True
+    return False
+
+
+def _strip_credential_headers(prepared_request) -> None:
+    """Remove credential headers from a prepared request."""
+    for key in [
+        header
+        for header in prepared_request.headers
+        if _is_credential_header(header)
+    ]:
+        del prepared_request.headers[key]
+
+
+def _a2c_session_rebuild_auth(self, prepared_request, response):
+    """Like requests' rebuild_auth, also drop custom CA API credential headers."""
+    strip = self.should_strip_auth(response.request.url, prepared_request.url)
+    _ORIGINAL_SESSION_REBUILD_AUTH(self, prepared_request, response)
+    if strip:
+        _strip_credential_headers(prepared_request)
+
+
+def _install_session_rebuild_auth_patch() -> None:
+    """Patch requests.Session so requests.get/post and custom Sessions all strip."""
+    if getattr(requests.Session, "_a2c_rebuild_auth_patched", False):
+        return
+    requests.Session._a2c_original_rebuild_auth = _ORIGINAL_SESSION_REBUILD_AUTH
+    requests.Session.rebuild_auth = _a2c_session_rebuild_auth
+    requests.Session._a2c_rebuild_auth_patched = True
+
+
+_install_session_rebuild_auth_patch()
+
+
+class RedirectCredentialStripSession(requests.Session):
+    """Session with credential-aware redirect auth (class patch also covers stock Session)."""
+
+
+def resolve_request_session(session: Any) -> Any:
+    """Normalize session for request_operation; keep ``requests`` module for API mocks."""
+    if session is None:
+        return requests
+    return session
+
 
 def _retry_wait_seconds(retry_backoff: float, attempt: int) -> float:
     """Calculate exponential backoff delay for a retry attempt."""
@@ -839,6 +1004,7 @@ def _request_send_by_method(
     timeout: int,
     payload: Dict[str, str],
     verify: bool,
+    auth: Any = None,
 ) -> Tuple[Optional[requests.Response], Optional[Tuple[int, str]]]:
     """Send request by HTTP method and return either response or error tuple."""
     request_args = {
@@ -848,6 +1014,8 @@ def _request_send_by_method(
         "timeout": timeout,
         "verify": verify,
     }
+    if auth is not None:
+        request_args["auth"] = auth
     method_lower = method.lower()
 
     if method_lower == "get":
@@ -898,10 +1066,12 @@ def request_operation(
     verify: bool = True,
     retries: int = 0,
     retry_backoff: float = 1.0,
+    auth: Any = None,
 ):
     """Execute an HTTP request with optional retry on transient failures."""
     logger.debug("Helper.api_operation(): method: %s", method)
 
+    session = resolve_request_session(session)
     attempts = 1 + max(retries, 0)
 
     for attempt in range(1, attempts + 1):
@@ -916,6 +1086,7 @@ def request_operation(
                 timeout,
                 payload,
                 verify,
+                auth,
             )
             if method_error:
                 return method_error
@@ -957,3 +1128,46 @@ def request_operation(
                 return code, content
 
     return 500, "Unexpected retry loop exit"
+
+
+def client_session_apply(
+    session: requests.Session,
+    *,
+    pem_cert: Optional[str] = None,
+    pem_key: Optional[str] = None,
+    pkcs12_filename: Optional[str] = None,
+    pkcs12_password: Optional[str] = None,
+    mount_url: Optional[str] = None,
+    pkcs12_adapter_cls: Optional[type] = None,
+) -> requests.Session:
+    """Apply PEM or PKCS12 client authentication to a requests session."""
+    if pem_cert and pem_key:
+        session.cert = (pem_cert, pem_key)
+        return session
+    if pkcs12_filename:
+        adapter_cls = pkcs12_adapter_cls
+        if adapter_cls is None:
+            from requests_pkcs12 import Pkcs12Adapter  # pylint: disable=c0415
+
+            adapter_cls = Pkcs12Adapter
+        session.mount(
+            mount_url,
+            adapter_cls(
+                pkcs12_filename=pkcs12_filename,
+                pkcs12_password=pkcs12_password,
+            ),
+        )
+    return session
+
+
+def ca_api_request(
+    logger: logging.Logger,
+    method: str,
+    url: str,
+    **kwargs: Any,
+) -> Tuple[int, Optional[Union[Dict, str]]]:
+    """Thin CA-handler wrapper around request_operation."""
+    logger.debug("CAhandler._api_%s()", method.lower())
+    code, content = request_operation(logger, method=method, url=url, **kwargs)
+    logger.debug("CAhandler._api_%s() ended with code: %s", method.lower(), code)
+    return code, content

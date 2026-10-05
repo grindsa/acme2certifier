@@ -1,0 +1,53 @@
+{
+  "keyid_00": {
+    "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+    "cahandler": {
+      "cert_chain_skip_list": [
+        "0685ac595a5ee17aec01b4529249385ec7228009e7b5e9fcd804c27af6c7f7c4"
+      ],
+      "cert_chain_append": [
+        "${APPEND_PREFIX}/root-ca-cross.pem",
+        "${APPEND_PREFIX}/new-root.pem"
+      ]
+    }
+  },
+  "keyid_01": {
+    "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+    "cahandler": {
+      "cert_chain_skip_list": [
+        "2832edcb43b3198bc1b2923f8c3b541fbcf552ce77dda10539582a66aca35722",
+        "0685ac595a5ee17aec01b4529249385ec7228009e7b5e9fcd804c27af6c7f7c4"
+      ],
+      "cert_chain_append": [
+        "${APPEND_PREFIX}/sub-ca-cross.pem",
+        "${APPEND_PREFIX}/new-root.pem"
+      ]
+    }
+  },
+  "keyid_02": {
+    "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+  },
+  "keyid_03": {
+    "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr",
+    "cahandler": {
+      "cert_chain_skip_list": [
+        "0685ac595a5ee17aec01b4529249385ec7228009e7b5e9fcd804c27af6c7f7c4"
+      ],
+      "cert_chain_append": [
+        "${APPEND_PREFIX}/new-root.pem"
+      ],
+      "cert_chain_link_check": false
+    }
+  },
+  "keyid_04": {
+    "hmac": "YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5",
+    "cahandler": {
+      "cert_chain_skip_list": [
+        "0685ac595a5ee17aec01b4529249385ec7228009e7b5e9fcd804c27af6c7f7c4"
+      ],
+      "cert_chain_append": [
+        "${APPEND_PREFIX}/new-root.pem"
+      ]
+    }
+  }
+}

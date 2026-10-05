@@ -15,9 +15,10 @@ from acme2certifier.acme_srv.helper import (
     error_dic_get,
     uts_to_date_utc,
     uts_now,
+    protected_url_matches_request,
 )
 from acme2certifier.acme_srv.db_handler import DBstore
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 
 from acme2certifier.acme_srv.signature import Signature
 from acme2certifier.acme_srv.helpers.global_variables import (
@@ -30,27 +31,70 @@ class ExternalAccountBinding:
     """Encapsulates EAB validation and signature verification logic."""
 
     INVALID_EAB_CREDENTIALS_DETAIL = "invalid eab credentials"
+    MALFORMED_REQUEST_DETAIL = "Malformed request"
 
     def __init__(self, logger, eab_handler, server_name=None):
         self.logger = logger
         self.eab_handler = eab_handler
         self.server_name = server_name
 
-    def get_kid(self, protected: str) -> str:
-        """Extract key identifier (kid) from protected header."""
-        self.logger.debug("ExternalAccountBinding.get_kid()")
+    def _decode_protected(self, protected: str) -> Optional[dict]:
+        """Base64url-decode an EAB protected header into a dict, or None."""
         try:
             protected_dic = json.loads(b64decode_pad(self.logger, protected))
         except Exception as err:
             self.logger.error("Failed to decode protected header: %s", err)
-            protected_dic = None
-
+            return None
         if isinstance(protected_dic, dict):
-            eab_key_id = protected_dic.get("kid", None)
-        else:
-            eab_key_id = None
+            return protected_dic
+        return None
+
+    def get_kid(self, protected: str) -> str:
+        """Extract key identifier (kid) from protected header."""
+        self.logger.debug("ExternalAccountBinding.get_kid()")
+        protected_dic = self._decode_protected(protected)
+        eab_key_id = protected_dic.get("kid") if protected_dic else None
         self.logger.debug("ExternalAccountBinding.get_kid() ended with: %s", eab_key_id)
         return eab_key_id
+
+    def _reject_eab_url_mismatch(
+        self,
+        outer_protected: dict,
+        eab_protected_b64: str,
+        err_msg_dic: dict,
+        request_url: Optional[str] = None,
+    ) -> Optional[Tuple[int, str, str]]:
+        """RFC 8555 §7.3.4: EAB protected url must equal the outer JWS url."""
+        eab_protected = self._decode_protected(eab_protected_b64)
+        if not eab_protected:
+            self.logger.warning("EAB malformed: protected header not decodable")
+            return (403, err_msg_dic["malformed"], self.MALFORMED_REQUEST_DETAIL)
+
+        inner_url = eab_protected.get("url")
+        outer_url = (
+            outer_protected.get("url") if isinstance(outer_protected, dict) else None
+        )
+        if not isinstance(inner_url, str) or not inner_url:
+            self.logger.warning("EAB malformed: missing url in protected header")
+            return (403, err_msg_dic["malformed"], self.MALFORMED_REQUEST_DETAIL)
+        if not isinstance(outer_url, str) or not outer_url:
+            self.logger.warning("EAB malformed: missing url in outer protected header")
+            return (403, err_msg_dic["malformed"], self.MALFORMED_REQUEST_DETAIL)
+
+        if not protected_url_matches_request(inner_url, outer_url):
+            self.logger.warning(
+                "EAB url mismatch inner=%s outer=%s", inner_url, outer_url
+            )
+            return (403, err_msg_dic["malformed"], self.MALFORMED_REQUEST_DETAIL)
+
+        if isinstance(request_url, str) and request_url:
+            if not protected_url_matches_request(inner_url, request_url):
+                self.logger.warning(
+                    "EAB url mismatch inner=%s request=%s", inner_url, request_url
+                )
+                return (403, err_msg_dic["malformed"], self.MALFORMED_REQUEST_DETAIL)
+
+        return None
 
     def compare_jwk(self, protected: dict, payload: str) -> bool:
         """Compare JWK from outer header with JWK in EAB payload."""
@@ -131,16 +175,28 @@ class ExternalAccountBinding:
                     payload.get("externalaccountbinding", {}),
                     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 )
-            except Exception:
-                pass
+            except Exception as err:
+                self.logger.debug(
+                    "Account.verify() EAB signature dummy verification failed kid=%s error=%s",
+                    eab_kid,
+                    err,
+                )
+
             code = 403
             message = err_msg_dic["unauthorized"]
             detail = self.INVALID_EAB_CREDENTIALS_DETAIL
             self.logger.error("EAB kid lookup failed kid=%s", eab_kid)
+
         self.logger.debug("ExternalAccountBinding.verify() ended with: %s", code)
         return (code, message, detail)
 
-    def check(self, protected: dict, payload: dict, err_msg_dic: dict) -> tuple:
+    def check(
+        self,
+        protected: dict,
+        payload: dict,
+        err_msg_dic: dict,
+        request_url: Optional[str] = None,
+    ) -> tuple:
         """Check for external account binding, compare JWK, and verify signature."""
         self.logger.debug("ExternalAccountBinding.check()")
 
@@ -155,11 +211,22 @@ class ExternalAccountBinding:
                 protected, payload["externalaccountbinding"]["payload"]
             )
             if jwk_compare and "protected" in payload["externalaccountbinding"]:
+                url_reject = self._reject_eab_url_mismatch(
+                    protected,
+                    payload["externalaccountbinding"]["protected"],
+                    err_msg_dic,
+                    request_url=request_url,
+                )
+                if url_reject is not None:
+                    self.logger.debug(
+                        "ExternalAccountBinding.check() ended with: %s", url_reject[0]
+                    )
+                    return url_reject
                 return self.verify(payload, err_msg_dic)
 
             code = 403
             message = err_msg_dic["malformed"]
-            detail = "Malformed request"
+            detail = self.MALFORMED_REQUEST_DETAIL
             if not jwk_compare:
                 self.logger.warning("EAB malformed: outer/inner JWK mismatch")
             else:
@@ -262,12 +329,17 @@ class AccountData:
 class Account:
     """Refactored ACME server class."""
 
-    def __init__(self, debug: bool = False, srv_name: str = None, logger=None):
+    def __init__(
+        self, debug: bool = False, srv_name: str = None, logger=None, config_dic=None
+    ):
         self.server_name = srv_name
         self.logger = logger
+        self.config_dic = config_dic
         self.dbstore = DBstore(debug, self.logger)
         self.repository = AccountRepository(self.dbstore, self.logger)
-        self.message = Message(debug, self.server_name, self.logger)
+        self.message = Message(
+            debug, self.server_name, self.logger, config_dic=config_dic
+        )
         self.config = AccountConfiguration()
         self.err_msg_dic = error_dic_get(self.logger)
 
@@ -284,7 +356,7 @@ class Account:
     def _load_configuration(self):
         """Load configuration into the AccountConfiguration dataclass."""
         self.logger.debug("Account._load_configuration()")
-        config_dic = load_config()
+        config_dic = self.config_dic if self.config_dic is not None else load_config()
 
         self.config.inner_header_nonce_allow = config_dic.getboolean(
             "Account", "inner_header_nonce_allow", fallback=False
@@ -412,7 +484,13 @@ class Account:
         eab_handler = ExternalAccountBinding(
             self.logger, self.config.eab_handler, self.server_name
         )
-        return eab_handler.check(protected, payload, self.err_msg_dic)
+        request_url = self.message.request_url
+        return eab_handler.check(
+            protected,
+            payload,
+            self.err_msg_dic,
+            request_url=request_url if isinstance(request_url, str) else None,
+        )
 
     def _get_eab_kid_for_account(
         self, account_name: str, payload: Dict[str, str]
@@ -640,6 +718,19 @@ class Account:
     ) -> Dict[str, str]:
         """Handle key change for an account."""
         self.logger.debug("Account._handle_key_change(%s)", account_name)
+        request_url = self.message.request_url
+        if isinstance(request_url, str) and "key-change" not in request_url:
+            self.logger.warning(
+                "Key-change rejected: HTTP target is not key-change account=%s url=%s",
+                account_name,
+                request_url,
+            )
+            return self._build_response(
+                400,
+                self.err_msg_dic["malformed"],
+                "Key-change requests must target the key-change URL",
+                account_name=account_name,
+            )
         if "url" in protected and "key-change" in protected["url"]:
             (
                 code,
@@ -649,7 +740,10 @@ class Account:
                 inner_payload,
                 _,
             ) = self.message.check(
-                json.dumps(payload), use_emb_key=True, skip_nonce_check=True
+                json.dumps(payload),
+                use_emb_key=True,
+                skip_nonce_check=True,
+                skip_request_url_check=True,
             )
             if code != 200:
                 self.logger.warning(
@@ -909,9 +1003,8 @@ class Account:
 
         log_account = self._resolve_log_account(code, message, account_name)
 
-        status_dic = {"code": code, "type": message, "detail": detail}
-        response_dic = self.message.prepare_response(
-            response_dic, status_dic, account_name=log_account
+        response_dic = finish_response(
+            self.message, response_dic, code, message, detail, account_name=log_account
         )
 
         return response_dic

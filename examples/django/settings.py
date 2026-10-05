@@ -9,6 +9,8 @@ Packaged SQLite defaults: acme2certifier.django_project.settings
 
 import os
 
+from acme2certifier.django_project.settings_env import database_from_url
+
 _DEFAULT_BASE = "/var/www/acme2certifier"
 BASE_DIR = os.environ.get(
     "ACME2CERTIFIER_BASE_DIR",
@@ -17,14 +19,18 @@ BASE_DIR = os.environ.get(
 
 TBR = "TO BE REPLACED"
 
-SECRET_KEY = TBR
+SECRET_KEY = os.environ.get("ACME2CERTIFIER_SECRET_KEY", TBR)
 
 DEBUG = False
 
-ALLOWED_HOSTS = ["127.0.0.1"]
+_hosts = os.environ.get("ACME2CERTIFIER_ALLOWED_HOSTS", "").strip()
+ALLOWED_HOSTS = (
+    [h.strip() for h in _hosts.split(",") if h.strip()]
+    if _hosts
+    else ["127.0.0.1"]
+)
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -37,9 +43,6 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    # ACME clients POST JWS-signed bodies (application/jose+json), not browser
-    # forms; CSRF tokens are incompatible. Auth is JWS + account keys (RFC 8555).
-    # 'django.middleware.csrf.CsrfViewMiddleware',
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -65,20 +68,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": "acme2certifier",
-        "USER": "acme2certifier",
-        "PASSWORD": TBR,
-        "HOST": TBR,
-        "OPTIONS": {
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
-            "charset": "utf8mb4",
-            "use_unicode": True,
+_from_url = database_from_url()
+if _from_url is not None:
+    DATABASES = {"default": _from_url}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": "acme2certifier",
+            "USER": "acme2certifier",
+            "PASSWORD": TBR,
+            "HOST": TBR,
+            "OPTIONS": {
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
+                "charset": "utf8mb4",
+                "use_unicode": True,
+                # TLS: place the DB server CA on the volume and uncomment.
+                # "ssl": {"ca": "/var/www/acme2certifier/volume/db-ca.pem"},
+                # Optional hostname check (mysqlclient): "ssl_mode": "VERIFY_IDENTITY",
+            },
         },
-    },
-}
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {

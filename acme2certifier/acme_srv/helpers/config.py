@@ -5,13 +5,16 @@ import configparser
 import json
 import logging
 import os
+import threading
 import warnings
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
-from .plugin_loader import eab_handler_load
+from .certificates import cert_load, pembundle_to_list
+from .encoding import b64_url_recode
 from .global_variables import CONFIGURATION_ERROR_DETAIL, PARSING_ERR_MSG
+from .plugin_loader import eab_handler_load
 from .security_gate import SECURITY_DISABLE_ACK_ENV, security_disable_acknowledged
 
 # Emit acme_srv.cfg path deprecation warnings at most once per path per process.
@@ -20,9 +23,50 @@ _ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
 _ACME_SRV_CFG_LOADED: Set[str] = set()
 # Last successful load (path, source, format); used after logger_setup.
 _LAST_LOADED_CFG: Optional[Tuple[str, str, str]] = None
+# Unmerged ConfigParser per absolute path (process lifetime). Merged
+# thread-local views are never stored here.
+_CONFIG_CACHE: Dict[str, Tuple[configparser.ConfigParser, str]] = {}
+_CONFIG_CACHE_LOCK = threading.Lock()
 ACME_SRV_CFG_FILENAME = "acme_srv.cfg"
+LOADED_ACME_SRV_CFG_MSG = f"Loaded {ACME_SRV_CFG_FILENAME} %s (%s, %s)"
 ACME_SRV_YAML_FILENAMES = ("acme_srv.yaml", "acme_srv.yml")
 _YAML_CONFIG_EXTENSIONS = {".yaml", ".yml"}
+DEB_DEPLOY_BASE_DIR = "/var/www/acme2certifier"
+RPM_DEPLOY_BASE_DIR = "/opt/acme2certifier"
+
+
+class CahandlerSectionToken:
+    """Opaque restore token for ``cahandler_config_section_set()``."""
+
+    __slots__ = ("_old",)
+
+    def __init__(self, old: Optional[str]) -> None:
+        self._old = old
+
+    def restore_value(self) -> Optional[str]:
+        """Value to restore on ``cahandler_config_section_reset()``."""
+        return self._old
+
+
+class _ThreadLocalValue:
+    """Per-thread bind with ContextVar-style set/get/reset (Python 3.6)."""
+
+    def __init__(self) -> None:
+        self._local = threading.local()
+
+    def get(self) -> Optional[str]:
+        return getattr(self._local, "value", None)
+
+    def set(self, value: Optional[str]) -> CahandlerSectionToken:
+        token = CahandlerSectionToken(self.get())
+        self._local.value = value
+        return token
+
+    def reset(self, token: CahandlerSectionToken) -> None:
+        self._local.value = token.restore_value()
+
+
+_CAHANDLER_CONFIG_SECTION = _ThreadLocalValue()
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -53,12 +97,11 @@ def _log_cfg_loaded_once(
 ) -> None:
     """Log successful acme_srv.cfg load once per absolute path (then DEBUG)."""
     abs_path = os.path.abspath(cfg_path)
-    message = "Loaded acme_srv.cfg %s (%s, %s)"
     if abs_path not in _ACME_SRV_CFG_LOADED:
         _ACME_SRV_CFG_LOADED.add(abs_path)
-        logger.info(message, abs_path, source, cfg_format)
+        logger.info(LOADED_ACME_SRV_CFG_MSG, abs_path, source, cfg_format)
     else:
-        logger.debug(message, abs_path, source, cfg_format)
+        logger.debug(LOADED_ACME_SRV_CFG_MSG, abs_path, source, cfg_format)
 
 
 def log_loaded_acme_srv_cfg(logger: logging.Logger) -> None:
@@ -174,6 +217,68 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return header_info_field
 
 
+def config_allowed_header_values_load(logger: logging.Logger, config_dic) -> List[str]:
+    """Load [Order] allowed_header_values JSON list from config."""
+    logger.debug("Helper.config_allowed_header_values_load()")
+    result: List[str] = []
+    if (
+        "Order" not in config_dic
+        or "allowed_header_values" not in config_dic["Order"]
+        or not config_dic["Order"]["allowed_header_values"]
+    ):
+        logger.debug("Helper.config_allowed_header_values_load() ended with 0 entries")
+        return result
+
+    try:
+        loaded = json.loads(config_dic.get("Order", "allowed_header_values"))
+        if not isinstance(loaded, list):
+            raise ValueError("allowed_header_values must be a JSON list")
+        result = [str(item) for item in loaded]
+    except Exception as err_:
+        logger.warning(
+            "Failed to parse allowed_header_values from configuration: %s. "
+            "Treating as empty allowlist.",
+            err_,
+        )
+        result = []
+
+    logger.debug(
+        "Helper.config_allowed_header_values_load() ended with %s entries",
+        len(result),
+    )
+    return result
+
+
+def header_value_allowlist_resolve(logger: logging.Logger, cahandler) -> List[str]:
+    """Resolve header-value allowlist for client-selected enrollment parameters.
+
+    Prefer ``[Order] allowed_header_values``. Fall back to handler
+    ``allowed_templates`` (MS compatibility alias).
+    """
+    logger.debug("Helper.header_value_allowlist_resolve()")
+    config_dic = load_config(logger)
+    order_values = config_allowed_header_values_load(logger, config_dic)
+    if order_values:
+        logger.debug(
+            "Helper.header_value_allowlist_resolve() ended with Order list (%s)",
+            len(order_values),
+        )
+        return order_values
+
+    templates = getattr(cahandler, "allowed_templates", None) or []
+    if templates:
+        result = [str(item) for item in templates]
+        logger.debug(
+            "Helper.header_value_allowlist_resolve() ended with allowed_templates "
+            "fallback (%s)",
+            len(result),
+        )
+        return result
+
+    logger.debug("Helper.header_value_allowlist_resolve() ended with empty list")
+    return []
+
+
 def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
     """load parameters"""
     logger.debug("Helper.config_enroll_config_log_load()")
@@ -207,6 +312,357 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
         "Helper.config_enroll_config_log_load() ended with: %s", enrollment_cfg_log
     )
     return enrollment_cfg_log, enrollment_cfg_log_skip_list
+
+
+def _cert_chain_fingerprint_normalize(value: str) -> str:
+    """Normalize a SHA-256 fingerprint to lowercase hex without separators."""
+    return value.replace(":", "").replace(" ", "").lower()
+
+
+def _config_path_resolve(path: str) -> str:
+    """Resolve *path* against ``ACME2CERTIFIER_BASE_DIR`` when it is relative."""
+    if os.path.isabs(path):
+        return path
+    base_dir = os.environ.get("ACME2CERTIFIER_BASE_DIR")
+    if not base_dir:
+        return path
+    return os.path.normpath(os.path.join(base_dir, path))
+
+
+def _config_str_list_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    section: str,
+    option: str,
+) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Load a JSON list of strings from *section*/*option*.
+    Returns ``(error, values)``. Unset yields ``(None, [])``. Invalid JSON
+    or a non-list / non-string payload yields an error and ``None``.
+    """
+    logger.debug("Helper._config_str_list_load(%s, %s)", section, option)
+    if not config_dic or section not in config_dic:
+        logger.debug("Helper._config_str_list_load() ended (no %s section)", section)
+        return None, []
+    if option not in config_dic[section]:
+        logger.debug("Helper._config_str_list_load() ended (unset %s)", option)
+        return None, []
+
+    try:
+        raw = config_dic[section][option]
+        loaded = raw if isinstance(raw, list) else json.loads(raw)
+    except Exception as err_:
+        logger.error("Failed to parse %s from configuration: %s", option, err_)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse {option}",
+            None,
+        )
+
+    if not isinstance(loaded, list):
+        logger.error("%s must be a JSON list", option)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: {option} must be a JSON list",
+            None,
+        )
+
+    values: List[str] = []
+    for entry in loaded:
+        if not isinstance(entry, str):
+            logger.error("%s entries must be strings", option)
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: {option} entries must be strings",
+                None,
+            )
+        values.append(entry)
+    logger.debug(
+        "Helper._config_str_list_load() ended with %d %s entries", len(values), option
+    )
+    return None, values
+
+
+def config_cert_chain_skip_list_load(
+    logger: logging.Logger,
+    config_dic: Dict[str, str],
+    section: str = "CAhandler",
+) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Load ``cert_chain_skip_list`` from *section*.
+    Returns ``(error, skip_list)``. Unset yields ``(None, [])``. Invalid JSON
+    or a non-list / non-string payload yields an error and ``None``.
+    """
+    logger.debug("Helper.config_cert_chain_skip_list_load(%s)", section)
+    error, loaded = _config_str_list_load(
+        logger, config_dic, section, "cert_chain_skip_list"
+    )
+    if error or not loaded:
+        logger.debug(
+            "Helper.config_cert_chain_skip_list_load() ended with %s",
+            "error" if error else "empty",
+        )
+        return error, loaded
+
+    skip_list = [_cert_chain_fingerprint_normalize(entry) for entry in loaded]
+    logger.debug(
+        "Helper.config_cert_chain_skip_list_load() ended with %d fingerprints",
+        len(skip_list),
+    )
+    return None, skip_list
+
+
+def _cert_chain_append_pems_parse(
+    logger: logging.Logger, path: str, content: str
+) -> Tuple[Optional[str], List[str]]:
+    """Split file content into PEMs and parse-check each certificate."""
+    file_pems = pembundle_to_list(logger, content)
+    if not file_pems:
+        logger.error("cert_chain_append file %s contains no certificates", path)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            f"cert_chain_append file {path} contains no certificates",
+            [],
+        )
+    for pem_cert in file_pems:
+        try:
+            cert_load(logger, pem_cert, recode=False)
+        except Exception as err_:
+            logger.error(
+                "Failed to parse certificate in cert_chain_append file %s: %s",
+                path,
+                err_,
+            )
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: "
+                f"Failed to parse cert_chain_append file {path}",
+                [],
+            )
+    return None, file_pems
+
+
+def _cert_chain_append_file_load(
+    logger: logging.Logger, raw_path: str
+) -> Tuple[Optional[str], List[str]]:
+    """Read one ``cert_chain_append`` PEM file and parse-check its certificates."""
+    path = _config_path_resolve(raw_path.strip())
+    if not path:
+        logger.error("cert_chain_append entries must be non-empty paths")
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            "cert_chain_append entries must be non-empty paths",
+            [],
+        )
+    try:
+        with open(path, encoding="utf-8") as handle:
+            content = handle.read()
+    except Exception as err_:
+        logger.error("Failed to read cert_chain_append file %s: %s", path, err_)
+        return (
+            f"{CONFIGURATION_ERROR_DETAIL}: "
+            f"Failed to read cert_chain_append file {path}",
+            [],
+        )
+    return _cert_chain_append_pems_parse(logger, path, content)
+
+
+def config_cert_chain_append_load(
+    logger: logging.Logger,
+    config_dic: Dict[str, str],
+    section: str = "CAhandler",
+) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Load ``cert_chain_append`` PEM files from *section*.
+    Returns ``(error, pem_list)``. Unset yields ``(None, [])``. Missing files,
+    empty files, or unparseable PEM fail closed.
+    """
+    logger.debug("Helper.config_cert_chain_append_load(%s)", section)
+    error, paths = _config_str_list_load(
+        logger, config_dic, section, "cert_chain_append"
+    )
+    if error or not paths:
+        logger.debug(
+            "Helper.config_cert_chain_append_load() ended with %s",
+            "error" if error else "empty",
+        )
+        return error, paths
+
+    pem_list: List[str] = []
+    for raw_path in paths:
+        error, file_pems = _cert_chain_append_file_load(logger, raw_path)
+        if error:
+            return error, None
+        pem_list.extend(file_pems)
+
+    logger.debug(
+        "Helper.config_cert_chain_append_load() ended with %d certificates",
+        len(pem_list),
+    )
+    return None, pem_list
+
+
+CERT_CHAIN_PROFILE_KEYS = (
+    "cert_chain_skip_list",
+    "cert_chain_append",
+    "cert_chain_link_check",
+)
+_CERT_CHAIN_BOOL_TRUE = {"1", "true", "yes", "on"}
+_CERT_CHAIN_BOOL_FALSE = {"0", "false", "no", "off"}
+
+
+def config_cert_chain_link_check_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    section: str = "CAhandler",
+) -> Tuple[Optional[str], bool]:
+    """Load ``cert_chain_link_check`` from *section*.
+    Unset yields ``(None, True)`` (RFC 8555 fail closed). Invalid values
+    yield an error and ``True``.
+    """
+    logger.debug("Helper.config_cert_chain_link_check_load(%s)", section)
+    if not config_dic or section not in config_dic:
+        return None, True
+    if "cert_chain_link_check" not in config_dic[section]:
+        return None, True
+
+    getboolean = getattr(config_dic, "getboolean", None)
+    if callable(getboolean) and not isinstance(config_dic, dict):
+        try:
+            return None, bool(
+                getboolean(section, "cert_chain_link_check", fallback=True)
+            )
+        except Exception as err_:
+            logger.error("Failed to parse cert_chain_link_check: %s", err_)
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse cert_chain_link_check",
+                True,
+            )
+
+    raw = config_dic[section]["cert_chain_link_check"]
+    if isinstance(raw, bool):
+        return None, raw
+    if isinstance(raw, str):
+        low = raw.strip().lower()
+        if low in _CERT_CHAIN_BOOL_TRUE:
+            return None, True
+        if low in _CERT_CHAIN_BOOL_FALSE:
+            return None, False
+    logger.error("cert_chain_link_check must be a boolean")
+    return (
+        f"{CONFIGURATION_ERROR_DETAIL}: cert_chain_link_check must be a boolean",
+        True,
+    )
+
+
+def config_cert_chain_profile_load(
+    logger: logging.Logger, key: str, value: Any
+) -> Tuple[Optional[str], Any]:
+    """Parse one kid-profile cert-chain key with the same loaders as bind.
+
+    Returns ``(error, loaded)``. Unknown keys yield ``(None, None)``.
+    """
+    logger.debug("Helper.config_cert_chain_profile_load(%s)", key)
+    config_dic = {"CAhandler": {key: value}}
+    if key == "cert_chain_skip_list":
+        return config_cert_chain_skip_list_load(logger, config_dic, "CAhandler")
+    if key == "cert_chain_append":
+        return config_cert_chain_append_load(logger, config_dic, "CAhandler")
+    if key == "cert_chain_link_check":
+        return config_cert_chain_link_check_load(logger, config_dic, "CAhandler")
+    logger.debug("Helper.config_cert_chain_profile_load() ended (unknown key)")
+    return None, None
+
+
+def config_option_load(
+    logger: logging.Logger,
+    config_dic: Dict[str, str],
+    option: str,
+    *,
+    section: str = "CAhandler",
+    variable_option: Optional[str] = None,
+    current: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Load a config option from ``{option}_variable`` (environment) and/or ``option``.
+
+    Semantics (shared by CA handlers):
+    - If ``variable_option`` (default ``f"{option}_variable"``) is set, read
+      ``os.environ[env_name]``. Missing env vars are logged and leave ``current``.
+    - If ``option`` is also set in the config section, it overwrites the env value
+      (INFO: ``Overwrite {option}`` when a prior value exists).
+    - If neither key is present, return ``current`` unchanged.
+
+    Returns:
+        Resolved string value, or ``current`` / ``None``.
+    """
+    logger.debug("Helper.config_option_load(%s)", option)
+    if section not in config_dic:
+        logger.debug("Helper.config_option_load(%s) ended (no section)", option)
+        return current
+
+    var_option = (
+        variable_option if variable_option is not None else f"{option}_variable"
+    )
+    section_dic = config_dic[section]
+    if option not in section_dic and var_option not in section_dic:
+        logger.debug("Helper.config_option_load(%s) ended (unset)", option)
+        return current
+
+    value = current
+    if var_option in section_dic:
+        try:
+            value = os.environ[config_dic.get(section, var_option)]
+        except Exception as err:
+            logger.error("Could not load %s:%s", var_option, err)
+
+    if option in section_dic:
+        if value:
+            logger.info("Overwrite %s", option)
+        value = config_dic.get(section, option)
+
+    logger.debug("Helper.config_option_load(%s) ended", option)
+    return value
+
+
+def _config_ca_bundle_raw(config_dic: Any, section: str, current: Any) -> Any:
+    """Read the raw ``ca_bundle`` value from a ConfigParser-like object or dict."""
+    getter = getattr(config_dic, "get", None)
+    if callable(getter) and not isinstance(config_dic, dict):
+        try:
+            return getter(section, "ca_bundle", fallback=current)
+        except Exception:
+            return current
+    if section not in config_dic:
+        return current
+    section_data = config_dic[section]
+    if not hasattr(section_data, "get") or "ca_bundle" not in section_data:
+        return current
+    return section_data.get("ca_bundle", current)
+
+
+def _config_ca_bundle_as_bool_or_path(config_dic: Any, section: str, raw: Any) -> Any:
+    """Interpret ``ca_bundle`` as a bool when it looks like one, else keep the path."""
+    if isinstance(raw, bool):
+        return raw
+    if not isinstance(raw, str) or raw.lower() not in ("true", "false"):
+        return raw
+    getboolean = getattr(config_dic, "getboolean", None)
+    if callable(getboolean) and not isinstance(config_dic, dict):
+        try:
+            return getboolean(section, "ca_bundle")
+        except Exception:
+            pass
+    return raw.lower() == "true"
+
+
+def config_ca_bundle_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    current: Any = True,
+    *,
+    section: str = "CAhandler",
+) -> Any:
+    """Load ``ca_bundle`` as a bool when possible, otherwise as a path string."""
+    logger.debug("Helper.config_ca_bundle_load()")
+    value = _config_ca_bundle_as_bool_or_path(
+        config_dic, section, _config_ca_bundle_raw(config_dic, section, current)
+    )
+    logger.debug("Helper.config_ca_bundle_load() ended with: %s", value)
+    return value
 
 
 def config_dns_server_list_load(
@@ -350,6 +806,33 @@ def legacy_acme_get_load(logger: logging.Logger, config_dic) -> bool:
     return enabled
 
 
+def challenge_type_configuration_validate(logger: logging.Logger, config_dic) -> None:
+    """Emit a startup warning when all RFC 8555 challenge types are disabled."""
+    logger.debug("Helper.challenge_type_configuration_validate()")
+    if not config_dic:
+        return
+
+    std_enabled = any(
+        [
+            config_dic.getboolean("Challenge", "http_01_support", fallback=True),
+            config_dic.getboolean("Challenge", "dns_01_support", fallback=True),
+            config_dic.getboolean("Challenge", "tls_alpn_01_support", fallback=True),
+        ]
+    )
+    opt_enabled = config_dic.getboolean(
+        "Challenge", "dns_persist_01_support", fallback=False
+    )
+    if std_enabled or opt_enabled:
+        return
+
+    logger.warning(
+        "All RFC 8555 challenge types are disabled and dns_persist_01_support "
+        "is off; new authorizations will have no challenges unless identifiers "
+        "are prevalidated or challenge validation is disabled "
+        "(globally, via EAB profile, or with forward/reverse address checks)."
+    )
+
+
 def tnauthlist_configuration_validate(logger: logging.Logger, config_dic) -> None:
     """Emit a startup message when ``tnauthlist_support`` is enabled.
 
@@ -393,16 +876,20 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
     logger.debug("_config_proxy_load()")
 
     # Lazy import to avoid circular dependency
-    from .network import parse_url, proxy_check  # pylint: disable=C0415
+    from .network import (  # pylint: disable=C0415
+        parse_url,
+        proxy_check,
+        proxy_url_for_log,
+    )
 
     proxy = {}
     if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
         try:
             proxy_list = json.loads(config_dic["DEFAULT"]["proxy_server_list"])
-            url_dic = parse_url(logger, host_name)
-            if "host" in url_dic:
-                # check if we need to set the proxy
-                fqdn, _port = url_dic["host"].split(":")
+            url_dic = parse_url(logger, host_name or "")
+            host = url_dic.get("host") or ""
+            fqdn = host.split(":")[0]
+            if fqdn:
                 proxy_server = proxy_check(logger, fqdn, proxy_list)
                 proxy = {"http": proxy_server, "https": proxy_server}
         except Exception as err_:
@@ -411,7 +898,13 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
                 err_,
             )
 
-    logger.debug("config_proxy_load() ended with: %s", proxy)
+    logger.debug(
+        "config_proxy_load() ended with: %s",
+        {
+            scheme: proxy_url_for_log(target) if isinstance(target, str) else target
+            for scheme, target in proxy.items()
+        },
+    )
     return proxy
 
 
@@ -438,17 +931,17 @@ def default_deploy_base_dir() -> str:
 
     Order:
     1. ``ACME2CERTIFIER_BASE_DIR`` when set
-    2. ``/var/www/acme2certifier`` if that directory exists (DEB / Ubuntu pip)
-    3. ``/opt/acme2certifier`` if that directory exists (RPM)
-    4. ``/var/www/acme2certifier`` as the default install layout
+    2. ``DEB_DEPLOY_BASE_DIR`` if that directory exists (DEB / Ubuntu pip)
+    3. ``RPM_DEPLOY_BASE_DIR`` if that directory exists (RPM)
+    4. ``DEB_DEPLOY_BASE_DIR`` as the default install layout
     """
     env_base = os.environ.get("ACME2CERTIFIER_BASE_DIR")
     if env_base:
         return env_base
-    for candidate in ("/var/www/acme2certifier", "/opt/acme2certifier"):
+    for candidate in (DEB_DEPLOY_BASE_DIR, RPM_DEPLOY_BASE_DIR):
         if os.path.isdir(candidate):
             return candidate
-    return "/var/www/acme2certifier"
+    return DEB_DEPLOY_BASE_DIR
 
 
 def default_wsgi_dbfile() -> str:
@@ -494,14 +987,14 @@ def _default_acme_srv_cfg_file(
     Candidates (first existing file wins). At each location ``acme_srv.cfg``
     is tried before ``acme_srv.yaml`` then ``acme_srv.yml``:
 
-    1. Preferred OS deploy roots: ``/var/www/acme2certifier/`` (DEB) or
-       ``/opt/acme2certifier/`` (RPM)
+    1. Preferred OS deploy roots: ``DEB_DEPLOY_BASE_DIR/`` (DEB) or
+       ``RPM_DEPLOY_BASE_DIR/`` (RPM)
     2. Checkout / install root: ``<repo>/``
     3. Nested deploy paths under ``.../acme_srv/`` (warn)
     4. Next to the package module: ``.../acme_srv/``
     5. Legacy repo layout: ``<repo>/acme_srv/`` (warn)
 
-    If nothing exists, fall back to ``/var/www/acme2certifier/acme_srv.cfg``.
+    If nothing exists, fall back to ``DEB_DEPLOY_BASE_DIR/acme_srv.cfg``.
     """
     log = logger or logging.getLogger(__name__)
     log.debug("Helper._default_acme_srv_cfg_file() start")
@@ -509,16 +1002,16 @@ def _default_acme_srv_cfg_file(
     helpers_dir = os.path.dirname(os.path.abspath(__file__))
     pkg_dir = os.path.dirname(helpers_dir)  # .../acme_srv (new or install tree)
     install_or_repo_root = os.path.dirname(os.path.dirname(pkg_dir))
-    fallback_cfg = os.path.join("/var/www/acme2certifier", ACME_SRV_CFG_FILENAME)
+    fallback_cfg = os.path.join(DEB_DEPLOY_BASE_DIR, ACME_SRV_CFG_FILENAME)
 
     preferred_dirs = (
-        "/var/www/acme2certifier",
-        "/opt/acme2certifier",
+        DEB_DEPLOY_BASE_DIR,
+        RPM_DEPLOY_BASE_DIR,
         install_or_repo_root,
     )
     nested_dirs = (
-        ("/var/www/acme2certifier/acme_srv", "/var/www/acme2certifier"),
-        ("/opt/acme2certifier/acme_srv", "/opt/acme2certifier"),
+        (os.path.join(DEB_DEPLOY_BASE_DIR, "acme_srv"), DEB_DEPLOY_BASE_DIR),
+        (os.path.join(RPM_DEPLOY_BASE_DIR, "acme_srv"), RPM_DEPLOY_BASE_DIR),
     )
     legacy_dir = os.path.join(install_or_repo_root, "acme_srv")
     log.debug(
@@ -600,7 +1093,7 @@ def _detect_config_format(content: str, path: str) -> str:
     first_line = ""
     for line in text.splitlines():
         stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.startswith(";"):
+        if not stripped or stripped.startswith(("#", ";")):
             continue
         first_line = stripped
         break
@@ -609,11 +1102,7 @@ def _detect_config_format(content: str, path: str) -> str:
 
     if first_line.startswith("["):
         return "ini"
-    if (
-        first_line.startswith("{")
-        or first_line.startswith("---")
-        or first_line.startswith("-")
-    ):
+    if first_line.startswith(("{", "---", "-")):
         return "yaml"
     if ":" in first_line:
         return "yaml"
@@ -735,6 +1224,157 @@ def _parse_config_content(
         return _parse_yaml(content, logger), "yaml"
 
 
+def cahandler_config_section_set(
+    section: str,
+    logger: logging.Logger = None,
+) -> CahandlerSectionToken:
+    """Bind ``load_config()`` reads of ``[CAhandler]`` to a named handler section."""
+    log = logger or logging.getLogger(__name__)
+    previous = _CAHANDLER_CONFIG_SECTION.get()
+    log.debug(
+        "Helper.cahandler_config_section_set() start section=%r previous=%r",
+        section,
+        previous,
+    )
+    token = _CAHANDLER_CONFIG_SECTION.set(section)
+    log.debug(
+        "Helper.cahandler_config_section_set() ended active=%r",
+        section,
+    )
+    return token
+
+
+def cahandler_config_section_reset(
+    token: CahandlerSectionToken,
+    logger: logging.Logger = None,
+) -> None:
+    """Clear a ``cahandler_config_section_set()`` binding."""
+    log = logger or logging.getLogger(__name__)
+    previous = _CAHANDLER_CONFIG_SECTION.get()
+    log.debug(
+        "Helper.cahandler_config_section_reset() start previous=%r",
+        previous,
+    )
+    _CAHANDLER_CONFIG_SECTION.reset(token)
+    log.debug(
+        "Helper.cahandler_config_section_reset() ended active=%r",
+        _CAHANDLER_CONFIG_SECTION.get(),
+    )
+
+
+def cahandler_config_section_get(
+    logger: logging.Logger = None,
+) -> Optional[str]:
+    """Return the active bound CAhandler config section, if any."""
+    log = logger or logging.getLogger(__name__)
+    log.debug("Helper.cahandler_config_section_get()")
+    section = _CAHANDLER_CONFIG_SECTION.get()
+    log.debug("Helper.cahandler_config_section_get() ended with %r", section)
+    return section
+
+
+def _ensure_config_section(parser: configparser.ConfigParser, section: str) -> None:
+    """Add ``section`` when it is missing."""
+    if not parser.has_section(section):
+        parser.add_section(section)
+
+
+def _copy_config_sections(
+    source: configparser.ConfigParser, dest: configparser.ConfigParser
+) -> None:
+    """Copy every reported section and option from *source* into *dest*."""
+    for sec in source.sections():
+        _ensure_config_section(dest, sec)
+        for key, value in source.items(sec, raw=True):
+            dest.set(sec, key, value)
+
+
+def _copy_cahandler_defaults(
+    source: configparser.ConfigParser, dest: configparser.ConfigParser
+) -> None:
+    """Copy ``[CAhandler]`` keys omitted by ``sections()`` without overwriting."""
+    if not source.has_section("CAhandler"):
+        return
+    _ensure_config_section(dest, "CAhandler")
+    for key, value in source.items("CAhandler", raw=True):
+        if not dest.has_option("CAhandler", key):
+            dest.set("CAhandler", key, value)
+
+
+def _overlay_section_onto_cahandler(
+    source: configparser.ConfigParser,
+    dest: configparser.ConfigParser,
+    section: str,
+) -> None:
+    """Write *section* keys onto ``[CAhandler]`` in *dest*."""
+    _ensure_config_section(dest, "CAhandler")
+    for key, value in source.items(section, raw=True):
+        dest.set("CAhandler", key, value)
+
+
+def _cahandler_section_merged_config(
+    config: configparser.ConfigParser,
+    section: str,
+    logger: logging.Logger,
+) -> configparser.ConfigParser:
+    """Overlay ``section`` onto ``[CAhandler]`` for handler config reads."""
+    if section == "CAhandler":
+        return config
+    if not config.has_section(section):
+        logger.debug(
+            "_cahandler_section_merged_config: section %s missing, using CAhandler",
+            section,
+        )
+        return config
+
+    merged = _new_config_parser()
+    _copy_config_sections(config, merged)
+    _copy_cahandler_defaults(config, merged)
+    _overlay_section_onto_cahandler(config, merged, section)
+    return merged
+
+
+def load_config_cache_clear() -> None:
+    """Drop cached ConfigParser objects. For tests and worker-reload hooks."""
+    with _CONFIG_CACHE_LOCK:
+        _CONFIG_CACHE.clear()
+
+
+def resolve_config(
+    config_dic: Optional[configparser.ConfigParser] = None,
+    logger: logging.Logger = None,
+    mfilter: str = None,
+    cfg_file: str = None,
+) -> configparser.ConfigParser:
+    """Return *config_dic* if given, otherwise ``load_config()``.
+
+    ACME objects use this so a worker-start parser can be injected without
+    changing callers that omit it (tests, CLI).
+    """
+    if config_dic is not None:
+        return config_dic
+    return load_config(logger, mfilter, cfg_file)
+
+
+def _apply_bound_cahandler_merge(
+    config: configparser.ConfigParser,
+    explicit_cfg_file: bool,
+    logger: logging.Logger,
+) -> configparser.ConfigParser:
+    """Overlay the thread-local bound named section onto ``[CAhandler]``."""
+    if explicit_cfg_file:
+        return config
+    bound_section = cahandler_config_section_get(logger)
+    if bound_section and bound_section != "CAhandler":
+        logger.debug(
+            "Helper.load_config(): merging bound CAhandler section %r "
+            "into [CAhandler]",
+            bound_section,
+        )
+        return _cahandler_section_merged_config(config, bound_section, logger)
+    return config
+
+
 def load_config(
     logger: logging.Logger = None, mfilter: str = None, cfg_file: str = None
 ) -> configparser.ConfigParser:
@@ -742,6 +1382,7 @@ def load_config(
     global _LAST_LOADED_CFG  # pylint: disable=global-statement
 
     log = logger or logging.getLogger(__name__)
+    explicit_cfg_file = cfg_file is not None
     log.debug(
         "Helper.load_config() start mfilter=%r cfg_file=%r",
         mfilter,
@@ -763,6 +1404,23 @@ def load_config(
         source = "default"
 
     log.debug("load_config(%s:%s)", mfilter, cfg_file)
+    abs_path = os.path.abspath(cfg_file)
+    with _CONFIG_CACHE_LOCK:
+        cached = _CONFIG_CACHE.get(abs_path)
+    if cached is not None:
+        config, cfg_format = cached
+        _LAST_LOADED_CFG = (abs_path, source, cfg_format)
+        if logger is not None:
+            _log_cfg_loaded_once(logger, abs_path, source, cfg_format)
+        else:
+            log.debug(LOADED_ACME_SRV_CFG_MSG, abs_path, source, cfg_format)
+        config = _apply_bound_cahandler_merge(config, explicit_cfg_file, log)
+        log.debug(
+            "Helper.load_config() ended sections=%s (cache hit)",
+            list(config.sections()),
+        )
+        return config
+
     try:
         content = _read_config_file(cfg_file)
     except OSError:
@@ -778,7 +1436,8 @@ def load_config(
         return _new_config_parser()
 
     config, cfg_format = _parse_config_content(content, cfg_file, log)
-    abs_path = os.path.abspath(cfg_file)
+    with _CONFIG_CACHE_LOCK:
+        _CONFIG_CACHE[abs_path] = (config, cfg_format)
     _LAST_LOADED_CFG = (abs_path, source, cfg_format)
 
     # Only emit INFO when a configured app logger was passed. Module-level
@@ -787,12 +1446,46 @@ def load_config(
     if logger is not None:
         _log_cfg_loaded_once(logger, abs_path, source, cfg_format)
     else:
-        log.debug("Loaded acme_srv.cfg %s (%s, %s)", abs_path, source, cfg_format)
+        log.debug(LOADED_ACME_SRV_CFG_MSG, abs_path, source, cfg_format)
+    config = _apply_bound_cahandler_merge(config, explicit_cfg_file, log)
     log.debug(
         "Helper.load_config() ended sections=%s",
         list(config.sections()),
     )
     return config
+
+
+def load_config_section(
+    logger: logging.Logger = None,
+    section: str = "CAhandler",
+) -> configparser.ConfigParser:
+    """Load config and expose a named handler section under ``CAhandler``."""
+    log = logger or logging.getLogger(__name__)
+    log.debug("load_config_section(%s)", section)
+    if section == "CAhandler":
+        return load_config(log)
+    token = cahandler_config_section_set(section, log)
+    try:
+        return load_config(log)
+    finally:
+        cahandler_config_section_reset(token, log)
+
+
+def load_cahandler_config(
+    logger: logging.Logger,
+    handler: Any = None,
+    section: Optional[str] = None,
+) -> configparser.ConfigParser:
+    """Deprecated: use ``load_config()`` inside a bound handler context."""
+    if section is None and handler is not None:
+        section = getattr(
+            handler,
+            "config_section",
+            getattr(handler, "CONFIG_SECTION", "CAhandler"),
+        )
+    elif section is None:
+        section = "CAhandler"
+    return load_config_section(logger, section)
 
 
 def header_info_jsonify(logger: logging.Logger, header_info: str) -> Dict[str, str]:
@@ -860,6 +1553,40 @@ def profile_lookup(logger: logging.Logger, csr: str) -> str:
 
     logger.debug("Helper.profile_lookup() ended with: %s", profile_name)
     return profile_name
+
+
+def cahandler_lookup(
+    logger: logging.Logger,
+    csr: Optional[str] = None,
+    cert_raw: Optional[str] = None,
+) -> Optional[str]:
+    """Return the handler name stored in order table linked to a CSR or certificate."""
+    logger.debug("Helper.cahandler_lookup()")
+
+    from acme2certifier.acme_srv.db_handler import DBstore  # pylint: disable=c0415
+
+    dbstore = DBstore(logger=logger)
+    if cert_raw:
+        search_key, value = "cert_raw", b64_url_recode(logger, cert_raw)
+    elif csr:
+        search_key, value = "csr", csr
+    else:
+        return None
+
+    try:
+        result = dbstore.certificates_search(
+            search_key, value, ["id", "order_id", "order__cahandler"]
+        )
+    except Exception as err:
+        logger.warning("CAhandler lookup failed with: %s", err)
+        result = None
+
+    cahandler_name = None
+    if result and result[0].get("order__cahandler"):
+        cahandler_name = result[0]["order__cahandler"]
+
+    logger.debug("Helper.cahandler_lookup() ended with: %s", cahandler_name)
+    return cahandler_name
 
 
 def client_parameter_validate(

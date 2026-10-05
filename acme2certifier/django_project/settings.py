@@ -1,33 +1,61 @@
 """
 Django settings for acme2certifier (pip / a2c-manage default).
 
-Override via ACME2CERTIFIER_* env vars, or replace/symlink this module for
-production DB credentials (see examples/django for a MySQL template).
+Override via ACME2CERTIFIER_* env vars (including ACME2CERTIFIER_DATABASE_URL),
+or replace/symlink this module for production DB credentials (see
+examples/django for a MySQL template).
 """
 
-import os
+import warnings
 
-_DEFAULT_BASE = "/var/www/acme2certifier"
-BASE_DIR = os.environ.get(
-    "ACME2CERTIFIER_BASE_DIR",
-    _DEFAULT_BASE if os.path.isdir(_DEFAULT_BASE) else os.getcwd(),
+from django.core.exceptions import ImproperlyConfigured
+from acme2certifier.acme_srv.helpers.config import load_config  # noqa: E402
+from acme2certifier.acme_srv.helpers.logging_utils import (  # noqa: E402
+    apply_log_levels,
+    config_debug_get,
+    logger_setup,
+)
+from acme2certifier.acme_srv.helpers.network import (  # noqa: E402
+    configured_server_name_get,
+    server_name_allowed_host,
+)
+from acme2certifier.django_project.settings_env import (  # noqa: E402
+    INSECURE_SECRET_KEY,
+    load_settings_env,
 )
 
-SECRET_KEY = os.environ.get(
-    "ACME2CERTIFIER_SECRET_KEY",
-    "django-insecure-change-me-run-a2c-django-secret-keygen",
-)
+_cfg_env = load_settings_env()
+BASE_DIR = _cfg_env["BASE_DIR"]
+SECRET_KEY = _cfg_env["SECRET_KEY"]
+DEBUG = _cfg_env["DEBUG"]
+ALLOWED_HOSTS = _cfg_env["ALLOWED_HOSTS"]
+DATABASES = _cfg_env["DATABASES"]
 
-DEBUG = os.environ.get("ACME2CERTIFIER_DEBUG", "0") in ("1", "true", "True")
+if SECRET_KEY == INSECURE_SECRET_KEY and not DEBUG:
+    raise ImproperlyConfigured(
+        "ACME2CERTIFIER_SECRET_KEY is unset or still the insecure default. "
+        "Set ACME2CERTIFIER_SECRET_KEY (e.g. via a2c-django-secret-keygen), "
+        "or set ACME2CERTIFIER_DEBUG=1 for local development only."
+    )
 
-ALLOWED_HOSTS = [
-    h.strip()
-    for h in os.environ.get("ACME2CERTIFIER_ALLOWED_HOSTS", "127.0.0.1,*").split(",")
-    if h.strip()
-]
+if "*" in ALLOWED_HOSTS and not DEBUG:
+    warnings.warn(
+        "ALLOWED_HOSTS contains '*'; Host header validation is disabled. "
+        "Set ACME2CERTIFIER_ALLOWED_HOSTS to explicit hostnames for production.",
+        UserWarning,
+        stacklevel=1,
+    )
+
+apply_log_levels(False)
+_cfg = load_config()
+_host = server_name_allowed_host(configured_server_name_get(_cfg) or "")
+if _host and _host not in ALLOWED_HOSTS:
+    logger_setup(config_debug_get(_cfg)).info(
+        "Adding %s to ALLOWED_HOSTS from acme_srv.cfg server_name", _host
+    )
+    ALLOWED_HOSTS.append(_host)
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -40,9 +68,6 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    # ACME clients POST JWS-signed bodies (application/jose+json), not browser
-    # forms; CSRF tokens are incompatible. Auth is JWS + account keys (RFC 8555).
-    # 'django.middleware.csrf.CsrfViewMiddleware',
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -67,13 +92,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
-    }
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {

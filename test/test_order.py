@@ -3326,10 +3326,15 @@ class TestOrderClass(unittest.TestCase):
         self.assertIsNone(self.order._get_order_account_name("order1"))
 
     def test_205_get_order_account_name_db_error(self):
-        """_get_order_account_name logs critical and returns None on DB error"""
+        """_get_order_account_name logs critical and raises on DB error"""
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ResourceOwnershipLookupError,
+        )
+
         self.order.repository.order_lookup.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
-            self.assertIsNone(self.order._get_order_account_name("order1"))
+            with self.assertRaises(ResourceOwnershipLookupError):
+                self.order._get_order_account_name("order1")
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to look up order account: fail",
             log_cm.output,
@@ -3587,7 +3592,24 @@ class TestOrderClass(unittest.TestCase):
                 ownership_unauthorized(),
             )
 
-    def test_217_finalize_ready_order_update_if_status_db_error(self):
+    def test_217_check_order_ownership_lookup_error(self):
+        """_check_order_ownership maps lookup errors to 500"""
+        from acme2certifier.acme_srv.helpers.resource_ownership import (
+            ResourceOwnershipLookupError,
+            ownership_lookup_failed,
+        )
+
+        with patch.object(
+            self.order,
+            "_get_order_account_name",
+            side_effect=ResourceOwnershipLookupError("db"),
+        ):
+            self.assertEqual(
+                self.order._check_order_ownership("ord1", "acc"),
+                ownership_lookup_failed(),
+            )
+
+    def test_218_finalize_ready_order_update_if_status_db_error(self):
         """OrderDatabaseError on claim maps to not-ready path"""
         from acme2certifier.acme_srv.order import OrderDatabaseError
 
@@ -3603,7 +3625,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_218_finalize_ready_authz_invalid_update_db_error(self):
+    def test_219_finalize_ready_authz_invalid_update_db_error(self):
         """OrderDatabaseError while marking invalid is swallowed"""
         from acme2certifier.acme_srv.order import OrderDatabaseError
 
@@ -3623,7 +3645,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_219_authorizations_valid_for_issuance_db_error(self):
+    def test_220_authorizations_valid_for_issuance_db_error(self):
         """_authorizations_valid_for_issuance returns False on DB error"""
         from acme2certifier.acme_srv.order import OrderDatabaseError
 
@@ -3632,7 +3654,7 @@ class TestOrderClass(unittest.TestCase):
         )
         self.assertFalse(self.order._authorizations_valid_for_issuance("order1"))
 
-    def test_220_authorizations_valid_for_issuance_empty(self):
+    def test_221_authorizations_valid_for_issuance_empty(self):
         """_authorizations_valid_for_issuance returns False for empty list"""
         self.order.repository.authorization_lookup.return_value = []
         self.assertFalse(self.order._authorizations_valid_for_issuance("order1"))

@@ -19,22 +19,27 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_async_mode_load,
     config_dns_server_list_load,
+    eab_profile_as_bool,
 )
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+from acme2certifier.acme_srv.helpers.security_gate import (
+    challenge_validation_disable_decide,
+)
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
-    log_ownership_denial,
     ownership_lookup_failed,
-    ownership_unauthorized,
-    resource_owner_matches,
+    resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.db_handler import DBstore
-from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message, finish_response
 
 # Import our modules
 from acme2certifier.acme_srv.challenge_validators import (
     ChallengeContext,
     ValidationResult,
+)
+from acme2certifier.acme_srv.challenge_validators.http_validator import (
+    http01_url_for_log,
 )
 from acme2certifier.acme_srv.challenge_registry_setup import (
     create_challenge_validator_registry,
@@ -58,6 +63,12 @@ from acme2certifier.acme_srv.challenge_error_handling import (
 
 ACCOUNT_URI_PREFIX = "/acme/acct/"
 
+CHALLENGE_TYPE_SUPPORT_KEYS = (
+    "http_01_support",
+    "dns_01_support",
+    "tls_alpn_01_support",
+)
+
 
 @dataclass
 class ChallengeConfiguration:
@@ -72,6 +83,9 @@ class ChallengeConfiguration:
     tnauthlist_support: bool = False
     email_identifier_support: bool = False
     email_address: Optional[str] = None
+    http_01_support: bool = True
+    dns_01_support: bool = True
+    tls_alpn_01_support: bool = True
     dns_persist_01_support: bool = False
     dns_persist_allow_policy_wildcard: bool = False
     dns_persist_jit_validation: bool = False
@@ -273,6 +287,8 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 data_dic["keyauthorization"] = request.keyauthorization
             if request.validation_error:
                 data_dic["validation_error"] = request.validation_error
+            if request.challenge_message_id:
+                data_dic["challenge_message_id"] = request.challenge_message_id
             self.dbstore.challenge_update(data_dic)
             self.logger.debug(
                 "DatabaseChallengeRepository.update_challenge() ended: updated challenge %s",
@@ -398,9 +414,11 @@ class Challenge:
         logger=None,
         source: str = None,
         expiry: int = 3600,
+        config_dic=None,
     ):
         """Initialize the challenge handler."""
         self.logger = logger
+        self.config_dic = config_dic
         self.config = ChallengeConfiguration()
         self.expiry = expiry
         self.server_name = srv_name
@@ -413,7 +431,9 @@ class Challenge:
 
         # Initialize core components
         self.dbstore = DBstore(debug, self.logger)
-        self.message = Message(debug, self.server_name, self.logger)
+        self.message = Message(
+            debug, self.server_name, self.logger, config_dic=config_dic
+        )
 
         # Initialize error message dictionary for error responses
         self.err_msg_dic = error_dic_get(self.logger)
@@ -453,27 +473,29 @@ class Challenge:
     ) -> Dict[str, str]:
         """Create standardized error response."""
         self.logger.debug("Challenge._create_error_response() called")
-        status_dic = {"code": code, "type": message, "detail": detail}
-        return self.message.prepare_response({}, status_dic, account_name=account_name)
+        return finish_response(
+            self.message, {}, code, message, detail, account_name=account_name
+        )
 
     def _check_challenge_ownership(
         self, challenge_name: str, account_name: Optional[str]
     ) -> Tuple[int, str, str]:
         """Verify the requester owns the challenge."""
-        try:
-            owner = self.repository.get_challenge_owner_account_name(challenge_name)
-        except DatabaseError as err:
-            raise ResourceOwnershipLookupError(str(err)) from err
-        if not resource_owner_matches(account_name, owner):
-            log_ownership_denial(self.logger, account_name, "challenge", challenge_name)
-            return ownership_unauthorized()
-        return (200, None, None)
+
+        def lookup() -> Optional[str]:
+            try:
+                return self.repository.get_challenge_owner_account_name(challenge_name)
+            except DatabaseError as err:
+                raise ResourceOwnershipLookupError(str(err)) from err
+
+        return resolve_resource_ownership(
+            self.logger, account_name, "challenge", challenge_name, lookup
+        )
 
     def _create_success_response(self, response_dic: Dict[str, Any]) -> Dict[str, str]:
         """Create standardized success response."""
         self.logger.debug("Challenge._create_success_response() called")
-        status_dic = {"code": 200, "type": None, "detail": None}
-        return self.message.prepare_response(response_dic, status_dic)
+        return finish_response(self.message, response_dic, 200, None, None)
 
     def _execute_challenge_validation(self, challenge_name: str) -> ValidationResult:
         """Execute challenge validation using registry."""
@@ -508,6 +530,7 @@ class Challenge:
                 "issuer_domain_names": self.config.caaidentities or [],
                 "allow_policy_wildcard": self.config.dns_persist_allow_policy_wildcard,
                 "http01_block_private_ips": self.config.http01_block_private_ips,
+                "challenge_message_id": challenge_details.get("challenge_message_id"),
             },
         )
 
@@ -544,6 +567,7 @@ class Challenge:
                     "authorization__value",
                     "authorization__token",
                     "authorization__order__account__name",
+                    "challenge_message_id",
                 ],
             )
 
@@ -588,6 +612,7 @@ class Challenge:
                 "jwk_thumbprint": jwk_thumbprint,
                 "keyauthorization": challenge_dic["keyauthorization"],
                 "accounturi": accounturi,
+                "challenge_message_id": challenge_dic.get("challenge_message_id"),
             }
 
         except Exception as err:
@@ -739,11 +764,6 @@ class Challenge:
         """Load address check configuration."""
         self.logger.debug("Challenge._load_address_check_configuration()")
 
-        self.config.validation_disabled = config_dic.getboolean(
-            "Challenge", "challenge_validation_disable", fallback=False
-        )
-        if self.config.validation_disabled:
-            self.logger.info("Challenge validation is globally disabled.")
         if config_dic.getboolean("Challenge", "source_address_check", fallback=False):
             self.logger.warning(
                 "source_address_check is deprecated, please use forward_address_check instead"
@@ -755,6 +775,16 @@ class Challenge:
             )
         self.config.reverse_address_check = config_dic.getboolean(
             "Challenge", "reverse_address_check", fallback=False
+        )
+        requested_disable = config_dic.getboolean(
+            "Challenge", "challenge_validation_disable", fallback=False
+        )
+        self.config.validation_disabled = challenge_validation_disable_decide(
+            self.logger,
+            requested_disable,
+            forward_address_check=self.config.forward_address_check,
+            reverse_address_check=self.config.reverse_address_check,
+            source="[Challenge]",
         )
         self.config.http01_block_private_ips = config_dic.getboolean(
             "Challenge", "http01_block_private_ips", fallback=False
@@ -833,7 +863,11 @@ class Challenge:
         """Load configuration from file."""
         self.logger.debug("Challenge._load_configuration()")
 
-        config_dic = load_config(self.logger, "Challenge")
+        config_dic = (
+            self.config_dic
+            if self.config_dic is not None
+            else load_config(self.logger, "Challenge")
+        )
         if config_dic:
 
             try:
@@ -861,6 +895,15 @@ class Challenge:
                 "Challenge", "sectigo_sim", fallback=False
             )
             self._load_dns_persist_configuration(config_dic)
+            self.config.http_01_support = config_dic.getboolean(
+                "Challenge", "http_01_support", fallback=True
+            )
+            self.config.dns_01_support = config_dic.getboolean(
+                "Challenge", "dns_01_support", fallback=True
+            )
+            self.config.tls_alpn_01_support = config_dic.getboolean(
+                "Challenge", "tls_alpn_01_support", fallback=True
+            )
 
             self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
@@ -915,12 +958,26 @@ class Challenge:
             self.config.dns_persist_01_support,
             self.config.caaidentities,
             acct_path,
+            http_01_support=self.config.http_01_support,
+            dns_01_support=self.config.dns_01_support,
+            tls_alpn_01_support=self.config.tls_alpn_01_support,
         )
         self.service = ChallengeService(
             self.repository, self.state_manager, self.factory, self.logger
         )
 
         self.logger.debug("Challenge._initialize_business_logic_components() ended")
+
+    def _refresh_challenge_type_components(self) -> None:
+        """Rebuild validator registry and factory after challenge-type cfg changes."""
+        self.logger.debug("Challenge._refresh_challenge_type_components()")
+        self.validator_registry = create_challenge_validator_registry(
+            self.logger, self.config
+        )
+        if self.factory is not None:
+            self.factory.http_01_support = self.config.http_01_support
+            self.factory.dns_01_support = self.config.dns_01_support
+            self.factory.tls_alpn_01_support = self.config.tls_alpn_01_support
 
     def _ensure_components_initialized(self):
         """Ensure factory and service components are initialized."""
@@ -974,16 +1031,19 @@ class Challenge:
         challenge_profile = profile_dic.get(eab_kid, {}).get("challenge", {})
 
         settings = {
-            "challenge_validation_disable": challenge_profile.get(
-                "challenge_validation_disable", False
+            "challenge_validation_disable": eab_profile_as_bool(
+                challenge_profile.get("challenge_validation_disable"), False
             ),
-            "forward_address_check": challenge_profile.get(
-                "forward_address_check", False
+            "forward_address_check": eab_profile_as_bool(
+                challenge_profile.get("forward_address_check"), False
             ),
-            "reverse_address_check": challenge_profile.get(
-                "reverse_address_check", False
+            "reverse_address_check": eab_profile_as_bool(
+                challenge_profile.get("reverse_address_check"), False
             ),
         }
+        for key in CHALLENGE_TYPE_SUPPORT_KEYS:
+            if key in challenge_profile:
+                settings[key] = eab_profile_as_bool(challenge_profile[key])
 
         self.logger.debug(
             "Challenge._get_challenge_profile_settings(): extracted settings for kid %s: %s",
@@ -1000,13 +1060,6 @@ class Challenge:
             "Challenge._apply_eab_profile_settings() for kid: %s", eab_kid
         )
 
-        if settings.get("challenge_validation_disable"):
-            self.logger.info(
-                "Challenge validation is disabled via EAB profiling (eab_kid: %s).",
-                eab_kid,
-            )
-            self.config.validation_disabled = True
-
         if settings.get("forward_address_check"):
             self.logger.info(
                 "Forward address check is enabled via EAB profiling (eab_kid: %s).",
@@ -1020,6 +1073,58 @@ class Challenge:
                 eab_kid,
             )
             self.config.reverse_address_check = True
+
+        # Decide after address-check overlay so global forward/reverse combine
+        # with a profile that only sets challenge_validation_disable.
+        if settings.get("challenge_validation_disable"):
+            self.config.validation_disabled = challenge_validation_disable_decide(
+                self.logger,
+                True,
+                forward_address_check=self.config.forward_address_check,
+                reverse_address_check=self.config.reverse_address_check,
+                source=f"EAB profile (eab_kid: {eab_kid})",
+            )
+
+        challenge_types_changed = False
+        for key in CHALLENGE_TYPE_SUPPORT_KEYS:
+            if key not in settings:
+                continue
+            if getattr(self.config, key) != settings[key]:
+                self.logger.info(
+                    "%s is set to %s via EAB profiling (eab_kid: %s).",
+                    key,
+                    settings[key],
+                    eab_kid,
+                )
+                setattr(self.config, key, settings[key])
+                challenge_types_changed = True
+        if challenge_types_changed:
+            self._refresh_challenge_type_components()
+
+    def _apply_eab_challenge_profile(self, eab_kid: Optional[str]) -> None:
+        """Apply per-account challenge settings from EAB profiling."""
+        self.logger.debug(
+            "Challenge._apply_eab_challenge_profile() for kid: %s", eab_kid
+        )
+        if not eab_kid or not (self.config.eab_profiling and self.config.eab_handler):
+            return
+
+        try:
+            with self.config.eab_handler(self.logger) as eab_handler:
+                profile_dic = eab_handler.key_file_load()
+                if (
+                    eab_kid not in profile_dic
+                    or "challenge" not in profile_dic[eab_kid]
+                ):
+                    return
+                settings = self._get_challenge_profile_settings(profile_dic, eab_kid)
+                self._apply_eab_profile_settings(settings, eab_kid)
+        except Exception as err:
+            self.logger.error(
+                "Failed to process EAB challenge profile (kid: %s): %s",
+                eab_kid,
+                err,
+            )
 
     def _check_challenge_validation_eabprofile(self, challenge_name: str):
         """Check and apply challenge validation settings from EAB profiling."""
@@ -1261,8 +1366,6 @@ class Challenge:
         extras: List[str] = []
 
         if "expected" in details or "received" in details:
-            extras.append(f"expected={details.get('expected')!r}")
-            extras.append(f"received={details.get('received')!r}")
             return extras
 
         if "expected_hash" in details:
@@ -1274,7 +1377,7 @@ class Challenge:
             return extras
 
         if details.get("url") is not None:
-            extras.append(f"url={details.get('url')}")
+            extras.append(f"url={http01_url_for_log(str(details.get('url')))}")
 
         return extras
 
@@ -1463,6 +1566,7 @@ class Challenge:
         id_type: str = "dns",
         id_value: str = None,
         is_wildcard: bool = False,
+        eab_kid: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Retrieve existing or create new challenge set (replaces challengeset_get)."""
         self.logger.debug(
@@ -1470,6 +1574,7 @@ class Challenge:
         )
 
         self._ensure_components_initialized()
+        self._apply_eab_challenge_profile(eab_kid)
 
         result = []
         try:

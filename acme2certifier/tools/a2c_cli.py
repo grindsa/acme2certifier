@@ -9,7 +9,7 @@ import argparse
 import os.path
 import sys
 import time
-import random
+import secrets
 from string import digits, ascii_letters
 import json
 import csv
@@ -47,7 +47,7 @@ def generate_random_string(logger, length):
     """generate random string to be used as name"""
     logger.debug("generate_random_string()")
     char_set = digits + ascii_letters
-    return "".join(random.choice(char_set) for _ in range(length))
+    return "".join(secrets.choice(char_set) for _ in range(length))
 
 
 def file_dump(logger, filename, data_):

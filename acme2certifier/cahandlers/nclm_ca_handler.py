@@ -2,9 +2,7 @@
 """ca handler for "NetGuard Certificate Lifecycle Manager" via REST-API class"""
 
 from __future__ import print_function
-import os
 import time
-import json
 from typing import List, Tuple, Dict
 import requests
 
@@ -17,6 +15,8 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_option_load,
+    config_ca_bundle_load,
     config_profile_load,
     convert_string_to_byte,
     eab_profile_header_info_check,
@@ -25,8 +25,7 @@ from acme2certifier.acme_srv.helper import (
     error_dic_get,
     header_info_get,
     load_config,
-    parse_url,
-    proxy_check,
+    config_proxy_load,
     request_operation,
     uts_now,
     uts_to_date_utc,
@@ -455,39 +454,23 @@ class CAhandler(object):
     def _config_api_user_load(self, config_dic: Dict[str, str]):
         """load user"""
         self.logger.debug("CAhandler._config_api_user_load()")
-
-        if "api_user_variable" in config_dic["CAhandler"]:
-            try:
-                self.credential_dic["api_user"] = os.environ[
-                    config_dic.get("CAhandler", "api_user_variable")
-                ]
-            except Exception as err:
-                self.logger.error("Unable to load API user from environment: %s", err)
-        if "api_user" in config_dic["CAhandler"]:
-            if self.credential_dic["api_user"]:
-                self.logger.info("Overwrite api_user")
-            self.credential_dic["api_user"] = config_dic.get("CAhandler", "api_user")
-
+        self.credential_dic["api_user"] = config_option_load(
+            self.logger,
+            config_dic,
+            "api_user",
+            current=self.credential_dic.get("api_user"),
+        )
         self.logger.debug("CAhandler._config_api_user_load() ended.")
 
     def _config_api_password_load(self, config_dic: Dict[str, str]):
         """load password"""
         self.logger.debug("CAhandler._config_api_password_load()")
-
-        if "api_password_variable" in config_dic["CAhandler"]:
-            try:
-                self.credential_dic["api_password"] = os.environ[
-                    config_dic.get("CAhandler", "api_password_variable")
-                ]
-            except Exception as err:
-                self.logger.error("Could not load password_variable:%s", err)
-        if "api_password" in config_dic["CAhandler"]:
-            if self.credential_dic["api_password"]:
-                self.logger.info("Overwrite api_password")
-            self.credential_dic["api_password"] = config_dic.get(
-                "CAhandler", "api_password"
-            )
-
+        self.credential_dic["api_password"] = config_option_load(
+            self.logger,
+            config_dic,
+            "api_password",
+            current=self.credential_dic.get("api_password"),
+        )
         self.logger.debug("CAhandler._config_api_password_load() ended")
 
     def _config_names_load(self, config_dic: Dict[str, str]):
@@ -517,34 +500,16 @@ class CAhandler(object):
     def _config_proxy_load(self, config_dic: Dict[str, str]):
         """load proxy configuration"""
         self.logger.debug("CAhandler._config_proxy_load()")
-
-        if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
-            try:
-                proxy_list = json.loads(config_dic.get("DEFAULT", "proxy_server_list"))
-                url_dic = parse_url(self.logger, self.api_host)
-                if "host" in url_dic:
-                    fqdn, _port = url_dic["host"].split(":")
-                    proxy_server = proxy_check(self.logger, fqdn, proxy_list)
-                    self.proxy = {"http": proxy_server, "https": proxy_server}
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to load proxy_server_list from configuration: %s",
-                    err_,
-                )
+        self.proxy = config_proxy_load(self.logger, config_dic, self.api_host)
         self.logger.debug("CAhandler._config_proxy_load() ended")
 
     def _config_timer_load(self, config_dic: Dict[str, str]):
         """load timer"""
         self.logger.debug("CAhandler._config_proxy_load()")
 
-        # check if we get a ca bundle for verification
-        if "ca_bundle" in config_dic["CAhandler"]:
-            try:
-                self.ca_bundle = config_dic.getboolean("CAhandler", "ca_bundle")
-            except Exception:
-                self.ca_bundle = config_dic.get(
-                    "CAhandler", "ca_bundle", fallback=self.ca_bundle
-                )
+        self.ca_bundle = config_ca_bundle_load(
+            self.logger, config_dic, current=self.ca_bundle
+        )
 
         if "request_timeout" in config_dic["CAhandler"]:
             try:
@@ -665,7 +630,6 @@ class CAhandler(object):
         cert_id = None
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["headers", "credential_dic"])
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )
@@ -737,9 +701,8 @@ class CAhandler(object):
             _username = json_dic.get("username", None)
             _realms = json_dic.get("realms", None)
             self.logger.debug(
-                "login response:\n user: %s\n token: %s\n realms: %s\n",
+                "login response:\n user: %s\n token: <redacted>\n realms: %s\n",
                 _username,
-                json_dic["access_token"],
                 _realms,
             )
             return

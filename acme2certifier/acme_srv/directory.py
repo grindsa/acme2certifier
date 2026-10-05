@@ -6,7 +6,7 @@
 from __future__ import print_function
 import uuid
 import json
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple, Any
 from dataclasses import dataclass, field
 from .version import __version__, __dbversion__
 from .helper import (
@@ -14,6 +14,10 @@ from .helper import (
     ca_handler_load,
     config_profile_load,
     config_async_mode_load,
+)
+from acme2certifier.acme_srv.helpers.cahandler_registry import (
+    CAHandlerRegistry,
+    resolve_default_ca_handler,
 )
 from .db_handler import DBstore
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
@@ -93,14 +97,17 @@ class Directory:
         debug: Optional[object] = None,
         srv_name: Optional[str] = None,
         logger: Optional[object] = None,
+        config_dic=None,
     ) -> None:
         """Initialize Directory with configuration, repository, and logger."""
         self.server_name = srv_name
         self.logger = logger
+        self.config_dic = config_dic
         self.dbstore = DBstore(debug, self.logger)
         self.repository = DirectoryRepository(self.dbstore, self.logger)
         self.config = DirectoryConfig()
         self.cahandler = None
+        self.cahandler_registry = None
         self.version = __version__
         self.dbversion = __dbversion__
 
@@ -117,7 +124,11 @@ class Directory:
     def _load_configuration(self) -> None:
         """Load and parse all Directory configuration from file and environment."""
         self.logger.debug("Directory._load_configuration()")
-        config_dic = load_config(self.logger, "Directory")
+        config_dic = (
+            self.config_dic
+            if self.config_dic is not None
+            else load_config(self.logger, "Directory")
+        )
 
         self._parse_directory_section(config_dic)
         self._parse_booleans(config_dic)
@@ -280,12 +291,13 @@ class Directory:
         )
 
     def _load_ca_handler(self, config_dic: object) -> None:
-        """Load the CA handler module as configured."""
-        ca_handler_module = ca_handler_load(self.logger, config_dic)
-        if ca_handler_module:
-            self.cahandler = ca_handler_module.CAhandler
-        else:
-            self.logger.critical("No ca_handler loaded")
+        """Load the CA handler registry as configured."""
+        self.logger.debug("Directory._load_ca_handler()")
+        self.cahandler_registry = CAHandlerRegistry(self.logger).load(config_dic)
+        self.cahandler = resolve_default_ca_handler(
+            self.logger, self.cahandler_registry, config_dic, ca_handler_load
+        )
+        self.logger.debug("Directory._load_ca_handler() ended")
 
     def _build_meta_information(self) -> Dict[str, object]:
         """Build the meta information dictionary for the directory response."""
@@ -351,39 +363,116 @@ class Directory:
         self.logger.debug("Directory._build_directory_response() ended")
         return d_dic
 
+    def _directory_handlers(self) -> List[Any]:
+        """Return handler factories that must pass directory health checks."""
+        if self.cahandler_registry:
+            if self.cahandler_registry.multi_handler:
+                handlers = self.cahandler_registry.referenced_handlers()
+                if handlers:
+                    return handlers
+            elif self.cahandler:
+                return [self.cahandler]
+        elif self.cahandler:
+            return [self.cahandler]
+        return []
+
+    def _merge_synced_profiles(
+        self,
+        merged_profiles: Dict[str, object],
+        synced: Dict[str, object],
+        handler_name: str,
+    ) -> None:
+        """Merge profiles from one handler into the directory profile map."""
+        for key, value in synced.items():
+            if key in merged_profiles and merged_profiles[key] != value:
+                self.logger.warning(
+                    "profiles_sync: profile '%s' conflict from handler '%s' "
+                    "(existing=%s, new=%s); keeping new value",
+                    key,
+                    handler_name,
+                    merged_profiles[key],
+                    value,
+                )
+            merged_profiles[key] = value
+
+    def _initial_directory_error(self, handlers: List[Any]) -> Optional[str]:
+        """Return a startup or missing-handler error before probing CAs."""
+        if self.cahandler_registry and self.cahandler_registry.startup_error:
+            return self.cahandler_registry.startup_error
+        if not handlers:
+            return "No handler loaded"
+        return None
+
+    def _handler_check_error(self, ca_handler: Any, handler_name: str) -> Optional[str]:
+        """Run handler_check() and return its error string, if any."""
+        if not hasattr(ca_handler, "handler_check"):
+            return None
+        check_error = ca_handler.handler_check()
+        if not check_error:
+            return None
+        self.logger.critical(
+            "CA handler '%s' failed handler_check: %s",
+            handler_name,
+            check_error,
+        )
+        return check_error
+
+    def _sync_handler_profiles(
+        self,
+        ca_handler: Any,
+        merged_profiles: Dict[str, object],
+        handler_name: str,
+    ) -> None:
+        """Merge profiles from one handler when profiles_sync is enabled."""
+        if not self.config.profiles_sync:
+            return
+        if not hasattr(ca_handler, "synchronize_profiles"):
+            return
+        synced = ca_handler.synchronize_profiles(
+            self.repository,
+            self.config.acme_url,
+            self.config.profiles_sync_interval,
+            self.config.async_mode,
+        )
+        if synced:
+            self._merge_synced_profiles(merged_profiles, synced, handler_name)
+
+    def _probe_directory_handlers(
+        self, handlers: List[Any], error: Optional[str]
+    ) -> Tuple[Optional[str], Dict[str, object]]:
+        """Run handler_check and optional profile sync across directory handlers."""
+        merged_profiles = dict(self.config.profiles or {})
+        for bound in handlers:
+            handler_name = getattr(bound, "name", "unknown")
+            with bound(None, self.logger) as ca_handler:
+                check_error = self._handler_check_error(ca_handler, handler_name)
+                if check_error:
+                    return check_error, merged_profiles
+                if not error:
+                    self._sync_handler_profiles(
+                        ca_handler, merged_profiles, handler_name
+                    )
+        return error, merged_profiles
+
+    def _directory_response_or_error(self, error: Optional[str]) -> Dict[str, object]:
+        """Return the directory payload, or a CA-handler configuration error."""
+        if not error:
+            return self._build_directory_response()
+        self.logger.critical(
+            "CA handler error during get_directory_response: %s", error
+        )
+        return {"error": "error in ca_handler configuration"}
+
     def get_directory_response(self) -> Dict[str, object]:
         """Public method to get the ACME directory response, including CA handler checks."""
         self.logger.debug("Directory.get_directory_response()")
-        error = None
-
-        if self.cahandler:
-
-            with self.cahandler(None, self.logger) as ca_handler:
-                if hasattr(ca_handler, "handler_check"):
-                    error = ca_handler.handler_check()
-                if (
-                    self.config.profiles_sync
-                    and hasattr(ca_handler, "synchronize_profiles")
-                    and not error
-                ):
-                    self.config.profiles = ca_handler.synchronize_profiles(
-                        self.repository,
-                        self.config.acme_url,
-                        self.config.profiles_sync_interval,
-                        self.config.async_mode,
-                    )
-
-        else:
-            error = "No handler loaded"
-
-        if not error:
-            d_dic = self._build_directory_response()
-        else:
-            self.logger.critical(
-                "CA handler error during get_directory_response: %s", error
-            )
-            d_dic = {"error": "error in ca_handler configuration"}
-        return d_dic
+        handlers = self._directory_handlers()
+        error, merged_profiles = self._probe_directory_handlers(
+            handlers, self._initial_directory_error(handlers)
+        )
+        if merged_profiles:
+            self.config.profiles = merged_profiles
+        return self._directory_response_or_error(error)
 
     def directory_get(self) -> Dict[str, object]:
         """return response to ACME directory call"""

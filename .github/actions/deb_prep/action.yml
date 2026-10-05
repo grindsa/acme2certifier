@@ -25,6 +25,10 @@ inputs:
     description: "systemd Ubuntu image for DEB install tests"
     required: false
     default: "grindsa/systemd-ubuntu:24.04"
+  TLS:
+    description: "Enable TLS on the Django database server"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -90,12 +94,14 @@ runs:
       uses: ./.github/actions/mariadb_prep
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        TLS: ${{ inputs.TLS }}
 
     - name: "Instanciate Postgres"
       if: inputs.DJANGO_DB == 'psql'
       uses: ./.github/actions/psql_prep
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        TLS: ${{ inputs.TLS }}
 
     - name: "Prepare addditional environment for MSSQL"
       if: inputs.DJANGO_DB == 'mssql'

@@ -83,7 +83,9 @@ class TestDjangoViews(unittest.TestCase):
                 return_value=False,
             ),
             patch("acme2certifier.acme_srv.helper.log_loaded_acme_srv_cfg"),
-            patch("acme2certifier.acme_srv.db_handler.log_active_db_handler"),
+            patch(
+                "acme2certifier.acme_srv.helpers.acme_http_boot.db_handler_mod.log_active_db_handler"
+            ),
         ):
             self.views = importlib.import_module(_VIEWS)
 

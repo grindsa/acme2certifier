@@ -27,13 +27,16 @@ def create_challenge_validator_registry(
     logger.debug("challenge_registry_setup.create_challenge_validator_registry()")
     registry = ChallengeValidatorRegistry(logger)
 
-    # Register standard ACME challenge validators
-    registry.register_validator(HttpChallengeValidator(logger))
-    registry.register_validator(DnsChallengeValidator(logger))
+    # Register standard ACME challenge validators when enabled in configuration
+    if config.http_01_support:
+        registry.register_validator(HttpChallengeValidator(logger))
+    if config.dns_01_support:
+        registry.register_validator(DnsChallengeValidator(logger))
+    if config.tls_alpn_01_support:
+        registry.register_validator(TlsAlpnChallengeValidator(logger))
 
     if config.dns_persist_01_support:
         registry.register_validator(DnsPersistChallengeValidator(logger))
-    registry.register_validator(TlsAlpnChallengeValidator(logger))
     if config.email_identifier_support:
         # Register Email-Reply challenge validator if configured
         registry.register_validator(EmailReplyChallengeValidator(logger))

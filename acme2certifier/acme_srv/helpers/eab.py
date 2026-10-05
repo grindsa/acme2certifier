@@ -5,9 +5,38 @@ import logging
 from typing import Any, Optional
 from .csr import csr_subject_get
 from .encoding import b64_url_recode
-from .config import client_parameter_validate, profile_lookup, header_info_lookup
+from .config import (
+    CERT_CHAIN_PROFILE_KEYS,
+    client_parameter_validate,
+    config_cert_chain_profile_load,
+    profile_lookup,
+    header_info_lookup,
+    header_value_allowlist_resolve,
+)
+from .security_gate import (
+    client_header_parameter_decide,
+    eab_profile_path_under_base,
+    eab_profile_warn_if_denied,
+)
 from .validation import cn_validate
 from .domain_utils import allowed_domainlist_check
+
+_EAB_CREDENTIAL_KEY_MARKERS = (
+    "password",
+    "passphrase",
+    "secret",
+    "token",
+    "hmac",
+    "api_key",
+)
+
+
+def eab_profile_value_for_log(key: str, value: Any) -> Any:
+    """Return *value* for debug logs, redacting credential-like profile keys."""
+    key_l = str(key).lower()
+    if any(marker in key_l for marker in _EAB_CREDENTIAL_KEY_MARKERS):
+        return "<redacted>"
+    return value
 
 
 def eab_profile_as_bool(value: Any, default: bool = False) -> bool:
@@ -45,13 +74,29 @@ def _handle_acme_profiling(
     logger.debug("Helper._handle_acme_profiling()")
 
     profile = profile_lookup(logger, csr)
-    if profile:
+    if not profile:
+        return
+
+    # Multi-handler routing keys (profile_cahandler identity maps such as
+    # {"harica": "harica"}) must not overwrite handler parameters
+    # (HARICA transaction_type, XCA template_name, ...).
+    registry_name = getattr(cahandler, "cahandler_registry_name", None)
+    if registry_name and profile == registry_name:
         logger.debug(
-            "Helper.profile_lookup(): setting %s to %s",
+            "Helper._handle_acme_profiling(): skipping %s overwrite; "
+            "profile %r selects handler %r",
             handler_hifield,
             profile,
+            registry_name,
         )
-        setattr(cahandler, handler_hifield, profile)
+        return
+
+    logger.debug(
+        "Helper.profile_lookup(): setting %s to %s",
+        handler_hifield,
+        profile,
+    )
+    setattr(cahandler, handler_hifield, profile)
 
 
 def _handle_header_info_profiling(
@@ -64,17 +109,33 @@ def _handle_header_info_profiling(
         logger, csr, cahandler.header_info_field, handler_hifield
     )
     if hil_value:
-        logger.debug(
-            "Helper.eab_profile_header_info_check(): setting %s to %s",
+        default_value = getattr(cahandler, handler_hifield, None)
+        allowlist = header_value_allowlist_resolve(logger, cahandler)
+        value_to_set = client_header_parameter_decide(
+            logger,
             handler_hifield,
             hil_value,
+            allowlist,
+            default_value,
         )
-        logger.info(
-            "Received enrollment parameter: %s value: %s via headerinfo field",
-            handler_hifield,
-            hil_value,
-        )
-        setattr(cahandler, handler_hifield, hil_value)
+        if value_to_set == hil_value:
+            logger.debug(
+                "Helper.eab_profile_header_info_check(): setting %s to %s",
+                handler_hifield,
+                hil_value,
+            )
+            logger.info(
+                "Received enrollment parameter: %s value: %s via headerinfo field",
+                handler_hifield,
+                hil_value,
+            )
+            setattr(cahandler, handler_hifield, hil_value)
+        else:
+            logger.debug(
+                "Helper._handle_header_info_profiling(): kept default %s=%s",
+                handler_hifield,
+                default_value,
+            )
     else:
         logger.debug("eab_profile_header_info_check(): no header_info field found")
 
@@ -196,9 +257,14 @@ def eab_profile_revocation_check(
             b64_url_recode(logger, certificate_raw), revocation=True
         )
         for key, value in eab_profile_dic.items():
-            if key in ["subject", "allowed_domainlist"]:
+            if key in (
+                "subject",
+                "allowed_domainlist",
+                "cahandler_name",
+                *CERT_CHAIN_PROFILE_KEYS,
+            ):
                 continue
-            elif isinstance(value, str):
+            if isinstance(value, str):
                 eab_profile_string_check(logger, cahandler, key, value)
             elif isinstance(value, list):
                 # check if we need to execute a function from the handler
@@ -214,85 +280,154 @@ def eab_profile_revocation_check(
     logger.debug("Helper.eab_profile_revocation_check() ended")
 
 
+def _eab_profile_list_dispatch(
+    logger: logging.Logger,
+    cahandler: Any,
+    eab_handler: Any,
+    csr: str,
+    key: str,
+    value: Any,
+) -> Optional[str]:
+    """Run handler-specific list check when present, else the helper default."""
+    if "eab_profile_list_check" in dir(cahandler):
+        return cahandler.eab_profile_list_check(eab_handler, csr, key, value)
+    return eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value)
+
+
+def _eab_profile_entry_check(
+    logger: logging.Logger,
+    cahandler: Any,
+    eab_handler: Any,
+    csr: str,
+    key: str,
+    value: Any,
+) -> Optional[str]:
+    """Validate one EAB profile entry. Skip routing-only keys."""
+    if key == "cahandler_name":
+        return None
+    if key in CERT_CHAIN_PROFILE_KEYS:
+        error, _loaded = config_cert_chain_profile_load(logger, key, value)
+        return error
+    if key == "subject":
+        return eab_profile_subject_check(logger, csr, value)
+    if isinstance(value, str):
+        eab_profile_string_check(logger, cahandler, key, value)
+        return None
+    if isinstance(value, list):
+        return _eab_profile_list_dispatch(
+            logger, cahandler, eab_handler, csr, key, value
+        )
+    return None
+
+
+def _eab_profile_entries_check(
+    logger: logging.Logger,
+    cahandler: Any,
+    eab_handler: Any,
+    csr: str,
+    eab_profile_dic: dict,
+) -> Optional[str]:
+    """Return the first profile-entry error, if any."""
+    for key, value in eab_profile_dic.items():
+        result = _eab_profile_entry_check(
+            logger, cahandler, eab_handler, csr, key, value
+        )
+        if result:
+            return result
+    return None
+
+
+def _eab_header_info_not_allowed(
+    logger: logging.Logger,
+    cahandler: Any,
+    csr: str,
+    handler_hifield: str,
+    eab_profile_dic: dict,
+) -> Optional[str]:
+    """Reject header_info values that the EAB profile does not allow."""
+    if not cahandler.header_info_field or handler_hifield in eab_profile_dic:
+        return None
+    hil_value = header_info_lookup(
+        logger, csr, cahandler.header_info_field, handler_hifield
+    )
+    if not hil_value:
+        return None
+    return f'header_info field "{handler_hifield}" is not allowed by profile'
+
+
 def eab_profile_check(
     logger: logging.Logger, cahandler, csr: str, handler_hifield: str
-) -> str:
+) -> Optional[str]:
     """check eab profile"""
     logger.debug("Helper.eab_profile_check()")
 
     result = None
     with cahandler.eab_handler(logger) as eab_handler:
         eab_profile_dic = eab_handler.eab_profile_get(csr)
-        for key, value in eab_profile_dic.items():
-            if key == "subject":
-                result = eab_profile_subject_check(logger, csr, value)
-            elif isinstance(value, str):
-                eab_profile_string_check(logger, cahandler, key, value)
-            elif isinstance(value, list):
-                # check if we need to execute a function from the handler
-                if "eab_profile_list_check" in dir(cahandler):
-                    result = cahandler.eab_profile_list_check(
-                        eab_handler, csr, key, value
-                    )
-                else:
-                    result = eab_profile_list_check(
-                        logger, cahandler, eab_handler, csr, key, value
-                    )
-            if result:
-                break
-
-        # we need to reject situations where profiling is enabled but the header_hifiled is not defined in json
-        if cahandler.header_info_field and handler_hifield not in eab_profile_dic:
-            hil_value = header_info_lookup(
-                logger, csr, cahandler.header_info_field, handler_hifield
-            )
-            if hil_value:
-                # setattr(self, handler_hifield, hil_value)
-                result = (
-                    f'header_info field "{handler_hifield}" is not allowed by profile'
-                )
+        result = _eab_profile_entries_check(
+            logger, cahandler, eab_handler, csr, eab_profile_dic
+        )
+        denied = _eab_header_info_not_allowed(
+            logger, cahandler, csr, handler_hifield, eab_profile_dic
+        )
+        if denied:
+            result = denied
 
     logger.debug("Helper.eab_profile_check() ended with: %s", result)
     return result
 
 
+def _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value):
+    """Validate CSR against an EAB allowed_domainlist profile value."""
+    if "allowed_domains_check" in dir(eab_handler):
+        logger.info("Execute allowed_domains_check() from eab handler")
+        return eab_handler.allowed_domains_check(csr, value)
+    logger.debug(
+        "Helper.eab_profile_list_check(): execute default allowed_domainlist_check()"
+    )
+    return allowed_domainlist_check(logger, csr, value)
+
+
+def _eab_profile_list_apply_attr(logger, cahandler, csr, key, value):
+    """Validate and apply a list profile attribute onto *cahandler*."""
+    if eab_profile_warn_if_denied(logger, key):
+        return None
+    new_value, error = client_parameter_validate(logger, csr, cahandler, key, value)
+    if not new_value:
+        return error
+    if key == "acme_keyfile" and not eab_profile_path_under_base(
+        logger,
+        key,
+        new_value,
+        getattr(cahandler, "acme_keypath", None),
+    ):
+        return None
+    logger.debug(
+        "Helper.eab_profile_list_check(): setting attribute: %s to %s",
+        key,
+        eab_profile_value_for_log(key, new_value),
+    )
+    setattr(cahandler, key, new_value)
+    return None
+
+
 def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
     """check if a for a list value taken from profile if its a variable inside a class and apply value"""
     logger.debug(
-        "Helper.eab_profile_list_check(): list: key: %s, value: %s", key, value
+        "Helper.eab_profile_list_check(): list: key: %s, value: %s",
+        key,
+        eab_profile_value_for_log(key, value),
     )
 
     result = None
-    if hasattr(cahandler, key) and key != "allowed_domainlist":
-        new_value, error = client_parameter_validate(logger, csr, cahandler, key, value)
-        if new_value:
-            logger.debug(
-                "Helper.eab_profile_list_check(): setting attribute: %s to %s",
-                key,
-                new_value,
-            )
-            setattr(cahandler, key, new_value)
-        else:
-            result = error
-    elif key == "allowed_domainlist":
-        # check if csr contains allowed domains
-        if "allowed_domains_check" in dir(eab_handler):
-            # execute a function from eab_handler
-            logger.info("Execute allowed_domains_check() from eab handler")
-            error = eab_handler.allowed_domains_check(csr, value)
-        else:
-            # execute default adl function from helper
-            logger.debug(
-                "Helper.eab_profile_list_check(): execute default allowed_domainlist_check()"
-            )
-            error = allowed_domainlist_check(logger, csr, value)
-        if error:
-            result = error
+    if key == "allowed_domainlist":
+        result = _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value)
+    elif hasattr(cahandler, key):
+        result = _eab_profile_list_apply_attr(logger, cahandler, csr, key, value)
     else:
         logger.warning(
-            "EAP profile list checking: ignoring unrecognized list attribute: key: %s value: %s",
+            "EAP profile list checking: ignoring unrecognized list attribute: key: %s",
             key,
-            value,
         )
 
     logger.debug("Helper.eab_profile_list_check() ended with: %s", result)
@@ -302,19 +437,35 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
 def eab_profile_string_check(logger, cahandler, key, value):
     """check if a for a string value taken from profile if its a variable inside a class and apply value"""
     logger.debug(
-        "Helper.eab_profile_string_check(): string: key: %s, value: %s", key, value
+        "Helper.eab_profile_string_check(): string: key: %s, value: %s",
+        key,
+        eab_profile_value_for_log(key, value),
     )
 
+    if key == "cahandler_name":
+        logger.debug("Helper.eab_profile_string_check() skipping cahandler_name")
+        return
+
     if hasattr(cahandler, key):
-        logger.debug(
-            "Helper.eab_profile_string_check(): setting attribute: %s to %s", key, value
-        )
-        setattr(cahandler, key, value)
+        if not eab_profile_warn_if_denied(logger, key):
+            if key == "acme_keyfile" and not eab_profile_path_under_base(
+                logger,
+                key,
+                value,
+                getattr(cahandler, "acme_keypath", None),
+            ):
+                logger.debug("Helper.eab_profile_string_check() ended")
+                return
+            logger.debug(
+                "Helper.eab_profile_string_check(): setting attribute: %s to %s",
+                key,
+                eab_profile_value_for_log(key, value),
+            )
+            setattr(cahandler, key, value)
     else:
         logger.warning(
-            "EAB profile string checking: ignoring unrecognized string attribute: key: %s value: %s",
+            "EAB profile string checking: ignoring unrecognized string attribute: key: %s",
             key,
-            value,
         )
 
     logger.debug("Helper.eab_profile_string_check() ended")

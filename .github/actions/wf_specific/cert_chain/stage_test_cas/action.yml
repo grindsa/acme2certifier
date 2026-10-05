@@ -1,0 +1,40 @@
+name: "stage_test_cas"
+description: "Generate throwaway new-root / cross PEMs into the openssl volume"
+inputs:
+  VOLUME_DIR:
+    description: "Volume directory that already contains acme_ca/"
+    required: false
+    default: "data/volume"
+  CA_SOURCE_DIR:
+    description: "Existing openssl CA directory"
+    required: false
+    default: "test/ca"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Generate test CAs into volume"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        CA_SOURCE_DIR: ${{ inputs.CA_SOURCE_DIR }}
+      run: |
+        set -euo pipefail
+        dest="${VOLUME_DIR}/acme_ca"
+        sudo mkdir -p "${dest}"
+        work="$(mktemp -d)"
+        tools/make_test_cas.sh -c "${CA_SOURCE_DIR}" -o "${work}"
+        sudo cp \
+          "${work}/new-root.pem" \
+          "${work}/new-root-key.pem" \
+          "${work}/sub-ca-cross.pem" \
+          "${work}/root-ca-cross.pem" \
+          "${dest}/"
+        sudo chmod 644 \
+          "${dest}/new-root.pem" \
+          "${dest}/sub-ca-cross.pem" \
+          "${dest}/root-ca-cross.pem"
+        sudo chmod 600 "${dest}/new-root-key.pem"
+        openssl x509 -in "${dest}/new-root.pem" -noout -subject
+        openssl x509 -in "${dest}/root-ca-cross.pem" -noout -subject -issuer
+        openssl x509 -in "${dest}/sub-ca-cross.pem" -noout -subject -issuer

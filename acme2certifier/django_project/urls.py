@@ -1,7 +1,6 @@
 """acme2certifier URL Configuration"""
 
 from django.urls import include, re_path
-from django.contrib import admin
 from django.views.generic import RedirectView
 from acme2certifier.django_app import views
 from acme2certifier.acme_srv.helper import load_config
@@ -16,7 +15,6 @@ else:
     PREFIX = ""
 
 urlpatterns = [
-    re_path(r"^admin/", admin.site.urls),
     re_path(r"^$", RedirectView.as_view(url="/directory")),
     re_path(r"^directory$", views.directory, name="directory"),
     re_path(rf"^{PREFIX}get_servername$", views.servername_get, name="servername_get"),

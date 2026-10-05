@@ -1,0 +1,73 @@
+name: "django_db_ssl"
+description: "Stage DB TLS CA on the a2c volume and patch Django DATABASES OPTIONS"
+inputs:
+  DJANGO_DB:
+    description: "Django database (mariadb or psql)"
+    required: true
+  SETTINGS_FILE:
+    description: "Whitespace-separated path(s) to settings.py to patch"
+    required: true
+  VOLUME_DIR:
+    description: "Host directory mounted as the a2c volume"
+    required: true
+  CA_RUNTIME_PATH:
+    description: "Path Django opens at runtime for the CA PEM"
+    required: true
+  SSL_CA:
+    description: "Host path to the TLS CA certificate (empty uses mariadb/psql default)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Stage DB CA and patch Django TLS OPTIONS"
+      run: |
+        set -euo pipefail
+        DJANGO_DB="${{ inputs.DJANGO_DB }}"
+        case "$DJANGO_DB" in
+          mariadb|psql) ;;
+          *)
+            echo "ERROR: DJANGO_DB must be mariadb or psql (got: $DJANGO_DB)" >&2
+            exit 1
+            ;;
+        esac
+        SSL_CA="${{ inputs.SSL_CA }}"
+        if [ -z "$SSL_CA" ]; then
+          if [ "$DJANGO_DB" = "mariadb" ]; then
+            SSL_CA=/tmp/data/mariadb/ssl/ca.pem
+          else
+            SSL_CA=/tmp/data/pgsql/ssl/ca.pem
+          fi
+        fi
+        test -f "$SSL_CA"
+        VOLUME_DIR="${{ inputs.VOLUME_DIR }}"
+        sudo mkdir -p "$VOLUME_DIR"
+        sudo cp "$SSL_CA" "$VOLUME_DIR/db-ca.pem"
+        sudo chmod 644 "$VOLUME_DIR/db-ca.pem"
+        if [ "$DJANGO_DB" = "psql" ]; then
+          # libpq probes $HOME/.postgresql/postgresql.crt unless sslcert/sslkey are
+          # set. After uWSGI setuid that path is /root/... (EACCES). Point both at
+          # readable volume files instead of changing HOME.
+          SSL_DIR=$(dirname "$SSL_CA")
+          test -f "$SSL_DIR/ca-key.pem"
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout /tmp/a2c-db-client-key.pem \
+            -out /tmp/a2c-db-client.csr \
+            -subj "/CN=a2c-django-db-client"
+          openssl x509 -req -in /tmp/a2c-db-client.csr \
+            -CA "$SSL_CA" -CAkey "$SSL_DIR/ca-key.pem" -CAcreateserial \
+            -out /tmp/a2c-db-client-cert.pem -days 30 -sha256
+          sudo cp /tmp/a2c-db-client-cert.pem "$VOLUME_DIR/db-client-cert.pem"
+          sudo cp /tmp/a2c-db-client-key.pem "$VOLUME_DIR/db-client-key.pem"
+          sudo chmod 644 "$VOLUME_DIR/db-client-cert.pem"
+          # libpq refuses a client key with group/world access (644).
+          sudo chmod 600 "$VOLUME_DIR/db-client-key.pem"
+        fi
+        # Files were staged with sudo; patch as root.
+        # shellcheck disable=SC2086
+        sudo python3 "${GITHUB_WORKSPACE}/.github/scripts/patch_django_db_ssl.py" \
+          --django-db "$DJANGO_DB" \
+          --ca-runtime-path "${{ inputs.CA_RUNTIME_PATH }}" \
+          ${{ inputs.SETTINGS_FILE }}
+      shell: bash

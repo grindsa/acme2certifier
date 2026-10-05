@@ -44,6 +44,8 @@ sudo ./examples/install_scripts/a2c-deb.sh restart nginx \
 
 The script installs web-server packages, installs the `.deb`, deploys configs from `/var/www/acme2certifier/share/`, sets `[DBhandler] handler:` to the chosen mode, optionally generates a lab TLS cert, runs Django migrations when `--mode django`, and starts the services.
 
+For **`--mode django`**, export `ACME2CERTIFIER_ALLOWED_HOSTS` before running the script; it is persisted to `/etc/apache2/envvars` (Apache2) or `${APP_ROOT}/acme2certifier.ini` (Nginx). See [Django deployment environment variables](django_deploy_env.md).
+
 Config file: `/var/www/acme2certifier/acme_srv.cfg`. Then configure your CA handler ([acme_srv.cfg](acme_srv.md), [certifier](certifier.md)).
 
 Smoke test:

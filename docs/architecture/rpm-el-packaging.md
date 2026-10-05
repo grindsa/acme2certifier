@@ -187,7 +187,7 @@ Aligned with today’s SPEC (exact NVR/version pins live in flavor SPECs):
 
 - cryptography, pyOpenSSL, jwcrypto, josepy, acme
 - dnspython (`pythonX-dns`), requests, requests-pkcs12, pysocks
-- dateutil, pytz, setuptools, pyyaml
+- dateutil, setuptools, pyyaml
 - xmltodict, pyasn1, pyasn1-modules
 - Optional / Recommends: dataclasses (EL8 3.6 path), krb5 libs for gssapi handlers, Django stack for `--mode django`
 
