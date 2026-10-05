@@ -8,8 +8,6 @@ Precedence matches ``acme_srv.db_handler`` / Docker ``resolve_db_handler.sh``:
 3. default ``wsgi``
 """
 
-from __future__ import annotations
-
 import logging
 import os
 from typing import Any, Dict, Mapping, Optional, Tuple, Union

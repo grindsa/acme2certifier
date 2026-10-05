@@ -10,7 +10,6 @@ When ``--mode`` is omitted, the handler is resolved from ``acme_srv.cfg`` /
 """
 
 # pylint: disable=C0209, E0401, C0413
-from __future__ import annotations
 
 import argparse
 import sys
