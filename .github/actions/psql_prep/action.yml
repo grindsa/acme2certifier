@@ -110,8 +110,9 @@ runs:
       if: inputs.INSTANCIATE == 'true'
       run: |
         set -euo pipefail
+        # pg_isready can succeed while connections still get FATAL "starting up".
         for i in $(seq 1 60); do
-          if docker exec postgresdbsrv pg_isready -U postgres >/dev/null 2>&1; then
+          if docker exec postgresdbsrv psql -U postgres -c 'SELECT 1' >/dev/null 2>&1; then
             echo "postgres ready after ${i}s"
             exit 0
           fi
