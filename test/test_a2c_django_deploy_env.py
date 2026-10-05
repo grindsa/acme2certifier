@@ -91,6 +91,20 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
         self.assertEqual("plain", _unquote_uwsgi_value("plain"))
         self.assertEqual("sek$ret", _unquote_uwsgi_value("sek$$ret"))
 
+    def test_006b_unquote_uwsgi_value_percent_escape(self) -> None:
+        """_unquote_uwsgi_value expands %% so MSSQL extra_params stay percent-encoded"""
+        escaped = (
+            "mssql://u:p@ms-sql.acme:1433/acme2certifier"
+            "?driver=ODBC+Driver+18+for+SQL+Server"
+            "&extra_params=Encrypt%%3Dyes%%3BTrustServerCertificate%%3Dyes"
+        )
+        expected = (
+            "mssql://u:p@ms-sql.acme:1433/acme2certifier"
+            "?driver=ODBC+Driver+18+for+SQL+Server"
+            "&extra_params=Encrypt%3Dyes%3BTrustServerCertificate%3Dyes"
+        )
+        self.assertEqual(expected, _unquote_uwsgi_value(escaped))
+
     def test_007_parse_apache_export_invalid_lines(self) -> None:
         """_parse_apache_export returns None for non-export and malformed lines"""
         self.assertIsNone(_parse_apache_export("ACME2CERTIFIER_DEBUG=1"))
