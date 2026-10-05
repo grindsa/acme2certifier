@@ -167,6 +167,7 @@ ______________________________________________________________________
    Environment="PYTHONPATH=/var/www/acme2certifier"
    Environment="PATH=/var/www/acme2certifier:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
    Environment="ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg"
+   ExecStartPre=/usr/bin/a2c-schema-update
    ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini
 
    [Install]

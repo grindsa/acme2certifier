@@ -1703,7 +1703,7 @@ class DBstore(object):
             result = None
         self._db_close()
         self.logger.debug("DBStore.dbversion_get() ended with %s", result)
-        return (result, "a2c-db-update")
+        return (result, "a2c-schema-update --mode wsgi")
 
     def hkparameter_add(self, data_dic: Dict[str, str]) -> Tuple[str, bool]:
         """add housekeeping paramter to database"""

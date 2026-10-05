@@ -72,6 +72,7 @@ test = [
 
 [project.scripts]
 a2c-cli = "acme2certifier.tools.a2c_cli:main"
+a2c-schema-update = "acme2certifier.tools.a2c_schema_update:main"
 a2c-db-update = "acme2certifier.tools.a2c_db_update:main"
 a2c-django-update = "acme2certifier.tools.a2c_django_update:main"
 a2c-django-secret-keygen = "acme2certifier.tools.a2c_django_secret_keygen:main"

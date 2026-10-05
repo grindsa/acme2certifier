@@ -54,8 +54,8 @@ if [[ "$DB_HANDLER" == "django" ]]; then
     echo "WARNING: handler resolves to django but this is a WSGI image; Apache/mod_wsgi entry and packages stay WSGI. Selection only — use a django image for a full Django stack." >> /proc/1/fd/1
 fi
 
-# apply database updates (if needed)
-a2c-db-update
+# apply database updates (if needed); force wsgi on this image
+a2c-schema-update --mode wsgi
 
 # create symlink for the ca_handler
 if [[ ! -L /var/www/acme2certifier/acme_srv/ca_handler.py ]]

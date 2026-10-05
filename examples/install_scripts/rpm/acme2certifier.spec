@@ -170,6 +170,7 @@ RuntimeDirectory=uwsgi
 WorkingDirectory=/opt/acme2certifier
 Environment=PYTHONPATH=/opt/acme2certifier
 Environment=ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
+ExecStartPre=/usr/bin/a2c-schema-update
 ExecStart=uwsgi --ini acme2certifier.ini
 Restart=always
 Type=notify
@@ -221,6 +222,7 @@ EOF
 }
 
 install_wrapper a2c-cli acme2certifier.tools.a2c_cli
+install_wrapper a2c-schema-update acme2certifier.tools.a2c_schema_update
 install_wrapper a2c-db-update acme2certifier.tools.a2c_db_update
 install_wrapper a2c-django-update acme2certifier.tools.a2c_django_update
 install_wrapper a2c-django-secret-keygen acme2certifier.tools.a2c_django_secret_keygen
@@ -250,6 +252,7 @@ install_wrapper a2c-wsgi2django acme2certifier.tools.a2c_wsgi2django
 %doc *.md docs/*.md
 %{_unitdir}/acme2certifier.service
 %attr(0755,root,root) %{_bindir}/a2c-cli
+%attr(0755,root,root) %{_bindir}/a2c-schema-update
 %attr(0755,root,root) %{_bindir}/a2c-db-update
 %attr(0755,root,root) %{_bindir}/a2c-django-update
 %attr(0755,root,root) %{_bindir}/a2c-django-secret-keygen

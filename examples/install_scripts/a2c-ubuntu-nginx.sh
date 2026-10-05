@@ -305,6 +305,7 @@ WorkingDirectory=${APP_ROOT}
 Environment=PATH=${VENV}/bin:/usr/bin
 Environment=ACME_SRV_CONFIGFILE=${CFG}
 Environment=ACME2CERTIFIER_BASE_DIR=${APP_ROOT}
+ExecStartPre=${VENV}/bin/a2c-schema-update
 ExecStart=/usr/bin/uwsgi --ini ${UWSGI_INI}
 Restart=on-failure
 

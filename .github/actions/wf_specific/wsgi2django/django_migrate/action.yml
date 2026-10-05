@@ -17,7 +17,8 @@ runs:
         set -euo pipefail
         docker exec -e APP_ROOT="${APP_ROOT}" -w "${APP_ROOT}" acme-srv bash -c '
           set -euo pipefail
-          if [[ -x "${APP_ROOT}/venv/bin/a2c-django-update" ]]; then
+          if [[ -x "${APP_ROOT}/venv/bin/a2c-schema-update" ]] \
+            || [[ -x "${APP_ROOT}/venv/bin/a2c-django-update" ]]; then
             export PATH="${APP_ROOT}/venv/bin:${PATH}"
           fi
           export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-acme2certifier.django_project.settings}"
@@ -37,10 +38,12 @@ runs:
             pkg_settings="$(python3 -c "import acme2certifier.django_project, pathlib; print(pathlib.Path(acme2certifier.django_project.__file__).parent / \"settings.py\")")"
             ln -sfn "${APP_ROOT}/volume/settings.py" "${pkg_settings}"
           fi
-          if command -v a2c-django-update >/dev/null 2>&1; then
+          if command -v a2c-schema-update >/dev/null 2>&1; then
+            a2c-schema-update --mode django
+          elif command -v a2c-django-update >/dev/null 2>&1; then
             a2c-django-update
           else
-            python3 -m acme2certifier.tools.a2c_django_update
+            python3 -m acme2certifier.tools.a2c_schema_update --mode django
           fi
           a2c-manage loaddata status
         '

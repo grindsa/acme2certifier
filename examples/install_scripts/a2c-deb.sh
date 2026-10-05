@@ -671,6 +671,7 @@ RuntimeDirectory=uwsgi
 Environment="PYTHONPATH=${APP_ROOT}"
 Environment="PATH=${APP_ROOT}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="ACME_SRV_CONFIGFILE=${CFG}"
+ExecStartPre=/usr/bin/a2c-schema-update
 ExecStart=uwsgi --ini ${APP_ROOT}/acme2certifier.ini
 
 [Install]
@@ -681,6 +682,12 @@ EOF
   if [[ -f /etc/systemd/system/acme2certifier.service ]] \
     && ! grep -q '^RuntimeDirectory=' /etc/systemd/system/acme2certifier.service; then
     ${SUDO} sed -i '/^\[Service\]/a RuntimeDirectory=uwsgi' \
+      /etc/systemd/system/acme2certifier.service
+  fi
+  # Ensure schema update before start (Docker-like; cfg selects django/wsgi).
+  if [[ -f /etc/systemd/system/acme2certifier.service ]] \
+    && ! grep -q '^ExecStartPre=.*a2c-schema-update' /etc/systemd/system/acme2certifier.service; then
+    ${SUDO} sed -i '/^ExecStart=/i ExecStartPre=/usr/bin/a2c-schema-update' \
       /etc/systemd/system/acme2certifier.service
   fi
   # Older packaged units set PATH=APP_ROOT only, which hides /usr/bin/kinit from uwsgi.
@@ -735,7 +742,7 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
     ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
-    a2c-django-update
+    a2c-schema-update --mode django
   ${SUDO} env \
     ACME_SRV_CONFIGFILE="${CFG}" \
     ACME2CERTIFIER_BASE_DIR="${APP_ROOT}" \

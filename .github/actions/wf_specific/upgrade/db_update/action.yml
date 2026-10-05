@@ -29,6 +29,8 @@ runs:
               ln -sfn "${APP_ROOT}/volume/settings.py" "${pkg_settings}" || true
             fi
           fi
+          if python3 -m acme2certifier.tools.a2c_schema_update --mode wsgi; then exit 0; fi
+          if command -v a2c-schema-update >/dev/null 2>&1 && a2c-schema-update --mode wsgi; then exit 0; fi
           if python3 -m acme2certifier.tools.a2c_db_update; then exit 0; fi
           if command -v a2c-db-update >/dev/null 2>&1 && a2c-db-update; then exit 0; fi
           if [[ -f tools/db_update.py ]]; then python3 tools/db_update.py; exit $?; fi

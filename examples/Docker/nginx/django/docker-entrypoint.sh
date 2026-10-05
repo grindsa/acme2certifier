@@ -109,11 +109,13 @@ EOF
 
     echo "apply migrations"  >> /proc/1/fd/1
     touch /var/www/acme2certifier/volume/migrations/__init__.py
-    a2c-django-update
+    a2c-schema-update --mode django
     a2c-manage loaddata status
 else
-    echo "DB handler is wsgi; skipping Django settings/migrations bootstrap" >> /proc/1/fd/1
-    a2c-db-update
+    echo "ERROR: [DBhandler] resolves to '${DB_HANDLER}' but this is a Django image." >> /proc/1/fd/1
+    echo "Set handler: django (or handler_module for django_handler) in acme_srv.cfg," >> /proc/1/fd/1
+    echo "or use a WSGI image if you intend to run the WSGI DB backend." >> /proc/1/fd/1
+    exit 1
 fi
 
 chown -R www-data /var/www/acme2certifier/volume

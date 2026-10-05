@@ -90,7 +90,7 @@ a2c-manage loaddata status
 a2c-manage runserver 0.0.0.0:80
 ```
 
-Equivalent: `python3 -m acme2certifier.tools.a2c_manage …`. One-shot migrate + status seed: `a2c-django-update`.
+Equivalent: `python3 -m acme2certifier.tools.a2c_manage …`. One-shot migrate + status seed: `a2c-schema-update --mode django`.
 
 SQLite file: `$ACME2CERTIFIER_BASE_DIR/db.sqlite3` (gitignored).
 

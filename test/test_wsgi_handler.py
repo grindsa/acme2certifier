@@ -2355,7 +2355,8 @@ class TestACMEHandler(unittest.TestCase):
     def test_109_dbversion(self):
         """test db_version"""
         self.assertEqual(
-            (self.dbversion, "a2c-db-update"), self.dbstore.dbversion_get()
+            (self.dbversion, "a2c-schema-update --mode wsgi"),
+            self.dbstore.dbversion_get(),
         )
 
     @patch("acme2certifier.dbhandlers.wsgi_handler.DBstore._db_close")
@@ -2365,7 +2366,9 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchone = Mock(return_value=[])
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual((None, "a2c-db-update"), self.dbstore.dbversion_get())
+            self.assertEqual(
+                (None, "a2c-schema-update --mode wsgi"), self.dbstore.dbversion_get()
+            )
         self.assertIn(
             "ERROR:test_a2c:DBStore.dbversion_get() lookup failed", lcm.output
         )

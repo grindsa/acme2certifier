@@ -132,7 +132,7 @@ jobs:
           DB_HANDLER: django
           WEB_SRV: ${{ matrix.websrv }}
 
-      # Entrypoint already runs a2c-django-update; do not re-run (races with up -d).
+      # Entrypoint already runs a2c-schema-update; do not re-run (races with up -d).
       - name: "Wait for Django ACME directory"
         uses: ./.github/actions/wait_for_directory
 

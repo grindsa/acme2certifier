@@ -1,17 +1,28 @@
 #!/usr/bin/python
-"""database updater"""
+"""Deprecated WSGI database updater.
 
-from acme2certifier.acme_srv.db_handler import DBstore
-from acme2certifier.acme_srv.helper import logger_setup
+Use ``a2c-schema-update --mode wsgi`` (or omit ``--mode`` when cfg says wsgi).
+"""
+
+from __future__ import annotations
+
+import sys
+from typing import List, Optional
+
+_DEPRECATION = (
+    "WARNING: a2c-db-update is deprecated; use a2c-schema-update [--mode wsgi]"
+)
 
 
-def main() -> None:
-    """Run SQLite/WSGI database schema update."""
-    debug = True
-    logger = logger_setup(debug)
-    dbstore = DBstore(debug, logger)
-    dbstore.db_update()
+def main(argv: Optional[List[str]] = None) -> int:
+    """Warn and delegate to a2c-schema-update --mode wsgi."""
+    print(_DEPRECATION, file=sys.stderr)
+    from acme2certifier.tools.a2c_schema_update import main as schema_main
+
+    # Ignore legacy argv; always force wsgi mode.
+    del argv
+    return schema_main(["--mode", "wsgi"])
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -160,7 +160,7 @@ Same as WSGI, but:
 1. After start, ensure migrations ran (entrypoint usually does this). If needed:
 
    ```bash
-   docker compose exec <service> a2c-manage migrate
+   docker compose exec <service> a2c-schema-update --mode django
    docker compose exec <service> a2c-manage loaddata status
    ```
 
@@ -248,11 +248,11 @@ Paths: `/var/www/acme2certifier`, config `/var/www/acme2certifier/acme_srv.cfg`.
 
 1. Set `[DBhandler] handler: django` in `acme_srv.cfg`; set `*_module` for CA/EAB/hooks.
 
-1. Apply schema:
+1. Apply schema (or restart `acme2certifier.service` — `ExecStartPre` runs `a2c-schema-update`):
 
    ```bash
    export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
-   sudo -E a2c-manage migrate
+   sudo -E a2c-schema-update --mode django
    sudo -E a2c-manage loaddata status
    ```
 
@@ -395,7 +395,7 @@ If upgrading a Django deployment:
 ```bash
 export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
 export PYTHONPATH=/opt/acme2certifier
-sudo -E a2c-manage migrate
+sudo -E a2c-schema-update --mode django
 sudo -E a2c-manage loaddata status
 ```
 
@@ -443,7 +443,7 @@ Typical root: `/var/www/acme2certifier` + venv.
 
    ```bash
    export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg
-   sudo -E /var/www/acme2certifier/venv/bin/a2c-manage migrate
+   sudo -E /var/www/acme2certifier/venv/bin/a2c-schema-update --mode django
    sudo -E /var/www/acme2certifier/venv/bin/a2c-manage loaddata status
    ```
 
@@ -474,7 +474,7 @@ Full CA list and import renames: see git history of this file or `acme2certifier
 1. Install new package / image / wheel.
 1. Switch `acme_srv.cfg` to `*_module`.
 1. Fix custom handler / hook / EAB imports.
-1. Django: update `INSTALLED_APPS` / URLconf / WSGI; run `a2c-manage migrate`.
+1. Django: update `INSTALLED_APPS` / URLconf / WSGI; run `a2c-schema-update` (or restart the unit so `ExecStartPre` applies it).
 1. Restart services; hit `/directory`.
 1. Clear deprecation warnings before **1.0** (`*_file` and default `acme_srv.ca_handler` fall away).
 
