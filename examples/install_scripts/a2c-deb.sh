@@ -766,6 +766,8 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
     a2c-manage loaddata status
+  # Root migrate/loaddata leaves db.sqlite3 root-owned; uWSGI Pre runs as www-data.
+  ${SUDO} chown -R www-data:www-data "${APP_ROOT}"
   if [[ "${WEBSRV}" == "${WEBSRV_NGINX}" ]]; then
     ${SUDO} systemctl restart acme2certifier
   fi
