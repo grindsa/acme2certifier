@@ -305,7 +305,11 @@ jobs:
           "ACME_SRV_CONFIGFILE=$repoRoot\volume\acme_srv.cfg" >> $env:GITHUB_ENV
           "ACME2CERTIFIER_BASE_DIR=$repoRoot" >> $env:GITHUB_ENV
           "ACME2CERTIFIER_I_KNOW_THE_RISK=1" >> $env:GITHUB_ENV
-          "ACME2CERTIFIER_SECRET_KEY=$secretKey" >> $env:GITHUB_ENV
+          # Heredoc: secret may contain chars that break NAME=value GITHUB_ENV lines.
+          $eof = "A2C_SECRET_EOF"
+          "ACME2CERTIFIER_SECRET_KEY<<$eof" >> $env:GITHUB_ENV
+          $secretKey >> $env:GITHUB_ENV
+          $eof >> $env:GITHUB_ENV
           "ACME2CERTIFIER_ALLOWED_HOSTS=$allowedHosts" >> $env:GITHUB_ENV
           "PYTHONPATH=$repoRoot;$repoRoot\volume" >> $env:GITHUB_ENV
           "DJANGO_SETTINGS_MODULE=winacme_django_settings" >> $env:GITHUB_ENV
@@ -314,8 +318,19 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          python -m acme2certifier.tools.a2c_manage migrate
-          python -m acme2certifier.tools.a2c_manage loaddata status
+          New-Item -ItemType Directory -Force -Path volume | Out-Null
+          # .txt so upload-artifact keeps it (.gitignore has *.log)
+          $cfgLog = Join-Path (Get-Location) "volume\configure.log.txt"
+          $migrateOut = & python -m acme2certifier.tools.a2c_manage migrate 2>&1
+          $migrateOut | Tee-Object -FilePath $cfgLog
+          if ($LASTEXITCODE -ne 0) {
+            throw "migrate failed with exit code $LASTEXITCODE`n$($migrateOut -join "`n")"
+          }
+          $loadOut = & python -m acme2certifier.tools.a2c_manage loaddata status 2>&1
+          $loadOut | Tee-Object -FilePath $cfgLog -Append
+          if ($LASTEXITCODE -ne 0) {
+            throw "loaddata status failed with exit code $LASTEXITCODE`n$($loadOut -join "`n")"
+          }
 
       - name: "Start HTTP server"
         shell: pwsh
@@ -592,13 +607,24 @@ jobs:
         if: ${{ failure() }}
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\artifact\upload" | Out-Null
-          Copy-Item volume "${{ github.workspace }}\artifact\upload\" -Recurse -Force
+          $upload = Join-Path "${{ github.workspace }}" "artifact\upload"
+          New-Item -ItemType Directory -Force -Path $upload | Out-Null
+          if (Test-Path volume) {
+            # upload-artifact respects .gitignore (*.log); keep copies as .log.txt
+            Get-ChildItem -Path volume -Filter *.log -File -ErrorAction SilentlyContinue |
+              ForEach-Object { Copy-Item $_.FullName "$($_.FullName).txt" -Force }
+            Copy-Item volume (Join-Path $upload "volume") -Recurse -Force
+            # Launchers embed ACME2CERTIFIER_SECRET_KEY — never upload them.
+            Remove-Item @(
+              (Join-Path $upload "volume\start_http.cmd"),
+              (Join-Path $upload "volume\start_https.cmd")
+            ) -ErrorAction SilentlyContinue
+          }
           if (Test-Path win-acme\certs) {
-            Copy-Item win-acme\certs "${{ github.workspace }}\artifact\upload\win-acme-certs" -Recurse -Force
+            Copy-Item win-acme\certs (Join-Path $upload "win-acme-certs") -Recurse -Force
           }
           if (Test-Path simple-acme\certs) {
-            Copy-Item simple-acme\certs "${{ github.workspace }}\artifact\upload\simple-acme-certs" -Recurse -Force
+            Copy-Item simple-acme\certs (Join-Path $upload "simple-acme-certs") -Recurse -Force
           }
 
       - name: "Sanitize failure artifacts"
