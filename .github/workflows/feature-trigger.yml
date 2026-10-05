@@ -116,6 +116,7 @@ jobs:
             -CAkey "${CA}/sub-ca-key.pem" \
             -passin pass:Test1234 \
             -CAserial "${WORK}/ee.srl" \
+            -CAcreateserial \
             -out "${WORK}/ee.pem" \
             -days 2
           docker exec -w /var/www/acme2certifier acme-srv \
