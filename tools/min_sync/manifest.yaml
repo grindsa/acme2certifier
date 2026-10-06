@@ -64,8 +64,11 @@ strip_into_min:
   - .github/workflows/quality-error.yml
   - .github/workflows/deployment-rpm.yml
   - acme2certifier/tools/a2c_msicpr_connection_test.py
+  - acme2certifier/tools/a2c_mscepces_connection_test.py
   - acme2certifier/tools/a2c_mswcce_connection_test.py
   - test/test_a2c_msicpr_connection_test.py
+  - test/test_mscepces_ca_handler.py
+  - test/fixtures/mscepces/
   - .github/workflows/deployment-wsgi2django.yml
   - .github/actions/wf_specific/wsgi2django/
   - test/test_acme_ca_handler.py
@@ -104,6 +107,7 @@ strip_into_min:
 # [project.scripts] entry points removed after a port into min
 strip_pyproject_scripts_into_min:
   - a2c-msicpr-connection-test
+  - a2c-mscepces-connection-test
 
 # Optional: do not open promote PRs; min-devel -> min stays manual
 promote: false
