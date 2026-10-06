@@ -110,7 +110,7 @@ jobs:
           aws ec2 wait instance-status-ok --region "$REGION" --instance-ids "$INSTANCE_ID" || true
 
 
-  # mscertsrv and mswcce run in parallel on the shared Windows box.
+  # mscertsrv, mswcce, and mscepces run in parallel on the shared Windows box.
   # Children are workflow_call-only so the broker cannot start/stop the EC2.
   mscertsrv:
     name: mscertsrv
@@ -136,10 +136,22 @@ jobs:
       run_id: ${{ inputs.run_id }}
       public_ip: ${{ needs.instance_start.outputs.public_ip }}
 
+  mscepces:
+    name: mscepces
+    permissions:
+      contents: read
+      actions: write
+    needs: [guard, instance_start]
+    secrets: inherit
+    uses: ./.github/workflows/_cahandler-msca-mscepces.yml
+    with:
+      run_id: ${{ inputs.run_id }}
+      public_ip: ${{ needs.instance_start.outputs.public_ip }}
+
   instance_stop:
     permissions:
       contents: read
-    needs: [guard, instance_start, mscertsrv, mswcce]
+    needs: [guard, instance_start, mscertsrv, mswcce, mscepces]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: ${{ always() && needs.instance_start.result != 'skipped' && github.repository == 'grindsa/acme2certifier' }}
