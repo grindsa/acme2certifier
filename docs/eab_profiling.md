@@ -18,6 +18,7 @@ Currently the following ca-handlers have been modified and support this feature:
 - [Insta ActiveCMS](asa.md)
 - [Insta certifier/NetGuard Certificate manager](certifier.md)
 - [Microsoft Certificate Enrollment Web Services](mscertsrv.md)
+- [Microsoft CEP/CES (MS-XCEP / MS-WSTEP)](mscepces.md)
 - [Microsoft ICertPassage Remote Protocol (MS-ICPR) via SMB/DCE-RPC](msicpr.md)
 - [OpenXPKI](openxpki.md)
 - [Vault](vault.md)
