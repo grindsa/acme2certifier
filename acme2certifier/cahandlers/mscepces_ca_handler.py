@@ -36,6 +36,7 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     pkcs7_to_pem,
 )
+from acme2certifier.acme_srv.helpers.config import config_allowed_header_values_load
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 from acme2certifier.acme_srv.helpers.kerberos_auth import KerberosAuthMixin
 
@@ -190,7 +191,7 @@ def _xcep_get_policies_body() -> ET.Element:
 
 
 def _parse_xcep_get_policies(response_xml: str) -> Dict[str, Any]:
-    """Parse GetPoliciesResponse into templates and CES URIs."""
+    """Parse GetPoliciesResponse into templates, CES URIs, and CA certificates."""
     root = ET.fromstring(response_xml)
     fault = _find_first(root, "Fault")
     if fault is not None:
@@ -209,7 +210,58 @@ def _parse_xcep_get_policies(response_xml: str) -> Dict[str, Any]:
         if uri and uri not in ces_uris:
             ces_uris.append(uri)
 
-    return {"templates": templates, "ces_uris": ces_uris}
+    ca_certificates: List[str] = []
+    for ca_el in _find_all(root, "cA"):
+        cert_el = _find_first(ca_el, "certificate")
+        pem = _certificate_element_to_pem(_element_text(cert_el))
+        if pem and pem not in ca_certificates:
+            ca_certificates.append(pem)
+
+    return {
+        "templates": templates,
+        "ces_uris": ces_uris,
+        "ca_certificates": ca_certificates,
+    }
+
+
+def _certificate_element_to_pem(cert_b64: Optional[str]) -> Optional[str]:
+    """Decode XCEP ``cA/certificate`` (base64 DER) to PEM."""
+    if not cert_b64:
+        return None
+    from cryptography import x509  # pylint: disable=C0415
+    from cryptography.hazmat.primitives import serialization  # pylint: disable=C0415
+
+    cleaned = re.sub(r"\s+", "", cert_b64)
+    try:
+        raw = base64.b64decode(cleaned)
+        cert = x509.load_der_x509_certificate(raw)
+    except Exception:
+        return None
+    return convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
+
+
+def _pem_certificates_split(pem_bundle: str) -> List[str]:
+    """Split a PEM bundle into individual certificate PEM strings."""
+    return re.findall(
+        r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+        pem_bundle,
+        flags=re.DOTALL,
+    )
+
+
+def _cert_bundle_with_ca(
+    leaf_pem: str, ca_pem_list: List[str]
+) -> str:
+    """Append CA PEMs to the leaf, skipping duplicates."""
+    bundle = leaf_pem if leaf_pem.endswith("\n") else leaf_pem + "\n"
+    existing = set(_pem_certificates_split(bundle))
+    for ca_pem in ca_pem_list:
+        for cert_pem in _pem_certificates_split(ca_pem):
+            if cert_pem in existing:
+                continue
+            bundle += cert_pem if cert_pem.endswith("\n") else cert_pem + "\n"
+            existing.add(cert_pem)
+    return bundle
 
 
 def _wstep_issue_body(pkcs10_b64: str, template: Optional[str]) -> ET.Element:
@@ -443,6 +495,7 @@ class CAhandler(KerberosAuthMixin):
         self.auth_method = "gssapi"
         self.gssapi_channel_bindings = "auto"
         self.ca_bundle = True
+        self.ca_certificates = None
         self.verify = True
         self.template = None
         self.allowed_templates: List[str] = []
@@ -462,6 +515,7 @@ class CAhandler(KerberosAuthMixin):
         self.timeout = 30
         self._krb5_cache_is_temporary = False
         self._gssapi_creds = None
+        self._policies_cache: Optional[Dict[str, Any]] = None
         self.profile_mapping_field = "template"
 
     def __enter__(self):
@@ -491,7 +545,7 @@ class CAhandler(KerberosAuthMixin):
             self.ces_password = config_option_load(
                 self.logger, config_dic, "ces_password", current=self.ces_password
             )
-            # KerberosAuthMixin / NTLM expect self.user / self.password
+            # KerberosAuthMixin expects self.user / self.password
             self.user = self.ces_username
             self.password = self.ces_password
             self._config_kerberos_parameters_load(config_dic)
@@ -537,7 +591,7 @@ class CAhandler(KerberosAuthMixin):
         )
         if isinstance(auth_method, str):
             auth_method = auth_method.lower()
-        if auth_method in ["gssapi", "username_password", "ntlm"]:
+        if auth_method in ["gssapi", "username_password"]:
             self.auth_method = auth_method
         else:
             self.logger.warning(
@@ -564,6 +618,9 @@ class CAhandler(KerberosAuthMixin):
         self.ca_bundle = config_dic.get(
             "CAhandler", "ca_bundle", fallback=self.ca_bundle
         )
+        self.ca_certificates = config_option_load(
+            self.logger, config_dic, "ca_certificates", current=self.ca_certificates
+        )
         self.verify = config_dic.getboolean("CAhandler", "verify", fallback=True)
         self.timeout = config_dic.getint("CAhandler", "timeout", fallback=self.timeout)
         mode = config_dic.get(
@@ -582,19 +639,18 @@ class CAhandler(KerberosAuthMixin):
 
     def _security_configuration_warnings_log(self) -> None:
         """Log non-blocking security risk warnings."""
+        self.logger.debug("CAhandler._security_configuration_warnings_log()")
         if self.verify is False:
             self.logger.warning(
                 "TLS certificate verification is disabled (verify=False). "
                 "Enrollment traffic to CEP/CES is vulnerable to MITM. "
                 "Prefer ca_bundle / system trust."
             )
-        if self.auth_method == "ntlm":
-            self.logger.warning(
-                "Auth method 'ntlm' is less preferred; use 'gssapi' when possible."
-            )
+        self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
 
     def _config_headerinfo_load(self, config_dic: Dict[str, str]) -> None:
         """Load Order.header_info_list."""
+        self.logger.debug("CAhandler._config_headerinfo_load()")
         if (
             "Order" in config_dic
             and "header_info_list" in config_dic["Order"]
@@ -609,13 +665,11 @@ class CAhandler(KerberosAuthMixin):
                     "Failed to parse header_info_list from configuration: %s",
                     err_,
                 )
+        self.logger.debug("CAhandler._config_headerinfo_load() ended")
 
     def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
         """Load template allowlist."""
-        from acme2certifier.acme_srv.helpers.config import (  # pylint: disable=C0415
-            config_allowed_header_values_load,
-        )
-
+        self.logger.debug("CAhandler._config_allowed_templates_load()")
         order_values = config_allowed_header_values_load(self.logger, config_dic)
         if order_values:
             self.allowed_templates = order_values
@@ -642,11 +696,14 @@ class CAhandler(KerberosAuthMixin):
 
     def _config_proxy_load(self, config_dic: Dict[str, str]) -> None:
         """Load proxy settings for CES/CEP URLs."""
+        self.logger.debug("CAhandler._config_proxy_load()")
         host_ref = self.ces_url or self.cep_url or ""
         self.proxy = config_proxy_load(self.logger, config_dic, host_ref)
+        self.logger.debug("CAhandler._config_proxy_load() ended")
 
     def _https_url_check(self, url: Optional[str], label: str) -> Optional[str]:
         """Require HTTPS for configured endpoints."""
+        self.logger.debug("CAhandler._https_url_check()")
         if not url:
             return None
         if url.strip().lower().startswith("https://"):
@@ -660,12 +717,14 @@ class CAhandler(KerberosAuthMixin):
 
     def _credentials_are_configured(self) -> bool:
         """Return True when auth credentials are complete."""
+        self.logger.debug("CAhandler._credentials_are_configured()")
         if self.auth_method == "gssapi" and self._kerberos_keytab_is_configured():
             return True
         return bool(self.user and self.password)
 
     def _allowed_templates_check(self) -> Optional[str]:
         """Enforce configured allowed_templates allowlist."""
+        self.logger.debug("CAhandler._allowed_templates_check()")
         if not self.allowed_templates:
             return None
         if self.template not in self.allowed_templates:
@@ -677,45 +736,95 @@ class CAhandler(KerberosAuthMixin):
 
     def _tls_verify(self):
         """Return requests verify argument."""
+        self.logger.debug("CAhandler._tls_verify()")
         if self.verify is False:
             return False
         if self.ca_bundle not in (None, True, False, ""):
             return self.ca_bundle
         return True
 
+    def _gssapi_creds_from_password(self) -> Any:
+        """Acquire initiator creds via gssapi.raw.acquire_cred_with_password."""
+        self.logger.debug("CAhandler._gssapi_creds_from_password()")
+        try:
+            gssapi = importlib.import_module("gssapi")
+        except Exception as err:
+            raise RuntimeError(
+                f"gssapi module is required for gssapi password authentication: {err}"
+            ) from err
+        if not (self.user and self.password):
+            raise RuntimeError(
+                "ces_username and ces_password are required for GSSAPI password auth"
+            )
+        # Prefer krb5 for password acquire; SPNEGO second (Certsrv uses SPNEGO).
+        # HTTPSPNEGOAuth still wraps with SPNEGO by default.
+        # ces_username must be a Kerberos principal (user@REALM), not DOMAIN\user.
+        mech_candidates = (
+            ("krb5", "1.2.840.113554.1.2.2"),
+            ("spnego", "1.3.6.1.5.5.2"),
+        )
+        errors: List[str] = []
+        name = gssapi.Name(self.user, gssapi.NameType.user)
+        for mech_name, oid_str in mech_candidates:
+            try:
+                oid = gssapi.OID.from_int_seq(oid_str)
+                # pylint: disable=e1101
+                cred = gssapi.raw.acquire_cred_with_password(
+                    name,
+                    self.password.encode("utf-8"),
+                    mechs=[oid],
+                    usage="initiate",
+                )
+                self.logger.debug(
+                    "GSSAPI password credentials acquired for principal '%s' (%s)",
+                    self.user,
+                    mech_name,
+                )
+                return cred.creds
+            except Exception as err:
+                errors.append(f"{mech_name}: {type(err).__name__}: {err}")
+        raise RuntimeError(
+            "Failed to acquire GSSAPI credentials with password: " + "; ".join(errors)
+        )
+
     def _session_auth(self):
         """Build requests auth object for transport authentication."""
-        if self.auth_method == "ntlm":
-            try:
-                requests_ntlm = importlib.import_module("requests_ntlm")
-            except Exception as err:
-                raise RuntimeError(
-                    f"requests_ntlm is required for ntlm authentication: {err}"
-                ) from err
-            return requests_ntlm.HttpNtlmAuth(self.user, self.password)
+        self.logger.debug("CAhandler._session_auth(%s)", self.auth_method)
+        if self.auth_method != "gssapi":
+            return None
 
-        if self.auth_method == "gssapi":
-            try:
-                requests_gssapi = importlib.import_module("requests_gssapi")
-            except Exception as err:
-                raise RuntimeError(
-                    f"requests_gssapi is required for gssapi authentication: {err}"
-                ) from err
-            kwargs: Dict[str, Any] = {}
-            if self._gssapi_creds is not None:
-                raw = getattr(self._gssapi_creds, "creds", self._gssapi_creds)
-                kwargs["creds"] = raw
-            channel_bindings, channel_error = self._gssapi_channel_bindings_resolve()
-            if channel_error:
-                raise RuntimeError(channel_error)
-            if channel_bindings:
-                kwargs["channel_bindings"] = channel_bindings
-            return requests_gssapi.HTTPSPNEGOAuth(**kwargs)
-
-        return None
+        try:
+            requests_gssapi = importlib.import_module("requests_gssapi")
+        except Exception as err:
+            raise RuntimeError(
+                f"requests_gssapi is required for gssapi authentication: {err}"
+            ) from err
+        kwargs: Dict[str, Any] = {}
+        if self._gssapi_creds is not None:
+            raw = getattr(self._gssapi_creds, "creds", self._gssapi_creds)
+            kwargs["creds"] = raw
+        elif self.user and self.password:
+            # In-process fallback when password kinit did not leave a ccache
+            # (same approach as Certsrv._set_credentials). Runs under
+            # _kerberos_runtime_environment so KRB5_CONFIG is scoped.
+            kwargs["creds"] = self._gssapi_creds_from_password()
+        channel_bindings, channel_error = self._gssapi_channel_bindings_resolve()
+        if channel_error:
+            raise RuntimeError(channel_error)
+        if channel_bindings:
+            kwargs["channel_bindings"] = channel_bindings
+        if "creds" not in kwargs:
+            raise RuntimeError(
+                "GSSAPI authentication has no credentials: password kinit failed "
+                "and in-process password acquire is unavailable. Set ces_username "
+                "to a Kerberos principal (user@REALM), or configure "
+                "krb5_principal/krb5_keytab."
+            )
+        return requests_gssapi.HTTPSPNEGOAuth(**kwargs)
 
     def _gssapi_channel_bindings_resolve(self) -> Tuple[Optional[str], Optional[str]]:
         """Resolve gssapi_channel_bindings mode."""
+        self.logger.debug("CAhandler._gssapi_channel_bindings_resolve()")
         if self.auth_method != "gssapi" or self.gssapi_channel_bindings == "off":
             return (None, None)
         supported = gssapi_channel_bindings_supported()
@@ -736,6 +845,7 @@ class CAhandler(KerberosAuthMixin):
 
     def _username_token(self) -> Optional[Dict[str, str]]:
         """Return UsernameToken fields for SOAP message auth."""
+        self.logger.debug("CAhandler._username_token()")
         if self.auth_method != "username_password":
             return None
         if not (self.ces_username and self.ces_password):
@@ -807,6 +917,32 @@ class CAhandler(KerberosAuthMixin):
         except Exception as err:
             return (None, f"Failed to load GSSAPI credentials from ccache: {err}")
 
+    def _kerberos_bind_gssapi_creds(
+        self,
+    ) -> Tuple[Optional[object], Optional[str]]:
+        """Load ccache creds; password mode may fall back to in-process acquire.
+
+        Homebrew MIT ``kinit`` writes an MIT ccache that Apple GSS (default
+        ``python-gssapi`` on macOS) often cannot read. In password mode, clear
+        the unusable ccache and let ``_session_auth`` acquire via
+        ``acquire_cred_with_password`` instead of failing enroll/poll.
+        """
+        gssapi_creds, gssapi_creds_error = self._kerberos_gssapi_creds_from_cache()
+        if not gssapi_creds_error:
+            return (gssapi_creds, None)
+
+        self.logger.error("Kerberos credential load failed: %s", gssapi_creds_error)
+        if self._kerberos_keytab_is_configured():
+            self._kerberos_cleanup_temporary_ccache()
+            return (None, gssapi_creds_error)
+
+        self.logger.warning(
+            "Ccache credentials unreadable after password kinit; "
+            "falling back to in-process GSSAPI password authentication"
+        )
+        self._kerberos_cleanup_temporary_ccache()
+        return (None, None)
+
     def _kerberos_prepare_gssapi_password_backend(self) -> Optional[str]:
         """Prepare GSSAPI creds for user/password via kinit."""
         if not (self.user and self.password):
@@ -835,12 +971,55 @@ class CAhandler(KerberosAuthMixin):
         )
 
     def _xcep_get_policies(self) -> Dict[str, Any]:
-        """Call CEP GetPolicies."""
+        """Call CEP GetPolicies (cached for the current enroll/poll)."""
+        if self._policies_cache is not None:
+            return self._policies_cache
         if not self.cep_url:
             raise RuntimeError("cep_url is not configured")
         body = _xcep_get_policies_body()
         response_xml = self._soap_post(self.cep_url, ACTION_GET_POLICIES, body)
-        return _parse_xcep_get_policies(response_xml)
+        self._policies_cache = _parse_xcep_get_policies(response_xml)
+        return self._policies_cache
+
+    def _ca_certificates_from_file(self) -> List[str]:
+        """Load optional PEM CA chain from ``ca_certificates`` file."""
+        if not self.ca_certificates:
+            return []
+        if not os.path.exists(self.ca_certificates):
+            self.logger.warning(
+                "ca_certificates file does not exist: %s", self.ca_certificates
+            )
+            return []
+        try:
+            with open(self.ca_certificates, "r", encoding="utf-8") as fso:
+                content = fso.read()
+        except OSError as err:
+            self.logger.warning("Failed to read ca_certificates: %s", err)
+            return []
+        return [
+            pem if pem.endswith("\n") else pem + "\n"
+            for pem in _pem_certificates_split(content)
+        ]
+
+    def _ca_certificates_from_cep(self) -> List[str]:
+        """Fetch issuing CA certificate(s) from CEP GetPolicies."""
+        if not self.cep_url:
+            return []
+        try:
+            policies = self._xcep_get_policies()
+        except Exception as err:
+            self.logger.warning("Failed to fetch CA certificates from CEP: %s", err)
+            return []
+        return list(policies.get("ca_certificates") or [])
+
+    def _ca_chain_pem_list(self) -> List[str]:
+        """Build CA PEM list from CEP and/or ``ca_certificates`` file."""
+        ca_list: List[str] = []
+        for pem in self._ca_certificates_from_cep() + self._ca_certificates_from_file():
+            normalized = pem if pem.endswith("\n") else pem + "\n"
+            if normalized not in ca_list:
+                ca_list.append(normalized)
+        return ca_list
 
     def _ca_templates_membership_check(self) -> Optional[str]:
         """Optionally validate template against CEP policy."""
@@ -896,6 +1075,14 @@ class CAhandler(KerberosAuthMixin):
                     None,
                     None,
                     None,
+                )
+            ca_list = self._ca_chain_pem_list()
+            if ca_list:
+                cert_bundle = _cert_bundle_with_ca(cert_bundle or "", ca_list)
+            elif not self.cep_url and not self.ca_certificates:
+                self.logger.warning(
+                    "No CA chain appended: configure cep_url (preferred) or "
+                    "ca_certificates PEM file."
                 )
             return (None, cert_bundle, cert_raw, None)
 
@@ -975,9 +1162,8 @@ class CAhandler(KerberosAuthMixin):
             self._kerberos_cleanup_temporary_ccache()
             return (kerberos_error, None, None, None)
 
-        gssapi_creds, gssapi_creds_error = self._kerberos_gssapi_creds_from_cache()
+        gssapi_creds, gssapi_creds_error = self._kerberos_bind_gssapi_creds()
         if gssapi_creds_error:
-            self._kerberos_cleanup_temporary_ccache()
             return (gssapi_creds_error, None, None, None)
         self._gssapi_creds = gssapi_creds
 
@@ -1053,9 +1239,8 @@ class CAhandler(KerberosAuthMixin):
             self._kerberos_cleanup_temporary_ccache()
             return (kerberos_error, None, None, poll_identifier, False)
 
-        gssapi_creds, gssapi_creds_error = self._kerberos_gssapi_creds_from_cache()
+        gssapi_creds, gssapi_creds_error = self._kerberos_bind_gssapi_creds()
         if gssapi_creds_error:
-            self._kerberos_cleanup_temporary_ccache()
             return (gssapi_creds_error, None, None, poll_identifier, False)
         self._gssapi_creds = gssapi_creds
 
