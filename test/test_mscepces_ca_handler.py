@@ -145,6 +145,30 @@ class TestMscepcesCaHandler(unittest.TestCase):
         error = self.cahandler.handler_check()
         self.assertIn("ces_url", error)
 
+    @patch(
+        "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._xcep_get_policies"
+    )
+    @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
+    def test_010b_handler_check_skips_cep_contact(
+        self, mock_load_cfg, mock_get_policies
+    ):
+        """handler_check is config-only; does not call CEP GetPolicies"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "cep_url": "https://cep.example.com/CEP",
+            "ces_url": "https://ces.example.com/CES",
+            "template": "WebServer",
+            "auth_method": "gssapi",
+            "krb5_principal": "a2c-keytab@EXAMPLE.COM",
+            "krb5_keytab": "/tmp/krb5.keytab",
+            "ca_templates_check": "warn",
+        }
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        error = self.cahandler.handler_check()
+        self.assertIsNone(error)
+        mock_get_policies.assert_not_called()
+
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
     def test_011_enroll_issued(self, mock_load_cfg, mock_soap):

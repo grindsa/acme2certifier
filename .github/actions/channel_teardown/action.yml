@@ -31,11 +31,11 @@ runs:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         WEBSRV: ${{ inputs.WEBSRV }}
 
-    #- name: "Sanitize failure artifacts"
-    #  if: ${{ failure() || job.status == 'failure' }}
-    #  uses: ./.github/actions/sanitize_artifact_payload
-    #  with:
-    #    ARTIFACT_DIR: ${{ github.workspace }}/artifact
+    - name: "Sanitize failure artifacts"
+      if: ${{ failure() || job.status == 'failure' }}
+      uses: ./.github/actions/sanitize_artifact_payload
+      with:
+        ARTIFACT_DIR: ${{ github.workspace }}/artifact
 
     - name: "[ * ] Uploading artifacts"
       if: ${{ failure() || job.status == 'failure' }}
