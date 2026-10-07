@@ -32,7 +32,6 @@ from acme2certifier.acme_srv.helper import (
     eab_profile_header_info_check,
     enrollment_config_log,
     handler_config_check,
-    kerberos_kinit_command_resolve,
     load_config,
     pkcs7_to_pem,
 )
@@ -869,15 +868,6 @@ class CAhandler(KerberosAuthMixin):
             proxies=self.proxy,
             timeout=self.timeout,
         )
-        if response.status_code >= 400:
-            body_preview = (response.text or "")[:2000]
-            self.logger.error(
-                "CEP/CES HTTP %s from %s (action=%s): %s",
-                response.status_code,
-                url,
-                action,
-                body_preview,
-            )
         if response.status_code == 500 and response.text:
             # SOAP Faults are often returned as HTTP 500.
             return response.text
@@ -1146,9 +1136,6 @@ class CAhandler(KerberosAuthMixin):
             return self._result_from_wstep(result)
         except Exception as err:
             self.logger.error("Failed to enroll certificate from CES: %s", err)
-            detail = str(err).strip()
-            if detail and detail != self.CERT_FETCH_ERROR:
-                return (f"{self.CERT_FETCH_ERROR}: {detail}", None, None, None)
             return (self.CERT_FETCH_ERROR, None, None, None)
 
     def enroll(
@@ -1199,7 +1186,7 @@ class CAhandler(KerberosAuthMixin):
         return (error, cert_bundle, cert_raw, poll_identifier)
 
     def handler_check(self) -> Optional[str]:
-        """Check if handler is ready."""
+        """Check that required config is present and CEP/CES URLs use HTTPS."""
         self.logger.debug("CAhandler.handler_check()")
         if not self.ces_url:
             error = "ces_url parameter is missing in config file"
@@ -1216,15 +1203,6 @@ class CAhandler(KerberosAuthMixin):
             error = self._https_url_check(self.ces_url, "ces_url")
         if not error:
             error = self._https_url_check(self.cep_url, "cep_url")
-        if not error and self.krb5_kinit_path and self.krb5_kinit_path != "kinit":
-            if not kerberos_kinit_command_resolve(self.logger, self.krb5_kinit_path):
-                error = "krb5_kinit_path is invalid"
-        if not error and self.cep_url and self.ca_templates_check != "off":
-            try:
-                with self._kerberos_runtime_environment():
-                    self._xcep_get_policies()
-            except Exception as err:
-                error = f"CEP GetPolicies failed: {err}"
         self.logger.debug("CAhandler.handler_check() ended with %s", error)
         return error
 
