@@ -869,6 +869,15 @@ class CAhandler(KerberosAuthMixin):
             proxies=self.proxy,
             timeout=self.timeout,
         )
+        if response.status_code >= 400:
+            body_preview = (response.text or "")[:2000]
+            self.logger.error(
+                "CEP/CES HTTP %s from %s (action=%s): %s",
+                response.status_code,
+                url,
+                action,
+                body_preview,
+            )
         if response.status_code == 500 and response.text:
             # SOAP Faults are often returned as HTTP 500.
             return response.text
@@ -1137,6 +1146,9 @@ class CAhandler(KerberosAuthMixin):
             return self._result_from_wstep(result)
         except Exception as err:
             self.logger.error("Failed to enroll certificate from CES: %s", err)
+            detail = str(err).strip()
+            if detail and detail != self.CERT_FETCH_ERROR:
+                return (f"{self.CERT_FETCH_ERROR}: {detail}", None, None, None)
             return (self.CERT_FETCH_ERROR, None, None, None)
 
     def enroll(

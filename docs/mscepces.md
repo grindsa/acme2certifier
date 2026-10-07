@@ -53,6 +53,7 @@ For username/password use `-AuthenticationType Username` on both. Prefer a dedic
 UsernamePassword variants use `…_CEP_UsernamePassword` / `…_CES_UsernamePassword`.
 
 5. Ensure the enrollment account has **Enroll** permission on the target template.
+6. **Kerberos only — align Extended Protection (EPA)** between IIS and WCF (see [Troubleshooting](#troubleshooting) below). Fresh installs often leave IIS EPA at **Off** (`Never`) while the CEP/CES WCF binding expects **Always**, which yields HTTP 500 `ServiceActivationException` before any SOAP Fault.
 
 ## Configuration
 
@@ -236,6 +237,40 @@ sequenceDiagram
 ```
 
 CES → Enterprise CA uses RPC/DCOM internally; a2c never speaks that hop.
+
+## Troubleshooting
+
+### HTTP 500 `ServiceActivationException` on Kerberos CEP/CES
+
+Symptom: Negotiate challenge (401) succeeds, then the authenticated POST returns HTTP 500 with an empty body. Windows Application log (`System.ServiceModel`) shows:
+
+> ExtendedProtectionPolicy.PolicyEnforcement values do not match. IIS has a value of **Never** while the WCF Transport has a value of **Always**.
+
+UsernamePassword CEP/CES apps are unaffected. This is a **server** IIS/WCF mismatch, not an a2c SOAP or credential error.
+
+Fix: set Windows Authentication **Extended Protection** to **Required** on the Kerberos virtual apps (names vary with CA common name), then recycle the app pools:
+
+```powershell
+$appcmd = "$env:windir\system32\inetsrv\appcmd.exe"
+& $appcmd unlock config /section:system.webServer/security/authentication/windowsAuthentication
+
+foreach ($app in @(
+  'Default Web Site/ADPolicyProvider_CEP_Kerberos',
+  'Default Web Site/<CACommonName>_CES_Kerberos'
+)) {
+  & $appcmd set config $app `
+    /section:system.webServer/security/authentication/windowsAuthentication `
+    /extendedProtection.tokenChecking:Require `
+    /commit:apphost
+}
+
+Restart-WebAppPool WSEnrollmentPolicyServer
+Restart-WebAppPool WSEnrollmentServer
+```
+
+Keep client `gssapi_channel_bindings: auto` (or `on`) once IIS is **Required**. Setting both sides to **Never** is a weaker lab-only alternative.
+
+See also [IIS Extended Protection](https://learn.microsoft.com/en-us/iis/configuration/system.webserver/security/authentication/windowsauthentication/extendedprotection/).
 
 ## Testing
 
