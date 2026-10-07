@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   # Shared Windows MSCA EC2: serialize across branches so master+devel cannot start the same box.
@@ -123,6 +128,7 @@ jobs:
     with:
       run_id: ${{ inputs.run_id }}
       public_ip: ${{ needs.instance_start.outputs.public_ip }}
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
 
   mswcce:
     name: mswcce
@@ -135,6 +141,7 @@ jobs:
     with:
       run_id: ${{ inputs.run_id }}
       public_ip: ${{ needs.instance_start.outputs.public_ip }}
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
 
   mscepces:
     name: mscepces
@@ -147,6 +154,7 @@ jobs:
     with:
       run_id: ${{ inputs.run_id }}
       public_ip: ${{ needs.instance_start.outputs.public_ip }}
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
 
   instance_stop:
     permissions:

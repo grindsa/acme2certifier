@@ -680,7 +680,7 @@ class CAhandler(KerberosAuthMixin):
             return
 
         self.logger.warning(
-            "CAhandler allowed_templates is deprecated; "
+            "CAhandler allowed_templates is deprecated for header allowlisting; "
             "move the list to [Order] allowed_header_values"
         )
         try:

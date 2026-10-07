@@ -53,6 +53,7 @@ For username/password use `-AuthenticationType Username` on both. Prefer a dedic
 UsernamePassword variants use `…_CEP_UsernamePassword` / `…_CES_UsernamePassword`.
 
 5. Ensure the enrollment account has **Enroll** permission on the target template.
+6. **Kerberos only — align Extended Protection (EPA)** between IIS and WCF (see [Troubleshooting](#kerberos-epa--channel-bindings-requests-gssapi-version) below). Fresh installs often leave IIS EPA at **Off** (`Never`) while the CEP/CES WCF binding expects **Always**, which yields HTTP 500 `ServiceActivationException`. Packaged Docker/deb (and many RPM deps) ship `requests-gssapi` &lt; 1.4.0 without CBT — use the lab **both Never** path, or install ≥ 1.4.0 for **Required** + **Always**.
 
 ## Configuration
 
@@ -236,6 +237,69 @@ sequenceDiagram
 ```
 
 CES → Enterprise CA uses RPC/DCOM internally; a2c never speaks that hop.
+
+## Troubleshooting
+
+### Kerberos EPA / channel bindings (`requests-gssapi` version)
+
+CEP/CES Kerberos needs **aligned** Extended Protection between IIS and WCF. Client CBT (channel bindings) is only available with [`requests-gssapi` ≥ 1.4.0](https://github.com/pythongssapi/requests-gssapi/releases/tag/v1.4.0).
+
+**Packaged a2c** (official Docker images, Debian/Ubuntu `.deb`, and distro `python3-requests-gssapi` / EL AppStream packages used with RPM installs) typically ships **1.2.x**, which cannot send CBT. With `gssapi_channel_bindings: auto`, the handler logs `requests-gssapi does not support channel_bindings; continuing without` and proceeds without CBT. That is incompatible with IIS EPA **Required** / WCF **Always** (Negotiate may succeed, then HTTP **401**, or activation fails — see below).
+
+| Deployment | Typical `requests-gssapi` | IIS + WCF for Kerberos |
+|------------|---------------------------|-------------------------|
+| pip / EL9 AppStream / grindsa `python39-requests-gssapi` 1.4.0 | ≥ 1.4.0 | Prefer **Required** + **Always** (production) |
+| Docker (Ubuntu), `.deb`, older distro RPM deps | 1.2.x | Lab: both **Never**; or install ≥ 1.4.0 separately |
+
+`gssapi_channel_bindings: off` does **not** change wire behavior when CBT is unsupported (`auto` already skips CBT).
+
+### HTTP 500 `ServiceActivationException` on Kerberos CEP/CES
+
+Symptom: Negotiate challenge (401) succeeds, then the authenticated POST returns HTTP 500 with an empty body. Windows Application log (`System.ServiceModel`) shows:
+
+> ExtendedProtectionPolicy.PolicyEnforcement values do not match. IIS has a value of **Never** while the WCF Transport has a value of **Always**.
+
+UsernamePassword CEP/CES apps are unaffected. This is a **server** IIS/WCF mismatch, not an a2c SOAP or credential error.
+
+**Option A — production (CBT available):** set IIS Extended Protection to **Required** on the Kerberos virtual apps and keep WCF `policyEnforcement="Always"`, then recycle the app pools. Client: `gssapi_channel_bindings: auto` (or `on`) with `requests-gssapi` ≥ 1.4.0.
+
+```powershell
+$appcmd = "$env:windir\system32\inetsrv\appcmd.exe"
+& $appcmd unlock config /section:system.webServer/security/authentication/windowsAuthentication
+
+foreach ($app in @(
+  'Default Web Site/ADPolicyProvider_CEP_Kerberos',
+  'Default Web Site/<CACommonName>_CES_Kerberos'
+)) {
+  & $appcmd set config $app `
+    /section:system.webServer/security/authentication/windowsAuthentication `
+    /extendedProtection.tokenChecking:Require `
+    /commit:apphost
+}
+
+Restart-WebAppPool WSEnrollmentPolicyServer
+Restart-WebAppPool WSEnrollmentServer
+```
+
+**Option B — lab / packaged a2c without CBT:** set **both** sides to **Never** (weaker; not for production).
+
+1. IIS (GUI or `appcmd`): Extended Protection **Off** (`tokenChecking:None`) on the same Kerberos apps; leave kernel-mode authentication enabled.
+2. WCF: edit both `web.config` files (IIS GUI does **not** change these):
+
+```text
+%windir%\SystemData\CEP\ADPolicyProvider_CEP_Kerberos\web.config
+%windir%\SystemData\CES\<CACommonName>_CES_Kerberos\web.config
+```
+
+Set (or change) under `<transport clientCredentialType="Windows">`:
+
+```xml
+<extendedProtectionPolicy policyEnforcement="Never" />
+```
+
+3. Recycle `WSEnrollmentPolicyServer` and `WSEnrollmentServer`.
+
+See also [IIS Extended Protection](https://learn.microsoft.com/en-us/iis/configuration/system.webserver/security/authentication/windowsauthentication/extendedprotection/) and [KB5005413](https://support.microsoft.com/en-us/topic/kb5005413-mitigating-ntlm-relay-attacks-on-active-directory-certificate-services-ad-cs-3612b773-4043-4aa9-b23d-b87910cd3429) (CES `web.config` EPA).
 
 ## Testing
 

@@ -11,6 +11,12 @@ on:
         type: string
         required: true
 
+      sanitize_artifacts:
+        description: Sanitize failure artifacts (false keeps acme_srv.cfg / keys; secrets in upload)
+        type: boolean
+        required: false
+        default: true
+
 permissions: {}
 
 jobs:
@@ -340,6 +346,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: mscertsrv-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mscertsrv-eabprov-container-tests:
     permissions:
@@ -505,6 +512,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: mscertsrv-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mscertsrv-without-impacket_tests:
     permissions:
@@ -669,6 +677,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: mscertsrv_wo_impacket_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mscertsrv-test-rpm:
     permissions:
@@ -908,6 +917,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: mscertsrv_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mscertsrv-eabprofile-test-rpm:
     permissions:
@@ -1113,6 +1123,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: mscertsrv-eabprofile-test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mscertsrv-test-deb:
     permissions:
@@ -1385,3 +1396,4 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: mscertsrv-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

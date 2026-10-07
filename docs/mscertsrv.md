@@ -77,7 +77,7 @@ auth_method: gssapi
 gssapi_channel_bindings: auto
 ```
 
-**Distro note**: As of writing, EL9 AppStream ships `python3-requests-gssapi` 1.4.0. Ubuntu 24.04/26.04 and EL8 still ship 1.2.x, so EPA **Required** needs a newer pip/RPM package or the IIS workaround below.
+**Distro / package note**: CBT needs `requests-gssapi` ≥ 1.4.0. EL9 AppStream and the optional grindsa `python39-requests-gssapi` 1.4.0 RPM provide that. Official **Docker images**, **Debian/Ubuntu `.deb` installs**, and Ubuntu/EL8 distro packages still ship **1.2.x**, so `gssapi_channel_bindings: auto` continues without CBT (warning in the log). EPA **Required** then needs a newer package (`pip` / grindsa RPM) or the IIS workaround below. Turning `gssapi_channel_bindings` to `off` does not help when CBT is already unavailable.
 
 **Fallback (EPA Accept)**: If channel bindings are unavailable, change Extended Protection from **Required** to **Accept** in IIS for the CertSrv application:
 
