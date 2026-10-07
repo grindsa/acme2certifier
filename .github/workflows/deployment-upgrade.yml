@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
@@ -456,6 +461,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.hop.id }}-upgrade.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
   # RPM (EL8/EL9 × wsgi|django) × hop → build
@@ -698,6 +704,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}-${{ matrix.hop.id }}-upgrade.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
   # DEB (nginx × wsgi|django) × hop → build
@@ -841,3 +848,4 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: test-deb-nginx-${{ matrix.mode }}-${{ matrix.hop.id }}-upgrade.tar.gz
           WEBSRV: nginx
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

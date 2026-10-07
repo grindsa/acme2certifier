@@ -19,6 +19,10 @@ inputs:
     description: "Comma-separated host dirs to copy into artifact/data/"
     required: false
     default: ""
+  SANITIZE_ARTIFACTS:
+    description: "Sanitize failure artifacts before upload (false keeps secrets in upload)"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -57,11 +61,13 @@ runs:
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         WEBSRV: ${{ inputs.WEBSRV }}
+        SANITIZE_ARTIFACTS: ${{ inputs.SANITIZE_ARTIFACTS }}
 
     - name: "Sanitize failure artifacts"
       uses: ./.github/actions/sanitize_artifact_payload
       with:
         ARTIFACT_DIR: ${{ github.workspace }}/artifact
+        ENABLED: ${{ inputs.SANITIZE_ARTIFACTS }}
 
     - name: "Upload artifacts"
       uses: actions/upload-artifact@v7
