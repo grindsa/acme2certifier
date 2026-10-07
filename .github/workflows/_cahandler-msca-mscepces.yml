@@ -11,6 +11,12 @@ on:
         type: string
         required: true
 
+      sanitize_artifacts:
+        description: Sanitize failure artifacts (false keeps acme_srv.cfg / keys; secrets in upload)
+        type: boolean
+        required: false
+        default: true
+
 permissions: {}
 
 # Requires MSCA_CFG keys (in addition to shared MSCA_* / KRB5_* / SSH_*):
@@ -317,6 +323,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: mscepces-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mscepces-eab-container-tests:
     permissions:
@@ -486,3 +493,4 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: mscepces-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
