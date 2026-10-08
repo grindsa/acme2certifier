@@ -27,18 +27,18 @@ RUN apt-get update  && \
     python3-impacket \
     python3-mssql-django \
     python3-mysqldb \
-    python3-pip \
     python3-psycopg2 \
     python3-pymysql \
     python3-pyodbc \
-    python3-requests-gssapi \
     python3-yaml  && \
     rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
     rm -rf /usr/share/doc/python3-impacke/examples && \
     rm -rf /usr/share/impacket/script* && \
     rm -rf /usr/bin/impacket-* && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
+      /tmp/python3-requests-gssapi_*.deb \
+      /tmp/python3-requests-pkcs12_*.deb && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
-    pip3 install requests-pkcs12 --break-system-packages && \
     curl https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb --output /tmp/packages-microsoft-prod.deb && \
     dpkg -i /tmp/packages-microsoft-prod.deb && \
     rm /tmp/packages-microsoft-prod.deb && \
