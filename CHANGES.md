@@ -6,6 +6,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.46.2
+
+**Bug Fixes and Improvements**:
+
+- Docker images install companion `python3-requests-gssapi` and `python3-requests-pkcs12` `.deb` packages from [grindsa/sbom](https://github.com/grindsa/sbom) (replaces distro apt `python3-requests-gssapi` and `pip install requests-pkcs12`)
+
 ## Changes in 0.46.1
 
 **Bug Fixes and Improvements**:
