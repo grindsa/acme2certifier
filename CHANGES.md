@@ -12,6 +12,10 @@ and pick the appropriate release branch.
 
 - `a2c-schema-update`: unified DB schema updater for WSGI and Django (replaces manual choice between `a2c-db-update` and `a2c-django-update`)
 
+**New Features**:
+
+- [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
+
 ## Changes in 0.46
 
 - The database schema has been updated. Please ensure you run the appropriate update after upgrading:

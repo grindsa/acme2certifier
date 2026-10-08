@@ -12,6 +12,10 @@ inputs:
     description: "Compose service/container name to collect logs from in container mode"
     required: false
     default: "acme-srv"
+  SANITIZE_ARTIFACTS:
+    description: "Sanitize artifact payload before tar (false keeps acme_srv.cfg / keys; secrets in upload)"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -102,6 +106,7 @@ runs:
       uses: ./.github/actions/sanitize_artifact_payload
       with:
         ARTIFACT_DIR: ${{ github.workspace }}/artifact
+        ENABLED: ${{ inputs.SANITIZE_ARTIFACTS }}
 
     - name: "Archive failure logs"
       run: |

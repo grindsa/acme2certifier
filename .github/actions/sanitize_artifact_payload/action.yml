@@ -9,6 +9,10 @@ inputs:
     description: "Optional newline-separated extra glob patterns to delete"
     required: false
     default: ""
+  ENABLED:
+    description: "When false, skip sanitization (artifact may contain secrets)"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -18,8 +22,16 @@ runs:
       env:
         ARTIFACT_DIR: ${{ inputs.ARTIFACT_DIR }}
         EXTRA_PATTERNS: ${{ inputs.EXTRA_PATTERNS }}
+        ENABLED: ${{ inputs.ENABLED }}
       run: |
         set -euo pipefail
+
+        case "${ENABLED,,}" in
+          false|0|no|off)
+            echo "skip: sanitization disabled (ENABLED=${ENABLED}); artifact may contain secrets"
+            exit 0
+            ;;
+        esac
 
         if [[ ! -d "${ARTIFACT_DIR}" ]]; then
           echo "skip: artifact dir does not exist (${ARTIFACT_DIR})"

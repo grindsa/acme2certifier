@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
+            xmlns:a="http://www.w3.org/2005/08/addressing"
+            xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512"
+            xmlns:enroll="http://schemas.microsoft.com/windows/pki/2009/01/enrollment">
+  <s:Header>
+    <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RSTRC/wstep</a:Action>
+  </s:Header>
+  <s:Body>
+    <wst:RequestSecurityTokenResponseCollection>
+      <wst:RequestSecurityTokenResponse>
+        <enroll:DispositionMessage>Denied</enroll:DispositionMessage>
+        <enroll:RequestID>7</enroll:RequestID>
+      </wst:RequestSecurityTokenResponse>
+    </wst:RequestSecurityTokenResponseCollection>
+  </s:Body>
+</s:Envelope>

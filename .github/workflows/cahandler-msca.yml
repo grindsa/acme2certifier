@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   # Shared Windows MSCA EC2: serialize across branches so master+devel cannot start the same box.
@@ -110,7 +115,7 @@ jobs:
           aws ec2 wait instance-status-ok --region "$REGION" --instance-ids "$INSTANCE_ID" || true
 
 
-  # mscertsrv and mswcce run in parallel on the shared Windows box.
+  # mscertsrv, mswcce, and mscepces run in parallel on the shared Windows box.
   # Children are workflow_call-only so the broker cannot start/stop the EC2.
   mscertsrv:
     name: mscertsrv
@@ -123,6 +128,7 @@ jobs:
     with:
       run_id: ${{ inputs.run_id }}
       public_ip: ${{ needs.instance_start.outputs.public_ip }}
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
 
   mswcce:
     name: mswcce
@@ -135,11 +141,25 @@ jobs:
     with:
       run_id: ${{ inputs.run_id }}
       public_ip: ${{ needs.instance_start.outputs.public_ip }}
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
+
+  mscepces:
+    name: mscepces
+    permissions:
+      contents: read
+      actions: write
+    needs: [guard, instance_start]
+    secrets: inherit
+    uses: ./.github/workflows/_cahandler-msca-mscepces.yml
+    with:
+      run_id: ${{ inputs.run_id }}
+      public_ip: ${{ needs.instance_start.outputs.public_ip }}
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
 
   instance_stop:
     permissions:
       contents: read
-    needs: [guard, instance_start, mscertsrv, mswcce]
+    needs: [guard, instance_start, mscertsrv, mswcce, mscepces]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: ${{ always() && needs.instance_start.result != 'skipped' && github.repository == 'grindsa/acme2certifier' }}

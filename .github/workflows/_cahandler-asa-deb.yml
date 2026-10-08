@@ -6,6 +6,11 @@ on:
         description: Producer workflow run ID
         type: string
         required: true
+      sanitize_artifacts:
+        description: Sanitize failure artifacts (false keeps acme_srv.cfg / keys; secrets in upload)
+        type: boolean
+        required: false
+        default: true
 
 permissions: {}
 
@@ -327,3 +332,4 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

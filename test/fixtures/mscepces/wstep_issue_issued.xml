@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
+            xmlns:a="http://www.w3.org/2005/08/addressing"
+            xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512"
+            xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
+            xmlns:enroll="http://schemas.microsoft.com/windows/pki/2009/01/enrollment">
+  <s:Header>
+    <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RSTRC/wstep</a:Action>
+  </s:Header>
+  <s:Body>
+    <wst:RequestSecurityTokenResponseCollection>
+      <wst:RequestSecurityTokenResponse>
+        <wst:TokenType>http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3</wst:TokenType>
+        <enroll:DispositionMessage>Issued</enroll:DispositionMessage>
+        <enroll:RequestID>42</enroll:RequestID>
+        <wst:RequestedSecurityToken>
+          <wsse:BinarySecurityToken
+              ValueType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3"
+              EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">MIICzDCCAbSgAwIBAgIURCPrzZOkwO4BecOQp1OU9MjZhR8wDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UEAwwVbXNjZXBjZXMtdGVzdC5leGFtcGxlMB4XDTI2MTAwNDE0MTc0NVoXDTI3MTAwNTE0MTc0NVowIDEeMBwGA1UEAwwVbXNjZXBjZXMtdGVzdC5leGFtcGxlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2XO7nzfUKHLvzb3gb4f7rX4r4kfloXGqHSsC87TpwvM3v32atpJX6Ika3quacfVbdP1YZzXsowEoTwIgr05KLEAAoFe+zzz0hZRAu0enCUniiwQvlvTHbvQubbLoU9SCZetgDOHuMaGBoWKXEGPh8bCyq/R+SdTn0+LsGrutiYgIbNRX96RuAO8CHmmY0iLlLL+hK6IUpLzPD7on1vrYqVo7R529M3W4UZJianxTryfEK1WZ9fEcHmXTYKx0EsQ5YyYKeRkokrMNzO6q2qPNdsQWcxXpD72ym9XyesR4homWxOhNTn4aiZOkN7xlwpurbvMwdeBBlJKX4jQnNSZz6QIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQAZhUf3fMfnGRCeR+vn1a8RO+3WURohFClap+/MtJ/T8njgolwDIYI3fKBhCwpQUlV1PPwbZs1aqS767ZZcexccaKtp+DMw7oOVZZhXIZtVijATYjiHJttB9CIwnurCcc36OPOKHOR0ecUgrPoGpVMCHrX4Hai/oXKDbGgq3OfxoZxwlQtUkENBi9sgsCS/HDCw9D8ZLG/VKHCKJ2hvzido97T96nHBOF62FB55iZo/m23yMJaOH8lGK9xkq6DqSAIlQ1Tz6DgaYK3p8HUGfF097aT/yWE12Lk2bw57FrUi3507nFHYakwvOqYDc/HC9BeXy/Z4UsulEnJ1snf76Qqu</wsse:BinarySecurityToken>
+        </wst:RequestedSecurityToken>
+      </wst:RequestSecurityTokenResponse>
+    </wst:RequestSecurityTokenResponseCollection>
+  </s:Body>
+</s:Envelope>

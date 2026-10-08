@@ -3,7 +3,13 @@ name: Deployment - Release and push images to Docker Hub / GHCR
 on:
   push:
     branches: ["master"]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
   schedule:
     - cron: "0 01 * * 6"
       timezone: "Europe/Berlin"
@@ -273,6 +279,7 @@ jobs:
         uses: ./.github/actions/sanitize_artifact_payload
         with:
           ARTIFACT_DIR: ${{ github.workspace }}/artifact
+          ENABLED: ${{ inputs.sanitize_artifacts }}
 
       - name: Upload failure artifacts
         if: failure()
@@ -327,6 +334,7 @@ jobs:
         uses: ./.github/actions/sanitize_artifact_payload
         with:
           ARTIFACT_DIR: ${{ github.workspace }}/artifact
+          ENABLED: ${{ inputs.sanitize_artifacts }}
 
       - name: Upload failure artifacts
         if: failure()
@@ -382,6 +390,7 @@ jobs:
         uses: ./.github/actions/sanitize_artifact_payload
         with:
           ARTIFACT_DIR: ${{ github.workspace }}/artifact
+          ENABLED: ${{ inputs.sanitize_artifacts }}
 
       - name: Upload failure artifacts
         if: failure()

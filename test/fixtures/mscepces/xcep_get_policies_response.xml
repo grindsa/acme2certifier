@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
+            xmlns:a="http://www.w3.org/2005/08/addressing">
+  <s:Header>
+    <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPoliciesResponse</a:Action>
+  </s:Header>
+  <s:Body>
+    <GetPoliciesResponse xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy">
+      <response>
+        <policyID>{083C7011-1D0A-4855-885D-AC945184658C}</policyID>
+        <policyFriendlyName>Test Enrollment Policy</policyFriendlyName>
+        <nextUpdateHours>8</nextUpdateHours>
+        <policies>
+          <policy>
+            <policyOIDReference>1</policyOIDReference>
+            <cAs><cAReference>0</cAReference></cAs>
+            <attributes>
+              <commonName>WebServer</commonName>
+              <policySchema>3</policySchema>
+              <permission><enroll>true</enroll><autoEnroll>false</autoEnroll></permission>
+            </attributes>
+          </policy>
+          <policy>
+            <policyOIDReference>2</policyOIDReference>
+            <cAs><cAReference>0</cAReference></cAs>
+            <attributes>
+              <commonName>User</commonName>
+              <policySchema>3</policySchema>
+              <permission><enroll>true</enroll><autoEnroll>false</autoEnroll></permission>
+            </attributes>
+          </policy>
+        </policies>
+      </response>
+      <cAs>
+        <cA>
+          <uris>
+            <cAURI>
+              <clientAuthentication>2</clientAuthentication>
+              <uri>https://ces.example.com/TestCA_CES_Kerberos/service.svc/CES</uri>
+              <priority>1</priority>
+              <renewalOnly>false</renewalOnly>
+            </cAURI>
+          </uris>
+          <certificate>MIICrzCCAZegAwIBAgIBATANBgkqhkiG9w0BAQsFADAbMRkwFwYDVQQDDBBtc2NlcGNlcy10ZXN0LWNhMB4XDTI2MTAwNjA3Mzg0NVoXDTI3MTAwNjA3Mzg0NVowGzEZMBcGA1UEAwwQbXNjZXBjZXMtdGVzdC1jYTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMTqOxbXAsuUREs4xLw9LOiNz+RTO/+fX7Atg9QCW8raQYGjd6f54FgXWnvpLLomb4y9u3C9THIXgswNR/BMexo+V4E3FE8dZrPJHntUQanHuCilBOpJg6M6Y/ZMRZs2PK4GuFei1nOBTdR3qOMxvItiOC7kv0T5f2hcJdzOtn9Yz/205rzRq+0adqe3Wl6ro9PFvyyHcFsQjGW6H9ukPBe4inIRXzpl7zZx0reIxqvtxcvI6q+SYSB5TfPPCdU+4NDexdRjUjMEEJsKSQl9aipzZv45pMKhIlnKA1N2iv3O1C7TBsVXeu/Hl9v1aDMY1EEEsBafBF4Cvkeg2MxZMqsCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAtlD1K8ScPKIsbKZnVV4M5ah1roWcZiztQpYBHDZUp9ZSZbJ4Bg3M3dPPskB/y7VaToGCCfj3xpcGG7u+1GIOOkb49642ULcn5dXoSu0s86zvpzPsMbM2c8hzVFuMbLsSbFkmLXFp+hxJaBDzTplm4kIOC2CsewO1XgpTQBT36NDx85+z7XJP+WRCXI2bvFFbWcmFi9DnC8BurL8ItxgOeVvDfu2SOrTfOLGOJ6jnPZ7giFa0k7X8vEp3GY2vTzjyjiwW2IWVxEQoduMa7iOOLm+/ogwCpWWqMmO9LNIf6idQjNVsyw9HFYBDiDq0La3MAejtBPIAOrk5msk2h7aqFQ==</certificate>
+          <enrollPermission>true</enrollPermission>
+          <cAReferenceID>0</cAReferenceID>
+        </cA>
+      </cAs>
+    </GetPoliciesResponse>
+  </s:Body>
+</s:Envelope>
