@@ -25,9 +25,7 @@ DEBUG = False
 
 _hosts = os.environ.get("ACME2CERTIFIER_ALLOWED_HOSTS", "").strip()
 ALLOWED_HOSTS = (
-    [h.strip() for h in _hosts.split(",") if h.strip()]
-    if _hosts
-    else ["127.0.0.1"]
+    [h.strip() for h in _hosts.split(",") if h.strip()] if _hosts else ["127.0.0.1"]
 )
 
 INSTALLED_APPS = [

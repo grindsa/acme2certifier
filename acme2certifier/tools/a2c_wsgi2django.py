@@ -394,7 +394,7 @@ def _validate_dbversion(dbversion: Optional[str]) -> None:
     if dbversion != __dbversion__:
         raise ExportError(
             f"source dbversion {dbversion!r} != tool __dbversion__ {__dbversion__!r}; "
-            "refuse export (upgrade WSGI DB with a2c-db-update first)"
+            "refuse export (upgrade WSGI DB with a2c-schema-update --mode wsgi first)"
         )
 
 
@@ -633,7 +633,7 @@ def load_dump(dump_path: Path) -> Dict[str, Any]:
 
 
 def setup_django_orm() -> None:
-    """Bootstrap Django for ORM wipe/import (same pattern as a2c-django-update)."""
+    """Bootstrap Django for ORM wipe/import (same pattern as a2c-schema-update)."""
     configure_django_settings_module()
     try:
         from acme2certifier.tools.a2c_django_deploy_env import load_deploy_env
@@ -707,14 +707,14 @@ def assert_django_status_fixture(*, auto_seed: bool = True) -> None:
         raise MigrationError(
             "Django Status fixture invalid during dry-run (no DB writes allowed): "
             + "; ".join(mismatches)
-            + ". Seed Status first (a2c-django-update / loaddata status), "
+            + ". Seed Status first (a2c-schema-update --mode django / loaddata status), "
             + "or run import without --dry-run to allow auto-seeding"
         )
 
     raise MigrationError(
         "Django Status fixture invalid: "
         + "; ".join(mismatches)
-        + ". Run a2c-django-update / loaddata status"
+        + ". Run a2c-schema-update --mode django / loaddata status"
     )
 
 
