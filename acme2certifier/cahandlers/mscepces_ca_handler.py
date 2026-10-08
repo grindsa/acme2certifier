@@ -292,6 +292,42 @@ def _wstep_query_body(request_id: str) -> ET.Element:
     return rst
 
 
+def _wstep_token_text(response: ET.Element) -> Optional[str]:
+    """Extract BinarySecurityToken text from RequestedSecurityToken, if present."""
+    requested_token = _find_first(response, "RequestedSecurityToken")
+    if requested_token is None:
+        return None
+    requested_text = _element_text(_find_first(requested_token, "BinarySecurityToken"))
+    if not requested_text:
+        return None
+    return requested_text.replace("\r", "")
+
+
+def _wstep_reference_uri(response: ET.Element) -> Optional[str]:
+    """Extract Reference URI attribute from a WSTEP response, if present."""
+    reference = _find_first(response, "Reference")
+    if reference is None:
+        return None
+    for key, value in reference.attrib.items():
+        if _local_name(key) == "URI":
+            return value
+    return None
+
+
+def _wstep_status(
+    disposition: str, token_text: Optional[str], request_id: Optional[str]
+) -> str:
+    """Map disposition / token / request id to issued|pending|denied|unknown."""
+    disposition_lower = disposition.lower()
+    if "denied" in disposition_lower or "rejected" in disposition_lower:
+        return "denied"
+    if token_text:
+        return "issued"
+    if "pending" in disposition_lower or request_id:
+        return "pending"
+    return "unknown"
+
+
 def _parse_wstep_response(response_xml: str) -> Dict[str, Any]:
     """Parse RequestSecurityTokenResponseCollection into a structured result."""
     root = ET.fromstring(response_xml)
@@ -306,39 +342,14 @@ def _parse_wstep_response(response_xml: str) -> Dict[str, Any]:
 
     disposition = _element_text(_find_first(response, "DispositionMessage")) or ""
     request_id = _element_text(_find_first(response, "RequestID"))
-
-    token_text = None
-    requested_token = _find_first(response, "RequestedSecurityToken")
-    if requested_token is not None:
-        requested_binary = _find_first(requested_token, "BinarySecurityToken")
-        requested_text = _element_text(requested_binary)
-        if requested_text:
-            token_text = requested_text.replace("\r", "")
-
-    reference_uri = None
-    reference = _find_first(response, "Reference")
-    if reference is not None:
-        for key, value in reference.attrib.items():
-            if _local_name(key) == "URI":
-                reference_uri = value
-                break
-
-    disposition_lower = disposition.lower()
-    if "denied" in disposition_lower or "rejected" in disposition_lower:
-        status = "denied"
-    elif token_text:
-        status = "issued"
-    elif "pending" in disposition_lower or request_id:
-        status = "pending"
-    else:
-        status = "unknown"
+    token_text = _wstep_token_text(response)
 
     return {
-        "status": status,
+        "status": _wstep_status(disposition, token_text, request_id),
         "disposition": disposition,
         "request_id": request_id,
         "token": token_text,
-        "reference": reference_uri,
+        "reference": _wstep_reference_uri(response),
     }
 
 
@@ -1057,32 +1068,38 @@ class CAhandler(KerberosAuthMixin):
         response_xml = self._soap_post(ces_url, ACTION_WSTEP_RST, body)
         return _parse_wstep_response(response_xml)
 
+    def _result_from_issued_wstep(
+        self, result: Dict[str, Any]
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Map an issued WSTEP result to enroll/poll tuple parts."""
+        token = result.get("token")
+        if not token:
+            return (self.CERT_FETCH_ERROR, None, None, None)
+        cert_bundle, cert_raw = _token_to_pem_bundle(self.logger, token)
+        if not cert_raw:
+            return (
+                "Failed to parse certificate from WSTEP response",
+                None,
+                None,
+                None,
+            )
+        ca_list = self._ca_chain_pem_list()
+        if ca_list:
+            cert_bundle = _cert_bundle_with_ca(cert_bundle or "", ca_list)
+        elif not self.cep_url and not self.ca_certificates:
+            self.logger.warning(
+                "No CA chain appended: configure cep_url (preferred) or "
+                "ca_certificates PEM file."
+            )
+        return (None, cert_bundle, cert_raw, None)
+
     def _result_from_wstep(
         self, result: Dict[str, Any]
     ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         """Map WSTEP result to enroll/poll tuple parts."""
         status = result.get("status")
         if status == "issued":
-            token = result.get("token")
-            if not token:
-                return (self.CERT_FETCH_ERROR, None, None, None)
-            cert_bundle, cert_raw = _token_to_pem_bundle(self.logger, token)
-            if not cert_raw:
-                return (
-                    "Failed to parse certificate from WSTEP response",
-                    None,
-                    None,
-                    None,
-                )
-            ca_list = self._ca_chain_pem_list()
-            if ca_list:
-                cert_bundle = _cert_bundle_with_ca(cert_bundle or "", ca_list)
-            elif not self.cep_url and not self.ca_certificates:
-                self.logger.warning(
-                    "No CA chain appended: configure cep_url (preferred) or "
-                    "ca_certificates PEM file."
-                )
-            return (None, cert_bundle, cert_raw, None)
+            return self._result_from_issued_wstep(result)
 
         if status == "pending":
             request_id = result.get("request_id")
