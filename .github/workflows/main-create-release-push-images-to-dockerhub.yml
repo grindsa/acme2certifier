@@ -172,6 +172,11 @@ jobs:
         with:
           json_secret: ${{ secrets.SWREPO_CFG }}
 
+      - name: Parse GH_CFG secrets
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
       - name: Build and push ${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
         uses: ./.github/actions/image_build_push
         with:
@@ -184,6 +189,8 @@ jobs:
           ghcr_user: ${{ env.GHCR_USER }}
           ghcr_token: ${{ env.GHCR_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
   build_and_push_n:
     name: Build and push N images
@@ -205,6 +212,11 @@ jobs:
         with:
           json_secret: ${{ secrets.SWREPO_CFG }}
 
+      - name: Parse GH_CFG secrets
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
       - name: Build and push ${{ needs.resolve_versions.outputs.tag_n }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
         uses: ./.github/actions/image_build_push
         with:
@@ -217,6 +229,8 @@ jobs:
           ghcr_user: ${{ env.GHCR_USER }}
           ghcr_token: ${{ env.GHCR_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
   test_amd64_n1:
     name: Test amd64 N-1 images

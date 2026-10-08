@@ -36,6 +36,18 @@ inputs:
     description: "Import XCA schema into a dedicated xca database"
     required: false
     default: "false"
+  GH_USER:
+    description: "GitHub user/org for sbom companion debs (required when CONTAINER_BUILD=true)"
+    required: false
+    default: ""
+  GH_SBOM_REPO_TOKEN:
+    description: "Token for sbom companion debs (required when CONTAINER_BUILD=true)"
+    required: false
+    default: ""
+  UBUNTU_TARGET:
+    description: "SBOM deb leaf (must match Dockerfile Ubuntu base)"
+    required: false
+    default: "ub26.04"
 
 runs:
   using: "composite"
@@ -92,6 +104,9 @@ runs:
       with:
         WEB_SRV: ${{ inputs.WEB_SRV }}
         DB_HANDLER: ${{ inputs.DB_HANDLER }}
+        GH_USER: ${{ inputs.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
+        UBUNTU_TARGET: ${{ inputs.UBUNTU_TARGET }}
 
     - name: "Prepare container environment file (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       if: inputs.CONTAINER_BUILD != 'true'

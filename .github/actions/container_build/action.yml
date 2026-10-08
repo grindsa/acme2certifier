@@ -13,10 +13,28 @@ inputs:
     description: "Path to the docker compose file"
     required: false
     default: "examples/Docker/"
+  GH_USER:
+    description: "GitHub user/org for sbom companion debs"
+    required: true
+  GH_SBOM_REPO_TOKEN:
+    description: "Token for sbom companion debs"
+    required: true
+  UBUNTU_TARGET:
+    description: "SBOM deb leaf (must match Dockerfile Ubuntu base)"
+    required: false
+    default: "ub26.04"
 
 runs:
   using: "composite"
   steps:
+    - name: "Fetch sbom companion debs into build context"
+      uses: ./.github/actions/fetch_sbom_debs
+      with:
+        GH_USER: ${{ inputs.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
+        UBUNTU_TARGET: ${{ inputs.UBUNTU_TARGET }}
+        DESTINATION: "."
+
     - name: "Build docker compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |

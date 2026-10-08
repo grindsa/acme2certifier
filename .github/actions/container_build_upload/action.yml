@@ -9,6 +9,16 @@ inputs:
     description: "Web server"
     required: true
     default: "apache2"
+  GH_USER:
+    description: "GitHub user/org for sbom companion debs"
+    required: true
+  GH_SBOM_REPO_TOKEN:
+    description: "Token for sbom companion debs"
+    required: true
+  UBUNTU_TARGET:
+    description: "SBOM deb leaf (must match Dockerfile Ubuntu base)"
+    required: false
+    default: "ub26.04"
 
 runs:
   using: "composite"
@@ -18,6 +28,9 @@ runs:
     with:
       DB_HANDLER: ${{ inputs.DB_HANDLER }}
       WEB_SRV: ${{ inputs.WEB_SRV }}
+      GH_USER: ${{ inputs.GH_USER }}
+      GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
+      UBUNTU_TARGET: ${{ inputs.UBUNTU_TARGET }}
 
   - name: "Save container"
     run: |

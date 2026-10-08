@@ -39,11 +39,18 @@ jobs:
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
+      - name: "Parse GH_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
       - name: "Build container"
         uses: ./.github/actions/container_build_upload
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
   # ---------------------------------------------------------
   # Job 2: Build RPM and upload artifacts

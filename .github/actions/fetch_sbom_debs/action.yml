@@ -1,0 +1,72 @@
+name: "fetch_sbom_debs"
+description: >-
+  Sparse-clone grindsa/sbom and copy companion .deb packages into a destination
+  directory (Docker build context). Mirrors rpm_prep SBOM fetch for debs.
+inputs:
+  GH_USER:
+    description: "GitHub user/org owning the sbom repo"
+    required: true
+  GH_SBOM_REPO_TOKEN:
+    description: "Token with read access to the sbom repo"
+    required: true
+  UBUNTU_TARGET:
+    description: "SBOM leaf under deb-repo/DEBs/ (e.g. ub26.04)"
+    required: false
+    default: "ub26.04"
+  DESTINATION:
+    description: "Directory to copy companion .deb files into"
+    required: false
+    default: "."
+  PACKAGES:
+    description: >-
+      Space-separated package name prefixes to require
+      (e.g. python3-requests-gssapi python3-requests-pkcs12)
+    required: false
+    default: "python3-requests-gssapi python3-requests-pkcs12"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Retrieve companion debs from SBOM repo (${{ inputs.UBUNTU_TARGET }})"
+      shell: bash
+      env:
+        GH_USER: ${{ inputs.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
+        UBUNTU_TARGET: ${{ inputs.UBUNTU_TARGET }}
+        DESTINATION: ${{ inputs.DESTINATION }}
+        PACKAGES: ${{ inputs.PACKAGES }}
+      run: |
+        set -euo pipefail
+        LEAF="deb-repo/DEBs/${UBUNTU_TARGET}"
+        DEST="${DESTINATION}"
+        mkdir -p "${DEST}"
+
+        rm -rf /tmp/sbom-debs
+        git clone --filter=blob:none --sparse --depth 1 \
+          "https://${GH_USER}:${GH_SBOM_REPO_TOKEN}@github.com/${GH_USER}/sbom" /tmp/sbom-debs
+        git -C /tmp/sbom-debs sparse-checkout set "${LEAF}"
+
+        SRC="/tmp/sbom-debs/${LEAF}"
+        if [[ ! -d "${SRC}" ]]; then
+          echo "ERROR: missing SBOM path ${SRC}" >&2
+          ls -la /tmp/sbom-debs/deb-repo/DEBs/ 2>/dev/null || true
+          exit 1
+        fi
+
+        echo "SBOM leaf: ${LEAF}"
+        shopt -s nullglob
+        copied=0
+        for pkg in ${PACKAGES}; do
+          matches=( "${SRC}/${pkg}"_*.deb )
+          if [[ ${#matches[@]} -eq 0 ]]; then
+            echo "ERROR: no ${pkg}_*.deb under ${SRC}" >&2
+            ls -la "${SRC}" || true
+            exit 1
+          fi
+          for deb in "${matches[@]}"; do
+            cp -v "${deb}" "${DEST}/"
+            copied=$((copied + 1))
+          done
+        done
+        echo "Staged ${copied} companion .deb(s) from ${LEAF} → ${DEST}/"
+        ls -la "${DEST}"/python3-requests-*.deb 2>/dev/null | head -40 || true

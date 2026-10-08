@@ -48,6 +48,18 @@ inputs:
     description: "Download destination"
     required: false
     default: "/tmp"
+  GH_USER:
+    description: "GitHub user/org for sbom companion debs (required when CONTAINER_BUILD=true)"
+    required: false
+    default: ""
+  GH_SBOM_REPO_TOKEN:
+    description: "Token for sbom companion debs (required when CONTAINER_BUILD=true)"
+    required: false
+    default: ""
+  UBUNTU_TARGET:
+    description: "SBOM deb leaf (must match Dockerfile Ubuntu base)"
+    required: false
+    default: "ub26.04"
 
 runs:
   using: "composite"
@@ -83,3 +95,6 @@ runs:
         IPV6: ${{ inputs.IPV6 }}
         TLS: ${{ inputs.TLS }}
         XCA_DB: ${{ inputs.XCA_DB }}
+        GH_USER: ${{ inputs.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
+        UBUNTU_TARGET: ${{ inputs.UBUNTU_TARGET }}

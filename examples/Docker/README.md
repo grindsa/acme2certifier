@@ -90,7 +90,21 @@ ______________________________________________________________________
 
 ## Building the Docker Image
 
-A prebuilt `.deb` must exist at the repository root (`*.deb`) before `docker compose build` (CI builds it first; locally run the Debian package build).
+Before `docker compose build`, the repository root (compose context) must contain:
+
+1. The acme2certifier `.deb` (CI builds it first; locally run the Debian package build)
+2. Companion packages from [grindsa/sbom](https://github.com/grindsa/sbom) `deb-repo/DEBs/ub26.04/`:
+   - `python3-requests-gssapi_*.deb`
+   - `python3-requests-pkcs12_*.deb`
+
+Fetch companions locally (uses a local sbom checkout or clones the repo):
+
+```bash
+./examples/install_scripts/fetch-sbom-debs.sh -t ub26.04 -d . \
+  --local-sbom ~/Development/sbom
+```
+
+Then:
 
 ```bash
 cd ~/acme2certifier/examples/Docker

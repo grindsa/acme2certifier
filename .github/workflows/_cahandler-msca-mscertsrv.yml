@@ -566,6 +566,8 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
           NAME_SPACE: local
           CONTAINER_UP: "false"
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
       - name: "Get runner ip"
         run: |
