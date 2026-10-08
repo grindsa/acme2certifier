@@ -108,6 +108,8 @@ jobs:
           set -euo pipefail
           WORK=examples/Docker/data/trigger
           CA=examples/Docker/data/acme_ca
+          # Entrypoint chowns volume to www-data; keep lab CA key readable for host openssl.
+          sudo chmod a+r "${CA}/sub-ca-key.pem"
           openssl genrsa -out "${WORK}/ee.key" 2048
           openssl req -new -key "${WORK}/ee.key" -out "${WORK}/ee.csr" \
             -subj "/CN=trigger.ci.example"

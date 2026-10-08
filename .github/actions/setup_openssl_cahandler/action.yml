@@ -83,6 +83,13 @@ runs:
           "${CA_SOURCE_DIR}/sub-ca-cert.pem" \
           "${CA_SOURCE_DIR}/root-ca-cert.pem" \
           "${VOLUME_DIR}/acme_ca/"
+        # sudo cp leaves root:root mode 600 on the key; host openssl and
+        # post-entrypoint www-data ownership still need world-readable CI lab keys.
+        sudo chmod a+r \
+          "${VOLUME_DIR}/acme_ca/sub-ca-key.pem" \
+          "${VOLUME_DIR}/acme_ca/sub-ca-crl.pem" \
+          "${VOLUME_DIR}/acme_ca/sub-ca-cert.pem" \
+          "${VOLUME_DIR}/acme_ca/root-ca-cert.pem"
         sudo cp "${CFG_SOURCE}" "${VOLUME_DIR}/acme_srv.cfg"
         sudo chmod 777 "${VOLUME_DIR}/acme_srv.cfg"
 
