@@ -73,9 +73,7 @@ REQUEST_TYPE_ISSUE = "http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue"
 REQUEST_TYPE_QUERY = (
     "http://schemas.microsoft.com/windows/pki/2009/01/enrollment/QueryTokenStatus"
 )
-VALUE_TYPE_PKCS10 = (
-    "http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10"
-)
+VALUE_TYPE_PKCS10 = "http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10"
 ENCODING_BASE64 = (
     "http://docs.oasis-open.org/wss/2004/01/"
     "oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"
@@ -248,9 +246,7 @@ def _pem_certificates_split(pem_bundle: str) -> List[str]:
     )
 
 
-def _cert_bundle_with_ca(
-    leaf_pem: str, ca_pem_list: List[str]
-) -> str:
+def _cert_bundle_with_ca(leaf_pem: str, ca_pem_list: List[str]) -> str:
     """Append CA PEMs to the leaf, skipping duplicates."""
     bundle = leaf_pem if leaf_pem.endswith("\n") else leaf_pem + "\n"
     existing = set(_pem_certificates_split(bundle))
@@ -439,7 +435,9 @@ def _poll_identifier_encode(request_id: str, reference: str) -> str:
     return f"{request_id}{POLL_ID_SEPARATOR}{reference}"
 
 
-def _poll_identifier_decode(poll_identifier: str) -> Tuple[Optional[str], Optional[str]]:
+def _poll_identifier_decode(
+    poll_identifier: str,
+) -> Tuple[Optional[str], Optional[str]]:
     """Decode pending poll identifier into (request_id, reference)."""
     if not poll_identifier or POLL_ID_SEPARATOR not in poll_identifier:
         return (poll_identifier or None, None)
@@ -674,9 +672,10 @@ class CAhandler(KerberosAuthMixin):
             self.allowed_templates = order_values
             return
 
-        if "CAhandler" not in config_dic or "allowed_templates" not in config_dic[
-            "CAhandler"
-        ]:
+        if (
+            "CAhandler" not in config_dic
+            or "allowed_templates" not in config_dic["CAhandler"]
+        ):
             return
 
         self.logger.warning(
@@ -1108,7 +1107,9 @@ class CAhandler(KerberosAuthMixin):
             None,
         )
 
-    def _enroll(self, csr: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+    def _enroll(
+        self, csr: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         """Enroll certificate via CES."""
         self.logger.debug("CAhandler._enroll()")
         if self.enrollment_config_log:
@@ -1194,9 +1195,7 @@ class CAhandler(KerberosAuthMixin):
             return error
 
         required = [self.profile_mapping_field]
-        if not (
-            self.auth_method == "gssapi" and self._kerberos_keytab_is_configured()
-        ):
+        if not (self.auth_method == "gssapi" and self._kerberos_keytab_is_configured()):
             required.extend(["ces_username", "ces_password"])
         error = handler_config_check(self.logger, self, required)
         if not error:

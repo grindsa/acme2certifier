@@ -1801,8 +1801,11 @@ class TestACMEHandler(unittest.TestCase):
 
         mock_isfile.return_value = False
 
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            result = self.cahandler._kerberos_acquire_with_kinit("/tmp/krb5cc_svc")
+        # Isolate from ambient KRB5_CONFIG (kinit env is a copy of os.environ).
+        clean_env = {k: v for k, v in os.environ.items() if k != "KRB5_CONFIG"}
+        with patch.dict(os.environ, clean_env, clear=True):
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                result = self.cahandler._kerberos_acquire_with_kinit("/tmp/krb5cc_svc")
 
         self.assertTrue(result)
         self.assertTrue(mock_subprocess_run.called)
