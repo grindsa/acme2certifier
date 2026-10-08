@@ -48,13 +48,13 @@ class TestA2CDjangoSecretKeygen(unittest.TestCase):
         self.assertEqual(_SECRET_KEY_LENGTH, len(key))
         self.assertTrue(set(key) <= set(_SECRET_KEY_CHARS))
 
-    def test_003_generate_secret_key_avoids_uwsgi_placeholders(self):
-        """Keys omit % @ ( ) so uWSGI ini does not treat them as @(file) / magic"""
+    def test_003_generate_secret_key_avoids_unsafe_embeddings(self):
+        """Keys omit chars that break uWSGI ini, GITHUB_ENV, or cmd set"""
         for _ in range(20):
             key = generate_secret_key()
             self.assertEqual(_SECRET_KEY_LENGTH, len(key))
             self.assertTrue(set(key) <= set(_SECRET_KEY_CHARS))
-            self.assertNotRegex(key, r"[@%()]")
+            self.assertNotRegex(key, r"[@%()#;!$`&^|<>]")
 
 
 if __name__ == "__main__":

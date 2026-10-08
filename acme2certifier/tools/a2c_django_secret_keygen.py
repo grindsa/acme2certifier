@@ -3,13 +3,17 @@
 
 import secrets
 
-# Omit % @ ( ) so the key is safe in uWSGI ini (magic vars, @(file) includes).
-_SECRET_KEY_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789!#$^&*-_=+"
+# Omit characters that break common embeddings:
+# - % @ ( )  uWSGI ini magic / @(file) includes
+# - # ;      ini / GITHUB_ENV comments
+# - $ `      shell / GITHUB_ENV expansion
+# - ! & ^ | <>  cmd.exe ``set`` / delayed expansion (win-acme launchers)
+_SECRET_KEY_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789*-_=+"
 _SECRET_KEY_LENGTH = 50
 
 
 def generate_secret_key() -> str:
-    """Return a Django SECRET_KEY that is safe to embed in acme2certifier.ini."""
+    """Return a Django SECRET_KEY safe for ini, GITHUB_ENV, and cmd ``set``."""
     return "".join(secrets.choice(_SECRET_KEY_CHARS) for _ in range(_SECRET_KEY_LENGTH))
 
 

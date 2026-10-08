@@ -617,13 +617,15 @@ class TestDjangoHandler(unittest.TestCase):
     def test_033_dbversion_and_hkparameter(self) -> None:
         """test dbversion_get / hkparameter_add / hkparameter_get"""
         version, tool = self.dbstore.dbversion_get()
-        self.assertEqual("a2c-django-update", tool)
+        self.assertEqual("a2c-schema-update --mode django", tool)
         self.assertIsNotNone(version)
         self.dbstore.hkparameter_add({"name": "foo", "value": "bar"})
         self.assertEqual("bar", self.dbstore.hkparameter_get("foo"))
         self.assertIsNone(self.dbstore.hkparameter_get("missing-param"))
         Housekeeping.objects.filter(name="dbversion").delete()
-        self.assertEqual((None, "a2c-django-update"), self.dbstore.dbversion_get())
+        self.assertEqual(
+            (None, "a2c-schema-update --mode django"), self.dbstore.dbversion_get()
+        )
 
     def test_034_jwk_load(self) -> None:
         """test DBstore.jwk_load() str and bytes paths"""

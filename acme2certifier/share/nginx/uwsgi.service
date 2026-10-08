@@ -3,8 +3,11 @@ Description=uWSGI instance to serve acme2certifier
 
 [Service]
 RuntimeDirectory=uwsgi
-ExecStart=uwsgi --ini acme2certifier.ini
 WorkingDirectory=/opt/acme2certifier
+Environment=PYTHONPATH=/opt/acme2certifier
+Environment=ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
+ExecStartPre=/usr/bin/a2c-schema-update
+ExecStart=uwsgi --ini acme2certifier.ini
 Restart=always
 Type=notify
 NotifyAccess=all

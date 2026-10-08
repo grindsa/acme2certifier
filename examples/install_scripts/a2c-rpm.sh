@@ -972,6 +972,12 @@ if [[ -f /usr/lib/systemd/system/acme2certifier.service ]]; then
     ${SUDO} sed -i "/^WorkingDirectory=/a Environment=ACME_SRV_CONFIGFILE=${CFG}" \
       /usr/lib/systemd/system/acme2certifier.service
   fi
+  # Published ≤0.46 RPMs lack /usr/bin/a2c-schema-update; do not inject a broken Pre.
+  if [[ -x /usr/bin/a2c-schema-update ]] \
+    && ! grep -q '^ExecStartPre=.*a2c-schema-update' /usr/lib/systemd/system/acme2certifier.service; then
+    ${SUDO} sed -i '/^ExecStart=/i ExecStartPre=/usr/bin/a2c-schema-update' \
+      /usr/lib/systemd/system/acme2certifier.service
+  fi
 fi
 
 if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
@@ -995,6 +1001,10 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     ${SUDO} sed -i '/^env = ACME2CERTIFIER_DATABASE_URL=/d' "${UWSGI_INI}"
     a2c_uwsgi_env_set "${UWSGI_INI}" ACME2CERTIFIER_DATABASE_URL "${ACME2CERTIFIER_DATABASE_URL}"
   fi
+  _django_schema=(a2c-django-update)
+  if command -v a2c-schema-update >/dev/null 2>&1; then
+    _django_schema=(a2c-schema-update --mode django)
+  fi
   ${SUDO} env \
     PYTHONPATH="${APP_ROOT}" \
     ACME_SRV_CONFIGFILE="${CFG}" \
@@ -1002,7 +1012,7 @@ if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
     ACME2CERTIFIER_SECRET_KEY="${ACME2CERTIFIER_SECRET_KEY}" \
     ACME2CERTIFIER_DATABASE_URL="${ACME2CERTIFIER_DATABASE_URL:-}" \
     DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS}" \
-    a2c-django-update
+    "${_django_schema[@]}"
   ${SUDO} env \
     PYTHONPATH="${APP_ROOT}" \
     ACME_SRV_CONFIGFILE="${CFG}" \

@@ -85,8 +85,8 @@ sudo systemctl restart acme2certifier
 
 ## CLI and migration tools
 
-- **`a2c-manage`** (one-off shell): export `ACME2CERTIFIER_SECRET_KEY`, `ACME2CERTIFIER_ALLOWED_HOSTS`, and `ACME2CERTIFIER_DATABASE_URL` in the same shell, or use **`a2c-django-update`** instead of separate migrate + loaddata.
-- **`a2c-wsgi2django`** `import` / `check` and **`a2c-django-update`**: load `ACME2CERTIFIER_*` from uWSGI ini or Apache envvars when unset in the environment.
+- **`a2c-manage`** (one-off shell): export `ACME2CERTIFIER_SECRET_KEY`, `ACME2CERTIFIER_ALLOWED_HOSTS`, and `ACME2CERTIFIER_DATABASE_URL` in the same shell, or use **`a2c-schema-update --mode django`** instead of separate migrate + loaddata.
+- **`a2c-wsgi2django`** `import` / `check` and **`a2c-schema-update`**: load `ACME2CERTIFIER_*` from uWSGI ini or Apache envvars when unset in the environment.
 
 ## Related
 

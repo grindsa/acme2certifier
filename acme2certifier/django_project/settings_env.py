@@ -1,7 +1,5 @@
 """Parse ACME2CERTIFIER_* for Django settings via django-environ."""
 
-from __future__ import annotations
-
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
