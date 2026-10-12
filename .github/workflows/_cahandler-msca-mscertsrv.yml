@@ -560,7 +560,7 @@ jobs:
       - name: "Strip python3-impacket from Dockerfile"
         run: |
           set -euo pipefail
-          DF="examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile"
+          DF="examples/Docker/${{ matrix.websrv }}/Dockerfile"
           sudo sed -i '/python3-impacket/d' "$DF"
           sudo sed -i '/rm -rf \/usr\/lib\/python3\/dist-packages\/impacket\/examples/d' "$DF"
           sudo sed -i '/rm -rf \/usr\/share\/doc\/python3-impacke\/examples/d' "$DF"

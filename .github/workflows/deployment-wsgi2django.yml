@@ -115,23 +115,13 @@ jobs:
           DB_HANDLER: wsgi
           WEB_SRV: ${{ matrix.websrv }}
 
-      # Migration-specific deviation from upgrade workflow:
-      # switch image flavor in-place from wsgi to django on same build.
-      - name: "Switch compose env to Django image"
+      # Migration-specific: same unified image; flip runtime handler to django.
+      - name: "Switch compose env to Django handler"
         run: |
           set -euo pipefail
-          sed -i 's/^CONTEXT=wsgi/CONTEXT=django/' examples/Docker/.env
+          sed -i 's/^ACME_SRV_DB_HANDLER=wsgi/ACME_SRV_DB_HANDLER=django/' examples/Docker/.env
 
-      - name: "Load Django build image"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.django.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Spin-up Django image"
+      - name: "Spin-up Django mode (same websrv image)"
         uses: ./.github/actions/container_up
         with:
           DB_HANDLER: django

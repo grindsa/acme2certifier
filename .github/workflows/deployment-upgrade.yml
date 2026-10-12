@@ -110,7 +110,7 @@ jobs:
               fi
               # Hub miss: still OK if Dockerfiles exist on the tag (ensure_container_image builds).
               code=$(curl -sL -o /dev/null -w '%{http_code}' \
-                "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/wsgi/Dockerfile" \
+                "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/Dockerfile" \
                 || echo 000)
               if [[ "${code}" == "200" ]]; then
                 return 0
@@ -143,7 +143,7 @@ jobs:
               fi
               # Hub miss: still OK if Dockerfiles exist on the tag (ensure_container_image builds).
               code=$(curl -sL -o /dev/null -w '%{http_code}' \
-                "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/wsgi/Dockerfile" \
+                "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/Dockerfile" \
                 || echo 000)
               if [[ "${code}" == "200" ]]; then
                 return 0

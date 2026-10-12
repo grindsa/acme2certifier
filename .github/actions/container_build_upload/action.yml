@@ -36,7 +36,8 @@ runs:
     run: |
       docker images
       mkdir -p /tmp/a2c
-      docker save acme2certifier/$DB_HANDLER > /tmp/a2c/a2c-${{ github.run_id }}.$WEB_SRV.$DB_HANDLER.tar
+      # Unified image tag is websrv; artifact name still includes dbhandler for matrix jobs.
+      docker save "acme2certifier/${WEB_SRV}" > /tmp/a2c/a2c-${{ github.run_id }}.$WEB_SRV.$DB_HANDLER.tar
       gzip /tmp/a2c/a2c-${{ github.run_id }}.$WEB_SRV.$DB_HANDLER.tar
     shell: bash
     env:

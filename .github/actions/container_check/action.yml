@@ -29,18 +29,20 @@ runs:
         svc="${COMPOSE_SERVICE}"
         exec_in() { docker compose exec -T "${svc}" "$@"; }
 
-        # --- DB handler (baked into image ENV) ---
+        # --- DB handler (compose/runtime ENV; cfg may override app, not this env) ---
         got_db="$(exec_in printenv ACME_SRV_DB_HANDLER)"
         echo "ACME_SRV_DB_HANDLER=${got_db} (expected ${DB_HANDLER})"
         test "${got_db}" = "${DB_HANDLER}"
 
         image="$(docker inspect --format='{{.Config.Image}}' "${svc}")"
         echo "Image=${image}"
-        # Compose local tags: acme2certifier/wsgi — Hub tags: grindsa/acme2certifier:X-apache2-wsgi
+        # Unified compose tags: acme2certifier/apache2 — legacy: acme2certifier/wsgi —
+        # Hub: grindsa/acme2certifier:X-apache2-wsgi (phase-2 aliases: X-apache2)
         case "${image}" in
+          */"${WEB_SRV}"|*/"${WEB_SRV}":*|*-"${WEB_SRV}"|*-"${WEB_SRV}":*| \
           */"${DB_HANDLER}"|*/"${DB_HANDLER}":*|*-"${DB_HANDLER}"|*-"${DB_HANDLER}":*) ;;
           *)
-            echo "ERROR: image '${image}' does not look like a ${DB_HANDLER} variant" >&2
+            echo "ERROR: image '${image}' does not look like ${WEB_SRV} / ${DB_HANDLER}" >&2
             exit 1
             ;;
         esac
@@ -99,17 +101,14 @@ runs:
         esac
 
         # --- Handler-specific filesystem markers (survive log flushes) ---
+        # Unified images keep both WSGI and Django entry points; mode is runtime.
+        exec_in test -f /var/www/acme2certifier/acme2certifier_wsgi.py
         if [[ "${DB_HANDLER}" == "django" ]]; then
           exec_in test -f /var/www/acme2certifier/volume/settings.py
           exec_in test -d /var/www/acme2certifier/volume/migrations
           exec_in python3 -c "import django"
-          if exec_in test -f /var/www/acme2certifier/acme2certifier_wsgi.py; then
-            echo "ERROR: wsgi entrypoint file present in expected django image" >&2
-            exit 1
-          fi
           echo "Django markers OK (settings.py, migrations/, import django)"
         else
-          exec_in test -f /var/www/acme2certifier/acme2certifier_wsgi.py
           echo "WSGI markers OK (acme2certifier_wsgi.py present)"
         fi
       env:

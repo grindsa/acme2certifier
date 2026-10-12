@@ -122,7 +122,9 @@ runs:
       uses: docker/build-push-action@v7
       with:
         context: image-src
-        file: image-src/examples/Docker/${{ inputs.websrv }}/${{ inputs.dbhandler }}/Dockerfile
+        file: image-src/examples/Docker/${{ inputs.websrv }}/Dockerfile
         platforms: linux/amd64,linux/arm64
         push: true
+        build-args: |
+          ACME_SRV_DB_HANDLER=${{ inputs.dbhandler }}
         tags: ${{ steps.tags.outputs.tags }}

@@ -37,7 +37,8 @@ runs:
         git clone --branch "${VERSION}" --depth 1 \
           https://github.com/grindsa/acme2certifier.git "/tmp/a2c-build-${VERSION}"
         docker build \
-          -f "/tmp/a2c-build-${VERSION}/examples/Docker/${WEB_SRV}/${DB_HANDLER}/Dockerfile" \
+          -f "/tmp/a2c-build-${VERSION}/examples/Docker/${WEB_SRV}/Dockerfile" \
+          --build-arg "ACME_SRV_DB_HANDLER=${DB_HANDLER}" \
           -t "${IMAGE}" \
           "/tmp/a2c-build-${VERSION}"
         echo "Built ${IMAGE}"

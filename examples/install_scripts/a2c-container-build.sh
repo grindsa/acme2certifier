@@ -245,7 +245,7 @@ docker_login() {
 }
 
 build_image() {
-  local dockerfile="examples/Docker/${WEBSRV}/${MODE}/Dockerfile"
+  local dockerfile="examples/Docker/${WEBSRV}/Dockerfile"
   local full_image="${IMAGE_REPO}:${IMAGE_TAG}"
   local -a build_cmd
 
@@ -256,6 +256,7 @@ build_image() {
     --platform "${PLATFORMS}"
     -t "${full_image}"
     -f "${dockerfile}"
+    --build-arg "ACME_SRV_DB_HANDLER=${MODE}"
     .
   )
   if [[ "${NO_CACHE}" -eq 1 ]]; then

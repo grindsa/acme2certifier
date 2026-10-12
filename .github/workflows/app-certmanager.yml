@@ -134,7 +134,7 @@ jobs:
 
       - name: "Import container to k8s"
         run: |
-          docker save acme2certifier/$DB_HANDLER > a2c.tar
+          docker save "acme2certifier/${WEB_SRV}" > a2c.tar
           sudo microk8s ctr image import a2c.tar
           sudo microk8s ctr images ls | grep -i acme2certifier
         env:
@@ -161,10 +161,12 @@ jobs:
 
       - name: "Deploy a2c pod"
         run: |
-          sudo sed -i "s/grindsa\/acme2certifier\:devel/docker.io\/acme2certifier\/$DB_HANDLER:latest/g" data/k8s-acme-srv.yml
+          sudo sed -i "s/grindsa\/acme2certifier\:devel/docker.io\/acme2certifier\/$WEB_SRV:latest/g" data/k8s-acme-srv.yml
+          sudo sed -i "s/value: \"DB_HANDLER\"/value: \"${DB_HANDLER}\"/" data/k8s-acme-srv.yml
           sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
           sudo microk8s.kubectl get pods -n cert-manager-acme
         env:
+          WEB_SRV: ${{ matrix.websrv }}
           DB_HANDLER: ${{ matrix.dbhandler }}
 
       - name: "Sleep for 10s"
@@ -316,7 +318,7 @@ jobs:
 
       - name: "Import container to k8s"
         run: |
-          docker save acme2certifier/$DB_HANDLER > a2c.tar
+          docker save "acme2certifier/${WEB_SRV}" > a2c.tar
           sudo microk8s ctr image import a2c.tar
           sudo microk8s ctr images ls | grep -i acme2certifier
         env:
@@ -343,10 +345,12 @@ jobs:
 
       - name: "Deploy a2c pod"
         run: |
-          sudo sed -i "s/grindsa\/acme2certifier\:devel/docker.io\/acme2certifier\/$DB_HANDLER:latest/g" data/k8s-acme-srv.yml
+          sudo sed -i "s/grindsa\/acme2certifier\:devel/docker.io\/acme2certifier\/$WEB_SRV:latest/g" data/k8s-acme-srv.yml
+          sudo sed -i "s/value: \"DB_HANDLER\"/value: \"${DB_HANDLER}\"/" data/k8s-acme-srv.yml
           sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
           sudo microk8s.kubectl get pods -n cert-manager-acme
         env:
+          WEB_SRV: ${{ matrix.websrv }}
           DB_HANDLER: ${{ matrix.dbhandler }}
 
 
@@ -595,7 +599,7 @@ jobs:
 
       - name: "Import container to k8s"
         run: |
-          docker save acme2certifier/$DB_HANDLER > a2c.tar
+          docker save "acme2certifier/${WEB_SRV}" > a2c.tar
           sudo microk8s ctr image import a2c.tar
           sudo microk8s ctr images ls | grep -i acme2certifier
         env:
@@ -626,10 +630,12 @@ jobs:
 
       - name: "Deploy a2c pod"
         run: |
-          sudo sed -i "s/grindsa\/acme2certifier\:devel/docker.io\/acme2certifier\/$DB_HANDLER:latest/g" data/k8s-acme-srv.yml
+          sudo sed -i "s/grindsa\/acme2certifier\:devel/docker.io\/acme2certifier\/$WEB_SRV:latest/g" data/k8s-acme-srv.yml
+          sudo sed -i "s/value: \"DB_HANDLER\"/value: \"${DB_HANDLER}\"/" data/k8s-acme-srv.yml
           sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
           sudo microk8s.kubectl get pods -n cert-manager-acme
         env:
+          WEB_SRV: ${{ matrix.websrv }}
           DB_HANDLER: ${{ matrix.dbhandler }}
 
       - name: "Sleep for 10s"
