@@ -140,9 +140,9 @@ ______________________________________________________________________
 
 ## Docker (Django)
 
-Same as WSGI, but:
+Same as WSGI, but on the same webserver image (`apache2` / `nginx`, or legacy `*-django`):
 
-1. Use a `*-django` image tag (do not switch WSGI↔Django via cfg alone). Keep the volume, including `migrations/` (entrypoint symlinks the package migrations dir to the volume).
+1. Keep the volume, including `migrations/` (entrypoint symlinks the package migrations dir to the volume).
 
 1. Edit `volume/settings.py`:
 
@@ -155,7 +155,7 @@ Same as WSGI, but:
    WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
    ```
 
-1. Set `[DBhandler] handler: django` in `volume/acme_srv.cfg`.
+1. Set `[DBhandler] handler: django` in `volume/acme_srv.cfg` (or `ACME_SRV_DB_HANDLER=django` in compose `.env`). Restart the container so the entrypoint retargets Apache/uWSGI and runs Django bootstrap.
 
 1. After start, ensure migrations ran (entrypoint usually does this). If needed:
 
@@ -168,33 +168,31 @@ Same as WSGI, but:
 
 ### Docker: WSGI vs Django (and rollback)
 
-Image tags encode the web stack (`*-wsgi` vs `*-django`, plus apache2/nginx).
-`[DBhandler] handler:` in `acme_srv.cfg` selects the DB backend but does **not** retarget the baked-in web entry — keep both aligned for now. Background: [Image tag vs handler](install_docker.md#image-tag-vs-dbhandler-handler).
+Webserver image (`apache2` / `nginx`) plus runtime handler selection. Background: [Image tag vs handler](install_docker.md#image-tag-vs-dbhandler-handler).
 
-| You run | Image tag must be | Volume must include |
+| You run | Image | Volume must include |
 | --- | --- | --- |
-| WSGI | `*-wsgi` | `acme_srv.cfg`, DB, CA material |
-| Django | `*-django` | above + `settings.py`, `migrations/` |
+| WSGI | `apache2` / `nginx` (default wsgi) | `acme_srv.cfg`, DB, CA material |
+| Django | same image; `handler: django` or `ACME_SRV_DB_HANDLER=django` | above + `settings.py`, `migrations/` |
 
-**Wrong tag pulled (e.g. `*-django` on a WSGI volume):**
+Legacy Hub tags `*-wsgi` / `*-django` still work (same image, baked default via build-arg); prefer the webserver tag + cfg/env.
+
+**Wrong handler on a volume (e.g. django mode on a WSGI-only volume):**
 
 1. Do **not** run `docker compose down -v` (destroys the volume).
 
-1. Revert `docker-compose.yml` (or `.env`) to the previous image tag.
-
-1. If you already edited `volume/acme_srv.cfg` or `volume/settings.py`, restore from backup — or set `[DBhandler] handler:` back to match the image you roll back to.
+1. Set `[DBhandler] handler:` / `ACME_SRV_DB_HANDLER` back to match the volume (or restore cfg from backup).
 
 1. Recreate the container:
 
    ```bash
-   docker compose pull
    docker compose up -d --force-recreate
    curl -sS http://127.0.0.1:<host-port>/directory
    ```
 
 1. Check logs: `docker compose logs --tail=50 <service>`.
 
-**Intentional WSGI → Django (or reverse):** treat as a migration, not a tag swap. Follow [Migrate WSGI to Django](migrate_wsgi_to_django.md) for the full export/import/check flow, then apply Docker-specific stack alignment from [Docker (Django)](#docker-django) and [Docker (WSGI)](#docker-wsgi).
+**Intentional WSGI → Django (or reverse):** treat as a migration, not an env flip alone. Follow [Migrate WSGI to Django](migrate_wsgi_to_django.md) for the full export/import/check flow, then apply Docker-specific stack alignment from [Docker (Django)](#docker-django) and [Docker (WSGI)](#docker-wsgi).
 
 ______________________________________________________________________
 

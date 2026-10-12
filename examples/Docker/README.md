@@ -26,20 +26,20 @@ The **data folder path** can be modified in [`docker-compose.yml`](https://githu
 
 ## Database handler selection
 
-Images ship with a baked default:
+Compose builds one image per webserver (`apache2` / `nginx`). Both WSGI and Django stacks are in-image; the entrypoint retargets Apache site conf or uWSGI module and runs the matching bootstrap.
 
-| Image tag / `CONTEXT` | `ACME_SRV_DB_HANDLER` |
+| Setting | `ACME_SRV_DB_HANDLER` |
 | --- | --- |
-| `*-wsgi` | `wsgi` |
-| `*-django` | `django` |
+| compose `.env` / `docker run -e` (default) | `wsgi` |
+| Hub `*-django` tag (build-arg) | `django` (baked default) |
 
 Precedence matches the application:
 
 1. `[DBhandler] handler_module` or `handler` in `acme_srv.cfg` (wins)
-1. `ACME_SRV_DB_HANDLER` (image default, or override with `docker run -e`)
+1. `ACME_SRV_DB_HANDLER` (compose/env, or image default)
 1. default `wsgi`
 
-You can switch the **DB backend** via cfg without rebuilding the image. That does **not** retarget the web stack: Apache/nginx config and the WSGI/Django app entry stay image-specific. Use a `django` image for a full Django deployment (settings, migrations, Django app entry).
+Switching handlers needs a **container restart**. WSGI → Django data still requires a real migration; see [Migrate WSGI to Django](../../docs/migrate_wsgi_to_django.md).
 
 ## Ports
 
@@ -73,17 +73,15 @@ ports:
 
 The `.env` file allows customization, including:
 
-- **Branch Selection:** `master` or `devel`
-- **Context:** `wsgi` or `django` (selects image variant and baked `ACME_SRV_DB_HANDLER`)
-- **Web Server:** `apache2` or `nginx`
+- **Web Server:** `apache2` or `nginx` (selects Dockerfile / image name)
+- **DB handler:** `ACME_SRV_DB_HANDLER=wsgi` or `django` (runtime; cfg wins if set)
 
 Example `.env` file:
 
 ```ini
 COMPOSE_PROJECT_NAME=acme2certifier
-BRANCH=master
-CONTEXT=wsgi
 WEBSERVER=apache2
+ACME_SRV_DB_HANDLER=wsgi
 ```
 
 ______________________________________________________________________
@@ -184,10 +182,10 @@ ______________________________________________________________________
 docker-compose up -d
 ```
 
-If you modify `.env`, rebuild the image:
+If you change `WEBSERVER`, rebuild. If you only change `ACME_SRV_DB_HANDLER`, recreate/restart:
 
 ```bash
-docker-compose build --no-cache
+docker compose up -d --force-recreate
 ```
 
 During startup, the **entry-point script** checks for missing configuration files in `data/`:
@@ -195,7 +193,7 @@ During startup, the **entry-point script** checks for missing configuration file
 - **Configuration file:** [`acme_srv.cfg`](../../examples/acme_srv.cfg)
 - **Stub handler:** [`skeleton_ca_handler.py`](../../acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py)
 
-For **Django images** (when the resolved DB handler is `django`), a **project-specific `settings.py`** and migrations are also created/linked under `data/`. The entrypoint does **not** write `handler: django` into `acme_srv.cfg`; the image default comes from `ACME_SRV_DB_HANDLER`.
+When the resolved DB handler is `django`, a **project-specific `settings.py`** and migrations are also created/linked under `data/`. The entrypoint does **not** write `handler: django` into `acme_srv.cfg`; set it in cfg or via `ACME_SRV_DB_HANDLER`.
 
 When the MariaDB or PostgreSQL server requires TLS, put the server CA on the volume as `db-ca.pem` and set `DATABASES['OPTIONS']` as described in [external database support](../../docs/external_database_support.md#encrypting-the-django-database-connection-tls).
 
@@ -303,8 +301,13 @@ ______________________________________________________________________
 You can run the **container manually** with:
 
 ```bash
-docker run -d -p 22280:80 -p 22443:443 --rm --name=a2c-srv   -v "/home/grindsa/docker/a2c/data":/var/www/acme2certifier/volume/   grindsa/acme2certifier:apache2-wsgi
+docker run -d -p 22280:80 -p 22443:443 --rm --name=a2c-srv \
+  -e ACME_SRV_DB_HANDLER=wsgi \
+  -v "/home/grindsa/docker/a2c/data":/var/www/acme2certifier/volume/ \
+  grindsa/acme2certifier:apache2
 ```
+
+Legacy tags `apache2-wsgi` / `apache2-django` remain available during the transition.
 
 This will:
 
