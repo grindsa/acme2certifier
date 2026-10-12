@@ -45,8 +45,21 @@ fi
 if [[ ! -L /var/www/acme2certifier/acme_srv.cfg ]]
 then
     ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
-    chown www-data /var/www/acme2certifier/volume/acme_srv.cfg
+    chown www-data.www-data /var/www/acme2certifier/volume/acme_srv.cfg
 fi
+
+DB_HANDLER=$(a2c_resolve_db_handler)
+echo "resolved DB handler: ${DB_HANDLER} (cfg > ACME_SRV_DB_HANDLER=${ACME_SRV_DB_HANDLER:-} > wsgi)" >> /proc/1/fd/1
+
+# Retarget uWSGI module for the resolved handler.
+if [[ "$DB_HANDLER" == "django" ]]; then
+    sed -i 's|^module = .*|module = acme2certifier.django_project.wsgi:application|' \
+        /var/www/acme2certifier/acme2certifier.ini
+else
+    sed -i 's|^module = .*|module = acme2certifier_wsgi:application|' \
+        /var/www/acme2certifier/acme2certifier.ini
+fi
+echo "uWSGI module set for ${DB_HANDLER}" >> /proc/1/fd/1
 
 # create symlink for the ca_handler
 if [[ ! -L /var/www/acme2certifier/acme_srv/ca_handler.py ]]
@@ -55,9 +68,6 @@ then
     ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme_srv/ca_handler.py
 fi
 
-DB_HANDLER=$(a2c_resolve_db_handler)
-echo "resolved DB handler: ${DB_HANDLER} (cfg > ACME_SRV_DB_HANDLER=${ACME_SRV_DB_HANDLER:-} > wsgi)" >> /proc/1/fd/1
-
 if [[ "$DB_HANDLER" == "django" ]]; then
     DJANGO_SETTINGS=/usr/lib/python3/dist-packages/acme2certifier/django_project/settings.py
     DJANGO_MIGRATIONS=/usr/lib/python3/dist-packages/acme2certifier/django_app/migrations
@@ -65,10 +75,10 @@ if [[ "$DB_HANDLER" == "django" ]]; then
     # create settings.py if not existing
     if [[ ! -f /var/www/acme2certifier/volume/settings.py ]]
     then
-        echo "no settings.py found! copy settings.py"
+        echo "no settings.py found! copy settings.py" >> /proc/1/fd/1
         egrep -v '(# SECURITY WARNING: keep the secret key used in production secret!|^SECRET_KEY)' /var/www/acme2certifier/examples/django/settings.py > /var/www/acme2certifier/volume/settings.py
         ## generate SECRET_KEY
-        echo "generating SECRET_KEY"
+        echo "generating SECRET_KEY" >> /proc/1/fd/1
         DJANGO_SECRET_KEY=$(a2c-django-secret-keygen)
         cat >>/var/www/acme2certifier/volume/settings.py <<EOF
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -112,10 +122,13 @@ EOF
     a2c-schema-update --mode django
     a2c-manage loaddata status
 else
-    echo "ERROR: [DBhandler] resolves to '${DB_HANDLER}' but this is a Django image." >> /proc/1/fd/1
-    echo "Set handler: django (or handler_module for django_handler) in acme_srv.cfg," >> /proc/1/fd/1
-    echo "or use a WSGI image if you intend to run the WSGI DB backend." >> /proc/1/fd/1
-    exit 1
+    # create symlink for the acme_srv.db
+    if [[ ! -L /var/www/acme2certifier/acme_srv.db ]]
+    then
+        ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv.db
+    fi
+
+    a2c-schema-update --mode wsgi
 fi
 
 chown -R www-data /var/www/acme2certifier/volume

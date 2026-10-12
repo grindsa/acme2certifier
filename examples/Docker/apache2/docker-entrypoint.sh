@@ -10,13 +10,6 @@ then
     cp /var/www/acme2certifier/examples/acme_srv.cfg /var/www/acme2certifier/volume/
 fi
 
-# enable tls if acme2certifier.pm exists on volume
-if [[ -f /var/www/acme2certifier/volume/acme2certifier.pem ]]
-then
-    echo "found acme2certifier.pem! enable TLS" >> /proc/1/fd/1
-    cp  /var/www/acme2certifier/share/apache2/apache_django_ssl.conf /etc/apache2/sites-enabled/acme2certifier_ssl.conf
-fi
-
 # create ca_handler if:
 # - ca_handler.py does not exists in volume AND
 # - no entry handler_file: exists in acme_srv.cfg
@@ -42,15 +35,26 @@ then
     chown www-data.www-data /var/www/acme2certifier/volume/acme_srv.cfg
 fi
 
+DB_HANDLER=$(a2c_resolve_db_handler)
+echo "resolved DB handler: ${DB_HANDLER} (cfg > ACME_SRV_DB_HANDLER=${ACME_SRV_DB_HANDLER:-} > wsgi)" >> /proc/1/fd/1
+
+# Retarget Apache site (and SSL twin) for the resolved handler.
+cp "/var/www/acme2certifier/share/apache2/apache_${DB_HANDLER}.conf" \
+    /etc/apache2/sites-enabled/acme2certifier.conf
+rm -f /etc/apache2/sites-enabled/acme2certifier_ssl.conf
+if [[ -f /var/www/acme2certifier/volume/acme2certifier.pem ]]
+then
+    echo "found acme2certifier.pem! enable TLS (${DB_HANDLER})" >> /proc/1/fd/1
+    cp "/var/www/acme2certifier/share/apache2/apache_${DB_HANDLER}_ssl.conf" \
+        /etc/apache2/sites-enabled/acme2certifier_ssl.conf
+fi
+
 # create symlink for the ca_handler
 if [[ ! -L /var/www/acme2certifier/acme_srv/ca_handler.py ]]
 then
     mkdir -p /var/www/acme2certifier/acme_srv
     ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme_srv/ca_handler.py
 fi
-
-DB_HANDLER=$(a2c_resolve_db_handler)
-echo "resolved DB handler: ${DB_HANDLER} (cfg > ACME_SRV_DB_HANDLER=${ACME_SRV_DB_HANDLER:-} > wsgi)" >> /proc/1/fd/1
 
 if [[ "$DB_HANDLER" == "django" ]]; then
     DJANGO_SETTINGS=/usr/lib/python3/dist-packages/acme2certifier/django_project/settings.py
@@ -106,10 +110,13 @@ EOF
     a2c-schema-update --mode django
     a2c-manage loaddata status
 else
-    echo "ERROR: [DBhandler] resolves to '${DB_HANDLER}' but this is a Django image." >> /proc/1/fd/1
-    echo "Set handler: django (or handler_module for django_handler) in acme_srv.cfg," >> /proc/1/fd/1
-    echo "or use a WSGI image if you intend to run the WSGI DB backend." >> /proc/1/fd/1
-    exit 1
+    # create symlink for the acme_srv.db
+    if [[ ! -L /var/www/acme2certifier/acme_srv.db ]]
+    then
+        ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv.db
+    fi
+
+    a2c-schema-update --mode wsgi
 fi
 
 chown -R www-data /var/www/acme2certifier/volume

@@ -4,15 +4,17 @@ LABEL maintainer="grindelsack@gmail.com"
 ENV APACHE_RUN_USER=www-data
 ENV APACHE_RUN_GROUP=www-data
 ENV APACHE_LOG_DIR=/var/log/apache2
-ENV ACME_SRV_DB_HANDLER=wsgi
+# Default preserves Hub latest / *-wsgi behavior; override via cfg, -e, or --build-arg.
+ARG ACME_SRV_DB_HANDLER=wsgi
+ENV ACME_SRV_DB_HANDLER=${ACME_SRV_DB_HANDLER}
 ENV ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier
 
 COPY ./*.deb /tmp/
-COPY ./examples/Docker/apache2/wsgi/docker-entrypoint.sh /docker-entrypoint.sh
+COPY ./examples/Docker/apache2/docker-entrypoint.sh /docker-entrypoint.sh
 COPY ./examples/Docker/resolve_db_handler.sh /resolve_db_handler.sh
 
 RUN apt-get update  && \
-    DEBIAN_FRONTEND="noninteractive" apt-get -y install --no-install-recommends tzdata && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends -y tzdata && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
     apache2 \
     apache2-data \
@@ -21,8 +23,15 @@ RUN apt-get update  && \
     libapache2-mod-wsgi-py3 \
     libgssapi-krb5-2 \
     libkrb5-3 \
+    python3-django \
+    python3-django-environ \
     python3-gssapi \
     python3-impacket \
+    python3-mssql-django \
+    python3-mysqldb \
+    python3-psycopg2 \
+    python3-pymysql \
+    python3-pyodbc \
     python3-yaml  && \
     rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
     rm -rf /usr/share/doc/python3-impacke/examples && \
@@ -32,14 +41,20 @@ RUN apt-get update  && \
       /tmp/python3-requests-gssapi_*.deb \
       /tmp/python3-requests-pkcs12_*.deb && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
+    curl https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb --output /tmp/packages-microsoft-prod.deb && \
+    dpkg -i /tmp/packages-microsoft-prod.deb && \
+    rm /tmp/packages-microsoft-prod.deb && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
     apt-get clean &&  \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
-    cp /var/www/acme2certifier/share/apache2/apache_wsgi.conf /etc/apache2/sites-enabled/acme2certifier.conf  && \
+    # Site conf is applied at runtime from share/apache2/apache_{wsgi|django}.conf
+    rm -f /etc/apache2/sites-enabled/acme2certifier.conf && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
-    rm -rf /var/www/acme2certifier/examples/django && \
     rm -rf /var/www/acme2certifier/share/nginx && \
+    rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     rm -f /var/www/acme2certifier/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
     chown -R www-data:www-data /var/www/acme2certifier/ && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
@@ -48,6 +63,7 @@ RUN apt-get update  && \
     a2enmod ssl && \
     rm /etc/apache2/sites-enabled/000-default.conf && \
     chmod a+rx /docker-entrypoint.sh /resolve_db_handler.sh  # NOSONAR
+
 WORKDIR /var/www/acme2certifier/
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

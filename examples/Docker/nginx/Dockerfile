@@ -1,11 +1,13 @@
 FROM ubuntu:26.04
 LABEL maintainer="grindelsack@gmail.com"
 
-ENV ACME_SRV_DB_HANDLER=wsgi
+# Default preserves Hub latest / *-wsgi behavior; override via cfg, -e, or --build-arg.
+ARG ACME_SRV_DB_HANDLER=wsgi
+ENV ACME_SRV_DB_HANDLER=${ACME_SRV_DB_HANDLER}
 ENV ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier
 
 COPY ./*.deb /tmp/
-COPY ./examples/Docker/nginx/wsgi/docker-entrypoint.sh /docker-entrypoint.sh
+COPY ./examples/Docker/nginx/docker-entrypoint.sh /docker-entrypoint.sh
 COPY ./examples/Docker/resolve_db_handler.sh /resolve_db_handler.sh
 # Not shipped in the .deb (debian/rules removes it for systemd installs).
 COPY ./acme2certifier/share/nginx/supervisord.conf /etc/supervisord.conf
@@ -18,20 +20,32 @@ RUN apt-get update  && \
     libgssapi-krb5-2 \
     libkrb5-3 \
     nginx \
+    python3-django \
+    python3-django-environ \
     python3-gssapi \
     python3-impacket \
+    python3-mssql-django \
+    python3-mysqldb \
+    python3-psycopg2 \
+    python3-pymysql \
+    python3-pyodbc \
     python3-yaml \
     supervisor \
     uwsgi \
-    uwsgi-plugin-python3 && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
-      /tmp/python3-requests-gssapi_*.deb \
-      /tmp/python3-requests-pkcs12_*.deb && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
+    uwsgi-plugin-python3  && \
     rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
     rm -rf /usr/share/doc/python3-impacke/examples && \
     rm -rf /usr/share/impacket/script* && \
     rm -rf /usr/bin/impacket-* && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
+      /tmp/python3-requests-gssapi_*.deb \
+      /tmp/python3-requests-pkcs12_*.deb && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
+    curl https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb --output /tmp/packages-microsoft-prod.deb && \
+    dpkg -i /tmp/packages-microsoft-prod.deb && \
+    rm /tmp/packages-microsoft-prod.deb && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
     apt-get clean &&  \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
@@ -40,9 +54,10 @@ RUN apt-get update  && \
     chown www-data:www-data /run/uwsgi && \
     cp /var/www/acme2certifier/share/nginx/acme2certifier.ini /var/www/acme2certifier && \
     cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \
-    rm -f /var/www/acme2certifier/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
-    chown -R www-data /var/www/acme2certifier && \
     ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf && \
+    rm -f /var/www/acme2certifier/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
+    chown -R www-data:www-data /var/www/acme2certifier && \
+    # uWSGI module is retargeted at runtime (wsgi vs django).
     sed -i "s/nginx/www-data/g" /var/www/acme2certifier/acme2certifier.ini && \
     ln -sf /dev/stdout /var/log/nginx/access.log && ln -sf /dev/stderr /var/log/nginx/error.log && \
     sed -i "s/\/etc\/nginx/\/var\/www\/acme2certifier\/volume/g" /var/www/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf && \
@@ -51,15 +66,13 @@ RUN apt-get update  && \
     rm /etc/nginx/sites-enabled/default && \
     rm -f /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
-    rm -rf /var/www/acme2certifier/examples/django && \
     rm -rf /var/www/acme2certifier/share/apache2 && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     chmod a+rx /docker-entrypoint.sh /resolve_db_handler.sh  # NOSONAR
 
-WORKDIR /var/www/acme2certifier
+WORKDIR /var/www/acme2certifier/
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["/usr/bin/supervisord"]
-# CMD ["/bin/bash"]
 
 EXPOSE 80 443
