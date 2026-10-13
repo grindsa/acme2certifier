@@ -76,14 +76,31 @@ EOF
         sed -i "s/ALLOWED_HOSTS = \['127.0.0.1'\]/ALLOWED_HOSTS = \['127.0.0.1','*'\]/g" /var/www/acme2certifier/volume/settings.py
     fi
 
+    DJANGO_MIGRATIONS_IMAGE="${DJANGO_MIGRATIONS}.image"
+
     # Migrations ship in the image; do not copy/symlink onto the volume.
     if [[ -d /var/www/acme2certifier/volume/migrations ]]
     then
         echo "WARNING: volume/migrations is deprecated and ignored; migration files come from the image. Safe to delete volume/migrations after a successful upgrade." >> /proc/1/fd/1
     fi
+
+    # Legacy: package migrations dir was replaced with a symlink to the volume (overlay whiteout).
     if [[ -L "$DJANGO_MIGRATIONS" ]]
     then
-        echo "WARNING: package migrations path is a symlink to the volume (legacy). Recreate the container so in-image migrations are used (e.g. docker compose up -d --force-recreate)." >> /proc/1/fd/1
+        echo "removing legacy package→volume migrations symlink" >> /proc/1/fd/1
+        rm -f "$DJANGO_MIGRATIONS"
+    fi
+    if [[ ! -d "$DJANGO_MIGRATIONS" ]] || [[ ! -f "$DJANGO_MIGRATIONS/__init__.py" ]]
+    then
+        if [[ -d "$DJANGO_MIGRATIONS_IMAGE" ]]
+        then
+            echo "restoring in-image Django migrations from migrations.image" >> /proc/1/fd/1
+            rm -rf "$DJANGO_MIGRATIONS"
+            cp -a "$DJANGO_MIGRATIONS_IMAGE" "$DJANGO_MIGRATIONS"
+        else
+            echo "ERROR: in-image Django migrations missing. Recreate the container (e.g. docker compose up -d --force-recreate)." >> /proc/1/fd/1
+            exit 1
+        fi
     fi
 
     # create a symlink for settings.py
@@ -101,8 +118,16 @@ EOF
     fi
 
     echo "apply migrations"  >> /proc/1/fd/1
-    a2c-schema-update --mode django
-    a2c-manage loaddata status
+    if ! a2c-schema-update --mode django
+    then
+        echo "ERROR: Django schema update failed. Backup the DB. Inventory housekeeping.dbversion and django_migrations against the image migration chain (see docs/upgrading.md — Docker Django). Do not use migrate --fake unless following that repair guide. volume/migrations is ignored." >> /proc/1/fd/1
+        exit 1
+    fi
+    if ! a2c-manage loaddata status
+    then
+        echo "ERROR: loaddata status failed after schema update." >> /proc/1/fd/1
+        exit 1
+    fi
 else
     # create symlink for the acme_srv.db
     if [[ ! -L /var/www/acme2certifier/acme_srv.db ]]

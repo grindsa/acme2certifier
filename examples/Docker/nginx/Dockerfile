@@ -41,6 +41,9 @@ RUN apt-get update  && \
       /tmp/python3-requests-gssapi_*.deb \
       /tmp/python3-requests-pkcs12_*.deb && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
+    # Pristine copy for entrypoint restore if a legacy volume symlink/whiteout hid package migrations
+    cp -a /usr/lib/python3/dist-packages/acme2certifier/django_app/migrations \
+        /usr/lib/python3/dist-packages/acme2certifier/django_app/migrations.image && \
     curl https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb --output /tmp/packages-microsoft-prod.deb && \
     dpkg -i /tmp/packages-microsoft-prod.deb && \
     rm /tmp/packages-microsoft-prod.deb && \
