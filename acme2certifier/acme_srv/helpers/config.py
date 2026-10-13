@@ -766,6 +766,27 @@ def config_allowed_iplist_load(logger: logging.Logger, config_dic: Dict[str, str
     return allowed_iplist
 
 
+def config_shortname_denylist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """Load Order.shortname_denylist JSON list from configuration."""
+    logger.debug("Helper.config_shortname_denylist_load()")
+
+    shortname_denylist = []
+
+    if "Order" in config_dic and "shortname_denylist" in config_dic["Order"]:
+        try:
+            shortname_denylist = json.loads(config_dic["Order"]["shortname_denylist"])
+        except Exception as err_:
+            logger.warning(
+                "Failed to load shortname_denylist from configuration: %s", err_
+            )
+            shortname_denylist = PARSING_ERR_MSG
+
+    logger.debug(
+        "Helper.config_shortname_denylist_load() ended with: %s", shortname_denylist
+    )
+    return shortname_denylist
+
+
 def config_async_mode_load(
     logger: logging.Logger, config_dic: Dict[str, str], db_type: str
 ):
