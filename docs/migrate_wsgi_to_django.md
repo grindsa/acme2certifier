@@ -188,11 +188,11 @@ Typical root: `/opt/acme2certifier`.
 
 ## Docker Migration
 
-Use matching web stack tags; do not switch only `handler:` in cfg.
+Use the same webserver image (`apache2` / `nginx`). Switching handlers is a cfg/env + data migration, not a retag. Legacy Hub `*-django` tags remain available for pull-and-run defaults.
 
 1. Stop/quiet writers and back up the full mounted volume.
 
-1. Export from current `*-wsgi` runtime:
+1. Export from the current WSGI runtime:
 
    ```bash
    docker compose exec <service> a2c-wsgi2django export \
@@ -200,17 +200,15 @@ Use matching web stack tags; do not switch only `handler:` in cfg.
      --out /var/www/acme2certifier/volume/dump.json
    ```
 
-1. Update image tag from `*-wsgi` to matching `*-django` variant.
-
 1. In volume config:
 
    - set `volume/acme_srv.cfg` to `[DBhandler] handler: django`
    - ensure `volume/settings.py` references `acme2certifier.django_app.apps.AcmeSrvConfig`
+   - optionally set compose `.env` `ACME_SRV_DB_HANDLER=django` (cfg wins when both are set)
 
-1. Recreate container and run Django schema setup if needed:
+1. Recreate the container so the entrypoint retargets Apache/uWSGI and bootstraps Django:
 
    ```bash
-   docker compose pull
    docker compose up -d --force-recreate
    docker compose exec <service> a2c-manage migrate
    docker compose exec <service> a2c-manage loaddata status
@@ -251,7 +249,7 @@ If migration fails:
 1. Restore backed-up `acme_srv.cfg`, database, and runtime material.
 1. Restore previous WSGI deployment flavor:
    - pip/deb/rpm: WSGI web entry + `[DBhandler] handler: wsgi`
-   - docker: previous `*-wsgi` image tag plus original volume content
+   - docker: same webserver image with `[DBhandler] handler: wsgi` (or `ACME_SRV_DB_HANDLER=wsgi`) plus original volume content
 1. Start services and verify `/directory`.
 
 ## Troubleshooting
@@ -269,4 +267,4 @@ If migration fails:
 - `ImproperlyConfigured: ACME2CERTIFIER_SECRET_KEY`:
   - export `ACME2CERTIFIER_SECRET_KEY` (e.g. via `a2c-django-secret-keygen`) and `ACME2CERTIFIER_ALLOWED_HOSTS` before `a2c-manage`; or run `a2c-schema-update --mode django` / use install-script persistence — see [Prerequisites](#prerequisites) and [Django deployment environment variables](django_deploy_env.md).
 - Docker runs wrong backend after migration:
-  - ensure both image tag (`*-django`) and cfg (`handler: django`) match.
+  - ensure cfg (`handler: django`) or `ACME_SRV_DB_HANDLER=django`, then recreate/restart the container so the entrypoint retargets the web stack.

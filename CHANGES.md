@@ -10,6 +10,7 @@ and pick the appropriate release branch.
 
 **New Features**:
 
+- Unified Docker images per webserver (`apache2` / `nginx`): WSGI and Django in one image; handler selected at runtime via `[DBhandler]` / `ACME_SRV_DB_HANDLER` (entrypoint retargets Apache/uWSGI). Hub primary tags are `apache2` / `nginx` (`latest` → `apache2`); legacy `*-wsgi` / `*-django` tags remain for compatibility. See [Containerized installation](docs/install_docker.md).
 - [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
 
 **Bug Fixes and Improvements**:
