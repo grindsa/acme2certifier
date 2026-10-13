@@ -6,6 +6,14 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.47
+
+**New Features**:
+
+- [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
+
+**Bug Fixes and Improvements**:
+
 ## Changes in 0.46.2
 
 **Bug Fixes and Improvements**:
@@ -17,10 +25,6 @@ and pick the appropriate release branch.
 **Bug Fixes and Improvements**:
 
 - `a2c-schema-update`: unified DB schema updater for WSGI and Django (replaces manual choice between `a2c-db-update` and `a2c-django-update`)
-
-**New Features**:
-
-- [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
 
 ## Changes in 0.46
 
