@@ -215,6 +215,40 @@ def shortname_covered_by_siblings(
     return False
 
 
+def _san_email_domains_normalize(san_list: List[str]) -> List[str]:
+    """Replace email SANs with their domain part for allowlist checks."""
+    normalized: List[str] = []
+    for san in san_list:
+        if "@" in san:
+            _email_name, email_domain = san.split("@", 1)
+            normalized.append(email_domain)
+        else:
+            normalized.append(san)
+    return normalized
+
+
+def _san_allowed_by_domainlist(
+    logger: logging.Logger,
+    san: str,
+    san_list: List[str],
+    allowed_domain_list: List[str],
+    allow_shortname_from_fqdn: bool,
+    shortname_denylist: List[str],
+) -> bool:
+    """True if SAN is whitelisted or covered by the shortname-from-FQDN rule."""
+    if is_domain_whitelisted(logger, san, allowed_domain_list):
+        return True
+    if not allow_shortname_from_fqdn:
+        return False
+    if not is_single_label_name(logger, san):
+        return False
+    if is_shortname_denied(logger, san, shortname_denylist):
+        return False
+    return shortname_covered_by_siblings(
+        logger, san, san_list, allowed_domain_list
+    )
+
+
 def allowed_domainlist_check(
     logger: logging.Logger,
     csr,
@@ -228,45 +262,34 @@ def allowed_domainlist_check(
         allow_shortname_from_fqdn,
     )
 
-    error = None
-    if allowed_domain_list:
-        san_list, check_list = sancheck_lists_create(logger, csr)
+    if not allowed_domain_list:
+        return None
 
-        # clean email addresses
-        tmp_san_list = []
-        for san in san_list:
-            if "@" in san:
-                _email_name, email_domain = san.split("@", 1)
-                tmp_san_list.append(email_domain)
-            else:
-                tmp_san_list.append(san)
-        san_list = tmp_san_list
-
-        denylist = shortname_denylist or []
-        invalid_domains = []
-
-        # go over the san list and check each entry
-        for san in san_list:
-            if is_domain_whitelisted(logger, san, allowed_domain_list):
-                continue
-            if (
-                allow_shortname_from_fqdn
-                and is_single_label_name(logger, san)
-                and not is_shortname_denied(logger, san, denylist)
-                and shortname_covered_by_siblings(
-                    logger, san, san_list, allowed_domain_list
-                )
-            ):
-                continue
-            invalid_domains.append(san)
-            error = "Either CN or SANs are not allowed by configuration"
-
-        if check_list:
-            error = f"SAN list parsing failed {check_list}"
-
-        logger.debug(
-            f'Helper.allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}'
+    san_list, check_list = sancheck_lists_create(logger, csr)
+    san_list = _san_email_domains_normalize(san_list)
+    denylist = shortname_denylist or []
+    invalid_domains = [
+        san
+        for san in san_list
+        if not _san_allowed_by_domainlist(
+            logger,
+            san,
+            san_list,
+            allowed_domain_list,
+            allow_shortname_from_fqdn,
+            denylist,
         )
+    ]
+
+    error = None
+    if invalid_domains:
+        error = "Either CN or SANs are not allowed by configuration"
+    if check_list:
+        error = f"SAN list parsing failed {check_list}"
+
+    logger.debug(
+        f'Helper.allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}'
+    )
     return error
 
 
