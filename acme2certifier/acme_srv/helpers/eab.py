@@ -310,6 +310,15 @@ def _eab_profile_entry_check(
         return error
     if key == "subject":
         return eab_profile_subject_check(logger, csr, value)
+    if isinstance(value, bool):
+        if hasattr(cahandler, key):
+            logger.debug(
+                "Helper.eab_profile_entry_check(): setting attribute: %s to %s",
+                key,
+                value,
+            )
+            setattr(cahandler, key, value)
+        return None
     if isinstance(value, str):
         eab_profile_string_check(logger, cahandler, key, value)
         return None
@@ -377,7 +386,7 @@ def eab_profile_check(
     return result
 
 
-def _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value):
+def _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value, cahandler=None):
     """Validate CSR against an EAB allowed_domainlist profile value."""
     if "allowed_domains_check" in dir(eab_handler):
         logger.info("Execute allowed_domains_check() from eab handler")
@@ -385,7 +394,15 @@ def _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value):
     logger.debug(
         "Helper.eab_profile_list_check(): execute default allowed_domainlist_check()"
     )
-    return allowed_domainlist_check(logger, csr, value)
+    return allowed_domainlist_check(
+        logger,
+        csr,
+        value,
+        allow_shortname_from_fqdn=bool(
+            getattr(cahandler, "allow_shortname_from_fqdn", False)
+        ),
+        shortname_denylist=getattr(cahandler, "shortname_denylist", None) or [],
+    )
 
 
 def _eab_profile_list_apply_attr(logger, cahandler, csr, key, value):
@@ -421,7 +438,22 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
 
     result = None
     if key == "allowed_domainlist":
-        result = _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value)
+        result = _eab_profile_list_allowed_domainlist(
+            logger, eab_handler, csr, value, cahandler
+        )
+    elif key == "shortname_denylist" and hasattr(cahandler, key):
+        if isinstance(value, list):
+            logger.debug(
+                "Helper.eab_profile_list_check(): setting attribute: %s to %s",
+                key,
+                value,
+            )
+            setattr(cahandler, key, value)
+        else:
+            logger.warning(
+                "EAP profile list checking: shortname_denylist must be a list, got %s",
+                type(value).__name__,
+            )
     elif hasattr(cahandler, key):
         result = _eab_profile_list_apply_attr(logger, cahandler, csr, key, value)
     else:
