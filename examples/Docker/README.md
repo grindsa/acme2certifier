@@ -193,7 +193,7 @@ During startup, the **entry-point script** checks for missing configuration file
 - **Configuration file:** [`acme_srv.cfg`](../../examples/acme_srv.cfg)
 - **Stub handler:** [`skeleton_ca_handler.py`](../../acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py)
 
-When the resolved DB handler is `django`, a **project-specific `settings.py`** and migrations are also created/linked under `data/`. The entrypoint does **not** write `handler: django` into `acme_srv.cfg`; set it in cfg or via `ACME_SRV_DB_HANDLER`.
+When the resolved DB handler is `django`, a **project-specific `settings.py`** is created/linked under `data/`. Django migration **files** ship in the image (not under `data/migrations`). The entrypoint does **not** write `handler: django` into `acme_srv.cfg`; set it in cfg or via `ACME_SRV_DB_HANDLER`. See [Upgrading — Docker (Django)](../../docs/upgrading.md#docker-django).
 
 When the MariaDB or PostgreSQL server requires TLS, put the server CA on the volume as `db-ca.pem` and set `DATABASES['OPTIONS']` as described in [external database support](../../docs/external_database_support.md#encrypting-the-django-database-connection-tls).
 

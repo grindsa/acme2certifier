@@ -140,9 +140,11 @@ ______________________________________________________________________
 
 ## Docker (Django)
 
-Same as WSGI, but on the same webserver image (`apache2` / `nginx`, or legacy `*-django`):
+Same as WSGI, but on the same webserver image (`apache2` / `nginx`, or legacy `*-django`).
 
-1. Keep the volume, including `migrations/` (entrypoint symlinks the package migrations dir to the volume).
+Migration **files** ship in the image (same as DEB/RPM). Applied state lives in the DB (`django_migrations`). The volume needs `acme_srv.cfg`, `settings.py`, and DB/CA material — **not** `migrations/`.
+
+1. Keep the volume (`acme_srv.cfg`, `settings.py`, DB). Stale `volume/migrations/` from older images is **ignored**; safe to delete after a successful upgrade. Prefer `docker compose up -d --force-recreate` so a legacy package→volume migrations symlink is not left on an old container layer.
 
 1. Edit `volume/settings.py`:
 
@@ -155,7 +157,7 @@ Same as WSGI, but on the same webserver image (`apache2` / `nginx`, or legacy `*
    WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
    ```
 
-1. Set `[DBhandler] handler: django` in `volume/acme_srv.cfg` (or `ACME_SRV_DB_HANDLER=django` in compose `.env`). Restart the container so the entrypoint retargets Apache/uWSGI and runs Django bootstrap.
+1. Set `[DBhandler] handler: django` in `volume/acme_srv.cfg` (or `ACME_SRV_DB_HANDLER=django` in compose `.env`). Recreate the container so the entrypoint retargets Apache/uWSGI and runs Django bootstrap (`a2c-schema-update --mode django`).
 
 1. After start, ensure migrations ran (entrypoint usually does this). If needed:
 
@@ -166,6 +168,27 @@ Same as WSGI, but on the same webserver image (`apache2` / `nginx`, or legacy `*
 
 1. Verify: `curl -sS http://127.0.0.1:<host-port>/directory`
 
+### Docker Django: migration history inventory / repair
+
+`__dbversion__` (housekeeping) and the Django migration graph are separate. Having all current image migrations on an old volume is **not** guaranteed.
+
+| Class | Meaning | Action |
+| --- | --- | --- |
+| A / B | `django_migrations` is a prefix of the image chain (`0001`…`000N`, same names) | Normal start / `a2c-schema-update --mode django` |
+| C | Tables exist but `django_migrations` empty or incomplete | Backup DB; confirm DDL matches image models; then opt-in `a2c-manage migrate --fake-initial` and/or `--fake` for recorded-but-unapplied gaps — **never** auto-faked by the entrypoint |
+| D / E | History names not in the image, or same name with different file content | Backup DB; support playbook — align history or re-bootstrap via supported tools; do not trust `volume/migrations` |
+| F | WSGI DB / mixed path | [Migrate WSGI to Django](migrate_wsgi_to_django.md) |
+
+Inventory (before or after a failed start):
+
+```bash
+docker compose exec <service> a2c-manage showmigrations acme_srv
+# compare applied names to the image tree under
+# /usr/lib/python3/dist-packages/acme2certifier/django_app/migrations/
+```
+
+Also compare `housekeeping.dbversion` to the image `__dbversion__`. If schema update fails, fix history with the table above — do not use `--fake` unless you have confirmed the schema already matches.
+
 ### Docker: WSGI vs Django (and rollback)
 
 Webserver image (`apache2` / `nginx`) plus runtime handler selection. Background: [Image tag vs handler](install_docker.md#image-tag-vs-dbhandler-handler).
@@ -173,7 +196,7 @@ Webserver image (`apache2` / `nginx`) plus runtime handler selection. Background
 | You run | Image | Volume must include |
 | --- | --- | --- |
 | WSGI | `apache2` / `nginx` (default wsgi) | `acme_srv.cfg`, DB, CA material |
-| Django | same image; `handler: django` or `ACME_SRV_DB_HANDLER=django` | above + `settings.py`, `migrations/` |
+| Django | same image; `handler: django` or `ACME_SRV_DB_HANDLER=django` | above + `settings.py` (not `migrations/`) |
 
 Legacy Hub tags `*-wsgi` (same digest as primary) / `*-django` (thin ENV alias) still work; prefer the webserver tag + cfg/env.
 
@@ -229,7 +252,7 @@ Paths: `/var/www/acme2certifier`, config `/var/www/acme2certifier/acme_srv.cfg`.
 
 ## DEB (Django)
 
-1. Backup cfg, DB (includes `django_migrations` history), and `settings.py` (if customized). Migration *files* ship in the package — no separate migrations directory to preserve (unlike Docker).
+1. Backup cfg, DB (includes `django_migrations` history), and `settings.py` (if customized). Migration *files* ship in the package — no separate migrations directory to preserve (same as Docker).
 
 1. Install with Django mode:
 

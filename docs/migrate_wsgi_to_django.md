@@ -205,12 +205,18 @@ Use the same webserver image (`apache2` / `nginx`). Switching handlers is a cfg/
    - set `volume/acme_srv.cfg` to `[DBhandler] handler: django`
    - ensure `volume/settings.py` references `acme2certifier.django_app.apps.AcmeSrvConfig`
    - optionally set compose `.env` `ACME_SRV_DB_HANDLER=django` (cfg wins when both are set)
+   - do **not** rely on `volume/migrations` — migration files come from the image
 
-1. Recreate the container so the entrypoint retargets Apache/uWSGI and bootstraps Django:
+1. Recreate the container so the entrypoint retargets Apache/uWSGI and bootstraps Django (`a2c-schema-update --mode django` + `loaddata status`):
 
    ```bash
    docker compose up -d --force-recreate
-   docker compose exec <service> a2c-manage migrate
+   ```
+
+   If needed manually:
+
+   ```bash
+   docker compose exec <service> a2c-schema-update --mode django
    docker compose exec <service> a2c-manage loaddata status
    ```
 
@@ -268,3 +274,5 @@ If migration fails:
   - export `ACME2CERTIFIER_SECRET_KEY` (e.g. via `a2c-django-secret-keygen`) and `ACME2CERTIFIER_ALLOWED_HOSTS` before `a2c-manage`; or run `a2c-schema-update --mode django` / use install-script persistence — see [Prerequisites](#prerequisites) and [Django deployment environment variables](django_deploy_env.md).
 - Docker runs wrong backend after migration:
   - ensure cfg (`handler: django`) or `ACME_SRV_DB_HANDLER=django`, then recreate/restart the container so the entrypoint retargets the web stack.
+- Docker Django schema update fails after upgrade:
+  - `volume/migrations` is ignored; inventory `django_migrations` vs the image chain — see [Upgrading — Docker (Django)](upgrading.md#docker-django).

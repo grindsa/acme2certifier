@@ -31,3 +31,5 @@ They control different things:
 Precedence: `acme_srv.cfg` → `ACME_SRV_DB_HANDLER` → default `wsgi`.
 
 **Switching handlers** requires a container restart (Apache/uWSGI already loaded). WSGI → Django data migration remains a real migration ([Migrate WSGI to Django](migrate_wsgi_to_django.md)); consolidation only removes the image barrier.
+
+**Django schema files:** migration modules ship in the image/package. The volume needs `settings.py` (and cfg/DB/CA material), not a local `migrations/` tree. Stale `volume/migrations` from older images is ignored — see [Upgrading — Docker (Django)](upgrading.md#docker-django).
