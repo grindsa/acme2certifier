@@ -177,3 +177,58 @@ def test_allowed_domainlist_check_explicit_allowlist_still_works(
         shortname_denylist=["mail"],
     )
     assert not error
+
+
+@patch("acme2certifier.acme_srv.helpers.eab.allowed_domainlist_check")
+def test_eab_profile_list_passes_shortname_settings(mock_chk, logger):
+    """EAB allowed_domainlist check forwards cahandler shortname settings."""
+    from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
+
+    mock_chk.return_value = None
+    cahandler = type(
+        "CA",
+        (),
+        {
+            "allow_shortname_from_fqdn": True,
+            "shortname_denylist": ["mail"],
+        },
+    )()
+    eabhandler = type("EAB", (), {})()
+    eab_profile_list_check(
+        logger, cahandler, eabhandler, "csr", "allowed_domainlist", ["*.intra.net"]
+    )
+    mock_chk.assert_called_once_with(
+        logger,
+        "csr",
+        ["*.intra.net"],
+        allow_shortname_from_fqdn=True,
+        shortname_denylist=["mail"],
+    )
+
+
+def test_eab_profile_list_sets_shortname_denylist(logger):
+    from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
+
+    cahandler = type("CA", (), {"shortname_denylist": []})()
+    eabhandler = type("EAB", (), {})()
+    eab_profile_list_check(
+        logger, cahandler, eabhandler, "csr", "shortname_denylist", ["vpn", "mail"]
+    )
+    assert cahandler.shortname_denylist == ["vpn", "mail"]
+
+
+def test_eab_profile_entry_sets_bool_attr(logger):
+    from acme2certifier.acme_srv.helpers.eab import _eab_profile_entry_check
+
+    cahandler = type("CA", (), {"allow_shortname_from_fqdn": False})()
+    eabhandler = type("EAB", (), {})()
+    result = _eab_profile_entry_check(
+        logger,
+        cahandler,
+        eabhandler,
+        "csr",
+        "allow_shortname_from_fqdn",
+        True,
+    )
+    assert result is None
+    assert cahandler.allow_shortname_from_fqdn is True

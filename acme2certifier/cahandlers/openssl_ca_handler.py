@@ -38,8 +38,12 @@ from acme2certifier.acme_srv.helper import (
     csr_cn_get,
     config_enroll_config_log_load,
     config_option_load,
+    config_shortname_denylist_load,
     enrollment_config_log,
+    is_single_label_name,
+    is_shortname_denied,
 )
+from acme2certifier.acme_srv.helpers.domain_utils import _is_covering_fqdn_sibling
 from acme2certifier.acme_srv.helpers.eab_profile import (
     chk_san_lists_get,
     list_regex_check,
@@ -74,6 +78,8 @@ class CAhandler(object):
         self.save_cert_as_hex = False
         self.allowed_domainlist = []
         self.blocked_domainlist = []
+        self.allow_shortname_from_fqdn = False
+        self.shortname_denylist = []
         self.cn_enforce = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
@@ -452,6 +458,14 @@ class CAhandler(object):
                 )
                 self.allowed_domainlist = [BLOCK_ALL_DOMAIN]
 
+        self.shortname_denylist = config_shortname_denylist_load(
+            self.logger, config_dic
+        )
+        if "Order" in config_dic:
+            self.allow_shortname_from_fqdn = config_dic.getboolean(
+                "Order", "allow_shortname_from_fqdn", fallback=False
+            )
+
         self.logger.debug("CAhandler._config_domainlists_load() ended")
 
     def _config_credentials_load(self, config_dic: Dict[str, str]):
@@ -578,6 +592,40 @@ class CAhandler(object):
         self.logger.debug("CAhandler._cn_add() ended with: %s", enforced_cn)
         return (san_list, enforced_cn)
 
+    def _shortname_allowed_for_san(self, san: str, san_list: List[str]) -> bool:
+        """Allow single-label SAN when covered by an allowed multi-label sibling SAN."""
+        self.logger.debug("CAhandler._shortname_allowed_for_san(%s)", san)
+        if not self.allow_shortname_from_fqdn:
+            self.logger.debug("CAhandler._shortname_allowed_for_san() ended with False")
+            return False
+        if not is_single_label_name(self.logger, san):
+            self.logger.debug("CAhandler._shortname_allowed_for_san() ended with False")
+            return False
+        if is_shortname_denied(self.logger, san, self.shortname_denylist):
+            self.logger.debug(
+                "CAhandler._shortname_allowed_for_san() ended with False (denylist)"
+            )
+            return False
+
+        short = san.lower().strip()
+        for sibling in san_list:
+            if not _is_covering_fqdn_sibling(self.logger, sibling):
+                continue
+            sibling_norm = sibling.lower().strip()
+            if sibling_norm.split(".", 1)[0] != short:
+                continue
+            if self._string_wlbl_check(
+                sibling_norm, self.allowed_domainlist, self.blocked_domainlist
+            ):
+                self.logger.debug(
+                    "CAhandler._shortname_allowed_for_san() ended with True (sibling=%s)",
+                    sibling_norm,
+                )
+                return True
+
+        self.logger.debug("CAhandler._shortname_allowed_for_san() ended with False")
+        return False
+
     def _csr_check(self, csr: str) -> Tuple[bool, str]:
         """check CSR against definied allowed_domainlists"""
         self.logger.debug("CAhandler._csr_check()")
@@ -590,11 +638,12 @@ class CAhandler(object):
 
             # go over the san list and check each entry
             for san in san_list:
-                check_list.append(
-                    self._string_wlbl_check(
-                        san, self.allowed_domainlist, self.blocked_domainlist
-                    )
+                allowed = self._string_wlbl_check(
+                    san, self.allowed_domainlist, self.blocked_domainlist
                 )
+                if not allowed:
+                    allowed = self._shortname_allowed_for_san(san, san_list)
+                check_list.append(allowed)
 
             if check_list:
                 # cover a cornercase with empty checklist (no san, no cn)

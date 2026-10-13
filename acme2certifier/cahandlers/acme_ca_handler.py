@@ -32,6 +32,7 @@ from acme2certifier.acme_srv.helper import (
     config_headerinfo_load,
     config_enroll_config_log_load,
     config_profile_load,
+    config_shortname_denylist_load,
     eab_profile_as_bool,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
@@ -87,6 +88,8 @@ class CAhandler(object):
         self.profiles = {}
         self.ssl_verify = True
         self.profile_mapping_field = "profile"
+        self.allow_shortname_from_fqdn = False
+        self.shortname_denylist = []
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -257,6 +260,13 @@ class CAhandler(object):
         # load profiles
         # self.profiles = config_profile_load(self.logger, config_dic)
         self.profiles = self._config_profiles_load(config_dic)
+        self.shortname_denylist = config_shortname_denylist_load(
+            self.logger, config_dic
+        )
+        if "Order" in config_dic:
+            self.allow_shortname_from_fqdn = config_dic.getboolean(
+                "Order", "allow_shortname_from_fqdn", fallback=False
+            )
 
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
@@ -1071,9 +1081,26 @@ class CAhandler(object):
                 self.logger.debug(
                     "Helper.eab_profile_list_check(): execute default allowed_domainlist_check()"
                 )
-                error = allowed_domainlist_check(self.logger, csr, value)
+                error = allowed_domainlist_check(
+                    self.logger,
+                    csr,
+                    value,
+                    allow_shortname_from_fqdn=self.allow_shortname_from_fqdn,
+                    shortname_denylist=self.shortname_denylist,
+                )
             if error:
                 result = error
+        elif key == "shortname_denylist":
+            if isinstance(value, list):
+                self.logger.debug(
+                    "CAhandler._eab_profile_list_check(): setting shortname_denylist to %s",
+                    value,
+                )
+                self.shortname_denylist = value
+            else:
+                self.logger.warning(
+                    "handler specific EAB profile list checking: shortname_denylist must be a list"
+                )
         elif hasattr(self, key):
             if not eab_profile_warn_if_denied(self.logger, key):
                 result = self._eab_profile_list_set(csr, key, value)
