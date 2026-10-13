@@ -96,6 +96,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Assert in-image Django migrations (fresh)"
+        uses: ./.github/actions/wf_specific/django_inimage_migrations_assert
+        with:
+          REQUIRE_NO_VOLUME_MIGRATIONS: "true"
+
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients_enroll
 

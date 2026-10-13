@@ -104,10 +104,22 @@ runs:
         # Unified images keep both WSGI and Django entry points; mode is runtime.
         exec_in test -f /var/www/acme2certifier/acme2certifier_wsgi.py
         if [[ "${DB_HANDLER}" == "django" ]]; then
+          PKG_MIG=/usr/lib/python3/dist-packages/acme2certifier/django_app/migrations
           exec_in test -f /var/www/acme2certifier/volume/settings.py
-          exec_in test -d /var/www/acme2certifier/volume/migrations
           exec_in python3 -c "import django"
-          echo "Django markers OK (settings.py, migrations/, import django)"
+          # Migration files ship in the image — must be a real dir, not a volume symlink.
+          if exec_in sh -c "test -L '${PKG_MIG}'"; then
+            echo "ERROR: package migrations path is a symlink (legacy volume link)" >&2
+            exit 1
+          fi
+          exec_in test -d "${PKG_MIG}"
+          exec_in test -f "${PKG_MIG}/__init__.py"
+          exec_in test -d "${PKG_MIG}.image"
+          # volume/migrations is deprecated; presence is OK (ignored), absence is OK.
+          if exec_in test -d /var/www/acme2certifier/volume/migrations; then
+            echo "NOTE: volume/migrations present (ignored by entrypoint)"
+          fi
+          echo "Django markers OK (settings.py, in-image migrations, import django)"
         else
           echo "WSGI markers OK (acme2certifier_wsgi.py present)"
         fi

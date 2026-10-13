@@ -45,6 +45,7 @@ jobs:
 
   # ---------------------------------------------------------
   # Resolve one-hop matrix: latest / N-1 / N-2 / pre045 → build
+  # Plus Django chain: 0.33.2 → 0.38.1 → 0.43 → build (separate job)
   # ---------------------------------------------------------
   resolve-versions:
     permissions:
@@ -57,6 +58,8 @@ jobs:
       app_version: ${{ steps.resolve.outputs.app_version }}
       n_tag: ${{ steps.resolve.outputs.n_tag }}
       hops_docker: ${{ steps.resolve.outputs.hops_docker }}
+      django_chain_ok: ${{ steps.resolve.outputs.django_chain_ok }}
+      django_chain_start: ${{ steps.resolve.outputs.django_chain_start }}
       hops_rpm: ${{ steps.resolve.outputs.hops_rpm }}
       hops_deb: ${{ steps.resolve.outputs.hops_deb }}
       has_docker_hops: ${{ steps.resolve.outputs.has_docker_hops }}
@@ -92,33 +95,6 @@ jobs:
               --jq '.assets[].name' 2>/dev/null || true
           }
 
-          tag_has_docker() {
-            local tag="$1"
-            local code websrv
-            for websrv in nginx apache2; do
-              code=$(curl -sL -o /dev/null -w '%{http_code}' \
-                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-wsgi" \
-                || echo 000)
-              if [[ "${code}" == "200" ]]; then
-                return 0
-              fi
-              code=$(curl -sL -o /dev/null -w '%{http_code}' \
-                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-django" \
-                || echo 000)
-              if [[ "${code}" == "200" ]]; then
-                return 0
-              fi
-              # Hub miss: still OK if Dockerfiles exist on the tag (ensure_container_image builds).
-              code=$(curl -sL -o /dev/null -w '%{http_code}' \
-                "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/Dockerfile" \
-                || echo 000)
-              if [[ "${code}" == "200" ]]; then
-                return 0
-              fi
-            done
-            return 1
-          }
-
           docker_tag_exists() {
             local tag="$1"
             gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" \
@@ -127,27 +103,32 @@ jobs:
 
           tag_has_docker() {
             local tag="$1"
-            local code websrv
+            local code websrv dbh
             for websrv in nginx apache2; do
-              code=$(curl -sL -o /dev/null -w '%{http_code}' \
-                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-wsgi" \
-                || echo 000)
-              if [[ "${code}" == "200" ]]; then
-                return 0
-              fi
-              code=$(curl -sL -o /dev/null -w '%{http_code}' \
-                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-django" \
-                || echo 000)
-              if [[ "${code}" == "200" ]]; then
-                return 0
-              fi
-              # Hub miss: still OK if Dockerfiles exist on the tag (ensure_container_image builds).
+              for dbh in wsgi django; do
+                code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                  "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-${dbh}" \
+                  || echo 000)
+                if [[ "${code}" == "200" ]]; then
+                  return 0
+                fi
+              done
+              # Hub miss: still OK if Dockerfiles exist (ensure_container_image builds).
+              # Unified layout or legacy websrv/{wsgi,django}/Dockerfile (e.g. 0.33.x).
               code=$(curl -sL -o /dev/null -w '%{http_code}' \
                 "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/Dockerfile" \
                 || echo 000)
               if [[ "${code}" == "200" ]]; then
                 return 0
               fi
+              for dbh in wsgi django; do
+                code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                  "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/${dbh}/Dockerfile" \
+                  || echo 000)
+                if [[ "${code}" == "200" ]]; then
+                  return 0
+                fi
+              done
             done
             return 1
           }
@@ -267,6 +248,13 @@ jobs:
             fi
           done
 
+          # Django multi-hop chain: 0.33.2 → 0.38.1 → 0.43 → build
+          DJANGO_CHAIN_START="0.33.2"
+          DJANGO_CHAIN_OK=false
+          if tag_has_docker "0.33.2" && tag_has_docker "0.38.1" && tag_has_docker "0.43"; then
+            DJANGO_CHAIN_OK=true
+          fi
+
           HAS_DOCKER=false
           HAS_RPM=false
           HAS_DEB=false
@@ -278,6 +266,8 @@ jobs:
             echo "app_version=${APP_VERSION}"
             echo "n_tag=${N_TAG}"
             echo "hops_docker=${HOPS_DOCKER}"
+            echo "django_chain_ok=${DJANGO_CHAIN_OK}"
+            echo "django_chain_start=${DJANGO_CHAIN_START}"
             echo "hops_rpm=${HOPS_RPM}"
             echo "hops_deb=${HOPS_DEB}"
             echo "has_docker_hops=${HAS_DOCKER}"
@@ -286,6 +276,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
           echo "N=${N_TAG} N-1=${N1_TAG:-none} N-2=${N2_TAG:-none} pre045=${PRE045_TAG:-none} build=${APP_VERSION}"
+          echo "django chain: 0.33.2 → 0.38.1 → 0.43 → build (ok=${DJANGO_CHAIN_OK})"
           if [[ -n "${PRE045_TAG}" ]]; then
             echo "pre045 probes: docker=$(tag_has_docker "${PRE045_TAG}" && echo yes || echo no) rpm=$(tag_has_rpm "${PRE045_TAG}" && echo yes || echo no) deb=$(tag_has_deb "${PRE045_TAG}" && echo yes || echo no)"
             echo "pre045 assets:"; release_asset_names "${PRE045_TAG}" | sed 's/^/  /' || true
@@ -394,6 +385,39 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Assert in-image Django migrations after upgrade"
+        if: matrix.dbhandler == 'django'
+        uses: ./.github/actions/wf_specific/django_inimage_migrations_assert
+        with:
+          REQUIRE_NO_VOLUME_MIGRATIONS: "false"
+
+      # Class A/B: drop legacy volume/migrations leftover from from_tag; recreate must still work
+      - name: "A/B — remove volume/migrations and recreate"
+        if: matrix.dbhandler == 'django'
+        working-directory: examples/Docker
+        run: |
+          set -euo pipefail
+          if [[ -d data/migrations ]]; then
+            sudo rm -rf data/migrations
+            echo "removed volume/migrations"
+          else
+            echo "no volume/migrations on host volume (ok)"
+          fi
+          docker compose up -d --force-recreate --no-build
+        shell: bash
+
+      - name: "Wait for directory after A/B recreate"
+        if: matrix.dbhandler == 'django'
+        uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: acme
+
+      - name: "Assert in-image migrations without volume/migrations"
+        if: matrix.dbhandler == 'django'
+        uses: ./.github/actions/wf_specific/django_inimage_migrations_assert
+        with:
+          REQUIRE_NO_VOLUME_MIGRATIONS: "true"
+
       - name: "Renew after build"
         uses: ./.github/actions/acme_clients_renew
         with:
@@ -461,6 +485,195 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.hop.id }}-upgrade.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
+
+  # ---------------------------------------------------------
+  # Django chain: 0.33.2 → 0.38.1 → 0.43 → build (nginx × django)
+  # ---------------------------------------------------------
+  test-containers-django-chain:
+    permissions:
+      contents: read
+      actions: write
+    needs: [guard, resolve-versions]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: github.repository == 'grindsa/acme2certifier' && needs.resolve-versions.outputs.django_chain_ok == 'true'
+    env:
+      WEB_SRV: nginx
+      DB_HANDLER: django
+      CHAIN_START: ${{ needs.resolve-versions.outputs.django_chain_start }}
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: django
+          WEB_SRV: nginx
+          CONTAINER_BUILD: false
+          DJANGO_DB: mariadb
+          NAME_SPACE: acme
+
+      - name: "Stage xca materials + legacy cfg (0.33.2)"
+        uses: ./.github/actions/wf_specific/upgrade/setup_legacy_xca
+        with:
+          VOLUME_DIR: examples/Docker/data
+          DEPLOYMENT_TYPE: container
+          DJANGO: "true"
+          DJANGO_SETTINGS_TAG: "0.33.2"
+
+      - name: "Ensure 0.33.2 image"
+        uses: ./.github/actions/wf_specific/upgrade/ensure_container_image
+        with:
+          VERSION: "0.33.2"
+          WEB_SRV: nginx
+          DB_HANDLER: django
+
+      - name: "Spin-up 0.33.2"
+        uses: ./.github/actions/container_run
+        with:
+          DB_HANDLER: django
+          WEB_SRV: nginx
+          VERSION: "0.33.2"
+
+      - name: "Enroll + renew on 0.33.2"
+        uses: ./.github/actions/wf_specific/upgrade/enroll
+        with:
+          RENEWAL: true
+
+      - name: "Stop 0.33.2"
+        run: docker stop acme-srv
+
+      - name: "Ensure 0.38.1 image"
+        uses: ./.github/actions/wf_specific/upgrade/ensure_container_image
+        with:
+          VERSION: "0.38.1"
+          WEB_SRV: nginx
+          DB_HANDLER: django
+
+      - name: "Spin-up 0.38.1"
+        uses: ./.github/actions/container_run
+        with:
+          DB_HANDLER: django
+          WEB_SRV: nginx
+          VERSION: "0.38.1"
+
+      - name: "Renew on 0.38.1"
+        uses: ./.github/actions/acme_clients_renew
+        with:
+          CLEANUP: true
+          HOSTNAME_SUFFIX: ""
+
+      - name: "Stop 0.38.1"
+        run: docker stop acme-srv
+
+      - name: "Ensure 0.43 image"
+        uses: ./.github/actions/wf_specific/upgrade/ensure_container_image
+        with:
+          VERSION: "0.43"
+          WEB_SRV: nginx
+          DB_HANDLER: django
+
+      - name: "Spin-up 0.43"
+        uses: ./.github/actions/container_run
+        with:
+          DB_HANDLER: django
+          WEB_SRV: nginx
+          VERSION: "0.43"
+
+      - name: "Renew on 0.43"
+        uses: ./.github/actions/acme_clients_renew
+        with:
+          CLEANUP: true
+          HOSTNAME_SUFFIX: ""
+
+      - name: "Stop 0.43"
+        run: docker stop acme-srv
+
+      - name: "Migrate cfg for modern build"
+        uses: ./.github/actions/wf_specific/upgrade/migrate_cfg
+        with:
+          VOLUME_DIR: examples/Docker/data
+          DEPLOYMENT_TYPE: container
+          XDB_FILE: volume/xca/${{ env.XCA_DB_NAME }}
+          DJANGO: "true"
+
+      - name: "Download and import build container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.nginx.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Spin-up build artifact"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: django
+          WEB_SRV: nginx
+
+      - name: "Assert in-image Django migrations after chain"
+        uses: ./.github/actions/wf_specific/django_inimage_migrations_assert
+        with:
+          REQUIRE_NO_VOLUME_MIGRATIONS: "false"
+
+      - name: "A/B — remove volume/migrations and recreate"
+        working-directory: examples/Docker
+        run: |
+          set -euo pipefail
+          if [[ -d data/migrations ]]; then
+            sudo rm -rf data/migrations
+            echo "removed volume/migrations"
+          else
+            echo "no volume/migrations on host volume (ok)"
+          fi
+          docker compose up -d --force-recreate --no-build
+        shell: bash
+
+      - name: "Wait for directory after A/B recreate"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: acme
+
+      - name: "Assert in-image migrations without volume/migrations"
+        uses: ./.github/actions/wf_specific/django_inimage_migrations_assert
+        with:
+          REQUIRE_NO_VOLUME_MIGRATIONS: "true"
+
+      - name: "Renew after build"
+        uses: ./.github/actions/acme_clients_renew
+        with:
+          CLEANUP: true
+          HOSTNAME_SUFFIX: ""
+
+      - name: "Fresh enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: django
+          WEB_SRV: nginx
+
+      - name: "Stop a2c instance"
+        uses: ./.github/actions/container_down
+        with:
+          DB_HANDLER: django
+          WEB_SRV: nginx
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-django-chain-0.33.2-0.38.1-0.43-build.tar.gz
           SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------

@@ -85,6 +85,18 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Assert in-image Django migrations (fresh)"
+        if: matrix.dbhandler == 'django'
+        uses: ./.github/actions/wf_specific/django_inimage_migrations_assert
+        with:
+          REQUIRE_NO_VOLUME_MIGRATIONS: "true"
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients_enroll
 
@@ -108,6 +120,51 @@ jobs:
           VERIFY_CERT: false
           REVOCATION: false
 
+      # Class C: tables present, django_migrations wiped → schema update must fail (no silent fake)
+      - name: "Class C negative — wipe django_migrations"
+        if: matrix.dbhandler == 'django' && matrix.websrv == 'nginx'
+        working-directory: examples/Docker
+        run: |
+          set -euo pipefail
+          docker compose exec -T acme-srv a2c-manage shell -c \
+            "from django.db import connection; c=connection.cursor(); c.execute('DELETE FROM django_migrations'); print('wiped django_migrations')"
+        shell: bash
+
+      - name: "Class C negative — recreate must fail schema update"
+        if: matrix.dbhandler == 'django' && matrix.websrv == 'nginx'
+        working-directory: examples/Docker
+        run: |
+          set -euo pipefail
+          # restart:always may loop; stop restart so a failed entrypoint stays exited.
+          docker update --restart=no acme-srv || true
+          docker compose up -d --force-recreate --no-build
+          docker update --restart=no acme-srv || true
+          deadline=$((SECONDS + 90))
+          while (( SECONDS < deadline )); do
+            status="$(docker inspect -f '{{.State.Status}}' acme-srv 2>/dev/null || echo missing)"
+            exitcode="$(docker inspect -f '{{.State.ExitCode}}' acme-srv 2>/dev/null || echo 0)"
+            echo "status=${status} exitcode=${exitcode}"
+            docker compose logs --tail=120 acme-srv > /tmp/class-c-logs.txt || true
+            if grep -qE 'schema update failed|table already exists|InconsistentMigrationHistory' /tmp/class-c-logs.txt; then
+              if curl -sf --max-time 3 "http://127.0.0.1:22280/directory" >/dev/null 2>&1; then
+                echo "ERROR: /directory still reachable after class C wipe" >&2
+                exit 1
+              fi
+              echo "Class C negative OK (failed as expected)"
+              cat /tmp/class-c-logs.txt | tail -n 40
+              exit 0
+            fi
+            if [[ "${status}" == "exited" ]] && [[ "${exitcode}" != "0" ]]; then
+              echo "ERROR: container exited but logs lack expected schema-failure signal" >&2
+              cat /tmp/class-c-logs.txt >&2 || true
+              exit 1
+            fi
+            sleep 3
+          done
+          echo "ERROR: expected schema-update failure for wiped django_migrations" >&2
+          cat /tmp/class-c-logs.txt >&2 || true
+          exit 1
+        shell: bash
       - name: "Channel teardown"
         if: ${{ always() }}
         uses: ./.github/actions/channel_teardown

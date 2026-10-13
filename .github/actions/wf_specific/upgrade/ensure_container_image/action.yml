@@ -33,12 +33,27 @@ runs:
         set -euo pipefail
         IMAGE="grindsa/acme2certifier:${VERSION}-${WEB_SRV}-${DB_HANDLER}"
         echo "Hub miss/timeout for ${IMAGE}; building from tag ${VERSION}"
-        rm -rf "/tmp/a2c-build-${VERSION}"
+        ROOT="/tmp/a2c-build-${VERSION}"
+        rm -rf "${ROOT}"
         git clone --branch "${VERSION}" --depth 1 \
-          https://github.com/grindsa/acme2certifier.git "/tmp/a2c-build-${VERSION}"
-        docker build \
-          -f "/tmp/a2c-build-${VERSION}/examples/Docker/${WEB_SRV}/Dockerfile" \
-          --build-arg "ACME_SRV_DB_HANDLER=${DB_HANDLER}" \
-          -t "${IMAGE}" \
-          "/tmp/a2c-build-${VERSION}"
+          https://github.com/grindsa/acme2certifier.git "${ROOT}"
+        UNIFIED="${ROOT}/examples/Docker/${WEB_SRV}/Dockerfile"
+        LEGACY="${ROOT}/examples/Docker/${WEB_SRV}/${DB_HANDLER}/Dockerfile"
+        if [[ -f "${UNIFIED}" ]]; then
+          echo "Building unified Dockerfile ${UNIFIED}"
+          docker build \
+            -f "${UNIFIED}" \
+            --build-arg "ACME_SRV_DB_HANDLER=${DB_HANDLER}" \
+            -t "${IMAGE}" \
+            "${ROOT}"
+        elif [[ -f "${LEGACY}" ]]; then
+          echo "Building legacy Dockerfile ${LEGACY}"
+          docker build \
+            -f "${LEGACY}" \
+            -t "${IMAGE}" \
+            "${ROOT}"
+        else
+          echo "ERROR: no Dockerfile at ${UNIFIED} or ${LEGACY}" >&2
+          exit 1
+        fi
         echo "Built ${IMAGE}"
