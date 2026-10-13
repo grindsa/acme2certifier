@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-containers:
-    name: Build container (${{ matrix.websrv }} / ${{ matrix.dbhandler }})
+    name: Build container (${{ matrix.websrv }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [ build-deb ]
@@ -23,7 +23,6 @@ jobs:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
-        dbhandler: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v7
@@ -47,7 +46,6 @@ jobs:
       - name: "Build container"
         uses: ./.github/actions/container_build_upload
         with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
           GH_USER: ${{ env.GH_USER }}
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}

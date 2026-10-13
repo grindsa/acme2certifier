@@ -1,5 +1,5 @@
 name: "ensure container image"
-description: "Pull grindsa/acme2certifier:TAG-websrv-dbhandler or build from that git tag"
+description: "Pull grindsa/acme2certifier:TAG-websrv-dbhandler (legacy alias) or build from that git tag"
 inputs:
   VERSION:
     description: "Release tag / image version"

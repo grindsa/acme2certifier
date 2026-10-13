@@ -122,7 +122,7 @@ ______________________________________________________________________
 
 1. Backup the volume (`data/` or your compose mount → `/var/www/acme2certifier/volume`).
 
-1. Pull the matching image tag (`*-wsgi`, apache2 or nginx). Keep the same webserver variant.
+1. Pull the matching webserver image (`apache2` / `nginx`, or legacy `*-wsgi`). Keep the same webserver variant.
 
 1. On the volume, edit `acme_srv.cfg` → set `handler_module` / `eab_handler_module` / `hooks_module` as above. Set `[DBhandler] handler: wsgi` (or omit; image default is wsgi).
 
@@ -175,7 +175,7 @@ Webserver image (`apache2` / `nginx`) plus runtime handler selection. Background
 | WSGI | `apache2` / `nginx` (default wsgi) | `acme_srv.cfg`, DB, CA material |
 | Django | same image; `handler: django` or `ACME_SRV_DB_HANDLER=django` | above + `settings.py`, `migrations/` |
 
-Legacy Hub tags `*-wsgi` / `*-django` still work (same image, baked default via build-arg); prefer the webserver tag + cfg/env.
+Legacy Hub tags `*-wsgi` (same digest as primary) / `*-django` (thin ENV alias) still work; prefer the webserver tag + cfg/env.
 
 **Wrong handler on a volume (e.g. django mode on a WSGI-only volume):**
 

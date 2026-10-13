@@ -11,7 +11,17 @@ Images are Ubuntu **26.04**-based and install from a prebuilt `.deb`. Each webse
 
 ## Image tag vs `[DBhandler] handler:`
 
-One Dockerfile per webserver (`examples/Docker/{apache2,nginx}/Dockerfile`). For the time being we will still publish legacy `*-wsgi` / `*-django` tags from that same file (`--build-arg ACME_SRV_DB_HANDLER=…`) for compatibility reasons.
+One Dockerfile per webserver (`examples/Docker/{apache2,nginx}/Dockerfile`).
+
+**Hub tags**
+
+| Tag | Meaning |
+| --- | --- |
+| `apache2` / `nginx` (and `VERSION-apache2` / `VERSION-nginx`) | Primary images (default handler `wsgi`). `latest` → `apache2`. |
+| `*-wsgi` | Same digest as the primary webserver tag (compat alias). |
+| `*-django` | Thin alias (`FROM` primary + `ENV ACME_SRV_DB_HANDLER=django`) so pull-and-run without cfg still boots Django. |
+
+For the time being we will still publish the legacy `*-wsgi` / `*-django` tags for compatibility reasons.
 
 They control different things:
 

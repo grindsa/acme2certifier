@@ -1,14 +1,11 @@
 name: "image_build_push"
-description: "Checkout a release tag, download its .deb, build multi-arch image, push to Docker Hub and GHCR"
+description: "Checkout a release tag, download its .deb, build multi-arch websrv image, push primary + legacy tags"
 inputs:
   tag:
     description: "Release tag to build"
     required: true
   websrv:
     description: "Web server variant (apache2|nginx)"
-    required: true
-  dbhandler:
-    description: "DB handler variant (wsgi|django)"
     required: true
   tag_n:
     description: "Current supported tag N (enables floating tags when tag == tag_n)"
@@ -84,27 +81,31 @@ runs:
         username: ${{ inputs.ghcr_user }}
         password: ${{ inputs.ghcr_token }}
 
-    - name: Compute image tags
+    - name: Compute primary and legacy-wsgi tags
       id: tags
       shell: bash
       env:
         WEBSRV: ${{ inputs.websrv }}
-        DBHANDLER: ${{ inputs.dbhandler }}
         TAG: ${{ inputs.tag }}
         TAG_N: ${{ inputs.tag_n }}
       run: |
         set -euo pipefail
-        BUILD_NAME="${WEBSRV}-${DBHANDLER}"
         DH="grindsa/acme2certifier"
         GH="ghcr.io/grindsa/acme2certifier"
+        # Primary: websrv. Compat: same-digest *-wsgi aliases.
         TAG_LIST=(
-          "${DH}:${TAG}-${BUILD_NAME}"
-          "${GH}:${TAG}-${BUILD_NAME}"
+          "${DH}:${TAG}-${WEBSRV}"
+          "${GH}:${TAG}-${WEBSRV}"
+          "${DH}:${TAG}-${WEBSRV}-wsgi"
+          "${GH}:${TAG}-${WEBSRV}-wsgi"
         )
 
         if [[ "${TAG}" == "${TAG_N}" ]]; then
-          TAG_LIST+=("${DH}:${BUILD_NAME}" "${GH}:${BUILD_NAME}")
-          if [[ "${BUILD_NAME}" == "apache2-wsgi" ]]; then
+          TAG_LIST+=(
+            "${DH}:${WEBSRV}" "${GH}:${WEBSRV}"
+            "${DH}:${WEBSRV}-wsgi" "${GH}:${WEBSRV}-wsgi"
+          )
+          if [[ "${WEBSRV}" == "apache2" ]]; then
             TAG_LIST+=("${DH}:latest" "${GH}:latest")
           fi
         fi
@@ -113,12 +114,20 @@ runs:
           echo "tags<<EOF"
           printf "%s\n" "${TAG_LIST[@]}"
           echo "EOF"
+          echo "django_tags<<EOF"
+          echo "${DH}:${TAG}-${WEBSRV}-django"
+          echo "${GH}:${TAG}-${WEBSRV}-django"
+          if [[ "${TAG}" == "${TAG_N}" ]]; then
+            echo "${DH}:${WEBSRV}-django"
+            echo "${GH}:${WEBSRV}-django"
+          fi
+          echo "EOF"
         } >> "${GITHUB_OUTPUT}"
 
-        echo "Building ${BUILD_NAME} for tag ${TAG}"
+        echo "Building ${WEBSRV} (default wsgi) for tag ${TAG}"
         printf "%s\n" "${TAG_LIST[@]}"
 
-    - name: Build and push multi-arch image
+    - name: Build and push primary multi-arch image (wsgi default)
       uses: docker/build-push-action@v7
       with:
         context: image-src
@@ -126,5 +135,30 @@ runs:
         platforms: linux/amd64,linux/arm64
         push: true
         build-args: |
-          ACME_SRV_DB_HANDLER=${{ inputs.dbhandler }}
+          ACME_SRV_DB_HANDLER=wsgi
         tags: ${{ steps.tags.outputs.tags }}
+
+    # Thin config-layer alias so pull-and-run without cfg still boots Django.
+    - name: Build and push legacy *-django aliases
+      shell: bash
+      env:
+        WEBSRV: ${{ inputs.websrv }}
+        TAG: ${{ inputs.tag }}
+        DJANGO_TAGS: ${{ steps.tags.outputs.django_tags }}
+      run: |
+        set -euo pipefail
+        cat > /tmp/a2c-django-alias.Dockerfile <<EOF
+FROM grindsa/acme2certifier:${TAG}-${WEBSRV}
+ENV ACME_SRV_DB_HANDLER=django
+EOF
+        tag_args=()
+        while IFS= read -r t; do
+          [[ -n "${t}" ]] || continue
+          tag_args+=(-t "${t}")
+        done <<< "${DJANGO_TAGS}"
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \
+          --push \
+          -f /tmp/a2c-django-alias.Dockerfile \
+          "${tag_args[@]}" \
+          /tmp

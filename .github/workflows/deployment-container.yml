@@ -113,5 +113,5 @@ jobs:
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-          ARTIFACT_NAME: a2c-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          ARTIFACT_NAME: a2c-${{ matrix.websrv }}.tar.gz
           SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

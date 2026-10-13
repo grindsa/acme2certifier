@@ -158,7 +158,7 @@ The official webserver images already contain:
 - a volume-backed settings file (`django_project/settings.py` → `/var/www/acme2certifier/volume/settings.py`)
 - both WSGI and Django entry points (entrypoint selects via resolved handler)
 
-Set `handler: django` (or `handler_module: …django_handler`) in `acme_srv.cfg`, or `ACME_SRV_DB_HANDLER=django` in compose/env. Legacy Hub `*-django` tags bake that ENV via build-arg. The entrypoint does not write the handler into cfg.
+Set `handler: django` (or `handler_module: …django_handler`) in `acme_srv.cfg`, or `ACME_SRV_DB_HANDLER=django` in compose/env. Legacy Hub `*-django` tags bake that ENV. The entrypoint does not write the handler into cfg.
 Mount a volume or directory from the Docker host into `/var/www/acme2certifier/volume`. When this volume is present, acme2certifier automatically writes `settings.py`, `acme_srv.cfg`, and all Django migration sets into it and maps them back to the appropriate internal locations during container startup.
 
 ### Connecting to MariaDB

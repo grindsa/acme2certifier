@@ -32,7 +32,7 @@ runs:
       uses: ./.github/actions/container_load
       with:
         RUN_ID: ${{ inputs.RUN_ID }}
-        ARTIFACT_NAME: a2c-${{ inputs.RUN_ID }}.${{ inputs.WEB_SRV }}.${{ inputs.DB_HANDLER }}.tar
+        ARTIFACT_NAME: a2c-${{ inputs.RUN_ID }}.${{ inputs.WEB_SRV }}.tar
         DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
         TOKEN: ${{ inputs.TOKEN }}
         REPO: ${{ inputs.REPO }}

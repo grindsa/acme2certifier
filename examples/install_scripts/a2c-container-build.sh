@@ -10,7 +10,8 @@
 #   -m, --mode wsgi|django        application mode (default: wsgi)
 #   -w, --webserver apache2|nginx front-end web server (default: apache2)
 #   -t, --tag TAG                 image tag
-#                                 (default: BRANCH-WEBSERVER-MODE)
+#                                 (default: BRANCH-WEBSERVER, or
+#                                 BRANCH-WEBSERVER-django when -m django)
 #   -i, --image NAME              image repository without tag
 #                                 (default: <DOCKERHUB_USER>/acme2certifier)
 #   -r, --repo URL                git clone URL
@@ -279,6 +280,7 @@ build_image() {
           --platform "$(host_platform)"
           -t "${full_image}"
           -f "${dockerfile}"
+          --build-arg "ACME_SRV_DB_HANDLER=${MODE}"
           --load
           .
         )
@@ -311,7 +313,11 @@ main() {
     IMAGE_REPO="${DOCKERHUB_USER:-grindsa}/acme2certifier"
   fi
   if [[ -z "${IMAGE_TAG}" ]]; then
-    IMAGE_TAG="${BRANCH}-${WEBSRV}-${MODE}"
+    if [[ "${MODE}" == "wsgi" ]]; then
+      IMAGE_TAG="${BRANCH}-${WEBSRV}"
+    else
+      IMAGE_TAG="${BRANCH}-${WEBSRV}-${MODE}"
+    fi
   fi
 
   WORK_ROOT="${TMPDIR:-/tmp}/a2c-docker-build.$(uuidgen | cut -d- -f1)"

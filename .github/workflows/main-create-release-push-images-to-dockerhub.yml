@@ -159,7 +159,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
   build_and_push_n1:
-    name: Build and push N-1 images
+    name: Build and push N-1 images (${{ matrix.websrv }})
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs: [create_release, resolve_versions]
@@ -168,7 +168,6 @@ jobs:
       fail-fast: false
       matrix:
         websrv: [apache2, nginx]
-        dbhandler: [wsgi, django]
     steps:
       - name: Checkout workflow sources
         uses: actions/checkout@v7
@@ -183,12 +182,11 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}
         uses: ./.github/actions/image_build_push
         with:
           tag: ${{ needs.resolve_versions.outputs.tag_n1 }}
           websrv: ${{ matrix.websrv }}
-          dbhandler: ${{ matrix.dbhandler }}
           tag_n: ${{ needs.resolve_versions.outputs.tag_n }}
           dockerhub_user: ${{ env.DOCKERHUB_USER }}
           dockerhub_token: ${{ env.DOCKERHUB_TOKEN }}
@@ -199,7 +197,7 @@ jobs:
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
   build_and_push_n:
-    name: Build and push N images
+    name: Build and push N images (${{ matrix.websrv }})
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs: [resolve_versions, build_and_push_n1]
@@ -208,7 +206,6 @@ jobs:
       fail-fast: false
       matrix:
         websrv: [apache2, nginx]
-        dbhandler: [wsgi, django]
     steps:
       - name: Checkout workflow sources
         uses: actions/checkout@v7
@@ -223,12 +220,11 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n }}-${{ matrix.websrv }}
         uses: ./.github/actions/image_build_push
         with:
           tag: ${{ needs.resolve_versions.outputs.tag_n }}
           websrv: ${{ matrix.websrv }}
-          dbhandler: ${{ matrix.dbhandler }}
           tag_n: ${{ needs.resolve_versions.outputs.tag_n }}
           dockerhub_user: ${{ env.DOCKERHUB_USER }}
           dockerhub_token: ${{ env.DOCKERHUB_TOKEN }}
@@ -417,7 +413,6 @@ jobs:
       max-parallel: 1
       matrix:
         websrv: [apache2, nginx]
-        dbhandler: [wsgi, django]
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -477,9 +472,9 @@ jobs:
       - name: Generate SBOM
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/grindsa/acme2certifier:${WEBSRV}-${DBHANDLER}"
+          IMAGE="ghcr.io/grindsa/acme2certifier:${WEBSRV}"
           SBOM_DIR="/tmp/sbom/sbom/acme2certifier"
-          BASE="${SBOM_DIR}/acme2certifier-${WEBSRV}-${DBHANDLER}_sbom"
+          BASE="${SBOM_DIR}/acme2certifier-${WEBSRV}_sbom"
           mkdir -p "${SBOM_DIR}"
 
           # Remove any leftover uncompressed SBOMs for this image
@@ -490,7 +485,6 @@ jobs:
           gzip -f "${BASE}.txt" "${BASE}.json"
         env:
           WEBSRV: ${{ matrix.websrv }}
-          DBHANDLER: ${{ matrix.dbhandler }}
 
       - name: Upload SBOM changes
         run: |
@@ -504,9 +498,8 @@ jobs:
 
           git add -A sbom/acme2certifier/
           git diff --cached --quiet && echo "No SBOM changes" && exit 0
-          git commit -m "SBOM update (${WEBSRV}-${DBHANDLER})"
+          git commit -m "SBOM update (${WEBSRV})"
           git push
         env:
           EMAIL: ${{ env.EMAIL }}
           WEBSRV: ${{ matrix.websrv }}
-          DBHANDLER: ${{ matrix.dbhandler }}

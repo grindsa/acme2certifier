@@ -30,8 +30,8 @@ Compose builds one image per webserver (`apache2` / `nginx`). Both WSGI and Djan
 
 | Setting | `ACME_SRV_DB_HANDLER` |
 | --- | --- |
-| compose `.env` / `docker run -e` (default) | `wsgi` |
-| Hub `*-django` tag (build-arg) | `django` (baked default) |
+| compose `.env` / `docker run -e` / Hub `apache2`/`nginx` | `wsgi` (default) |
+| Hub `*-django` alias | `django` (baked) |
 
 Precedence matches the application:
 

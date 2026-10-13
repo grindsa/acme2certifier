@@ -41,7 +41,7 @@ inputs:
     required: false
     default: "false"
   ARTIFACT_NAME:
-    description: "Image artifact name; empty uses a2c-<run_id>.<websrv>.<dbhandler>.tar"
+    description: "Image artifact name; empty uses a2c-<run_id>.<websrv>.tar"
     required: false
     default: ""
   DESTINATION_PATH:
@@ -79,7 +79,7 @@ runs:
       uses: ./.github/actions/container_load
       with:
         RUN_ID: ${{ inputs.RUN_ID }}
-        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME != '' && inputs.ARTIFACT_NAME || format('a2c-{0}.{1}.{2}.tar', inputs.RUN_ID, inputs.WEB_SRV, inputs.DB_HANDLER) }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME != '' && inputs.ARTIFACT_NAME || format('a2c-{0}.{1}.tar', inputs.RUN_ID, inputs.WEB_SRV) }}
         DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
         TOKEN: ${{ inputs.TOKEN }}
         REPO: ${{ inputs.REPO }}

@@ -1,10 +1,6 @@
 name: "container_build_upload"
-description: "Build and Upload Container"
+description: "Build and Upload Container (one image per webserver)"
 inputs:
-  DB_HANDLER:
-    description: "Database handler"
-    required: true
-    default: "wsgi"
   WEB_SRV:
     description: "Web server"
     required: true
@@ -26,7 +22,7 @@ runs:
   - name: "Build container"
     uses: ./.github/actions/container_build
     with:
-      DB_HANDLER: ${{ inputs.DB_HANDLER }}
+      DB_HANDLER: wsgi
       WEB_SRV: ${{ inputs.WEB_SRV }}
       GH_USER: ${{ inputs.GH_USER }}
       GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
@@ -36,16 +32,14 @@ runs:
     run: |
       docker images
       mkdir -p /tmp/a2c
-      # Unified image tag is websrv; artifact name still includes dbhandler for matrix jobs.
-      docker save "acme2certifier/${WEB_SRV}" > /tmp/a2c/a2c-${{ github.run_id }}.$WEB_SRV.$DB_HANDLER.tar
-      gzip /tmp/a2c/a2c-${{ github.run_id }}.$WEB_SRV.$DB_HANDLER.tar
+      docker save "acme2certifier/${WEB_SRV}" > /tmp/a2c/a2c-${{ github.run_id }}.${WEB_SRV}.tar
+      gzip /tmp/a2c/a2c-${{ github.run_id }}.${WEB_SRV}.tar
     shell: bash
     env:
-      DB_HANDLER: ${{ inputs.DB_HANDLER }}
       WEB_SRV: ${{ inputs.WEB_SRV }}
 
   - name: "Upload container package"
     uses: actions/upload-artifact@v7
     with:
-      name: a2c-${{ github.run_id }}.${{ inputs.WEB_SRV }}.${{ inputs.DB_HANDLER }}.tar.gz
+      name: a2c-${{ github.run_id }}.${{ inputs.WEB_SRV }}.tar.gz
       path: /tmp/a2c
