@@ -3659,6 +3659,130 @@ class TestOrderClass(unittest.TestCase):
         self.order.repository.authorization_lookup.return_value = []
         self.assertFalse(self.order._authorizations_valid_for_issuance("order1"))
 
+    def test_222_are_identifiers_allowed_shortname_rejected_when_flag_off(self):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = False
+            result = self.order.are_identifiers_allowed(
+                [
+                    {"type": "dns", "value": "host.intra.net"},
+                    {"type": "dns", "value": "host"},
+                ]
+            )
+            self.assertEqual(
+                result,
+                (
+                    self.order.error_msg_dic["rejectedidentifier"],
+                    "FQDN/SAN host not allowed by configuration",
+                ),
+            )
+
+    def test_223_are_identifiers_allowed_shortname_accepted_when_flag_on(self):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = True
+            result = self.order.are_identifiers_allowed(
+                [
+                    {"type": "dns", "value": "host.intra.net"},
+                    {"type": "dns", "value": "host"},
+                ]
+            )
+            self.assertEqual(result, (None, None))
+
+    def test_224_are_identifiers_allowed_shortname_denylist_rejects(self):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = True
+            self.order.config.shortname_denylist = ["mail"]
+            result = self.order.are_identifiers_allowed(
+                [
+                    {"type": "dns", "value": "mail.intra.net"},
+                    {"type": "dns", "value": "mail"},
+                ]
+            )
+            self.assertEqual(
+                result,
+                (
+                    self.order.error_msg_dic["rejectedidentifier"],
+                    "FQDN/SAN mail not allowed by configuration",
+                ),
+            )
+
+    def test_225_are_identifiers_allowed_shortname_only_rejected(self):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = True
+            result = self.order.are_identifiers_allowed(
+                [{"type": "dns", "value": "host"}]
+            )
+            self.assertEqual(
+                result,
+                (
+                    self.order.error_msg_dic["rejectedidentifier"],
+                    "FQDN/SAN host not allowed by configuration",
+                ),
+            )
+
+    def test_226_are_identifiers_allowed_wildcard_sibling_does_not_cover_shortname(
+        self,
+    ):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = True
+            result = self.order.are_identifiers_allowed(
+                [
+                    {"type": "dns", "value": "*.intra.net"},
+                    {"type": "dns", "value": "host"},
+                ]
+            )
+            self.assertEqual(
+                result,
+                (
+                    self.order.error_msg_dic["rejectedidentifier"],
+                    "FQDN/SAN host not allowed by configuration",
+                ),
+            )
+
+    def test_227_apply_eab_profile_allow_shortname_from_fqdn(self):
+        self.order.config.eab_profiling = True
+        self.order.config.allow_shortname_from_fqdn = False
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_sn"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {
+            "kid_sn": {"order": {"allow_shortname_from_fqdn": True}}
+        }
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertTrue(self.order.config.allow_shortname_from_fqdn)
+
+    def test_228_apply_eab_profile_shortname_denylist(self):
+        self.order.config.eab_profiling = True
+        self.order.config.shortname_denylist = []
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_dn"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {
+            "kid_dn": {"order": {"shortname_denylist": ["mail", "vpn"]}}
+        }
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertEqual(self.order.config.shortname_denylist, ["mail", "vpn"])
+
 
 if __name__ == "__main__":
     unittest.main()
