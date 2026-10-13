@@ -76,19 +76,14 @@ EOF
         sed -i "s/ALLOWED_HOSTS = \['127.0.0.1'\]/ALLOWED_HOSTS = \['127.0.0.1','*'\]/g" /var/www/acme2certifier/volume/settings.py
     fi
 
-    # create migrations if not existing
-    if [[ ! -d /var/www/acme2certifier/volume/migrations ]]
+    # Migrations ship in the image; do not copy/symlink onto the volume.
+    if [[ -d /var/www/acme2certifier/volume/migrations ]]
     then
-        echo "copying django migrations to volume" >> /proc/1/fd/1
-        cp -R "$DJANGO_MIGRATIONS" /var/www/acme2certifier/volume/
+        echo "WARNING: volume/migrations is deprecated and ignored; migration files come from the image. Safe to delete volume/migrations after a successful upgrade." >> /proc/1/fd/1
     fi
-
-    # create a symlink for migrations
-    if [[ ! -L "$DJANGO_MIGRATIONS" ]] && [[ -d /var/www/acme2certifier/volume/migrations ]]
+    if [[ -L "$DJANGO_MIGRATIONS" ]]
     then
-        echo "replace migration directory with volume symlink" >> /proc/1/fd/1
-        rm -rf "$DJANGO_MIGRATIONS"
-        ln -s /var/www/acme2certifier/volume/migrations "$DJANGO_MIGRATIONS"
+        echo "WARNING: package migrations path is a symlink to the volume (legacy). Recreate the container so in-image migrations are used (e.g. docker compose up -d --force-recreate)." >> /proc/1/fd/1
     fi
 
     # create a symlink for settings.py
@@ -106,7 +101,6 @@ EOF
     fi
 
     echo "apply migrations"  >> /proc/1/fd/1
-    touch /var/www/acme2certifier/volume/migrations/__init__.py
     a2c-schema-update --mode django
     a2c-manage loaddata status
 else
