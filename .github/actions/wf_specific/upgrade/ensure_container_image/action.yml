@@ -1,5 +1,7 @@
 name: "ensure container image"
-description: "Pull grindsa/acme2certifier:TAG-websrv-dbhandler (legacy alias) or build from that git tag"
+description: >-
+  Ensure grindsa/acme2certifier:TAG-websrv-dbhandler is available locally.
+  Order: local cache → Docker Hub → ghcr.io → build from git tag Dockerfile.
 inputs:
   VERSION:
     description: "Release tag / image version"
@@ -11,28 +13,64 @@ inputs:
   DB_HANDLER:
     description: "wsgi or django"
     required: true
+  FORCE_BUILD:
+    description: "Skip Hub/GHCR and always build from the git tag Dockerfile"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
   steps:
-    - name: "Pull ${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}"
-      id: pull
-      continue-on-error: true
-      uses: ./.github/actions/docker_pull
-      with:
-        IMAGE: grindsa/acme2certifier:${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}
-
-    - name: "Build ${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }} from tag"
-      if: steps.pull.outcome == 'failure'
+    - name: "Ensure ${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}"
       shell: bash
       env:
         VERSION: ${{ inputs.VERSION }}
         WEB_SRV: ${{ inputs.WEB_SRV }}
         DB_HANDLER: ${{ inputs.DB_HANDLER }}
+        FORCE_BUILD: ${{ inputs.FORCE_BUILD }}
       run: |
         set -euo pipefail
         IMAGE="grindsa/acme2certifier:${VERSION}-${WEB_SRV}-${DB_HANDLER}"
-        echo "Hub miss/timeout for ${IMAGE}; building from tag ${VERSION}"
+        GHCR_IMAGE="ghcr.io/${IMAGE}"
+
+        # Single pull; fail fast on missing manifest (no multi-minute retries).
+        try_pull() {
+          local img="$1"
+          local out
+          echo "Trying pull ${img}"
+          if out="$(docker pull "${img}" 2>&1)"; then
+            echo "${out}"
+            echo "Pulled ${img}"
+            return 0
+          fi
+          echo "${out}"
+          if echo "${out}" | grep -qiE 'manifest unknown|manifest for .* not found|not found'; then
+            echo "Image not in registry (fail-fast): ${img}"
+            return 1
+          fi
+          echo "Pull failed (non-manifest): ${img}"
+          return 1
+        }
+
+        if [[ "${FORCE_BUILD}" != "true" ]] && docker image inspect "${IMAGE}" >/dev/null 2>&1; then
+          echo "Local image already present: ${IMAGE}"
+          exit 0
+        fi
+
+        if [[ "${FORCE_BUILD}" != "true" ]]; then
+          if try_pull "${IMAGE}"; then
+            exit 0
+          fi
+          if try_pull "${GHCR_IMAGE}"; then
+            docker tag "${GHCR_IMAGE}" "${IMAGE}"
+            echo "Tagged ${GHCR_IMAGE} as ${IMAGE}"
+            exit 0
+          fi
+          echo "Hub and GHCR miss for ${IMAGE}; building from tag ${VERSION}"
+        else
+          echo "FORCE_BUILD=true; building from tag ${VERSION}"
+        fi
+
         ROOT="/tmp/a2c-build-${VERSION}"
         rm -rf "${ROOT}"
         git clone --branch "${VERSION}" --depth 1 \

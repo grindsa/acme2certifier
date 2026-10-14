@@ -541,6 +541,7 @@ jobs:
           DB_HANDLER: django
           WEB_SRV: nginx
           VERSION: "0.33.2"
+          SKIP_PULL: "true"
 
       - name: "Enroll + renew on 0.33.2"
         uses: ./.github/actions/wf_specific/upgrade/enroll
@@ -563,6 +564,7 @@ jobs:
           DB_HANDLER: django
           WEB_SRV: nginx
           VERSION: "0.38.1"
+          SKIP_PULL: "true"
 
       - name: "Renew on 0.38.1"
         uses: ./.github/actions/acme_clients_renew
@@ -586,6 +588,7 @@ jobs:
           DB_HANDLER: django
           WEB_SRV: nginx
           VERSION: "0.43"
+          SKIP_PULL: "true"
 
       - name: "Renew on 0.43"
         uses: ./.github/actions/acme_clients_renew
