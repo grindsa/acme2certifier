@@ -42,15 +42,11 @@ runs:
         sudo sed -i '/^allow_shortname_from_fqdn:/d' "${CFG}"
         sudo sed -i '/^shortname_denylist:/d' "${CFG}"
         sudo sed -i '/^allowed_domainlist:/d' "${CFG}"
-        sudo sed -i '/^\[Order\]/a\
-allowed_domainlist: ["*.acme"]\
-allow_shortname_from_fqdn: True\
-shortname_denylist: ["mail"]
-' "${CFG}"
+        sudo sed -i '/^\[Order\]/a shortname_denylist: ["mail"]' "${CFG}"
+        sudo sed -i '/^\[Order\]/a allow_shortname_from_fqdn: True' "${CFG}"
+        sudo sed -i '/^\[Order\]/a allowed_domainlist: ["*.acme"]' "${CFG}"
         # openssl CAhandler CSR allowlist (regex wildcard form)
-        sudo sed -i '/^\[CAhandler\]/a\
-allowed_domainlist: ["*.acme"]
-' "${CFG}"
+        sudo sed -i '/^\[CAhandler\]/a allowed_domainlist: ["*.acme"]' "${CFG}"
         if [[ -n "${PATH_REWRITE_FROM}" && -n "${PATH_REWRITE_TO}" ]]; then
           sudo sed -i "s|${PATH_REWRITE_FROM}|${PATH_REWRITE_TO}|g" "${CFG}"
         fi
