@@ -569,7 +569,7 @@ jobs:
       - name: "Renew on 0.38.1"
         uses: ./.github/actions/acme_clients_renew
         with:
-          CLEANUP: true
+          CLEANUP: false
           HOSTNAME_SUFFIX: ""
 
       - name: "Stop 0.38.1"
@@ -593,7 +593,7 @@ jobs:
       - name: "Renew on 0.43"
         uses: ./.github/actions/acme_clients_renew
         with:
-          CLEANUP: true
+          CLEANUP: false
           HOSTNAME_SUFFIX: ""
 
       - name: "Stop 0.43"
