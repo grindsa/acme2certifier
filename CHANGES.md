@@ -6,6 +6,16 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.46.2
+
+**New Features**:
+
+- Optional `[Order] allow_shortname_from_fqdn` (default `False`) and `shortname_denylist` so single-label DNS names can pass `allowed_domainlist` when the same order/CSR also contains an allowed multi-label FQDN with a matching first label; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
+
+**Bug Fixes and Improvements**:
+
+- Docker images install companion `python3-requests-gssapi` and `python3-requests-pkcs12` `.deb` packages from [grindsa/sbom](https://github.com/grindsa/sbom) (replaces distro apt `python3-requests-gssapi` and `pip install requests-pkcs12`)
+
 ## Changes in 0.46.1
 
 **Bug Fixes and Improvements**:
