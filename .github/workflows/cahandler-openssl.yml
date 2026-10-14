@@ -157,6 +157,22 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
+      - name: "Setup a2c with openssl_ca_handler - shortname from FQDN"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Shortname from FQDN - enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_shortname_from_fqdn
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Stage YAML acme_srv.yml"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/stage_yaml_cfg
         with:
@@ -303,6 +319,20 @@ jobs:
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
         with:
           CA_CERTS: "data/volume/acme_ca/sub-ca-cert.pem data/volume/acme_ca/root-ca-cert.pem"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Setup a2c with openssl_ca_handler - shortname from FQDN"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Shortname from FQDN - enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_shortname_from_fqdn
+        with:
+          VOLUME_DIR: "data/volume"
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -461,6 +491,23 @@ jobs:
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
         with:
           CA_CERTS: "data/volume/acme_ca/sub-ca-cert.pem data/volume/acme_ca/root-ca-cert.pem"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Setup a2c with openssl_ca_handler - shortname from FQDN"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Shortname from FQDN - enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_shortname_from_fqdn
+        with:
+          VOLUME_DIR: "data/volume"
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
+          PATH_REWRITE_FROM: "volume"
+          PATH_REWRITE_TO: "/var/www/acme2certifier/volume"
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
