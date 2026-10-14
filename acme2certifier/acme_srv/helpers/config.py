@@ -787,6 +787,22 @@ def config_shortname_denylist_load(logger: logging.Logger, config_dic: Dict[str,
     return shortname_denylist
 
 
+def warn_shortname_without_domainlist(
+    logger: logging.Logger,
+    allow_shortname_from_fqdn: bool,
+    allowed_domainlist: Any,
+) -> None:
+    """Warn when shortname-from-FQDN is enabled without a usable allowed_domainlist."""
+    if not allow_shortname_from_fqdn:
+        return
+    if isinstance(allowed_domainlist, list) and allowed_domainlist:
+        return
+    logger.warning(
+        "allow_shortname_from_fqdn is enabled but allowed_domainlist is empty or "
+        "unset; shortname-from-FQDN has no effect without an allowed_domainlist"
+    )
+
+
 def config_async_mode_load(
     logger: logging.Logger, config_dic: Dict[str, str], db_type: str
 ):
