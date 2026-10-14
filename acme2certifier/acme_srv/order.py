@@ -12,6 +12,7 @@ from acme2certifier.acme_srv.helper import (
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_shortname_denylist_load,
+    warn_shortname_without_domainlist,
     config_profile_load,
     eab_profile_as_bool,
     error_dic_get,
@@ -436,6 +437,11 @@ class Order(object):
                     "shortname_denylist",
                     self.config.shortname_denylist,
                 )
+                warn_shortname_without_domainlist(
+                    self.logger,
+                    self.config.allow_shortname_from_fqdn,
+                    self.config.allowed_domainlist,
+                )
                 self.config.ca_error_details_forward = eab_profile_as_bool(
                     self._load_eab_profile_param(
                         profile_dic,
@@ -787,6 +793,11 @@ class Order(object):
         # load shortname denylist (used with allow_shortname_from_fqdn)
         self.config.shortname_denylist = config_shortname_denylist_load(
             self.logger, config_dic
+        )
+        warn_shortname_without_domainlist(
+            self.logger,
+            self.config.allow_shortname_from_fqdn,
+            self.config.allowed_domainlist,
         )
         # load profiling
         (

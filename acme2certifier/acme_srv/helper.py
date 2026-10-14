@@ -146,6 +146,7 @@ from .helpers.config import (
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_shortname_denylist_load,
+    warn_shortname_without_domainlist,
     config_async_mode_load,
     legacy_acme_get_load,
     challenge_type_configuration_validate,

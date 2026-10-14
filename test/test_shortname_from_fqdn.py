@@ -6,7 +6,10 @@ from unittest.mock import patch
 
 import pytest
 
-from acme2certifier.acme_srv.helpers.config import config_shortname_denylist_load
+from acme2certifier.acme_srv.helpers.config import (
+    config_shortname_denylist_load,
+    warn_shortname_without_domainlist,
+)
 from acme2certifier.acme_srv.helpers.domain_utils import (
     allowed_domainlist_check,
     is_shortname_denied,
@@ -109,6 +112,23 @@ def test_config_shortname_denylist_load_parse_error(logger, caplog):
     with caplog.at_level(logging.INFO, logger="test_a2c"):
         assert config_shortname_denylist_load(logger, config_dic) == "failed to parse"
     assert any("Failed to load shortname_denylist" in r.message for r in caplog.records)
+
+
+def test_warn_shortname_without_domainlist_warns(logger, caplog):
+    with caplog.at_level(logging.WARNING, logger="test_a2c"):
+        warn_shortname_without_domainlist(logger, True, [])
+    assert any(
+        "allow_shortname_from_fqdn is enabled but allowed_domainlist is empty"
+        in r.message
+        for r in caplog.records
+    )
+
+
+def test_warn_shortname_without_domainlist_silent_when_consistent(logger, caplog):
+    with caplog.at_level(logging.WARNING, logger="test_a2c"):
+        warn_shortname_without_domainlist(logger, True, ["*.intra.net"])
+        warn_shortname_without_domainlist(logger, False, [])
+    assert not any("allow_shortname_from_fqdn is enabled" in r.message for r in caplog.records)
 
 
 @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_cn_get")
