@@ -255,7 +255,7 @@ def allowed_domainlist_check(
     allowed_domain_list: List[str],
     allow_shortname_from_fqdn: bool = False,
     shortname_denylist: Optional[List[str]] = None,
-) -> str:
+) -> Optional[str]:
     """check if domain is in allowed domain list"""
     logger.debug(
         "Helper.allowed_domainlist_check(allow_shortname_from_fqdn=%s)",

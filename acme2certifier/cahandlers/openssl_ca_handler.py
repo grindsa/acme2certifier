@@ -54,6 +54,9 @@ from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR
 BLOCK_ALL_DOMAIN = "block.all"
 ACME_ERR_SERVER_INTERNAL = "urn:ietf:params:acme:error:serverInternal"
 _TRIGGER_ENDED_WITH_ERROR = "CAhandler.trigger() ended with error: %s"
+_SHORTNAME_ALLOWED_ENDED_FALSE = (
+    "CAhandler._shortname_allowed_for_san() ended with False"
+)
 
 
 class CAhandler(object):
@@ -596,10 +599,10 @@ class CAhandler(object):
         """Allow single-label SAN when covered by an allowed multi-label sibling SAN."""
         self.logger.debug("CAhandler._shortname_allowed_for_san(%s)", san)
         if not self.allow_shortname_from_fqdn:
-            self.logger.debug("CAhandler._shortname_allowed_for_san() ended with False")
+            self.logger.debug(_SHORTNAME_ALLOWED_ENDED_FALSE)
             return False
         if not is_single_label_name(self.logger, san):
-            self.logger.debug("CAhandler._shortname_allowed_for_san() ended with False")
+            self.logger.debug(_SHORTNAME_ALLOWED_ENDED_FALSE)
             return False
         if is_shortname_denied(self.logger, san, self.shortname_denylist):
             self.logger.debug(
@@ -623,7 +626,7 @@ class CAhandler(object):
                 )
                 return True
 
-        self.logger.debug("CAhandler._shortname_allowed_for_san() ended with False")
+        self.logger.debug(_SHORTNAME_ALLOWED_ENDED_FALSE)
         return False
 
     def _csr_check(self, csr: str) -> Tuple[bool, str]:

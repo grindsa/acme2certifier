@@ -19,8 +19,12 @@ DJANGO_CHAIN_MID="${DJANGO_CHAIN_MID:-0.38.1}"
 # paths; Hub 0.44+ rewrites those to the volume at image build.
 DJANGO_CHAIN_END="${DJANGO_CHAIN_END:-0.44}"
 
+# Forbid clear-text protocol downgrade on redirects (shell:S6506 / CWE-319).
+CURL_HTTPS=(--proto '=https' --proto-redir '=https')
+
 is_modern() {
-  python3 - "$1" <<'PY'
+  local ver="$1"
+  python3 - "${ver}" <<'PY'
 import re, sys
 m = re.match(r"(\d+)\.(\d+)", sys.argv[1])
 if not m:
@@ -42,7 +46,7 @@ tag_has_docker() {
   local code websrv dbh
   for websrv in nginx apache2; do
     for dbh in wsgi django; do
-      code=$(curl -sL -o /dev/null -w '%{http_code}' \
+      code=$(curl -sL "${CURL_HTTPS[@]}" -o /dev/null -w '%{http_code}' \
         "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-${dbh}" \
         || echo 000)
       if [[ "${code}" == "200" ]]; then
@@ -51,14 +55,14 @@ tag_has_docker() {
     done
     # Hub miss: still OK if Dockerfiles exist (ensure_container_image builds).
     # Unified layout or legacy websrv/{wsgi,django}/Dockerfile (e.g. 0.33.x).
-    code=$(curl -sL -o /dev/null -w '%{http_code}' \
+    code=$(curl -sL "${CURL_HTTPS[@]}" -o /dev/null -w '%{http_code}' \
       "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/Dockerfile" \
       || echo 000)
     if [[ "${code}" == "200" ]]; then
       return 0
     fi
     for dbh in wsgi django; do
-      code=$(curl -sL -o /dev/null -w '%{http_code}' \
+      code=$(curl -sL "${CURL_HTTPS[@]}" -o /dev/null -w '%{http_code}' \
         "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/${dbh}/Dockerfile" \
         || echo 000)
       if [[ "${code}" == "200" ]]; then
@@ -82,13 +86,13 @@ tag_has_deb() {
 APP_VERSION=$(grep -i __version__ acme2certifier/acme_srv/version.py | head -n1 \
   | sed 's/__version__ = //g' | sed 's/"//g' | tr -d "[:space:]")
 
-N_TAG=$(curl -fsSL \
+N_TAG=$(curl -fsSL "${CURL_HTTPS[@]}" \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer ${GITHUB_TOKEN}" \
   "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" \
   | jq -r '.tag_name')
 
-TAGS_JSON=$(curl -fsSL \
+TAGS_JSON=$(curl -fsSL "${CURL_HTTPS[@]}" \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer ${GITHUB_TOKEN}" \
   "https://api.github.com/repos/${GITHUB_REPOSITORY}/tags")

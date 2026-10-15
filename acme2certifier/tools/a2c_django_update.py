@@ -8,7 +8,7 @@ import sys
 from typing import List, Optional
 
 _DEPRECATION = (
-    "WARNING: a2c-django-update is deprecated; " "use a2c-schema-update [--mode django]"
+    "WARNING: a2c-django-update is deprecated; use a2c-schema-update [--mode django]"
 )
 
 
