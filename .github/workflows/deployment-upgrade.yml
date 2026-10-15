@@ -45,7 +45,7 @@ jobs:
 
   # ---------------------------------------------------------
   # Resolve one-hop matrix: latest / N-1 / N-2 / pre045 → build
-  # Plus Django chain: 0.33.2 → 0.38.1 → 0.43 → build (separate job)
+  # Plus Django chain: 0.33.2 → 0.38.1 → 0.43.2 → build (separate job)
   # ---------------------------------------------------------
   resolve-versions:
     permissions:
@@ -248,10 +248,11 @@ jobs:
             fi
           done
 
-          # Django multi-hop chain: 0.33.2 → 0.38.1 → 0.43 → build
+          # Django multi-hop chain: 0.33.2 → 0.38.1 → 0.43.2 → build
+          # 0.43.2 (not 0.43): 0.43.1+ drops deb-shipped broken nginx SSL site.
           DJANGO_CHAIN_START="0.33.2"
           DJANGO_CHAIN_OK=false
-          if tag_has_docker "0.33.2" && tag_has_docker "0.38.1" && tag_has_docker "0.43"; then
+          if tag_has_docker "0.33.2" && tag_has_docker "0.38.1" && tag_has_docker "0.43.2"; then
             DJANGO_CHAIN_OK=true
           fi
 
@@ -276,7 +277,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
           echo "N=${N_TAG} N-1=${N1_TAG:-none} N-2=${N2_TAG:-none} pre045=${PRE045_TAG:-none} build=${APP_VERSION}"
-          echo "django chain: 0.33.2 → 0.38.1 → 0.43 → build (ok=${DJANGO_CHAIN_OK})"
+          echo "django chain: 0.33.2 → 0.38.1 → 0.43.2 → build (ok=${DJANGO_CHAIN_OK})"
           if [[ -n "${PRE045_TAG}" ]]; then
             echo "pre045 probes: docker=$(tag_has_docker "${PRE045_TAG}" && echo yes || echo no) rpm=$(tag_has_rpm "${PRE045_TAG}" && echo yes || echo no) deb=$(tag_has_deb "${PRE045_TAG}" && echo yes || echo no)"
             echo "pre045 assets:"; release_asset_names "${PRE045_TAG}" | sed 's/^/  /' || true
@@ -488,7 +489,7 @@ jobs:
           SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
-  # Django chain: 0.33.2 → 0.38.1 → 0.43 → build (nginx × django)
+  # Django chain: 0.33.2 → 0.38.1 → 0.43.2 → build (nginx × django)
   # ---------------------------------------------------------
   test-containers-django-chain:
     permissions:
@@ -575,28 +576,28 @@ jobs:
       - name: "Stop 0.38.1"
         run: docker stop acme-srv
 
-      - name: "Ensure 0.43 image"
+      - name: "Ensure 0.43.2 image"
         uses: ./.github/actions/wf_specific/upgrade/ensure_container_image
         with:
-          VERSION: "0.43"
+          VERSION: "0.43.2"
           WEB_SRV: nginx
           DB_HANDLER: django
 
-      - name: "Spin-up 0.43"
+      - name: "Spin-up 0.43.2"
         uses: ./.github/actions/container_run
         with:
           DB_HANDLER: django
           WEB_SRV: nginx
-          VERSION: "0.43"
+          VERSION: "0.43.2"
           SKIP_PULL: "true"
 
-      - name: "Renew on 0.43"
+      - name: "Renew on 0.43.2"
         uses: ./.github/actions/acme_clients_renew
         with:
           CLEANUP: false
           HOSTNAME_SUFFIX: ""
 
-      - name: "Stop 0.43"
+      - name: "Stop 0.43.2"
         run: docker stop acme-srv
 
       - name: "Migrate cfg for modern build"
@@ -676,7 +677,7 @@ jobs:
         uses: ./.github/actions/channel_teardown
         with:
           DEPLOYMENT_TYPE: container
-          ARTIFACT_NAME: test-containers-django-chain-0.33.2-0.38.1-0.43-build.tar.gz
+          ARTIFACT_NAME: test-containers-django-chain-0.33.2-0.38.1-0.43.2-build.tar.gz
           SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------

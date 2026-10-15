@@ -80,18 +80,6 @@ runs:
           "${env_args[@]}" \
           -v "$(pwd)/data":/var/www/acme2certifier/volume/ \
           "${IMAGE}"
-        # ≤0.44 nginx SSL conf hardcodes /etc/nginx/acme2certifier_{cert,key}.pem
-        # (modern share uses volume/). Stage CI certs where legacy nginx looks.
-        if [[ -f ./data/acme2certifier_cert.pem && -f ./data/acme2certifier_key.pem ]]; then
-          docker exec acme-srv sh -c '
-            set -e
-            if [[ -d /etc/nginx ]]; then
-              cp -f /var/www/acme2certifier/volume/acme2certifier_cert.pem /etc/nginx/acme2certifier_cert.pem
-              cp -f /var/www/acme2certifier/volume/acme2certifier_key.pem /etc/nginx/acme2certifier_key.pem
-              supervisorctl restart nginx >/dev/null 2>&1 || supervisorctl start nginx >/dev/null 2>&1 || true
-            fi
-          '
-        fi
         docker logs acme-srv
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
