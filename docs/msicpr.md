@@ -5,7 +5,7 @@
 
 # CA Handler for Microsoft ICertPassage Remote Protocol (MS-ICPR)
 
-This CA handler enrolls certificates through the Microsoft [ICertPassage Remote Protocol (MS-ICPR)](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-icpr/021b19a6-a8ec-4732-8c76-70933bf53e94) RPC interface used by Active Directory Certificate Services. Request/response structures align with concepts from [MS-WCCE](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wcce/446a0fca-7f27-4436-965d-191635518466), but transport is MS-ICPR (not DCOM). The handler incorporates code from [Certipy](https://github.com/ly4k/Certipy).
+This CA handler enrolls certificates through the Microsoft [ICertPassage Remote Protocol (MS-ICPR)](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-icpr/) RPC interface used by Active Directory Certificate Services. Request/response structures align with concepts from [MS-WCCE](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wcce/), but transport is MS-ICPR (not DCOM). The handler incorporates code from [Certipy](https://github.com/ly4k/Certipy).
 
 > **Compatibility:** The previous module name `acme2certifier.cahandlers.mswcce_ca_handler` remains available as a deprecated alias. Prefer `msicpr_ca_handler`. See also the legacy doc page [mswcce.md](mswcce.md).
 

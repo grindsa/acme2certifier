@@ -2,8 +2,8 @@
 
 This CA handler enrolls certificates through Active Directory Certificate Services **Certificate Enrollment Policy Web Service (CEP)** and **Certificate Enrollment Web Service (CES)** using SOAP over HTTPS:
 
-- [MS-XCEP](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xcep/08ec4475-407d-4388-9bea-3f7a027e2f10) — optional policy / template discovery (`GetPolicies`)
-- [MS-WSTEP](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wstep/4766a85d-0d18-4fa1-a51f-e5cb98b752ea) — certificate enrollment and pending poll (`RequestSecurityToken`)
+- [MS-XCEP](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xcep/) — optional policy / template discovery (`GetPolicies`)
+- [MS-WSTEP](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wstep/) — certificate enrollment and pending poll (`RequestSecurityToken`)
 
 Unlike [MS-ICPR](msicpr.md), this handler does **not** use Impacket or Certipy. Unlike [mscertsrv](mscertsrv.md), it does **not** use classic ASP Web Enrollment (`/certsrv/`).
 
@@ -184,7 +184,7 @@ Set (or change) under `<transport clientCredentialType="Windows">`:
 
 1. Recycle `WSEnrollmentPolicyServer` and `WSEnrollmentServer` in IIS Manager.
 
-See also [IIS Extended Protection](https://learn.microsoft.com/en-us/iis/configuration/system.webserver/security/authentication/windowsauthentication/extendedprotection/) and [KB5005413](https://support.microsoft.com/en-us/topic/kb5005413-mitigating-ntlm-relay-attacks-on-active-directory-certificate-services-ad-cs-3612b773-4043-4aa9-b23d-b87910cd3429) (CES `web.config` EPA).
+See also [IIS Extended Protection](https://learn.microsoft.com/en-us/iis/configuration/system.webserver/security/authentication/windowsauthentication/extendedprotection/) and [KB5005413](https://support.microsoft.com/en-us/servicing/os/windows-server/2021/07/kb5005413-mitigating-ntlm-relay-attacks-on-active-directory-certificate-services-ad-cs) (CES `web.config` EPA).
 
 ## Call flow (a2c ↔ CEP/CES) - Development documenation - no need to read
 
@@ -245,10 +245,10 @@ Communication is **SOAP over HTTPS**, not REST. Every call is `POST` with `Conte
     <clientVersion>0</clientVersion>
     <serverVersion>0</serverVersion>
   </requestFilter>
-</GetPolicies>
+</GetPolicies> s
 ```
 
-Parse: template `commonName`, CES URIs under `cAs/cA/uris/cAURI/uri`. Example: [MS-XCEP GetPoliciesResponse](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xcep/fd102740-c9e7-40f4-a8d9-0bd988e527ba).
+Parse: template `commonName`, CES URIs under `cAs/cA/uris/cAURI/uri`. Example: [MS-XCEP GetPoliciesResponse](      sen-us/openspecs/windows_protocols/ms-xcep/).
 
 ### Call 2 — CES Issue (required on enroll)
 
