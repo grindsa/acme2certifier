@@ -718,6 +718,40 @@ class TestACMEHandler(unittest.TestCase):
         csr = "csr"
         self.assertEqual((True, None), self.cahandler._csr_check(csr))
 
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
+    def test_067b_csr_check_shortname_rejected_when_flag_off(self, mock_san, mock_cn):
+        """Shortname SAN rejected when allow_shortname_from_fqdn is off."""
+        self.cahandler.allowed_domainlist = [r".*\.intra\.net$"]
+        self.cahandler.blocked_domainlist = []
+        self.cahandler.allow_shortname_from_fqdn = False
+        mock_san.return_value = ["DNS:host.intra.net", "DNS:host"]
+        mock_cn.return_value = None
+        self.assertEqual((False, "host.intra.net"), self.cahandler._csr_check("csr"))
+
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
+    def test_067c_csr_check_shortname_accepted_when_flag_on(self, mock_san, mock_cn):
+        """Shortname SAN accepted when covered by allowed sibling FQDN."""
+        self.cahandler.allowed_domainlist = [r".*\.intra\.net$"]
+        self.cahandler.blocked_domainlist = []
+        self.cahandler.allow_shortname_from_fqdn = True
+        mock_san.return_value = ["DNS:host.intra.net", "DNS:host"]
+        mock_cn.return_value = None
+        self.assertEqual((True, "host.intra.net"), self.cahandler._csr_check("csr"))
+
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.csr_cn_get")
+    @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_san_get")
+    def test_067d_csr_check_shortname_denylist_rejects(self, mock_san, mock_cn):
+        """Denylisted shortname rejected despite matching sibling FQDN."""
+        self.cahandler.allowed_domainlist = [r".*\.intra\.net$"]
+        self.cahandler.blocked_domainlist = []
+        self.cahandler.allow_shortname_from_fqdn = True
+        self.cahandler.shortname_denylist = ["mail"]
+        mock_san.return_value = ["DNS:mail.intra.net", "DNS:mail"]
+        mock_cn.return_value = None
+        self.assertEqual((False, "mail.intra.net"), self.cahandler._csr_check("csr"))
+
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_load")
     def test_068__enter__(self, mock_cfg):
         """test enter"""

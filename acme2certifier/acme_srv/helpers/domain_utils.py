@@ -2,7 +2,7 @@
 """Domain utilities for acme2certifier"""
 
 import logging
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import idna
 from .csr import csr_san_get, csr_cn_get
 from .validation import validate_ip, validate_network
@@ -132,40 +132,164 @@ def is_domain_whitelisted(
     return result
 
 
+def is_single_label_name(logger: logging.Logger, name: str) -> bool:
+    """Return True if name is a single DNS label (no dots, no wildcards)."""
+    logger.debug("Helper.is_single_label_name(%s)", name)
+    result = False
+    if name:
+        normalized = name.lower().strip()
+        if normalized and "." not in normalized and "*" not in normalized:
+            result = True
+    logger.debug("Helper.is_single_label_name() ended with %s", result)
+    return result
+
+
+def is_shortname_denied(
+    logger: logging.Logger, name: str, shortname_denylist: List[str]
+) -> bool:
+    """Return True if name matches an entry on the shortname denylist (case-insensitive)."""
+    logger.debug("Helper.is_shortname_denied(%s)", name)
+    result = False
+    if name and shortname_denylist:
+        normalized = name.lower().strip()
+        for entry in shortname_denylist:
+            if entry and entry.lower().strip() == normalized:
+                result = True
+                break
+    logger.debug("Helper.is_shortname_denied() ended with %s", result)
+    return result
+
+
+def _is_covering_fqdn_sibling(logger: logging.Logger, sibling: str) -> bool:
+    """True if sibling is a multi-label non-wildcard DNS name (not an IP)."""
+    logger.debug("Helper._is_covering_fqdn_sibling(%s)", sibling)
+    result = False
+    if sibling:
+        normalized = sibling.lower().strip()
+        if (
+            normalized
+            and not normalized.startswith("*.")
+            and "*" not in normalized
+            and "." in normalized
+        ):
+            try:
+                validate_ip(logger, normalized, raw=True)
+                result = False
+            except ValueError:
+                result = True
+    logger.debug("Helper._is_covering_fqdn_sibling() ended with %s", result)
+    return result
+
+
+def shortname_covered_by_siblings(
+    logger: logging.Logger,
+    shortname: str,
+    sibling_names: List[str],
+    allowed_domainlist: List[str],
+) -> bool:
+    """True if an allowed multi-label sibling FQDN has first label equal to shortname."""
+    logger.debug(
+        "Helper.shortname_covered_by_siblings(%s, siblings=%s)",
+        shortname,
+        sibling_names,
+    )
+    if not is_single_label_name(logger, shortname):
+        logger.debug("Helper.shortname_covered_by_siblings() ended with False")
+        return False
+
+    short = shortname.lower().strip()
+    for sibling in sibling_names or []:
+        if not _is_covering_fqdn_sibling(logger, sibling):
+            continue
+        sibling_norm = sibling.lower().strip()
+        if sibling_norm.split(".", 1)[0] != short:
+            continue
+        if is_domain_whitelisted(logger, sibling_norm, allowed_domainlist):
+            logger.debug(
+                "Helper.shortname_covered_by_siblings() ended with True (sibling=%s)",
+                sibling_norm,
+            )
+            return True
+
+    logger.debug("Helper.shortname_covered_by_siblings() ended with False")
+    return False
+
+
+def _san_email_domains_normalize(san_list: List[str]) -> List[str]:
+    """Replace email SANs with their domain part for allowlist checks."""
+    normalized: List[str] = []
+    for san in san_list:
+        if "@" in san:
+            _email_name, email_domain = san.split("@", 1)
+            normalized.append(email_domain)
+        else:
+            normalized.append(san)
+    return normalized
+
+
+def _san_allowed_by_domainlist(
+    logger: logging.Logger,
+    san: str,
+    san_list: List[str],
+    allowed_domain_list: List[str],
+    allow_shortname_from_fqdn: bool,
+    shortname_denylist: List[str],
+) -> bool:
+    """True if SAN is whitelisted or covered by the shortname-from-FQDN rule."""
+    if is_domain_whitelisted(logger, san, allowed_domain_list):
+        return True
+    if not allow_shortname_from_fqdn:
+        return False
+    if not is_single_label_name(logger, san):
+        return False
+    if is_shortname_denied(logger, san, shortname_denylist):
+        return False
+    return shortname_covered_by_siblings(
+        logger, san, san_list, allowed_domain_list
+    )
+
+
 def allowed_domainlist_check(
-    logger: logging.Logger, csr, allowed_domain_list: List[str]
+    logger: logging.Logger,
+    csr,
+    allowed_domain_list: List[str],
+    allow_shortname_from_fqdn: bool = False,
+    shortname_denylist: Optional[List[str]] = None,
 ) -> str:
     """check if domain is in allowed domain list"""
-    logger.debug("Helper.allowed_domainlist_check()")
+    logger.debug(
+        "Helper.allowed_domainlist_check(allow_shortname_from_fqdn=%s)",
+        allow_shortname_from_fqdn,
+    )
+
+    if not allowed_domain_list:
+        return None
+
+    san_list, check_list = sancheck_lists_create(logger, csr)
+    san_list = _san_email_domains_normalize(san_list)
+    denylist = shortname_denylist or []
+    invalid_domains = [
+        san
+        for san in san_list
+        if not _san_allowed_by_domainlist(
+            logger,
+            san,
+            san_list,
+            allowed_domain_list,
+            allow_shortname_from_fqdn,
+            denylist,
+        )
+    ]
 
     error = None
-    if allowed_domain_list:
-        san_list, check_list = sancheck_lists_create(logger, csr)
+    if invalid_domains:
+        error = "Either CN or SANs are not allowed by configuration"
+    if check_list:
+        error = f"SAN list parsing failed {check_list}"
 
-        # clean email addresses
-        tmp_san_list = []
-        for san in san_list:
-            if "@" in san:
-                _email_name, email_domain = san.split("@", 1)
-                tmp_san_list.append(email_domain)
-            else:
-                tmp_san_list.append(san)
-        san_list = tmp_san_list
-
-        invalid_domains = []
-
-        # go over the san list and check each entry
-        for san in san_list:
-            if not is_domain_whitelisted(logger, san, allowed_domain_list):
-                invalid_domains.append(san)
-                error = "Either CN or SANs are not allowed by configuration"
-
-        if check_list:
-            error = f"SAN list parsing failed {check_list}"
-
-        logger.debug(
-            f'Helper.allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}'
-        )
+    logger.debug(
+        f'Helper.allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}'
+    )
     return error
 
 

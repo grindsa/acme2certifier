@@ -16,6 +16,7 @@ from acme2certifier.acme_srv.helper import (
     cert_pem2der,
     cert_serial_get,
     config_allowed_domainlist_load,
+    config_shortname_denylist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
@@ -87,6 +88,8 @@ class CAhandler(object):
         self.request_retry_backoff = 2.0
 
         self.allowed_domainlist = []
+        self.allow_shortname_from_fqdn = False
+        self.shortname_denylist = []
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
@@ -253,6 +256,13 @@ class CAhandler(object):
         self.allowed_domainlist = config_allowed_domainlist_load(
             self.logger, config_dic
         )
+        self.shortname_denylist = config_shortname_denylist_load(
+            self.logger, config_dic
+        )
+        if "Order" in config_dic:
+            self.allow_shortname_from_fqdn = config_dic.getboolean(
+                "Order", "allow_shortname_from_fqdn", fallback=False
+            )
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -441,7 +451,13 @@ class CAhandler(object):
 
         if not error:
             # check for allowed domainlist
-            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+            error = allowed_domainlist_check(
+                self.logger,
+                csr,
+                self.allowed_domainlist,
+                allow_shortname_from_fqdn=self.allow_shortname_from_fqdn,
+                shortname_denylist=self.shortname_denylist,
+            )
 
         if not error:
             error = self.credential_check()
