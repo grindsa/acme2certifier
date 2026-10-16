@@ -13,6 +13,9 @@ from typing import Any, List, Optional, Sequence
 SECURITY_DISABLE_ACK_ENV = "ACME2CERTIFIER_I_KNOW_THE_RISK"
 _SECURITY_DISABLE_ACK_VALUES = frozenset({"1", "true", "yes", "on"})
 
+# Order loads config per request; emit the ignore error once per process.
+_SHORTNAME_WITHOUT_CHAL_IGNORED_LOGGED = False
+
 # EAB profile cahandler keys that must not be overridden from kid_profiles (exact match).
 # acme_url is intentionally allowed: acme_ca_handler EAB profiling selects upstream.
 # Credentials/endpoints (api_*, passwords, hosts) remain overridable by design;
@@ -139,6 +142,39 @@ def security_disable_acknowledged() -> bool:
         os.environ.get(SECURITY_DISABLE_ACK_ENV, "").strip().lower()
         in _SECURITY_DISABLE_ACK_VALUES
     )
+
+
+def shortname_without_challenge_validation_decide(
+    logger: logging.Logger,
+    requested: bool,
+    source: str = "[Order]",
+) -> bool:
+    """Return True only when allow_shortname_without_challenge_validation may take effect.
+
+    Requires ``ACME2CERTIFIER_I_KNOW_THE_RISK``. When requested without the gate,
+    the flag is ignored and an error is logged once per process. Active use is
+    warned at shortname approval time in Order, not here.
+    """
+    global _SHORTNAME_WITHOUT_CHAL_IGNORED_LOGGED
+
+    logger.debug("shortname_without_challenge_validation_decide()")
+    if not requested:
+        return False
+
+    if security_disable_acknowledged():
+        logger.debug("shortname_without_challenge_validation_decide() returning True")
+        return True
+
+    if not _SHORTNAME_WITHOUT_CHAL_IGNORED_LOGGED:
+        logger.error(
+            "Ignoring %s allow_shortname_without_challenge_validation; shortname "
+            "challenge validation remains required. Set %s=1 to acknowledge the risk.",
+            source,
+            SECURITY_DISABLE_ACK_ENV,
+        )
+        _SHORTNAME_WITHOUT_CHAL_IGNORED_LOGGED = True
+    logger.debug("shortname_without_challenge_validation_decide() returning False")
+    return False
 
 
 def challenge_validation_disable_decide(
