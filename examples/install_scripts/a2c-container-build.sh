@@ -18,6 +18,11 @@
 #   -r, --repo URL                git clone URL
 #                                 (default: https://github.com/grindsa/acme2certifier.git)
 #   -u, --upload                  push the built image to Docker Hub
+#       --sbom-target TARGET      Ubuntu SBOM leaf for companion debs
+#                                 (default: ub26.04; see fetch-sbom-debs.sh)
+#       --local-sbom DIR          use an existing grindsa/sbom checkout
+#       --sbom-token TOKEN        GitHub token for private sbom clone
+#                                 (or GH_SBOM_REPO_TOKEN / GH_TOKEN)
 #       --no-cache                pass --no-cache to docker buildx
 #       --load                    load host-arch image into the local docker
 #                                 daemon (only when not uploading)
@@ -29,12 +34,18 @@
 #   DOCKERHUB_USER=...
 #   DOCKERHUB_TOKEN=...
 #
+# Companion debs (python3-requests-gssapi_*.deb, python3-requests-pkcs12_*.deb)
+# are fetched from grindsa/sbom via fetch-sbom-debs.sh into the Docker build
+# context (Dockerfile COPY ./*.deb).
+#
 # Examples:
 #   ./a2c-container-build.sh -b devel -w apache2
 #   ./a2c-container-build.sh -b devel -w nginx --upload
-#   ./a2c-container-build.sh devel -w nginx --load
+#   ./a2c-container-build.sh devel -w nginx --load --local-sbom ~/Development/sbom
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 BRANCH=""
 WEBSRV="apache2"
@@ -45,13 +56,17 @@ UPLOAD=0
 NO_CACHE=0
 LOAD_LOCAL=0
 KEEP_WORK=0
+SBOM_TARGET="ub26.04"
+LOCAL_SBOM=""
+SBOM_TOKEN="${GH_SBOM_REPO_TOKEN:-${GH_TOKEN:-}}"
+SBOM_GH_USER="${GH_USER:-grindsa}"
 CREDENTIAL_FILE="${HOME}/.dockercredential"
 BUILDER_NAME="a2c-multiarch"
 PLATFORMS="linux/amd64,linux/arm64"
 WORK_ROOT=""
 
 usage() {
-  sed -n '2,35p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 die() {
@@ -138,6 +153,18 @@ parse_args() {
         UPLOAD=1
         shift
         ;;
+      --sbom-target)
+        SBOM_TARGET="${value}"
+        shift 2
+        ;;
+      --local-sbom)
+        LOCAL_SBOM="${value}"
+        shift 2
+        ;;
+      --sbom-token)
+        SBOM_TOKEN="${value}"
+        shift 2
+        ;;
       --no-cache)
         NO_CACHE=1
         shift
@@ -172,6 +199,10 @@ parse_args() {
   case "${WEBSRV}" in
     apache2|nginx) ;;
     *) die "invalid webserver '${WEBSRV}' (expected: apache2|nginx)" ;;
+  esac
+  case "${SBOM_TARGET}" in
+    ub24.04|ub26.04) ;;
+    *) die "invalid --sbom-target '${SBOM_TARGET}' (expected: ub24.04|ub26.04)" ;;
   esac
 }
 
@@ -219,6 +250,41 @@ build_deb() {
   # Dockerfiles COPY ./*.deb from the build context (repo root).
   cp -f "${deb_src}" "${SRC_DIR}/"
   echo "Debian package ready: ${SRC_DIR}/$(basename "${deb_src}")"
+}
+
+fetch_sbom_companion_debs() {
+  # Stage python3-requests-gssapi_*.deb / python3-requests-pkcs12_*.deb from
+  # grindsa/sbom into the Docker build context (same as CI fetch_sbom_debs).
+  local fetch_script="${SCRIPT_DIR}/fetch-sbom-debs.sh"
+  local -a fetch_cmd
+
+  if [[ ! -f "${fetch_script}" ]]; then
+    fetch_script="${SRC_DIR}/examples/install_scripts/fetch-sbom-debs.sh"
+  fi
+  [[ -f "${fetch_script}" ]] || die "fetch-sbom-debs.sh not found"
+
+  echo "Fetching SBOM companion debs (${SBOM_TARGET}) into ${SRC_DIR}"
+  fetch_cmd=(
+    bash "${fetch_script}"
+    -t "${SBOM_TARGET}"
+    -d "${SRC_DIR}"
+    -u "${SBOM_GH_USER}"
+    --clone-dir "${WORK_ROOT}/sbom-debs"
+  )
+  if [[ -n "${LOCAL_SBOM}" ]]; then
+    fetch_cmd+=(--local-sbom "${LOCAL_SBOM}")
+  elif [[ -n "${SBOM_TOKEN}" ]]; then
+    fetch_cmd+=(--token "${SBOM_TOKEN}")
+  fi
+
+  "${fetch_cmd[@]}"
+
+  shopt -s nullglob
+  local gssapi_debs=( "${SRC_DIR}"/python3-requests-gssapi_*.deb )
+  local pkcs12_debs=( "${SRC_DIR}"/python3-requests-pkcs12_*.deb )
+  shopt -u nullglob
+  [[ ${#gssapi_debs[@]} -gt 0 ]] || die "missing python3-requests-gssapi_*.deb in ${SRC_DIR}"
+  [[ ${#pkcs12_debs[@]} -gt 0 ]] || die "missing python3-requests-pkcs12_*.deb in ${SRC_DIR}"
 }
 
 ensure_buildx() {
@@ -302,6 +368,13 @@ main() {
     # Optional: pick DOCKERHUB_USER for the default image repository name.
     load_dockerhub_credentials 0 || true
   fi
+  # Prefer explicit --sbom-token; else env / values sourced from .dockercredential.
+  if [[ -z "${SBOM_TOKEN}" ]]; then
+    SBOM_TOKEN="${GH_SBOM_REPO_TOKEN:-${GH_TOKEN:-}}"
+  fi
+  if [[ -n "${GH_USER:-}" ]]; then
+    SBOM_GH_USER="${GH_USER}"
+  fi
 
   if [[ -z "${IMAGE_REPO}" ]]; then
     IMAGE_REPO="${DOCKERHUB_USER:-grindsa}/acme2certifier"
@@ -318,12 +391,14 @@ main() {
   echo "Work directory: ${WORK_ROOT}"
   echo "Image: ${IMAGE_REPO}:${IMAGE_TAG}"
   echo "Webserver: ${WEBSRV}"
+  echo "SBOM target: ${SBOM_TARGET}"
   echo "Upload: ${UPLOAD}"
 
   install_build_deps
   clone_sources
   read_version
   build_deb
+  fetch_sbom_companion_debs
   ensure_buildx
 
   if [[ "${UPLOAD}" -eq 1 ]]; then
