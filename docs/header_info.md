@@ -16,7 +16,7 @@ allowed_header_values: ["WebServer", "profile-a"]
 ```
 
 - **`header_info_list`** – HTTP header fields to capture and store with the certificate row.
-- **`allowed_header_values`** – JSON list of client-selected enrollment parameter values (template, profile id, …) that may be applied from those headers. When non-empty, values not in the list are ignored (handler default kept). When empty or unset, client-selected header values are ignored unless the break-glass environment variable `ACME2CERTIFIER_I_KNOW_THE_RISK` is set.
+- **`allowed_header_values`** – JSON list of client-selected enrollment parameter values (template, profile id, …) that may be applied from those headers. When non-empty, values not in the list are ignored (handler default kept). When empty or unset, client-selected header values are ignored unless the break-glass environment variable `ACME2CERTIFIER_I_KNOW_THE_RISK` is set ([Security break-glass gate](security_gate.md)).
 
 For Microsoft CA handlers, `[CAhandler] allowed_templates` remains supported as a deprecated compatibility alias; migrate that list to `[Order] allowed_header_values`.
 

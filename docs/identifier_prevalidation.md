@@ -19,7 +19,7 @@ When enabled, any ACME authorization request for a matching domain, IP, or email
 
 ### Full-universe wildcards
 
-The following entries in `[Authorization]` disable DCV for *all* identifiers of that type and are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set (testing only); acknowledgement is logged at `CRITICAL`:
+The following entries in `[Authorization]` disable DCV for *all* identifiers of that type and are ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` is set (testing only); acknowledgement is logged at `CRITICAL`. How to set the env: [Security break-glass gate](security_gate.md).
 
 - `prevalidated_domainlist = ["*"]` (sole entry; spaces around `*` are ignored)
 - `prevalidated_iplist` entries with prefix length 0 (`0.0.0.0/0`, `::/0`)
