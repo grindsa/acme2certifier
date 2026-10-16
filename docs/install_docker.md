@@ -11,6 +11,8 @@ Images are Ubuntu **26.04**-based and install from a prebuilt `.deb`. Each webse
 
 Security-disable options in `acme_srv.cfg` need `ACME2CERTIFIER_I_KNOW_THE_RISK` in the container environment — see [Security break-glass gate](security_gate.md).
 
+Security-disable options in `acme_srv.cfg` need `ACME2CERTIFIER_I_KNOW_THE_RISK` in the container environment — see [Security break-glass gate](security_gate.md).
+
 ## Image tag vs `[DBhandler] handler:`
 
 One Dockerfile per webserver (`examples/Docker/{apache2,nginx}/Dockerfile`).

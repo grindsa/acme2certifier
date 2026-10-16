@@ -5,6 +5,10 @@
 docs
 Dockerfile
 *.md
+!README.md
+!SECURITY.md
+!LICENSE
+!.oss-scanner/**
 docker-compose.yml
 **/venv
 **/env
@@ -15,7 +19,6 @@ local/bin
 .dockerignore
 dpkg.log
 templates.dat
-test
 examples/install_scripts
 examples/reports
 examples/soap
