@@ -11,6 +11,7 @@ and pick the appropriate release branch.
 **New Features**:
 
 - Optional `[Order] allow_shortname_from_fqdn` (default `False`) and `shortname_denylist` so single-label DNS names can pass `allowed_domainlist` when the same order/CSR also contains an allowed multi-label FQDN with a matching first label; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
+- Optional `[Order] allow_shortname_without_challenge_validation` (default `False`, requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1`) marks qualifying shortname authorizations valid at order creation while sibling FQDN challenge validation still gates issuance; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
 
 **Bug Fixes and Improvements**:
 

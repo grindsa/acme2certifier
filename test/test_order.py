@@ -3783,6 +3783,81 @@ class TestOrderClass(unittest.TestCase):
 
         self.assertEqual(self.order.config.shortname_denylist, ["mail", "vpn"])
 
+    @patch(
+        "acme2certifier.acme_srv.order.shortname_without_challenge_validation_decide",
+        return_value=True,
+    )
+    def test_229_apply_eab_profile_allow_shortname_without_challenge_validation(
+        self, mock_decide
+    ):
+        self.order.config.eab_profiling = True
+        self.order.config.allow_shortname_without_challenge_validation = False
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_skip"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {
+            "kid_skip": {
+                "order": {"allow_shortname_without_challenge_validation": True}
+            }
+        }
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertTrue(self.order.config.allow_shortname_without_challenge_validation)
+        mock_decide.assert_called_once()
+        self.assertTrue(mock_decide.call_args.args[1])
+
+    def test_230_add_authorizations_skip_shortname_challenge(self):
+        self.order.repository.add_authorization.return_value = None
+        self.order.repository.update_authorization.return_value = None
+        self.order.config.authz_validity = 1000
+        self.order.config.allow_shortname_from_fqdn = True
+        self.order.config.allow_shortname_without_challenge_validation = True
+        self.order.config.allowed_domainlist = ["*.intra.net"]
+        self.order.config.shortname_denylist = []
+        oid = "order_sn"
+        payload = {
+            "identifiers": [
+                {"type": "dns", "value": "host"},
+                {"type": "dns", "value": "host.intra.net"},
+            ]
+        }
+        auth_dic = {}
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
+        self.assertIsNone(error)
+        statuses = {item["value"]: item["status"] for item in payload["identifiers"]}
+        self.assertEqual(statuses["host"], "valid")
+        self.assertEqual(statuses["host.intra.net"], "pending")
+        self.order.repository.update_authorization.assert_called_once()
+        self.assertTrue(
+            any(
+                "skipping challenge validation for shortname host" in line
+                for line in log_cm.output
+            )
+        )
+
+    def test_231_add_authorizations_no_skip_without_flag(self):
+        self.order.repository.add_authorization.return_value = None
+        self.order.config.authz_validity = 1000
+        self.order.config.allow_shortname_from_fqdn = True
+        self.order.config.allow_shortname_without_challenge_validation = False
+        self.order.config.allowed_domainlist = ["*.intra.net"]
+        oid = "order_sn2"
+        payload = {
+            "identifiers": [
+                {"type": "dns", "value": "host"},
+                {"type": "dns", "value": "host.intra.net"},
+            ]
+        }
+        auth_dic = {}
+        error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
+        self.assertIsNone(error)
+        self.assertEqual(payload["identifiers"][0]["status"], "pending")
+        self.assertEqual(payload["identifiers"][1]["status"], "pending")
+        self.order.repository.update_authorization.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
