@@ -186,4 +186,5 @@ curl -sS http://127.0.0.1/directory
 - [Support for External Databases (Django)](external_database_support.md)
 - [Django deployment environment variables](django_deploy_env.md)
 - [acme_srv.cfg options](acme_srv.md)
+- [Security break-glass gate](security_gate.md)
 - [Upgrading](upgrading.md)

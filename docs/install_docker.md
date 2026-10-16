@@ -9,6 +9,8 @@ See [acme2certifier in Docker](../examples/Docker/README.md).
 
 Images are Ubuntu **26.04**-based and install from a prebuilt `.deb`. Variants differ by web stack (`*-wsgi` vs `*-django`, apache2/nginx). Upgrading or rolling back tags: see [Upgrading — Docker WSGI vs Django](upgrading.md#docker-wsgi-vs-django-and-rollback).
 
+Security-disable options in `acme_srv.cfg` need `ACME2CERTIFIER_I_KNOW_THE_RISK` in the container environment — see [Security break-glass gate](security_gate.md).
+
 ## Image tag vs `[DBhandler] handler:`
 
 Docker images are tagged by web stack (`*-wsgi` vs `*-django`). Each image also sets `ACME_SRV_DB_HANDLER`. That can look like the same choice twice.

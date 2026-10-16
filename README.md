@@ -114,6 +114,8 @@ The fastest and most convenient way to install acme2certifier is Docker, then OS
 1. **PyPI / pip** — library + venv deploy ([Apache2 Ubuntu](docs/install_apache2_ubuntu.md), [Nginx Ubuntu](docs/install_nginx_ubuntu.md), [Nginx Alma/RHEL9](docs/install_nginx_alma.md))
 1. **Local development** — editable checkout + Django `runserver`: [development.md](docs/development.md)
 
+Lab-only security-disable acknowledgement (`ACME2CERTIFIER_I_KNOW_THE_RISK`): [security_gate.md](docs/security_gate.md).
+
 Releases publish `.deb`, `.rpm`, and PyPI (Trusted Publisher).
 
 ## Software Bill Of Material
