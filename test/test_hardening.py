@@ -33,10 +33,12 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ownership_unauthorized,
     resource_owner_matches,
 )
+from acme2certifier.acme_srv.helpers import security_gate as security_gate_mod
 from acme2certifier.acme_srv.helpers.security_gate import (
     SECURITY_DISABLE_ACK_ENV,
     challenge_validation_disable_decide,
     client_header_parameter_decide,
+    shortname_without_challenge_validation_decide,
 )
 from acme2certifier.acme_srv.renewalinfo import Renewalinfo
 
@@ -242,6 +244,51 @@ class TestChallengeValidationDisableDecide:
                 )
                 is True
             )
+
+
+class TestShortnameWithoutChallengeValidationDecide:
+    """allow_shortname_without_challenge_validation requires break-glass."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_gate_log_once(self) -> None:
+        security_gate_mod._SHORTNAME_WITHOUT_CHAL_IGNORED_LOGGED = False
+        yield
+        security_gate_mod._SHORTNAME_WITHOUT_CHAL_IGNORED_LOGGED = False
+
+    def test_017_not_requested(self) -> None:
+        logger = logging.getLogger("test_hardening_sn_chal")
+        assert (
+            shortname_without_challenge_validation_decide(logger, False) is False
+        )
+
+    def test_018_ignored_without_ack(self, caplog: pytest.LogCaptureFixture) -> None:
+        logger = logging.getLogger("test_hardening_sn_chal")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
+            with caplog.at_level(logging.ERROR):
+                assert (
+                    shortname_without_challenge_validation_decide(logger, True)
+                    is False
+                )
+        assert any(
+            "Ignoring" in r.message
+            and "allow_shortname_without_challenge_validation" in r.message
+            for r in caplog.records
+        )
+
+    def test_019_allowed_with_ack_silent(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        logger = logging.getLogger("test_hardening_sn_chal")
+        with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
+            with caplog.at_level(logging.WARNING):
+                assert (
+                    shortname_without_challenge_validation_decide(logger, True)
+                    is True
+                )
+        assert not any(
+            "allow_shortname_without_challenge_validation" in r.message
+            for r in caplog.records
+        )
 
 
 class TestOrderResourceOwnership:
