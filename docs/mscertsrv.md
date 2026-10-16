@@ -158,7 +158,7 @@ krb5_kinit_path: </path/to/kinit>
 - **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the keytab fallback and GSSAPI password paths. Defaults to `kinit` resolved from `PATH`. If set, the value must be an **absolute** path whose basename is exactly `kinit` (for example `/usr/bin/kinit`). Symlink targets such as Debian/Ubuntu `kinit.mit` / `kinit.heimdal` are accepted after resolution. Other values are rejected and the kinit fallback fails.
 - **krb5_kinit_path_variable** *(optional)* – Name of the environment variable containing the `kinit` binary path (overridden if `krb5_kinit_path` is set in `acme_srv.cfg`).
 - **template** – Certificate template used for enrollment.
-- **allowed_templates** *(optional, deprecated for header allowlisting)* – JSON list of ADCS templates permitted for enrollment. Prefer `[Order] allowed_header_values` (see [header_info.md](header_info.md)). When `allowed_header_values` is set, it is used instead. When only `allowed_templates` is set, a deprecation warning is logged and the list is still honored (including MS enrollment membership checks). When neither list is set, client-selected templates from `header_info` are **ignored** unless `ACME2CERTIFIER_I_KNOW_THE_RISK` is set. EAB per-account template restrictions still apply on top of this global ceiling.
+- **allowed_templates** *(optional, deprecated for header allowlisting)* – JSON list of ADCS templates permitted for enrollment. Prefer `[Order] allowed_header_values` (see [header_info.md](header_info.md)). When `allowed_header_values` is set, it is used instead. When only `allowed_templates` is set, a deprecation warning is logged and the list is still honored (including MS enrollment membership checks). When neither list is set, client-selected templates from `header_info` are **ignored** unless `ACME2CERTIFIER_I_KNOW_THE_RISK` is set ([Security break-glass gate](security_gate.md)). EAB per-account template restrictions still apply on top of this global ceiling.
 - **ca_templates_check** *(optional, default `warn`)* – Compare the selected template against templates reported by ADCS Web Enrollment (`certrqxt.asp`): `warn` (log and continue), `on` (reject if missing from the CA list), or `off` (skip). The Web Enrollment dropdown is not a complete ADCS inventory; fetch failures or an empty CA list log a warning and enrollment continues. Results are cached process-wide (thread-safe).
 - **allowed_domainlist** *(optional)* – List of allowed domain names for enrollment (JSON format).
 - **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`). This handler omits `password`, Kerberos credential locations (`krb5_keytab`, `krb5_cache`, `krb5_config`, `krb5_kinit_path`), and runtime GSSAPI credentials from that dump.
@@ -234,7 +234,7 @@ header_info_list: ["HTTP_USER_AGENT"]
 allowed_header_values: ["WebServer", "WebServerModified"]
 ```
 
-Configure a non-empty `allowed_header_values` list so client-selected values are accepted. Without that list (and without `ACME2CERTIFIER_I_KNOW_THE_RISK`), header-supplied templates are ignored. `[CAhandler] allowed_templates` remains a deprecated compatibility alias.
+Configure a non-empty `allowed_header_values` list so client-selected values are accepted. Without that list (and without `ACME2CERTIFIER_I_KNOW_THE_RISK` — [security_gate.md](security_gate.md)), header-supplied templates are ignored. `[CAhandler] allowed_templates` remains a deprecated compatibility alias.
 
 ### Example Usage
 

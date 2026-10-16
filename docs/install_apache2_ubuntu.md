@@ -236,6 +236,7 @@ sudo systemctl restart apache2
 - [Nginx + uWSGI (Ubuntu)](install_nginx_ubuntu.md)
 - [Nginx + uWSGI (Alma / RHEL)](install_nginx_alma.md)
 - [acme_srv.cfg options](acme_srv.md)
+- [Security break-glass gate](security_gate.md)
 - [Upgrading](upgrading.md)
 - [Support for External Databases (Django)](external_database_support.md)
 - [Django deployment environment variables](django_deploy_env.md)
