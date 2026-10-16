@@ -3,7 +3,12 @@ name: Deployment - Release and push images to Docker Hub / GHCR
 on:
   push:
     branches: ["master"]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      readme_only:
+        description: "Only update Docker Hub README (skip release, image build, and tests)"
+        type: boolean
+        default: false
   schedule:
     - cron: "0 01 * * 6"
       timezone: "Europe/Berlin"
@@ -19,7 +24,9 @@ jobs:
     permissions:
       contents: write
     timeout-minutes: 45
-    if: github.repository == 'grindsa/acme2certifier'
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && !(github.event_name == 'workflow_dispatch' && inputs.readme_only)
     outputs:
       tag_n: ${{ steps.versions.outputs.tag_n }}
       app_name: ${{ steps.versions.outputs.app_name }}
@@ -136,7 +143,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: create_release
-    if: github.repository == 'grindsa/acme2certifier'
+    if: >-
+      !cancelled()
+      && github.repository == 'grindsa/acme2certifier'
+      && (
+        needs.create_release.result == 'success'
+        || (
+          needs.create_release.result == 'skipped'
+          && github.event_name == 'workflow_dispatch'
+          && inputs.readme_only
+        )
+      )
     outputs:
       tag_n: ${{ steps.resolve.outputs.tag_n }}
       tag_n1: ${{ steps.resolve.outputs.tag_n1 }}
@@ -157,7 +174,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs: [create_release, resolve_versions]
-    if: github.repository == 'grindsa/acme2certifier'
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && !(github.event_name == 'workflow_dispatch' && inputs.readme_only)
     strategy:
       fail-fast: false
       matrix:
@@ -197,7 +216,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs: [resolve_versions, build_and_push_n1]
-    if: github.repository == 'grindsa/acme2certifier'
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && !(github.event_name == 'workflow_dispatch' && inputs.readme_only)
     strategy:
       fail-fast: false
       matrix:
@@ -232,12 +253,56 @@ jobs:
           GH_USER: ${{ env.GH_USER }}
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
+  update_dockerhub_readme:
+    name: Update Docker Hub README
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [resolve_versions, build_and_push_n]
+    if: >-
+      !cancelled()
+      && github.repository == 'grindsa/acme2certifier'
+      && needs.resolve_versions.result == 'success'
+      && (
+        needs.build_and_push_n.result == 'success'
+        || (
+          needs.build_and_push_n.result == 'skipped'
+          && github.event_name == 'workflow_dispatch'
+          && inputs.readme_only
+        )
+      )
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Parse software repository secrets
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SWREPO_CFG }}
+
+      - name: Rewrite README links for Docker Hub
+        env:
+          README_REF: ${{ needs.resolve_versions.outputs.tag_n }}
+        run: |
+          python3 .github/scripts/rewrite_readme_links_for_pypi.py README.md \
+            --repo "${{ github.repository }}" \
+            --ref "${README_REF}"
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ env.DOCKERHUB_USER }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+          repository: grindsa/acme2certifier
+          readme-filepath: ./README.md
+
   test_amd64_n1:
     name: Test amd64 N-1 images
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [resolve_versions, build_and_push_n1]
-    if: github.repository == 'grindsa/acme2certifier'
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && !(github.event_name == 'workflow_dispatch' && inputs.readme_only)
     strategy:
       fail-fast: false
       matrix:
@@ -292,7 +357,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [resolve_versions, build_and_push_n]
-    if: github.repository == 'grindsa/acme2certifier'
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && !(github.event_name == 'workflow_dispatch' && inputs.readme_only)
     strategy:
       fail-fast: false
       matrix:
@@ -347,7 +414,9 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     needs: [resolve_versions, build_and_push_n]
-    if: github.repository == 'grindsa/acme2certifier'
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && !(github.event_name == 'workflow_dispatch' && inputs.readme_only)
     strategy:
       fail-fast: false
       matrix:
@@ -402,7 +471,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [resolve_versions, test_amd64]
-    if: github.repository == 'grindsa/acme2certifier' && needs.test_amd64.result == 'success'
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && !(github.event_name == 'workflow_dispatch' && inputs.readme_only)
+      && needs.test_amd64.result == 'success'
     strategy:
       fail-fast: false
       max-parallel: 1
