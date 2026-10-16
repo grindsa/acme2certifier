@@ -9,6 +9,8 @@ See [acme2certifier in Docker](../examples/Docker/README.md).
 
 Images are Ubuntu **26.04**-based and install from a prebuilt `.deb`. Each webserver image (`apache2`, `nginx`) includes both WSGI and Django stacks; the DB backend is selected at runtime. Upgrading or rolling back: see [Upgrading — Docker WSGI vs Django](upgrading.md#docker-wsgi-vs-django-and-rollback).
 
+Security-disable options in `acme_srv.cfg` need `ACME2CERTIFIER_I_KNOW_THE_RISK` in the container environment — see [Security break-glass gate](security_gate.md).
+
 ## Image tag vs `[DBhandler] handler:`
 
 One Dockerfile per webserver (`examples/Docker/{apache2,nginx}/Dockerfile`).

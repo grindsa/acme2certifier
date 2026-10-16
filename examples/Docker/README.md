@@ -84,6 +84,20 @@ WEBSERVER=apache2
 ACME_SRV_DB_HANDLER=wsgi
 ```
 
+### Security break-glass (`ACME2CERTIFIER_I_KNOW_THE_RISK`)
+
+Gated security-disable options in `acme_srv.cfg` require this variable in the **container** environment (not only on the host shell). Prefer a compose override or the service `env_file` (`./data/django.env`), then recreate:
+
+```yaml
+# docker-compose.override.yml
+services:
+  acme-srv:
+    environment:
+      ACME2CERTIFIER_I_KNOW_THE_RISK: "1"
+```
+
+Full matrix (Docker / pip / RPM / DEB / Apache2 / nginx): [Security break-glass gate](../../docs/security_gate.md).
+
 ______________________________________________________________________
 
 ## Building the Docker Image
