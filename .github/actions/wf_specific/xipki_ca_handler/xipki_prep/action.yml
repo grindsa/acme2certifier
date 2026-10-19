@@ -128,14 +128,15 @@ runs:
 
       # Persist MySQL datadir under DATA_DIR (stack keeps conf/init + Dockerfiles)
       sed -i "s|- ./mysql/db:/var/lib/mysql|- ${DATA_DIR}/mysql/db:/var/lib/mysql|" docker-compose.yaml
-      # Optional: CLI bind mounts under DATA_DIR (seed from stack on first run)
+      # Optional: CLI bind mounts under DATA_DIR (seed from stack on first run).
+      # cp -R only: /srv mounts often reject preserving ownership/timestamps (cp -a).
       if [ ! -e "${DATA_DIR}/cli/.seeded" ]; then
-        cp -a xipki-cli/. "${DATA_DIR}/cli/"
+        cp -R xipki-cli/. "${DATA_DIR}/cli/"
         chmod -R +x "${DATA_DIR}/cli/bin" 2>/dev/null || true
         touch "${DATA_DIR}/cli/.seeded"
       fi
       if [ ! -e "${DATA_DIR}/mgmt-cli/.seeded" ]; then
-        cp -a xipki-mgmt-cli/. "${DATA_DIR}/mgmt-cli/"
+        cp -R xipki-mgmt-cli/. "${DATA_DIR}/mgmt-cli/"
         chmod -R +x "${DATA_DIR}/mgmt-cli/bin" 2>/dev/null || true
         touch "${DATA_DIR}/mgmt-cli/.seeded"
       fi

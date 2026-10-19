@@ -4,7 +4,7 @@
     "cahandler": {
       "profile": [
         "tls",
-        "tls"
+        "tls-c"
       ],
       "allowed_domainlist": [
         "www.example.com",

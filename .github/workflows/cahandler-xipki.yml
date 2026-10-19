@@ -46,7 +46,7 @@ jobs:
   # ---------------------------------------------------------
   # Test container images
   # XiPKI stack is built from changhr2013/docker-xipki (no official Hub image).
-  # Narrow matrix first; expand after prep is proven green.
+  # Handler is REST-only; skip RPM/deb (packaging covered elsewhere).
   # ---------------------------------------------------------
   test-containers:
     permissions:
@@ -59,8 +59,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['nginx']
-        dbhandler: ['django']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -120,12 +120,29 @@ jobs:
 
       - name: "ACME Profiling - setup a2c with xipki_ca_handler"
         run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls\": \"http:\/\/foo.bar\/tls\"}/g" examples/Docker/data/acme_srv.cfg
+          # Multiple profiles: unknown names must be rejected (not remapped).
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls\": \"http:\/\/foo.bar\/tls\", \"tls-c\": \"http:\/\/foo.bar\/tls-c\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/xipki_ca_handler/enroll_acmeprofile
+
+      - name: "ACME Profiling - setup single-profile remap"
+        run: |
+          # Sole profile: unknown names are silently remapped to that profile.
+          sudo sed -i 's/profiles={.*}/profiles={"tls": "http:\/\/foo.bar\/tls"}/' examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "ACME Profiling - enrollment remap"
+        uses: ./.github/actions/wf_specific/xipki_ca_handler/enroll_acmeprofile_remap
+
+      - name: "ACME Profiling - restore multi-profile"
+        run: |
+          sudo sed -i 's/profiles={.*}/profiles={"tls": "http:\/\/foo.bar\/tls", "tls-c": "http:\/\/foo.bar\/tls-c", "profile3": "http:\/\/foo.bar\/profile3"}/' examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
