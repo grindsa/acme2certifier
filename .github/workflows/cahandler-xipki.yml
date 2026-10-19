@@ -1,0 +1,165 @@
+name: CA-Handler Tests - XiPKI
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  guard:
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  # ---------------------------------------------------------
+  # Test container images
+  # XiPKI stack is built from changhr2013/docker-xipki (no official Hub image).
+  # Narrow matrix first; expand after prep is proven green.
+  # ---------------------------------------------------------
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['nginx']
+        dbhandler: ['django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Instanciate XiPKI"
+        uses: ./.github/actions/wf_specific/xipki_ca_handler/xipki_prep
+        with:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+          WORKING_DIR: ${{ github.workspace }}/examples/Docker
+          NAME_SPACE: acme
+
+      - name: "Setup a2c with xipki_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.xipki_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.XIPKI_API_HOST }}
+            api_user: ${{ env.XIPKI_API_USER }}
+            api_password: ${{ env.XIPKI_API_PASSWORD }}
+            profile: ${{ env.XIPKI_PROFILE }}
+            ca_bundle: volume/acme_ca/ca_bundle.pem
+            allowed_domainlist: ["*.acme", "*.bar.local"]
+            enrollment_config_log: True
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+        with:
+          USE_CERTBOT: "true"
+          TEST_ADL: "true"
+          REVOCATION: "true"
+
+      - name: "Verify allowed_domainlist error"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
+
+      - name: "ACME Profiling - setup a2c with xipki_ca_handler"
+        run: |
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls\": \"http:\/\/foo.bar\/tls\"}/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "ACME Profiling - enrollment"
+        uses: ./.github/actions/wf_specific/xipki_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xipki.json
+          DEST: examples/Docker/data/kid_profiles.json
+
+      - name: "EAB ACME Profiling - setup a2c with xipki_ca_handler"
+        run: |
+          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB ACME Profiling - enrollment"
+        uses: ./.github/actions/wf_specific/xipki_ca_handler/enroll_eab_acmeprofile
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

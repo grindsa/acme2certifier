@@ -1,0 +1,39 @@
+name: "enroll_acmeprofile"
+description: "XiPKI ACME profile enrollment test"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
+
+  - name: "ACME Profile - 01 - enrollment without profile (default tls)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -subject -noout | grep -i lego.acme
+    shell: bash
+
+  - name: "ACME Profile - 02 - Allowed profile tls"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http --profile tls
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -subject -noout | grep -i lego.acme
+    shell: bash
+
+  - name: "ACME Profile - 03 - enrollment with unknown profile (to fail)"
+    id: legofail02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http --profile unknown
+    shell: bash
+
+  - name: "ACME Profile 03 - check result"
+    if: steps.legofail02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{ steps.legofail02.outcome }}"
+      exit 1
+    shell: bash

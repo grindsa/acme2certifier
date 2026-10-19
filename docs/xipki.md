@@ -124,8 +124,102 @@ Example kid profile fragment:
 }
 ```
 
+## Empty CSR subjects (ACME clients)
+
+Many ACME clients (Certbot, recent lego builds, etc.) finalize with a PKCS#10 that has an
+**empty subject DN** and puts all names in `subjectAlternativeName`. That is valid ACME, but
+stock XiPKI REST `enroll-cert` copies the CSR subject into the certificate template. Combined
+with a profile that requires a CN, enrolments fail — or operators paper over it with a fixed
+placeholder such as `CN=acme-issued.invalid`, which then appears on every leaf.
+
+XiPKI’s **built-in ACME gateway** avoids this by setting `CN=<first DNS SAN>` after POP is
+verified, then enrolling via the CA SDK with that subject plus the CSR public key and
+extensions (not the empty PKCS#10 subject). Plain REST has no equivalent rewrite.
+
+### What this project does
+
+acme2certifier cannot resign the client CSR (no private key), so the REST handler always
+forwards the PKCS#10 as received. Subject rewriting belongs on the XiPKI gateway (or in the
+certprofile / client CSR), not in the Python handler.
+
+The CI/demo docker-xipki stack therefore:
+
+1. **Patches** `RestResponder` in `rest.war` so that after a successful POP check, an empty
+   (or CN-less) CSR subject is replaced with `CN=<first DNS SAN>` — the same rule as XiPKI ACME.
+2. **Relaxes** the demo `tls` certprofile: optional `C` / `O` / `OU` / `serialNumber` / `CN`
+   (no fixed placeholder value), and marks SAN **critical** + required (RFC 5280 when the
+   subject may be empty).
+
+Result: an empty-subject CSR for `DNS:foo.example` yields a leaf with
+`subject=CN=foo.example` and a critical SAN, instead of `CN=acme-issued.invalid`.
+
+If the CSR already contains a CN, that CN is kept unchanged.
+
+### Patching an existing docker-xipki stack
+
+On a host that already runs the demo layout (`STACK_DIR` / `DATA_DIR`):
+
+```bash
+STACK_DIR=/srv/stacks/xipki DATA_DIR=/srv/data/xipki \
+  ./.github/scripts/patch_xipki_cn_from_san.sh
+```
+
+The script ([`.github/scripts/patch_xipki_cn_from_san.sh`](../.github/scripts/patch_xipki_cn_from_san.sh))
+updates the `tls` profile JSON (stack + data copies), rebuilds `rest.war` with the CN-from-SAN
+RestResponder, and recreates the `xipki-gateway` container (set `SKIP_COMPOSE_UP=1` to skip the
+recreate). [`xipki_prep`](../.github/actions/wf_specific/xipki_ca_handler/xipki_prep/action.yml)
+calls the same script before the full stack `docker compose up`. Requires Docker and network
+access to pull `eclipse-temurin:17-jdk` for the one-shot compile.
+
+Smoke test (empty subject + SAN only):
+
+```bash
+TMP=$(mktemp -d)
+openssl req -new -newkey rsa:2048 -nodes \
+  -keyout "$TMP/k.pem" -outform DER -out "$TMP/req.csr" \
+  -subj "/" \
+  -addext "subjectAltName=DNS:cn-from-san-test.example.org"
+curl -sS -u 'user1:password1' \
+  -H 'Content-Type: application/pkcs10' \
+  --data-binary @"$TMP/req.csr" \
+  -o "$TMP/leaf.der" \
+  "http://127.0.0.1:8082/rest/myca/enroll-cert?profile=tls"
+openssl x509 -inform der -in "$TMP/leaf.der" -noout -subject -ext subjectAltName
+# expect: subject=CN = cn-from-san-test.example.org
+```
+
+### Production / stock XiPKI without the patch
+
+Options if you cannot patch RestResponder:
+
+- Prefer ACME clients that put `CN=<fqdn>` in the CSR, or
+- Use XiPKI’s ACME service instead of REST for enrolment, or
+- Configure the certprofile for optional CN + critical SAN (empty subject leaves; no fake CN).
+
+Do **not** rely on a static overridable CN like `acme-issued.invalid` in production — every
+certificate will share that subject.
+
 ## Notes
 
 - Enrollment is synchronous; `poll` and `trigger` are not implemented.
 - The leaf is returned as DER (`application/pkix-cert`); the handler builds the PEM chain from `GET /cacerts`.
 - Revocation uses `GET /revoke-cert` with `ca-sha1`, `serial-number`, and `reason` (XiPKI `CrlReason` names such as `KEY_COMPROMISE` / `UNSPECIFIED`).
+
+## CI
+
+Draft workflow: [`.github/workflows/cahandler-xipki.yml`](../.github/workflows/cahandler-xipki.yml).
+
+There is no maintained official XiPKI Docker Hub image for 6.x. The prep action
+([`xipki_prep`](../.github/actions/wf_specific/xipki_ca_handler/xipki_prep/action.yml))
+builds [changhr2013/docker-xipki](https://github.com/changhr2013/docker-xipki) at a pinned
+commit, attaches it to the `acme` Docker network, restarts the CA after MySQL is ready,
+loads demo CA `myca1` (alias `myca`) via mgmt-cli / karaf, applies the ACME-friendly `tls`
+certprofile and RestResponder CN-from-SAN patch described above, and smokes REST enroll with
+requestor `user1` / `password1` against `/rest/myca` (ports `8082` HTTP / `8445` HTTPS).
+
+Layout used by prep (overridable via action inputs):
+
+| Path | Contents |
+| --- | --- |
+| `/srv/stacks/xipki` | Compose file, Dockerfiles, build contexts, mgmt-cli |
+| `/srv/data/xipki` | Persistent data (`mysql/db`, seeded `cli` / `mgmt-cli`) |
