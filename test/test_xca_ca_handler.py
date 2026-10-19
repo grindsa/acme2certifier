@@ -2106,23 +2106,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_template.called)
         self.assertTrue(mock_convert.called)
 
-    @patch("OpenSSL.crypto.X509.from_cryptography")
-    def test_178__subject_name_hash_get(self, mock_x509):
-        """_subject_name_hash_get()"""
-        # mock_x509 = Mock()
-        obj = Mock()
-        obj.subject_name_hash.return_value = 111111111111111111
-        mock_x509.return_value = obj
-        self.assertEqual(73429447, self.cahandler._subject_name_hash_get("cert"))
+    def test_178__subject_name_hash_get(self):
+        """_subject_name_hash_get matches OpenSSL/XCA hash for root-ca"""
+        from cryptography.hazmat.backends import default_backend
 
-    @patch("OpenSSL.crypto.X509.from_cryptography")
-    def test_179__subject_name_hash_get(self, mock_x509):
-        """_subject_name_hash_get()"""
-        # mock_x509 = Mock()
-        obj = Mock()
-        obj.subject_name_hash.return_value = 11111111111111111
-        mock_x509.return_value = obj
-        self.assertEqual(651588039, self.cahandler._subject_name_hash_get("cert"))
+        with open(f"{self.dir_path}/ca/root-ca-cert.pem", "rb") as fso:
+            cert = x509.load_pem_x509_certificate(fso.read(), default_backend())
+        # Golden value: OpenSSL X509_NAME_hash(CN=root-ca) & 0x7FFFFFFF
+        self.assertEqual(2018907044, self.cahandler._subject_name_hash_get(cert))
+
+    def test_179__subject_name_hash_get(self):
+        """_subject_name_hash_get matches OpenSSL/XCA hash for multi-RDN subject"""
+        from cryptography.hazmat.backends import default_backend
+
+        with open(f"{self.dir_path}/ca/root-ca-client.pem", "rb") as fso:
+            cert = x509.load_pem_x509_certificate(fso.read(), default_backend())
+        # Golden value: OpenSSL X509_NAME_hash & 0x7FFFFFFF
+        self.assertEqual(1069933505, self.cahandler._subject_name_hash_get(cert))
 
     @patch("acme2certifier.cahandlers.xca_ca_handler.x509.Name")
     @patch("acme2certifier.cahandlers.xca_ca_handler.x509.NameAttribute")
@@ -3997,20 +3997,19 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._x509super_insert")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._public_key_hash_get")
-    @patch(
-        "acme2certifier.cahandlers.xca_ca_handler.pyossslcrypto.load_certificate_request"
-    )
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._openssl_name_hash")
     @patch("acme2certifier.cahandlers.xca_ca_handler.x509.load_pem_x509_csr")
     @patch("acme2certifier.cahandlers.xca_ca_handler.build_pem_file")
     @patch("acme2certifier.cahandlers.xca_ca_handler.b64_url_recode")
     def test_260_x509super_store_from_csr(
-        self, mock_b64, mock_pem, mock_load_csr, mock_load_req, mock_hash, mock_ins
+        self, mock_b64, mock_pem, mock_load_csr, mock_name_hash, mock_hash, mock_ins
     ):
         """_x509super_store_from_csr inserts a row from a parsed CSR"""
         mock_b64.return_value = "recode"
         mock_pem.return_value = "-----BEGIN CERTIFICATE REQUEST-----\nMII\n-----END CERTIFICATE REQUEST-----"
         mock_load_csr.return_value.public_key.return_value = Mock()
-        mock_load_req.return_value.get_subject.return_value.hash.return_value = 99
+        mock_load_csr.return_value.subject = Mock()
+        mock_name_hash.return_value = 99
         mock_hash.return_value = 12
         self.cahandler._x509super_store_from_csr("csr", 8)
         mock_ins.assert_called_once_with(

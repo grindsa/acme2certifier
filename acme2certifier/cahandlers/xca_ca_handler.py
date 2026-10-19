@@ -25,8 +25,6 @@ from cryptography.x509 import (
 )
 from cryptography.x509.oid import ExtendedKeyUsageOID
 
-# we cannot remove this import as it is used in the code as CA’s iss_hash has to line up with hashes XCA already stored when the CA was imported
-from OpenSSL import crypto as pyossslcrypto
 from acme2certifier.acme_srv.helper import (
     b64_decode,
     b64_encode,
@@ -1545,14 +1543,33 @@ class CAhandler:
         self.logger.debug("CAhandler._stub_func() ended")
         return parameter
 
-    def _subject_name_hash_get(self, cert: str = None) -> int:
-        """get subject name hash"""
+    def _openssl_name_hash(self, name: x509.Name) -> int:
+        """OpenSSL X509_NAME_hash for an X.509 Name, masked to 31 bits for XCA.
+
+        XCA stores iss_hash/subj_hash using OpenSSL's X509_NAME_hash (SHA-1 of the
+        canonical Name encoding). cryptography does not expose that API; call
+        libcrypto via the OpenSSL backend so values stay compatible with existing
+        XCA databases without depending on pyOpenSSL.
+        """
+        self.logger.debug("CAhandler._openssl_name_hash()")
+        backend = default_backend()
+        lib = backend._lib  # pylint: disable=protected-access
+        ffi = backend._ffi  # pylint: disable=protected-access
+        name_der = name.public_bytes()
+        name_buf = ffi.new("unsigned char[]", name_der)
+        ppin = ffi.new("unsigned char **", name_buf)
+        x509_name = lib.d2i_X509_NAME(ffi.NULL, ppin, len(name_der))
+        if x509_name == ffi.NULL:
+            raise ValueError("d2i_X509_NAME failed for subject Name")
+        try:
+            return int(lib.X509_NAME_hash(x509_name)) & 0x7FFFFFFF
+        finally:
+            lib.X509_NAME_free(x509_name)
+
+    def _subject_name_hash_get(self, cert: x509.Certificate = None) -> int:
+        """get subject name hash (OpenSSL/XCA compatible)"""
         self.logger.debug("CAhandler._subject_name_hash_get()")
-
-        pyopenssl_cert = pyossslcrypto.X509.from_cryptography(cert)
-        pyopenssl_subject_name_hash = pyopenssl_cert.subject_name_hash() & 0x7FFFFFFF
-
-        return pyopenssl_subject_name_hash
+        return self._openssl_name_hash(cert.subject)
 
     def _public_key_hash_get(self, public_key: object) -> int:
         """XCA 32-bit key hash (SHA1(SPKI)[:4] little-endian, 31-bit)."""
@@ -1612,13 +1629,10 @@ class CAhandler:
             req = x509.load_pem_x509_csr(
                 convert_string_to_byte(csr_pem), default_backend()
             )
-            pyreq = pyossslcrypto.load_certificate_request(
-                pyossslcrypto.FILETYPE_PEM, convert_string_to_byte(csr_pem)
-            )
             self._x509super_insert(
                 {
                     "item": item_id,
-                    "subj_hash": pyreq.get_subject().hash() & 0x7FFFFFFF,
+                    "subj_hash": self._openssl_name_hash(req.subject),
                     "pkey": None,
                     "key_hash": self._public_key_hash_get(req.public_key()),
                 }
