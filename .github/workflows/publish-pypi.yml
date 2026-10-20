@@ -39,6 +39,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install build
 
+      - name: Rewrite README links for PyPI
+        env:
+          README_REF: ${{ github.event.release.tag_name || github.sha }}
+        run: |
+          python .github/scripts/rewrite_readme_links_for_pypi.py README.md \
+            --repo "${{ github.repository }}" \
+            --ref "${README_REF}"
+
       - name: Build sdist and wheel
         run: python -m build
 

@@ -12,9 +12,16 @@ and pick the appropriate release branch.
 
 - Unified Docker images per webserver (`apache2` / `nginx`): WSGI and Django in one image; handler selected at runtime via `[DBhandler]` / `ACME_SRV_DB_HANDLER` (entrypoint retargets Apache/uWSGI). Hub primary tags are `apache2` / `nginx` (`latest` → `apache2`); legacy `*-wsgi` / `*-django` tags remain for compatibility. See [Containerized installation](docs/install_docker.md).
 - [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
-- Docker Django: migration files come from the image (aligned with DEB/RPM); `volume/migrations` is deprecated and ignored. See [Upgrading — Docker (Django)](docs/upgrading.md#docker-django).
 
 **Bug Fixes and Improvements**:
+
+- Docker Django: migration files come from the image (aligned with DEB/RPM); `volume/migrations` is deprecated and ignored. See [Upgrading — Docker (Django)](docs/upgrading.md#docker-django).
+
+## Changes in 0.46.3
+
+**Bug Fixes and Improvements**:
+
+- Drop the exact `pyOpenSSL==26.1.0` pin so a normal install can resolve current pyOpenSSL / cryptography; XCA subject/`x509super` hashes now use OpenSSL `X509_NAME_hash` via cryptography’s libcrypto binding instead of pyOpenSSL (`load_certificate_request` removed in pyOpenSSL 26.3) ([#404](https://github.com/grindsa/acme2certifier/issues/404))
 
 ## Changes in 0.46.2
 

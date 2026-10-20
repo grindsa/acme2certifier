@@ -34,7 +34,9 @@ def TestOneInput(data: bytes) -> None:
     if fdp.ConsumeBool():
         content = fdp.ConsumeUnicodeNoSurrogates(fdp.remaining_bytes())
     else:
-        content = fdp.ConsumeBytes(fdp.remaining_bytes()).decode("latin-1", errors="ignore")
+        content = fdp.ConsumeBytes(fdp.remaining_bytes()).decode(
+            "latin-1", errors="ignore"
+        )
     try:
         pkcs7_to_pem(_LOGGER, content)
     except Exception:
