@@ -19,4 +19,4 @@ public CA backends.
   Posh-ACME).
 
 Primary language: Python. Homepage / main repo:
-https://github.com/grindsa/acme2certifier
+[https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
