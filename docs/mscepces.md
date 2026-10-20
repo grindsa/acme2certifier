@@ -86,8 +86,9 @@ allowed_header_values: ["WebServer", "WebServerModified"]
 
 [CAhandler]
 handler_module: acme2certifier.cahandlers.mscepces_ca_handler
+# Pin CES (optional if cep_url is set — see CES discovery below)
 ces_url: https://ces.example.com/ENTCA_CES_Kerberos/service.svc/CES
-# optional: CEP for template check / CES discovery
+# CEP: template check, CA chain, and optional CES discovery
 cep_url: https://cep.example.com/ADPolicyProvider_CEP_Kerberos/service.svc/CEP
 template: WebServer
 auth_method: gssapi
@@ -103,6 +104,16 @@ gssapi_channel_bindings: auto
 # krb5_keytab: /etc/krb5.keytab
 # krb5_config: /etc/krb5.conf
 ```
+
+### CES URL: pin vs CEP discovery
+
+| Config | Behavior |
+|--------|----------|
+| `ces_url` set | Always enroll against that CES (pin). |
+| `ces_url` unset, `cep_url` set | Call CEP `GetPolicies`, map `template` → CA → CES URI (lowest CEP `priority`), then enroll there. |
+| neither | Configuration error. |
+
+If CEP lists several CES URIs for the same template (multiple SubCAs), a2c picks the URI with the lowest CEP `priority` number and logs which one. For hard per-SubCA routing (profiles / EAB / domains), prefer [multi-CAhandler](multi_cahandler.md) with one section (and `ces_url`) per SubCA.
 
 ### Authentication
 
@@ -254,7 +265,7 @@ Parse: template `commonName`, CES URIs under `cAs/cA/uris/cAURI/uri`. Example: [
 
 | Item   | Detail                                                                  |
 | ------ | ----------------------------------------------------------------------- |
-| URL    | `ces_url`                                                               |
+| URL    | `ces_url`, or CES URI discovered from CEP for `template`                |
 | Action | `http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep` |
 
 ```xml
