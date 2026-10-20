@@ -1,0 +1,367 @@
+name: "xipki_prep"
+description: "Bootstrap XiPKI CA+gateway via community docker-compose (no official Hub image)"
+inputs:
+  RUNNER_IP:
+    description: "Runner IP (for /etc/hosts on the host; a2c uses Docker DNS xipki.acme)"
+    required: true
+  WORKING_DIR:
+    description: "a2c examples/Docker dir (ca_bundle for the a2c volume)"
+    required: true
+    default: ${{ github.workspace }}/examples/Docker
+  STACK_DIR:
+    description: "Compose + Dockerfiles (cloned docker-xipki tree)"
+    required: false
+    default: "/srv/stacks/xipki"
+  DATA_DIR:
+    description: "Persistent XiPKI data (MySQL datadir, etc.)"
+    required: false
+    default: "/srv/data/xipki"
+  XIPKI_DOCKER_REPO:
+    description: "Git repo with XiPKI docker-compose"
+    required: false
+    default: "https://github.com/changhr2013/docker-xipki.git"
+  XIPKI_DOCKER_SHA:
+    description: "Pinned commit of docker-xipki"
+    required: false
+    default: "82aeb1787bb776f329999dc72d0820a52dce7376"
+  NAME_SPACE:
+    description: "Docker network name (must exist; created by channel_container_setup)"
+    required: false
+    default: "acme"
+  CA_ALIAS:
+    description: "XiPKI REST CA alias in the gateway URL"
+    required: false
+    default: "myca"
+  API_USER:
+    description: "REST password requestor (DummyRequestorAuthenticator demo)"
+    required: false
+    default: "user1"
+  API_PASSWORD:
+    description: "REST password requestor password"
+    required: false
+    default: "password1"
+  PROFILE:
+    description: "Default certificate profile"
+    required: false
+    default: "tls"
+
+outputs:
+  XIPKI_API_USER:
+    description: "Gateway REST user"
+    value: ${{ env.XIPKI_API_USER }}
+  XIPKI_API_PASSWORD:
+    description: "Gateway REST password"
+    value: ${{ env.XIPKI_API_PASSWORD }}
+  XIPKI_PROFILE:
+    description: "Default profile"
+    value: ${{ env.XIPKI_PROFILE }}
+  XIPKI_API_HOST:
+    description: "REST base URL for a2c (Docker DNS)"
+    value: ${{ env.XIPKI_API_HOST }}
+  XIPKI_STACK_DIR:
+    description: "Compose / Dockerfile root"
+    value: ${{ env.XIPKI_STACK_DIR }}
+  XIPKI_DATA_DIR:
+    description: "Persistent data root"
+    value: ${{ env.XIPKI_DATA_DIR }}
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Prepare Environment"
+    working-directory: ${{ inputs.WORKING_DIR }}
+    run: |
+      set -euo pipefail
+      STACK_DIR="${{ inputs.STACK_DIR }}"
+      DATA_DIR="${{ inputs.DATA_DIR }}"
+
+      sudo mkdir -p \
+        "$STACK_DIR" \
+        "$DATA_DIR/mysql/db" \
+        "$DATA_DIR/cli" \
+        "$DATA_DIR/mgmt-cli" \
+        data/acme_ca \
+        data/volume/acme_ca
+      sudo chmod -R 777 "$STACK_DIR" "$DATA_DIR" data
+
+      # Host-side alias (curl smoke tests from the runner)
+      sudo sh -c "grep -q '[[:space:]]xipki$' /etc/hosts || echo '${{ inputs.RUNNER_IP }} xipki' >> /etc/hosts"
+
+      {
+        echo "XIPKI_STACK_DIR=${STACK_DIR}"
+        echo "XIPKI_DATA_DIR=${DATA_DIR}"
+        echo "XIPKI_API_USER=${{ inputs.API_USER }}"
+        echo "XIPKI_API_PASSWORD=${{ inputs.API_PASSWORD }}"
+        echo "XIPKI_PROFILE=${{ inputs.PROFILE }}"
+        # Prefer HTTP gateway port to avoid TLS trust bootstrap in CI
+        echo "XIPKI_API_HOST=http://xipki.${{ inputs.NAME_SPACE }}:8082/rest/${{ inputs.CA_ALIAS }}"
+      } >> "$GITHUB_ENV"
+    shell: bash
+
+  - name: "Clone docker-xipki into STACK_DIR (pinned)"
+    run: |
+      set -euo pipefail
+      STACK_DIR="${{ inputs.STACK_DIR }}"
+      # Fresh tree each run (idempotent for CI); keep DATA_DIR intact
+      if [ -d "${STACK_DIR}/.git" ]; then
+        sudo rm -rf "${STACK_DIR:?}/"* "${STACK_DIR:?}/".[!.]* 2>/dev/null || true
+      fi
+      sudo git clone --filter=blob:none "${{ inputs.XIPKI_DOCKER_REPO }}" "${STACK_DIR}"
+      sudo chown -R "$(id -u):$(id -g)" "${STACK_DIR}"
+      cd "${STACK_DIR}"
+      git checkout "${{ inputs.XIPKI_DOCKER_SHA }}"
+      echo "Using docker-xipki@$(git rev-parse --short HEAD) in ${STACK_DIR}"
+    shell: bash
+
+  - name: "Patch compose for paths, network, stable names"
+    run: |
+      set -euo pipefail
+      STACK_DIR="${{ inputs.STACK_DIR }}"
+      DATA_DIR="${{ inputs.DATA_DIR }}"
+      NAME_SPACE="${{ inputs.NAME_SPACE }}"
+      cd "${STACK_DIR}"
+
+      # Rename gateway container to "xipki" so Docker DNS is xipki.<network>
+      sed -i 's/container_name: xipki-gateway/container_name: xipki/' docker-compose.yaml
+      # mysql:5.7 is often unavailable on current runners
+      sed -i 's/image: mysql:5.7/image: mysql:8.0/' docker-compose.yaml
+
+      # Persist MySQL datadir under DATA_DIR (stack keeps conf/init + Dockerfiles)
+      sed -i "s|- ./mysql/db:/var/lib/mysql|- ${DATA_DIR}/mysql/db:/var/lib/mysql|" docker-compose.yaml
+      # Optional: CLI bind mounts under DATA_DIR (seed from stack on first run).
+      # cp -R only: /srv mounts often reject preserving ownership/timestamps (cp -a).
+      if [ ! -e "${DATA_DIR}/cli/.seeded" ]; then
+        cp -R xipki-cli/. "${DATA_DIR}/cli/"
+        chmod -R +x "${DATA_DIR}/cli/bin" 2>/dev/null || true
+        touch "${DATA_DIR}/cli/.seeded"
+      fi
+      if [ ! -e "${DATA_DIR}/mgmt-cli/.seeded" ]; then
+        cp -R xipki-mgmt-cli/. "${DATA_DIR}/mgmt-cli/"
+        chmod -R +x "${DATA_DIR}/mgmt-cli/bin" 2>/dev/null || true
+        touch "${DATA_DIR}/mgmt-cli/.seeded"
+      fi
+      sed -i "s|- ./xipki-cli:/xipki-cli|- ${DATA_DIR}/cli:/xipki-cli|" docker-compose.yaml
+      sed -i "s|- ./xipki-mgmt-cli:/xipki-mgmt-cli|- ${DATA_DIR}/mgmt-cli:/xipki-mgmt-cli|" docker-compose.yaml
+
+      if ! grep -q "name: ${NAME_SPACE}" docker-compose.yaml; then
+        printf '\nnetworks:\n  default:\n    name: %s\n    external: true\n' "${NAME_SPACE}" \
+          >> docker-compose.yaml
+      fi
+
+      # docker-xipki template names sm2 profiles wrong vs shipped JSON files
+      for f in \
+        xipki-mgmt-cli/xipki/ca-setup/cacert-present/template.ca-conf.json \
+        xipki-mgmt-cli/xipki/ca-setup/cacert-present/ca-conf.json \
+        xipki-mgmt-cli/xipki/ca-setup/cacert-none/template.ca-conf.json \
+        xipki-mgmt-cli/xipki/ca-setup/cacert-none/ca-conf.json; do
+        [ -f "$f" ] || continue
+        sed -i \
+          -e 's|certprofile-sm2-tls-enc.json|certprofile-tls-sm2-enc.json|g' \
+          -e 's|certprofile-sm2-tls.json|certprofile-tls-sm2.json|g' \
+          -e 's|"name":"sm2-tls-enc"|"name":"tls-sm2-enc"|g' \
+          -e 's|"name":"sm2-tls"|"name":"tls-sm2"|g' \
+          -e 's|"sm2-tls-enc"|"tls-sm2-enc"|g' \
+          -e 's|"sm2-tls"|"tls-sm2"|g' \
+          "$f"
+      done
+      # sync seeded DATA_DIR copy if present
+      if [ -d "${DATA_DIR}/mgmt-cli/xipki/ca-setup" ]; then
+        for f in \
+          "${DATA_DIR}/mgmt-cli/xipki/ca-setup/cacert-present/template.ca-conf.json" \
+          "${DATA_DIR}/mgmt-cli/xipki/ca-setup/cacert-present/ca-conf.json" \
+          "${DATA_DIR}/mgmt-cli/xipki/ca-setup/cacert-none/template.ca-conf.json" \
+          "${DATA_DIR}/mgmt-cli/xipki/ca-setup/cacert-none/ca-conf.json"; do
+          [ -f "$f" ] || continue
+          sed -i \
+            -e 's|certprofile-sm2-tls-enc.json|certprofile-tls-sm2-enc.json|g' \
+            -e 's|certprofile-sm2-tls.json|certprofile-tls-sm2.json|g' \
+            -e 's|"name":"sm2-tls-enc"|"name":"tls-sm2-enc"|g' \
+            -e 's|"name":"sm2-tls"|"name":"tls-sm2"|g' \
+            -e 's|"sm2-tls-enc"|"tls-sm2-enc"|g' \
+            -e 's|"sm2-tls"|"tls-sm2"|g' \
+            "$f"
+        done
+      fi
+
+      # mgmt-cli → CA over Docker DNS (used when loading CA from a sidecar)
+      MGMT_CFG=xipki-mgmt-cli/etc/org.xipki.ca.mgmt.client.cfg
+      sed -i 's|serverUrl = https://localhost:8444/ca/mgmt|serverUrl = https://xipki-ca:8444/ca/mgmt|' "${MGMT_CFG}"
+      sed -i 's|^# *ssl.hostnameVerifier.*|ssl.hostnameVerifier = no_op|' "${MGMT_CFG}"
+      grep -q '^ssl.hostnameVerifier' "${MGMT_CFG}" \
+        || echo 'ssl.hostnameVerifier = no_op' >> "${MGMT_CFG}"
+      # avoid "Press Enter to open the shell" when scripting karaf
+      for prop in xipki-mgmt-cli/etc/system.properties \
+                  xipki-mgmt-cli/etc/config.properties \
+                  xipki-mgmt-cli/etc/custom.properties; do
+        [ -f "$prop" ] || continue
+        if grep -q 'karaf.delay.console' "$prop"; then
+          sed -i 's/^#*karaf.delay.console=.*/karaf.delay.console=false/' "$prop"
+        else
+          echo 'karaf.delay.console=false' >> "$prop"
+        fi
+      done
+      chmod -R +x xipki-mgmt-cli/bin
+
+      echo "---- patched docker-compose.yaml ----"
+      cat docker-compose.yaml
+    shell: bash
+
+  - name: "Patch tls profile + REST gateway (CN from first DNS SAN)"
+    run: |
+      set -euo pipefail
+      chmod +x "${GITHUB_WORKSPACE}/.github/scripts/patch_xipki_cn_from_san.sh"
+      # Stack rebuild follows; only patch profile JSON + rest.war here.
+      STACK_DIR="${{ inputs.STACK_DIR }}" \
+      DATA_DIR="${{ inputs.DATA_DIR }}" \
+      SKIP_COMPOSE_UP=1 \
+        "${GITHUB_WORKSPACE}/.github/scripts/patch_xipki_cn_from_san.sh"
+    shell: bash
+
+  - name: "Build and start XiPKI stack"
+    working-directory: ${{ inputs.STACK_DIR }}
+    run: |
+      set -euo pipefail
+      docker compose pull || true
+      docker compose up -d --build
+      docker compose ps
+    shell: bash
+
+  - name: "Wait for MySQL + restart CA (avoid startup race)"
+    run: |
+      set -euo pipefail
+      # CA often boots before MySQL accepts connections → "CA system is not initialized"
+      for i in $(seq 1 60); do
+        if docker exec xipki-mysql mysqladmin ping -h localhost -uroot -p123456 --silent 2>/dev/null; then
+          echo "MySQL ready after ${i} attempts"
+          break
+        fi
+        sleep 2
+      done
+      # mysql:8 + ancient connector in XiPKI 6.3
+      docker exec xipki-mysql mysql -uroot -p123456 -e "
+        ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '123456';
+        ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '123456';
+        FLUSH PRIVILEGES;
+      " 2>/dev/null || true
+      docker restart xipki-ca
+      for i in $(seq 1 60); do
+        if docker exec xipki-ca grep -q 'started CA system' /usr/local/tomcat/logs/ca.log 2>/dev/null; then
+          echo "CA system ready after ${i} attempts"
+          docker exec xipki-ca grep 'started CA system' /usr/local/tomcat/logs/ca.log | tail -1
+          exit 0
+        fi
+        sleep 2
+      done
+      docker logs xipki-ca --tail=100 || true
+      docker exec xipki-ca tail -n 80 /usr/local/tomcat/logs/ca.log || true
+      exit 1
+    shell: bash
+
+  - name: "Load demo CA myca1 via mgmt-cli (karaf)"
+    run: |
+      set -euo pipefail
+      STACK_DIR="${{ inputs.STACK_DIR }}"
+      MGMT="${STACK_DIR}/xipki-mgmt-cli"
+      NAME_SPACE="${{ inputs.NAME_SPACE }}"
+
+      docker pull eclipse-temurin:17-jdk
+      docker run --rm -i --network "${NAME_SPACE}" \
+        -v "${MGMT}:/cli" -w /cli \
+        -u "$(id -u):$(id -g)" \
+        -e HOME=/tmp \
+        eclipse-temurin:17-jdk bash -lc '
+      set -euo pipefail
+      bash bin/stop 2>/dev/null || true
+      rm -f data/port lock 2>/dev/null || true
+      mkdir -p data/log
+      mv data/log/karaf.log data/log/karaf.log.prev 2>/dev/null || true
+      : > data/log/karaf.log
+      rm -f /tmp/karaf.in
+      mkfifo /tmp/karaf.in
+      bash bin/karaf < /tmp/karaf.in &
+      KPID=$!
+      exec 3>/tmp/karaf.in
+      ready=0
+      for i in $(seq 1 120); do
+        if grep -q "Registering commands for bundle org.xipki.shell.ca-mgmt-shell" data/log/karaf.log 2>/dev/null; then
+          echo "karaf features ready (${i})"
+          ready=1
+          break
+        fi
+        sleep 1
+      done
+      if [ "${ready}" != "1" ]; then
+        echo "TIMEOUT waiting for ca-mgmt-shell"
+        tail -n 80 data/log/karaf.log || true
+        kill "${KPID}" 2>/dev/null || true
+        exit 1
+      fi
+      sleep 5
+      printf "%s\n" \
+        "source xipki/ca-setup/cacert-present/setup-rsa-p12.script" \
+        "ca-info myca1" \
+        "logout" >&3
+      exec 3>&-
+      wait "${KPID}" || true
+      '
+      # gateway may have cached unknown-CA; bounce after load
+      docker restart xipki
+      sleep 3
+    shell: bash
+
+  - name: "Wait for REST /cacert"
+    working-directory: ${{ inputs.WORKING_DIR }}
+    run: |
+      set -euo pipefail
+      STACK_DIR="${{ inputs.STACK_DIR }}"
+      URL_LOCAL="http://127.0.0.1:8082/rest/${{ inputs.CA_ALIAS }}/cacert"
+      URL_TLS="https://127.0.0.1:8445/rest/${{ inputs.CA_ALIAS }}/cacert"
+      ok=0
+      for i in $(seq 1 60); do
+        if curl -sf --max-time 5 -o data/acme_ca/ca.der "$URL_LOCAL"; then
+          echo "REST ready via HTTP after ${i} attempts"
+          ok=1
+          break
+        fi
+        if curl -sfk --max-time 5 -o data/acme_ca/ca.der "$URL_TLS"; then
+          echo "REST ready via HTTPS after ${i} attempts"
+          echo "XIPKI_API_HOST=https://xipki.${{ inputs.NAME_SPACE }}:8445/rest/${{ inputs.CA_ALIAS }}" >> "$GITHUB_ENV"
+          ok=1
+          break
+        fi
+        echo "waiting for XiPKI REST ($i/60)..."
+        sleep 5
+      done
+      if [ "$ok" != "1" ]; then
+        docker compose -f "${STACK_DIR}/docker-compose.yaml" logs --tail=200 || true
+        exit 1
+      fi
+      openssl x509 -inform der -in data/acme_ca/ca.der -out data/acme_ca/ca_bundle.pem
+      cp data/acme_ca/ca_bundle.pem data/volume/acme_ca/ca_bundle.pem
+      openssl x509 -in data/acme_ca/ca_bundle.pem -noout -subject -fingerprint -sha1
+    shell: bash
+
+  - name: "Smoke enroll via REST"
+    working-directory: ${{ inputs.WORKING_DIR }}
+    run: |
+      set -euo pipefail
+      CN="ci-$(date +%s).example.org"
+      openssl req -new -newkey rsa:2048 -nodes \
+        -keyout /tmp/xipki-ci.key -out /tmp/xipki-ci.csr -outform DER \
+        -subj "/C=DE/O=acme2certifier/CN=${CN}"
+      BASE="http://127.0.0.1:8082/rest/${{ inputs.CA_ALIAS }}"
+      if ! curl -sf --max-time 5 -o /dev/null "${BASE}/cacert"; then
+        BASE="https://127.0.0.1:8445/rest/${{ inputs.CA_ALIAS }}"
+        CURL_INSECURE=-k
+      else
+        CURL_INSECURE=
+      fi
+      # shellcheck disable=SC2086
+      curl -sf ${CURL_INSECURE} -u "${{ inputs.API_USER }}:${{ inputs.API_PASSWORD }}" \
+        -H "Content-Type: application/pkcs10" \
+        --data-binary @/tmp/xipki-ci.csr \
+        -o /tmp/xipki-ci.der \
+        "${BASE}/enroll-cert?profile=${{ inputs.PROFILE }}"
+      openssl x509 -inform der -in /tmp/xipki-ci.der -noout -subject
+      echo "XiPKI REST enroll smoke OK"
+    shell: bash
