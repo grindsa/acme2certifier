@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 """handler for xca ca handler"""
 
+import ctypes
+import ctypes.util
 import hashlib
 import logging
 import os
@@ -49,6 +51,84 @@ from acme2certifier.acme_srv.helper import (
     uts_to_date_utc,
 )
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
+
+# Cached CDLL for cryptography builds that lack d2i_X509_NAME (e.g. EL9 36.x).
+_LIBCRYPTO: Optional[ctypes.CDLL] = None
+
+
+def _libcrypto_load() -> ctypes.CDLL:
+    """Load system libcrypto (OpenSSL 1.1 / 3.x sonames)."""
+    global _LIBCRYPTO  # pylint: disable=global-statement
+    if _LIBCRYPTO is not None:
+        return _LIBCRYPTO
+    candidates: List[str] = []
+    found = ctypes.util.find_library("crypto")
+    if found:
+        candidates.append(found)
+    candidates.extend(
+        (
+            "libcrypto.so.3",
+            "libcrypto.so.1.1",
+            "libcrypto.so.10",
+            "libcrypto.so",
+            "libcrypto.dylib",
+        )
+    )
+    errors: List[str] = []
+    for name in candidates:
+        try:
+            _LIBCRYPTO = ctypes.CDLL(name)
+            return _LIBCRYPTO
+        except OSError as exc:
+            errors.append(f"{name}: {exc}")
+    raise RuntimeError(
+        "Unable to load libcrypto for X509_NAME_hash ({})".format("; ".join(errors))
+    )
+
+
+def _openssl_name_hash_libcrypto(name_der: bytes) -> int:
+    """OpenSSL X509_NAME_hash via ctypes (cryptography < 44 has no d2i_X509_NAME)."""
+    lib = _libcrypto_load()
+    d2i = lib.d2i_X509_NAME
+    d2i.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)),
+        ctypes.c_long,
+    ]
+    d2i.restype = ctypes.c_void_p
+    name_free = lib.X509_NAME_free
+    name_free.argtypes = [ctypes.c_void_p]
+    name_free.restype = None
+
+    der = (ctypes.c_ubyte * len(name_der)).from_buffer_copy(name_der)
+    pin = ctypes.POINTER(ctypes.c_ubyte)(der)
+    ppin = ctypes.pointer(pin)
+    x509_name = d2i(None, ppin, len(name_der))
+    if not x509_name:
+        raise ValueError("d2i_X509_NAME failed for subject Name")
+    try:
+        try:
+            hash_ex = lib.X509_NAME_hash_ex
+            hash_ex.argtypes = [
+                ctypes.c_void_p,
+                ctypes.c_void_p,
+                ctypes.c_char_p,
+                ctypes.POINTER(ctypes.c_int),
+            ]
+            hash_ex.restype = ctypes.c_ulong
+            ok = ctypes.c_int(0)
+            digest = hash_ex(x509_name, None, None, ctypes.byref(ok))
+            if ok.value != 1:
+                raise ValueError("X509_NAME_hash_ex failed for subject Name")
+            return int(digest) & 0x7FFFFFFF
+        except AttributeError:
+            name_hash = lib.X509_NAME_hash
+            name_hash.argtypes = [ctypes.c_void_p]
+            name_hash.restype = ctypes.c_ulong
+            return int(name_hash(x509_name)) & 0x7FFFFFFF
+    finally:
+        name_free(x509_name)
+
 
 # Define constants
 DEFAULT_DATE_FORMAT = "%Y%m%d%H%M%SZ"
@@ -1548,14 +1628,17 @@ class CAhandler:
 
         XCA stores iss_hash/subj_hash using OpenSSL's X509_NAME_hash (SHA-1 of the
         canonical Name encoding). cryptography does not expose that API; call
-        libcrypto via the OpenSSL backend so values stay compatible with existing
-        XCA databases without depending on pyOpenSSL.
+        libcrypto via the OpenSSL backend when d2i_X509_NAME is bound (cryptography
+        >= 44), otherwise fall back to ctypes against system libcrypto so distro
+        packages (e.g. EL9 cryptography 36) keep working without pyOpenSSL.
         """
         self.logger.debug("CAhandler._openssl_name_hash()")
+        name_der = name.public_bytes()
         backend = default_backend()
         lib = backend._lib  # pylint: disable=protected-access
+        if not hasattr(lib, "d2i_X509_NAME"):
+            return _openssl_name_hash_libcrypto(name_der)
         ffi = backend._ffi  # pylint: disable=protected-access
-        name_der = name.public_bytes()
         name_buf = ffi.new("unsigned char[]", name_der)
         ppin = ffi.new("unsigned char **", name_buf)
         x509_name = lib.d2i_X509_NAME(ffi.NULL, ppin, len(name_der))
