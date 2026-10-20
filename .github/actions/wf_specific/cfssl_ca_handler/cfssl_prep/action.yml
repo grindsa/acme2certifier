@@ -1,0 +1,185 @@
+name: "cfssl_prep"
+description: "Start cfssl serve with a test CA, SQLite certdb, and HMAC auth"
+inputs:
+  NAME_SPACE:
+    description: "Docker network name shared with the acme2certifier container"
+    required: false
+    default: "acme"
+  CFSSL_DIR:
+    description: "Directory containing compose.yaml"
+    required: false
+    default: "examples/Docker/cfssl"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Start CFSSL"
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CFSSL_DIR: ${{ inputs.CFSSL_DIR }}
+      run: |
+        set -euo pipefail
+        docker network inspect "${NAME_SPACE}" >/dev/null 2>&1 || docker network create "${NAME_SPACE}"
+        docker rm -f cfssl >/dev/null 2>&1 || true
+
+        data="${CFSSL_DIR}/data"
+        rm -rf "${data}"
+        mkdir -p "${data}"
+
+        openssl req -x509 -newkey rsa:2048 -nodes \
+          -keyout "${data}/ca-key.pem" -out "${data}/ca.pem" \
+          -days 3650 -subj "/CN=cfssl-test-ca" \
+          -addext "basicConstraints=critical,CA:TRUE" \
+          -addext "keyUsage=critical,keyCertSign,cRLSign"
+
+        python3 - "${data}/certs.db" <<'PY'
+        import sqlite3
+        import sys
+        conn = sqlite3.connect(sys.argv[1])
+        conn.executescript(
+            """
+            CREATE TABLE certificates (
+              serial_number blob NOT NULL,
+              authority_key_identifier blob NOT NULL,
+              ca_label blob,
+              status blob NOT NULL,
+              reason int,
+              expiry timestamp,
+              revoked_at timestamp,
+              pem blob NOT NULL,
+              issued_at timestamp,
+              not_before timestamp,
+              metadata text,
+              sans text,
+              common_name text,
+              PRIMARY KEY(serial_number, authority_key_identifier)
+            );
+            CREATE TABLE ocsp_responses (
+              serial_number blob NOT NULL,
+              authority_key_identifier blob NOT NULL,
+              body blob NOT NULL,
+              expiry timestamp,
+              PRIMARY KEY(serial_number, authority_key_identifier)
+            );
+            """
+        )
+        conn.commit()
+        conn.close()
+        PY
+
+        auth_key="$(openssl rand -hex 32)"
+        printf '%s\n' "{\"driver\":\"sqlite3\",\"data_source\":\"/cfssl/certs.db\"}" > "${data}/db.json"
+        python3 - "${data}/config.json" "${auth_key}" <<'PY'
+        import json
+        import sys
+        path, key = sys.argv[1], sys.argv[2]
+        profile = {
+            "auth_key": "primary",
+            "expiry": "8760h",
+            "usages": ["signing", "key encipherment", "server auth", "client auth"],
+        }
+        doc = {
+            "auth_keys": {"primary": {"type": "standard", "key": key}},
+            "signing": {"default": profile, "profiles": {"server": dict(profile, expiry="720h")}},
+        }
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(doc, handle)
+        PY
+        chmod -R a+rwX "${data}"
+
+        sed -i.bak "s/^    name: acme$/    name: ${NAME_SPACE}/" "${CFSSL_DIR}/compose.yaml"
+        rm -f "${CFSSL_DIR}/compose.yaml.bak"
+        docker compose -f "${CFSSL_DIR}/compose.yaml" up -d
+
+        python3 - "${auth_key}" <<'PY'
+        import base64
+        import hashlib
+        import hmac
+        import json
+        import subprocess
+        import sys
+        import time
+        import urllib.request
+
+        auth_key = sys.argv[1]
+        base = "http://127.0.0.1:8888/api/v1/cfssl"
+
+        def post(path, payload):
+            req = urllib.request.Request(
+                base + path,
+                data=json.dumps(payload).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                return json.loads(resp.read().decode())
+
+        deadline = time.time() + 30
+        last = "not up"
+        while time.time() < deadline:
+            try:
+                body = post("/info", {"profile": "server"})
+                if body.get("success") and body.get("result", {}).get("certificate"):
+                    break
+                last = json.dumps(body)
+            except Exception as err:
+                last = str(err)
+            time.sleep(1)
+        else:
+            subprocess.run(["docker", "logs", "cfssl"], check=False)
+            raise SystemExit(f"CFSSL did not become ready: {last}")
+
+        subprocess.run(
+            [
+                "openssl", "req", "-new", "-newkey", "rsa:2048", "-nodes",
+                "-keyout", "/tmp/cfssl-smoke.key", "-out", "/tmp/cfssl-smoke.csr",
+                "-subj", "/CN=smoke.acme",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        csr = open("/tmp/cfssl-smoke.csr", encoding="utf-8").read()
+        sign = {"certificate_request": csr, "profile": "server"}
+        raw = json.dumps(sign, separators=(",", ":")).encode()
+        token = hmac.new(bytes.fromhex(auth_key), raw, hashlib.sha256).digest()
+        signed = post(
+            "/authsign",
+            {
+                "token": base64.b64encode(token).decode("ascii"),
+                "request": base64.b64encode(raw).decode("ascii"),
+            },
+        )
+        if not signed.get("success"):
+            subprocess.run(["docker", "logs", "cfssl"], check=False)
+            raise SystemExit(f"CFSSL authsign failed: {signed}")
+        open("/tmp/cfssl-smoke.crt", "w", encoding="utf-8").write(signed["result"]["certificate"])
+
+        text = subprocess.run(
+            [
+                "openssl", "x509", "-in", "/tmp/cfssl-smoke.crt", "-noout",
+                "-serial", "-ext", "authorityKeyIdentifier",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        serial = aki = None
+        for line in text.splitlines():
+            if line.startswith("serial="):
+                serial = str(int(line.split("=", 1)[1], 16))
+            if "keyid:" in line.lower():
+                aki = line.split(":", 1)[1].replace(":", "").strip().lower()
+        if not serial or not aki:
+            raise SystemExit(f"could not parse smoke certificate: {text}")
+        revoked = post(
+            "/revoke",
+            {"serial": serial, "authority_key_id": aki, "reason": "superseded"},
+        )
+        if not revoked.get("success"):
+            subprocess.run(["docker", "logs", "cfssl"], check=False)
+            raise SystemExit(f"CFSSL revoke failed: {revoked}")
+        print("CFSSL authsign and revoke ok")
+        PY
+
+        echo "CFSSL_AUTH_KEY=${auth_key}" >> "${GITHUB_ENV}"
+        echo "CFSSL_URL=http://cfssl:8888" >> "${GITHUB_ENV}"
