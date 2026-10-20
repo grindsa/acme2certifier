@@ -766,6 +766,43 @@ def config_allowed_iplist_load(logger: logging.Logger, config_dic: Dict[str, str
     return allowed_iplist
 
 
+def config_shortname_denylist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """Load Order.shortname_denylist JSON list from configuration."""
+    logger.debug("Helper.config_shortname_denylist_load()")
+
+    shortname_denylist = []
+
+    if "Order" in config_dic and "shortname_denylist" in config_dic["Order"]:
+        try:
+            shortname_denylist = json.loads(config_dic["Order"]["shortname_denylist"])
+        except Exception as err_:
+            logger.warning(
+                "Failed to load shortname_denylist from configuration: %s", err_
+            )
+            shortname_denylist = PARSING_ERR_MSG
+
+    logger.debug(
+        "Helper.config_shortname_denylist_load() ended with: %s", shortname_denylist
+    )
+    return shortname_denylist
+
+
+def warn_shortname_without_domainlist(
+    logger: logging.Logger,
+    allow_shortname_from_fqdn: bool,
+    allowed_domainlist: Any,
+) -> None:
+    """Warn when shortname-from-FQDN is enabled without a usable allowed_domainlist."""
+    if not allow_shortname_from_fqdn:
+        return
+    if isinstance(allowed_domainlist, list) and allowed_domainlist:
+        return
+    logger.warning(
+        "allow_shortname_from_fqdn is enabled but allowed_domainlist is empty or "
+        "unset; shortname-from-FQDN has no effect without an allowed_domainlist"
+    )
+
+
 def config_async_mode_load(
     logger: logging.Logger, config_dic: Dict[str, str], db_type: str
 ):
