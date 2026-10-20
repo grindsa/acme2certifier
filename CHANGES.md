@@ -12,6 +12,7 @@ and pick the appropriate release branch.
 
 - Unified Docker images per webserver (`apache2` / `nginx`): WSGI and Django in one image; handler selected at runtime via `[DBhandler]` / `ACME_SRV_DB_HANDLER` (entrypoint retargets Apache/uWSGI). Hub primary tags are `apache2` / `nginx` (`latest` → `apache2`); legacy `*-wsgi` / `*-django` tags remain for compatibility. See [Containerized installation](docs/install_docker.md).
 - [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
+- [AWS Private CA (ACM PCA)](docs/aws_pca.md) CA handler (`aws_pca_ca_handler`) for enroll/revoke via ACM PCA HTTPS JSON APIs + SigV4 (no `boto3`); optional `endpoint_url` for LocalStack (Ultimate) or VPC endpoints (**experimental** — not yet validated against a real AWS PCA; real-world testers welcome).
 
 **Bug Fixes and Improvements**:
 
