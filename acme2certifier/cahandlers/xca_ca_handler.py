@@ -1661,7 +1661,7 @@ class CAhandler:
             encoding=serialization.Encoding.DER,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
         )
-        digest = hashlib.sha1(spki).digest()[:4]
+        digest = hashlib.sha1(spki, usedforsecurity=False).digest()[:4]
         return int.from_bytes(digest, "little") & 0x7FFFFFFF
 
     def _x509super_insert(
