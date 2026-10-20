@@ -12,6 +12,12 @@ and pick the appropriate release branch.
 
 - Drop the exact `pyOpenSSL==26.1.0` pin so a normal install can resolve current pyOpenSSL / cryptography; XCA subject/`x509super` hashes now use OpenSSL `X509_NAME_hash` via cryptography’s libcrypto binding instead of pyOpenSSL (`load_certificate_request` removed in pyOpenSSL 26.3) ([#404](https://github.com/grindsa/acme2certifier/issues/404))
 
+## Changes in 0.46.3
+
+**New Features**:
+
+- [AWS Private CA (ACM PCA)](docs/aws_pca.md) CA handler (`aws_pca_ca_handler`) for enroll/revoke via `IssueCertificate` / `GetCertificate` / `RevokeCertificate`; optional `endpoint_url` for LocalStack (Ultimate) or VPC endpoints; unit tests use [moto](https://github.com/getmoto/moto). Install with `pip install acme2certifier[aws]`.
+
 ## Changes in 0.46.2
 
 **Bug Fixes and Improvements**:
