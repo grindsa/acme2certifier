@@ -10,26 +10,24 @@ from __future__ import annotations
 import argparse
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 # Markdown link or image: ![alt](url) or [text](url)
+# Use [^\]]* (not .*?) to avoid super-linear backtracking (python:S8786).
 _MD_LINK = re.compile(
     r"""
-    (?P<prefix>!?\[.
-*?\]\()          # ![alt]( or [text](
+    (?P<prefix>!?\[[^\]]*\]\()       # ![alt]( or [text](
     (?P<url>[^)\s]+)             # destination (no spaces / closing paren)
     (?P<suffix>\))               # closing paren
     """,
-    re.VERBOSE | re.DOTALL,
+    re.VERBOSE,
 )
-
-_ABS_SCHEMES = ("http://", "https://", "mailto:", "ftp://")
 
 
 def _is_absolute(url: str) -> bool:
-    if url.startswith("#") or url.startswith("//"):
+    if url.startswith(("#", "//")):
         return True
-    lower = url.lower()
-    return any(lower.startswith(scheme) for scheme in _ABS_SCHEMES)
+    return bool(urlparse(url).scheme)
 
 
 def _github_url(repo: str, ref: str, path: str, fragment: str) -> str:
@@ -66,6 +64,15 @@ def rewrite_readme(text: str, repo: str, ref: str) -> str:
     return _MD_LINK.sub(_sub, text)
 
 
+def _resolve_within_cwd(path: Path) -> Path:
+    """Resolve *path* and reject values that escape the working directory."""
+    base = Path.cwd().resolve()
+    resolved = path.resolve()
+    if not resolved.is_relative_to(base):
+        raise SystemExit(f"Refusing path outside working directory: {path}")
+    return resolved
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -87,13 +94,14 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    original = args.readme.read_text(encoding="utf-8")
+    readme = _resolve_within_cwd(args.readme)
+    original = readme.read_text(encoding="utf-8")
     rewritten = rewrite_readme(original, args.repo, args.ref)
     if rewritten == original:
-        raise SystemExit(f"No relative links rewritten in {args.readme}")
-    args.readme.write_text(rewritten, encoding="utf-8")
+        raise SystemExit(f"No relative links rewritten in {readme}")
+    readme.write_text(rewritten, encoding="utf-8")
     print(
-        f"Rewrote relative links in {args.readme} → github.com/{args.repo}/…/{args.ref}/…"
+        f"Rewrote relative links in {readme} → github.com/{args.repo}/…/{args.ref}/…"
     )
 
 
