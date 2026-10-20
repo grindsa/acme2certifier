@@ -30,6 +30,7 @@ The editable install (`-e`) puts `a2c-manage` and the other [CLI tools](../tools
 export ACME2CERTIFIER_BASE_DIR="$PWD"
 export ACME_SRV_CONFIGFILE="$PWD/acme_srv.cfg"   # or acme_srv.yaml / acme_srv.yml
 export ACME2CERTIFIER_DEBUG=1
+# optional lab-only: export ACME2CERTIFIER_I_KNOW_THE_RISK=1  # see security_gate.md
 ```
 
 | Variable                  | Role                                                           |
@@ -38,6 +39,7 @@ export ACME2CERTIFIER_DEBUG=1
 | `ACME_SRV_CONFIGFILE`     | Absolute path to `acme_srv.cfg` or `acme_srv.yaml` / `.yml` (beats `/var/www/...` and `/opt/...`) |
 | `ACME2CERTIFIER_DEBUG`    | Django `DEBUG` (`1` / `true`). ACME Helper debug follows this only when `[DEFAULT] debug` is unset in `acme_srv.cfg`; an explicit cfg `debug` always wins. |
 | `ACME2CERTIFIER_DATABASE_URL` | Optional Django DB URI. Unset → `$ACME2CERTIFIER_BASE_DIR/db.sqlite3`. Optional `$ACME2CERTIFIER_BASE_DIR/.env`. |
+| `ACME2CERTIFIER_I_KNOW_THE_RISK` | Lab/CI only: unlocks gated security-disable options. See [Security break-glass gate](security_gate.md). |
 
 ## 3. Config and a local OpenSSL CA
 
@@ -230,6 +232,7 @@ Live container coverage is the composite action `.github/actions/wf_specific/err
 
 - [Package layout](architecture/package-layout.md)
 - [acme_srv.cfg](acme_srv.md)
+- [Security break-glass gate](security_gate.md)
 - [Upgrading](upgrading.md)
 - [OpenSSL CA handler](openssl.md)
 - [External databases](external_database_support.md) (MySQL template: `examples/django/settings.py`)

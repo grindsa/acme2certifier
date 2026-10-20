@@ -232,3 +232,10 @@ Use your preferred ACME client to enroll a certificate. If an issue occurs, enab
 ## Upgrading from pre-0.45
 
 Step-by-step RPM upgrade (EL8 python39 swap, SBOM companions, cfg `*_module`, SQLite path): [Upgrading — RPM: pre-0.45 → 0.45+](upgrading.md#rpm-pre-045--045).
+
+## Related
+
+- [Security break-glass gate](security_gate.md) (`ACME2CERTIFIER_I_KNOW_THE_RISK` for nginx + uWSGI)
+- [Django deployment environment variables](django_deploy_env.md)
+- [acme_srv.cfg options](acme_srv.md)
+- [Upgrading](upgrading.md)
