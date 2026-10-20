@@ -25,23 +25,12 @@ jobs:
       - name: Bandit Scan
         uses: shundor/python-bandit-scan@9955228c1cbdc5aeb5e511e0fa232154e2ed2b67
         with:
-          # optional arguments
-          # exit with 0, even with results found
-          exit_zero: true # optional, default is DEFAULT
-          # Github token of the repository (automatically created by Github)
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information.
-          # File or directory to run bandit on
-          # path: # optional, default is .
-          # Report only issues of a given severity level or higher. Can be LOW, MEDIUM or HIGH. Default is UNDEFINED (everything)
-          # level: # optional, default is UNDEFINED
-          # Report only issues of a given confidence level or higher. Can be LOW, MEDIUM or HIGH. Default is UNDEFINED (everything)
-          # confidence: # optional, default is UNDEFINED
-          # comma-separated list of paths (glob patterns supported) to exclude from scan (note that these are in addition to the excluded paths provided in the config file) (default: .svn,CVS,.bzr,.hg,.git,__pycache__,.tox,.eggs,*.egg)
-          # excluded_paths: # optional, default is DEFAULT
-          # comma-separated list of test IDs to skip
-          # skips: # optional, default is DEFAULT
-          # path to a .bandit file that supplies command line arguments
-          # ini_path: # optional, default is DEFAULT
+          exit_zero: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Fuzz harnesses, CI helpers, and sync tooling are out of production attack surface.
+          excluded_paths: fuzz,.github/scripts,tools/min_sync,test
+          # High-noise / low-signal for this codebase (placeholders, bare except in helpers, subprocess imports).
+          skips: B105,B110,B404
 
   codecov:
     permissions:
