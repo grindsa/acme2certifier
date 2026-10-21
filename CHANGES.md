@@ -13,6 +13,9 @@ and pick the appropriate release branch.
 - Unified Docker images per webserver (`apache2` / `nginx`): WSGI and Django in one image; handler selected at runtime via `[DBhandler]` / `ACME_SRV_DB_HANDLER` (entrypoint retargets Apache/uWSGI). Hub primary tags are `apache2` / `nginx` (`latest` → `apache2`); legacy `*-wsgi` / `*-django` tags remain for compatibility. See [Containerized installation](docs/install_docker.md).
 - [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
 - [Cloudflare CFSSL](docs/cfssl.md) CA handler (`cfssl_ca_handler`) for `cfssl serve`: synchronous enroll via `/sign` or HMAC `/authsign`, issuer chain from `/info`, revoke via `/revoke` when CFSSL is started with `-db-config`
+- [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword; optional CES URL discovery from CEP `GetPolicies` when `ces_url` is unset ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
+- Optional `[Order] allow_shortname_from_fqdn` (default `False`) and `shortname_denylist` so single-label DNS names can pass `allowed_domainlist` when the same order/CSR also contains an allowed multi-label FQDN with a matching first label; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
+- Optional `[Order] allow_shortname_without_challenge_validation` (default `False`, requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1`) marks qualifying shortname authorizations valid at order creation while sibling FQDN challenge validation still gates issuance; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
 
 **Bug Fixes and Improvements**:
 
@@ -25,11 +28,6 @@ and pick the appropriate release branch.
 - Drop the exact `pyOpenSSL==26.1.0` pin so a normal install can resolve current pyOpenSSL / cryptography; XCA subject/`x509super` hashes now use OpenSSL `X509_NAME_hash` via cryptography’s libcrypto binding instead of pyOpenSSL (`load_certificate_request` removed in pyOpenSSL 26.3) ([#404](https://github.com/grindsa/acme2certifier/issues/404))
 
 ## Changes in 0.46.2
-
-**New Features**:
-
-- Optional `[Order] allow_shortname_from_fqdn` (default `False`) and `shortname_denylist` so single-label DNS names can pass `allowed_domainlist` when the same order/CSR also contains an allowed multi-label FQDN with a matching first label; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
-- Optional `[Order] allow_shortname_without_challenge_validation` (default `False`, requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1`) marks qualifying shortname authorizations valid at order creation while sibling FQDN challenge validation still gates issuance; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
 
 **Bug Fixes and Improvements**:
 

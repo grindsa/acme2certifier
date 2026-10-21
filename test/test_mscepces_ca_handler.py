@@ -39,11 +39,14 @@ def _fake_requests_gssapi(auth_cls):
     return fake_mod
 
 
-def _issued_token_b64() -> str:
+def _issued_token_b64(logger=None) -> str:
     """Extract issued cert token from WSTEP fixture."""
+    import logging
     from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
-    return _parse_wstep_response(_fixture("wstep_issue_issued.xml"))["token"]
+    if logger is None:
+        logger = logging.getLogger("test_a2c")
+    return _parse_wstep_response(logger, _fixture("wstep_issue_issued.xml"))["token"]
 
 
 class TestMscepcesCaHandler(unittest.TestCase):
@@ -65,21 +68,88 @@ class TestMscepcesCaHandler(unittest.TestCase):
     def test_002_parse_xcep_get_policies(self):
         """parse GetPoliciesResponse templates and CES URIs"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
+            _ces_uri_from_policies,
             _parse_xcep_get_policies,
         )
 
-        result = _parse_xcep_get_policies(_fixture("xcep_get_policies_response.xml"))
+        result = _parse_xcep_get_policies(
+            self.logger, _fixture("xcep_get_policies_response.xml")
+        )
         self.assertIn("WebServer", result["templates"])
         self.assertIn("User", result["templates"])
         self.assertTrue(result["ces_uris"][0].endswith("/CES"))
         self.assertEqual(1, len(result["ca_certificates"]))
         self.assertIn("BEGIN CERTIFICATE", result["ca_certificates"][0])
+        self.assertEqual(
+            result["ces_uris"][0],
+            result["template_ces"]["WebServer"][0],
+        )
+        self.assertEqual(
+            result["ces_uris"][0],
+            _ces_uri_from_policies(self.logger, result, "WebServer"),
+        )
+
+    def test_002b_ces_uri_prefers_priority(self):
+        """template_ces orders CES URIs by CEP priority"""
+        from acme2certifier.cahandlers.mscepces_ca_handler import (
+            _ces_uri_from_policies,
+            _parse_xcep_get_policies,
+        )
+
+        xml = """<?xml version="1.0"?>
+        <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+          <s:Body>
+            <GetPoliciesResponse xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy">
+              <response>
+                <policies>
+                  <policy>
+                    <cAs><cAReference>0</cAReference><cAReference>1</cAReference></cAs>
+                    <attributes><commonName>WebServer</commonName></attributes>
+                  </policy>
+                </policies>
+              </response>
+              <cAs>
+                <cA>
+                  <uris>
+                    <cAURI>
+                      <uri>https://ces.example/CA1_CES_Kerberos/service.svc/CES</uri>
+                      <priority>2</priority>
+                    </cAURI>
+                  </uris>
+                  <cAReferenceID>0</cAReferenceID>
+                </cA>
+                <cA>
+                  <uris>
+                    <cAURI>
+                      <uri>https://ces.example/CA2_CES_Kerberos/service.svc/CES</uri>
+                      <priority>1</priority>
+                    </cAURI>
+                  </uris>
+                  <cAReferenceID>1</cAReferenceID>
+                </cA>
+              </cAs>
+            </GetPoliciesResponse>
+          </s:Body>
+        </s:Envelope>
+        """
+        result = _parse_xcep_get_policies(self.logger, xml)
+        self.assertEqual(
+            [
+                "https://ces.example/CA2_CES_Kerberos/service.svc/CES",
+                "https://ces.example/CA1_CES_Kerberos/service.svc/CES",
+            ],
+            result["template_ces"]["WebServer"],
+        )
+        self.assertEqual(
+            "https://ces.example/CA2_CES_Kerberos/service.svc/CES",
+            _ces_uri_from_policies(self.logger, result, "WebServer"),
+        )
 
     def test_003_parse_wstep_issued(self):
         """parse issued WSTEP response"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
-        result = _parse_wstep_response(_fixture("wstep_issue_issued.xml"))
+        result = _parse_wstep_response(self.logger, _fixture("wstep_issue_issued.xml"))
         self.assertEqual("issued", result["status"])
         self.assertEqual("42", result["request_id"])
         self.assertTrue(result["token"])
@@ -88,7 +158,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         """parse pending WSTEP response"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
-        result = _parse_wstep_response(_fixture("wstep_issue_pending.xml"))
+        result = _parse_wstep_response(self.logger, _fixture("wstep_issue_pending.xml"))
         self.assertEqual("pending", result["status"])
         self.assertEqual("111", result["request_id"])
         self.assertIn("service.svc/CES", result["reference"])
@@ -97,7 +167,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         """parse denied WSTEP response"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
-        result = _parse_wstep_response(_fixture("wstep_issue_denied.xml"))
+        result = _parse_wstep_response(self.logger, _fixture("wstep_issue_denied.xml"))
         self.assertEqual("denied", result["status"])
 
     def test_006_parse_soap_fault(self):
@@ -105,7 +175,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
         with self.assertRaises(RuntimeError) as ctx:
-            _parse_wstep_response(_fixture("soap_fault.xml"))
+            _parse_wstep_response(self.logger, _fixture("soap_fault.xml"))
         self.assertIn("Authentication failed", str(ctx.exception))
 
     def test_007_wstep_issue_body_contains_template(self):
@@ -113,7 +183,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         from acme2certifier.cahandlers.mscepces_ca_handler import _wstep_issue_body
         from xml.etree import ElementTree as ET
 
-        body = _wstep_issue_body("AAAA", "WebServer")
+        body = _wstep_issue_body(self.logger, "AAAA", "WebServer")
         xml = ET.tostring(body, encoding="unicode")
         self.assertIn("CertificateTemplate", xml)
         self.assertIn("WebServer", xml)
@@ -127,9 +197,11 @@ class TestMscepcesCaHandler(unittest.TestCase):
         )
 
         encoded = _poll_identifier_encode(
-            "111", "https://ces.example.com/TestCA_CES_Kerberos/service.svc/CES"
+            self.logger,
+            "111",
+            "https://ces.example.com/TestCA_CES_Kerberos/service.svc/CES",
         )
-        request_id, reference = _poll_identifier_decode(encoded)
+        request_id, reference = _poll_identifier_decode(self.logger, encoded)
         self.assertEqual("111", request_id)
         self.assertTrue(reference.endswith("/CES"))
 
@@ -155,11 +227,26 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
     def test_010_handler_check_missing_ces_url(self, mock_load_cfg):
-        """handler_check fails without ces_url"""
+        """handler_check fails without ces_url and cep_url"""
         mock_load_cfg.return_value = configparser.ConfigParser()
         self.cahandler._config_load()
         error = self.cahandler.handler_check()
-        self.assertIn("ces_url", error)
+        self.assertIn("ces_url or cep_url", error)
+
+    @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
+    def test_010b_handler_check_cep_only(self, mock_load_cfg):
+        """handler_check accepts cep_url without ces_url when keytab is set"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "cep_url": "https://cep.example.com/CEP",
+            "template": "WebServer",
+            "auth_method": "gssapi",
+            "krb5_principal": "a2c@EXAMPLE.COM",
+            "krb5_keytab": "/tmp/krb5.keytab",
+        }
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertIsNone(self.cahandler.handler_check())
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._xcep_get_policies")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
@@ -349,9 +436,13 @@ class TestMscepcesCaHandler(unittest.TestCase):
         )
         from xml.etree import ElementTree as ET
 
-        token = _username_token_fields("user", "pass")
+        token = _username_token_fields(self.logger, "user", "pass")
         data = _soap_envelope(
-            "http://action", "https://ces.example/CES", _xcep_get_policies_body(), token
+            self.logger,
+            "http://action",
+            "https://ces.example/CES",
+            _xcep_get_policies_body(self.logger),
+            token,
         )
         root = ET.fromstring(data)
         self.assertIsNotNone(
@@ -371,7 +462,10 @@ class TestMscepcesCaHandler(unittest.TestCase):
         from xml.etree import ElementTree as ET
 
         data = _soap_envelope(
-            "http://action", "https://ces.example/CES", _xcep_get_policies_body()
+            self.logger,
+            "http://action",
+            "https://ces.example/CES",
+            _xcep_get_policies_body(self.logger),
         )
         root = ET.fromstring(data)
         security = [el for el in root.iter() if el.tag.endswith("Security")]
@@ -384,7 +478,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         )
 
         with self.assertRaises(RuntimeError) as ctx:
-            _parse_xcep_get_policies(_fixture("soap_fault.xml"))
+            _parse_xcep_get_policies(self.logger, _fixture("soap_fault.xml"))
         self.assertIn("XCEP SOAP Fault", str(ctx.exception))
 
     def test_023_certificate_element_to_pem_empty_invalid(self):
@@ -393,8 +487,10 @@ class TestMscepcesCaHandler(unittest.TestCase):
             _certificate_element_to_pem,
         )
 
-        self.assertIsNone(_certificate_element_to_pem(None))
-        self.assertIsNone(_certificate_element_to_pem("not-valid-base64!!!"))
+        self.assertIsNone(_certificate_element_to_pem(self.logger, None))
+        self.assertIsNone(
+            _certificate_element_to_pem(self.logger, "not-valid-base64!!!")
+        )
 
     def test_024_cert_bundle_with_ca_skips_duplicate(self):
         """_cert_bundle_with_ca skips CA PEM already in leaf bundle"""
@@ -404,11 +500,11 @@ class TestMscepcesCaHandler(unittest.TestCase):
             _token_to_pem_bundle,
         )
 
-        ca_pem = _parse_xcep_get_policies(_fixture("xcep_get_policies_response.xml"))[
-            "ca_certificates"
-        ][0]
+        ca_pem = _parse_xcep_get_policies(
+            self.logger, _fixture("xcep_get_policies_response.xml")
+        )["ca_certificates"][0]
         leaf, _ = _token_to_pem_bundle(self.logger, _issued_token_b64())
-        bundle = _cert_bundle_with_ca(leaf, [leaf, ca_pem])
+        bundle = _cert_bundle_with_ca(self.logger, leaf, [leaf, ca_pem])
         self.assertEqual(2, bundle.count("BEGIN CERTIFICATE"))
 
     def test_025_parse_wstep_missing_response(self):
@@ -421,7 +517,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             "<s:Body></s:Body></s:Envelope>"
         )
         with self.assertRaises(RuntimeError) as ctx:
-            _parse_wstep_response(xml)
+            _parse_wstep_response(self.logger, xml)
         self.assertIn("missing RequestSecurityTokenResponse", str(ctx.exception))
 
     def test_026_parse_wstep_unknown_disposition(self):
@@ -436,7 +532,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             "<wst:DispositionMessage>Weird</wst:DispositionMessage>"
             "</wst:RequestSecurityTokenResponse></s:Body></s:Envelope>"
         )
-        self.assertEqual("unknown", _parse_wstep_response(xml)["status"])
+        self.assertEqual("unknown", _parse_wstep_response(self.logger, xml)["status"])
 
     def test_027_csr_to_pkcs10_b64_pem_input(self):
         """_csr_to_pkcs10_b64 accepts PEM CSR"""
@@ -468,7 +564,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         bundle, raw = _token_to_pem_bundle(self.logger, _issued_token_b64())
         _, raw_der = _token_to_pem_bundle(self.logger, bundle)
         self.assertTrue(raw_der)
-        issued = _parse_wstep_response(_fixture("wstep_issue_issued.xml"))
+        issued = _parse_wstep_response(self.logger, _fixture("wstep_issue_issued.xml"))
         self.assertEqual("issued", issued["status"])
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.pkcs7_to_pem")
@@ -504,7 +600,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         """_leaf_pem_from_bundle returns input when no PEM found"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _leaf_pem_from_bundle
 
-        self.assertEqual("not-a-pem", _leaf_pem_from_bundle("not-a-pem"))
+        self.assertEqual("not-a-pem", _leaf_pem_from_bundle(self.logger, "not-a-pem"))
 
     def test_033_poll_identifier_decode_edge_cases(self):
         """_poll_identifier_decode without separator"""
@@ -512,14 +608,14 @@ class TestMscepcesCaHandler(unittest.TestCase):
             _poll_identifier_decode,
         )
 
-        self.assertEqual((None, None), _poll_identifier_decode(""))
-        self.assertEqual(("nosep", None), _poll_identifier_decode("nosep"))
+        self.assertEqual((None, None), _poll_identifier_decode(self.logger, ""))
+        self.assertEqual(("nosep", None), _poll_identifier_decode(self.logger, "nosep"))
 
     def test_034_username_token_fields(self):
         """_username_token_fields builds nonce and created"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _username_token_fields
 
-        fields = _username_token_fields("u", "p")
+        fields = _username_token_fields(self.logger, "u", "p")
         self.assertEqual("u", fields["username"])
         self.assertEqual("p", fields["password"])
         self.assertTrue(fields["nonce"])
@@ -538,7 +634,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         with patch.dict(
             "sys.modules", {"requests_gssapi": _fake_requests_gssapi(FakeAuth)}
         ):
-            self.assertTrue(gssapi_channel_bindings_supported())
+            self.assertTrue(gssapi_channel_bindings_supported(self.logger))
 
     def test_036_gssapi_channel_bindings_supported_false(self):
         """gssapi_channel_bindings_supported False without param"""
@@ -553,7 +649,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         with patch.dict(
             "sys.modules", {"requests_gssapi": _fake_requests_gssapi(FakeAuth)}
         ):
-            self.assertFalse(gssapi_channel_bindings_supported())
+            self.assertFalse(gssapi_channel_bindings_supported(self.logger))
 
     def test_037_gssapi_channel_bindings_supported_import_error(self):
         """gssapi_channel_bindings_supported False on import failure"""
@@ -565,7 +661,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             "acme2certifier.cahandlers.mscepces_ca_handler.importlib.import_module",
             side_effect=ImportError("missing"),
         ):
-            self.assertFalse(gssapi_channel_bindings_supported())
+            self.assertFalse(gssapi_channel_bindings_supported(self.logger))
 
     def test_038_gssapi_channel_bindings_supported_no_auth_cls(self):
         """gssapi_channel_bindings_supported False when HTTPSPNEGOAuth missing"""
@@ -575,7 +671,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
         fake_mod = types.ModuleType("requests_gssapi")
         with patch.dict("sys.modules", {"requests_gssapi": fake_mod}):
-            self.assertFalse(gssapi_channel_bindings_supported())
+            self.assertFalse(gssapi_channel_bindings_supported(self.logger))
 
     def test_039_gssapi_channel_bindings_supported_inspect_error(self):
         """gssapi_channel_bindings_supported False when inspect fails"""
@@ -591,7 +687,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             patch.dict("sys.modules", {"requests_gssapi": fake_mod}),
             patch("inspect.signature", side_effect=TypeError("bad")),
         ):
-            self.assertFalse(gssapi_channel_bindings_supported())
+            self.assertFalse(gssapi_channel_bindings_supported(self.logger))
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
     def test_040_context_manager_loads_config(self, mock_load_cfg):
@@ -859,7 +955,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.cahandler.ces_username = "u"
         self.cahandler.ces_password = "p"
         text = self.cahandler._soap_post(
-            "https://ces.example/CES", "action", _xcep_get_policies_body()
+            "https://ces.example/CES", "action", _xcep_get_policies_body(self.logger)
         )
         self.assertEqual("<fault/>", text)
         resp400 = MagicMock(status_code=400, text="bad")
@@ -867,7 +963,9 @@ class TestMscepcesCaHandler(unittest.TestCase):
         mock_post.return_value = resp400
         with self.assertRaises(Exception):
             self.cahandler._soap_post(
-                "https://ces.example/CES", "action", _xcep_get_policies_body()
+                "https://ces.example/CES",
+                "action",
+                _xcep_get_policies_body(self.logger),
             )
 
     @patch(
@@ -1153,9 +1251,12 @@ class TestMscepcesCaHandler(unittest.TestCase):
     def test_069_enroll_internal_paths(self, mock_issue, mock_ecl):
         """_enroll logs config, template error, exception"""
         self.cahandler.enrollment_config_log = True
+        self.cahandler.ces_url = "https://ces.example.com/CES"
+        self.cahandler.template = "WebServer"
         mock_issue.return_value = {"status": "issued", "token": _issued_token_b64()}
         self.cahandler._enroll(TEST_CSR_B64)
         mock_ecl.assert_called_once()
+        mock_issue.assert_called_with(TEST_CSR_B64, "https://ces.example.com/CES")
         with patch.object(
             self.cahandler,
             "_ca_templates_membership_check",
@@ -1168,6 +1269,68 @@ class TestMscepcesCaHandler(unittest.TestCase):
             err, _, _, _ = self.cahandler._enroll(TEST_CSR_B64)
         self.assertEqual(self.cahandler.CERT_FETCH_ERROR, err)
         self.assertIn("Failed to enroll certificate", lcm.output[0])
+
+    @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
+    @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
+    def test_069b_enroll_discovers_ces_from_cep(self, mock_load_cfg, mock_soap):
+        """enroll without ces_url uses CEP GetPolicies to pick CES"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "cep_url": "https://cep.example.com/ADPolicyProvider_CEP_Kerberos/service.svc/CEP",
+            "template": "WebServer",
+            "auth_method": "username_password",
+            "ces_username": "user",
+            "ces_password": "pass",
+            "ca_templates_check": "off",
+        }
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+
+        def _soap(url, action, _body):
+            if "GetPolicies" in action or url.endswith("/CEP"):
+                return _fixture("xcep_get_policies_response.xml")
+            return _fixture("wstep_issue_issued.xml")
+
+        mock_soap.side_effect = _soap
+        error, cert_bundle, cert_raw, poll_id = self.cahandler.enroll(TEST_CSR_B64)
+        self.assertIsNone(error)
+        self.assertTrue(cert_raw)
+        self.assertIsNone(poll_id)
+        ces_calls = [
+            call
+            for call in mock_soap.call_args_list
+            if "CES" in (call.args[0] if call.args else "")
+        ]
+        self.assertTrue(ces_calls)
+        self.assertIn(
+            "TestCA_CES_Kerberos",
+            ces_calls[0].args[0],
+        )
+
+    def test_069c_ces_url_resolve_errors(self):
+        """_ces_url_resolve reports missing CEP/template and unknown template"""
+        self.cahandler.ces_url = None
+        self.cahandler.cep_url = None
+        url, err = self.cahandler._ces_url_resolve()
+        self.assertIsNone(url)
+        self.assertIn("cep_url is missing", err)
+
+        self.cahandler.cep_url = "https://cep.example.com/CEP"
+        self.cahandler.template = None
+        url, err = self.cahandler._ces_url_resolve()
+        self.assertIsNone(url)
+        self.assertIn("template is required", err)
+
+        self.cahandler.template = "MissingTemplate"
+        with patch.object(
+            self.cahandler,
+            "_xcep_get_policies",
+            return_value={"template_ces": {"WebServer": ["https://ces/CES"]}},
+        ):
+            url, err = self.cahandler._ces_url_resolve()
+        self.assertIsNone(url)
+        self.assertIn("No CES URI found", err)
+        self.assertIn("WebServer", err)
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
     def test_070_handler_check_requires_password_without_keytab(self, mock_load_cfg):
@@ -1460,7 +1623,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.cahandler.ces_username = "u"
         self.cahandler.ces_password = "p"
         text = self.cahandler._soap_post(
-            "https://ces.example/CES", "act", _xcep_get_policies_body()
+            "https://ces.example/CES", "act", _xcep_get_policies_body(self.logger)
         )
         self.assertEqual("<ok/>", text)
 
@@ -1539,13 +1702,16 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
 
 def _parse_xcep_fixture_ca_pem() -> str:
+    import logging
     from acme2certifier.cahandlers.mscepces_ca_handler import _parse_xcep_get_policies
 
+    logger = logging.getLogger("test_a2c")
     return _parse_xcep_get_policies(
+        logger,
         open(
             os.path.join(FIXTURE_DIR, "xcep_get_policies_response.xml"),
             encoding="utf-8",
-        ).read()
+        ).read(),
     )["ca_certificates"][0]
 
 
