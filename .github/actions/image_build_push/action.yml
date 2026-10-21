@@ -147,10 +147,10 @@ runs:
         DJANGO_TAGS: ${{ steps.tags.outputs.django_tags }}
       run: |
         set -euo pipefail
-        cat > /tmp/a2c-django-alias.Dockerfile <<EOF
-FROM grindsa/acme2certifier:${TAG}-${WEBSRV}
-ENV ACME_SRV_DB_HANDLER=django
-EOF
+        printf '%s\n' \
+          "FROM grindsa/acme2certifier:${TAG}-${WEBSRV}" \
+          "ENV ACME_SRV_DB_HANDLER=django" \
+          > /tmp/a2c-django-alias.Dockerfile
         tag_args=()
         while IFS= read -r t; do
           [[ -n "${t}" ]] || continue

@@ -1516,6 +1516,16 @@ class TestMscepcesCaHandler(unittest.TestCase):
         result = self.cahandler.trigger("payload")
         self.assertEqual(("Method not implemented.", None, None), result)
 
+    def test_089_wstep_reference_without_uri(self):
+        """Reference element without a URI attribute yields no reference."""
+        import xml.etree.ElementTree as ET
+        from acme2certifier.cahandlers.mscepces_ca_handler import (
+            _wstep_reference_uri,
+        )
+
+        root = ET.fromstring("<Response><Reference Id='token'/></Response>")
+        self.assertIsNone(_wstep_reference_uri(root))
+
     def _set_enroll_ready(self):
         """Set minimal fields for enroll/poll gssapi/username paths."""
         self.cahandler.ces_url = "https://ces.example.com/CES"

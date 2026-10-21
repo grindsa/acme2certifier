@@ -257,17 +257,14 @@ class TestShortnameWithoutChallengeValidationDecide:
 
     def test_017_not_requested(self) -> None:
         logger = logging.getLogger("test_hardening_sn_chal")
-        assert (
-            shortname_without_challenge_validation_decide(logger, False) is False
-        )
+        assert shortname_without_challenge_validation_decide(logger, False) is False
 
     def test_018_ignored_without_ack(self, caplog: pytest.LogCaptureFixture) -> None:
         logger = logging.getLogger("test_hardening_sn_chal")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
             with caplog.at_level(logging.ERROR):
                 assert (
-                    shortname_without_challenge_validation_decide(logger, True)
-                    is False
+                    shortname_without_challenge_validation_decide(logger, True) is False
                 )
         assert any(
             "Ignoring" in r.message
@@ -282,8 +279,7 @@ class TestShortnameWithoutChallengeValidationDecide:
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
             with caplog.at_level(logging.WARNING):
                 assert (
-                    shortname_without_challenge_validation_decide(logger, True)
-                    is True
+                    shortname_without_challenge_validation_decide(logger, True) is True
                 )
         assert not any(
             "allow_shortname_without_challenge_validation" in r.message

@@ -17,7 +17,7 @@ Security-disable options in `acme_srv.cfg` need `ACME2CERTIFIER_I_KNOW_THE_RISK`
 
 One Dockerfile per webserver (`examples/Docker/{apache2,nginx}/Dockerfile`).
 
-**Hub tags**
+## Hub tags
 
 | Tag | Meaning |
 | --- | --- |

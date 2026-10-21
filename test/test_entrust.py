@@ -1699,6 +1699,27 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+    @patch("acme2certifier.cahandlers.entrust_ca_handler.config_headerinfo_load")
+    @patch("acme2certifier.cahandlers.entrust_ca_handler.config_eab_profile_load")
+    @patch("acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_root_load")
+    @patch(
+        "acme2certifier.cahandlers.entrust_ca_handler.CAhandler._config_session_load"
+    )
+    @patch("acme2certifier.cahandlers.entrust_ca_handler.load_config")
+    def test_099_config_load_allow_shortname_from_fqdn(
+        self, mock_load, mock_session, mock_root, mock_eab, mock_header
+    ):
+        """Order.allow_shortname_from_fqdn is loaded from config."""
+        parser = configparser.ConfigParser()
+        parser["Order"] = {"allow_shortname_from_fqdn": "true"}
+        mock_load.return_value = parser
+        mock_eab.return_value = (False, None)
+        mock_header.return_value = False
+        self.cahandler._config_load()
+        self.assertFalse(mock_session.called)
+        self.assertFalse(mock_root.called)
+        self.assertTrue(self.cahandler.allow_shortname_from_fqdn)
+
 
 if __name__ == "__main__":
 

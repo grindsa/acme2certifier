@@ -244,9 +244,7 @@ def _san_allowed_by_domainlist(
         return False
     if is_shortname_denied(logger, san, shortname_denylist):
         return False
-    return shortname_covered_by_siblings(
-        logger, san, san_list, allowed_domain_list
-    )
+    return shortname_covered_by_siblings(logger, san, san_list, allowed_domain_list)
 
 
 def allowed_domainlist_check(

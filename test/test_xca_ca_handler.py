@@ -4132,6 +4132,94 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler._config_check())
         self.assertEqual("ca-key", self.cahandler.issuing_ca_key)
 
+    def test_267_libcrypto_load_all_candidates_fail(self):
+        """_libcrypto_load raises when every libcrypto soname fails to load."""
+        import acme2certifier.cahandlers.xca_ca_handler as xca
+
+        saved = xca._LIBCRYPTO
+        xca._LIBCRYPTO = None
+        try:
+            with patch(
+                "acme2certifier.cahandlers.xca_ca_handler.ctypes.CDLL",
+                side_effect=OSError("missing"),
+            ):
+                with self.assertRaises(RuntimeError) as ctx:
+                    xca._libcrypto_load()
+            self.assertIn("Unable to load libcrypto", str(ctx.exception))
+            self.assertIn("missing", str(ctx.exception))
+        finally:
+            xca._LIBCRYPTO = saved
+
+    def test_268_openssl_name_hash_libcrypto_d2i_fail(self):
+        """d2i_X509_NAME returning NULL raises ValueError."""
+        import acme2certifier.cahandlers.xca_ca_handler as xca
+
+        lib = MagicMock()
+        lib.d2i_X509_NAME.return_value = None
+        with patch.object(xca, "_libcrypto_load", return_value=lib):
+            with self.assertRaises(ValueError) as ctx:
+                xca._openssl_name_hash_libcrypto(b"\x30\x00")
+        self.assertIn("d2i_X509_NAME failed", str(ctx.exception))
+
+    def test_269_openssl_name_hash_libcrypto_hash_ex_fail(self):
+        """X509_NAME_hash_ex reporting failure raises ValueError."""
+        import acme2certifier.cahandlers.xca_ca_handler as xca
+
+        lib = MagicMock()
+        lib.d2i_X509_NAME.return_value = 1
+        with patch.object(xca, "_libcrypto_load", return_value=lib):
+            with self.assertRaises(ValueError) as ctx:
+                xca._openssl_name_hash_libcrypto(b"\x30\x00")
+        self.assertIn("X509_NAME_hash_ex failed", str(ctx.exception))
+        self.assertTrue(lib.X509_NAME_free.called)
+
+    def test_270_openssl_name_hash_libcrypto_without_hash_ex(self):
+        """Missing X509_NAME_hash_ex falls back to X509_NAME_hash."""
+        import acme2certifier.cahandlers.xca_ca_handler as xca
+
+        class _Fn:
+            def __init__(self, result):
+                self._result = result
+                self.argtypes = None
+                self.restype = None
+
+            def __call__(self, *_args):
+                return self._result
+
+        class _Lib:
+            def __init__(self):
+                self.d2i_X509_NAME = _Fn(1)
+                self.X509_NAME_free = _Fn(None)
+                self.X509_NAME_hash = _Fn(0xFFFFFFFF)
+
+        with patch.object(xca, "_libcrypto_load", return_value=_Lib()):
+            self.assertEqual(0x7FFFFFFF, xca._openssl_name_hash_libcrypto(b"\x30\x00"))
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.default_backend")
+    def test_271_openssl_name_hash_d2i_null(self, mock_backend):
+        """cryptography backend d2i_X509_NAME NULL raises ValueError."""
+        from cryptography.hazmat.backends import default_backend
+
+        real_backend = default_backend()
+
+        class _Lib:
+            def d2i_X509_NAME(self, *_args):
+                return real_backend._ffi.NULL
+
+            def X509_NAME_hash(self, *_args):
+                return 1
+
+            def X509_NAME_free(self, *_args):
+                return None
+
+        mock_backend.return_value._lib = _Lib()
+        mock_backend.return_value._ffi = real_backend._ffi
+        with open(f"{self.dir_path}/ca/root-ca-cert.pem", "rb") as fso:
+            cert = x509.load_pem_x509_certificate(fso.read(), real_backend)
+        with self.assertRaises(ValueError) as ctx:
+            self.cahandler._openssl_name_hash(cert.subject)
+        self.assertIn("d2i_X509_NAME failed", str(ctx.exception))
+
 
 if __name__ == "__main__":
 

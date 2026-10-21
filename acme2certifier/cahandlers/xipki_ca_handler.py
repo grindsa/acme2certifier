@@ -123,9 +123,7 @@ class CAhandler(object):
             self.ca_bundle = config_ca_bundle_load(
                 self.logger, config_dic, current=self.ca_bundle
             )
-            self.proxy = config_proxy_load(
-                self.logger, config_dic, self.api_host
-            )
+            self.proxy = config_proxy_load(self.logger, config_dic, self.api_host)
 
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -241,9 +239,7 @@ class CAhandler(object):
             self.logger.error("%s", error)
             return error, None
 
-        self.logger.debug(
-            "CAhandler._cacert_cache() ended ca-sha1=%s", self._ca_sha1
-        )
+        self.logger.debug("CAhandler._cacert_cache() ended ca-sha1=%s", self._ca_sha1)
         return None, self._cacerts_pem
 
     def _enroll_post(self, csr_der: bytes) -> Tuple[Optional[str], Optional[bytes]]:

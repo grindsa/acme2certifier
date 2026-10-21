@@ -144,19 +144,19 @@ class TestCFSSLHandler(unittest.TestCase):
             self.addCleanup(item.stop)
 
     @patch("acme2certifier.cahandlers.cfssl_ca_handler.CAhandler._config_load")
-    def test_enter_loads_config(self, mock_cfg):
+    def test_001_loads_config(self, mock_cfg):
         """__enter__ loads config when cfssl_url is unset"""
         self.cahandler.cfssl_url = None
         with self.cahandler:
             self.assertTrue(mock_cfg.called)
 
     @patch("acme2certifier.cahandlers.cfssl_ca_handler.CAhandler._config_load")
-    def test_enter_skips_when_configured(self, mock_cfg):
+    def test_002_skips_when_configured(self, mock_cfg):
         """__enter__ skips config when cfssl_url is set"""
         with self.cahandler:
             self.assertFalse(mock_cfg.called)
 
-    def test_poll_and_trigger(self):
+    def test_003_and_trigger(self):
         """poll and trigger are not implemented"""
         self.assertEqual(
             ("Method not implemented.", None, None, "poll_id", False),
@@ -167,13 +167,13 @@ class TestCFSSLHandler(unittest.TestCase):
             self.cahandler.trigger("payload"),
         )
 
-    def test_handler_check(self):
+    def test_004_check(self):
         """handler_check requires cfssl_url"""
         self.assertIsNone(self.cahandler.handler_check())
         self.cahandler.cfssl_url = None
         self.assertTrue(self.cahandler.handler_check())
 
-    def test_config_load(self):
+    def test_005_load(self):
         """_config_load sets url, profile, label, auth key, and timeouts"""
         parser = self._config_parser(
             {
@@ -199,7 +199,7 @@ class TestCFSSLHandler(unittest.TestCase):
         self.assertEqual(4, self.cahandler.request_retries)
         self.assertEqual(1.5, self.cahandler.request_retry_backoff)
 
-    def test_config_load_bad_numbers_and_missing_url(self):
+    def test_006_load_bad_numbers_and_missing_url(self):
         """bad numeric options are logged and cfssl_url is required"""
         parser = self._config_parser(
             {
@@ -217,7 +217,7 @@ class TestCFSSLHandler(unittest.TestCase):
         self.assertEqual(2.0, self.cahandler.request_retry_backoff)
         self.assertTrue(any("cfssl_url" in line for line in logs.output))
 
-    def test_config_load_missing_section(self):
+    def test_007_load_missing_section(self):
         """a config without CAhandler still reports the missing url"""
         parser = configparser.ConfigParser()
         self._patch_loaders(parser)
@@ -227,7 +227,7 @@ class TestCFSSLHandler(unittest.TestCase):
         self.assertIsNone(self.cahandler.cfssl_url)
         self.assertTrue(any("cfssl_url" in line for line in logs.output))
 
-    def test_sign_body_and_auth_wrap(self):
+    def test_008_body_and_auth_wrap(self):
         """profile and label are optional; authsign HMAC covers the raw JSON"""
         body = self.cahandler._sign_body("CSR")
         self.assertEqual({"certificate_request": "CSR"}, body)
@@ -252,7 +252,7 @@ class TestCFSSLHandler(unittest.TestCase):
         self.assertIn("auth_key", error)
         self.assertIsNone(wrapped)
 
-    def test_result_get(self):
+    def test_009_get(self):
         """CFSSL envelopes: HTTP errors, success false, and a missing field"""
         error, result = self.cahandler._result_get(500, "boom")
         self.assertIn("boom", error)
@@ -273,7 +273,7 @@ class TestCFSSLHandler(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual({}, result)
 
-    def test_chain_extra(self):
+    def test_010_extra(self):
         """chain_file is optional, appended, and reported when unreadable"""
         error, extra = self.cahandler._chain_extra()
         self.assertIsNone(error)
@@ -313,7 +313,7 @@ class TestCFSSLHandler(unittest.TestCase):
         "acme2certifier.cahandlers.cfssl_ca_handler.eab_profile_header_info_check",
         return_value=None,
     )
-    def test_enroll_success(self, _eab, mock_api):
+    def test_011_success(self, _eab, mock_api):
         """enroll returns the leaf plus the signer from /info"""
         mock_api.side_effect = [
             _ok({"certificate": self.leaf_pem.strip()}),
@@ -344,7 +344,7 @@ class TestCFSSLHandler(unittest.TestCase):
         "acme2certifier.cahandlers.cfssl_ca_handler.eab_profile_header_info_check",
         return_value=None,
     )
-    def test_enroll_authsign_profile_label_and_chain(self, _eab, mock_api, mock_log):
+    def test_012_authsign_profile_label_and_chain(self, _eab, mock_api, mock_log):
         """authsign, profile, label, chain_file, and enrollment logging"""
         self.cahandler.profile = "server"
         self.cahandler.label = "primary"
@@ -376,7 +376,7 @@ class TestCFSSLHandler(unittest.TestCase):
         "acme2certifier.cahandlers.cfssl_ca_handler.eab_profile_header_info_check",
         return_value="bad csr",
     )
-    def test_enroll_eab_error(self, _eab):
+    def test_013_eab_error(self, _eab):
         """profiling failures are returned as the enroll error"""
         error, bundle, raw, poll_id = self.cahandler.enroll(self.csr_b64url)
         self.assertEqual("bad csr", error)
@@ -388,7 +388,7 @@ class TestCFSSLHandler(unittest.TestCase):
         "acme2certifier.cahandlers.cfssl_ca_handler.eab_profile_header_info_check",
         return_value=None,
     )
-    def test_enroll_missing_url_and_bad_csr(self, _eab):
+    def test_014_missing_url_and_bad_csr(self, _eab):
         """missing url and a CSR that cannot be recoded fail before HTTP"""
         self.cahandler.cfssl_url = None
         error, *_rest = self.cahandler.enroll(self.csr_b64url)
@@ -407,7 +407,7 @@ class TestCFSSLHandler(unittest.TestCase):
         "acme2certifier.cahandlers.cfssl_ca_handler.eab_profile_header_info_check",
         return_value=None,
     )
-    def test_enroll_http_and_parse_failures(self, _eab, mock_api):
+    def test_015_http_and_parse_failures(self, _eab, mock_api):
         """sign, info, parse, auth, and chain failures stop enrollment"""
         mock_api.return_value = (500, "down")
         error, *_rest = self.cahandler.enroll(self.csr_b64url)
@@ -444,7 +444,7 @@ class TestCFSSLHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.cfssl_ca_handler.eab_profile_revocation_check")
     @patch("acme2certifier.cahandlers.cfssl_ca_handler.ca_api_request")
-    def test_revoke_success(self, mock_api, mock_eab):
+    def test_016_success(self, mock_api, mock_eab):
         """revoke posts decimal serial, lowercase AKI, and the reason"""
         self.cahandler.eab_profiling = True
         mock_api.return_value = _ok({})
@@ -465,7 +465,7 @@ class TestCFSSLHandler(unittest.TestCase):
         self.assertEqual(200, code)
 
     @patch("acme2certifier.cahandlers.cfssl_ca_handler.ca_api_request")
-    def test_revoke_failures(self, mock_api):
+    def test_017_failures(self, mock_api):
         """missing url, unparsable cert, missing AKI, and API errors"""
         self.cahandler.cfssl_url = None
         code, _message, detail = self.cahandler.revoke(self.leaf_b64url)
@@ -494,7 +494,7 @@ class TestCFSSLHandler(unittest.TestCase):
         self.assertIn("no row", detail)
 
     @patch("acme2certifier.cahandlers.cfssl_ca_handler.enrollment_config_log")
-    def test_enroll_log_skip_list(self, mock_log):
+    def test_018_log_skip_list(self, mock_log):
         """a list skip-list is extended with auth_key"""
         self.cahandler.enrollment_config_log = True
         self.cahandler.enrollment_config_log_skip_list = ["cfssl_url"]
