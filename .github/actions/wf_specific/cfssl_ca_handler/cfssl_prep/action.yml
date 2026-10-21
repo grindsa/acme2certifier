@@ -86,7 +86,11 @@ runs:
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(doc, handle)
         PY
-        chmod -R a+rwX "${data}"
+        # cfssl/cfssl has no USER and runs as root, so it can update certs.db.
+        # Owner-write only: do not grant write to other (githubactions:S2612).
+        chmod 700 "${data}"
+        chmod 600 "${data}/ca-key.pem"
+        chmod 644 "${data}/ca.pem" "${data}/config.json" "${data}/db.json" "${data}/certs.db"
 
         sed -i.bak "s/^    name: acme$/    name: ${NAME_SPACE}/" "${CFSSL_DIR}/compose.yaml"
         rm -f "${CFSSL_DIR}/compose.yaml.bak"
