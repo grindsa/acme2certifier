@@ -169,6 +169,13 @@ runs:
                 serial = str(int(line.split("=", 1)[1], 16))
             if "keyid:" in line.lower():
                 aki = line.split(":", 1)[1].replace(":", "").strip().lower()
+                continue
+            parts = line.strip().split(":")
+            if len(parts) > 1 and all(
+                len(part) == 2 and all(c in "0123456789abcdefABCDEF" for c in part)
+                for part in parts
+            ):
+                aki = "".join(parts).lower()
         if not serial or not aki:
             raise SystemExit(f"could not parse smoke certificate: {text}")
         revoked = post(
