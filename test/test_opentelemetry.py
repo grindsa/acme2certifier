@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Tests for acme_srv.helpers.otel (Step 4a: NoOp / config gate)."""
+"""Tests for acme_srv.helpers.otel (NoOp gate + optional SDK InMemory cases)."""
 
 from __future__ import annotations
 
 import configparser
 import logging
+from typing import Any, Tuple
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,19 +13,81 @@ import pytest
 from acme2certifier.acme_srv.helpers import otel as otel_mod
 
 
-@pytest.fixture(autouse=True)
-def _reset_otel() -> None:
-    """Isolate module state between tests."""
-    otel_mod._reset_otel_state()
-    yield
-    otel_mod._reset_otel_state()
-
-
 def _cfg(**otel_items: str) -> configparser.ConfigParser:
     parser = configparser.ConfigParser()
     if otel_items:
         parser["OpenTelemetry"] = dict(otel_items)
     return parser
+
+
+def _require_otel_sdk() -> None:
+    """Skip SDK-backed tests when optional extra [otel] is not installed."""
+    pytest.importorskip(
+        "opentelemetry", reason="optional extra [otel] not installed"
+    )
+    pytest.importorskip(
+        "opentelemetry.sdk", reason="optional extra [otel] not installed"
+    )
+
+
+def _reset_otel_api_providers() -> None:
+    """Allow set_*_provider again between tests (SDK Once lock)."""
+    try:
+        from opentelemetry import trace
+        from opentelemetry.metrics import _internal as metrics_internal
+        from opentelemetry.util._once import Once
+    except ImportError:
+        return
+    # Private API used by OpenTelemetry's own tests.
+    trace._TRACER_PROVIDER = None  # type: ignore[attr-defined]
+    trace._TRACER_PROVIDER_SET_ONCE = Once()  # type: ignore[attr-defined]
+    metrics_internal._METER_PROVIDER = None  # type: ignore[attr-defined]
+    metrics_internal._METER_PROVIDER_SET_ONCE = Once()  # type: ignore[attr-defined]
+
+
+@pytest.fixture(autouse=True)
+def _reset_otel() -> None:
+    """Isolate module state between tests."""
+    otel_mod._reset_otel_state()
+    _reset_otel_api_providers()
+    yield
+    otel_mod._reset_otel_state()
+    _reset_otel_api_providers()
+
+
+def _enable_inmemory_providers() -> Tuple[Any, Any]:
+    """Wire InMemory span/metric backends into the facade (no OTLP network)."""
+    _require_otel_sdk()
+    _reset_otel_api_providers()
+    from opentelemetry import metrics, trace
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import InMemoryMetricReader
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    resource = Resource.create({"service.name": "acme2certifier-test"})
+    span_exporter = InMemorySpanExporter()
+    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(SimpleSpanProcessor(span_exporter))
+    trace.set_tracer_provider(tracer_provider)
+
+    metric_reader = InMemoryMetricReader()
+    meter_provider = MeterProvider(
+        resource=resource, metric_readers=[metric_reader]
+    )
+    metrics.set_meter_provider(meter_provider)
+
+    otel_mod._initialized = True
+    otel_mod._enabled = True
+    otel_mod._tracer = trace.get_tracer("acme2certifier")
+    otel_mod._meter = metrics.get_meter("acme2certifier")
+    otel_mod._counters = {}
+    otel_mod._histograms = {}
+    return span_exporter, metric_reader
 
 
 def test_init_otel_default_disabled() -> None:
@@ -137,3 +200,92 @@ def test_boot_acme_http_stack_calls_init_otel() -> None:
     ):
         boot_acme_http_stack()
     mock_otel.assert_called_once_with(logger)
+
+
+def test_init_otel_unsupported_protocol(caplog: pytest.LogCaptureFixture) -> None:
+    """Unsupported protocol stays NoOp."""
+    with patch.object(
+        otel_mod,
+        "load_config",
+        return_value=_cfg(opentelemetry_support="True", protocol="grpc"),
+    ):
+        with caplog.at_level(logging.ERROR):
+            assert otel_mod.init_otel() is False
+    assert otel_mod.is_otel_enabled() is False
+    assert any("unsupported protocol" in r.getMessage() for r in caplog.records)
+
+
+def test_sdk_span_records_name_and_attributes() -> None:
+    """Enabled facade records spans via InMemorySpanExporter."""
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.span(
+        "acme.challenge.validate",
+        attributes={"acme.challenge_type": "http-01"},
+    ) as active:
+        active.set_attribute("acme.outcome", "success")
+    spans = span_exporter.get_finished_spans()
+    assert len(spans) == 1
+    assert spans[0].name == "acme.challenge.validate"
+    assert spans[0].attributes["acme.challenge_type"] == "http-01"
+    assert spans[0].attributes["acme.outcome"] == "success"
+
+
+def test_sdk_counter_and_histogram_record() -> None:
+    """Enabled facade records counter/histogram via InMemoryMetricReader."""
+    _exporter, metric_reader = _enable_inmemory_providers()
+    otel_mod.counter_add(
+        "acme.challenge.validation",
+        attributes={"acme.challenge_type": "dns-01", "acme.outcome": "success"},
+    )
+    otel_mod.histogram_record(
+        "acme.issuance.duration",
+        0.25,
+        attributes={"acme.outcome": "success"},
+    )
+    data = metric_reader.get_metrics_data()
+    assert data is not None
+    metric_names = set()
+    for rm in data.resource_metrics:
+        for sm in rm.scope_metrics:
+            for metric in sm.metrics:
+                metric_names.add(metric.name)
+    assert "acme.challenge.validation" in metric_names
+    assert "acme.issuance.duration" in metric_names
+
+
+def test_init_otel_true_with_sdk_sets_enabled(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """opentelemetry_support=True with SDK present enables facade (no real OTLP)."""
+    _require_otel_sdk()
+    _reset_otel_api_providers()
+    real_import = otel_mod._import_otel_sdk
+
+    def _sdk_with_noop_exporters() -> Any:
+        sdk = real_import()
+        sdk["OTLPSpanExporter"] = lambda **_kwargs: MagicMock()
+        sdk["OTLPMetricExporter"] = lambda **_kwargs: MagicMock()
+        return sdk
+
+    logger = logging.getLogger("otel-sdk-init")
+    with patch.object(
+        otel_mod,
+        "load_config",
+        return_value=_cfg(
+            opentelemetry_support="True",
+            endpoint="http://192.168.64.3:4318",
+            service_name="acme2certifier-test",
+        ),
+    ):
+        with patch.object(
+            otel_mod, "_import_otel_sdk", side_effect=_sdk_with_noop_exporters
+        ):
+            with caplog.at_level(logging.WARNING):
+                assert otel_mod.init_otel(logger) is True
+    assert otel_mod.is_otel_enabled() is True
+    assert any("experimental" in r.getMessage() for r in caplog.records)
+
+    with otel_mod.span("acme.certificate.enroll") as active:
+        active.set_attribute("acme.outcome", "success")
+    otel_mod.counter_add("acme.ca_handler.call", attributes={"acme.outcome": "success"})
+    otel_mod.histogram_record("acme.issuance.duration", 1.0)
