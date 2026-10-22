@@ -148,3 +148,7 @@ grep 'account=acct-123' /var/log/…
 | `debug` | `DEFAULT` | `True` → logger level `DEBUG` (full edge dumps on failures, verbose internals) |
 
 Other modules may emit their own `ERROR`/`CRITICAL` lines (DB failures, enrollment errors, EAB HMAC failures, etc.) independent of the ACME problem path.
+
+## Related: OpenTelemetry
+
+Logging stays the primary operator signal. Optional **experimental** OTLP export (traces/metrics) is documented in [OpenTelemetry](opentelemetry.md) and does not replace syslog / ACME problem lines / `cert_operations_log`.
