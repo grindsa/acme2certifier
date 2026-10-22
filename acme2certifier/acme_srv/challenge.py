@@ -30,6 +30,7 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ownership_lookup_failed,
     resolve_resource_ownership,
 )
+from acme2certifier.acme_srv.helpers.otel import counter_add, span
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message, finish_response
 
@@ -507,35 +508,64 @@ class Challenge:
             raise ValidationError("Could not retrieve challenge details for validation")
 
         challenge_type = challenge_details["type"]
+        span_attrs = {"acme.challenge_type": challenge_type}
 
-        # Check if challenge type is supported
-        if not self.validator_registry.is_supported(challenge_type):
-            raise UnsupportedChallengeTypeError(
-                challenge_type, self.validator_registry.get_supported_types()
-            )
+        with span("acme.challenge.validate", attributes=span_attrs) as active:
+            try:
+                # Check if challenge type is supported
+                if not self.validator_registry.is_supported(challenge_type):
+                    raise UnsupportedChallengeTypeError(
+                        challenge_type, self.validator_registry.get_supported_types()
+                    )
 
-        # Create validation context
-        context = ChallengeContext(
-            challenge_name=challenge_name,
-            token=challenge_details["token"],
-            jwk_thumbprint=challenge_details["jwk_thumbprint"],
-            keyauthorization=challenge_details["keyauthorization"],
-            authorization_type=challenge_details["authorization_type"],
-            authorization_value=challenge_details["authorization_value"],
-            dns_servers=self.config.dns_server_list,
-            proxy_servers=self.config.proxy_server_list,
-            timeout=self.config.validation_timeout,
-            options={
-                "accounturi": challenge_details.get("accounturi"),
-                "issuer_domain_names": self.config.caaidentities or [],
-                "allow_policy_wildcard": self.config.dns_persist_allow_policy_wildcard,
-                "http01_block_private_ips": self.config.http01_block_private_ips,
-                "challenge_message_id": challenge_details.get("challenge_message_id"),
-            },
-        )
+                # Create validation context
+                context = ChallengeContext(
+                    challenge_name=challenge_name,
+                    token=challenge_details["token"],
+                    jwk_thumbprint=challenge_details["jwk_thumbprint"],
+                    keyauthorization=challenge_details["keyauthorization"],
+                    authorization_type=challenge_details["authorization_type"],
+                    authorization_value=challenge_details["authorization_value"],
+                    dns_servers=self.config.dns_server_list,
+                    proxy_servers=self.config.proxy_server_list,
+                    timeout=self.config.validation_timeout,
+                    options={
+                        "accounturi": challenge_details.get("accounturi"),
+                        "issuer_domain_names": self.config.caaidentities or [],
+                        "allow_policy_wildcard": (
+                            self.config.dns_persist_allow_policy_wildcard
+                        ),
+                        "http01_block_private_ips": (
+                            self.config.http01_block_private_ips
+                        ),
+                        "challenge_message_id": challenge_details.get(
+                            "challenge_message_id"
+                        ),
+                    },
+                )
 
-        # Perform validation with retry logic for DNS challenges
-        return self._perform_validation_with_retry(challenge_type, context)
+                # Perform validation with retry logic for DNS challenges
+                result = self._perform_validation_with_retry(challenge_type, context)
+                outcome = "success" if result.success else "failure"
+                active.set_attribute("acme.outcome", outcome)
+                counter_add(
+                    "acme.challenge.validation",
+                    attributes={
+                        "acme.challenge_type": challenge_type,
+                        "acme.outcome": outcome,
+                    },
+                )
+                return result
+            except Exception:
+                active.set_attribute("acme.outcome", "error")
+                counter_add(
+                    "acme.challenge.validation",
+                    attributes={
+                        "acme.challenge_type": challenge_type,
+                        "acme.outcome": "error",
+                    },
+                )
+                raise
 
     def _extract_challenge_name_from_url(self, url: str) -> str:
         """Extract challenge name from URL."""

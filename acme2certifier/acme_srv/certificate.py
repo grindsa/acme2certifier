@@ -4,6 +4,7 @@
 
 from __future__ import print_function
 import json
+import time
 from typing import List, Tuple, Dict, Union, Optional, Any, Set
 from dataclasses import dataclass
 from acme2certifier.acme_srv.helper import (
@@ -56,6 +57,7 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ownership_lookup_failed,
     resolve_resource_ownership,
 )
+from acme2certifier.acme_srv.helpers.otel import counter_add, histogram_record, span
 
 
 # CertificateLogger moved from certificate_logger.py
@@ -1044,15 +1046,32 @@ class Certificate(object):
                 handler_name,
                 extra,
             )
-            with handler_factory(self.debug, self.logger) as ca_handler:
-                (
-                    error,
-                    certificate,
-                    certificate_raw,
-                    poll_identifier,
-                ) = ca_handler.enroll(csr)
-                error, certificate, certificate_raw = self._cert_bundle_rewrite(
-                    error, certificate, certificate_raw, handler_factory, csr
+            ca_attrs = {
+                "acme.cahandler": handler_name,
+                "acme.ca_operation": "enroll",
+            }
+            if order_name:
+                ca_attrs["acme.order_name"] = order_name
+            with span("acme.ca_handler.call", attributes=ca_attrs) as ca_span:
+                with handler_factory(self.debug, self.logger) as ca_handler:
+                    (
+                        error,
+                        certificate,
+                        certificate_raw,
+                        poll_identifier,
+                    ) = ca_handler.enroll(csr)
+                    error, certificate, certificate_raw = self._cert_bundle_rewrite(
+                        error, certificate, certificate_raw, handler_factory, csr
+                    )
+                ca_outcome = "failure" if error else "success"
+                ca_span.set_attribute("acme.outcome", ca_outcome)
+                counter_add(
+                    "acme.ca_handler.call",
+                    attributes={
+                        "acme.cahandler": handler_name,
+                        "acme.ca_operation": "enroll",
+                        "acme.outcome": ca_outcome,
+                    },
                 )
             cert_reusage = False
         else:
@@ -1869,66 +1888,109 @@ class Certificate(object):
         self, certificate_name: str, csr: str, order_name: str = None
     ) -> Tuple[str, str]:
         """Process certificate enrollment request and validate CSR with improved error handling"""
-        try:
-            # Validate input parameters
-            validation_errors = self._validate_input_parameters(
-                certificate_name=certificate_name, csr=csr
-            )
-            if validation_errors:
-                self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
-                return self.err_msg_dic["badcsr"], "Invalid input parameters"
-
-            self.logger.debug(
-                "Certificate.process_certificate_enrollment_request(%s, %s)",
-                certificate_name,
-                order_name,
-            )
-
-            # Validate CSR against order
+        enroll_attrs: Dict[str, Any] = {}
+        if order_name:
+            enroll_attrs["acme.order_name"] = order_name
+        started = time.perf_counter()
+        with span("acme.certificate.enroll", attributes=enroll_attrs) as enroll_span:
             try:
-                csr_check_result = self._validate_csr_against_order(
-                    certificate_name, csr
+                # Validate input parameters
+                validation_errors = self._validate_input_parameters(
+                    certificate_name=certificate_name, csr=csr
                 )
-            except Exception as err:
-                self.logger.error("Error validating CSR against order: %s", err)
-                return self.err_msg_dic["serverinternal"], "CSR validation failed"
+                if validation_errors:
+                    self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
+                    enroll_span.set_attribute("acme.outcome", "failure")
+                    histogram_record(
+                        "acme.issuance.duration",
+                        time.perf_counter() - started,
+                        attributes={"acme.outcome": "failure"},
+                    )
+                    return self.err_msg_dic["badcsr"], "Invalid input parameters"
 
-            if not csr_check_result:
-                self.logger.warning(
-                    "Certificate enrollment failed: CSR vs order mismatch certificate=%s order=%s",
+                self.logger.debug(
+                    "Certificate.process_certificate_enrollment_request(%s, %s)",
                     certificate_name,
                     order_name,
                 )
-                return self.err_msg_dic["badcsr"], "CSR validation failed"
 
-            if self.config.dryrun:
-                self.logger.info(
-                    "Dry run mode enabled - skipping enrollment and certificate issuance"
+                # Validate CSR against order
+                try:
+                    csr_check_result = self._validate_csr_against_order(
+                        certificate_name, csr
+                    )
+                except Exception as err:
+                    self.logger.error("Error validating CSR against order: %s", err)
+                    enroll_span.set_attribute("acme.outcome", "failure")
+                    histogram_record(
+                        "acme.issuance.duration",
+                        time.perf_counter() - started,
+                        attributes={"acme.outcome": "failure"},
+                    )
+                    return self.err_msg_dic["serverinternal"], "CSR validation failed"
+
+                if not csr_check_result:
+                    self.logger.warning(
+                        "Certificate enrollment failed: CSR vs order mismatch certificate=%s order=%s",
+                        certificate_name,
+                        order_name,
+                    )
+                    enroll_span.set_attribute("acme.outcome", "failure")
+                    histogram_record(
+                        "acme.issuance.duration",
+                        time.perf_counter() - started,
+                        attributes={"acme.outcome": "failure"},
+                    )
+                    return self.err_msg_dic["badcsr"], "CSR validation failed"
+
+                if self.config.dryrun:
+                    self.logger.info(
+                        "Dry run mode enabled - skipping enrollment and certificate issuance"
+                    )
+                    enroll_span.set_attribute("acme.outcome", "skipped")
+                    histogram_record(
+                        "acme.issuance.duration",
+                        time.perf_counter() - started,
+                        attributes={"acme.outcome": "skipped"},
+                    )
+                    return (
+                        self.err_msg_dic["unauthorized"],
+                        DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
+                    )
+
+                # Process enrollment
+                error, detail = self._handle_enrollment_thread_execution(
+                    certificate_name, csr, order_name
+                )
+                outcome = "failure" if error else "success"
+                enroll_span.set_attribute("acme.outcome", outcome)
+                histogram_record(
+                    "acme.issuance.duration",
+                    time.perf_counter() - started,
+                    attributes={"acme.outcome": outcome},
+                )
+                self.logger.debug(
+                    "Certificate.process_certificate_enrollment_request() ended with: %s:%s",
+                    error,
+                    detail,
+                )
+                return (error, detail)
+
+            except Exception as err:
+                self.logger.critical(
+                    "Unexpected error in process_certificate_enrollment_request: %s",
+                    err,
+                )
+                enroll_span.set_attribute("acme.outcome", "error")
+                histogram_record(
+                    "acme.issuance.duration",
+                    time.perf_counter() - started,
+                    attributes={"acme.outcome": "error"},
                 )
                 return (
-                    self.err_msg_dic["unauthorized"],
-                    DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
+                    self.err_msg_dic["serverinternal"],
+                    "Unexpected error during enrollment",
                 )
-
-            # Process enrollment
-            error, detail = self._handle_enrollment_thread_execution(
-                certificate_name, csr, order_name
-            )
-            self.logger.debug(
-                "Certificate.process_certificate_enrollment_request() ended with: %s:%s",
-                error,
-                detail,
-            )
-            return (error, detail)
-
-        except Exception as err:
-            self.logger.critical(
-                "Unexpected error in process_certificate_enrollment_request: %s", err
-            )
-            return (
-                self.err_msg_dic["serverinternal"],
-                "Unexpected error during enrollment",
-            )
 
     def _determine_certificate_response(
         self, cert_info: Dict, certificate_name: Optional[str] = None
@@ -2207,9 +2269,29 @@ class Certificate(object):
             )
             if handler_factory is None:
                 return 500, self.err_msg_dic["serverinternal"], None
-            with handler_factory(self.debug, self.logger) as ca_handler:
-                code, message, detail = ca_handler.revoke(
-                    payload["certificate"], error, rev_date
+            handler_name = getattr(handler_factory, "name", None)
+            if not isinstance(handler_name, str):
+                handler_name = "unknown"
+            revoke_attrs = {
+                "acme.cahandler": handler_name,
+                "acme.ca_operation": "revoke",
+            }
+            if account_name:
+                revoke_attrs["acme.account_name"] = account_name
+            with span("acme.ca_handler.call", attributes=revoke_attrs) as ca_span:
+                with handler_factory(self.debug, self.logger) as ca_handler:
+                    code, message, detail = ca_handler.revoke(
+                        payload["certificate"], error, rev_date
+                    )
+                ca_outcome = "success" if code == 200 else "failure"
+                ca_span.set_attribute("acme.outcome", ca_outcome)
+                counter_add(
+                    "acme.ca_handler.call",
+                    attributes={
+                        "acme.cahandler": handler_name,
+                        "acme.ca_operation": "revoke",
+                        "acme.outcome": ca_outcome,
+                    },
                 )
 
             if code != 200:
