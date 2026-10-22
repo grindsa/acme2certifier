@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import configparser
 import logging
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -95,3 +95,45 @@ def test_sample_ratio_clamped() -> None:
     cfg_low = _cfg(sample_ratio="-1")
     assert otel_mod._config_sample_ratio(cfg_high) == 1.0
     assert otel_mod._config_sample_ratio(cfg_low) == 0.0
+
+
+def test_boot_acme_http_stack_calls_init_otel() -> None:
+    """Shared ACME HTTP boot wires init_otel after logger_setup."""
+    from acme2certifier.acme_srv.helpers.acme_http_boot import boot_acme_http_stack
+
+    logger = logging.getLogger("test-otel-boot")
+    mock_hk = MagicMock()
+    mock_cm = MagicMock()
+    mock_cm.__enter__.return_value = mock_hk
+    mock_cm.__exit__.return_value = False
+    with (
+        patch("acme2certifier.acme_srv.helper.apply_log_levels"),
+        patch("acme2certifier.acme_srv.helper.load_config", return_value={}),
+        patch("acme2certifier.acme_srv.helper.config_debug_get", return_value=False),
+        patch("acme2certifier.acme_srv.helper.logger_setup", return_value=logger),
+        patch(
+            "acme2certifier.acme_srv.helper.init_otel", return_value=False
+        ) as mock_otel,
+        patch("acme2certifier.acme_srv.helper.log_loaded_acme_srv_cfg"),
+        patch(
+            "acme2certifier.acme_srv.helpers.acme_http_boot.db_handler_mod.log_active_db_handler"
+        ),
+        patch("acme2certifier.acme_srv.helper.config_check"),
+        patch("acme2certifier.acme_srv.helper.server_name_configuration_validate"),
+        patch("acme2certifier.acme_srv.helper.tnauthlist_configuration_validate"),
+        patch("acme2certifier.acme_srv.helper.challenge_type_configuration_validate"),
+        patch("acme2certifier.acme_srv.helper.legacy_acme_get_load", return_value=False),
+        patch(
+            "acme2certifier.acme_srv.trigger.resolve_trigger_endpoint",
+            return_value=False,
+        ),
+        patch(
+            "acme2certifier.acme_srv.housekeeping.resolve_housekeeping_cli_endpoint",
+            return_value=False,
+        ),
+        patch(
+            "acme2certifier.acme_srv.housekeeping.Housekeeping", return_value=mock_cm
+        ),
+    ):
+        boot_acme_http_stack()
+    mock_otel.assert_called_once_with(logger)
