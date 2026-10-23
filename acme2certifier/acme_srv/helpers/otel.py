@@ -27,6 +27,8 @@ _DEFAULT_SAMPLE_RATIO = 1.0
 # Bound in-process span-context memory (nonce keys + tips).
 _DEFAULT_SPAN_CTX_MAX = 1024
 _DEFAULT_SPAN_CTX_TTL_SEC = 86400  # match default Nonce.validity
+# Cap JWS body parse for tip/nonce chaining (ACME protected headers are small).
+_JWS_TRACE_BODY_MAX_BYTES = 65536
 
 _initialized: bool = False
 _enabled: bool = False
@@ -50,7 +52,9 @@ ACCOUNT_TIP_PREFIX = "acme:session_tip:acct:"
 
 # After a successful enroll, the next ``/`` or ``directory`` starts a new
 # enrollment-session root instead of continuing the previous tip.
+# Process-global: one flag for all clients on this worker (see docs).
 _session_boundary_pending: bool = False
+_session_boundary_lock = threading.Lock()
 
 # Per-thread active ``acme.http.request`` span context (tip/nonce parent).
 _tls = threading.local()
@@ -631,10 +635,21 @@ def is_session_tip_path(path: str) -> bool:
 
 
 def mark_enrollment_session_complete() -> None:
-    """Arm a session boundary so the next ``/`` or ``directory`` starts fresh."""
+    """Arm a session boundary so the next ``/`` or ``directory`` starts fresh.
+
+    The flag is process-global on this worker: any client's next entry path may
+    consume it (usually harmless; see docs/opentelemetry.md).
+    """
     global _session_boundary_pending
-    if _enabled:
+    if not _enabled:
+        return
+    with _session_boundary_lock:
         _session_boundary_pending = True
+
+
+def jws_trace_body_max_bytes() -> int:
+    """Max POST body size parsed for nonce/kid tip chaining."""
+    return _JWS_TRACE_BODY_MAX_BYTES
 
 
 def remember_session_tip(account_name: str = "") -> None:
@@ -658,11 +673,22 @@ def has_remembered_span_context(key: str) -> bool:
 def jws_trace_hints_from_body(
     body: Union[bytes, str, None],
 ) -> Tuple[str, str]:
-    """Return ``(nonce_key, account_name)`` from a JWS body for tip chaining."""
+    """Return ``(nonce_key, account_name)`` from a JWS body for tip chaining.
+
+    Skips parse when the body exceeds ``jws_trace_body_max_bytes()`` so large
+    POSTs do not pay JSON decode cost for tracing alone.
+    """
     if not body:
         return "", ""
     try:
-        text = body.decode("utf-8") if isinstance(body, bytes) else str(body)
+        if isinstance(body, bytes):
+            if len(body) > _JWS_TRACE_BODY_MAX_BYTES:
+                return "", ""
+            text = body.decode("utf-8")
+        else:
+            text = str(body)
+            if len(text) > _JWS_TRACE_BODY_MAX_BYTES:
+                return "", ""
         outer = json.loads(text)
         protected_b64 = outer.get("protected")
         if not isinstance(protected_b64, str) or not protected_b64:
@@ -696,7 +722,9 @@ def _is_challenge_resource_path(path: str) -> bool:
 
 
 def setup_trace_key_for_request(
-    path: str, body: Union[bytes, str, None] = None
+    path: str,
+    body: Union[bytes, str, None] = None,
+    hints: Optional[Tuple[str, str]] = None,
 ) -> str:
     """Return continue key for the enrollment-session trace.
 
@@ -704,12 +732,20 @@ def setup_trace_key_for_request(
     the JWS ``kid`` is known, else the global session tip for ``/`` /
     directory / newNonce / ARI / challenge. After a successful enroll, the
     next ``/`` or ``directory`` returns no key so a new session root starts.
+
+    ``hints`` may supply a precomputed ``(nonce_key, account_name)`` to avoid
+    parsing the JWS body twice.
     """
     if not _enabled:
         return ""
-    if is_session_entry_path(path) and _session_boundary_pending:
-        return ""
-    nonce_key, account_name = jws_trace_hints_from_body(body)
+    if is_session_entry_path(path):
+        with _session_boundary_lock:
+            if _session_boundary_pending:
+                return ""
+    if hints is None:
+        nonce_key, account_name = jws_trace_hints_from_body(body)
+    else:
+        nonce_key, account_name = hints
     if nonce_key and has_remembered_span_context(nonce_key):
         return nonce_key
     tip_eligible = (
@@ -740,11 +776,19 @@ def acme_traced_request(
     post-enroll session boundary on the next ``/`` or ``directory``.
     """
     global _session_boundary_pending
-    consume_boundary = bool(
-        is_session_entry_path(path) and _session_boundary_pending
-    )
-    _nonce_key, account_name = jws_trace_hints_from_body(body)
-    setup_key = setup_trace_key_for_request(path, body)
+    consume_boundary = False
+    with _session_boundary_lock:
+        if is_session_entry_path(path) and _session_boundary_pending:
+            _session_boundary_pending = False
+            consume_boundary = True
+    hints = jws_trace_hints_from_body(body)
+    _nonce_key, account_name = hints
+    if consume_boundary:
+        setup_key = ""
+        with _span_contexts_lock:
+            _drop_nonce_span_contexts_locked()
+    else:
+        setup_key = setup_trace_key_for_request(path, body, hints=hints)
     joined = has_remembered_span_context(setup_key)
     with continue_span_context(setup_key):
         with http_request_span(method, path) as active:
@@ -753,10 +797,6 @@ def acme_traced_request(
             finally:
                 if joined or is_session_tip_path(path):
                     remember_session_tip(account_name)
-                if consume_boundary:
-                    _session_boundary_pending = False
-                    with _span_contexts_lock:
-                        _drop_nonce_span_contexts_locked()
 
 
 def _counter(name: str) -> Any:

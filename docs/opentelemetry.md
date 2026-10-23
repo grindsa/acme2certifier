@@ -66,8 +66,9 @@ Restart acme2certifier after changing the file. Init runs from the shared ACME H
 
 - **POSTs:** continue via a *remembered* `nonce:<Replay-Nonce>` (key consumed after continue). Unused keys are dropped on nonce expiry housekeeping, on session-boundary consume, and by a **TTL + max-size** cap on the in-process store (default TTL 86400s / max 1024 entries). If that nonce is not in the store, fall back to an **account tip** (when the JWS `kid` is known) or the **global session tip**.
 - **Same-session GETs** (`/`, `directory`, `newNonce`, ARI `renewal-info/…`): continue the tip (`/` → `directory` stay one tree).
-- **Session boundary:** after a successful enroll, the next `/` or `directory` starts a **new** root (and clears leftover `nonce:` keys).
+- **Session boundary:** after a successful enroll, the next `/` or `directory` starts a **new** root (and clears leftover `nonce:` keys). The armed flag is **process-global** on the worker (thread-safe consume): client A’s enroll may cause client B’s next entry GET to open a new root (usually harmless), and the reverse can split A’s next directory onto a fresh tree.
 - Tip/nonce remember always binds to the active `acme.http.request` (`span.kind=SERVER`), so the tree is a chain of HTTP requests with work nested underneath.
+- **JWS tip parse:** nonce/`kid` extraction from POST bodies is capped (64 KiB). Larger bodies skip chaining hints (request still runs; tip/nonce continue may fall back).
 
 **Limits (experimental):** Tip/nonce state is **in-process only** (not shared across workers). The **global** tip is last-writer-wins for anonymous GETs on one worker (two clients hitting `/`/`directory` concurrently can interleave). After requests carry an account `kid`, each account keeps its **own** tip so authenticated hops stay separated. Challenge validation and certificate enrollment run in `ThreadWithReturnValue` so child spans keep the enrollment-session context.
 
