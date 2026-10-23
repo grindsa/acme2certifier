@@ -41,6 +41,7 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     resolve_resource_ownership,
 )
+from acme2certifier.acme_srv.helpers.otel import span
 from acme2certifier.acme_srv.helpers.security_gate import (
     SECURITY_DISABLE_ACK_ENV,
     shortname_without_challenge_validation_decide,
@@ -288,19 +289,26 @@ class Order(object):
                     self._should_skip_shortname_challenge_validation(auth, identifiers)
                 )
                 try:
-                    self.repository.add_authorization(auth)
-                    if self.config.sectigo_sim or skip_shortname_challenge:
-                        auth["status"] = "valid"
-                        self.repository.update_authorization(auth)
-                        if skip_shortname_challenge:
-                            self.logger.warning(
-                                "[Order] allow_shortname_without_challenge_validation "
-                                "is active with %s; skipping challenge validation for "
-                                "shortname %s; relying on sibling FQDN authorization "
-                                "in the same order",
-                                SECURITY_DISABLE_ACK_ENV,
-                                auth.get("value"),
-                            )
+                    authz_attrs = {
+                        "acme.identifier_type": auth.get("type") or "",
+                    }
+                    with span(
+                        "acme.authorization.create", attributes=authz_attrs
+                    ) as authz_span:
+                        self.repository.add_authorization(auth)
+                        if self.config.sectigo_sim or skip_shortname_challenge:
+                            auth["status"] = "valid"
+                            self.repository.update_authorization(auth)
+                            if skip_shortname_challenge:
+                                self.logger.warning(
+                                    "[Order] allow_shortname_without_challenge_validation "
+                                    "is active with %s; skipping challenge validation for "
+                                    "shortname %s; relying on sibling FQDN authorization "
+                                    "in the same order",
+                                    SECURITY_DISABLE_ACK_ENV,
+                                    auth.get("value"),
+                                )
+                        authz_span.set_attribute("acme.outcome", "success")
                 except Exception as err_:
                     self.logger.critical(
                         f"{DB_ERROR_MSG}: failed to add authorization: %s", err_
@@ -358,14 +366,21 @@ class Order(object):
         """Add order and its authorizations to the database. Returns error message or None."""
         self.logger.debug("Order._add_order_and_authorizations()")
 
-        try:
-            oid = self.repository.add_order(data_dic)
-        except Exception as err_:
-            self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err_)
-            oid = None
+        with span("acme.order.create") as order_span:
+            try:
+                oid = self.repository.add_order(data_dic)
+            except Exception as err_:
+                self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err_)
+                oid = None
 
-        if not error:
-            error = self._add_authorizations_to_db(oid, payload, auth_dic)
+            if not error:
+                error = self._add_authorizations_to_db(oid, payload, auth_dic)
+            order_span.set_attribute(
+                "acme.outcome", "failure" if error or not oid else "success"
+            )
+            order_name = data_dic.get("name")
+            if order_name:
+                order_span.set_attribute("acme.order_name", str(order_name))
 
         self.logger.debug("Order._add_order_and_authorizations() ended with %s", error)
         return error

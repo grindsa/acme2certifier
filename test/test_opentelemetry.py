@@ -230,6 +230,241 @@ def test_sdk_span_records_name_and_attributes() -> None:
     assert spans[0].attributes["acme.outcome"] == "success"
 
 
+def test_sdk_http_request_span_parents_nested_span() -> None:
+    """Root http span and nested hot-path span share one trace."""
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.http_request_span("POST", "/acme/chall/xyz") as root:
+        root.set_attribute("http.status_code", 200)
+        with otel_mod.span(
+            "acme.challenge.validate",
+            attributes={"acme.challenge_type": "http-01"},
+        ):
+            pass
+    spans = {s.name: s for s in span_exporter.get_finished_spans()}
+    assert "acme.http.request" in spans
+    assert "acme.challenge.validate" in spans
+    root = spans["acme.http.request"]
+    child = spans["acme.challenge.validate"]
+    assert root.attributes["http.method"] == "POST"
+    assert root.attributes["http.route"] == "/acme/chall/xyz"
+    assert child.parent is not None
+    assert child.parent.span_id == root.context.span_id
+    assert child.context.trace_id == root.context.trace_id
+
+
+def test_sdk_nonce_key_consumed_after_continue() -> None:
+    """nonce: keys are single-use; session tip is retained."""
+    _exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.http_request_span("HEAD", "/acme/newnonce"):
+        otel_mod.remember_request_span_context("nonce:once")
+        otel_mod.remember_session_tip()
+    assert otel_mod.has_remembered_span_context("nonce:once")
+    assert otel_mod.has_remembered_span_context(otel_mod.SESSION_TIP_KEY)
+    with otel_mod.continue_span_context("nonce:once"):
+        pass
+    assert not otel_mod.has_remembered_span_context("nonce:once")
+    assert otel_mod.has_remembered_span_context(otel_mod.SESSION_TIP_KEY)
+
+
+def test_sdk_acme_traced_request_chains_http_requests() -> None:
+    """Shared request helper continues nonce and advances tip."""
+    import base64
+    import json
+
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.acme_traced_request("HEAD", "/acme/newnonce") as first_http:
+        with otel_mod.span("acme.nonce.issue"):
+            otel_mod.remember_request_span_context("nonce:abc123")
+        first_http_id = first_http.get_span_context().span_id
+        first_trace = first_http.get_span_context().trace_id
+    protected = base64.urlsafe_b64encode(
+        json.dumps({"nonce": "abc123", "url": "https://x/acme/newacct"}).encode()
+    ).decode().rstrip("=")
+    body = json.dumps(
+        {"protected": protected, "payload": "", "signature": "x"}
+    ).encode()
+    with otel_mod.acme_traced_request("POST", "/acme/newacct", body):
+        with otel_mod.span("acme.jws.verify"):
+            pass
+    finished = span_exporter.get_finished_spans()
+    second_http = [
+        s
+        for s in finished
+        if s.name == "acme.http.request"
+        and s.attributes.get("http.route") == "/acme/newacct"
+    ]
+    assert second_http
+    assert second_http[0].context.trace_id == first_trace
+    assert second_http[0].parent is not None
+    assert second_http[0].parent.span_id == first_http_id
+    assert not otel_mod.has_remembered_span_context("nonce:abc123")
+    assert otel_mod.has_remembered_span_context(otel_mod.SESSION_TIP_KEY)
+
+
+def test_sdk_nonce_issue_does_not_become_next_http_parent() -> None:
+    """remember_request_span_context ignores nested nonce.issue as tip parent."""
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.http_request_span("HEAD", "/acme/newnonce") as first_http:
+        with otel_mod.span("acme.nonce.issue"):
+            otel_mod.remember_request_span_context("nonce:n1")
+        first_id = first_http.get_span_context().span_id
+    with otel_mod.continue_span_context("nonce:n1"):
+        with otel_mod.http_request_span("POST", "/acme/newaccount"):
+            pass
+    second = next(
+        s
+        for s in span_exporter.get_finished_spans()
+        if s.name == "acme.http.request"
+        and s.attributes.get("http.route") == "/acme/newaccount"
+    )
+    assert second.parent.span_id == first_id
+    nonce_span = next(
+        s for s in span_exporter.get_finished_spans() if s.name == "acme.nonce.issue"
+    )
+    assert second.parent.span_id != nonce_span.context.span_id
+
+
+def test_setup_trace_key_prefers_remembered_nonce() -> None:
+    """Challenge POSTs use a remembered nonce when present."""
+    import base64
+    import json
+
+    _exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.http_request_span("HEAD", "/acme/newnonce"):
+        otel_mod.remember_request_span_context("nonce:n1")
+        otel_mod.remember_session_tip()
+    protected = base64.urlsafe_b64encode(
+        json.dumps({"nonce": "n1"}).encode()
+    ).decode().rstrip("=")
+    body = json.dumps({"protected": protected, "payload": "", "signature": "x"})
+    assert (
+        otel_mod.setup_trace_key_for_request("/acme/chall/xyz", body) == "nonce:n1"
+    )
+
+
+def test_setup_trace_key_falls_back_to_tip_for_unknown_nonce() -> None:
+    """Unknown/missing nonce on /chall still joins via session tip."""
+    import base64
+    import json
+
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.acme_traced_request("GET", "/directory") as directory:
+        directory_trace = directory.get_span_context().trace_id
+    protected = base64.urlsafe_b64encode(
+        json.dumps({"nonce": "unknown"}).encode()
+    ).decode().rstrip("=")
+    body = json.dumps({"protected": protected, "payload": "", "signature": "x"})
+    assert (
+        otel_mod.setup_trace_key_for_request("/acme/chall/xyz", body)
+        == otel_mod.SESSION_TIP_KEY
+    )
+    with otel_mod.acme_traced_request("POST", "/acme/chall/xyz", body):
+        with otel_mod.span("acme.challenge.validate"):
+            pass
+    validate = next(
+        s
+        for s in span_exporter.get_finished_spans()
+        if s.name == "acme.challenge.validate"
+    )
+    assert validate.context.trace_id == directory_trace
+
+
+def test_sdk_session_tip_joins_directory_and_newnonce() -> None:
+    """Within one session, / → directory → newNonce → ARI share a tip chain."""
+    span_exporter, _reader = _enable_inmemory_providers()
+    assert otel_mod.is_session_entry_path("/directory") is True
+    assert otel_mod.is_session_tip_path("/acme/newnonce") is True
+
+    with otel_mod.acme_traced_request("GET", "/") as root:
+        root_trace = root.get_span_context().trace_id
+    with otel_mod.acme_traced_request("GET", "/directory"):
+        pass
+    with otel_mod.acme_traced_request("HEAD", "/acme/newnonce"):
+        pass
+    with otel_mod.acme_traced_request("GET", "/acme/renewal-info/aki.serial"):
+        pass
+
+    finished = span_exporter.get_finished_spans()
+    routes = {
+        s.attributes.get("http.route"): s
+        for s in finished
+        if s.name == "acme.http.request"
+    }
+    assert routes["/"].context.trace_id == root_trace
+    assert routes["/directory"].context.trace_id == root_trace
+    assert routes["/acme/newnonce"].context.trace_id == root_trace
+    assert routes["/acme/renewal-info/aki.serial"].context.trace_id == root_trace
+
+
+def test_sdk_directory_starts_new_session_after_enroll() -> None:
+    """After enroll completes, the next / or directory opens a new session root."""
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.acme_traced_request("GET", "/") as first:
+        first_trace = first.get_span_context().trace_id
+    with otel_mod.acme_traced_request("GET", "/directory"):
+        pass
+    with otel_mod.acme_traced_request("HEAD", "/acme/newnonce"):
+        pass
+    otel_mod.mark_enrollment_session_complete()
+    with otel_mod.acme_traced_request("GET", "/") as second:
+        second_trace = second.get_span_context().trace_id
+    assert first_trace != second_trace
+    with otel_mod.acme_traced_request("GET", "/directory") as third:
+        assert third.get_span_context().trace_id == second_trace
+    with otel_mod.acme_traced_request("HEAD", "/acme/newnonce") as fourth:
+        assert fourth.get_span_context().trace_id == second_trace
+    finished = span_exporter.get_finished_spans()
+    assert len([s for s in finished if s.name == "acme.http.request"]) == 6
+
+
+def test_sdk_http_request_span_kind_server() -> None:
+    """http.request uses SERVER span kind when the SDK is present."""
+    from opentelemetry.trace import SpanKind
+
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.http_request_span("GET", "/directory"):
+        pass
+    root = span_exporter.get_finished_spans()[0]
+    assert root.kind == SpanKind.SERVER
+
+
+def test_sdk_thread_with_return_value_propagates_context() -> None:
+    """Challenge-style worker thread nests spans under the captured parent."""
+    from acme2certifier.acme_srv.threadwithreturnvalue import ThreadWithReturnValue
+
+    span_exporter, _reader = _enable_inmemory_providers()
+
+    def _worker() -> None:
+        with otel_mod.span("acme.challenge.validate"):
+            pass
+
+    with otel_mod.http_request_span("POST", "/acme/chall/xyz") as root:
+        root_id = root.get_span_context().span_id
+        root_trace = root.get_span_context().trace_id
+        twrv = ThreadWithReturnValue(target=_worker)
+        twrv.start()
+        twrv.join(timeout=5)
+    validate = next(
+        s
+        for s in span_exporter.get_finished_spans()
+        if s.name == "acme.challenge.validate"
+    )
+    assert validate.context.trace_id == root_trace
+    assert validate.parent is not None
+    assert validate.parent.span_id == root_id
+
+
+def test_remember_continue_noop_when_disabled() -> None:
+    """remember/continue are safe no-ops when OTEL is off."""
+    with patch.object(otel_mod, "load_config", return_value=_cfg()):
+        otel_mod.init_otel()
+    otel_mod.remember_request_span_context("nonce:x")
+    with otel_mod.continue_span_context("nonce:x"):
+        pass
+    with otel_mod.acme_traced_request("GET", "/directory"):
+        pass
+
+
 def test_sdk_counter_and_histogram_record() -> None:
     """Enabled facade records counter/histogram via InMemoryMetricReader."""
     _exporter, metric_reader = _enable_inmemory_providers()

@@ -57,7 +57,12 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ownership_lookup_failed,
     resolve_resource_ownership,
 )
-from acme2certifier.acme_srv.helpers.otel import counter_add, histogram_record, span
+from acme2certifier.acme_srv.helpers.otel import (
+    counter_add,
+    histogram_record,
+    mark_enrollment_session_complete,
+    span,
+)
 
 
 # CertificateLogger moved from certificate_logger.py
@@ -1969,6 +1974,8 @@ class Certificate(object):
                     time.perf_counter() - started,
                     attributes={"acme.outcome": outcome},
                 )
+                if not error:
+                    mark_enrollment_session_complete()
                 self.logger.debug(
                     "Certificate.process_certificate_enrollment_request() ended with: %s:%s",
                     error,

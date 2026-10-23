@@ -48,12 +48,28 @@ Restart acme2certifier after changing the file. Init runs from the shared ACME H
 
 | Spans | Metrics |
 | ----- | ------- |
+| `acme.http.request` (root per HTTP request; Django middleware / classic WSGI) | |
+| `acme.nonce.check` / `acme.nonce.issue` | |
+| `acme.jws.verify` | `acme.auth.failure` (counter; jws / eab) |
+| `acme.account.create` | |
+| `acme.account.query` (`onlyreturnexisting` / POST empty payload) | |
+| `acme.order.create` | |
+| `acme.authorization.create` | |
+| `acme.challenge.create` | |
 | `acme.challenge.validate` | `acme.challenge.validation` (counter; type + outcome) |
 | `acme.certificate.enroll` | `acme.issuance.duration` (histogram; outcome) |
 | `acme.ca_handler.call` (enroll / revoke) | `acme.ca_handler.call` (counter; handler + operation + outcome) |
-| | `acme.auth.failure` (counter; jws / eab) |
 
-Common attributes (when available): `acme.challenge_type`, `acme.cahandler`, `acme.ca_operation`, `acme.order_name`, `acme.account_name`, `acme.outcome`.
+**Enrollment-session single trace:** Django middleware and classic WSGI share `acme_traced_request()`:
+
+- **POSTs:** continue via a *remembered* `nonce:<Replay-Nonce>` (key consumed after continue; bounds memory). If that nonce is not in the in-process store, fall back to the **session tip** (keeps challenge validation on the enrollment tree).
+- **Same-session GETs** (`/`, `directory`, `newNonce`, ARI `renewal-info/…`): continue the tip (`/` → `directory` stay one tree).
+- **Session boundary:** after a successful enroll, the next `/` or `directory` starts a **new** root (so a later enrollment does not glue onto the previous tip).
+- Tip/nonce remember always binds to the active `acme.http.request` (`span.kind=SERVER`), so the tree is a chain of HTTP requests with work nested underneath.
+
+Multi-minute gaps are fine. Tip is in-process only (not shared across workers). Challenge validation and certificate enrollment run in `ThreadWithReturnValue` so child spans keep the enrollment-session context.
+
+Common attributes (when available): `http.method`, `http.route`, `http.status_code`, `acme.challenge_type`, `acme.identifier_type`, `acme.cahandler`, `acme.ca_operation`, `acme.order_name`, `acme.account_name`, `acme.outcome`.
 
 **Not in v1:** Prometheus scrape endpoint, log correlation bridge, Django/DB auto-instrumentation, per-handler deep spans. Light DB spans are a planned follow-up.
 
