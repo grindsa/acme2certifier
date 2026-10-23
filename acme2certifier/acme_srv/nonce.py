@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.helper import uts_now, load_config
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
-from acme2certifier.acme_srv.helpers.otel import remember_request_span_context, span
+from acme2certifier.acme_srv.helpers.otel import (
+    forget_nonce_span_contexts,
+    remember_request_span_context,
+    span,
+)
 
 
 # Custom Exceptions
@@ -181,6 +185,8 @@ class Nonce(object):
             )
             if nonce_list:
                 total_deleted = self.repo.delete_nonces(nonce_list)
+                # Drop matching OTEL continue keys so unused nonces cannot leak.
+                forget_nonce_span_contexts(nonce_list)
         except Exception as err_:
             self.logger.critical(
                 f"{DB_ERROR_MSG}: failed to search expired nonces: %s", err_
