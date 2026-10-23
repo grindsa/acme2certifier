@@ -34,6 +34,7 @@ from acme2certifier.acme_srv.helpers.acme_http_boot import (
 from acme2certifier.acme_srv.helpers.otel import (
     acme_traced_request,
     is_otel_enabled,
+    jws_trace_body_max_bytes,
     mark_http_status,
 )
 from acme2certifier.acme_srv.version import __version__
@@ -666,7 +667,11 @@ def get_path_with_prefix(environ, config):
 
 
 def _otel_peek_wsgi_body(environ):
-    """Read and restore wsgi.input when OTEL setup-trace chaining is active."""
+    """Read and restore wsgi.input when OTEL setup-trace chaining is active.
+
+    Skips peek when Content-Length exceeds the JWS tip-parse cap so large
+    bodies are not buffered solely for tracing.
+    """
     if not is_otel_enabled():
         return b""
     try:
@@ -674,6 +679,8 @@ def _otel_peek_wsgi_body(environ):
     except (TypeError, ValueError):
         size = 0
     if size <= 0 or WSGI_INPUT not in environ:
+        return b""
+    if size > jws_trace_body_max_bytes():
         return b""
     data = environ[WSGI_INPUT].read(size)
     environ[WSGI_INPUT] = io.BytesIO(data)

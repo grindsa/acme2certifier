@@ -444,6 +444,13 @@ def test_span_context_max_evicts_oldest_nonce() -> None:
     assert otel_mod.has_remembered_span_context("nonce:c")
 
 
+def test_jws_trace_hints_skip_oversized_body() -> None:
+    """Bodies above the tip-parse cap are not JSON-decoded for chaining."""
+    _exporter, _reader = _enable_inmemory_providers()
+    huge = b"x" * (otel_mod.jws_trace_body_max_bytes() + 1)
+    assert otel_mod.jws_trace_hints_from_body(huge) == ("", "")
+
+
 def test_forget_nonce_span_contexts_drops_keys() -> None:
     """Nonce expiry housekeeping clears matching OTEL continue keys."""
     _exporter, _reader = _enable_inmemory_providers()

@@ -1899,6 +1899,8 @@ class Certificate(object):
             enroll_attrs["acme.order_name"] = order_name
         started = time.perf_counter()
         with span("acme.certificate.enroll", attributes=enroll_attrs) as enroll_span:
+            outcome = "error"
+            outcome_exc: Optional[BaseException] = None
             try:
                 # Validate input parameters
                 validation_errors = self._validate_input_parameters(
@@ -1906,12 +1908,7 @@ class Certificate(object):
                 )
                 if validation_errors:
                     self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
-                    set_span_outcome(enroll_span, "failure")
-                    histogram_record(
-                        "acme.issuance.duration",
-                        time.perf_counter() - started,
-                        attributes={"acme.outcome": "failure"},
-                    )
+                    outcome = "failure"
                     return self.err_msg_dic["badcsr"], "Invalid input parameters"
 
                 self.logger.debug(
@@ -1927,12 +1924,8 @@ class Certificate(object):
                     )
                 except Exception as err:
                     self.logger.error("Error validating CSR against order: %s", err)
-                    set_span_outcome(enroll_span, "error", err)
-                    histogram_record(
-                        "acme.issuance.duration",
-                        time.perf_counter() - started,
-                        attributes={"acme.outcome": "error"},
-                    )
+                    outcome = "error"
+                    outcome_exc = err
                     return self.err_msg_dic["serverinternal"], "CSR validation failed"
 
                 if not csr_check_result:
@@ -1941,24 +1934,14 @@ class Certificate(object):
                         certificate_name,
                         order_name,
                     )
-                    set_span_outcome(enroll_span, "failure")
-                    histogram_record(
-                        "acme.issuance.duration",
-                        time.perf_counter() - started,
-                        attributes={"acme.outcome": "failure"},
-                    )
+                    outcome = "failure"
                     return self.err_msg_dic["badcsr"], "CSR validation failed"
 
                 if self.config.dryrun:
                     self.logger.info(
                         "Dry run mode enabled - skipping enrollment and certificate issuance"
                     )
-                    set_span_outcome(enroll_span, "skipped")
-                    histogram_record(
-                        "acme.issuance.duration",
-                        time.perf_counter() - started,
-                        attributes={"acme.outcome": "skipped"},
-                    )
+                    outcome = "skipped"
                     return (
                         self.err_msg_dic["unauthorized"],
                         DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
@@ -1969,12 +1952,6 @@ class Certificate(object):
                     certificate_name, csr, order_name
                 )
                 outcome = "failure" if error else "success"
-                set_span_outcome(enroll_span, outcome)
-                histogram_record(
-                    "acme.issuance.duration",
-                    time.perf_counter() - started,
-                    attributes={"acme.outcome": outcome},
-                )
                 if not error:
                     mark_enrollment_session_complete()
                 self.logger.debug(
@@ -1989,15 +1966,18 @@ class Certificate(object):
                     "Unexpected error in process_certificate_enrollment_request: %s",
                     err,
                 )
-                set_span_outcome(enroll_span, "error", err)
-                histogram_record(
-                    "acme.issuance.duration",
-                    time.perf_counter() - started,
-                    attributes={"acme.outcome": "error"},
-                )
+                outcome = "error"
+                outcome_exc = err
                 return (
                     self.err_msg_dic["serverinternal"],
                     "Unexpected error during enrollment",
+                )
+            finally:
+                set_span_outcome(enroll_span, outcome, outcome_exc)
+                histogram_record(
+                    "acme.issuance.duration",
+                    time.perf_counter() - started,
+                    attributes={"acme.outcome": outcome},
                 )
 
     def _determine_certificate_response(
