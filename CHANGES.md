@@ -10,7 +10,7 @@ and pick the appropriate release branch.
 
 **New Features**:
 
-- **Experimental:** optional [OpenTelemetry](docs/opentelemetry.md) support (`[OpenTelemetry] opentelemetry_support`, default `False`; install `acme2certifier[otel]`). Manual spans/metrics for challenge validation, certificate enroll, CA handler enroll/revoke, and auth/EAB failures; OTLP HTTP export. Logging remains primary.
+- **Experimental:** optional [OpenTelemetry](docs/opentelemetry.md) support (`[OpenTelemetry] opentelemetry_support`, default `False`; install `acme2certifier[otel]`). Shared `acme_traced_request` (Django / classic WSGI) builds one enrollment-session trace via Replay-Nonce + session tip; nested spans/metrics for account create/query, challenge validation, enroll, CA handler, auth/EAB failures; OTLP HTTP export. Logging remains primary.
 - Unified Docker images per webserver (`apache2` / `nginx`): WSGI and Django in one image; handler selected at runtime via `[DBhandler]` / `ACME_SRV_DB_HANDLER` (entrypoint retargets Apache/uWSGI). Hub primary tags are `apache2` / `nginx` (`latest` → `apache2`); legacy `*-wsgi` / `*-django` tags remain for compatibility. See [Containerized installation](docs/install_docker.md).
 - [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
 - [Cloudflare CFSSL](docs/cfssl.md) CA handler (`cfssl_ca_handler`) for `cfssl serve`: synchronous enroll via `/sign` or HMAC `/authsign`, issuer chain from `/info`, revoke via `/revoke` when CFSSL is started with `-db-config`

@@ -25,6 +25,7 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     DB_ERROR_MSG,
     CONFIGURATION_ERROR_DETAIL,
 )
+from acme2certifier.acme_srv.helpers.otel import span
 
 
 class ExternalAccountBinding:
@@ -1016,11 +1017,27 @@ class Account:
         if code != 200:
             return self._build_response(code, message, detail, payload)
 
-        # onlyReturnExisting check
+        # onlyReturnExisting is a lookup, not a create
         if "onlyreturnexisting" in payload:
-            code, message, detail = self._onlyreturnexisting(protected, payload)
+            with span(
+                "acme.account.query",
+                attributes={"acme.account.operation": "onlyreturnexisting"},
+            ) as active:
+                code, message, detail = self._onlyreturnexisting(protected, payload)
+                active.set_attribute(
+                    "acme.outcome", "success" if code == 200 else "failure"
+                )
+                if code == 200 and message:
+                    active.set_attribute("acme.account_name", str(message))
         else:
-            code, message, detail = self._create_account(payload, protected)
+            with span("acme.account.create") as active:
+                code, message, detail = self._create_account(payload, protected)
+                active.set_attribute(
+                    "acme.outcome",
+                    "success" if code in (200, 201) else "failure",
+                )
+                if code in (200, 201) and message:
+                    active.set_attribute("acme.account_name", str(message))
 
         self.logger.debug("Account.create_account() ended with: %s, %s", code, message)
         return self._build_response(code, message, detail, payload)
@@ -1043,7 +1060,16 @@ class Account:
         elif "payload" in payload:
             return self._handle_key_change(account_name, payload, protected)
         elif not payload:
-            return self._handle_account_query(account_name)
+            query_attrs = {"acme.account.operation": "get"}
+            if account_name:
+                query_attrs["acme.account_name"] = str(account_name)
+            with span("acme.account.query", attributes=query_attrs) as active:
+                response_dic = self._handle_account_query(account_name)
+                active.set_attribute(
+                    "acme.outcome",
+                    "success" if response_dic.get("code") == 200 else "failure",
+                )
+                return response_dic
         else:
             self.logger.warning("Unknown request account=%s", account_name)
             return self._build_response(

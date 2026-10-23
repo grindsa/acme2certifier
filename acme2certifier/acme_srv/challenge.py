@@ -7,7 +7,7 @@ import time
 from configparser import ConfigParser
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
-from threading import Thread
+from acme2certifier.acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 from acme2certifier.acme_srv.helper import (
     generate_random_string,
     jwk_thumbprint_get,
@@ -234,41 +234,46 @@ class DatabaseChallengeRepository(ChallengeRepository):
     def create_challenge(self, request: ChallengeCreationRequest) -> Optional[str]:
         """Create a new challenge and return its name."""
         self.logger.debug("DatabaseChallengeRepository.create_challenge(%s)", request)
-        try:
-            challenge_name = generate_random_string(self.logger, 12)
-            data_dic = {
-                "name": challenge_name,
-                "expires": uts_now() + self.expiry,
-                # "expires": request.expires if request.expires else uts_now() + self.expiry,
-                "type": request.challenge_type,
-                "token": request.token,
-                "authorization": request.authorization_name,
-                "status": 2,  # pending
-            }
+        chall_attrs = {"acme.challenge_type": request.challenge_type or ""}
+        with span("acme.challenge.create", attributes=chall_attrs) as chall_span:
+            try:
+                challenge_name = generate_random_string(self.logger, 12)
+                data_dic = {
+                    "name": challenge_name,
+                    "expires": uts_now() + self.expiry,
+                    # "expires": request.expires if request.expires else uts_now() + self.expiry,
+                    "type": request.challenge_type,
+                    "token": request.token,
+                    "authorization": request.authorization_name,
+                    "status": 2,  # pending
+                }
 
-            # Handle special challenge types
-            if request.challenge_type == "email-reply-00":
-                token1 = generate_random_string(self.logger, 32)
-                data_dic["keyauthorization"] = token1
-                # Email sending would be handled elsewhere
-            elif request.challenge_type == "sectigo-email-01":
-                data_dic["status"] = 5  # valid
+                # Handle special challenge types
+                if request.challenge_type == "email-reply-00":
+                    token1 = generate_random_string(self.logger, 32)
+                    data_dic["keyauthorization"] = token1
+                    # Email sending would be handled elsewhere
+                elif request.challenge_type == "sectigo-email-01":
+                    data_dic["status"] = 5  # valid
 
-            chid = self.dbstore.challenge_add(
-                request.value, request.challenge_type, data_dic
-            )
-            self.logger.debug(
-                "DatabaseChallengeRepository.create_challenge() ended: created challenge %s/%s",
-                challenge_name,
-                chid,
-            )
-            return challenge_name if chid else None
+                chid = self.dbstore.challenge_add(
+                    request.value, request.challenge_type, data_dic
+                )
+                self.logger.debug(
+                    "DatabaseChallengeRepository.create_challenge() ended: created challenge %s/%s",
+                    challenge_name,
+                    chid,
+                )
+                outcome = "success" if chid else "failure"
+                chall_span.set_attribute("acme.outcome", outcome)
+                return challenge_name if chid else None
 
-        except Exception as err:
-            self.logger.critical(
-                f"{DB_ERROR_MSG}: failed to add new challenge: %s", err
-            )
-            raise DatabaseError(f"Failed to create challenge: {err}") from err
+            except Exception as err:
+                chall_span.set_attribute("acme.outcome", "error")
+                self.logger.critical(
+                    f"{DB_ERROR_MSG}: failed to add new challenge: %s", err
+                )
+                raise DatabaseError(f"Failed to create challenge: {err}") from err
 
     def update_challenge(self, request: ChallengeUpdateRequest) -> bool:
         """Update an existing challenge."""
@@ -512,13 +517,12 @@ class Challenge:
 
         with span("acme.challenge.validate", attributes=span_attrs) as active:
             try:
-                # Check if challenge type is supported
                 if not self.validator_registry.is_supported(challenge_type):
                     raise UnsupportedChallengeTypeError(
-                        challenge_type, self.validator_registry.get_supported_types()
+                        challenge_type,
+                        self.validator_registry.get_supported_types(),
                     )
 
-                # Create validation context
                 context = ChallengeContext(
                     challenge_name=challenge_name,
                     token=challenge_details["token"],
@@ -544,7 +548,6 @@ class Challenge:
                     },
                 )
 
-                # Perform validation with retry logic for DNS challenges
                 result = self._perform_validation_with_retry(challenge_type, context)
                 outcome = "success" if result.success else "failure"
                 active.set_attribute("acme.outcome", outcome)
@@ -1336,8 +1339,9 @@ class Challenge:
     def _start_async_validation(self, challenge_name: str, payload: Dict[str, str]):
         """Start asynchronous challenge validation."""
         self.logger.debug("Challenge._start_async_validation(%s)", challenge_name)
-        # start challenge validation in separate thread
-        twrv = Thread(
+        # ThreadWithReturnValue propagates OTEL context so challenge.validate
+        # nests under the enrollment-session http.request (plain Thread does not).
+        twrv = ThreadWithReturnValue(
             target=self._perform_challenge_validation, args=(challenge_name, payload)
         )
         twrv.start()

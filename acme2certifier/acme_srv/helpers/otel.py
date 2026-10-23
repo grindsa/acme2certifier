@@ -8,9 +8,12 @@ core package stays free of an OpenTelemetry dependency.
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
+import threading
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Optional, Union
 
 from .config import load_config
 
@@ -26,6 +29,19 @@ _tracer: Any = None
 _meter: Any = None
 _counters: Dict[str, Any] = {}
 _histograms: Dict[str, Any] = {}
+# In-process SpanContext store for enrollment-session chaining.
+# Not shared across workers/processes.
+_span_contexts: Dict[str, Any] = {}
+
+# Tip for GETs without a JWS nonce (directory, newNonce, renewalInfo, ``/``).
+SESSION_TIP_KEY = "acme:session_tip"
+
+# After a successful enroll, the next ``/`` or ``directory`` starts a new
+# enrollment-session root instead of continuing the previous tip.
+_session_boundary_pending: bool = False
+
+# Per-thread active ``acme.http.request`` span context (tip/nonce parent).
+_tls = threading.local()
 
 
 class _NoOpSpan:
@@ -111,12 +127,16 @@ def _otlp_traces_endpoint(base: str) -> str:
 def _reset_otel_state() -> None:
     """Clear module state (for tests)."""
     global _initialized, _enabled, _tracer, _meter, _counters, _histograms
+    global _span_contexts, _session_boundary_pending
     _initialized = False
     _enabled = False
     _tracer = None
     _meter = None
     _counters = {}
     _histograms = {}
+    _span_contexts = {}
+    _session_boundary_pending = False
+    _tls.request_span_ctx = None
 
 
 def _import_otel_sdk() -> Any:
@@ -205,7 +225,6 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
         sdk["trace"].set_tracer_provider(tracer_provider)
         _tracer = sdk["trace"].get_tracer("acme2certifier")
 
-        # Metrics: OTLP HTTP metrics path is /v1/metrics on the same host base.
         metrics_base = endpoint.rstrip("/")
         if metrics_base.endswith("/v1/traces"):
             metrics_base = metrics_base[: -len("/v1/traces")]
@@ -237,19 +256,299 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
 
 @contextmanager
 def span(
-    name: str, attributes: Optional[Dict[str, Any]] = None
+    name: str,
+    attributes: Optional[Dict[str, Any]] = None,
+    kind: Any = None,
 ) -> Iterator[Any]:
     """Start a span when OTEL is active; otherwise yield a NoOp span."""
     if not _enabled or _tracer is None:
         yield _NoOpSpan()
         return
 
-    with _tracer.start_as_current_span(name) as active:
+    start_kwargs: Dict[str, Any] = {}
+    if kind is not None:
+        start_kwargs["kind"] = kind
+    with _tracer.start_as_current_span(name, **start_kwargs) as active:
         if attributes:
             for key, value in attributes.items():
                 if value is not None:
                     active.set_attribute(key, value)
         yield active
+
+
+@contextmanager
+def http_request_span(
+    method: str, path: str, attributes: Optional[Dict[str, Any]] = None
+) -> Iterator[Any]:
+    """SERVER span for one ACME HTTP request so nested spans share a trace."""
+    attrs: Dict[str, Any] = {
+        "http.method": method or "",
+        "http.route": path or "",
+    }
+    if attributes:
+        attrs.update(attributes)
+    kind = None
+    if _enabled:
+        try:
+            from opentelemetry.trace import SpanKind
+
+            kind = SpanKind.SERVER
+        except ImportError:
+            kind = None
+    with span("acme.http.request", attributes=attrs, kind=kind) as active:
+        prev = getattr(_tls, "request_span_ctx", None)
+        try:
+            if _enabled and not isinstance(active, _NoOpSpan):
+                try:
+                    span_ctx = active.get_span_context()
+                except Exception:  # noqa: BLE001
+                    span_ctx = None
+                _tls.request_span_ctx = (
+                    span_ctx if span_ctx is not None and span_ctx.is_valid else None
+                )
+            else:
+                _tls.request_span_ctx = None
+            yield active
+        finally:
+            _tls.request_span_ctx = prev
+
+
+def context_capture() -> Any:
+    """Capture the current OTEL context for cross-thread nesting (or None)."""
+    if not _enabled:
+        return None
+    try:
+        from opentelemetry import context as otel_context
+    except ImportError:
+        return None
+    return otel_context.get_current()
+
+
+@contextmanager
+def context_attach(ctx: Any) -> Iterator[None]:
+    """Attach a captured context in this thread; no-op when ctx is None."""
+    if ctx is None or not _enabled:
+        yield
+        return
+    try:
+        from opentelemetry import context as otel_context
+    except ImportError:
+        yield
+        return
+    token = otel_context.attach(ctx)
+    try:
+        yield
+    finally:
+        otel_context.detach(token)
+
+
+def _store_span_context(key: str, span_ctx: Any) -> None:
+    """Persist a valid span context under ``key``."""
+    if not key or span_ctx is None or not getattr(span_ctx, "is_valid", False):
+        return
+    _span_contexts[key] = span_ctx
+
+
+def remember_span_context(key: str) -> None:
+    """Store the current span context under ``key`` for a later request."""
+    if not _enabled or not key:
+        return
+    try:
+        from opentelemetry import trace
+    except ImportError:
+        return
+    current = trace.get_current_span()
+    if current is None:
+        return
+    _store_span_context(key, current.get_span_context())
+
+
+def remember_request_span_context(key: str) -> None:
+    """Store the active ``acme.http.request`` span under ``key``.
+
+    Prefers the request-root span so the next hop continues from
+    ``acme.http.request`` (not a nested span). Falls back to the current span.
+    """
+    if not _enabled or not key:
+        return
+    request_ctx = getattr(_tls, "request_span_ctx", None)
+    if request_ctx is not None and getattr(request_ctx, "is_valid", False):
+        _store_span_context(key, request_ctx)
+        return
+    remember_span_context(key)
+
+
+@contextmanager
+def continue_span_context(key: str) -> Iterator[None]:
+    """Attach a remembered span context as the parent for nested spans.
+
+    ``nonce:…`` keys are consumed after continue (single-use, bounds memory).
+    The session tip key is kept. No-op when OTEL is off or ``key`` is unknown.
+    """
+    if not _enabled or not key:
+        yield
+        return
+    stored = _span_contexts.get(key)
+    if stored is None:
+        yield
+        return
+    try:
+        from opentelemetry import context as otel_context
+        from opentelemetry import trace
+        from opentelemetry.trace import NonRecordingSpan, SpanContext
+    except ImportError:
+        yield
+        return
+    token = None
+    try:
+        remote = SpanContext(
+            trace_id=stored.trace_id,
+            span_id=stored.span_id,
+            is_remote=True,
+            trace_flags=stored.trace_flags,
+            trace_state=getattr(stored, "trace_state", None),
+        )
+        ctx = trace.set_span_in_context(NonRecordingSpan(remote))
+        token = otel_context.attach(ctx)
+    except Exception:  # noqa: BLE001 — never break ACME paths
+        yield
+        return
+    try:
+        yield
+    finally:
+        if token is not None:
+            otel_context.detach(token)
+        if key.startswith("nonce:"):
+            _span_contexts.pop(key, None)
+
+
+def _path_leaf(path: str) -> str:
+    """Return the last path segment (lowercased), or ``/`` for empty."""
+    if path is None:
+        return ""
+    normalized = path.lower().rstrip("/") or "/"
+    if normalized == "/":
+        return "/"
+    return normalized.rsplit("/", 1)[-1]
+
+
+def is_session_entry_path(path: str) -> bool:
+    """``/`` or ``directory`` — may open a new root after enroll completes."""
+    return _path_leaf(path) in ("/", "directory")
+
+
+def is_session_tip_path(path: str) -> bool:
+    """Paths that update the session tip after the request."""
+    if path is None:
+        return False
+    normalized = path.lower().rstrip("/") or "/"
+    if normalized == "/":
+        return True
+    if "/renewal-info" in normalized or "/renewalinfo" in normalized:
+        return True
+    return _path_leaf(path) in ("directory", "newnonce")
+
+
+def mark_enrollment_session_complete() -> None:
+    """Arm a session boundary so the next ``/`` or ``directory`` starts fresh."""
+    global _session_boundary_pending
+    if _enabled:
+        _session_boundary_pending = True
+
+
+def remember_session_tip() -> None:
+    """Point the session tip at the active ``acme.http.request`` span."""
+    remember_request_span_context(SESSION_TIP_KEY)
+
+
+def has_remembered_span_context(key: str) -> bool:
+    """Return True when ``key`` is present in the in-process span-context store."""
+    return bool(_enabled and key and key in _span_contexts)
+
+
+def nonce_trace_key_from_jws_body(body: Union[bytes, str, None]) -> str:
+    """Extract ``nonce:<value>`` from a JWS body for session-trace continuation."""
+    if not body:
+        return ""
+    try:
+        text = body.decode("utf-8") if isinstance(body, bytes) else str(body)
+        outer = json.loads(text)
+        protected_b64 = outer.get("protected")
+        if not isinstance(protected_b64, str) or not protected_b64:
+            return ""
+        pad = "=" * (-len(protected_b64) % 4)
+        protected = json.loads(
+            base64.urlsafe_b64decode(protected_b64 + pad).decode("utf-8")
+        )
+        nonce = protected.get("nonce")
+        if isinstance(nonce, str) and nonce:
+            return f"nonce:{nonce}"
+    except Exception:  # noqa: BLE001 — tracing must never break ACME
+        return ""
+    return ""
+
+
+def _is_challenge_resource_path(path: str) -> bool:
+    """True for ACME challenge resource URLs (``/chall/…``)."""
+    if not path:
+        return False
+    normalized = path.lower()
+    return "/chall/" in normalized or normalized.rstrip("/").endswith("/chall")
+
+
+def setup_trace_key_for_request(
+    path: str, body: Union[bytes, str, None] = None
+) -> str:
+    """Return continue key for the enrollment-session trace.
+
+    Prefer a *remembered* Replay-Nonce. Otherwise continue the session tip for
+    ``/`` / directory / newNonce / ARI / challenge. After a successful enroll,
+    the next ``/`` or ``directory`` returns no key so a new session root starts
+    (without splitting ``/`` → ``directory`` within one session).
+    """
+    if not _enabled:
+        return ""
+    if is_session_entry_path(path) and _session_boundary_pending:
+        return ""
+    nonce_key = nonce_trace_key_from_jws_body(body)
+    if nonce_key and has_remembered_span_context(nonce_key):
+        return nonce_key
+    if has_remembered_span_context(SESSION_TIP_KEY) and (
+        is_session_tip_path(path)
+        or _is_challenge_resource_path(path)
+        or bool(nonce_key)
+    ):
+        return SESSION_TIP_KEY
+    return ""
+
+
+@contextmanager
+def acme_traced_request(
+    method: str,
+    path: str,
+    body: Union[bytes, str, None] = None,
+) -> Iterator[Any]:
+    """Continue the enrollment-session trace and open ``acme.http.request``.
+
+    Shared by Django middleware and classic WSGI. Yields the request span.
+    Advances the session tip for tip-paths and successful joins. Consumes a
+    post-enroll session boundary on the next ``/`` or ``directory``.
+    """
+    global _session_boundary_pending
+    consume_boundary = bool(
+        is_session_entry_path(path) and _session_boundary_pending
+    )
+    setup_key = setup_trace_key_for_request(path, body)
+    joined = has_remembered_span_context(setup_key)
+    with continue_span_context(setup_key):
+        with http_request_span(method, path) as active:
+            try:
+                yield active
+            finally:
+                if joined or is_session_tip_path(path):
+                    remember_session_tip()
+                if consume_boundary:
+                    _session_boundary_pending = False
 
 
 def _counter(name: str) -> Any:
