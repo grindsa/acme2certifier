@@ -31,7 +31,11 @@ from acme2certifier.acme_srv.helpers.acme_http_boot import (
     acme_response_content_type,
     boot_acme_http_stack,
 )
-from acme2certifier.acme_srv.helpers.otel import acme_traced_request, is_otel_enabled
+from acme2certifier.acme_srv.helpers.otel import (
+    acme_traced_request,
+    is_otel_enabled,
+    mark_http_status,
+)
 from acme2certifier.acme_srv.version import __version__
 
 # We address a cpdesmells
@@ -691,7 +695,7 @@ def application(environ, start_response):
 
         def _start_response(status, headers, exc_info=None):
             try:
-                active.set_attribute("http.status_code", int(str(status).split()[0]))
+                mark_http_status(active, int(str(status).split()[0]))
             except (TypeError, ValueError, IndexError, AttributeError):
                 pass
             return start_response(status, headers, exc_info)

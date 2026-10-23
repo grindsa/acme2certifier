@@ -61,6 +61,7 @@ from acme2certifier.acme_srv.helpers.otel import (
     counter_add,
     histogram_record,
     mark_enrollment_session_complete,
+    set_span_outcome,
     span,
 )
 
@@ -1069,7 +1070,7 @@ class Certificate(object):
                         error, certificate, certificate_raw, handler_factory, csr
                     )
                 ca_outcome = "failure" if error else "success"
-                ca_span.set_attribute("acme.outcome", ca_outcome)
+                set_span_outcome(ca_span, ca_outcome)
                 counter_add(
                     "acme.ca_handler.call",
                     attributes={
@@ -1905,7 +1906,7 @@ class Certificate(object):
                 )
                 if validation_errors:
                     self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
-                    enroll_span.set_attribute("acme.outcome", "failure")
+                    set_span_outcome(enroll_span, "failure")
                     histogram_record(
                         "acme.issuance.duration",
                         time.perf_counter() - started,
@@ -1926,11 +1927,11 @@ class Certificate(object):
                     )
                 except Exception as err:
                     self.logger.error("Error validating CSR against order: %s", err)
-                    enroll_span.set_attribute("acme.outcome", "failure")
+                    set_span_outcome(enroll_span, "error", err)
                     histogram_record(
                         "acme.issuance.duration",
                         time.perf_counter() - started,
-                        attributes={"acme.outcome": "failure"},
+                        attributes={"acme.outcome": "error"},
                     )
                     return self.err_msg_dic["serverinternal"], "CSR validation failed"
 
@@ -1940,7 +1941,7 @@ class Certificate(object):
                         certificate_name,
                         order_name,
                     )
-                    enroll_span.set_attribute("acme.outcome", "failure")
+                    set_span_outcome(enroll_span, "failure")
                     histogram_record(
                         "acme.issuance.duration",
                         time.perf_counter() - started,
@@ -1952,7 +1953,7 @@ class Certificate(object):
                     self.logger.info(
                         "Dry run mode enabled - skipping enrollment and certificate issuance"
                     )
-                    enroll_span.set_attribute("acme.outcome", "skipped")
+                    set_span_outcome(enroll_span, "skipped")
                     histogram_record(
                         "acme.issuance.duration",
                         time.perf_counter() - started,
@@ -1968,7 +1969,7 @@ class Certificate(object):
                     certificate_name, csr, order_name
                 )
                 outcome = "failure" if error else "success"
-                enroll_span.set_attribute("acme.outcome", outcome)
+                set_span_outcome(enroll_span, outcome)
                 histogram_record(
                     "acme.issuance.duration",
                     time.perf_counter() - started,
@@ -1988,7 +1989,7 @@ class Certificate(object):
                     "Unexpected error in process_certificate_enrollment_request: %s",
                     err,
                 )
-                enroll_span.set_attribute("acme.outcome", "error")
+                set_span_outcome(enroll_span, "error", err)
                 histogram_record(
                     "acme.issuance.duration",
                     time.perf_counter() - started,
@@ -2291,7 +2292,7 @@ class Certificate(object):
                         payload["certificate"], error, rev_date
                     )
                 ca_outcome = "success" if code == 200 else "failure"
-                ca_span.set_attribute("acme.outcome", ca_outcome)
+                set_span_outcome(ca_span, ca_outcome)
                 counter_add(
                     "acme.ca_handler.call",
                     attributes={

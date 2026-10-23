@@ -25,7 +25,7 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     DB_ERROR_MSG,
     CONFIGURATION_ERROR_DETAIL,
 )
-from acme2certifier.acme_srv.helpers.otel import span
+from acme2certifier.acme_srv.helpers.otel import set_span_outcome, span
 
 
 class ExternalAccountBinding:
@@ -1024,17 +1024,16 @@ class Account:
                 attributes={"acme.account.operation": "onlyreturnexisting"},
             ) as active:
                 code, message, detail = self._onlyreturnexisting(protected, payload)
-                active.set_attribute(
-                    "acme.outcome", "success" if code == 200 else "failure"
+                set_span_outcome(
+                    active, "success" if code == 200 else "failure"
                 )
                 if code == 200 and message:
                     active.set_attribute("acme.account_name", str(message))
         else:
             with span("acme.account.create") as active:
                 code, message, detail = self._create_account(payload, protected)
-                active.set_attribute(
-                    "acme.outcome",
-                    "success" if code in (200, 201) else "failure",
+                set_span_outcome(
+                    active, "success" if code in (200, 201) else "failure"
                 )
                 if code in (200, 201) and message:
                     active.set_attribute("acme.account_name", str(message))
@@ -1065,8 +1064,8 @@ class Account:
                 query_attrs["acme.account_name"] = str(account_name)
             with span("acme.account.query", attributes=query_attrs) as active:
                 response_dic = self._handle_account_query(account_name)
-                active.set_attribute(
-                    "acme.outcome",
+                set_span_outcome(
+                    active,
                     "success" if response_dic.get("code") == 200 else "failure",
                 )
                 return response_dic

@@ -206,6 +206,10 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
     protocol = _config_get(config_dic, "protocol", _DEFAULT_PROTOCOL).lower()
     service_name = _config_get(config_dic, "service_name", _DEFAULT_SERVICE_NAME)
     sample_ratio = _config_sample_ratio(config_dic)
+    # Default off: Jaeger all-in-one often has no /v1/metrics (404 spam).
+    metrics_export = _config_getboolean(
+        config_dic, "metrics_export", fallback=False
+    )
 
     if protocol not in ("http/protobuf", "http", "http/json"):
         log.error(
@@ -241,18 +245,24 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
         sdk["trace"].set_tracer_provider(tracer_provider)
         _tracer = sdk["trace"].get_tracer("acme2certifier")
 
-        metrics_base = endpoint.rstrip("/")
-        if metrics_base.endswith("/v1/traces"):
-            metrics_base = metrics_base[: -len("/v1/traces")]
-        metrics_endpoint = f"{metrics_base.rstrip('/')}/v1/metrics"
-        metric_reader = sdk["PeriodicExportingMetricReader"](
-            sdk["OTLPMetricExporter"](endpoint=metrics_endpoint)
-        )
-        meter_provider = sdk["MeterProvider"](
-            resource=resource, metric_readers=[metric_reader]
-        )
-        sdk["metrics"].set_meter_provider(meter_provider)
-        _meter = sdk["metrics"].get_meter("acme2certifier")
+        if metrics_export:
+            metrics_base = endpoint.rstrip("/")
+            if metrics_base.endswith("/v1/traces"):
+                metrics_base = metrics_base[: -len("/v1/traces")]
+            metrics_endpoint = f"{metrics_base.rstrip('/')}/v1/metrics"
+            metric_reader = sdk["PeriodicExportingMetricReader"](
+                sdk["OTLPMetricExporter"](endpoint=metrics_endpoint)
+            )
+            meter_provider = sdk["MeterProvider"](
+                resource=resource, metric_readers=[metric_reader]
+            )
+            sdk["metrics"].set_meter_provider(meter_provider)
+            _meter = sdk["metrics"].get_meter("acme2certifier")
+        else:
+            _meter = None
+            log.debug(
+                "OpenTelemetry: metrics_export is False; traces only (no /v1/metrics)"
+            )
     except Exception as err:  # noqa: BLE001 — never break ACME boot
         log.error("OpenTelemetry: initialization failed (%s); NoOp", err)
         _tracer = None
@@ -262,12 +272,68 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
     _enabled = True
     log.warning(
         "OpenTelemetry support is experimental "
-        "(endpoint=%s, service_name=%s, sample_ratio=%s)",
+        "(endpoint=%s, service_name=%s, sample_ratio=%s, metrics_export=%s)",
         endpoint,
         service_name,
         sample_ratio,
+        metrics_export,
     )
     return True
+
+
+def set_span_outcome(
+    active: Any,
+    outcome: str,
+    exception: Optional[BaseException] = None,
+) -> None:
+    """Set ``acme.outcome``; Jaeger ERROR status only for server-side failures.
+
+    Protocol/client rejects use ``failure`` / ``skipped`` (attributes only).
+    Unexpected failures use ``error`` and optionally ``record_exception``.
+    """
+    if active is None:
+        return
+    try:
+        active.set_attribute("acme.outcome", outcome)
+    except Exception:  # noqa: BLE001
+        return
+    if outcome != "error" and exception is None:
+        return
+    if not _enabled or isinstance(active, _NoOpSpan):
+        return
+    try:
+        from opentelemetry.trace import Status, StatusCode
+
+        description = str(exception) if exception is not None else str(outcome)
+        active.set_status(Status(StatusCode.ERROR, description))
+        if exception is not None:
+            active.record_exception(exception)
+    except Exception:  # noqa: BLE001 — never break ACME paths
+        return
+
+
+def mark_http_status(active: Any, status_code: int) -> None:
+    """Set ``http.status_code``; ERROR status for HTTP 5xx only."""
+    if active is None:
+        return
+    try:
+        code = int(status_code)
+    except (TypeError, ValueError):
+        return
+    try:
+        active.set_attribute("http.status_code", code)
+    except Exception:  # noqa: BLE001
+        return
+    if code < 500:
+        return
+    if not _enabled or isinstance(active, _NoOpSpan):
+        return
+    try:
+        from opentelemetry.trace import Status, StatusCode
+
+        active.set_status(Status(StatusCode.ERROR, f"HTTP {code}"))
+    except Exception:  # noqa: BLE001
+        return
 
 
 @contextmanager

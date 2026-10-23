@@ -26,10 +26,11 @@ If `opentelemetry_support` is `True` but packages are missing, boot continues wi
 | Option | Description | Values | Default |
 | ------ | ----------- | ------ | ------- |
 | `opentelemetry_support` | Master switch | True/False | False |
-| `endpoint` | OTLP HTTP base URL (traces use `/v1/traces`, metrics `/v1/metrics`) | URL | `http://127.0.0.1:4318` |
+| `endpoint` | OTLP HTTP base URL (traces use `/v1/traces`, metrics `/v1/metrics` when enabled) | URL | `http://127.0.0.1:4318` |
 | `protocol` | Export protocol (v1: HTTP/protobuf only) | `http/protobuf` | `http/protobuf` |
 | `service_name` | OTEL resource `service.name` | string | `acme2certifier` |
 | `sample_ratio` | Trace sampling ratio in \[0.0, 1.0\] | float | `1.0` |
+| `metrics_export` | Export OTLP metrics to `{endpoint}/v1/metrics`. Leave `False` for Jaeger-only (many all-in-one builds have no metrics endpoint → periodic 404s). | True/False | False |
 
 ### Example
 
@@ -40,6 +41,7 @@ endpoint: http://127.0.0.1:4318
 protocol: http/protobuf
 service_name: acme2certifier
 sample_ratio: 1.0
+metrics_export: False
 ```
 
 Restart acme2certifier after changing the file. Init runs from the shared ACME HTTP boot path (`acme_http_boot`), used by classic WSGI and Django ACME views.
@@ -70,6 +72,8 @@ Restart acme2certifier after changing the file. Init runs from the shared ACME H
 **Limits (experimental):** Tip/nonce state is **in-process only** (not shared across workers). The **global** tip is last-writer-wins for anonymous GETs on one worker (two clients hitting `/`/`directory` concurrently can interleave). After requests carry an account `kid`, each account keeps its **own** tip so authenticated hops stay separated. Challenge validation and certificate enrollment run in `ThreadWithReturnValue` so child spans keep the enrollment-session context.
 
 Common attributes (when available): `http.method`, `http.route`, `http.status_code`, `acme.challenge_type`, `acme.identifier_type`, `acme.cahandler`, `acme.ca_operation`, `acme.order_name`, `acme.account_name`, `acme.outcome`.
+
+**Span status (Jaeger error flag):** OTEL `StatusCode.ERROR` is set only for server-side failures — `acme.outcome=error` (exceptions / unexpected internal failures) and HTTP `5xx` on `acme.http.request`. ACME protocol rejects stay `acme.outcome=failure` (or `skipped`) without ERROR status.
 
 **Not in v1:** Prometheus scrape endpoint, log correlation bridge, Django/DB auto-instrumentation, per-handler deep spans. Light DB spans are a planned follow-up.
 

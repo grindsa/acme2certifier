@@ -29,7 +29,7 @@ from acme2certifier.acme_srv.helpers.security_gate import (  # noqa: F401
     SECURITY_DISABLE_ACK_ENV,
     security_disable_acknowledged,
 )
-from acme2certifier.acme_srv.helpers.otel import span
+from acme2certifier.acme_srv.helpers.otel import set_span_outcome, span
 
 ACME_ERROR_MALFORMED = "urn:ietf:params:acme:error:malformed"
 
@@ -423,11 +423,11 @@ class Message(object):
                 code = 200
                 message = None
                 detail = None
-                active.set_attribute("acme.outcome", "skipped")
+                set_span_outcome(active, "skipped")
             else:
                 code, message, detail = self.nonce.check(protected)
-                active.set_attribute(
-                    "acme.outcome", "success" if code == 200 else "failure"
+                set_span_outcome(
+                    active, "success" if code == 200 else "failure"
                 )
 
         self.logger.debug(
@@ -503,12 +503,12 @@ class Message(object):
                     code = 200
                     message = None
                     detail = None
-                    active.set_attribute("acme.outcome", "success")
+                    set_span_outcome(active, "success")
                 else:
                     code = 403
                     message = error
                     detail = error_detail
-                    active.set_attribute("acme.outcome", "failure")
+                    set_span_outcome(active, "failure")
 
             self.logger.debug(
                 "Message._validate_message_and_check_signature() ended with: %s", code

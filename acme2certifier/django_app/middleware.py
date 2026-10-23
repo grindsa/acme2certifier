@@ -7,7 +7,7 @@ from typing import Callable
 
 from django.http import HttpRequest, HttpResponse
 
-from acme2certifier.acme_srv.helpers.otel import acme_traced_request
+from acme2certifier.acme_srv.helpers.otel import acme_traced_request, mark_http_status
 
 
 class AcmeOpenTelemetryMiddleware:
@@ -22,7 +22,7 @@ class AcmeOpenTelemetryMiddleware:
         with acme_traced_request(request.method or "", path, body) as active:
             response = self.get_response(request)
             try:
-                active.set_attribute("http.status_code", int(response.status_code))
+                mark_http_status(active, int(response.status_code))
             except (TypeError, ValueError, AttributeError):
                 pass
             return response
