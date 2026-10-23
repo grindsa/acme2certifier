@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import configparser
 import logging
+import time
 from typing import Any, Tuple
 from unittest.mock import MagicMock, patch
 
@@ -415,6 +416,93 @@ def test_sdk_directory_starts_new_session_after_enroll() -> None:
         assert fourth.get_span_context().trace_id == second_trace
     finished = span_exporter.get_finished_spans()
     assert len([s for s in finished if s.name == "acme.http.request"]) == 6
+
+
+def test_span_context_ttl_expires_nonce_keys() -> None:
+    """Unused nonce continue keys expire after the configured TTL."""
+    _exporter, _reader = _enable_inmemory_providers()
+    otel_mod._span_ctx_ttl_sec = 0.05
+    with otel_mod.http_request_span("HEAD", "/acme/newnonce"):
+        otel_mod.remember_request_span_context("nonce:stale")
+    assert otel_mod.has_remembered_span_context("nonce:stale")
+    time.sleep(0.06)
+    assert not otel_mod.has_remembered_span_context("nonce:stale")
+
+
+def test_span_context_max_evicts_oldest_nonce() -> None:
+    """Overflow prefers dropping oldest nonce: keys before tips."""
+    _exporter, _reader = _enable_inmemory_providers()
+    otel_mod._span_ctx_max = 3
+    with otel_mod.http_request_span("HEAD", "/acme/newnonce"):
+        otel_mod.remember_session_tip()
+        otel_mod.remember_request_span_context("nonce:a")
+        otel_mod.remember_request_span_context("nonce:b")
+        otel_mod.remember_request_span_context("nonce:c")
+    assert otel_mod.has_remembered_span_context(otel_mod.SESSION_TIP_KEY)
+    assert not otel_mod.has_remembered_span_context("nonce:a")
+    assert otel_mod.has_remembered_span_context("nonce:b")
+    assert otel_mod.has_remembered_span_context("nonce:c")
+
+
+def test_forget_nonce_span_contexts_drops_keys() -> None:
+    """Nonce expiry housekeeping clears matching OTEL continue keys."""
+    _exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.http_request_span("HEAD", "/acme/newnonce"):
+        otel_mod.remember_request_span_context("nonce:gone")
+        otel_mod.remember_session_tip()
+    otel_mod.forget_nonce_span_contexts(["gone"])
+    assert not otel_mod.has_remembered_span_context("nonce:gone")
+    assert otel_mod.has_remembered_span_context(otel_mod.SESSION_TIP_KEY)
+
+
+def test_account_tip_isolates_authenticated_clients() -> None:
+    """After kid is known, account tips keep two clients on separate traces."""
+    import base64
+    import json
+
+    span_exporter, _reader = _enable_inmemory_providers()
+
+    def _body(nonce: str, account: str) -> bytes:
+        protected = base64.urlsafe_b64encode(
+            json.dumps(
+                {
+                    "nonce": nonce,
+                    "kid": f"https://acme.example/acme/acct/{account}",
+                }
+            ).encode()
+        ).decode().rstrip("=")
+        return json.dumps(
+            {"protected": protected, "payload": "", "signature": "x"}
+        ).encode()
+
+    # Seed Alice's tree, then an authenticated POST records her account tip.
+    with otel_mod.acme_traced_request("GET", "/directory") as alice_root:
+        alice_trace = alice_root.get_span_context().trace_id
+    with otel_mod.acme_traced_request(
+        "POST", "/acme/order", _body("unknown-a", "alice")
+    ):
+        pass
+    assert otel_mod.has_remembered_span_context(otel_mod.account_tip_key("alice"))
+    # Drop the global tip so Bob's directory opens a new root (last-writer
+    # overwrite alone would still continue Alice's tip).
+    otel_mod._pop_span_context(otel_mod.SESSION_TIP_KEY)
+    with otel_mod.acme_traced_request("GET", "/directory") as bob_dir:
+        bob_trace = bob_dir.get_span_context().trace_id
+    assert alice_trace != bob_trace
+    # Alice continues via account tip despite global tip now pointing at Bob.
+    key = otel_mod.setup_trace_key_for_request(
+        "/acme/order", _body("unknown-b", "alice")
+    )
+    assert key == otel_mod.account_tip_key("alice")
+    with otel_mod.acme_traced_request(
+        "POST", "/acme/order", _body("unknown-b", "alice")
+    ) as alice_again:
+        assert alice_again.get_span_context().trace_id == alice_trace
+    http_spans = [
+        s for s in span_exporter.get_finished_spans() if s.name == "acme.http.request"
+    ]
+    assert len(http_spans) == 4
+    assert bob_dir.get_span_context().trace_id == bob_trace
 
 
 def test_sdk_http_request_span_kind_server() -> None:

@@ -12,8 +12,10 @@ import base64
 import json
 import logging
 import threading
+import time
+from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, Optional, Union
+from typing import Any, Dict, Iterator, Optional, Tuple, Union
 
 from .config import load_config
 
@@ -22,6 +24,9 @@ _DEFAULT_ENDPOINT = "http://127.0.0.1:4318"
 _DEFAULT_SERVICE_NAME = "acme2certifier"
 _DEFAULT_PROTOCOL = "http/protobuf"
 _DEFAULT_SAMPLE_RATIO = 1.0
+# Bound in-process span-context memory (nonce keys + tips).
+_DEFAULT_SPAN_CTX_MAX = 1024
+_DEFAULT_SPAN_CTX_TTL_SEC = 86400  # match default Nonce.validity
 
 _initialized: bool = False
 _enabled: bool = False
@@ -30,11 +35,18 @@ _meter: Any = None
 _counters: Dict[str, Any] = {}
 _histograms: Dict[str, Any] = {}
 # In-process SpanContext store for enrollment-session chaining.
-# Not shared across workers/processes.
-_span_contexts: Dict[str, Any] = {}
+# Not shared across workers/processes. Values: (span_ctx, monotonic_ts).
+_span_contexts: "OrderedDict[str, Tuple[Any, float]]" = OrderedDict()
+_span_contexts_lock = threading.Lock()
+_span_ctx_max: int = _DEFAULT_SPAN_CTX_MAX
+_span_ctx_ttl_sec: float = float(_DEFAULT_SPAN_CTX_TTL_SEC)
 
 # Tip for GETs without a JWS nonce (directory, newNonce, renewalInfo, ``/``).
+# One global tip per worker — concurrent anonymous GETs can interleave.
 SESSION_TIP_KEY = "acme:session_tip"
+# After the account ``kid`` is known, tip continues under this prefix so two
+# enrolled clients on one worker do not share one tip.
+ACCOUNT_TIP_PREFIX = "acme:session_tip:acct:"
 
 # After a successful enroll, the next ``/`` or ``directory`` starts a new
 # enrollment-session root instead of continuing the previous tip.
@@ -128,13 +140,17 @@ def _reset_otel_state() -> None:
     """Clear module state (for tests)."""
     global _initialized, _enabled, _tracer, _meter, _counters, _histograms
     global _span_contexts, _session_boundary_pending
+    global _span_ctx_max, _span_ctx_ttl_sec
     _initialized = False
     _enabled = False
     _tracer = None
     _meter = None
     _counters = {}
     _histograms = {}
-    _span_contexts = {}
+    with _span_contexts_lock:
+        _span_contexts = OrderedDict()
+    _span_ctx_max = _DEFAULT_SPAN_CTX_MAX
+    _span_ctx_ttl_sec = float(_DEFAULT_SPAN_CTX_TTL_SEC)
     _session_boundary_pending = False
     _tls.request_span_ctx = None
 
@@ -342,11 +358,110 @@ def context_attach(ctx: Any) -> Iterator[None]:
         otel_context.detach(token)
 
 
+def _prune_expired_locked(now: Optional[float] = None) -> None:
+    """Drop TTL-expired entries (caller holds ``_span_contexts_lock``)."""
+    if _span_ctx_ttl_sec <= 0:
+        return
+    deadline = (now if now is not None else time.monotonic()) - _span_ctx_ttl_sec
+    expired = [key for key, (_ctx, ts) in _span_contexts.items() if ts < deadline]
+    for key in expired:
+        _span_contexts.pop(key, None)
+
+
+def _evict_overflow_locked() -> None:
+    """Evict oldest entries until under max (prefer ``nonce:`` keys)."""
+    while len(_span_contexts) > _span_ctx_max:
+        victim: Optional[str] = None
+        for key in _span_contexts:
+            if key.startswith("nonce:"):
+                victim = key
+                break
+        if victim is None:
+            for key in _span_contexts:
+                if key != SESSION_TIP_KEY and not key.startswith(ACCOUNT_TIP_PREFIX):
+                    victim = key
+                    break
+        if victim is None:
+            for key in _span_contexts:
+                if key != SESSION_TIP_KEY:
+                    victim = key
+                    break
+        if victim is None:
+            break
+        _span_contexts.pop(victim, None)
+
+
 def _store_span_context(key: str, span_ctx: Any) -> None:
-    """Persist a valid span context under ``key``."""
+    """Persist a valid span context under ``key`` (TTL + size capped)."""
     if not key or span_ctx is None or not getattr(span_ctx, "is_valid", False):
         return
-    _span_contexts[key] = span_ctx
+    now = time.monotonic()
+    with _span_contexts_lock:
+        _prune_expired_locked(now)
+        _span_contexts.pop(key, None)
+        _span_contexts[key] = (span_ctx, now)
+        _evict_overflow_locked()
+
+
+def _lookup_span_context(key: str) -> Any:
+    """Return a live span context for ``key``, or None if missing/expired."""
+    if not key:
+        return None
+    now = time.monotonic()
+    with _span_contexts_lock:
+        _prune_expired_locked(now)
+        entry = _span_contexts.get(key)
+        if entry is None:
+            return None
+        span_ctx, _ts = entry
+        _span_contexts.move_to_end(key)
+        return span_ctx
+
+
+def _pop_span_context(key: str) -> None:
+    """Remove ``key`` from the store."""
+    if not key:
+        return
+    with _span_contexts_lock:
+        _span_contexts.pop(key, None)
+
+
+def _drop_nonce_span_contexts_locked() -> None:
+    """Remove all ``nonce:`` entries (caller holds the lock)."""
+    for key in [k for k in _span_contexts if k.startswith("nonce:")]:
+        _span_contexts.pop(key, None)
+
+
+def forget_nonce_span_contexts(nonce_values: Any) -> None:
+    """Drop remembered contexts for expired/deleted ACME nonces."""
+    if not _enabled or not nonce_values:
+        return
+    keys = []
+    for value in nonce_values:
+        if isinstance(value, str) and value:
+            keys.append(value if value.startswith("nonce:") else f"nonce:{value}")
+    if not keys:
+        return
+    with _span_contexts_lock:
+        for key in keys:
+            _span_contexts.pop(key, None)
+
+
+def account_tip_key(account_name: str) -> str:
+    """Return the per-account session-tip store key."""
+    if not account_name:
+        return ""
+    return f"{ACCOUNT_TIP_PREFIX}{account_name}"
+
+
+def _account_name_from_kid(kid: Any) -> str:
+    """Extract account name from an ACME account ``kid`` URL."""
+    if not isinstance(kid, str) or not kid:
+        return ""
+    leaf = kid.rstrip("/").rsplit("/", 1)[-1]
+    if not leaf or leaf.lower() in ("acct", "acme", "account"):
+        return ""
+    return leaf
 
 
 def remember_span_context(key: str) -> None:
@@ -382,13 +497,13 @@ def remember_request_span_context(key: str) -> None:
 def continue_span_context(key: str) -> Iterator[None]:
     """Attach a remembered span context as the parent for nested spans.
 
-    ``nonce:…`` keys are consumed after continue (single-use, bounds memory).
-    The session tip key is kept. No-op when OTEL is off or ``key`` is unknown.
+    ``nonce:…`` keys are consumed after continue (single-use). Tip keys are
+    kept. No-op when OTEL is off or ``key`` is unknown/expired.
     """
     if not _enabled or not key:
         yield
         return
-    stored = _span_contexts.get(key)
+    stored = _lookup_span_context(key)
     if stored is None:
         yield
         return
@@ -419,7 +534,7 @@ def continue_span_context(key: str) -> Iterator[None]:
         if token is not None:
             otel_context.detach(token)
         if key.startswith("nonce:"):
-            _span_contexts.pop(key, None)
+            _pop_span_context(key)
 
 
 def _path_leaf(path: str) -> str:
@@ -456,36 +571,54 @@ def mark_enrollment_session_complete() -> None:
         _session_boundary_pending = True
 
 
-def remember_session_tip() -> None:
-    """Point the session tip at the active ``acme.http.request`` span."""
+def remember_session_tip(account_name: str = "") -> None:
+    """Point the session tip at the active ``acme.http.request`` span.
+
+    Always updates the global tip (anonymous GETs). When ``account_name`` is
+    known (from JWS ``kid``), also updates that account's tip so concurrent
+    clients on one worker stay on separate trees after authentication.
+    """
     remember_request_span_context(SESSION_TIP_KEY)
+    acct_key = account_tip_key(account_name)
+    if acct_key:
+        remember_request_span_context(acct_key)
 
 
 def has_remembered_span_context(key: str) -> bool:
-    """Return True when ``key`` is present in the in-process span-context store."""
-    return bool(_enabled and key and key in _span_contexts)
+    """Return True when ``key`` is present and not TTL-expired."""
+    return bool(_enabled and key and _lookup_span_context(key) is not None)
 
 
-def nonce_trace_key_from_jws_body(body: Union[bytes, str, None]) -> str:
-    """Extract ``nonce:<value>`` from a JWS body for session-trace continuation."""
+def jws_trace_hints_from_body(
+    body: Union[bytes, str, None],
+) -> Tuple[str, str]:
+    """Return ``(nonce_key, account_name)`` from a JWS body for tip chaining."""
     if not body:
-        return ""
+        return "", ""
     try:
         text = body.decode("utf-8") if isinstance(body, bytes) else str(body)
         outer = json.loads(text)
         protected_b64 = outer.get("protected")
         if not isinstance(protected_b64, str) or not protected_b64:
-            return ""
+            return "", ""
         pad = "=" * (-len(protected_b64) % 4)
         protected = json.loads(
             base64.urlsafe_b64decode(protected_b64 + pad).decode("utf-8")
         )
+        nonce_key = ""
         nonce = protected.get("nonce")
         if isinstance(nonce, str) and nonce:
-            return f"nonce:{nonce}"
+            nonce_key = f"nonce:{nonce}"
+        account_name = _account_name_from_kid(protected.get("kid"))
+        return nonce_key, account_name
     except Exception:  # noqa: BLE001 — tracing must never break ACME
-        return ""
-    return ""
+        return "", ""
+
+
+def nonce_trace_key_from_jws_body(body: Union[bytes, str, None]) -> str:
+    """Extract ``nonce:<value>`` from a JWS body for session-trace continuation."""
+    nonce_key, _account_name = jws_trace_hints_from_body(body)
+    return nonce_key
 
 
 def _is_challenge_resource_path(path: str) -> bool:
@@ -501,23 +634,29 @@ def setup_trace_key_for_request(
 ) -> str:
     """Return continue key for the enrollment-session trace.
 
-    Prefer a *remembered* Replay-Nonce. Otherwise continue the session tip for
-    ``/`` / directory / newNonce / ARI / challenge. After a successful enroll,
-    the next ``/`` or ``directory`` returns no key so a new session root starts
-    (without splitting ``/`` → ``directory`` within one session).
+    Prefer a *remembered* Replay-Nonce. Otherwise prefer an *account tip* when
+    the JWS ``kid`` is known, else the global session tip for ``/`` /
+    directory / newNonce / ARI / challenge. After a successful enroll, the
+    next ``/`` or ``directory`` returns no key so a new session root starts.
     """
     if not _enabled:
         return ""
     if is_session_entry_path(path) and _session_boundary_pending:
         return ""
-    nonce_key = nonce_trace_key_from_jws_body(body)
+    nonce_key, account_name = jws_trace_hints_from_body(body)
     if nonce_key and has_remembered_span_context(nonce_key):
         return nonce_key
-    if has_remembered_span_context(SESSION_TIP_KEY) and (
+    tip_eligible = (
         is_session_tip_path(path)
         or _is_challenge_resource_path(path)
         or bool(nonce_key)
-    ):
+    )
+    if not tip_eligible:
+        return ""
+    acct_key = account_tip_key(account_name)
+    if acct_key and has_remembered_span_context(acct_key):
+        return acct_key
+    if has_remembered_span_context(SESSION_TIP_KEY):
         return SESSION_TIP_KEY
     return ""
 
@@ -538,6 +677,7 @@ def acme_traced_request(
     consume_boundary = bool(
         is_session_entry_path(path) and _session_boundary_pending
     )
+    _nonce_key, account_name = jws_trace_hints_from_body(body)
     setup_key = setup_trace_key_for_request(path, body)
     joined = has_remembered_span_context(setup_key)
     with continue_span_context(setup_key):
@@ -546,9 +686,11 @@ def acme_traced_request(
                 yield active
             finally:
                 if joined or is_session_tip_path(path):
-                    remember_session_tip()
+                    remember_session_tip(account_name)
                 if consume_boundary:
                     _session_boundary_pending = False
+                    with _span_contexts_lock:
+                        _drop_nonce_span_contexts_locked()
 
 
 def _counter(name: str) -> Any:

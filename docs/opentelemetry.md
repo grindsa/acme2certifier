@@ -62,12 +62,12 @@ Restart acme2certifier after changing the file. Init runs from the shared ACME H
 
 **Enrollment-session single trace:** Django middleware and classic WSGI share `acme_traced_request()`:
 
-- **POSTs:** continue via a *remembered* `nonce:<Replay-Nonce>` (key consumed after continue; bounds memory). If that nonce is not in the in-process store, fall back to the **session tip** (keeps challenge validation on the enrollment tree).
+- **POSTs:** continue via a *remembered* `nonce:<Replay-Nonce>` (key consumed after continue). Unused keys are dropped on nonce expiry housekeeping, on session-boundary consume, and by a **TTL + max-size** cap on the in-process store (default TTL 86400s / max 1024 entries). If that nonce is not in the store, fall back to an **account tip** (when the JWS `kid` is known) or the **global session tip**.
 - **Same-session GETs** (`/`, `directory`, `newNonce`, ARI `renewal-info/…`): continue the tip (`/` → `directory` stay one tree).
-- **Session boundary:** after a successful enroll, the next `/` or `directory` starts a **new** root (so a later enrollment does not glue onto the previous tip).
+- **Session boundary:** after a successful enroll, the next `/` or `directory` starts a **new** root (and clears leftover `nonce:` keys).
 - Tip/nonce remember always binds to the active `acme.http.request` (`span.kind=SERVER`), so the tree is a chain of HTTP requests with work nested underneath.
 
-Multi-minute gaps are fine. Tip is in-process only (not shared across workers). Challenge validation and certificate enrollment run in `ThreadWithReturnValue` so child spans keep the enrollment-session context.
+**Limits (experimental):** Tip/nonce state is **in-process only** (not shared across workers). The **global** tip is last-writer-wins for anonymous GETs on one worker (two clients hitting `/`/`directory` concurrently can interleave). After requests carry an account `kid`, each account keeps its **own** tip so authenticated hops stay separated. Challenge validation and certificate enrollment run in `ThreadWithReturnValue` so child spans keep the enrollment-session context.
 
 Common attributes (when available): `http.method`, `http.route`, `http.status_code`, `acme.challenge_type`, `acme.identifier_type`, `acme.cahandler`, `acme.ca_operation`, `acme.order_name`, `acme.account_name`, `acme.outcome`.
 
