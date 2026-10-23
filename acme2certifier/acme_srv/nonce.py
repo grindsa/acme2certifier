@@ -11,6 +11,7 @@ from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.otel import (
     forget_nonce_span_contexts,
     remember_request_span_context,
+    set_span_outcome,
     span,
 )
 
@@ -152,12 +153,12 @@ class Nonce(object):
             self.logger.debug("got nonce: %s", nonce)
             try:
                 self.repo.add_nonce(nonce)
-                active.set_attribute("acme.outcome", "success")
+                set_span_outcome(active, "success")
                 # Next JWS POST continues via this nonce → enclosing http.request.
                 # Session tip for GETs is advanced by acme_traced_request.
                 remember_request_span_context(f"nonce:{nonce}")
             except Exception as err_:
-                active.set_attribute("acme.outcome", "error")
+                set_span_outcome(active, "error", err_)
                 self.logger.critical(
                     f"{DB_ERROR_MSG}: failed to add new nonce: %s", err_
                 )

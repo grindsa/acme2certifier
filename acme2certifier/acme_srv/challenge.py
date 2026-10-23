@@ -30,7 +30,7 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ownership_lookup_failed,
     resolve_resource_ownership,
 )
-from acme2certifier.acme_srv.helpers.otel import counter_add, span
+from acme2certifier.acme_srv.helpers.otel import counter_add, set_span_outcome, span
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message, finish_response
 
@@ -265,11 +265,11 @@ class DatabaseChallengeRepository(ChallengeRepository):
                     chid,
                 )
                 outcome = "success" if chid else "failure"
-                chall_span.set_attribute("acme.outcome", outcome)
+                set_span_outcome(chall_span, outcome)
                 return challenge_name if chid else None
 
             except Exception as err:
-                chall_span.set_attribute("acme.outcome", "error")
+                set_span_outcome(chall_span, "error", err)
                 self.logger.critical(
                     f"{DB_ERROR_MSG}: failed to add new challenge: %s", err
                 )
@@ -550,7 +550,7 @@ class Challenge:
 
                 result = self._perform_validation_with_retry(challenge_type, context)
                 outcome = "success" if result.success else "failure"
-                active.set_attribute("acme.outcome", outcome)
+                set_span_outcome(active, outcome)
                 counter_add(
                     "acme.challenge.validation",
                     attributes={
@@ -559,8 +559,8 @@ class Challenge:
                     },
                 )
                 return result
-            except Exception:
-                active.set_attribute("acme.outcome", "error")
+            except Exception as err:
+                set_span_outcome(active, "error", err)
                 counter_add(
                     "acme.challenge.validation",
                     attributes={

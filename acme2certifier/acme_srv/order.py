@@ -41,7 +41,7 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     resolve_resource_ownership,
 )
-from acme2certifier.acme_srv.helpers.otel import span
+from acme2certifier.acme_srv.helpers.otel import set_span_outcome, span
 from acme2certifier.acme_srv.helpers.security_gate import (
     SECURITY_DISABLE_ACK_ENV,
     shortname_without_challenge_validation_decide,
@@ -308,7 +308,7 @@ class Order(object):
                                     SECURITY_DISABLE_ACK_ENV,
                                     auth.get("value"),
                                 )
-                        authz_span.set_attribute("acme.outcome", "success")
+                        set_span_outcome(authz_span, "success")
                 except Exception as err_:
                     self.logger.critical(
                         f"{DB_ERROR_MSG}: failed to add authorization: %s", err_
@@ -367,17 +367,22 @@ class Order(object):
         self.logger.debug("Order._add_order_and_authorizations()")
 
         with span("acme.order.create") as order_span:
+            create_exc: Optional[Exception] = None
             try:
                 oid = self.repository.add_order(data_dic)
             except Exception as err_:
+                create_exc = err_
                 self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err_)
                 oid = None
 
             if not error:
                 error = self._add_authorizations_to_db(oid, payload, auth_dic)
-            order_span.set_attribute(
-                "acme.outcome", "failure" if error or not oid else "success"
-            )
+            if create_exc is not None:
+                set_span_outcome(order_span, "error", create_exc)
+            else:
+                set_span_outcome(
+                    order_span, "failure" if error or not oid else "success"
+                )
             order_name = data_dic.get("name")
             if order_name:
                 order_span.set_attribute("acme.order_name", str(order_name))

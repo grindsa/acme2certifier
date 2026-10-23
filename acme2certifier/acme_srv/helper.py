@@ -194,6 +194,8 @@ from .helpers.otel import (
     http_request_span,
     init_otel,
     is_otel_enabled,
+    mark_http_status,
+    set_span_outcome,
     span,
 )
 

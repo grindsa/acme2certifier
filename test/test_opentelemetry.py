@@ -583,11 +583,12 @@ def test_init_otel_true_with_sdk_sets_enabled(
     _require_otel_sdk()
     _reset_otel_api_providers()
     real_import = otel_mod._import_otel_sdk
+    metric_exporter = MagicMock()
 
     def _sdk_with_noop_exporters() -> Any:
         sdk = real_import()
         sdk["OTLPSpanExporter"] = lambda **_kwargs: MagicMock()
-        sdk["OTLPMetricExporter"] = lambda **_kwargs: MagicMock()
+        sdk["OTLPMetricExporter"] = lambda **_kwargs: metric_exporter
         return sdk
 
     logger = logging.getLogger("otel-sdk-init")
@@ -606,9 +607,76 @@ def test_init_otel_true_with_sdk_sets_enabled(
             with caplog.at_level(logging.WARNING):
                 assert otel_mod.init_otel(logger) is True
     assert otel_mod.is_otel_enabled() is True
+    assert otel_mod._meter is None  # metrics_export defaults False
     assert any("experimental" in r.getMessage() for r in caplog.records)
+    assert any("metrics_export=False" in r.getMessage() for r in caplog.records)
 
     with otel_mod.span("acme.certificate.enroll") as active:
         active.set_attribute("acme.outcome", "success")
     otel_mod.counter_add("acme.ca_handler.call", attributes={"acme.outcome": "success"})
     otel_mod.histogram_record("acme.issuance.duration", 1.0)
+
+
+def test_init_otel_metrics_export_opt_in() -> None:
+    """metrics_export=True wires the OTLP metric exporter."""
+    _require_otel_sdk()
+    _reset_otel_api_providers()
+    real_import = otel_mod._import_otel_sdk
+    metric_calls: list = []
+
+    def _sdk_with_noop_exporters() -> Any:
+        sdk = real_import()
+        sdk["OTLPSpanExporter"] = lambda **_kwargs: MagicMock()
+
+        def _metric_exporter(**kwargs: Any) -> Any:
+            metric_calls.append(kwargs)
+            return MagicMock()
+
+        sdk["OTLPMetricExporter"] = _metric_exporter
+        return sdk
+
+    with patch.object(
+        otel_mod,
+        "load_config",
+        return_value=_cfg(
+            opentelemetry_support="True",
+            metrics_export="True",
+            endpoint="http://127.0.0.1:4318",
+        ),
+    ):
+        with patch.object(
+            otel_mod, "_import_otel_sdk", side_effect=_sdk_with_noop_exporters
+        ):
+            assert otel_mod.init_otel() is True
+    assert otel_mod._meter is not None
+    assert metric_calls
+    assert metric_calls[0].get("endpoint", "").endswith("/v1/metrics")
+
+
+def test_set_span_outcome_error_sets_status() -> None:
+    """outcome=error marks StatusCode.ERROR; failure does not."""
+    from opentelemetry.trace import StatusCode
+
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.span("acme.certificate.enroll") as active:
+        otel_mod.set_span_outcome(active, "failure")
+    with otel_mod.span("acme.certificate.enroll") as active:
+        otel_mod.set_span_outcome(active, "error", RuntimeError("boom"))
+    with otel_mod.http_request_span("POST", "/acme/order") as active:
+        otel_mod.mark_http_status(active, 500)
+    with otel_mod.http_request_span("POST", "/acme/order") as active:
+        otel_mod.mark_http_status(active, 403)
+    enrolls = [
+        s
+        for s in span_exporter.get_finished_spans()
+        if s.name == "acme.certificate.enroll"
+    ]
+    https = [
+        s for s in span_exporter.get_finished_spans() if s.name == "acme.http.request"
+    ]
+    assert enrolls[0].attributes["acme.outcome"] == "failure"
+    assert enrolls[0].status.status_code != StatusCode.ERROR
+    assert enrolls[1].attributes["acme.outcome"] == "error"
+    assert enrolls[1].status.status_code == StatusCode.ERROR
+    assert https[0].status.status_code == StatusCode.ERROR
+    assert https[1].status.status_code != StatusCode.ERROR
