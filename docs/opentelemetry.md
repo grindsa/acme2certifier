@@ -87,6 +87,17 @@ Common attributes (when available): `http.method`, `http.route`, `http.status_co
 
 **Not in v1 (feedback-driven):** Prometheus scrape endpoint, Django/DB auto-instrumentation, per-handler deep spans beyond `acme.ca_handler.call`.
 
+## CI
+
+GitHub Actions workflow **Feature Tests - OpenTelemetry** (`.github/workflows/feature-opentelemetry.yml`), dispatched with other feature workflows via the artifacts broker:
+
+- Container matrix (`apache2`/`nginx` × `wsgi`/`django`) from producer images.
+- Enable experimental OTEL inside the running container (`pip install` OTEL packages; images do not ship `[otel]` yet), Jaeger all-in-one on the ACME docker network, restart a2c.
+- Lego enroll → assert Jaeger has traces for `service_name` (`acme2certifier`).
+- Stop Jaeger → enroll again → assert ACME still succeeds and logs contain the span-export `CRITICAL` (no `otelTraceID` logging crash).
+
+Local unit coverage remains `pytest test/test_opentelemetry.py` (optional `[otel]`). Optional collector smoke: `A2C_OTEL_CI_SMOKE=1 pytest test/test_opentelemetry_ci_smoke.py`.
+
 ## Lab smoke (Jaeger)
 
 1. Run Jaeger (OTLP HTTP on `:4318`, UI on `:16686`) — any OTLP-compatible backend works; a common self-hosted choice is `jaegertracing/all-in-one` with `COLLECTOR_OTLP_ENABLED=true`.
