@@ -704,3 +704,104 @@ def test_set_span_outcome_error_sets_status() -> None:
     assert enrolls[1].status.status_code == StatusCode.ERROR
     assert https[0].status.status_code == StatusCode.ERROR
     assert https[1].status.status_code != StatusCode.ERROR
+
+
+def test_config_db_span_methods_default_and_override() -> None:
+    """db_span_methods JSON list overrides default; invalid keeps default."""
+    logger = logging.getLogger("otel-db-span-cfg")
+    assert (
+        otel_mod._config_db_span_methods(_cfg(), logger)
+        == otel_mod._DEFAULT_DB_SPAN_METHODS
+    )
+    assert otel_mod._config_db_span_methods(
+        _cfg(db_span_methods='["order_add", "account_lookup"]'), logger
+    ) == frozenset({"order_add", "account_lookup"})
+    assert (
+        otel_mod._config_db_span_methods(_cfg(db_span_methods="[]"), logger)
+        == frozenset()
+    )
+    assert (
+        otel_mod._config_db_span_methods(_cfg(db_span_methods="not-json"), logger)
+        == otel_mod._DEFAULT_DB_SPAN_METHODS
+    )
+
+
+def test_instrument_dbstore_class_noop_when_disabled() -> None:
+    """DBstore wrappers return values unchanged when OTEL is off."""
+
+    class FakeStore:
+        type = "wsgi"
+
+        def order_add(self, data_dic: dict) -> int:
+            return 7
+
+        def account_lookup(self, key: str, value: str) -> dict:
+            return {key: value}
+
+        def _private(self) -> str:
+            return "skip"
+
+    store_cls = otel_mod.instrument_dbstore_class(FakeStore)
+    assert store_cls is FakeStore
+    assert FakeStore._otel_db_instrumented is True
+    assert FakeStore().order_add({"name": "o"}) == 7
+    assert FakeStore().account_lookup("name", "acct1") == {"name": "acct1"}
+    assert FakeStore()._private() == "skip"
+    # Idempotent
+    assert otel_mod.instrument_dbstore_class(FakeStore) is FakeStore
+
+
+def test_instrument_dbstore_class_records_spans() -> None:
+    """Enabled facade records ``acme.db.*`` only for mutating DBstore methods."""
+    span_exporter, _reader = _enable_inmemory_providers()
+
+    class FakeStore:
+        type = "django"
+
+        def order_add(self, data_dic: dict) -> int:
+            return 42
+
+        def order_update(self, data_dic: dict) -> None:
+            raise RuntimeError("conflict")
+
+        def order_lookup(self, key: str, value: str) -> dict:
+            return {key: value}
+
+        def nonce_check(self, nonce: str) -> bool:
+            return True
+
+    otel_mod.instrument_dbstore_class(FakeStore)
+    store = FakeStore()
+    assert store.order_add({"name": "ord1"}) == 42
+    assert store.order_lookup("name", "ord1") == {"name": "ord1"}
+    assert store.nonce_check("n1") is True
+    with pytest.raises(RuntimeError, match="conflict"):
+        store.order_update({"name": "ord1"})
+
+    spans = {s.name: s for s in span_exporter.get_finished_spans()}
+    assert "acme.db.order_add" in spans
+    assert spans["acme.db.order_add"].attributes["db.operation"] == "order_add"
+    assert spans["acme.db.order_add"].attributes["db.system"] == "django"
+    assert spans["acme.db.order_add"].attributes["acme.outcome"] == "success"
+    assert "acme.db.order_update" in spans
+    assert spans["acme.db.order_update"].attributes["acme.outcome"] == "error"
+    assert "acme.db.order_lookup" not in spans
+    assert "acme.db.nonce_check" not in spans
+
+
+def test_instrument_dbstore_respects_runtime_allowlist() -> None:
+    """Call-time ``_db_span_methods`` can enable a lookup that default omits."""
+    span_exporter, _reader = _enable_inmemory_providers()
+
+    class FakeStore:
+        type = "wsgi"
+
+        def account_lookup(self, key: str, value: str) -> dict:
+            return {key: value}
+
+    otel_mod.instrument_dbstore_class(FakeStore)
+    otel_mod._db_span_methods = frozenset({"account_lookup"})
+    assert FakeStore().account_lookup("name", "a1") == {"name": "a1"}
+    spans = span_exporter.get_finished_spans()
+    assert len(spans) == 1
+    assert spans[0].name == "acme.db.account_lookup"

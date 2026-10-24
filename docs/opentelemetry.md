@@ -31,6 +31,7 @@ If `opentelemetry_support` is `True` but packages are missing, boot continues wi
 | `service_name` | OTEL resource `service.name` | string | `acme2certifier` |
 | `sample_ratio` | Trace sampling ratio in \[0.0, 1.0\] | float | `1.0` |
 | `metrics_export` | Export OTLP metrics to `{endpoint}/v1/metrics`. Leave `False` for Jaeger-only (many all-in-one builds have no metrics endpoint → periodic 404s). | True/False | False |
+| `db_span_methods` | JSON list of DBstore method names that emit `acme.db.<name>` spans. Default is write/mutate only (no lookups/nonce/jwk). `[]` disables DB spans. Invalid JSON → default. | JSON list | write/mutate allowlist |
 
 ### Example
 
@@ -42,6 +43,8 @@ protocol: http/protobuf
 service_name: acme2certifier
 sample_ratio: 1.0
 metrics_export: False
+# optional; omit for the default write/mutate allowlist, or use [] to disable
+# db_span_methods: ["order_add", "order_update", "account_lookup"]
 ```
 
 Restart acme2certifier after changing the file. Init runs from the shared ACME HTTP boot path (`acme_http_boot`), used by classic WSGI and Django ACME views.
@@ -62,6 +65,7 @@ Restart acme2certifier after changing the file. Init runs from the shared ACME H
 | `acme.challenge.validate` | `acme.challenge.validation` (counter; type + outcome) |
 | `acme.certificate.enroll` | `acme.issuance.duration` (histogram; outcome) |
 | `acme.ca_handler.call` (enroll / revoke) | `acme.ca_handler.call` (counter; handler + operation + outcome) |
+| `acme.db.<operation>` (light DBstore API; allowlist via `db_span_methods`, default writes only) | |
 
 **Enrollment-session single trace:** Django middleware and classic WSGI share `acme_traced_request()`:
 
@@ -73,11 +77,11 @@ Restart acme2certifier after changing the file. Init runs from the shared ACME H
 
 **Limits (experimental):** Tip/nonce state is **in-process only** (not shared across workers). The **global** tip is last-writer-wins for anonymous GETs on one worker (two clients hitting `/`/`directory` concurrently can interleave). After requests carry an account `kid`, each account keeps its **own** tip so authenticated hops stay separated. Challenge validation and certificate enrollment run in `ThreadWithReturnValue` so child spans keep the enrollment-session context.
 
-Common attributes (when available): `http.method`, `http.route`, `http.status_code`, `acme.challenge_type`, `acme.identifier_type`, `acme.cahandler`, `acme.ca_operation`, `acme.order_name`, `acme.account_name`, `acme.outcome`.
+Common attributes (when available): `http.method`, `http.route`, `http.status_code`, `acme.challenge_type`, `acme.identifier_type`, `acme.cahandler`, `acme.ca_operation`, `acme.order_name`, `acme.account_name`, `acme.outcome`, `db.operation`, `db.system` (DBstore `type`, e.g. `wsgi` / `django`).
 
 **Span status (Jaeger error flag):** OTEL `StatusCode.ERROR` is set only for server-side failures — `acme.outcome=error` (exceptions / unexpected internal failures) and HTTP `5xx` on `acme.http.request`. ACME protocol rejects stay `acme.outcome=failure` (or `skipped`) without ERROR status.
 
-**Not in v1:** Prometheus scrape endpoint, log correlation bridge, Django/DB auto-instrumentation, per-handler deep spans. Light DB spans are a planned follow-up.
+**Not in v1 (feedback-driven):** Prometheus scrape endpoint, log correlation bridge, Django/DB auto-instrumentation, per-handler deep spans beyond `acme.ca_handler.call`.
 
 ## Lab smoke (Jaeger)
 
