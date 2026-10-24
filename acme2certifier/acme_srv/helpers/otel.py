@@ -84,6 +84,10 @@ _DEFAULT_DB_SPAN_METHODS: FrozenSet[str] = frozenset(
 )
 _db_span_methods: FrozenSet[str] = _DEFAULT_DB_SPAN_METHODS
 
+# Placeholder IDs when no active span (keep log_format ``%(otelTraceID)s`` safe).
+_TRACE_ID_ZERO = "0" * 32
+_SPAN_ID_ZERO = "0" * 16
+
 
 class _NoOpSpan:
     """Span stand-in used when OpenTelemetry is off or unavailable."""
@@ -338,6 +342,7 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
         return False
 
     _enabled = True
+    install_log_correlation(log)
     log.warning(
         "OpenTelemetry support is experimental "
         "(endpoint=%s, service_name=%s, sample_ratio=%s, metrics_export=%s)",
@@ -347,6 +352,48 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
         metrics_export,
     )
     return True
+
+
+def get_trace_context_ids() -> Tuple[str, str]:
+    """Return ``(trace_id_hex, span_id_hex)`` for the current span, or zeros."""
+    if not _enabled:
+        return _TRACE_ID_ZERO, _SPAN_ID_ZERO
+    try:
+        from opentelemetry import trace
+    except ImportError:
+        return _TRACE_ID_ZERO, _SPAN_ID_ZERO
+    try:
+        span_ctx = trace.get_current_span().get_span_context()
+    except Exception:  # noqa: BLE001
+        return _TRACE_ID_ZERO, _SPAN_ID_ZERO
+    if span_ctx is None or not span_ctx.is_valid:
+        return _TRACE_ID_ZERO, _SPAN_ID_ZERO
+    return format(span_ctx.trace_id, "032x"), format(span_ctx.span_id, "016x")
+
+
+class TraceContextFilter(logging.Filter):
+    """Inject ``otelTraceID`` / ``otelSpanID`` into LogRecords for log↔trace."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        trace_id, span_id = get_trace_context_ids()
+        record.otelTraceID = trace_id  # type: ignore[attr-defined]
+        record.otelSpanID = span_id  # type: ignore[attr-defined]
+        return True
+
+
+def install_log_correlation(
+    logger: Optional[logging.Logger] = None,
+) -> None:
+    """Attach :class:`TraceContextFilter` once to *logger* and the root logger."""
+    targets = [logger or logging.getLogger("acme2certifier"), logging.getLogger()]
+    seen: set[int] = set()
+    for target in targets:
+        if id(target) in seen:
+            continue
+        seen.add(id(target))
+        if any(isinstance(f, TraceContextFilter) for f in target.filters):
+            continue
+        target.addFilter(TraceContextFilter())
 
 
 def set_span_outcome(

@@ -81,7 +81,9 @@ Common attributes (when available): `http.method`, `http.route`, `http.status_co
 
 **Span status (Jaeger error flag):** OTEL `StatusCode.ERROR` is set only for server-side failures — `acme.outcome=error` (exceptions / unexpected internal failures) and HTTP `5xx` on `acme.http.request`. ACME protocol rejects stay `acme.outcome=failure` (or `skipped`) without ERROR status.
 
-**Not in v1 (feedback-driven):** Prometheus scrape endpoint, log correlation bridge, Django/DB auto-instrumentation, per-handler deep spans beyond `acme.ca_handler.call`.
+**Log ↔ trace:** `logger_setup` / `init_otel` attach a filter that sets `otelTraceID` and `otelSpanID` on LogRecords. Include them in `[Helper] log_format` (see [Logging](logging.md)). Values are zeros when OTEL is off or no span is active.
+
+**Not in v1 (feedback-driven):** Prometheus scrape endpoint, Django/DB auto-instrumentation, per-handler deep spans beyond `acme.ca_handler.call`.
 
 ## Lab smoke (Jaeger)
 
