@@ -49,10 +49,10 @@ def _reset_otel_api_providers() -> None:
 @pytest.fixture(autouse=True)
 def _reset_otel() -> None:
     """Isolate module state between tests."""
-    otel_mod._reset_otel_state()
+    otel_mod.reset_otel_state()
     _reset_otel_api_providers()
     yield
-    otel_mod._reset_otel_state()
+    otel_mod.reset_otel_state()
     _reset_otel_api_providers()
 
 
@@ -221,7 +221,7 @@ def test_sdk_span_records_name_and_attributes() -> None:
     span_exporter, _reader = _enable_inmemory_providers()
     with otel_mod.span(
         "acme.challenge.validate",
-        attributes={"acme.challenge_type": "http-01"},
+        attributes={"acme.challenge_type": "http-01", "acme.skip": None},
     ) as active:
         active.set_attribute("acme.outcome", "success")
     spans = span_exporter.get_finished_spans()
@@ -229,6 +229,23 @@ def test_sdk_span_records_name_and_attributes() -> None:
     assert spans[0].name == "acme.challenge.validate"
     assert spans[0].attributes["acme.challenge_type"] == "http-01"
     assert spans[0].attributes["acme.outcome"] == "success"
+    assert "acme.skip" not in spans[0].attributes
+
+
+def test_sdk_span_set_attributes_batch() -> None:
+    """span() prefers Span.set_attributes when the SDK provides it."""
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.span(
+        "acme.account.key_change",
+        attributes={
+            "acme.account_name": "acct1",
+            "acme.account.operation": "key_change",
+        },
+    ):
+        pass
+    root = span_exporter.get_finished_spans()[0]
+    assert root.attributes["acme.account_name"] == "acct1"
+    assert root.attributes["acme.account.operation"] == "key_change"
 
 
 def test_sdk_http_request_span_parents_nested_span() -> None:

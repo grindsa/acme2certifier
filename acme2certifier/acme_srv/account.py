@@ -1041,6 +1041,25 @@ class Account:
         self.logger.debug("Account.create_account() ended with: %s, %s", code, message)
         return self._build_response(code, message, detail, payload)
 
+    def _account_span_attrs(self, account_name: Optional[str]) -> Dict[str, str]:
+        """Common attributes for account mutation/query spans."""
+        attrs: Dict[str, str] = {}
+        if account_name:
+            attrs["acme.account_name"] = str(account_name)
+        return attrs
+
+    def _outcome_from_response_code(self, code: Any) -> str:
+        """Map ACME HTTP response code to ``acme.outcome``."""
+        try:
+            status = int(code)
+        except (TypeError, ValueError):
+            return "failure"
+        if status >= 500:
+            return "error"
+        if status in (200, 201):
+            return "success"
+        return "failure"
+
     def parse_request(self, content: Dict[str, str]) -> Dict[str, str]:
         """Public method to parse an account-related request."""
         self.logger.debug("Account.parse_request()")
@@ -1052,21 +1071,37 @@ class Account:
                 code, message, detail, account_name=account_name
             )
 
+        span_attrs = self._account_span_attrs(account_name)
         if "status" in payload:
-            return self._handle_deactivation(account_name, payload)
+            with span("acme.account.deactivate", attributes=span_attrs) as active:
+                response_dic = self._handle_deactivation(account_name, payload)
+                set_span_outcome(
+                    active, self._outcome_from_response_code(response_dic.get("code"))
+                )
+                return response_dic
         elif "contact" in payload:
-            return self._handle_contact_update(account_name, payload)
+            with span("acme.account.contact_update", attributes=span_attrs) as active:
+                response_dic = self._handle_contact_update(account_name, payload)
+                set_span_outcome(
+                    active, self._outcome_from_response_code(response_dic.get("code"))
+                )
+                return response_dic
         elif "payload" in payload:
-            return self._handle_key_change(account_name, payload, protected)
+            with span("acme.account.key_change", attributes=span_attrs) as active:
+                response_dic = self._handle_key_change(
+                    account_name, payload, protected
+                )
+                set_span_outcome(
+                    active, self._outcome_from_response_code(response_dic.get("code"))
+                )
+                return response_dic
         elif not payload:
-            query_attrs = {"acme.account.operation": "get"}
-            if account_name:
-                query_attrs["acme.account_name"] = str(account_name)
+            query_attrs = dict(span_attrs)
+            query_attrs["acme.account.operation"] = "get"
             with span("acme.account.query", attributes=query_attrs) as active:
                 response_dic = self._handle_account_query(account_name)
                 set_span_outcome(
-                    active,
-                    "success" if response_dic.get("code") == 200 else "failure",
+                    active, self._outcome_from_response_code(response_dic.get("code"))
                 )
                 return response_dic
         else:
