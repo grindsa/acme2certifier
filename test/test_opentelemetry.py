@@ -805,3 +805,47 @@ def test_instrument_dbstore_respects_runtime_allowlist() -> None:
     spans = span_exporter.get_finished_spans()
     assert len(spans) == 1
     assert spans[0].name == "acme.db.account_lookup"
+
+
+def test_get_trace_context_ids_zeros_when_disabled() -> None:
+    """Without OTEL, correlation helpers return zero placeholders."""
+    assert otel_mod.get_trace_context_ids() == (
+        otel_mod._TRACE_ID_ZERO,
+        otel_mod._SPAN_ID_ZERO,
+    )
+
+
+def test_trace_context_filter_injects_ids_under_span() -> None:
+    """Filter sets otelTraceID/otelSpanID from the active span."""
+    _enable_inmemory_providers()
+    logger = logging.getLogger("otel-log-corr-test")
+    logger.handlers.clear()
+    logger.filters.clear()
+    logger.propagate = False
+    logger.setLevel(logging.INFO)
+    records: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    logger.addHandler(_Capture())
+    otel_mod.install_log_correlation(logger)
+
+    with otel_mod.span("acme.test.log_corr"):
+        logger.info("inside span")
+        in_trace, in_span = otel_mod.get_trace_context_ids()
+
+    assert records
+    assert records[0].otelTraceID == in_trace  # type: ignore[attr-defined]
+    assert records[0].otelSpanID == in_span  # type: ignore[attr-defined]
+    assert records[0].otelTraceID != otel_mod._TRACE_ID_ZERO  # type: ignore[attr-defined]
+    assert len(records[0].otelTraceID) == 32  # type: ignore[attr-defined]
+    assert len(records[0].otelSpanID) == 16  # type: ignore[attr-defined]
+
+    # Idempotent install
+    otel_mod.install_log_correlation(logger)
+    assert (
+        sum(1 for f in logger.filters if isinstance(f, otel_mod.TraceContextFilter))
+        == 1
+    )

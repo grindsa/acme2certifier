@@ -25,7 +25,7 @@ Stderr always remains. Syslog and file handlers are **additional** destinations 
 
 | Option             | Description                                                                            | Values                                                                                      | Default       |
 | ------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------- |
-| `log_format`       | Python logging format string                                                           | [LogRecord attributes](https://docs.python.org/3/library/logging.html#logrecord-attributes) | `%(message)s` |
+| `log_format`       | Python logging format string. With OpenTelemetry enabled, also `%(otelTraceID)s` / `%(otelSpanID)s` (zeros when no active span). See [OpenTelemetry](opentelemetry.md). | [LogRecord attributes](https://docs.python.org/3/library/logging.html#logrecord-attributes) | `%(message)s` |
 | `syslog_address`   | Enables syslog when set. Unix socket or `host:port` (UDP)                              | path or `host:port`                                                                         | None          |
 | `syslog_facility`  | Facility when syslog is enabled                                                        | e.g. `user`, `daemon`, `local0`                                                             | `user`        |
 | `log_file`         | Enables append-only file logging when set                                              | path/file                                                                                   | None          |
@@ -38,6 +38,20 @@ Stderr always remains. Syslog and file handlers are **additional** destinations 
 log_format: %(asctime)s - acme2certifier - %(levelname)s - %(message)s
 syslog_address: /dev/log
 # syslog_facility: user
+```
+
+### Example: log ↔ trace (OpenTelemetry)
+
+When `[OpenTelemetry] opentelemetry_support` is on, a filter injects `otelTraceID` / `otelSpanID` on every LogRecord (32-/16-hex; all zeros outside a span). Opt in via `log_format`:
+
+```ini
+[Helper]
+log_format: %(asctime)s trace=%(otelTraceID)s span=%(otelSpanID)s %(levelname)s %(message)s
+
+[OpenTelemetry]
+opentelemetry_support: True
+endpoint: http://127.0.0.1:4318
+metrics_export: False
 ```
 
 Use `/dev/log` for the local syslog/journald socket. Prefer this when rotation is needed (especially multi-worker WSGI): let rsyslog, syslog-ng, or journald rotate.
