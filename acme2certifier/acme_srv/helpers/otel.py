@@ -15,7 +15,7 @@ import threading
 import time
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterator, Optional, Tuple, Union
+from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Tuple, Union
 
 from .config import load_config
 
@@ -58,6 +58,31 @@ _session_boundary_lock = threading.Lock()
 
 # Per-thread active ``acme.http.request`` span context (tip/nonce parent).
 _tls = threading.local()
+
+# Default: mutating DBstore APIs only (lookups/nonce/jwk are too chatty).
+# Overridable via ``[OpenTelemetry] db_span_methods`` (JSON list; ``[]`` = off).
+_DEFAULT_DB_SPAN_METHODS: FrozenSet[str] = frozenset(
+    {
+        "account_add",
+        "account_update",
+        "account_delete",
+        "authorization_add",
+        "authorization_update",
+        "cahandler_add",
+        "certificate_add",
+        "certificate_delete",
+        "certificate_replaced_update",
+        "challenge_add",
+        "challenge_update",
+        "cliaccount_add",
+        "cliaccount_delete",
+        "hkparameter_add",
+        "order_add",
+        "order_update",
+        "order_update_if_status",
+    }
+)
+_db_span_methods: FrozenSet[str] = _DEFAULT_DB_SPAN_METHODS
 
 
 class _NoOpSpan:
@@ -143,11 +168,45 @@ def _otlp_traces_endpoint(base: str) -> str:
     return f"{base}/v1/traces"
 
 
+def _config_db_span_methods(
+    config_dic: Any, logger: logging.Logger
+) -> FrozenSet[str]:
+    """Parse ``db_span_methods`` JSON list; missing/invalid → default allowlist."""
+    if _SECTION not in config_dic:
+        return _DEFAULT_DB_SPAN_METHODS
+    try:
+        has_option = config_dic.has_option(_SECTION, "db_span_methods")
+    except (AttributeError, TypeError):
+        section = config_dic.get(_SECTION) if hasattr(config_dic, "get") else None
+        has_option = isinstance(section, dict) and "db_span_methods" in section
+    if not has_option:
+        return _DEFAULT_DB_SPAN_METHODS
+    raw = _config_get(config_dic, "db_span_methods", "")
+    if not raw.strip():
+        return frozenset()
+    try:
+        loaded = json.loads(raw)
+    except (TypeError, ValueError) as err:
+        logger.warning(
+            "OpenTelemetry: invalid db_span_methods %r (%s); using default",
+            raw,
+            err,
+        )
+        return _DEFAULT_DB_SPAN_METHODS
+    if not isinstance(loaded, list):
+        logger.warning(
+            "OpenTelemetry: db_span_methods must be a JSON list; using default"
+        )
+        return _DEFAULT_DB_SPAN_METHODS
+    methods = {str(item).strip() for item in loaded if str(item).strip()}
+    return frozenset(methods)
+
+
 def reset_otel_state() -> None:
     """Clear module state between tests (and for test fixtures)."""
     global _initialized, _enabled, _tracer, _meter, _counters, _histograms
     global _span_contexts, _session_boundary_pending
-    global _span_ctx_max, _span_ctx_ttl_sec
+    global _span_ctx_max, _span_ctx_ttl_sec, _db_span_methods
     _initialized = False
     _enabled = False
     _tracer = None
@@ -158,6 +217,7 @@ def reset_otel_state() -> None:
         _span_contexts = OrderedDict()
     _span_ctx_max = _DEFAULT_SPAN_CTX_MAX
     _span_ctx_ttl_sec = float(_DEFAULT_SPAN_CTX_TTL_SEC)
+    _db_span_methods = _DEFAULT_DB_SPAN_METHODS
     _session_boundary_pending = False
     _tls.request_span_ctx = None
 
@@ -197,7 +257,7 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
     Returns True when export is active. Never raises for missing packages
     or config errors — falls back to NoOp and logs.
     """
-    global _initialized, _enabled, _tracer, _meter
+    global _initialized, _enabled, _tracer, _meter, _db_span_methods
 
     log = logger or logging.getLogger("acme2certifier")
     if _initialized:
@@ -217,6 +277,7 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
     metrics_export = _config_getboolean(
         config_dic, "metrics_export", fallback=False
     )
+    _db_span_methods = _config_db_span_methods(config_dic, log)
 
     if protocol not in ("http/protobuf", "http", "http/json"):
         log.error(
@@ -378,6 +439,57 @@ def span(
     with _tracer.start_as_current_span(name, **start_kwargs) as active:
         _apply_span_attributes(active, attributes)
         yield active
+
+
+def _db_method_should_span(name: str) -> bool:
+    """Return True when *name* is in the active ``db_span_methods`` allowlist."""
+    return name in _db_span_methods
+
+
+def _wrap_db_method(method: Callable[..., Any], name: str) -> Callable[..., Any]:
+    """Wrap a DBstore method with ``acme.db.<name>`` (NoOp when OTEL off)."""
+
+    def wrapped(self: Any, *args: Any, **kwargs: Any) -> Any:
+        # Call-time allowlist (``db_span_methods`` may change at init_otel).
+        if not _db_method_should_span(name):
+            return method(self, *args, **kwargs)
+        attrs: Dict[str, Any] = {"db.operation": name}
+        handler_label = getattr(self, "type", None)
+        if isinstance(handler_label, str) and handler_label:
+            attrs["db.system"] = handler_label
+        with span(f"acme.db.{name}", attributes=attrs) as active:
+            try:
+                result = method(self, *args, **kwargs)
+            except Exception as err:
+                set_span_outcome(active, "error", exception=err)
+                raise
+            set_span_outcome(active, "success")
+            return result
+
+    wrapped.__name__ = getattr(method, "__name__", name)
+    wrapped.__doc__ = getattr(method, "__doc__", None)
+    wrapped._otel_db_wrapped = True  # type: ignore[attr-defined]
+    return wrapped
+
+
+def instrument_dbstore_class(cls: type) -> type:
+    """Wrap public DBstore methods; spans gated by ``db_span_methods``.
+
+    All non-private callables are wrapped so config can enable lookups later
+    without re-import. Actual span emission uses the allowlist (default:
+    writes only). Safe to call more than once. When OTEL is disabled, wrappers
+    are NoOps. Does not change return values or exception behavior.
+    """
+    if getattr(cls, "_otel_db_instrumented", False):
+        return cls
+    for name, attr in list(vars(cls).items()):
+        if name.startswith("_") or not callable(attr):
+            continue
+        if getattr(attr, "_otel_db_wrapped", False):
+            continue
+        setattr(cls, name, _wrap_db_method(attr, name))
+    cls._otel_db_instrumented = True  # type: ignore[attr-defined]
+    return cls
 
 
 @contextmanager
