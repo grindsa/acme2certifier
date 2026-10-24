@@ -55,6 +55,7 @@ Restart acme2certifier after changing the file. Init runs from the shared ACME H
 | `acme.jws.verify` | `acme.auth.failure` (counter; jws / eab) |
 | `acme.account.create` | |
 | `acme.account.query` (`onlyreturnexisting` / POST empty payload) | |
+| `acme.account.deactivate` / `contact_update` / `key_change` | |
 | `acme.order.create` | |
 | `acme.authorization.create` | |
 | `acme.challenge.create` | |

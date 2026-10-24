@@ -15,7 +15,7 @@ import threading
 import time
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, Optional, Tuple, Union
 
 from .config import load_config
 
@@ -64,6 +64,9 @@ class _NoOpSpan:
     """Span stand-in used when OpenTelemetry is off or unavailable."""
 
     def set_attribute(self, key: str, value: Any) -> None:
+        return None
+
+    def set_attributes(self, attributes: Dict[str, Any]) -> None:
         return None
 
     def set_status(self, status: Any) -> None:
@@ -140,8 +143,8 @@ def _otlp_traces_endpoint(base: str) -> str:
     return f"{base}/v1/traces"
 
 
-def _reset_otel_state() -> None:
-    """Clear module state (for tests)."""
+def reset_otel_state() -> None:
+    """Clear module state between tests (and for test fixtures)."""
     global _initialized, _enabled, _tracer, _meter, _counters, _histograms
     global _span_contexts, _session_boundary_pending
     global _span_ctx_max, _span_ctx_ttl_sec
@@ -340,6 +343,24 @@ def mark_http_status(active: Any, status_code: int) -> None:
         return
 
 
+def _apply_span_attributes(active: Any, attributes: Optional[Dict[str, Any]]) -> None:
+    """Set span attributes, preferring ``set_attributes`` when available."""
+    if not attributes:
+        return
+    filtered = {k: v for k, v in attributes.items() if v is not None}
+    if not filtered:
+        return
+    set_attrs = getattr(active, "set_attributes", None)
+    if callable(set_attrs):
+        try:
+            set_attrs(filtered)
+            return
+        except Exception:  # noqa: BLE001
+            pass
+    for key, value in filtered.items():
+        active.set_attribute(key, value)
+
+
 @contextmanager
 def span(
     name: str,
@@ -355,10 +376,7 @@ def span(
     if kind is not None:
         start_kwargs["kind"] = kind
     with _tracer.start_as_current_span(name, **start_kwargs) as active:
-        if attributes:
-            for key, value in attributes.items():
-                if value is not None:
-                    active.set_attribute(key, value)
+        _apply_span_attributes(active, attributes)
         yield active
 
 
@@ -438,24 +456,31 @@ def _prune_expired_locked(now: Optional[float] = None) -> None:
         _span_contexts.pop(key, None)
 
 
+def _first_key_matching(predicate: Callable[[str], bool]) -> Optional[str]:
+    """Return the first store key for which ``predicate(key)`` is true."""
+    for key in _span_contexts:
+        if predicate(key):
+            return key
+    return None
+
+
+def _next_eviction_victim() -> Optional[str]:
+    """Pick the next overflow victim (prefer ``nonce:``, keep global tip last)."""
+    victim = _first_key_matching(lambda key: key.startswith("nonce:"))
+    if victim is not None:
+        return victim
+    victim = _first_key_matching(
+        lambda key: key != SESSION_TIP_KEY and not key.startswith(ACCOUNT_TIP_PREFIX)
+    )
+    if victim is not None:
+        return victim
+    return _first_key_matching(lambda key: key != SESSION_TIP_KEY)
+
+
 def _evict_overflow_locked() -> None:
     """Evict oldest entries until under max (prefer ``nonce:`` keys)."""
     while len(_span_contexts) > _span_ctx_max:
-        victim: Optional[str] = None
-        for key in _span_contexts:
-            if key.startswith("nonce:"):
-                victim = key
-                break
-        if victim is None:
-            for key in _span_contexts:
-                if key != SESSION_TIP_KEY and not key.startswith(ACCOUNT_TIP_PREFIX):
-                    victim = key
-                    break
-        if victim is None:
-            for key in _span_contexts:
-                if key != SESSION_TIP_KEY:
-                    victim = key
-                    break
+        victim = _next_eviction_victim()
         if victim is None:
             break
         _span_contexts.pop(victim, None)
