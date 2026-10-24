@@ -309,10 +309,13 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
         )
         tracer_provider = sdk["TracerProvider"](resource=resource, sampler=sampler)
         traces_endpoint = _otlp_traces_endpoint(endpoint)
+        span_exporter = _ResilientExporter(
+            sdk["OTLPSpanExporter"](endpoint=traces_endpoint),
+            log,
+            kind="spans",
+        )
         tracer_provider.add_span_processor(
-            sdk["BatchSpanProcessor"](
-                sdk["OTLPSpanExporter"](endpoint=traces_endpoint)
-            )
+            sdk["BatchSpanProcessor"](span_exporter)
         )
         sdk["trace"].set_tracer_provider(tracer_provider)
         _tracer = sdk["trace"].get_tracer("acme2certifier")
@@ -322,9 +325,12 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
             if metrics_base.endswith("/v1/traces"):
                 metrics_base = metrics_base[: -len("/v1/traces")]
             metrics_endpoint = f"{metrics_base.rstrip('/')}/v1/metrics"
-            metric_reader = sdk["PeriodicExportingMetricReader"](
-                sdk["OTLPMetricExporter"](endpoint=metrics_endpoint)
+            metric_exporter = _ResilientExporter(
+                sdk["OTLPMetricExporter"](endpoint=metrics_endpoint),
+                log,
+                kind="metrics",
             )
+            metric_reader = sdk["PeriodicExportingMetricReader"](metric_exporter)
             meter_provider = sdk["MeterProvider"](
                 resource=resource, metric_readers=[metric_reader]
             )
@@ -375,26 +381,125 @@ class TraceContextFilter(logging.Filter):
     """Inject ``otelTraceID`` / ``otelSpanID`` into LogRecords for log↔trace."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        trace_id, span_id = get_trace_context_ids()
-        record.otelTraceID = trace_id  # type: ignore[attr-defined]
-        record.otelSpanID = span_id  # type: ignore[attr-defined]
+        if not hasattr(record, "otelTraceID") or not hasattr(record, "otelSpanID"):
+            trace_id, span_id = get_trace_context_ids()
+            record.otelTraceID = trace_id  # type: ignore[attr-defined]
+            record.otelSpanID = span_id  # type: ignore[attr-defined]
         return True
+
+
+def _handler_has_trace_filter(handler: logging.Handler) -> bool:
+    return any(isinstance(f, TraceContextFilter) for f in handler.filters)
 
 
 def install_log_correlation(
     logger: Optional[logging.Logger] = None,
 ) -> None:
-    """Attach :class:`TraceContextFilter` once to *logger* and the root logger."""
-    targets = [logger or logging.getLogger("acme2certifier"), logging.getLogger()]
-    seen: set[int] = set()
-    for target in targets:
-        if id(target) in seen:
-            continue
-        seen.add(id(target))
-        if any(isinstance(f, TraceContextFilter) for f in target.filters):
-            continue
-        target.addFilter(TraceContextFilter())
+    """Attach :class:`TraceContextFilter` to ACME/root loggers **and handlers**.
 
+    Handler filters are required: child loggers (e.g. OTEL exporters) propagate
+    to root handlers without running root logger filters, which otherwise
+    breaks ``log_format`` containing ``%(otelTraceID)s``.
+    """
+    targets = [logger or logging.getLogger("acme2certifier"), logging.getLogger()]
+    seen_loggers: set[int] = set()
+    for target in targets:
+        if id(target) in seen_loggers:
+            continue
+        seen_loggers.add(id(target))
+        if not any(isinstance(f, TraceContextFilter) for f in target.filters):
+            target.addFilter(TraceContextFilter())
+        for handler in target.handlers:
+            if not _handler_has_trace_filter(handler):
+                handler.addFilter(TraceContextFilter())
+
+
+class _ResilientExporter:
+    """Wrap OTLP exporters: never raise into ACME; CRITICAL once on failure."""
+
+    def __init__(
+        self,
+        inner: Any,
+        logger: logging.Logger,
+        *,
+        kind: str,
+    ) -> None:
+        self._inner = inner
+        self._logger = logger
+        self._kind = kind
+        self._lock = threading.Lock()
+        self._reported = False
+
+    def __getattr__(self, item: str) -> Any:
+        # Metric exporters expose attrs such as ``_preferred_temporality``.
+        return getattr(self._inner, item)
+
+    def export(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            result = self._inner.export(*args, **kwargs)
+        except Exception as err:  # noqa: BLE001 — never break the export worker
+            self._report_failure(err)
+            return self._failure_result()
+        if self._is_failure(result):
+            self._report_failure(result)
+        return result
+
+    def shutdown(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            return self._inner.shutdown(*args, **kwargs)
+        except Exception as err:  # noqa: BLE001
+            self._logger.critical(
+                "OpenTelemetry: %s exporter shutdown failed: %s", self._kind, err
+            )
+            return None
+
+    def force_flush(self, *args: Any, **kwargs: Any) -> bool:
+        flush = getattr(self._inner, "force_flush", None)
+        if not callable(flush):
+            return True
+        try:
+            return bool(flush(*args, **kwargs))
+        except Exception as err:  # noqa: BLE001
+            self._report_failure(err)
+            return False
+
+    def _failure_result(self) -> Any:
+        try:
+            if self._kind == "metrics":
+                from opentelemetry.sdk.metrics.export import MetricExportResult
+
+                return MetricExportResult.FAILURE
+            from opentelemetry.sdk.trace.export import SpanExportResult
+
+            return SpanExportResult.FAILURE
+        except ImportError:
+            return 1
+
+    @staticmethod
+    def _is_failure(result: Any) -> bool:
+        name = getattr(result, "name", None)
+        if name == "FAILURE":
+            return True
+        try:
+            return int(result) == 1 and type(result).__name__.endswith("ExportResult")
+        except (TypeError, ValueError):
+            return False
+
+    def _report_failure(self, detail: Any) -> None:
+        with self._lock:
+            first = not self._reported
+            self._reported = True
+        if first:
+            self._logger.critical(
+                "OpenTelemetry: %s export failed (collector unreachable or "
+                "misconfigured); ACME requests continue. Detail: %s",
+                self._kind,
+                detail,
+            )
+        else:
+            self._logger.debug(
+                "OpenTelemetry: %s export still failing: %s", self._kind, detail
+            )
 
 def set_span_outcome(
     active: Any,

@@ -829,7 +829,8 @@ def test_trace_context_filter_injects_ids_under_span() -> None:
         def emit(self, record: logging.LogRecord) -> None:
             records.append(record)
 
-    logger.addHandler(_Capture())
+    handler = _Capture()
+    logger.addHandler(handler)
     otel_mod.install_log_correlation(logger)
 
     with otel_mod.span("acme.test.log_corr"):
@@ -843,9 +844,79 @@ def test_trace_context_filter_injects_ids_under_span() -> None:
     assert len(records[0].otelTraceID) == 32  # type: ignore[attr-defined]
     assert len(records[0].otelSpanID) == 16  # type: ignore[attr-defined]
 
-    # Idempotent install
+    # Idempotent install (logger + handler)
     otel_mod.install_log_correlation(logger)
     assert (
         sum(1 for f in logger.filters if isinstance(f, otel_mod.TraceContextFilter))
         == 1
     )
+    assert (
+        sum(1 for f in handler.filters if isinstance(f, otel_mod.TraceContextFilter))
+        == 1
+    )
+
+
+def test_handler_filter_covers_propagated_child_logger() -> None:
+    """Child logger → root handler still gets otelTraceID (SDK export case)."""
+    root = logging.getLogger()
+    # Isolate root handlers for this test.
+    old_handlers = list(root.handlers)
+    for h in old_handlers:
+        root.removeHandler(h)
+    try:
+        records: list[logging.LogRecord] = []
+
+        class _Capture(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                # Mimic Formatter needing otelTraceID
+                assert hasattr(record, "otelTraceID")
+                assert hasattr(record, "otelSpanID")
+                records.append(record)
+
+        handler = _Capture()
+        handler.setFormatter(
+            logging.Formatter("trace=%(otelTraceID)s %(message)s")
+        )
+        root.addHandler(handler)
+        otel_mod.install_log_correlation(logging.getLogger("acme2certifier"))
+
+        child = logging.getLogger("acme2certifier.otel_propagate_probe")
+        child.setLevel(logging.WARNING)
+        child.propagate = True
+        child.handlers.clear()
+        child.warning("Transient error exporting spans")
+        assert records
+        formatted = handler.format(records[0])
+        assert formatted.startswith("trace=")
+        assert "Transient error" in formatted
+    finally:
+        for h in list(root.handlers):
+            root.removeHandler(h)
+        for h in old_handlers:
+            root.addHandler(h)
+
+
+def test_resilient_exporter_logs_critical_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Export failures never raise; first failure is CRITICAL on a2c logger."""
+
+    class _Failing:
+        def export(self, _batch: Any) -> Any:
+            raise ConnectionError("connection refused")
+
+        def shutdown(self) -> None:
+            return None
+
+    logger = logging.getLogger("otel-resilient-export")
+    wrapper = otel_mod._ResilientExporter(_Failing(), logger, kind="spans")
+    with caplog.at_level(logging.CRITICAL, logger="otel-resilient-export"):
+        result1 = wrapper.export([])
+        result2 = wrapper.export([])
+    assert result1 is not None
+    assert result2 is not None
+    criticals = [
+        r for r in caplog.records if r.levelno >= logging.CRITICAL
+    ]
+    assert len(criticals) == 1
+    assert "ACME requests continue" in criticals[0].getMessage()
