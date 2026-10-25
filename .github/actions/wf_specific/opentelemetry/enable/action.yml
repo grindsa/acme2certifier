@@ -1,7 +1,7 @@
 name: "opentelemetry - enable in a2c container"
 description: >-
   Append [OpenTelemetry] to acme_srv.cfg, start Jaeger on the ACME docker
-  network, pip-install OTEL extras into the running a2c container, restart.
+  network, restart a2c (OTEL Python packages are baked into the image).
 inputs:
   VOLUME_CFG:
     description: "Path to acme_srv.cfg on the runner (bind-mounted into a2c)"
@@ -83,25 +83,16 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         JAEGER_IMAGE: ${{ inputs.JAEGER_IMAGE }}
 
-    - name: "Install OpenTelemetry Python packages in a2c container"
+    - name: "Verify OpenTelemetry packages in image"
       run: |
         set -euo pipefail
-        docker exec "${ACME_CONTAINER}" bash -lc '
-          set -euo pipefail
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update -qq
-          apt-get install -y --no-install-recommends python3-pip
-          pip3 install --break-system-packages \
-            "opentelemetry-api>=1.27.0" \
-            "opentelemetry-sdk>=1.27.0" \
-            "opentelemetry-exporter-otlp-proto-http>=1.27.0"
-          python3 -c "import opentelemetry.sdk; import opentelemetry.exporter.otlp.proto.http.trace_exporter"
-        '
+        docker exec "${ACME_CONTAINER}" python3 -c \
+          "import opentelemetry.sdk; import opentelemetry.exporter.otlp.proto.http.trace_exporter"
       shell: bash
       env:
         ACME_CONTAINER: ${{ inputs.ACME_CONTAINER }}
 
-    - name: "Restart a2c to load OTEL packages + config"
+    - name: "Restart a2c to load OTEL config"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: docker compose restart
       shell: bash

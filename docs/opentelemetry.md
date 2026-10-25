@@ -13,11 +13,15 @@ Optional, **config-gated** export of traces and metrics via **OTLP HTTP**. Loggi
 
 Requires **Python ≥ 3.8** (OpenTelemetry SDK). Core acme2certifier without this extra still supports older Pythons.
 
+**Docker (Hub apache2 / nginx images, Ubuntu 26.04):** OTEL libraries are already baked in via apt (`python3-opentelemetry-api`, `python3-opentelemetry-sdk`, `python3-opentelemetry-exporter-otlp-proto-http`). Enable with `[OpenTelemetry]` only — no pip.
+
+**pip / venv:**
+
 ```bash
 pip install 'acme2certifier[otel]'
 ```
 
-Use a dedicated/disposable virtualenv for the extra; do not require OTEL packages for a normal install. Distro DEB/RPM packages do **not** pull OTEL dependencies — install the PyPI extra (or equivalent wheels) only where you enable the feature.
+Use a dedicated/disposable virtualenv for the extra. Distro DEB/RPM packages of acme2certifier do **not** pull OTEL dependencies; on Ubuntu 26.04+ you can install the same `python3-opentelemetry-*` packages from `universe` instead of PyPI.
 
 If `opentelemetry_support` is `True` but packages are missing, boot continues with a NoOp warning and an error is logged.
 
