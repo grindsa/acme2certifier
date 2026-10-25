@@ -4083,6 +4083,32 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
+    def test_265_process_certificate_enrollment_order_span(self):
+        """enrollment span records the order name"""
+        self.cert.config.cert_reusage_timeframe = False
+        self.cert.cahandler_registry = None
+        mock_ca = MagicMock()
+        mock_ca.__enter__.return_value = mock_ca
+        mock_ca.enroll.return_value = (None, "cert", "raw", "poll")
+        factory = MagicMock(return_value=mock_ca)
+        factory.name = "openssl"
+        self.cert.cahandler = factory
+        with (
+            patch.object(self.cert, "_lookup_order_account_name", return_value=None),
+            patch("acme2certifier.acme_srv.certificate.span") as mock_span,
+        ):
+            mock_span.return_value.__enter__.return_value = MagicMock()
+            result = self.cert._process_certificate_enrollment(
+                "csr", order_name="order-1"
+            )
+        self.assertEqual((None, "cert", "raw", "poll", False), result)
+        ca_calls = [
+            call
+            for call in mock_span.call_args_list
+            if call.args and call.args[0] == "acme.ca_handler.call"
+        ]
+        self.assertEqual("order-1", ca_calls[0].kwargs["attributes"]["acme.order_name"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -872,7 +872,9 @@ class TestChallenge(unittest.TestCase):
         self.assertTrue(result.invalid)
 
     def test_062_start_async_validation(self):
-        with patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue") as mock_thread:
+        with patch(
+            "acme2certifier.acme_srv.challenge.ThreadWithReturnValue"
+        ) as mock_thread:
             instance = mock_thread.return_value
             instance.join.return_value = True
             instance.is_alive.return_value = False

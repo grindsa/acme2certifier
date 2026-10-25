@@ -89,7 +89,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             _ces_uri_from_policies(self.logger, result, "WebServer"),
         )
 
-    def test_002b_ces_uri_prefers_priority(self):
+    def test_003_ces_uri_prefers_priority(self):
         """template_ces orders CES URIs by CEP priority"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _ces_uri_from_policies,
@@ -145,7 +145,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             _ces_uri_from_policies(self.logger, result, "WebServer"),
         )
 
-    def test_003_parse_wstep_issued(self):
+    def test_004_parse_wstep_issued(self):
         """parse issued WSTEP response"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
@@ -154,7 +154,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual("42", result["request_id"])
         self.assertTrue(result["token"])
 
-    def test_004_parse_wstep_pending(self):
+    def test_005_parse_wstep_pending(self):
         """parse pending WSTEP response"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
@@ -163,14 +163,14 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual("111", result["request_id"])
         self.assertIn("service.svc/CES", result["reference"])
 
-    def test_005_parse_wstep_denied(self):
+    def test_006_parse_wstep_denied(self):
         """parse denied WSTEP response"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
         result = _parse_wstep_response(self.logger, _fixture("wstep_issue_denied.xml"))
         self.assertEqual("denied", result["status"])
 
-    def test_006_parse_soap_fault(self):
+    def test_007_parse_soap_fault(self):
         """SOAP Fault raises RuntimeError"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
@@ -178,7 +178,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             _parse_wstep_response(self.logger, _fixture("soap_fault.xml"))
         self.assertIn("Authentication failed", str(ctx.exception))
 
-    def test_007_wstep_issue_body_contains_template(self):
+    def test_008_wstep_issue_body_contains_template(self):
         """Issue body includes AdditionalContext CertificateTemplate"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _wstep_issue_body
         from xml.etree import ElementTree as ET
@@ -189,7 +189,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("WebServer", xml)
         self.assertIn("AAAA", xml)
 
-    def test_008_poll_identifier_roundtrip(self):
+    def test_009_poll_identifier_roundtrip(self):
         """poll identifier encode/decode"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _poll_identifier_decode,
@@ -206,7 +206,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertTrue(reference.endswith("/CES"))
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_009_config_load(self, mock_load_cfg):
+    def test_010_config_load(self, mock_load_cfg):
         """load ces_url/template/auth_method"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -226,7 +226,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual("user", self.cahandler.user)
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_010_handler_check_missing_ces_url(self, mock_load_cfg):
+    def test_011_handler_check_missing_ces_url(self, mock_load_cfg):
         """handler_check fails without ces_url and cep_url"""
         mock_load_cfg.return_value = configparser.ConfigParser()
         self.cahandler._config_load()
@@ -234,7 +234,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("ces_url or cep_url", error)
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_010b_handler_check_cep_only(self, mock_load_cfg):
+    def test_012_handler_check_cep_only(self, mock_load_cfg):
         """handler_check accepts cep_url without ces_url when keytab is set"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -250,7 +250,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._xcep_get_policies")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_011_handler_check_skips_cep_contact(
+    def test_013_handler_check_skips_cep_contact(
         self, mock_load_cfg, mock_get_policies
     ):
         """handler_check is config-only; does not call CEP GetPolicies"""
@@ -272,7 +272,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_012_enroll_issued(self, mock_load_cfg, mock_soap):
+    def test_014_enroll_issued(self, mock_load_cfg, mock_soap):
         """enroll returns certificate for Issued disposition"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -294,7 +294,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_013_enroll_pending(self, mock_load_cfg, mock_soap):
+    def test_015_enroll_pending(self, mock_load_cfg, mock_soap):
         """enroll returns poll identifier for Pending disposition"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -316,7 +316,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_014_enroll_denied(self, mock_load_cfg, mock_soap):
+    def test_016_enroll_denied(self, mock_load_cfg, mock_soap):
         """enroll returns error for Denied disposition"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -338,7 +338,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_015_poll_issued(self, mock_load_cfg, mock_soap):
+    def test_017_poll_issued(self, mock_load_cfg, mock_soap):
         """poll returns certificate when pending request is issued"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -361,14 +361,14 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertTrue(cert_raw)
         self.assertIn("BEGIN CERTIFICATE", cert_bundle)
 
-    def test_016_revoke_not_supported(self):
+    def test_018_revoke_not_supported(self):
         """revoke is stubbed"""
         code, message, detail = self.cahandler.revoke("cert", "unspecified", None)
         self.assertEqual(500, code)
         self.assertIn("serverInternal", message)
         self.assertEqual("Revocation is not supported.", detail)
 
-    def test_017_https_required(self):
+    def test_019_https_required(self):
         """cleartext ces_url rejected"""
         self.cahandler.ces_url = "http://ces.example.com/CES"
         self.cahandler.template = "WebServer"
@@ -381,7 +381,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("HTTPS", error)
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
-    def test_018_soap_post_action_for_issue(self, mock_soap):
+    def test_020_soap_post_action_for_issue(self, mock_soap):
         """Issue uses WSTEP RST action"""
         from acme2certifier.cahandlers.mscepces_ca_handler import ACTION_WSTEP_RST
 
@@ -400,7 +400,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_019_enroll_appends_cep_ca(self, mock_load_cfg, mock_soap):
+    def test_021_enroll_appends_cep_ca(self, mock_load_cfg, mock_soap):
         """issued leaf is bundled with CA cert from CEP GetPolicies"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -427,7 +427,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         second = cert_bundle.split("-----END CERTIFICATE-----")[1]
         self.assertIn("MIICrzCCAZegAwIBAgIBAT", second)
 
-    def test_020_soap_envelope_with_username_token(self):
+    def test_022_soap_envelope_with_username_token(self):
         """_soap_envelope includes WS-Security UsernameToken when provided"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _soap_envelope,
@@ -453,7 +453,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             )
         )
 
-    def test_021_soap_envelope_without_username_token(self):
+    def test_023_soap_envelope_without_username_token(self):
         """_soap_envelope omits Security header without token"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _soap_envelope,
@@ -471,7 +471,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         security = [el for el in root.iter() if el.tag.endswith("Security")]
         self.assertEqual([], security)
 
-    def test_022_parse_xcep_get_policies_fault(self):
+    def test_024_parse_xcep_get_policies_fault(self):
         """XCEP SOAP Fault raises RuntimeError"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _parse_xcep_get_policies,
@@ -481,7 +481,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             _parse_xcep_get_policies(self.logger, _fixture("soap_fault.xml"))
         self.assertIn("XCEP SOAP Fault", str(ctx.exception))
 
-    def test_023_certificate_element_to_pem_empty_invalid(self):
+    def test_025_certificate_element_to_pem_empty_invalid(self):
         """_certificate_element_to_pem handles empty and invalid input"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _certificate_element_to_pem,
@@ -492,7 +492,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             _certificate_element_to_pem(self.logger, "not-valid-base64!!!")
         )
 
-    def test_024_cert_bundle_with_ca_skips_duplicate(self):
+    def test_026_cert_bundle_with_ca_skips_duplicate(self):
         """_cert_bundle_with_ca skips CA PEM already in leaf bundle"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _cert_bundle_with_ca,
@@ -507,7 +507,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         bundle = _cert_bundle_with_ca(self.logger, leaf, [leaf, ca_pem])
         self.assertEqual(2, bundle.count("BEGIN CERTIFICATE"))
 
-    def test_025_parse_wstep_missing_response(self):
+    def test_027_parse_wstep_missing_response(self):
         """missing RequestSecurityTokenResponse raises"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
@@ -520,7 +520,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             _parse_wstep_response(self.logger, xml)
         self.assertIn("missing RequestSecurityTokenResponse", str(ctx.exception))
 
-    def test_026_parse_wstep_unknown_disposition(self):
+    def test_028_parse_wstep_unknown_disposition(self):
         """unknown WSTEP disposition maps to unknown status"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _parse_wstep_response
 
@@ -534,7 +534,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         )
         self.assertEqual("unknown", _parse_wstep_response(self.logger, xml)["status"])
 
-    def test_027_csr_to_pkcs10_b64_pem_input(self):
+    def test_029_csr_to_pkcs10_b64_pem_input(self):
         """_csr_to_pkcs10_b64 accepts PEM CSR"""
         from acme2certifier.acme_srv.helper import b64_url_recode, build_pem_file
         from acme2certifier.cahandlers.mscepces_ca_handler import _csr_to_pkcs10_b64
@@ -546,7 +546,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertTrue(b64_der)
         self.assertNotIn("BEGIN", b64_der)
 
-    def test_028_token_to_pem_bundle_der_token(self):
+    def test_030_token_to_pem_bundle_der_token(self):
         """_token_to_pem_bundle decodes DER X509 token"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _token_to_pem_bundle
 
@@ -554,7 +554,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("BEGIN CERTIFICATE", bundle)
         self.assertTrue(raw)
 
-    def test_029_token_to_pem_bundle_pem_token(self):
+    def test_031_token_to_pem_bundle_pem_token(self):
         """_token_to_pem_bundle accepts inline PEM"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _token_to_pem_bundle,
@@ -568,7 +568,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual("issued", issued["status"])
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.pkcs7_to_pem")
-    def test_030_token_to_pem_bundle_pkcs7_fail_pem_fallback(self, mock_p7):
+    def test_032_token_to_pem_bundle_pkcs7_fail_pem_fallback(self, mock_p7):
         """pkcs7_to_pem failure falls back to PEM parse"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _token_to_pem_bundle
 
@@ -588,7 +588,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             bundle2, raw2 = _token_to_pem_bundle(self.logger, bundle)
         self.assertTrue(raw2 or bundle2)
 
-    def test_031_token_to_pem_bundle_total_failure(self):
+    def test_033_token_to_pem_bundle_total_failure(self):
         """unparseable token returns None tuple"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _token_to_pem_bundle
 
@@ -596,13 +596,13 @@ class TestMscepcesCaHandler(unittest.TestCase):
             (None, None), _token_to_pem_bundle(self.logger, "garbage-token")
         )
 
-    def test_032_leaf_pem_from_bundle_no_match(self):
+    def test_034_leaf_pem_from_bundle_no_match(self):
         """_leaf_pem_from_bundle returns input when no PEM found"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _leaf_pem_from_bundle
 
         self.assertEqual("not-a-pem", _leaf_pem_from_bundle(self.logger, "not-a-pem"))
 
-    def test_033_poll_identifier_decode_edge_cases(self):
+    def test_035_poll_identifier_decode_edge_cases(self):
         """_poll_identifier_decode without separator"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _poll_identifier_decode,
@@ -611,7 +611,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual((None, None), _poll_identifier_decode(self.logger, ""))
         self.assertEqual(("nosep", None), _poll_identifier_decode(self.logger, "nosep"))
 
-    def test_034_username_token_fields(self):
+    def test_036_username_token_fields(self):
         """_username_token_fields builds nonce and created"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _username_token_fields
 
@@ -621,7 +621,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertTrue(fields["nonce"])
         self.assertTrue(fields["created"].endswith("Z"))
 
-    def test_035_gssapi_channel_bindings_supported_true(self):
+    def test_037_gssapi_channel_bindings_supported_true(self):
         """gssapi_channel_bindings_supported True when param exists"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             gssapi_channel_bindings_supported,
@@ -636,7 +636,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         ):
             self.assertTrue(gssapi_channel_bindings_supported(self.logger))
 
-    def test_036_gssapi_channel_bindings_supported_false(self):
+    def test_038_gssapi_channel_bindings_supported_false(self):
         """gssapi_channel_bindings_supported False without param"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             gssapi_channel_bindings_supported,
@@ -651,7 +651,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         ):
             self.assertFalse(gssapi_channel_bindings_supported(self.logger))
 
-    def test_037_gssapi_channel_bindings_supported_import_error(self):
+    def test_039_gssapi_channel_bindings_supported_import_error(self):
         """gssapi_channel_bindings_supported False on import failure"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             gssapi_channel_bindings_supported,
@@ -663,7 +663,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         ):
             self.assertFalse(gssapi_channel_bindings_supported(self.logger))
 
-    def test_038_gssapi_channel_bindings_supported_no_auth_cls(self):
+    def test_040_gssapi_channel_bindings_supported_no_auth_cls(self):
         """gssapi_channel_bindings_supported False when HTTPSPNEGOAuth missing"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             gssapi_channel_bindings_supported,
@@ -673,7 +673,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         with patch.dict("sys.modules", {"requests_gssapi": fake_mod}):
             self.assertFalse(gssapi_channel_bindings_supported(self.logger))
 
-    def test_039_gssapi_channel_bindings_supported_inspect_error(self):
+    def test_041_gssapi_channel_bindings_supported_inspect_error(self):
         """gssapi_channel_bindings_supported False when inspect fails"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             gssapi_channel_bindings_supported,
@@ -690,7 +690,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             self.assertFalse(gssapi_channel_bindings_supported(self.logger))
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_040_context_manager_loads_config(self, mock_load_cfg):
+    def test_042_context_manager_loads_config(self, mock_load_cfg):
         """__enter__ loads config when ces_url unset"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -703,7 +703,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             self.assertTrue(handler.ces_url.startswith("https://"))
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_041_config_auth_and_channel_bindings_warnings(self, mock_load_cfg):
+    def test_043_config_auth_and_channel_bindings_warnings(self, mock_load_cfg):
         """unknown auth_method and invalid channel_bindings log warnings"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -721,7 +721,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_042_config_verify_false_warning(self, mock_load_cfg):
+    def test_044_config_verify_false_warning(self, mock_load_cfg):
         """verify=False logs security warning"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"verify": "False"}
@@ -731,7 +731,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.verify)
         self.assertIn("TLS certificate verification is disabled", lcm.output[0])
 
-    def test_043_config_headerinfo_load(self):
+    def test_045_config_headerinfo_load(self):
         """header_info_list first element loads; bad JSON warns"""
         config_ok = {"Order": {"header_info_list": '["first", "second"]'}}
         self.cahandler._config_headerinfo_load(config_ok)
@@ -744,7 +744,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("Failed to parse header_info_list", lcm.output[0])
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_044_config_allowed_templates_order_precedence(self, mock_load_cfg):
+    def test_046_config_allowed_templates_order_precedence(self, mock_load_cfg):
         """Order allowed_header_values overrides CAhandler allowed_templates"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"allowed_templates": '["FromCA"]'}
@@ -754,7 +754,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual(["FromOrder"], self.cahandler.allowed_templates)
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_045_config_allowed_templates_deprecated(self, mock_load_cfg):
+    def test_047_config_allowed_templates_deprecated(self, mock_load_cfg):
         """deprecated allowed_templates loads with warning"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"allowed_templates": '["WebServer"]'}
@@ -765,7 +765,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("allowed_templates is deprecated", lcm.output[0])
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_046_config_allowed_templates_invalid(self, mock_load_cfg):
+    def test_048_config_allowed_templates_invalid(self, mock_load_cfg):
         """invalid allowed_templates JSON yields empty list"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"allowed_templates": "not-json"}
@@ -781,14 +781,14 @@ class TestMscepcesCaHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscepces_ca_handler.os.path.isfile",
         return_value=True,
     )
-    def test_047_credentials_configured_keytab(self, _mock_isfile):
+    def test_049_credentials_configured_keytab(self, _mock_isfile):
         """gssapi keytab satisfies _credentials_are_configured"""
         self.cahandler.auth_method = "gssapi"
         self.cahandler.krb5_principal = "svc@EXAMPLE.COM"
         self.cahandler.krb5_keytab = "/tmp/svc.keytab"
         self.assertTrue(self.cahandler._credentials_are_configured())
 
-    def test_048_allowed_templates_check(self):
+    def test_050_allowed_templates_check(self):
         """allowlist reject and allow paths"""
         self.cahandler.template = "Other"
         self.cahandler.allowed_templates = ["WebServer"]
@@ -798,7 +798,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.cahandler.template = "WebServer"
         self.assertIsNone(self.cahandler._allowed_templates_check())
 
-    def test_049_tls_verify_modes(self):
+    def test_051_tls_verify_modes(self):
         """_tls_verify returns False, path, or True"""
         self.cahandler.verify = False
         self.assertFalse(self.cahandler._tls_verify())
@@ -809,7 +809,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertTrue(self.cahandler._tls_verify())
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.importlib.import_module")
-    def test_050_gssapi_creds_from_password_paths(self, mock_import):
+    def test_052_gssapi_creds_from_password_paths(self, mock_import):
         """password GSSAPI acquire success and failure paths"""
         mock_gssapi = MagicMock()
         mock_import.return_value = mock_gssapi
@@ -833,7 +833,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.cahandler._gssapi_creds_from_password()
 
-    def test_051_session_auth_non_gssapi(self):
+    def test_053_session_auth_non_gssapi(self):
         """_session_auth returns None for username_password"""
         self.cahandler.auth_method = "username_password"
         self.assertIsNone(self.cahandler._session_auth())
@@ -841,7 +841,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._gssapi_creds_from_password"
     )
-    def test_052_session_auth_with_creds_and_bindings(self, mock_pw_creds):
+    def test_054_session_auth_with_creds_and_bindings(self, mock_pw_creds):
         """_session_auth builds HTTPSPNEGOAuth with creds and bindings"""
         calls = []
 
@@ -866,7 +866,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual("pw-creds", calls[0]["creds"])
         self.assertEqual("tls-server-end-point", calls[0]["channel_bindings"])
 
-    def test_053_session_auth_errors(self):
+    def test_055_session_auth_errors(self):
         """_session_auth import fail, channel error, no creds"""
         self.cahandler.auth_method = "gssapi"
         with patch(
@@ -892,7 +892,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 self.cahandler._session_auth()
 
-    def test_054_gssapi_channel_bindings_resolve(self):
+    def test_056_gssapi_channel_bindings_resolve(self):
         """resolve off, on unsupported, auto supported and unsupported"""
         self.cahandler.auth_method = "username_password"
         self.assertEqual(
@@ -929,7 +929,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIsNone(err)
         self.assertIn("does not support channel_bindings", lcm.output[0])
 
-    def test_055_username_token(self):
+    def test_057_username_token(self):
         """_username_token for username_password auth"""
         self.cahandler.auth_method = "gssapi"
         self.assertIsNone(self.cahandler._username_token())
@@ -943,7 +943,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual("u", token["username"])
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.requests.post")
-    def test_056_soap_post_http500_and_raise(self, mock_post):
+    def test_058_soap_post_http500_and_raise(self, mock_post):
         """_soap_post returns SOAP body on HTTP 500; raises on other errors"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _xcep_get_policies_body,
@@ -971,7 +971,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_config_path_resolve"
     )
-    def test_057_kerberos_runtime_environment(self, mock_resolve):
+    def test_059_kerberos_runtime_environment(self, mock_resolve):
         """_kerberos_runtime_environment sets and restores KRB5_CONFIG"""
         mock_resolve.return_value = "/tmp/krb5.conf"
         clean_env = {k: v for k, v in os.environ.items() if k != "KRB5_CONFIG"}
@@ -984,7 +984,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
                 self.assertEqual("/tmp/krb5.conf", os.environ["KRB5_CONFIG"])
             self.assertEqual("/existing", os.environ["KRB5_CONFIG"])
 
-    def test_058_kerberos_gssapi_creds_from_cache(self):
+    def test_060_kerberos_gssapi_creds_from_cache(self):
         """ccache load paths for gssapi credentials"""
         self.cahandler.auth_method = "username_password"
         self.assertEqual(
@@ -1032,7 +1032,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_gssapi_creds_from_cache"
     )
-    def test_059_kerberos_bind_gssapi_creds_success(
+    def test_061_kerberos_bind_gssapi_creds_success(
         self, mock_cache, mock_keytab, mock_cleanup
     ):
         """_kerberos_bind_gssapi_creds returns cache creds"""
@@ -1052,7 +1052,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_gssapi_creds_from_cache",
         return_value=(None, "load failed"),
     )
-    def test_060_kerberos_bind_gssapi_creds_keytab_error(
+    def test_062_kerberos_bind_gssapi_creds_keytab_error(
         self, _mock_cache, _mock_keytab, _mock_cleanup
     ):
         """keytab mode returns error when ccache load fails"""
@@ -1073,7 +1073,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_gssapi_creds_from_cache",
         return_value=(None, "load failed"),
     )
-    def test_061_kerberos_bind_gssapi_creds_password_fallback(
+    def test_063_kerberos_bind_gssapi_creds_password_fallback(
         self, _mock_cache, _mock_keytab, _mock_cleanup
     ):
         """password mode falls back when ccache unreadable"""
@@ -1091,7 +1091,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_ccache_prepare"
     )
-    def test_062_kerberos_prepare_gssapi_password_backend(
+    def test_064_kerberos_prepare_gssapi_password_backend(
         self, mock_ccache, mock_kinit_pw
     ):
         """password backend kinit success and fallback warning"""
@@ -1128,7 +1128,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
     @patch(
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_keytab_is_configured"
     )
-    def test_063_kerberos_prepare_gssapi_backend(
+    def test_065_kerberos_prepare_gssapi_backend(
         self, mock_keytab, mock_pw_backend, mock_keytab_acquire
     ):
         """_kerberos_prepare_gssapi_backend dispatches by auth and keytab"""
@@ -1143,7 +1143,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIsNone(self.cahandler._kerberos_prepare_gssapi_backend())
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
-    def test_064_xcep_get_policies_cache_and_missing_cep(self, mock_soap):
+    def test_066_xcep_get_policies_cache_and_missing_cep(self, mock_soap):
         """GetPolicies cache hit; missing cep_url raises"""
         self.cahandler.cep_url = None
         with self.assertRaises(RuntimeError):
@@ -1156,7 +1156,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         mock_soap.assert_called_once()
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.os.path.exists")
-    def test_065_ca_certificates_from_file(self, mock_exists):
+    def test_067_ca_certificates_from_file(self, mock_exists):
         """ca_certificates file missing, read error, success"""
         self.cahandler.ca_certificates = None
         self.assertEqual([], self.cahandler._ca_certificates_from_file())
@@ -1176,7 +1176,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("Failed to read ca_certificates", lcm2.output[0])
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._xcep_get_policies")
-    def test_066_ca_certificates_from_cep_exception(self, mock_policies):
+    def test_068_ca_certificates_from_cep_exception(self, mock_policies):
         """CEP fetch failure returns empty CA list"""
         self.cahandler.cep_url = "https://cep.example/CEP"
         mock_policies.side_effect = RuntimeError("cep down")
@@ -1187,7 +1187,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual([], self.cahandler._ca_certificates_from_cep())
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._xcep_get_policies")
-    def test_067_ca_templates_membership_check(self, mock_policies):
+    def test_069_ca_templates_membership_check(self, mock_policies):
         """ca_templates_check off/warn/on paths"""
         self.cahandler.ca_templates_check = "off"
         self.assertIsNone(self.cahandler._ca_templates_membership_check())
@@ -1208,7 +1208,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         mock_policies.return_value = {"templates": ["WebServer"]}
         self.assertIsNone(self.cahandler._ca_templates_membership_check())
 
-    def test_068_result_from_wstep_branches(self):
+    def test_070_result_from_wstep_branches(self):
         """_result_from_wstep issued/pending/denied/unknown edge cases"""
         err, bundle, raw, poll = self.cahandler._result_from_wstep(
             {"status": "issued", "token": None}
@@ -1248,7 +1248,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._wstep_issue")
-    def test_069_enroll_internal_paths(self, mock_issue, mock_ecl):
+    def test_071_enroll_internal_paths(self, mock_issue, mock_ecl):
         """_enroll logs config, template error, exception"""
         self.cahandler.enrollment_config_log = True
         self.cahandler.ces_url = "https://ces.example.com/CES"
@@ -1272,7 +1272,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_069b_enroll_discovers_ces_from_cep(self, mock_load_cfg, mock_soap):
+    def test_072_enroll_discovers_ces_from_cep(self, mock_load_cfg, mock_soap):
         """enroll without ces_url uses CEP GetPolicies to pick CES"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -1307,7 +1307,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
             ces_calls[0].args[0],
         )
 
-    def test_069c_ces_url_resolve_errors(self):
+    def test_073_ces_url_resolve_errors(self):
         """_ces_url_resolve reports missing CEP/template and unknown template"""
         self.cahandler.ces_url = None
         self.cahandler.cep_url = None
@@ -1333,7 +1333,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("WebServer", err)
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_070_handler_check_requires_password_without_keytab(self, mock_load_cfg):
+    def test_074_handler_check_requires_password_without_keytab(self, mock_load_cfg):
         """handler_check requires ces_username/password when no keytab"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -1355,7 +1355,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         return_value=None,
     )
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.load_config")
-    def test_071_enroll_config_and_https_errors(
+    def test_075_enroll_config_and_https_errors(
         self, mock_load_cfg, _mock_kerb, _mock_bind
     ):
         """enroll configuration and HTTPS validation errors"""
@@ -1385,7 +1385,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
         return_value="kerb err",
     )
-    def test_072_enroll_kerberos_prepare_error(
+    def test_076_enroll_kerberos_prepare_error(
         self, _mock_prepare, _mock_bind, mock_cleanup
     ):
         """enroll returns kerberos prepare error"""
@@ -1405,7 +1405,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
         return_value=None,
     )
-    def test_073_enroll_kerberos_bind_error(
+    def test_077_enroll_kerberos_bind_error(
         self, _mock_prepare, _mock_bind, _mock_cleanup
     ):
         """enroll returns kerberos bind error"""
@@ -1428,7 +1428,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscepces_ca_handler.eab_profile_header_info_check",
         return_value="eab bad",
     )
-    def test_074_enroll_eab_error(
+    def test_078_enroll_eab_error(
         self, _mock_eab, _mock_prepare, _mock_bind, mock_cleanup
     ):
         """enroll returns eab profile error"""
@@ -1452,7 +1452,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscepces_ca_handler.eab_profile_header_info_check",
         return_value=None,
     )
-    def test_075_enroll_allowed_templates_error(
+    def test_079_enroll_allowed_templates_error(
         self, _mock_eab, _mock_prepare, _mock_bind, mock_cleanup
     ):
         """enroll rejects disallowed template"""
@@ -1462,7 +1462,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("not in allowed_templates", error)
         self.assertTrue(mock_cleanup.called)
 
-    def test_076_poll_invalid_and_missing_ces(self):
+    def test_080_poll_invalid_and_missing_ces(self):
         """poll invalid identifier and missing CES URL"""
         error, _, _, _, _ = self.cahandler.poll("c", "", TEST_CSR_B64)
         self.assertEqual("Invalid poll identifier", error)
@@ -1477,7 +1477,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
         return_value=None,
     )
-    def test_077_poll_https_kerberos_and_bind(self, mock_prepare, _mock_bind):
+    def test_081_poll_https_kerberos_and_bind(self, mock_prepare, _mock_bind):
         """poll HTTPS check and kerberos errors"""
         self.cahandler.ces_url = "http://ces/CES"
         error, _, _, _, _ = self.cahandler.poll("c", "111", TEST_CSR_B64)
@@ -1511,7 +1511,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
         return_value=None,
     )
-    def test_078_poll_denied_pending_exception(
+    def test_082_poll_denied_pending_exception(
         self, _mock_prepare, _mock_bind, _mock_auth
     ):
         """poll denied, pending poll id refresh, and exception"""
@@ -1546,7 +1546,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual(self.cahandler.CERT_FETCH_ERROR, error)
         self.assertIn("Failed to poll certificate", lcm.output[0])
 
-    def test_079_token_to_pem_bundle_pkcs7_text_success(self):
+    def test_083_token_to_pem_bundle_pkcs7_text_success(self):
         """_token_to_pem_bundle uses pkcs7_to_pem for PEM-shaped token text"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _token_to_pem_bundle
 
@@ -1559,7 +1559,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         mock_p7.assert_called_once()
         self.assertTrue(raw)
 
-    def test_080_token_to_pem_bundle_pem_parse_fallback_fail(self):
+    def test_084_token_to_pem_bundle_pem_parse_fallback_fail(self):
         """invalid PEM text falls through when pkcs7 and x509 parse fail"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _token_to_pem_bundle
 
@@ -1573,7 +1573,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIsNone(raw)
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.base64.b64decode")
-    def test_081_token_to_pem_bundle_str_raw(self, mock_b64):
+    def test_085_token_to_pem_bundle_str_raw(self, mock_b64):
         """_token_to_pem_bundle handles str raw from failed base64 decode"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _token_to_pem_bundle
 
@@ -1586,7 +1586,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIsNone(raw)
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.pkcs7_to_pem")
-    def test_082_token_to_pem_bundle_der_pkcs7(self, mock_p7):
+    def test_086_token_to_pem_bundle_der_pkcs7(self, mock_p7):
         """_token_to_pem_bundle falls back to pkcs7 on DER failure"""
         from acme2certifier.cahandlers.mscepces_ca_handler import _token_to_pem_bundle
 
@@ -1594,7 +1594,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         bundle, raw = _token_to_pem_bundle(self.logger, "AA==")
         self.assertTrue(raw)
 
-    def test_083_session_auth_uses_bound_gssapi_creds(self):
+    def test_087_session_auth_uses_bound_gssapi_creds(self):
         """_session_auth passes pre-bound _gssapi_creds"""
         calls = []
 
@@ -1612,7 +1612,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertEqual("bound", calls[0]["creds"])
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.requests.post")
-    def test_084_soap_post_success_200(self, mock_post):
+    def test_088_soap_post_success_200(self, mock_post):
         """_soap_post returns body on HTTP 200"""
         from acme2certifier.cahandlers.mscepces_ca_handler import (
             _xcep_get_policies_body,
@@ -1632,7 +1632,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         return_value="/tmp/cc",
     )
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.importlib.import_module")
-    def test_085_kerberos_gssapi_creds_from_cache_success(
+    def test_089_kerberos_gssapi_creds_from_cache_success(
         self, mock_import, _mock_ccache
     ):
         """successful GSSAPI credential load from ccache"""
@@ -1650,7 +1650,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         return_value="/tmp/cc",
     )
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.importlib.import_module")
-    def test_086_kerberos_gssapi_creds_from_cache_load_error(
+    def test_090_kerberos_gssapi_creds_from_cache_load_error(
         self, mock_import, _mock_ccache
     ):
         """Credentials load failure returns error string"""
@@ -1664,7 +1664,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         self.assertIn("Failed to load GSSAPI credentials", err)
 
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._xcep_get_policies")
-    def test_087_ca_templates_membership_cep_warn(self, mock_policies):
+    def test_091_ca_templates_membership_cep_warn(self, mock_policies):
         """ca_templates_check=warn logs CEP GetPolicies failure"""
         self.cahandler.ca_templates_check = "warn"
         self.cahandler.cep_url = "https://cep/CEP"
@@ -1674,12 +1674,12 @@ class TestMscepcesCaHandler(unittest.TestCase):
             self.assertIsNone(self.cahandler._ca_templates_membership_check())
         self.assertIn("CEP GetPolicies failed", lcm.output[0])
 
-    def test_088_trigger_not_implemented(self):
+    def test_092_trigger_not_implemented(self):
         """trigger returns not implemented"""
         result = self.cahandler.trigger("payload")
         self.assertEqual(("Method not implemented.", None, None), result)
 
-    def test_089_wstep_reference_without_uri(self):
+    def test_093_wstep_reference_without_uri(self):
         """Reference element without a URI attribute yields no reference."""
         import xml.etree.ElementTree as ET
         from acme2certifier.cahandlers.mscepces_ca_handler import (
@@ -1688,6 +1688,122 @@ class TestMscepcesCaHandler(unittest.TestCase):
 
         root = ET.fromstring("<Response><Reference Id='token'/></Response>")
         self.assertIsNone(_wstep_reference_uri(self.logger, root))
+
+    def test_094_xcep_policy_edge_cases(self):
+        """skip empty URIs, bad priorities, and fall back to a single CES URI"""
+        from acme2certifier.cahandlers.mscepces_ca_handler import (
+            _ces_uri_from_policies,
+            _parse_xcep_get_policies,
+        )
+
+        xml = """<?xml version="1.0"?>
+        <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+          <s:Body>
+            <GetPoliciesResponse xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy">
+              <response>
+                <policies>
+                  <policy>
+                    <cAs>
+                      <cAReference></cAReference>
+                      <cAReference>missing</cAReference>
+                    </cAs>
+                    <attributes></attributes>
+                  </policy>
+                  <policy>
+                    <cAs>
+                      <cAReference></cAReference>
+                      <cAReference>0</cAReference>
+                    </cAs>
+                    <attributes><commonName>NoUris</commonName></attributes>
+                  </policy>
+                </policies>
+              </response>
+              <cAs>
+                <cA>
+                  <uris>
+                    <cAURI><uri></uri><priority>3</priority></cAURI>
+                    <cAURI>
+                      <uri>https://ces.example/bad-priority/CES</uri>
+                      <priority>zz</priority>
+                    </cAURI>
+                    <cAURI>
+                      <uri>https://ces.example/no-priority/CES</uri>
+                    </cAURI>
+                  </uris>
+                  <cAReferenceID>9</cAReferenceID>
+                </cA>
+              </cAs>
+              <uri></uri>
+              <uri>https://ces.example/fallback/CES</uri>
+            </GetPoliciesResponse>
+          </s:Body>
+        </s:Envelope>
+        """
+        result = _parse_xcep_get_policies(self.logger, xml)
+        self.assertEqual(["NoUris"], result["templates"])
+        self.assertEqual(
+            [
+                "https://ces.example/bad-priority/CES",
+                "https://ces.example/no-priority/CES",
+                "https://ces.example/fallback/CES",
+            ],
+            result["ces_uris"],
+        )
+        self.assertEqual(
+            "https://only.example/CES",
+            _ces_uri_from_policies(
+                self.logger, {"ces_uris": ["https://only.example/CES"]}, "Missing"
+            ),
+        )
+        self.assertIsNone(
+            _ces_uri_from_policies(
+                self.logger,
+                {"ces_uris": ["https://a/CES", "https://b/CES"]},
+                "Missing",
+            )
+        )
+
+    def test_095_ces_discovery_and_enroll_errors(self):
+        """CES discovery failures and cleartext CES URLs stop enrollment"""
+        self.cahandler.ca_templates_check = "off"
+        self.cahandler.ces_url = None
+        self.cahandler.cep_url = "https://cep.example/CEP"
+        self.cahandler.template = "WebServer"
+        with patch.object(
+            self.cahandler, "_xcep_get_policies", side_effect=RuntimeError("down")
+        ):
+            url, err = self.cahandler._ces_url_resolve()
+        self.assertIsNone(url)
+        self.assertIn("GetPolicies failed", err)
+
+        with patch.object(
+            self.cahandler,
+            "_xcep_get_policies",
+            return_value={
+                "template_ces": {
+                    "WebServer": ["https://a.example/CES", "https://b.example/CES"]
+                }
+            },
+        ):
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                url, err = self.cahandler._ces_url_resolve()
+        self.assertEqual("https://a.example/CES", url)
+        self.assertIsNone(err)
+        self.assertIn("Multiple CES URIs for template 'WebServer'", lcm.output[0])
+
+        self.cahandler.cep_url = None
+        err, cert_bundle, cert_raw, poll = self.cahandler._enroll(TEST_CSR_B64)
+        self.assertIn("cep_url is missing", err)
+        self.assertIsNone(cert_bundle)
+        self.assertIsNone(cert_raw)
+        self.assertIsNone(poll)
+
+        self.cahandler.ces_url = "http://ces.example/CES"
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            err, cert_bundle, cert_raw, poll = self.cahandler._enroll(TEST_CSR_B64)
+        self.assertIn("must use HTTPS", err)
+        self.assertIsNone(cert_bundle)
+        self.assertTrue(any("must use HTTPS" in line for line in lcm.output))
 
     def _set_enroll_ready(self):
         """Set minimal fields for enroll/poll gssapi/username paths."""

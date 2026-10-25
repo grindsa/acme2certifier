@@ -172,9 +172,7 @@ def _otlp_traces_endpoint(base: str) -> str:
     return f"{base}/v1/traces"
 
 
-def _config_db_span_methods(
-    config_dic: Any, logger: logging.Logger
-) -> FrozenSet[str]:
+def _config_db_span_methods(config_dic: Any, logger: logging.Logger) -> FrozenSet[str]:
     """Parse ``db_span_methods`` JSON list; missing/invalid → default allowlist."""
     if _SECTION not in config_dic:
         return _DEFAULT_DB_SPAN_METHODS
@@ -278,9 +276,7 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
     service_name = _config_get(config_dic, "service_name", _DEFAULT_SERVICE_NAME)
     sample_ratio = _config_sample_ratio(config_dic)
     # Default off: Jaeger all-in-one often has no /v1/metrics (404 spam).
-    metrics_export = _config_getboolean(
-        config_dic, "metrics_export", fallback=False
-    )
+    metrics_export = _config_getboolean(config_dic, "metrics_export", fallback=False)
     _db_span_methods = _config_db_span_methods(config_dic, log)
 
     if protocol not in ("http/protobuf", "http", "http/json"):
@@ -314,9 +310,7 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
             log,
             kind="spans",
         )
-        tracer_provider.add_span_processor(
-            sdk["BatchSpanProcessor"](span_exporter)
-        )
+        tracer_provider.add_span_processor(sdk["BatchSpanProcessor"](span_exporter))
         sdk["trace"].set_tracer_provider(tracer_provider)
         _tracer = sdk["trace"].get_tracer("acme2certifier")
 
@@ -500,6 +494,7 @@ class _ResilientExporter:
             self._logger.debug(
                 "OpenTelemetry: %s export still failing: %s", self._kind, detail
             )
+
 
 def set_span_outcome(
     active: Any,

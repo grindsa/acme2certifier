@@ -426,9 +426,7 @@ class Message(object):
                 set_span_outcome(active, "skipped")
             else:
                 code, message, detail = self.nonce.check(protected)
-                set_span_outcome(
-                    active, "success" if code == 200 else "failure"
-                )
+                set_span_outcome(active, "success" if code == 200 else "failure")
 
         self.logger.debug(
             "Message._check_nonce_for_replay_protection() ended with: %s", code

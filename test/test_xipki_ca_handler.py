@@ -601,6 +601,20 @@ class TestACMEHandler(unittest.TestCase):
             any("Could not parse certificate serial" in line for line in lcm.output)
         )
 
+    @patch(
+        "acme2certifier.cahandlers.xipki_ca_handler.eab_profile_header_info_check",
+        return_value=None,
+    )
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.CAhandler._cacert_cache")
+    def test_038_enroll_cache_error(self, mock_cache, _mock_eab):
+        """enroll stops when the CA certificate cache fails"""
+        mock_cache.return_value = ("Could not fetch /cacerts: HTTP 500", None)
+        error, bundle, cert_raw, poll = self.cahandler.enroll(self.csr_b64url)
+        self.assertEqual("Could not fetch /cacerts: HTTP 500", error)
+        self.assertIsNone(bundle)
+        self.assertIsNone(cert_raw)
+        self.assertIsNone(poll)
+
 
 if __name__ == "__main__":
     unittest.main()
