@@ -1,11 +1,20 @@
 # -*- coding: utf-8 -*-
-"""Tests for acme_srv.helpers.otel (NoOp gate + optional SDK InMemory cases)."""
+"""Tests for acme_srv.helpers.otel (NoOp gate + optional SDK InMemory cases).
+
+CI smoke ``test_054_otlp_http_export_appears_in_jaeger`` runs only when
+``A2C_OTEL_CI_SMOKE=1`` with a reachable OTLP HTTP collector / Jaeger UI.
+"""
 
 from __future__ import annotations
 
 import configparser
+import json
 import logging
+import os
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from contextlib import contextmanager
 from typing import Any, Tuple
 from unittest.mock import MagicMock, patch
@@ -1032,7 +1041,9 @@ def test_042_init_otel_metrics_strips_traces_suffix() -> None:
     assert metric_calls[0]["endpoint"] == "http://127.0.0.1:4318/v1/metrics"
 
 
-def test_043_init_otel_setup_failure_stays_noop(caplog: pytest.LogCaptureFixture) -> None:
+def test_043_init_otel_setup_failure_stays_noop(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """SDK constructor errors leave tracing disabled."""
     _require_otel_sdk()
     real_import = otel_mod._import_otel_sdk
@@ -1408,3 +1419,89 @@ def test_053_jws_trace_hints_and_setup_key_edges() -> None:
     assert otel_mod.setup_trace_key_for_request("/") == ""
     otel_mod._session_boundary_pending = False
     assert otel_mod.setup_trace_key_for_request("/acme/order/final/finalize") == ""
+
+
+def _smoke_enabled() -> bool:
+    return os.environ.get("A2C_OTEL_CI_SMOKE", "").strip() in ("1", "true", "True")
+
+
+def _jaeger_services(ui_base: str) -> list[str]:
+    url = f"{ui_base.rstrip('/')}/api/services"
+    with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310 — CI localhost
+        payload = json.loads(resp.read().decode("utf-8"))
+    data = payload.get("data")
+    if isinstance(data, list):
+        return [str(x) for x in data]
+    return []
+
+
+def _jaeger_trace_count(ui_base: str, service: str) -> int:
+    query = urllib.parse.urlencode({"service": service, "limit": "20"})
+    url = f"{ui_base.rstrip('/')}/api/traces?{query}"
+    with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310 — CI localhost
+        payload = json.loads(resp.read().decode("utf-8"))
+    data = payload.get("data")
+    if isinstance(data, list):
+        return len(data)
+    return 0
+
+
+def _force_flush(timeout_ms: int = 15000) -> None:
+    from opentelemetry import trace
+
+    provider = trace.get_tracer_provider()
+    flush = getattr(provider, "force_flush", None)
+    if callable(flush):
+        assert flush(timeout_millis=timeout_ms) is not False
+
+
+@pytest.mark.skipif(
+    not _smoke_enabled(),
+    reason="set A2C_OTEL_CI_SMOKE=1 with a reachable OTLP HTTP collector",
+)
+def test_054_otlp_http_export_appears_in_jaeger() -> None:
+    """Export one span via the facade; Jaeger must list the service + a trace."""
+    pytest.importorskip("opentelemetry.sdk")
+    endpoint = os.environ.get("A2C_OTEL_ENDPOINT", "http://127.0.0.1:4318").strip()
+    service = os.environ.get("A2C_OTEL_SERVICE_NAME", "acme2certifier-ci").strip()
+    ui = os.environ.get("A2C_OTEL_JAEGER_UI", "http://127.0.0.1:16686").strip()
+
+    # Allow set_*_provider again after other tests / prior init.
+    _reset_otel_api_providers()
+
+    cfg = _cfg(
+        opentelemetry_support="True",
+        endpoint=endpoint,
+        protocol="http/protobuf",
+        service_name=service,
+        sample_ratio="1.0",
+        metrics_export="False",
+    )
+    logger = logging.getLogger("acme2certifier")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(otel_mod, "load_config", lambda *_a, **_k: cfg)
+        assert otel_mod.init_otel(logger) is True
+
+    with otel_mod.span(
+        "acme.ci.smoke",
+        attributes={"acme.outcome": "success", "ci.smoke": True},
+    ):
+        pass
+
+    _force_flush()
+
+    deadline = time.time() + 45.0
+    last_err: Any = None
+    while time.time() < deadline:
+        try:
+            services = _jaeger_services(ui)
+            if service in services and _jaeger_trace_count(ui, service) >= 1:
+                return
+        except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as err:
+            last_err = err
+        time.sleep(1.0)
+
+    raise AssertionError(
+        f"Jaeger did not show service={service!r} with traces within timeout "
+        f"(endpoint={endpoint}, last_err={last_err})"
+    )
