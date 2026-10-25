@@ -1024,17 +1024,13 @@ class Account:
                 attributes={"acme.account.operation": "onlyreturnexisting"},
             ) as active:
                 code, message, detail = self._onlyreturnexisting(protected, payload)
-                set_span_outcome(
-                    active, "success" if code == 200 else "failure"
-                )
+                set_span_outcome(active, "success" if code == 200 else "failure")
                 if code == 200 and message:
                     active.set_attribute("acme.account_name", str(message))
         else:
             with span("acme.account.create") as active:
                 code, message, detail = self._create_account(payload, protected)
-                set_span_outcome(
-                    active, "success" if code in (200, 201) else "failure"
-                )
+                set_span_outcome(active, "success" if code in (200, 201) else "failure")
                 if code in (200, 201) and message:
                     active.set_attribute("acme.account_name", str(message))
 
@@ -1088,9 +1084,7 @@ class Account:
                 return response_dic
         elif "payload" in payload:
             with span("acme.account.key_change", attributes=span_attrs) as active:
-                response_dic = self._handle_key_change(
-                    account_name, payload, protected
-                )
+                response_dic = self._handle_key_change(account_name, payload, protected)
                 set_span_outcome(
                     active, self._outcome_from_response_code(response_dic.get("code"))
                 )
