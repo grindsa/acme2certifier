@@ -259,7 +259,7 @@ Communication is **SOAP over HTTPS**, not REST. Every call is `POST` with `Conte
 </GetPolicies> s
 ```
 
-Parse: template `commonName`, CES URIs under `cAs/cA/uris/cAURI/uri`. Example: [MS-XCEP GetPoliciesResponse](      sen-us/openspecs/windows_protocols/ms-xcep/).
+Parse: template `commonName`, CES URIs under `cAs/cA/uris/cAURI/uri`. Example: [MS-XCEP GetPoliciesResponse](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xcep/).
 
 ### Call 2 — CES Issue (required on enroll)
 
