@@ -531,9 +531,9 @@ def test_account_tip_isolates_authenticated_clients() -> None:
 
 def test_sdk_http_request_span_kind_server() -> None:
     """http.request uses SERVER span kind when the SDK is present."""
+    span_exporter, _reader = _enable_inmemory_providers()
     from opentelemetry.trace import SpanKind
 
-    span_exporter, _reader = _enable_inmemory_providers()
     with otel_mod.http_request_span("GET", "/directory"):
         pass
     root = span_exporter.get_finished_spans()[0]
@@ -679,9 +679,9 @@ def test_init_otel_metrics_export_opt_in() -> None:
 
 def test_set_span_outcome_error_sets_status() -> None:
     """outcome=error marks StatusCode.ERROR; failure does not."""
+    span_exporter, _reader = _enable_inmemory_providers()
     from opentelemetry.trace import StatusCode
 
-    span_exporter, _reader = _enable_inmemory_providers()
     with otel_mod.span("acme.certificate.enroll") as active:
         otel_mod.set_span_outcome(active, "failure")
     with otel_mod.span("acme.certificate.enroll") as active:

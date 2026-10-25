@@ -705,6 +705,8 @@ def application(environ, start_response):
                 mark_http_status(active, int(str(status).split()[0]))
             except (TypeError, ValueError, IndexError, AttributeError):
                 pass
+            if exc_info is None:
+                return start_response(status, headers)
             return start_response(status, headers, exc_info)
 
         for regex, callback in URLS:
