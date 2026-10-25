@@ -84,7 +84,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Enable OpenTelemetry (Jaeger + pip [otel] + restart)"
+      - name: "Enable OpenTelemetry (Jaeger + config + restart)"
         uses: ./.github/actions/wf_specific/opentelemetry/enable
 
       - name: "ACME enroll (generate spans)"

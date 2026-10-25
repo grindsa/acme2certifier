@@ -46,11 +46,23 @@ runs:
     - name: "Assert CRITICAL export failure; no logging format crash"
       run: |
         set -euo pipefail
-        # Give the batch exporter a moment to fail
-        sleep 8
-        LOGS=$(docker logs "${ACME_CONTAINER}" 2>&1 || true)
-        echo "${LOGS}" | grep -q "OpenTelemetry: spans export failed" \
-          || { echo "ERROR: missing CRITICAL/export-failed log" >&2; echo "${LOGS}" | tail -n 200; exit 1; }
+        # OTEL 1.45 HTTP exporter retries up to ~10s (+ BSP schedule delay)
+        # before _ResilientExporter can log CRITICAL; poll instead of a fixed sleep.
+        LOGS=""
+        found=0
+        for _ in $(seq 1 45); do
+          LOGS=$(docker logs "${ACME_CONTAINER}" 2>&1 || true)
+          if echo "${LOGS}" | grep -q "OpenTelemetry: spans export failed"; then
+            found=1
+            break
+          fi
+          sleep 1
+        done
+        if [[ "${found}" -ne 1 ]]; then
+          echo "ERROR: missing CRITICAL/export-failed log after 45s" >&2
+          echo "${LOGS}" | tail -n 200
+          exit 1
+        fi
         if echo "${LOGS}" | grep -q "Formatting field not found in record: 'otelTraceID'"; then
           echo "ERROR: otelTraceID formatting failure in logs" >&2
           exit 1
