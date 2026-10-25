@@ -19,7 +19,7 @@ pip install 'acme2certifier[otel]'
 
 Use a dedicated/disposable virtualenv for the extra; do not require OTEL packages for a normal install. Distro DEB/RPM packages do **not** pull OTEL dependencies — install the PyPI extra (or equivalent wheels) only where you enable the feature.
 
-If `opentelemetry_support` is `True` but packages are missing, boot continues with a NoOp facade and an error is logged.
+If `opentelemetry_support` is `True` but packages are missing, boot continues with a NoOp warning and an error is logged.
 
 ## Configuration (`[OpenTelemetry]`)
 
@@ -67,14 +67,6 @@ Restart acme2certifier after changing the file. Init runs from the shared ACME H
 | `acme.ca_handler.call` (enroll / revoke) | `acme.ca_handler.call` (counter; handler + operation + outcome) |
 | `acme.db.<operation>` (light DBstore API; allowlist via `db_span_methods`, default writes only) | |
 
-**Enrollment-session single trace:** Django middleware and classic WSGI share `acme_traced_request()`:
-
-- **POSTs:** continue via a *remembered* `nonce:<Replay-Nonce>` (key consumed after continue). Unused keys are dropped on nonce expiry housekeeping, on session-boundary consume, and by a **TTL + max-size** cap on the in-process store (default TTL 86400s / max 1024 entries). If that nonce is not in the store, fall back to an **account tip** (when the JWS `kid` is known) or the **global session tip**.
-- **Same-session GETs** (`/`, `directory`, `newNonce`, ARI `renewal-info/…`): continue the tip (`/` → `directory` stay one tree).
-- **Session boundary:** after a successful enroll, the next `/` or `directory` starts a **new** root (and clears leftover `nonce:` keys). The armed flag is **process-global** on the worker (thread-safe consume): client A’s enroll may cause client B’s next entry GET to open a new root (usually harmless), and the reverse can split A’s next directory onto a fresh tree.
-- Tip/nonce remember always binds to the active `acme.http.request` (`span.kind=SERVER`), so the tree is a chain of HTTP requests with work nested underneath.
-- **JWS tip parse:** nonce/`kid` extraction from POST bodies is capped (64 KiB). Larger bodies skip chaining hints (request still runs; tip/nonce continue may fall back).
-
 **Limits (experimental):** Tip/nonce state is **in-process only** (not shared across workers). The **global** tip is last-writer-wins for anonymous GETs on one worker (two clients hitting `/`/`directory` concurrently can interleave). After requests carry an account `kid`, each account keeps its **own** tip so authenticated hops stay separated. Challenge validation and certificate enrollment run in `ThreadWithReturnValue` so child spans keep the enrollment-session context.
 
 Common attributes (when available): `http.method`, `http.route`, `http.status_code`, `acme.challenge_type`, `acme.identifier_type`, `acme.cahandler`, `acme.ca_operation`, `acme.order_name`, `acme.account_name`, `acme.outcome`, `db.operation`, `db.system` (DBstore `type`, e.g. `wsgi` / `django`).
@@ -82,30 +74,6 @@ Common attributes (when available): `http.method`, `http.route`, `http.status_co
 **Span status (Jaeger error flag):** OTEL `StatusCode.ERROR` is set only for server-side failures — `acme.outcome=error` (exceptions / unexpected internal failures) and HTTP `5xx` on `acme.http.request`. ACME protocol rejects stay `acme.outcome=failure` (or `skipped`) without ERROR status.
 
 **Log ↔ trace:** `logger_setup` / `init_otel` attach a filter (on loggers **and handlers**) that sets `otelTraceID` and `otelSpanID` on LogRecords. Include them in `[Helper] log_format` (see [Logging](logging.md)). Values are zeros when OTEL is off or no span is active. Handler attachment matters so OTEL SDK / other child loggers that propagate to root do not break formatting.
-
-**Collector down:** OTLP export runs in a background worker and must not affect ACME. Unreachable collectors are logged once at `CRITICAL` on the a2c logger; further failures stay at `DEBUG`. Requests continue.
-
-**Not in v1 (feedback-driven):** Prometheus scrape endpoint, Django/DB auto-instrumentation, per-handler deep spans beyond `acme.ca_handler.call`.
-
-## CI
-
-GitHub Actions workflow **Feature Tests - OpenTelemetry** (`.github/workflows/feature-opentelemetry.yml`), dispatched with other feature workflows via the artifacts broker:
-
-- Container matrix (`apache2`/`nginx` × `wsgi`/`django`) from producer images.
-- Enable experimental OTEL inside the running container (`pip install` OTEL packages; images do not ship `[otel]` yet), Jaeger all-in-one on the ACME docker network, restart a2c.
-- Lego enroll → assert Jaeger has traces for `service_name` (`acme2certifier`).
-- Stop Jaeger → enroll again → assert ACME still succeeds and logs contain the span-export `CRITICAL` (no `otelTraceID` logging crash).
-
-Local unit coverage remains `pytest test/test_opentelemetry.py` (optional `[otel]`). Optional collector smoke: `A2C_OTEL_CI_SMOKE=1 pytest test/test_opentelemetry_ci_smoke.py`.
-
-## Lab smoke (Jaeger)
-
-1. Run Jaeger (OTLP HTTP on `:4318`, UI on `:16686`) — any OTLP-compatible backend works; a common self-hosted choice is `jaegertracing/all-in-one` with `COLLECTOR_OTLP_ENABLED=true`.
-2. Install `[otel]`, set `[OpenTelemetry]` as above (`endpoint` pointing at that collector), restart a2c.
-3. Exercise challenge validation and/or enrollment.
-4. Open the Jaeger UI → service **`acme2certifier`** (or your `service_name`) → Find Traces.
-
-If a2c and Jaeger run on different hosts, use the collector’s reachable address (for example `http://192.168.64.3:4318`). On the same host, `http://127.0.0.1:4318` is enough.
 
 ## Related
 
