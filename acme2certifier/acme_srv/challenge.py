@@ -30,7 +30,13 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ownership_lookup_failed,
     resolve_resource_ownership,
 )
-from acme2certifier.acme_srv.helpers.otel import counter_add, set_span_outcome, span
+from acme2certifier.acme_srv.helpers.otel import (
+    ATTR_CHALLENGE_TYPE,
+    ATTR_OUTCOME,
+    counter_add,
+    set_span_outcome,
+    span,
+)
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message, finish_response
 
@@ -234,7 +240,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
     def create_challenge(self, request: ChallengeCreationRequest) -> Optional[str]:
         """Create a new challenge and return its name."""
         self.logger.debug("DatabaseChallengeRepository.create_challenge(%s)", request)
-        chall_attrs = {"acme.challenge_type": request.challenge_type or ""}
+        chall_attrs = {ATTR_CHALLENGE_TYPE: request.challenge_type or ""}
         with span("acme.challenge.create", attributes=chall_attrs) as chall_span:
             try:
                 challenge_name = generate_random_string(self.logger, 12)
@@ -513,7 +519,7 @@ class Challenge:
             raise ValidationError("Could not retrieve challenge details for validation")
 
         challenge_type = challenge_details["type"]
-        span_attrs = {"acme.challenge_type": challenge_type}
+        span_attrs = {ATTR_CHALLENGE_TYPE: challenge_type}
 
         with span("acme.challenge.validate", attributes=span_attrs) as active:
             try:
@@ -554,8 +560,8 @@ class Challenge:
                 counter_add(
                     "acme.challenge.validation",
                     attributes={
-                        "acme.challenge_type": challenge_type,
-                        "acme.outcome": outcome,
+                        ATTR_CHALLENGE_TYPE: challenge_type,
+                        ATTR_OUTCOME: outcome,
                     },
                 )
                 return result
@@ -564,8 +570,8 @@ class Challenge:
                 counter_add(
                     "acme.challenge.validation",
                     attributes={
-                        "acme.challenge_type": challenge_type,
-                        "acme.outcome": "error",
+                        ATTR_CHALLENGE_TYPE: challenge_type,
+                        ATTR_OUTCOME: "error",
                     },
                 )
                 raise

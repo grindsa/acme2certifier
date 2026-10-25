@@ -836,29 +836,22 @@ class CAhandler(KerberosAuthMixin):
         order_values = config_allowed_header_values_load(self.logger, config_dic)
         if order_values:
             self.allowed_templates = order_values
-            self.logger.debug("CAhandler._config_allowed_templates_load() ended")
-            return
-
-        if (
-            "CAhandler" not in config_dic
-            or "allowed_templates" not in config_dic["CAhandler"]
+        elif (
+            "CAhandler" in config_dic and "allowed_templates" in config_dic["CAhandler"]
         ):
-            self.logger.debug("CAhandler._config_allowed_templates_load() ended")
-            return
-
-        self.logger.warning(
-            "CAhandler allowed_templates is deprecated for header allowlisting; "
-            "move the list to [Order] allowed_header_values"
-        )
-        try:
-            loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
-            if isinstance(loaded, list):
-                self.allowed_templates = [str(item) for item in loaded]
-        except Exception as err_:
             self.logger.warning(
-                "Failed to parse allowed_templates from configuration: %s", err_
+                "CAhandler allowed_templates is deprecated for header allowlisting; "
+                "move the list to [Order] allowed_header_values"
             )
-            self.allowed_templates = []
+            try:
+                loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
+                if isinstance(loaded, list):
+                    self.allowed_templates = [str(item) for item in loaded]
+            except Exception as err_:
+                self.logger.warning(
+                    "Failed to parse allowed_templates from configuration: %s", err_
+                )
+                self.allowed_templates = []
         self.logger.debug("CAhandler._config_allowed_templates_load() ended")
 
     def _config_proxy_load(self, config_dic: Dict[str, str]) -> None:
