@@ -53,12 +53,8 @@ class TestAcmeOpenTelemetryMiddleware(unittest.TestCase):
         traced.return_value.__enter__.return_value = active
         traced.return_value.__exit__.return_value = False
         with (
-            patch(
-                "acme2certifier.django_app.middleware.acme_traced_request", traced
-            ),
-            patch(
-                "acme2certifier.django_app.middleware.mark_http_status"
-            ) as mark,
+            patch("acme2certifier.django_app.middleware.acme_traced_request", traced),
+            patch("acme2certifier.django_app.middleware.mark_http_status") as mark,
         ):
             middleware = AcmeOpenTelemetryMiddleware(lambda _req: response)
             self.assertIs(response, middleware(request))
@@ -76,12 +72,8 @@ class TestAcmeOpenTelemetryMiddleware(unittest.TestCase):
         traced.return_value.__enter__.return_value = MagicMock()
         traced.return_value.__exit__.return_value = False
         with (
-            patch(
-                "acme2certifier.django_app.middleware.acme_traced_request", traced
-            ),
-            patch(
-                "acme2certifier.django_app.middleware.mark_http_status"
-            ) as mark,
+            patch("acme2certifier.django_app.middleware.acme_traced_request", traced),
+            patch("acme2certifier.django_app.middleware.mark_http_status") as mark,
         ):
             middleware = AcmeOpenTelemetryMiddleware(lambda _req: response)
             self.assertIs(response, middleware(request))
