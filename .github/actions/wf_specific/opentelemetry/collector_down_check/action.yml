@@ -52,7 +52,8 @@ runs:
         found=0
         for _ in $(seq 1 45); do
           LOGS=$(docker logs "${ACME_CONTAINER}" 2>&1 || true)
-          if echo "${LOGS}" | grep -q "OpenTelemetry: spans export failed"; then
+          # Avoid echo|grep -q under pipefail: large logs + early match → SIGPIPE (141).
+          if grep -qF "OpenTelemetry: spans export failed" <<< "${LOGS}"; then
             found=1
             break
           fi
@@ -60,14 +61,14 @@ runs:
         done
         if [[ "${found}" -ne 1 ]]; then
           echo "ERROR: missing CRITICAL/export-failed log after 45s" >&2
-          echo "${LOGS}" | tail -n 200
+          tail -n 200 <<< "${LOGS}"
           exit 1
         fi
-        if echo "${LOGS}" | grep -q "Formatting field not found in record: 'otelTraceID'"; then
+        if grep -qF "Formatting field not found in record: 'otelTraceID'" <<< "${LOGS}"; then
           echo "ERROR: otelTraceID formatting failure in logs" >&2
           exit 1
         fi
-        if echo "${LOGS}" | grep -q "^--- Logging error ---"; then
+        if grep -q "^--- Logging error ---" <<< "${LOGS}"; then
           echo "ERROR: Python Logging error section present" >&2
           exit 1
         fi
