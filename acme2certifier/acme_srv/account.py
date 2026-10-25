@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import json
-from typing import List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 from dataclasses import dataclass, field
 from acme2certifier.acme_srv.helper import (
     generate_random_string,
