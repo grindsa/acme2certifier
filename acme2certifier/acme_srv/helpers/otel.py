@@ -6,8 +6,6 @@ When disabled or when the SDK is missing, all helpers are no-ops so the
 core package stays free of an OpenTelemetry dependency.
 """
 
-from __future__ import annotations
-
 import base64
 import json
 import logging
@@ -15,7 +13,7 @@ import threading
 import time
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Tuple, Union
+from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Set, Tuple, Union
 
 from .config import load_config
 
@@ -49,6 +47,8 @@ SESSION_TIP_KEY = "acme:session_tip"
 # After the account ``kid`` is known, tip continues under this prefix so two
 # enrolled clients on one worker do not share one tip.
 ACCOUNT_TIP_PREFIX = "acme:session_tip:acct:"
+# Store key for a Replay-Nonce span context (``nonce:<value>``).
+NONCE_KEY_PREFIX = "nonce:"
 
 # After a successful enroll, the next ``/`` or ``directory`` starts a new
 # enrollment-session root instead of continuing the previous tip.
@@ -396,7 +396,7 @@ def install_log_correlation(
     breaks ``log_format`` containing ``%(otelTraceID)s``.
     """
     targets = [logger or logging.getLogger("acme2certifier"), logging.getLogger()]
-    seen_loggers: set[int] = set()
+    seen_loggers: Set[int] = set()
     for target in targets:
         if id(target) in seen_loggers:
             continue
@@ -724,8 +724,8 @@ def _first_key_matching(predicate: Callable[[str], bool]) -> Optional[str]:
 
 
 def _next_eviction_victim() -> Optional[str]:
-    """Pick the next overflow victim (prefer ``nonce:``, keep global tip last)."""
-    victim = _first_key_matching(lambda key: key.startswith("nonce:"))
+    """Pick the next overflow victim (prefer nonce keys, keep global tip last)."""
+    victim = _first_key_matching(lambda key: key.startswith(NONCE_KEY_PREFIX))
     if victim is not None:
         return victim
     victim = _first_key_matching(
@@ -737,7 +737,7 @@ def _next_eviction_victim() -> Optional[str]:
 
 
 def _evict_overflow_locked() -> None:
-    """Evict oldest entries until under max (prefer ``nonce:`` keys)."""
+    """Evict oldest entries until under max (prefer nonce keys)."""
     while len(_span_contexts) > _span_ctx_max:
         victim = _next_eviction_victim()
         if victim is None:
@@ -781,8 +781,8 @@ def _pop_span_context(key: str) -> None:
 
 
 def _drop_nonce_span_contexts_locked() -> None:
-    """Remove all ``nonce:`` entries (caller holds the lock)."""
-    for key in [k for k in _span_contexts if k.startswith("nonce:")]:
+    """Remove all nonce-prefixed entries (caller holds the lock)."""
+    for key in [k for k in _span_contexts if k.startswith(NONCE_KEY_PREFIX)]:
         _span_contexts.pop(key, None)
 
 
@@ -793,7 +793,11 @@ def forget_nonce_span_contexts(nonce_values: Any) -> None:
     keys = []
     for value in nonce_values:
         if isinstance(value, str) and value:
-            keys.append(value if value.startswith("nonce:") else f"nonce:{value}")
+            keys.append(
+                value
+                if value.startswith(NONCE_KEY_PREFIX)
+                else f"{NONCE_KEY_PREFIX}{value}"
+            )
     if not keys:
         return
     with _span_contexts_lock:
@@ -887,7 +891,7 @@ def continue_span_context(key: str) -> Iterator[None]:
     finally:
         if token is not None:
             otel_context.detach(token)
-        if key.startswith("nonce:"):
+        if key.startswith(NONCE_KEY_PREFIX):
             _pop_span_context(key)
 
 
@@ -955,7 +959,7 @@ def has_remembered_span_context(key: str) -> bool:
 
 
 def jws_trace_hints_from_body(
-    body: Union[bytes, str, None],
+    body: Optional[Union[bytes, str]],
 ) -> Tuple[str, str]:
     """Return ``(nonce_key, account_name)`` from a JWS body for tip chaining.
 
@@ -984,14 +988,14 @@ def jws_trace_hints_from_body(
         nonce_key = ""
         nonce = protected.get("nonce")
         if isinstance(nonce, str) and nonce:
-            nonce_key = f"nonce:{nonce}"
+            nonce_key = f"{NONCE_KEY_PREFIX}{nonce}"
         account_name = _account_name_from_kid(protected.get("kid"))
         return nonce_key, account_name
     except Exception:  # noqa: BLE001 — tracing must never break ACME
         return "", ""
 
 
-def nonce_trace_key_from_jws_body(body: Union[bytes, str, None]) -> str:
+def nonce_trace_key_from_jws_body(body: Optional[Union[bytes, str]]) -> str:
     """Extract ``nonce:<value>`` from a JWS body for session-trace continuation."""
     nonce_key, _account_name = jws_trace_hints_from_body(body)
     return nonce_key
@@ -1007,7 +1011,7 @@ def _is_challenge_resource_path(path: str) -> bool:
 
 def setup_trace_key_for_request(
     path: str,
-    body: Union[bytes, str, None] = None,
+    body: Optional[Union[bytes, str]] = None,
     hints: Optional[Tuple[str, str]] = None,
 ) -> str:
     """Return continue key for the enrollment-session trace.
@@ -1051,7 +1055,7 @@ def setup_trace_key_for_request(
 def acme_traced_request(
     method: str,
     path: str,
-    body: Union[bytes, str, None] = None,
+    body: Optional[Union[bytes, str]] = None,
 ) -> Iterator[Any]:
     """Continue the enrollment-session trace and open ``acme.http.request``.
 
