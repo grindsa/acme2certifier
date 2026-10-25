@@ -1,3 +1,8 @@
+<!-- markdownlint-disable MD013 MD029 -->
+
+<!-- wiki-title: CA Handler for Microsoft CEP/CES (MS-XCEP / MS-WSTEP) -->
+<!-- wiki-category: CA Handlers -->
+
 # CA Handler for Microsoft CEP/CES (MS-XCEP / MS-WSTEP)
 
 This CA handler enrolls certificates through Active Directory Certificate Services **Certificate Enrollment Policy Web Service (CEP)** and **Certificate Enrollment Web Service (CES)** using SOAP over HTTPS:

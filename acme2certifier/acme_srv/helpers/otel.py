@@ -27,6 +27,18 @@ _DEFAULT_SPAN_CTX_MAX = 1024
 _DEFAULT_SPAN_CTX_TTL_SEC = 86400  # match default Nonce.validity
 # Cap JWS body parse for tip/nonce chaining (ACME protected headers are small).
 _JWS_TRACE_BODY_MAX_BYTES = 65536
+# OTLP HTTP path suffix (also stripped when deriving a metrics base URL).
+_OTLP_TRACES_PATH = "/v1/traces"
+
+# Shared span / attribute / counter names (avoid duplicated string literals).
+ATTR_ACCOUNT_NAME = "acme.account_name"
+ATTR_AUTH_KIND = "acme.auth_kind"
+ATTR_CAHANDLER = "acme.cahandler"
+ATTR_CA_OPERATION = "acme.ca_operation"
+ATTR_CHALLENGE_TYPE = "acme.challenge_type"
+ATTR_OUTCOME = "acme.outcome"
+COUNTER_AUTH_FAILURE = "acme.auth.failure"
+SPAN_CA_HANDLER_CALL = "acme.ca_handler.call"
 
 _initialized: bool = False
 _enabled: bool = False
@@ -92,16 +104,16 @@ _SPAN_ID_ZERO = "0" * 16
 class _NoOpSpan:
     """Span stand-in used when OpenTelemetry is off or unavailable."""
 
-    def set_attribute(self, key: str, value: Any) -> None:
+    def set_attribute(self, _key: str, _value: Any) -> None:
         return None
 
-    def set_attributes(self, attributes: Dict[str, Any]) -> None:
+    def set_attributes(self, _attributes: Dict[str, Any]) -> None:
         return None
 
-    def set_status(self, status: Any) -> None:
+    def set_status(self, _status: Any) -> None:
         return None
 
-    def record_exception(self, exception: BaseException) -> None:
+    def record_exception(self, _exception: BaseException) -> None:
         return None
 
     def end(self) -> None:
@@ -167,9 +179,9 @@ def _config_sample_ratio(config_dic: Any) -> float:
 def _otlp_traces_endpoint(base: str) -> str:
     """Ensure OTLP HTTP traces path is present on the endpoint URL."""
     base = base.rstrip("/")
-    if base.endswith("/v1/traces"):
+    if base.endswith(_OTLP_TRACES_PATH):
         return base
-    return f"{base}/v1/traces"
+    return f"{base}{_OTLP_TRACES_PATH}"
 
 
 def _config_db_span_methods(config_dic: Any, logger: logging.Logger) -> FrozenSet[str]:
@@ -316,8 +328,8 @@ def init_otel(logger: Optional[logging.Logger] = None) -> bool:
 
         if metrics_export:
             metrics_base = endpoint.rstrip("/")
-            if metrics_base.endswith("/v1/traces"):
-                metrics_base = metrics_base[: -len("/v1/traces")]
+            if metrics_base.endswith(_OTLP_TRACES_PATH):
+                metrics_base = metrics_base[: -len(_OTLP_TRACES_PATH)]
             metrics_endpoint = f"{metrics_base.rstrip('/')}/v1/metrics"
             metric_exporter = _ResilientExporter(
                 sdk["OTLPMetricExporter"](endpoint=metrics_endpoint),
@@ -509,7 +521,7 @@ def set_span_outcome(
     if active is None:
         return
     try:
-        active.set_attribute("acme.outcome", outcome)
+        active.set_attribute(ATTR_OUTCOME, outcome)
     except Exception:  # noqa: BLE001
         return
     if outcome != "error" and exception is None:
@@ -629,11 +641,15 @@ def instrument_dbstore_class(cls: type) -> type:
     """
     if getattr(cls, "_otel_db_instrumented", False):
         return cls
-    for name, attr in list(vars(cls).items()):
-        if name.startswith("_") or not callable(attr):
-            continue
-        if getattr(attr, "_otel_db_wrapped", False):
-            continue
+    # Snapshot before setattr so class __dict__ is not mutated during iteration.
+    to_wrap = [
+        (name, attr)
+        for name, attr in vars(cls).items()
+        if not name.startswith("_")
+        and callable(attr)
+        and not getattr(attr, "_otel_db_wrapped", False)
+    ]
+    for name, attr in to_wrap:
         setattr(cls, name, _wrap_db_method(attr, name))
     cls._otel_db_instrumented = True  # type: ignore[attr-defined]
     return cls
@@ -1078,13 +1094,12 @@ def acme_traced_request(
     else:
         setup_key = setup_trace_key_for_request(path, body, hints=hints)
     joined = has_remembered_span_context(setup_key)
-    with continue_span_context(setup_key):
-        with http_request_span(method, path) as active:
-            try:
-                yield active
-            finally:
-                if joined or is_session_tip_path(path):
-                    remember_session_tip(account_name)
+    with continue_span_context(setup_key), http_request_span(method, path) as active:
+        try:
+            yield active
+        finally:
+            if joined or is_session_tip_path(path):
+                remember_session_tip(account_name)
 
 
 def _counter(name: str) -> Any:

@@ -25,7 +25,11 @@ from acme2certifier.acme_srv.helpers.global_variables import (
     DB_ERROR_MSG,
     CONFIGURATION_ERROR_DETAIL,
 )
-from acme2certifier.acme_srv.helpers.otel import set_span_outcome, span
+from acme2certifier.acme_srv.helpers.otel import (
+    ATTR_ACCOUNT_NAME,
+    set_span_outcome,
+    span,
+)
 
 
 class ExternalAccountBinding:
@@ -1026,13 +1030,13 @@ class Account:
                 code, message, detail = self._onlyreturnexisting(protected, payload)
                 set_span_outcome(active, "success" if code == 200 else "failure")
                 if code == 200 and message:
-                    active.set_attribute("acme.account_name", str(message))
+                    active.set_attribute(ATTR_ACCOUNT_NAME, str(message))
         else:
             with span("acme.account.create") as active:
                 code, message, detail = self._create_account(payload, protected)
                 set_span_outcome(active, "success" if code in (200, 201) else "failure")
                 if code in (200, 201) and message:
-                    active.set_attribute("acme.account_name", str(message))
+                    active.set_attribute(ATTR_ACCOUNT_NAME, str(message))
 
         self.logger.debug("Account.create_account() ended with: %s, %s", code, message)
         return self._build_response(code, message, detail, payload)
@@ -1041,7 +1045,7 @@ class Account:
         """Common attributes for account mutation/query spans."""
         attrs: Dict[str, str] = {}
         if account_name:
-            attrs["acme.account_name"] = str(account_name)
+            attrs[ATTR_ACCOUNT_NAME] = str(account_name)
         return attrs
 
     def _outcome_from_response_code(self, code: Any) -> str:

@@ -58,6 +58,11 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.helpers.otel import (
+    ATTR_ACCOUNT_NAME,
+    ATTR_CAHANDLER,
+    ATTR_CA_OPERATION,
+    ATTR_OUTCOME,
+    SPAN_CA_HANDLER_CALL,
     counter_add,
     histogram_record,
     mark_enrollment_session_complete,
@@ -1052,33 +1057,14 @@ class Certificate(object):
                 handler_name,
                 extra,
             )
-            ca_attrs = {
-                "acme.cahandler": handler_name,
-                "acme.ca_operation": "enroll",
-            }
-            if order_name:
-                ca_attrs["acme.order_name"] = order_name
-            with span("acme.ca_handler.call", attributes=ca_attrs) as ca_span:
-                with handler_factory(self.debug, self.logger) as ca_handler:
-                    (
-                        error,
-                        certificate,
-                        certificate_raw,
-                        poll_identifier,
-                    ) = ca_handler.enroll(csr)
-                    error, certificate, certificate_raw = self._cert_bundle_rewrite(
-                        error, certificate, certificate_raw, handler_factory, csr
-                    )
-                ca_outcome = "failure" if error else "success"
-                set_span_outcome(ca_span, ca_outcome)
-                counter_add(
-                    "acme.ca_handler.call",
-                    attributes={
-                        "acme.cahandler": handler_name,
-                        "acme.ca_operation": "enroll",
-                        "acme.outcome": ca_outcome,
-                    },
-                )
+            (
+                error,
+                certificate,
+                certificate_raw,
+                poll_identifier,
+            ) = self._enroll_via_cahandler(
+                handler_factory, handler_name, csr, order_name
+            )
             cert_reusage = False
         else:
             self.logger.info("Reuse existing certificate")
@@ -1086,6 +1072,43 @@ class Certificate(object):
 
         self.logger.debug("Certificate._process_certificate_enrollment() ended")
         return (error, certificate, certificate_raw, poll_identifier, cert_reusage)
+
+    def _enroll_via_cahandler(
+        self,
+        handler_factory: BoundCAHandler,
+        handler_name: str,
+        csr: str,
+        order_name: Optional[str],
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Enroll via CA handler with OTEL span/counter instrumentation."""
+        ca_attrs = {
+            ATTR_CAHANDLER: handler_name,
+            ATTR_CA_OPERATION: "enroll",
+        }
+        if order_name:
+            ca_attrs["acme.order_name"] = order_name
+        with span(SPAN_CA_HANDLER_CALL, attributes=ca_attrs) as ca_span:
+            with handler_factory(self.debug, self.logger) as ca_handler:
+                (
+                    error,
+                    certificate,
+                    certificate_raw,
+                    poll_identifier,
+                ) = ca_handler.enroll(csr)
+                error, certificate, certificate_raw = self._cert_bundle_rewrite(
+                    error, certificate, certificate_raw, handler_factory, csr
+                )
+            ca_outcome = "failure" if error else "success"
+            set_span_outcome(ca_span, ca_outcome)
+            counter_add(
+                SPAN_CA_HANDLER_CALL,
+                attributes={
+                    ATTR_CAHANDLER: handler_name,
+                    ATTR_CA_OPERATION: "enroll",
+                    ATTR_OUTCOME: ca_outcome,
+                },
+            )
+        return error, certificate, certificate_raw, poll_identifier
 
     def _cert_bundle_rewrite(
         self,
@@ -1977,7 +2000,7 @@ class Certificate(object):
                 histogram_record(
                     "acme.issuance.duration",
                     time.perf_counter() - started,
-                    attributes={"acme.outcome": outcome},
+                    attributes={ATTR_OUTCOME: outcome},
                 )
 
     def _determine_certificate_response(
@@ -2261,12 +2284,12 @@ class Certificate(object):
             if not isinstance(handler_name, str):
                 handler_name = "unknown"
             revoke_attrs = {
-                "acme.cahandler": handler_name,
-                "acme.ca_operation": "revoke",
+                ATTR_CAHANDLER: handler_name,
+                ATTR_CA_OPERATION: "revoke",
             }
             if account_name:
-                revoke_attrs["acme.account_name"] = account_name
-            with span("acme.ca_handler.call", attributes=revoke_attrs) as ca_span:
+                revoke_attrs[ATTR_ACCOUNT_NAME] = account_name
+            with span(SPAN_CA_HANDLER_CALL, attributes=revoke_attrs) as ca_span:
                 with handler_factory(self.debug, self.logger) as ca_handler:
                     code, message, detail = ca_handler.revoke(
                         payload["certificate"], error, rev_date
@@ -2274,11 +2297,11 @@ class Certificate(object):
                 ca_outcome = "success" if code == 200 else "failure"
                 set_span_outcome(ca_span, ca_outcome)
                 counter_add(
-                    "acme.ca_handler.call",
+                    SPAN_CA_HANDLER_CALL,
                     attributes={
-                        "acme.cahandler": handler_name,
-                        "acme.ca_operation": "revoke",
-                        "acme.outcome": ca_outcome,
+                        ATTR_CAHANDLER: handler_name,
+                        ATTR_CA_OPERATION: "revoke",
+                        ATTR_OUTCOME: ca_outcome,
                     },
                 )
 
