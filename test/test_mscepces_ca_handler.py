@@ -1687,7 +1687,7 @@ class TestMscepcesCaHandler(unittest.TestCase):
         )
 
         root = ET.fromstring("<Response><Reference Id='token'/></Response>")
-        self.assertIsNone(_wstep_reference_uri(root))
+        self.assertIsNone(_wstep_reference_uri(self.logger, root))
 
     def _set_enroll_ready(self):
         """Set minimal fields for enroll/poll gssapi/username paths."""
