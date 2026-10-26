@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Tests for acme_srv.helpers.otel (NoOp gate + optional SDK InMemory cases).
 
-CI smoke ``test_054_otlp_http_export_appears_in_jaeger`` runs only when
+CI smoke ``test_055_otlp_http_export_appears_in_jaeger`` runs only when
 ``A2C_OTEL_CI_SMOKE=1`` with a reachable OTLP HTTP collector / Jaeger UI.
 """
 
@@ -726,7 +726,23 @@ def test_031_set_span_outcome_error_sets_status() -> None:
     assert https[1].status.status_code != StatusCode.ERROR
 
 
-def test_032_config_db_span_methods_default_and_override() -> None:
+def test_032_tag_current_span_sets_cahandler() -> None:
+    """tag_current_span stamps acme.cahandler on the active enroll span."""
+    span_exporter, _reader = _enable_inmemory_providers()
+    with otel_mod.span("acme.certificate.enroll") as active:
+        otel_mod.tag_current_span({otel_mod.ATTR_CAHANDLER: "openssl"})
+        assert otel_mod.span_attribute(active, otel_mod.ATTR_CAHANDLER) == "openssl"
+    finished = [
+        s
+        for s in span_exporter.get_finished_spans()
+        if s.name == "acme.certificate.enroll"
+    ]
+    assert finished[0].attributes[otel_mod.ATTR_CAHANDLER] == "openssl"
+    assert otel_mod.span_attribute(None, otel_mod.ATTR_CAHANDLER) is None
+    otel_mod.tag_current_span(None)
+
+
+def test_033_config_db_span_methods_default_and_override() -> None:
     """db_span_methods JSON list overrides default; invalid keeps default."""
     logger = logging.getLogger("otel-db-span-cfg")
     assert (
@@ -746,7 +762,7 @@ def test_032_config_db_span_methods_default_and_override() -> None:
     )
 
 
-def test_033_instrument_dbstore_class_noop_when_disabled() -> None:
+def test_034_instrument_dbstore_class_noop_when_disabled() -> None:
     """DBstore wrappers return values unchanged when OTEL is off."""
 
     class FakeStore:
@@ -771,7 +787,7 @@ def test_033_instrument_dbstore_class_noop_when_disabled() -> None:
     assert otel_mod.instrument_dbstore_class(FakeStore) is FakeStore
 
 
-def test_034_instrument_dbstore_class_records_spans() -> None:
+def test_035_instrument_dbstore_class_records_spans() -> None:
     """Enabled facade records ``acme.db.*`` only for mutating DBstore methods."""
     span_exporter, _reader = _enable_inmemory_providers()
 
@@ -809,7 +825,7 @@ def test_034_instrument_dbstore_class_records_spans() -> None:
     assert "acme.db.nonce_check" not in spans
 
 
-def test_035_instrument_dbstore_respects_runtime_allowlist() -> None:
+def test_036_instrument_dbstore_respects_runtime_allowlist() -> None:
     """Call-time ``_db_span_methods`` can enable a lookup that default omits."""
     span_exporter, _reader = _enable_inmemory_providers()
 
@@ -827,7 +843,7 @@ def test_035_instrument_dbstore_respects_runtime_allowlist() -> None:
     assert spans[0].name == "acme.db.account_lookup"
 
 
-def test_036_get_trace_context_ids_zeros_when_disabled() -> None:
+def test_037_get_trace_context_ids_zeros_when_disabled() -> None:
     """Without OTEL, correlation helpers return zero placeholders."""
     assert otel_mod.get_trace_context_ids() == (
         otel_mod._TRACE_ID_ZERO,
@@ -835,7 +851,7 @@ def test_036_get_trace_context_ids_zeros_when_disabled() -> None:
     )
 
 
-def test_037_trace_context_filter_injects_ids_under_span() -> None:
+def test_038_trace_context_filter_injects_ids_under_span() -> None:
     """Filter sets otelTraceID/otelSpanID from the active span."""
     _enable_inmemory_providers()
     logger = logging.getLogger("otel-log-corr-test")
@@ -876,7 +892,7 @@ def test_037_trace_context_filter_injects_ids_under_span() -> None:
     )
 
 
-def test_038_handler_filter_covers_propagated_child_logger() -> None:
+def test_039_handler_filter_covers_propagated_child_logger() -> None:
     """Child logger → root handler still gets otelTraceID (SDK export case)."""
     root = logging.getLogger()
     # Isolate root handlers for this test.
@@ -914,7 +930,7 @@ def test_038_handler_filter_covers_propagated_child_logger() -> None:
             root.addHandler(h)
 
 
-def test_039_resilient_exporter_logs_critical_once(
+def test_040_resilient_exporter_logs_critical_once(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Export failures never raise; first failure is CRITICAL on a2c logger."""
@@ -965,7 +981,7 @@ class _RaisingConfig:
         raise TypeError("unreadable")
 
 
-def test_040_noop_span_methods() -> None:
+def test_041_noop_span_methods() -> None:
     """NoOp span implements the SDK surface used by callers."""
     active = otel_mod._NoOpSpan()
     assert active.set_attributes({"acme.outcome": "ok"}) is None
@@ -975,7 +991,7 @@ def test_040_noop_span_methods() -> None:
         assert entered is active
 
 
-def test_041_config_readers_fallbacks(caplog: pytest.LogCaptureFixture) -> None:
+def test_042_config_readers_fallbacks(caplog: pytest.LogCaptureFixture) -> None:
     """Non-ConfigParser and invalid values use documented fallbacks."""
     logger = logging.getLogger("test_a2c")
     assert otel_mod._config_get(_cfg(), "endpoint", "fallback") == "fallback"
@@ -1007,7 +1023,7 @@ def test_041_config_readers_fallbacks(caplog: pytest.LogCaptureFixture) -> None:
     assert any("must be a JSON list" in r.getMessage() for r in caplog.records)
 
 
-def test_042_init_otel_metrics_strips_traces_suffix() -> None:
+def test_043_init_otel_metrics_strips_traces_suffix() -> None:
     """metrics endpoint is derived when the traces URL already includes /v1/traces."""
     _require_otel_sdk()
     _reset_otel_api_providers()
@@ -1041,7 +1057,7 @@ def test_042_init_otel_metrics_strips_traces_suffix() -> None:
     assert metric_calls[0]["endpoint"] == "http://127.0.0.1:4318/v1/metrics"
 
 
-def test_043_init_otel_setup_failure_stays_noop(
+def test_044_init_otel_setup_failure_stays_noop(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """SDK constructor errors leave tracing disabled."""
@@ -1071,7 +1087,7 @@ def test_043_init_otel_setup_failure_stays_noop(
     assert any("initialization failed" in r.getMessage() for r in caplog.records)
 
 
-def test_044_trace_context_ids_import_and_lookup_errors() -> None:
+def test_045_trace_context_ids_import_and_lookup_errors() -> None:
     """Missing SDK or a broken current span yields zero ids."""
     import sys
 
@@ -1106,7 +1122,7 @@ def test_044_trace_context_ids_import_and_lookup_errors() -> None:
         )
 
 
-def test_045_install_log_correlation_skips_duplicate_logger() -> None:
+def test_046_install_log_correlation_skips_duplicate_logger() -> None:
     """Passing the root logger does not attach a second filter to it."""
     root = logging.getLogger()
     before = list(root.filters)
@@ -1120,7 +1136,7 @@ def test_045_install_log_correlation_skips_duplicate_logger() -> None:
                 root.removeFilter(filt)
 
 
-def test_046_resilient_exporter_failure_results_and_flush(
+def test_047_resilient_exporter_failure_results_and_flush(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """FAILURE results, shutdown errors, and flush edges stay inside the wrapper."""
@@ -1171,7 +1187,7 @@ def test_046_resilient_exporter_failure_results_and_flush(
         assert spans._failure_result() == 1
 
 
-def test_047_span_outcome_and_http_status_edges() -> None:
+def test_048_span_outcome_and_http_status_edges() -> None:
     """None spans, attribute errors, and 5xx NoOp status updates do not raise."""
     otel_mod.set_span_outcome(None, "error")
     otel_mod.mark_http_status(None, 200)
@@ -1216,7 +1232,7 @@ def test_047_span_outcome_and_http_status_edges() -> None:
     assert batch.single == [("acme.outcome", "ok")]
 
 
-def test_048_instrument_skips_already_wrapped_method() -> None:
+def test_049_instrument_skips_already_wrapped_method() -> None:
     """Methods already marked wrapped are left in place."""
 
     def already(self: Any) -> int:
@@ -1235,7 +1251,7 @@ def test_048_instrument_skips_already_wrapped_method() -> None:
     assert getattr(Store.order_add, "_otel_db_wrapped", False) is True
 
 
-def test_049_http_request_span_import_and_context_errors() -> None:
+def test_050_http_request_span_import_and_context_errors() -> None:
     """SpanKind import failure and a broken span context stay NoOp-safe."""
     import opentelemetry.trace as trace_mod
 
@@ -1271,7 +1287,7 @@ def test_049_http_request_span_import_and_context_errors() -> None:
             pass
 
 
-def test_050_context_helpers_when_import_fails() -> None:
+def test_051_context_helpers_when_import_fails() -> None:
     """Context capture/attach no-op when the context API cannot be imported."""
     import sys
 
@@ -1296,7 +1312,7 @@ def test_050_context_helpers_when_import_fails() -> None:
             sys.modules["opentelemetry.context"] = saved
 
 
-def test_051_span_context_store_edges() -> None:
+def test_052_span_context_store_edges() -> None:
     """TTL disable, eviction order, and empty keys."""
     ctx = MagicMock()
     ctx.is_valid = True
@@ -1334,7 +1350,7 @@ def test_051_span_context_store_edges() -> None:
     assert "nonce:keep" not in otel_mod._span_contexts
 
 
-def test_052_remember_and_continue_span_edges() -> None:
+def test_053_remember_and_continue_span_edges() -> None:
     """Remember/continue tolerate a missing SDK, a null span, and attach errors."""
     import sys
 
@@ -1391,7 +1407,7 @@ def test_052_remember_and_continue_span_edges() -> None:
             pass
 
 
-def test_053_jws_trace_hints_and_setup_key_edges() -> None:
+def test_054_jws_trace_hints_and_setup_key_edges() -> None:
     """Oversized, non-JWS, and session-boundary requests do not chain a tip."""
     import base64
 
@@ -1459,7 +1475,7 @@ def _force_flush(timeout_ms: int = 15000) -> None:
     not _smoke_enabled(),
     reason="set A2C_OTEL_CI_SMOKE=1 with a reachable OTLP HTTP collector",
 )
-def test_054_otlp_http_export_appears_in_jaeger() -> None:
+def test_055_otlp_http_export_appears_in_jaeger() -> None:
     """Export one span via the facade; Jaeger must list the service + a trace."""
     pytest.importorskip("opentelemetry.sdk")
     endpoint = os.environ.get("A2C_OTEL_ENDPOINT", "http://127.0.0.1:4318").strip()

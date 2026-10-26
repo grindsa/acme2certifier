@@ -581,6 +581,31 @@ def _apply_span_attributes(active: Any, attributes: Optional[Dict[str, Any]]) ->
         active.set_attribute(key, value)
 
 
+def tag_current_span(attributes: Optional[Dict[str, Any]]) -> None:
+    """Set attributes on the active span (NoOp-safe)."""
+    if not attributes or not _enabled:
+        return
+    try:
+        from opentelemetry import trace
+
+        _apply_span_attributes(trace.get_current_span(), attributes)
+    except Exception:  # noqa: BLE001 — never break ACME paths
+        return
+
+
+def span_attribute(active: Any, key: str) -> Any:
+    """Return one attribute from *active*, or None."""
+    if active is None or not key:
+        return None
+    try:
+        attrs = getattr(active, "attributes", None)
+        if attrs is None:
+            return None
+        return attrs.get(key)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 @contextmanager
 def span(
     name: str,

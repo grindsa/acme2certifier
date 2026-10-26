@@ -464,12 +464,16 @@ class TestCertificate(unittest.TestCase):
         factory.section = "CAhandler:openssl"
         self.cert.cahandler_registry = None
         self.cert.cahandler = factory
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with (
+            self.assertLogs("test_a2c", level="INFO") as lcm,
+            patch("acme2certifier.acme_srv.certificate.tag_current_span") as mock_tag,
+        ):
             self.cert._process_certificate_enrollment("csr")
         self.assertIn(
             "INFO:test_a2c:Certificate enrollment via CA handler 'openssl' (CAhandler:openssl)",
             lcm.output,
         )
+        mock_tag.assert_called_once_with({"acme.cahandler": "openssl"})
 
     def test_025_get_certificate_renewal_info(self):
         with (
