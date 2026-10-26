@@ -68,6 +68,8 @@ from acme2certifier.acme_srv.helpers.otel import (
     mark_enrollment_session_complete,
     set_span_outcome,
     span,
+    span_attribute,
+    tag_current_span,
 )
 
 
@@ -1051,6 +1053,8 @@ class Certificate(object):
             handler_section = getattr(handler_factory, "section", None)
             if not isinstance(handler_name, str):
                 handler_name = "unknown"
+            # Tag parent acme.certificate.enroll before the CA child span starts.
+            tag_current_span({ATTR_CAHANDLER: handler_name})
             extra = f" ({handler_section})" if isinstance(handler_section, str) else ""
             self.logger.info(
                 "Certificate enrollment via CA handler '%s'%s",
@@ -1997,10 +2001,14 @@ class Certificate(object):
                 )
             finally:
                 set_span_outcome(enroll_span, outcome, outcome_exc)
+                hist_attrs: Dict[str, Any] = {ATTR_OUTCOME: outcome}
+                cahandler = span_attribute(enroll_span, ATTR_CAHANDLER)
+                if cahandler is not None:
+                    hist_attrs[ATTR_CAHANDLER] = cahandler
                 histogram_record(
                     "acme.issuance.duration",
                     time.perf_counter() - started,
-                    attributes={ATTR_OUTCOME: outcome},
+                    attributes=hist_attrs,
                 )
 
     def _determine_certificate_response(

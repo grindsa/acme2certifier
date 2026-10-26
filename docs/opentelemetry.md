@@ -67,7 +67,7 @@ Restart acme2certifier after changing the file. Init runs from the shared ACME H
 | `acme.authorization.create` | |
 | `acme.challenge.create` | |
 | `acme.challenge.validate` | `acme.challenge.validation` (counter; type + outcome) |
-| `acme.certificate.enroll` | `acme.issuance.duration` (histogram; outcome) |
+| `acme.certificate.enroll` (`acme.cahandler` once the CA is resolved) | `acme.issuance.duration` (histogram; outcome + cahandler when known) |
 | `acme.ca_handler.call` (enroll / revoke) | `acme.ca_handler.call` (counter; handler + operation + outcome) |
 | `acme.db.<operation>` (light DBstore API; allowlist via `db_span_methods`, default writes only) | |
 
@@ -78,6 +78,27 @@ Common attributes (when available): `http.method`, `http.route`, `http.status_co
 **Span status (Jaeger error flag):** OTEL `StatusCode.ERROR` is set only for server-side failures — `acme.outcome=error` (exceptions / unexpected internal failures) and HTTP `5xx` on `acme.http.request`. ACME protocol rejects stay `acme.outcome=failure` (or `skipped`) without ERROR status.
 
 **Log ↔ trace:** `logger_setup` / `init_otel` attach a filter (on loggers **and handlers**) that sets `otelTraceID` and `otelSpanID` on LogRecords. Include them in `[Helper] log_format` (see [Logging](logging.md)). Values are zeros when OTEL is off or no span is active. Handler attachment matters so OTEL SDK / other child loggers that propagate to root do not break formatting.
+
+## Grafana (optional)
+
+There is Lab stack (Docker): [`examples/Docker/grafana/compose.yaml`](../examples/Docker/grafana/compose.yaml) running `grafana/otel-lgtm` as part of the CI. If you want to try yourself:
+
+- create an external network `ot-test`
+- start the stack by `docker compose up -d`
+- point a2c `endpoint` at `http://otel-lgtm:4318` with `metrics_export: True`,
+- open Grafana on port 3000 (`admin` / `admin`).
+
+With `metrics_export: True` and OTLP → Prometheus/Mimir (plus Tempo/Loki for drill-down), import the sample dashboard:
+
+[`examples/grafana/acme2certifier-overview.json`](../examples/grafana/acme2certifier-overview.json)
+
+Grafana → Dashboards → Import → upload the JSON → pick the Prometheus datasource. Metric names assume the usual OTLP→Prometheus translation (`acme.issuance.duration` → `acme_issuance_duration_*`). Adjust label names if your collector differs. TraceQL/LogQL snippets for Explore are in the bottom panel of that dashboard.
+
+Illustrative mocks (sample data, not a live deploy):
+
+![ACME overview dashboard](opentelemetry-grafana-overview.jpg "acme2certifier ACME overview")
+
+![Explore enroll drill-down](opentelemetry-grafana-explore.jpg "Tempo trace + Loki logs for acme.certificate.enroll")
 
 ## Related
 
