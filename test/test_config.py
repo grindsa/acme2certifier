@@ -1687,28 +1687,6 @@ def test_671_config_allowed_templates_load(
     assert any("allowed_templates is empty" in msg for msg in lcm_empty_list.output)
 
 
-@patch("acme2certifier.acme_srv.helpers.config.load_config")
-def test_673_header_value_allowlist_resolve(
-    mock_load_cfg: MagicMock, logger: logging.Logger, FakeDBStore: type[Any]
-) -> None:
-    """header_value_allowlist_resolve prefers Order then allowed_templates"""
-    from acme2certifier.acme_srv.helpers.config import header_value_allowlist_resolve
-    import configparser
-
-    parser_order = configparser.ConfigParser()
-    parser_order["Order"] = {"allowed_header_values": '["from-order"]'}
-    mock_load_cfg.return_value = parser_order
-    cahandler = FakeDBStore()
-    cahandler.allowed_templates = ["from-templates"]
-    assert ["from-order"] == header_value_allowlist_resolve(logger, cahandler)
-    parser_empty = configparser.ConfigParser()
-    mock_load_cfg.return_value = parser_empty
-    cahandler.allowed_templates = ["from-templates"]
-    assert ["from-templates"] == header_value_allowlist_resolve(logger, cahandler)
-    cahandler_empty = FakeDBStore()
-    assert [] == header_value_allowlist_resolve(logger, cahandler_empty)
-
-
 def test_672_challenge_type_configuration_validate_empty_config(
     logger: logging.Logger,
 ) -> None:
@@ -1722,7 +1700,7 @@ def test_672_challenge_type_configuration_validate_empty_config(
     warning_mock.assert_not_called()
 
 
-def test_675_config_kerberos_options_load(
+def test_673_config_kerberos_options_load(
     logger: logging.Logger, monkeypatch: Any
 ) -> None:
     """config_kerberos_options_load assigns krb5_* via config_option_load"""
@@ -1810,7 +1788,7 @@ def test_674_config_number_load(
     )
 
 
-def test_677_cahandler_section_merged_config_passthrough(
+def test_675_cahandler_section_merged_config_passthrough(
     logger: logging.Logger,
 ) -> None:
     """Named section CAhandler is returned unchanged"""
@@ -1823,7 +1801,7 @@ def test_677_cahandler_section_merged_config_passthrough(
     assert _cahandler_section_merged_config(parser, "CAhandler", logger) is parser
 
 
-def test_678_cahandler_section_merged_config_missing_section(
+def test_676_cahandler_section_merged_config_missing_section(
     logger: logging.Logger,
 ) -> None:
     """Missing named overlay section leaves the parser unchanged"""
@@ -1836,7 +1814,7 @@ def test_678_cahandler_section_merged_config_missing_section(
     assert result is parser
 
 
-def test_679_cahandler_section_merged_config_no_base_section(
+def test_677_cahandler_section_merged_config_no_base_section(
     logger: logging.Logger,
 ) -> None:
     """Named overlay creates [CAhandler] when the base section is absent"""
@@ -1850,7 +1828,7 @@ def test_679_cahandler_section_merged_config_no_base_section(
     assert merged.get("CAhandler", "api_host") == "https://ejbca"
 
 
-def test_680_cahandler_section_merged_config_defensive_copy(
+def test_678_cahandler_section_merged_config_defensive_copy(
     logger: logging.Logger,
 ) -> None:
     """Defensive CAhandler copy when sections() omits a present CAhandler"""
@@ -1867,7 +1845,7 @@ def test_680_cahandler_section_merged_config_defensive_copy(
     assert merged.get("CAhandler", "api_host") == "https://ca"
 
 
-def test_681_resolve_config_injected_and_load(logger: logging.Logger) -> None:
+def test_679_resolve_config_injected_and_load(logger: logging.Logger) -> None:
     """resolve_config returns the injected parser or delegates to load_config"""
     from acme2certifier.acme_srv.helpers.config import resolve_config
 
@@ -1880,7 +1858,7 @@ def test_681_resolve_config_injected_and_load(logger: logging.Logger) -> None:
     mock_load.assert_called_once_with(logger, "flt", "cfg")
 
 
-def test_682_load_config_cache_hit_without_logger() -> None:
+def test_680_load_config_cache_hit_without_logger() -> None:
     """Cache hit without an app logger uses debug logging only"""
     import tempfile
     from acme2certifier.acme_srv.helpers import config as config_mod
@@ -1902,7 +1880,7 @@ def test_682_load_config_cache_hit_without_logger() -> None:
         config_mod.load_config_cache_clear()
 
 
-def test_683_load_config_section_default_cahandler(logger: logging.Logger) -> None:
+def test_681_load_config_section_default_cahandler(logger: logging.Logger) -> None:
     """load_config_section('CAhandler') does not bind a named overlay"""
     from acme2certifier.acme_srv.helpers.config import load_config_section
 
@@ -1913,7 +1891,7 @@ def test_683_load_config_section_default_cahandler(logger: logging.Logger) -> No
     mock_load.assert_called_once()
 
 
-def test_684_load_cahandler_config_from_handler_attrs(logger: logging.Logger) -> None:
+def test_682_load_cahandler_config_from_handler_attrs(logger: logging.Logger) -> None:
     """load_cahandler_config reads config_section, CONFIG_SECTION, or default"""
     from types import SimpleNamespace
     from acme2certifier.acme_srv.helpers.config import load_cahandler_config
@@ -1931,7 +1909,7 @@ def test_684_load_cahandler_config_from_handler_attrs(logger: logging.Logger) ->
         mock_lcs.assert_called_with(logger, "CAhandler")
 
 
-def test_685_cahandler_lookup_no_input(logger: logging.Logger) -> None:
+def test_683_cahandler_lookup_no_input(logger: logging.Logger) -> None:
     """cahandler_lookup returns None when neither csr nor cert_raw is given"""
     from acme2certifier.acme_srv.helpers.config import cahandler_lookup
 
@@ -1942,7 +1920,7 @@ def test_685_cahandler_lookup_no_input(logger: logging.Logger) -> None:
     models_mock.DBstore.return_value.certificates_search.assert_not_called()
 
 
-def test_686_cahandler_lookup_db_error(
+def test_684_cahandler_lookup_db_error(
     logger: logging.Logger, capture_logs: Callable[..., AbstractContextManager[Any]]
 ) -> None:
     """cahandler_lookup logs a warning when certificates_search fails"""
@@ -1956,3 +1934,25 @@ def test_686_cahandler_lookup_db_error(
         with capture_logs("test_a2c", level="WARNING") as lcm:
             assert cahandler_lookup(logger, csr="csr") is None
     assert "WARNING:test_a2c:CAhandler lookup failed with: db fail" in lcm.output
+
+
+@patch("acme2certifier.acme_srv.helpers.config.load_config")
+def test_685_header_value_allowlist_resolve(
+    mock_load_cfg: MagicMock, logger: logging.Logger, FakeDBStore: type[Any]
+) -> None:
+    """header_value_allowlist_resolve prefers Order then allowed_templates"""
+    from acme2certifier.acme_srv.helpers.config import header_value_allowlist_resolve
+    import configparser
+
+    parser_order = configparser.ConfigParser()
+    parser_order["Order"] = {"allowed_header_values": '["from-order"]'}
+    mock_load_cfg.return_value = parser_order
+    cahandler = FakeDBStore()
+    cahandler.allowed_templates = ["from-templates"]
+    assert ["from-order"] == header_value_allowlist_resolve(logger, cahandler)
+    parser_empty = configparser.ConfigParser()
+    mock_load_cfg.return_value = parser_empty
+    cahandler.allowed_templates = ["from-templates"]
+    assert ["from-templates"] == header_value_allowlist_resolve(logger, cahandler)
+    cahandler_empty = FakeDBStore()
+    assert [] == header_value_allowlist_resolve(logger, cahandler_empty)

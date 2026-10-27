@@ -1397,8 +1397,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
             self.cahandler._config_load()
         self.assertTrue(
             any(
-                "Failed to parse request_retries parameter" in msg
-                for msg in lcm.output
+                "Failed to parse request_retries parameter" in msg for msg in lcm.output
             )
         )
 

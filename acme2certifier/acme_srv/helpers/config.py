@@ -249,9 +249,7 @@ def config_allowed_header_values_load(logger: logging.Logger, config_dic) -> Lis
     return result
 
 
-def config_allowed_templates_load(
-    logger: logging.Logger, config_dic: Any
-) -> List[str]:
+def config_allowed_templates_load(logger: logging.Logger, config_dic: Any) -> List[str]:
     """Load enrollment template allowlist for MS CA handlers.
 
     Prefer ``[Order] allowed_header_values``. Fall back to deprecated
