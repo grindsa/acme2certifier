@@ -129,21 +129,7 @@ class CAhandler(KerberosAuthMixin):
         self.password = config_option_load(
             self.logger, config_dic, "password", current=self.password
         )
-        self.krb5_principal = config_option_load(
-            self.logger, config_dic, "krb5_principal", current=self.krb5_principal
-        )
-        self.krb5_keytab = config_option_load(
-            self.logger, config_dic, "krb5_keytab", current=self.krb5_keytab
-        )
-        self.krb5_cache = config_option_load(
-            self.logger, config_dic, "krb5_cache", current=self.krb5_cache
-        )
-        self.krb5_config = config_option_load(
-            self.logger, config_dic, "krb5_config", current=self.krb5_config
-        )
-        self.krb5_kinit_path = config_option_load(
-            self.logger, config_dic, "krb5_kinit_path", current=self.krb5_kinit_path
-        )
+        self._config_kerberos_parameters_load(config_dic)
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
 

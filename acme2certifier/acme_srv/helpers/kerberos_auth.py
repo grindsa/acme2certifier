@@ -47,6 +47,14 @@ class KerberosAuthMixin:
             return getattr(mod, name)
         return fallback
 
+    def _config_kerberos_parameters_load(self, config_dic: Any) -> None:
+        """Load ``krb5_*`` options from config / environment onto this handler."""
+        self.logger.debug("CAhandler._config_kerberos_parameters_load()")
+        from .config import config_kerberos_options_load  # pylint: disable=C0415
+
+        config_kerberos_options_load(self.logger, config_dic, self)
+        self.logger.debug("CAhandler._config_kerberos_parameters_load() ended")
+
     def _kerberos_keytab_is_configured(self) -> bool:
         """check if keytab flow can be used"""
         self.logger.debug("CAhandler._kerberos_keytab_is_configured()")

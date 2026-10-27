@@ -724,26 +724,6 @@ class CAhandler(KerberosAuthMixin):
         self._config_proxy_load(config_dic)
         self.logger.debug("CAhandler._config_load() ended")
 
-    def _config_kerberos_parameters_load(self, config_dic: Dict[str, str]) -> None:
-        """Load kerberos related parameters from env or config."""
-        self.logger.debug("CAhandler._config_kerberos_parameters_load()")
-        self.krb5_principal = config_option_load(
-            self.logger, config_dic, "krb5_principal", current=self.krb5_principal
-        )
-        self.krb5_keytab = config_option_load(
-            self.logger, config_dic, "krb5_keytab", current=self.krb5_keytab
-        )
-        self.krb5_cache = config_option_load(
-            self.logger, config_dic, "krb5_cache", current=self.krb5_cache
-        )
-        self.krb5_config = config_option_load(
-            self.logger, config_dic, "krb5_config", current=self.krb5_config
-        )
-        self.krb5_kinit_path = config_option_load(
-            self.logger, config_dic, "krb5_kinit_path", current=self.krb5_kinit_path
-        )
-        self.logger.debug("CAhandler._config_kerberos_parameters_load() ended")
-
     def _config_parameters_load(self, config_dic: Dict[str, str]) -> None:
         """Load handler parameters."""
         self.logger.debug("CAhandler._config_parameters_load()")

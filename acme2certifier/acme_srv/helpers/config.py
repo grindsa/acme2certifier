@@ -726,6 +726,43 @@ def config_option_load(
     return value
 
 
+KRB5_CONFIG_OPTIONS: Tuple[str, ...] = (
+    "krb5_principal",
+    "krb5_keytab",
+    "krb5_cache",
+    "krb5_config",
+    "krb5_kinit_path",
+)
+
+
+def config_kerberos_options_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    target: Any,
+    *,
+    section: str = "CAhandler",
+) -> None:
+    """Load shared ``krb5_*`` options onto *target* via ``config_option_load``.
+
+    Assigns ``krb5_principal``, ``krb5_keytab``, ``krb5_cache``, ``krb5_config``,
+    and ``krb5_kinit_path`` from *section* (env ``*_variable`` + direct keys).
+    """
+    logger.debug("Helper.config_kerberos_options_load()")
+    for option in KRB5_CONFIG_OPTIONS:
+        setattr(
+            target,
+            option,
+            config_option_load(
+                logger,
+                config_dic,
+                option,
+                section=section,
+                current=getattr(target, option, None),
+            ),
+        )
+    logger.debug("Helper.config_kerberos_options_load() ended")
+
+
 def _config_ca_bundle_raw(config_dic: Any, section: str, current: Any) -> Any:
     """Read the raw ``ca_bundle`` value from a ConfigParser-like object or dict."""
     getter = getattr(config_dic, "get", None)

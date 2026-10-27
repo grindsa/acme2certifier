@@ -1722,6 +1722,51 @@ def test_672_challenge_type_configuration_validate_empty_config(
     warning_mock.assert_not_called()
 
 
+def test_675_config_kerberos_options_load(
+    logger: logging.Logger, monkeypatch: Any
+) -> None:
+    """config_kerberos_options_load assigns krb5_* via config_option_load"""
+    from acme2certifier.acme_srv.helpers.config import config_kerberos_options_load
+    import configparser
+    from types import SimpleNamespace
+
+    target = SimpleNamespace(
+        krb5_principal=None,
+        krb5_keytab=None,
+        krb5_cache=None,
+        krb5_config=None,
+        krb5_kinit_path="/usr/bin/kinit",
+    )
+    parser = configparser.ConfigParser()
+    parser["CAhandler"] = {
+        "krb5_principal": "svc@EXAMPLE.COM",
+        "krb5_keytab": "/tmp/svc.keytab",
+        "krb5_cache": "/tmp/ccache",
+        "krb5_config": "/tmp/krb5.conf",
+        "krb5_kinit_path": "/usr/local/bin/kinit",
+    }
+    config_kerberos_options_load(logger, parser, target)
+    assert "svc@EXAMPLE.COM" == target.krb5_principal
+    assert "/tmp/svc.keytab" == target.krb5_keytab
+    assert "/tmp/ccache" == target.krb5_cache
+    assert "/tmp/krb5.conf" == target.krb5_config
+    assert "/usr/local/bin/kinit" == target.krb5_kinit_path
+
+    env_target = SimpleNamespace(
+        krb5_principal=None,
+        krb5_keytab=None,
+        krb5_cache=None,
+        krb5_config=None,
+        krb5_kinit_path="/usr/bin/kinit",
+    )
+    env_parser = configparser.ConfigParser()
+    env_parser["CAhandler"] = {"krb5_principal_variable": "KRB5_PRINCIPAL_TEST"}
+    monkeypatch.setenv("KRB5_PRINCIPAL_TEST", "from-env@EXAMPLE.COM")
+    config_kerberos_options_load(logger, env_parser, env_target)
+    assert "from-env@EXAMPLE.COM" == env_target.krb5_principal
+    assert "/usr/bin/kinit" == env_target.krb5_kinit_path
+
+
 def test_674_config_number_load(
     logger: logging.Logger, capture_logs: Callable[..., AbstractContextManager[Any]]
 ) -> None:
