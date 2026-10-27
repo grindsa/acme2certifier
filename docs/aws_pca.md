@@ -90,7 +90,12 @@ export LOCALSTACK_AUTH_TOKEN=...
 docker run --rm -p 4566:4566 localstack/localstack
 ```
 
-Bootstrap a **2-level hierarchy** (ROOT + SUBORDINATE PathLen0) with the shared script used by CI:
+Bootstrap a **2-level hierarchy** with the shared script used by CI:
+
+- **openssl ROOT** (`CA:TRUE`) — parent trust anchor  
+- **ACM PCA SUBORDINATE** (PathLen0) — CSR signed by that openssl root, then imported  
+
+LocalStack’s `IssueCertificate` + `SubordinateCACertificate_*` templates omit `basicConstraints` / `keyUsage` on the ICA (openssl `verify` error 24), so the script does not use ACM PCA to sign the subordinate CA certificate.
 
 ```bash
 export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=eu-central-1
@@ -99,8 +104,7 @@ eval "$(
     --endpoint-url http://localhost:4566 \
     --region eu-central-1
 )"
-
-# AWS_PCA_CA_ARN is the issuing subordinate CA; AWS_PCA_ROOT_CA_ARN is the root.
+# AWS_PCA_CA_ARN is the issuing subordinate CA.
 ```
 
 Script path: [`.github/actions/wf_specific/aws_pca_ca_handler/localstack_prep/bootstrap_hierarchy.sh`](../.github/actions/wf_specific/aws_pca_ca_handler/localstack_prep/bootstrap_hierarchy.sh).
@@ -113,7 +117,7 @@ certificate_authority_arn: <AWS_PCA_CA_ARN from bootstrap_hierarchy.sh>
 endpoint_url: http://localhost:4566
 ```
 
-Both CAs must be `ACTIVE` before a2c enrollment. Point `certificate_authority_arn` at the **subordinate** (issuing) CA so enrollment returns leaf + ICA + root.
+The subordinate must be `ACTIVE` before a2c enrollment. Point `certificate_authority_arn` at that issuing CA so enrollment returns leaf + ICA + root.
 
 ### Real AWS (cheap trial)
 

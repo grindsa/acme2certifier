@@ -1,5 +1,5 @@
 name: "localstack_prep"
-description: "Start LocalStack Ultimate, bootstrap ROOT+SUBORDINATE ACM PCA, export endpoint + ARNs"
+description: "Start LocalStack Ultimate, bootstrap openssl ROOT + ACM PCA subordinate, export endpoint + ARN"
 inputs:
   NAME_SPACE:
     description: "Docker network shared with the acme2certifier container"
