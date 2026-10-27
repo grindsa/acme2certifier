@@ -4113,6 +4113,29 @@ class TestCertificate(unittest.TestCase):
         ]
         self.assertEqual("order-1", ca_calls[0].kwargs["attributes"]["acme.order_name"])
 
+    def test_266_process_certificate_enrollment_request_histogram_cahandler(self):
+        """issuance histogram includes cahandler when present on enroll span"""
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(self.cert, "_validate_csr_against_order", return_value=True),
+            patch.object(
+                self.cert,
+                "_handle_enrollment_thread_execution",
+                return_value=(None, "detail"),
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.span_attribute",
+                return_value="openssl",
+            ),
+            patch("acme2certifier.acme_srv.certificate.histogram_record") as mock_hist,
+        ):
+            result = self.cert.process_certificate_enrollment_request("cert", "csr")
+        self.assertEqual(result, (None, "detail"))
+        mock_hist.assert_called_once()
+        attrs = mock_hist.call_args.kwargs["attributes"]
+        self.assertEqual(attrs["acme.cahandler"], "openssl")
+        self.assertEqual(attrs["acme.outcome"], "success")
+
 
 if __name__ == "__main__":
     unittest.main()

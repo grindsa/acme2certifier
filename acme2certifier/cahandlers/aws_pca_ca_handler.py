@@ -21,6 +21,7 @@ from acme2certifier.acme_srv.helper import (
     build_pem_file,
     cert_pem2der,
     cert_serial_get,
+    config_ca_bundle_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
@@ -162,6 +163,8 @@ class CAhandler:
         self.request_timeout: int = 60
         self.request_retries: int = 0
         self.proxy: Dict[str, str] = {}
+        self.ca_bundle: Any = True
+        self.verify: bool = True
 
         self.header_info_field = False
         self.eab_handler = None
@@ -290,6 +293,14 @@ class CAhandler:
             except Exception as err:
                 self.logger.error("Failed to parse poll_interval parameter: %s", err)
 
+            self.ca_bundle = config_ca_bundle_load(
+                self.logger, config_dic, current=self.ca_bundle
+            )
+            self.verify = config_dic.getboolean(
+                "CAhandler", "verify", fallback=self.verify
+            )
+            self._security_configuration_warnings_log()
+
         # Standard AWS env vars when config did not set credentials
         if not self.aws_access_key_id:
             self.aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
@@ -310,6 +321,28 @@ class CAhandler:
         self.proxy = config_proxy_load(self.logger, config_dic, self._service_url())
 
         self.logger.debug("CAhandler._config_load() ended")
+
+    def _security_configuration_warnings_log(self) -> None:
+        """Log non-blocking security risk warnings."""
+        self.logger.debug("CAhandler._security_configuration_warnings_log()")
+        if self.verify is False or self.ca_bundle is False:
+            self.logger.warning(
+                "TLS certificate verification is disabled "
+                "(verify=%s, ca_bundle=%s). ACM PCA / endpoint_url traffic "
+                "is vulnerable to MITM. Prefer ca_bundle / system trust.",
+                self.verify,
+                self.ca_bundle,
+            )
+        self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
+
+    def _tls_verify(self):
+        """Return requests verify argument for endpoint_url / ACM PCA HTTPS."""
+        self.logger.debug("CAhandler._tls_verify()")
+        if self.verify is False or self.ca_bundle is False:
+            return False
+        if self.ca_bundle not in (None, True, False, ""):
+            return self.ca_bundle
+        return True
 
     def _csr_pem(self, csr: str) -> str:
         """normalize ACME CSR to PEM"""
@@ -359,6 +392,7 @@ class CAhandler:
                     headers=headers,
                     timeout=self.request_timeout,
                     proxies=self.proxy or None,
+                    verify=self._tls_verify(),
                 )
                 try:
                     content: Any = response.json() if response.text else {}
@@ -368,7 +402,10 @@ class CAhandler:
                 if response.status_code >= 400:
                     last_error = self._api_error_message(response.status_code, content)
                     # Retry only on transient HTTP codes
-                    if response.status_code in (429, 500, 502, 503, 504) and attempt < attempts:
+                    if (
+                        response.status_code in (429, 500, 502, 503, 504)
+                        and attempt < attempts
+                    ):
                         time.sleep(min(2.0 * attempt, 5.0))
                         continue
                     raise RuntimeError(last_error)
@@ -407,8 +444,57 @@ class CAhandler:
         text = str(err)
         return "RequestInProgress" in text
 
+    @staticmethod
+    def _pem_blocks(pem_text: str) -> list:
+        """Split a PEM blob into individual certificate blocks."""
+        blocks: list = []
+        if not pem_text:
+            return blocks
+        current: list = []
+        for line in pem_text.replace("\r\n", "\n").split("\n"):
+            if line.strip():
+                current.append(line)
+            if "-----END CERTIFICATE-----" in line:
+                blocks.append("\n".join(current).strip())
+                current = []
+        return blocks
+
+    def _issuing_ca_chain_pems(self) -> list:
+        """
+        Issuing CA certificate plus its CertificateChain (parents up to root).
+
+        GetCertificate often returns only the intermediate; completing from
+        GetCertificateAuthorityCertificate yields leaf→ICA→root for private PKI.
+        """
+        self.logger.debug("CAhandler._issuing_ca_chain_pems()")
+        ca_resp = self._api_call(
+            "GetCertificateAuthorityCertificate",
+            {"CertificateAuthorityArn": self.certificate_authority_arn},
+        )
+        parts: list = []
+        if ca_resp.get("Certificate"):
+            parts.extend(self._pem_blocks(ca_resp["Certificate"].strip()))
+        if ca_resp.get("CertificateChain"):
+            parts.extend(self._pem_blocks(ca_resp["CertificateChain"].strip()))
+        self.logger.debug(
+            "CAhandler._issuing_ca_chain_pems() ended with %s cert(s)", len(parts)
+        )
+        return parts
+
+    def _chain_pem_complete(self, pca_chain: str) -> str:
+        """Merge GetCertificate chain with issuing-CA cert + parents; dedupe PEMs."""
+        merged: list = []
+        seen: set = set()
+        for block in self._pem_blocks(pca_chain) + self._issuing_ca_chain_pems():
+            key = block.replace(" ", "").replace("\n", "")
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(block)
+        return "\n".join(merged)
+
     def _get_certificate(self, certificate_arn: str) -> Tuple[str, str]:
-        """poll GetCertificate until issued; return (cert_pem, chain_pem)"""
+        """poll GetCertificate until issued; return (cert_pem, full_chain_pem)"""
         self.logger.debug("CAhandler._get_certificate(%s)", certificate_arn)
         deadline = time.time() + self.poll_timeout
         last_error: Optional[str] = None
@@ -423,18 +509,9 @@ class CAhandler:
                     },
                 )
                 cert_pem = response["Certificate"].strip()
-                chain_pem = (response.get("CertificateChain") or "").strip()
-                if not chain_pem:
-                    ca_resp = self._api_call(
-                        "GetCertificateAuthorityCertificate",
-                        {
-                            "CertificateAuthorityArn": self.certificate_authority_arn,
-                        },
-                    )
-                    chain_parts = [ca_resp["Certificate"].strip()]
-                    if ca_resp.get("CertificateChain"):
-                        chain_parts.append(ca_resp["CertificateChain"].strip())
-                    chain_pem = "\n".join(p for p in chain_parts if p)
+                chain_pem = self._chain_pem_complete(
+                    (response.get("CertificateChain") or "").strip()
+                )
                 self.logger.debug("CAhandler._get_certificate() ended")
                 return cert_pem, chain_pem
             except RuntimeError as err:

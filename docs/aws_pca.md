@@ -19,6 +19,8 @@ No `boto3` dependency — only `requests` (already required by acme2certifier).
 
 AWS Private CA does **not** expose ACME natively; acme2certifier provides the ACME front-end.
 
+The enrollment PEM bundle is **leaf + issuing CA + parent chain (including root when returned by ACM PCA)**. `GetCertificate` often only includes the intermediate; the handler always merges `GetCertificateAuthorityCertificate` for the configured issuing CA so subordinate hierarchies return a full chain. To drop the trust anchor afterward, use [`cert_chain_skip_list`](cert_chain.md).
+
 ## Prerequisites
 
 - An **ACTIVE** AWS Private CA (or LocalStack Ultimate stand-in)
@@ -50,6 +52,8 @@ validity_days: 365
 # poll_timeout: 60
 # poll_interval: 1.0
 # request_timeout: 60
+# ca_bundle: /path/to/custom-ca.pem
+# verify: True
 ```
 
 | Parameter | Required | Description |
@@ -59,7 +63,9 @@ validity_days: 365
 | `signing_algorithm` | no | Default `SHA256WITHRSA` |
 | `validity_days` | no | End-entity validity in days (default `365`) |
 | `template_arn` | no | Optional ACM PCA certificate template ARN |
-| `endpoint_url` | no | Custom endpoint (LocalStack, VPC endpoint, etc.) |
+| `endpoint_url` | no | Custom endpoint (LocalStack, VPC endpoint, etc.); `http://` or `https://` |
+| `ca_bundle` | no | TLS trust for HTTPS endpoints: PEM path, `True` (system trust, default), or `False` (disable verification) |
+| `verify` | no | Set `False` to disable TLS certificate verification (default `True`). Prefer `ca_bundle` over disabling verify |
 | `aws_access_key_id` / `aws_secret_access_key` / `aws_session_token` | yes\* | Explicit credentials |
 | `*_variable` | no | Read the matching credential from an environment variable (direct config overwrites env, same as other handlers) |
 | `poll_timeout` / `poll_interval` | no | Wait loop for `GetCertificate` after issue |
