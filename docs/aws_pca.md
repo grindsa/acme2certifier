@@ -1,13 +1,14 @@
-<!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title: AWS Private CA Handler -->
-<!-- wiki-category: CA Handlers -->
+
+
+
+
 
 # AWS Private CA (ACM PCA) handler
 
 ## Status
 
-This handler is **experimental**. It has been developed and covered by unit tests against mocked ACM PCA HTTP responses, but it has **not** been validated against a real AWS Private CA (or LocalStack Ultimate) deployment by the maintainer.
+This handler is **experimental**. It has been developed and covered by unit tests against mocked ACM PCA HTTP responses as well as a [LocalStack ACM PCA](https://docs.localstack.cloud/aws/services/acm-pca/), but it has **not** been validated against a real AWS Private CA deployment by the maintainer.
 
 Real-world testers are highly welcome — please report success, failures, and configuration notes via [GitHub Issues](https://github.com/grindsa/acme2certifier/issues/new) or a pull request.
 
@@ -15,15 +16,13 @@ Real-world testers are highly welcome — please report success, failures, and c
 
 This CA handler enrolls and revokes certificates via [AWS Private Certificate Authority](https://docs.aws.amazon.com/privateca/latest/userguide/PcaWelcome.html) using the ACM PCA HTTPS JSON APIs (`IssueCertificate`, `GetCertificate`, `RevokeCertificate`) signed with [AWS Signature Version 4](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html).
 
-No `boto3` dependency — only `requests` (already required by acme2certifier).
-
-AWS Private CA does **not** expose ACME natively; acme2certifier provides the ACME front-end.
+That means that there is no `boto3` dependency — only `requests` which is already required by acme2certifier.
 
 The enrollment PEM bundle is **leaf + issuing CA + parent chain (including root when returned by ACM PCA)**. `GetCertificate` often only includes the intermediate; the handler always merges `GetCertificateAuthorityCertificate` for the configured issuing CA so subordinate hierarchies return a full chain. To drop the trust anchor afterward, use [`cert_chain_skip_list`](cert_chain.md).
 
 ## Prerequisites
 
-- An **ACTIVE** AWS Private CA (or LocalStack Ultimate stand-in)
+- An **ACTIVE** AWS Private CA or LocalStack Ultimate stand-in
 - Static IAM credentials (access key + secret), or standard `AWS_*` environment variables
 - IAM permissions for:
   - `acm-pca:IssueCertificate`
@@ -56,22 +55,22 @@ validity_days: 365
 # verify: True
 ```
 
-| Parameter | Required | Description |
-| --- | --- | --- |
-| `aws_region` | yes | AWS region of the private CA |
-| `certificate_authority_arn` | yes | ARN of the issuing CA |
-| `signing_algorithm` | no | Default `SHA256WITHRSA` |
-| `validity_days` | no | End-entity validity in days (default `365`) |
-| `template_arn` | no | Optional ACM PCA certificate template ARN |
-| `endpoint_url` | no | Custom endpoint (LocalStack, VPC endpoint, etc.); `http://` or `https://` |
-| `ca_bundle` | no | TLS trust for HTTPS endpoints: PEM path, `True` (system trust, default), or `False` (disable verification) |
-| `verify` | no | Set `False` to disable TLS certificate verification (default `True`). Prefer `ca_bundle` over disabling verify |
-| `aws_access_key_id` / `aws_secret_access_key` / `aws_session_token` | yes\* | Explicit credentials |
-| `*_variable` | no | Read the matching credential from an environment variable (direct config overwrites env, same as other handlers) |
-| `poll_timeout` / `poll_interval` | no | Wait loop for `GetCertificate` after issue |
-| `request_timeout` | no | HTTP timeout in seconds (default `60`) |
+| Parameter                                                           | Required | Description                                                                                                      |
+| ------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `aws_region`                                                        | yes      | AWS region of the private CA                                                                                     |
+| `certificate_authority_arn`                                         | yes      | ARN of the issuing CA                                                                                            |
+| `signing_algorithm`                                                 | no       | Default `SHA256WITHRSA`                                                                                          |
+| `validity_days`                                                     | no       | End-entity validity in days (default `365`)                                                                      |
+| `template_arn`                                                      | no       | Optional ACM PCA certificate template ARN                                                                        |
+| `endpoint_url`                                                      | no       | Custom endpoint (LocalStack, VPC endpoint, etc.); `http://` or `https://`                                        |
+| `ca_bundle`                                                         | no       | TLS trust for HTTPS endpoints: PEM path, `True` (system trust, default), or `False` (disable verification)       |
+| `verify`                                                            | no       | Set `False` to disable TLS certificate verification (default `True`). Prefer `ca_bundle` over disabling verify   |
+| `aws_access_key_id` / `aws_secret_access_key` / `aws_session_token` | yes      | Explicit credentials                                                                                             |
+| `*_variable`                                                        | no       | Read the matching credential from an environment variable (direct config overwrites env, same as other handlers) |
+| `poll_timeout` / `poll_interval`                                    | no       | Wait loop for `GetCertificate` after issue                                                                       |
+| `request_timeout`                                                   | no       | HTTP timeout in seconds (default `60`)                                                                           |
 
-\*Required unless `endpoint_url` is set (LocalStack placeholder keys `test`/`test` are used), or credentials are available via `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` after config load.
+Required unless `endpoint_url` is set (LocalStack placeholder keys `test`/`test` are used), or credentials are available via `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` after config load.
 
 ## Local development / testing
 
@@ -92,8 +91,8 @@ docker run --rm -p 4566:4566 localstack/localstack
 
 Bootstrap a **2-level hierarchy** with the shared script used by CI:
 
-- **openssl ROOT** (`CA:TRUE`) — parent trust anchor  
-- **ACM PCA SUBORDINATE** (PathLen0) — CSR signed by that openssl root, then imported  
+- **openssl ROOT** (`CA:TRUE`) — parent trust anchor
+- **ACM PCA SUBORDINATE** (PathLen0) — CSR signed by that openssl root, then imported
 
 LocalStack’s `IssueCertificate` + `SubordinateCACertificate_*` templates omit `basicConstraints` / `keyUsage` on the ICA (openssl `verify` error 24), so the script does not use ACM PCA to sign the subordinate CA certificate.
 
