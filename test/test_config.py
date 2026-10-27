@@ -1645,8 +1645,50 @@ def test_670_config_allowed_header_values_load(
     assert [] == config_allowed_header_values_load(logger, parser_blank)
 
 
+def test_671_config_allowed_templates_load(
+    logger: logging.Logger, capture_logs: Callable[..., AbstractContextManager[Any]]
+) -> None:
+    """config_allowed_templates_load prefers Order, falls back to CAhandler"""
+    from acme2certifier.acme_srv.helpers.config import config_allowed_templates_load
+    import configparser
+
+    empty = configparser.ConfigParser()
+    with capture_logs("test_a2c", level="WARNING") as lcm_empty:
+        assert [] == config_allowed_templates_load(logger, empty)
+    assert any("No [Order] allowed_header_values" in msg for msg in lcm_empty.output)
+
+    parser_order = configparser.ConfigParser()
+    parser_order["Order"] = {"allowed_header_values": '["FromOrder"]'}
+    parser_order["CAhandler"] = {"allowed_templates": '["FromCA"]'}
+    assert ["FromOrder"] == config_allowed_templates_load(logger, parser_order)
+
+    parser_ca = configparser.ConfigParser()
+    parser_ca["CAhandler"] = {"allowed_templates": '["WebServer", "User"]'}
+    with capture_logs("test_a2c", level="WARNING") as lcm_depr:
+        assert ["WebServer", "User"] == config_allowed_templates_load(logger, parser_ca)
+    assert any("allowed_templates is deprecated" in msg for msg in lcm_depr.output)
+
+    parser_bad = configparser.ConfigParser()
+    parser_bad["CAhandler"] = {"allowed_templates": "not-json"}
+    with capture_logs("test_a2c", level="WARNING") as lcm_bad:
+        assert [] == config_allowed_templates_load(logger, parser_bad)
+    assert any("Failed to parse allowed_templates" in msg for msg in lcm_bad.output)
+
+    parser_obj = configparser.ConfigParser()
+    parser_obj["CAhandler"] = {"allowed_templates": '{"WebServer": true}'}
+    with capture_logs("test_a2c", level="WARNING") as lcm_obj:
+        assert [] == config_allowed_templates_load(logger, parser_obj)
+    assert any("Failed to parse allowed_templates" in msg for msg in lcm_obj.output)
+
+    parser_empty_list = configparser.ConfigParser()
+    parser_empty_list["CAhandler"] = {"allowed_templates": "[]"}
+    with capture_logs("test_a2c", level="WARNING") as lcm_empty_list:
+        assert [] == config_allowed_templates_load(logger, parser_empty_list)
+    assert any("allowed_templates is empty" in msg for msg in lcm_empty_list.output)
+
+
 @patch("acme2certifier.acme_srv.helpers.config.load_config")
-def test_671_header_value_allowlist_resolve(
+def test_673_header_value_allowlist_resolve(
     mock_load_cfg: MagicMock, logger: logging.Logger, FakeDBStore: type[Any]
 ) -> None:
     """header_value_allowlist_resolve prefers Order then allowed_templates"""

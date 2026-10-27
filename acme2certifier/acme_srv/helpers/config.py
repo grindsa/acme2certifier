@@ -249,6 +249,72 @@ def config_allowed_header_values_load(logger: logging.Logger, config_dic) -> Lis
     return result
 
 
+def config_allowed_templates_load(
+    logger: logging.Logger, config_dic: Any
+) -> List[str]:
+    """Load enrollment template allowlist for MS CA handlers.
+
+    Prefer ``[Order] allowed_header_values``. Fall back to deprecated
+    ``[CAhandler] allowed_templates``. Emits the same warnings as the former
+    handler-local loaders.
+    """
+    logger.debug("Helper.config_allowed_templates_load()")
+    order_values = config_allowed_header_values_load(logger, config_dic)
+    if order_values:
+        logger.debug(
+            "Helper.config_allowed_templates_load() ended with %s entries "
+            "from Order.allowed_header_values",
+            len(order_values),
+        )
+        return order_values
+
+    if (
+        "CAhandler" not in config_dic
+        or "allowed_templates" not in config_dic["CAhandler"]
+    ):
+        logger.warning(
+            "No [Order] allowed_header_values configured; client-selected "
+            "templates are ignored unless %s is set. Configure "
+            "allowed_header_values to restrict enrollment templates without "
+            "the break-glass env.",
+            "ACME2CERTIFIER_I_KNOW_THE_RISK",
+        )
+        logger.debug("Helper.config_allowed_templates_load() ended")
+        return []
+
+    logger.warning(
+        "CAhandler allowed_templates is deprecated for header allowlisting; "
+        "move the list to [Order] allowed_header_values"
+    )
+
+    result: List[str] = []
+    try:
+        loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
+        if not isinstance(loaded, list):
+            raise ValueError("allowed_templates must be a JSON list")
+        result = [str(item) for item in loaded]
+    except Exception as err_:
+        logger.warning(
+            "Failed to parse allowed_templates from configuration: %s. "
+            "Treating as empty allowlist.",
+            err_,
+        )
+        result = []
+
+    if not result:
+        logger.warning(
+            "allowed_templates is empty; client-selected templates are ignored "
+            "unless %s is set. Configure [Order] allowed_header_values to "
+            "restrict enrollment templates without the break-glass env.",
+            "ACME2CERTIFIER_I_KNOW_THE_RISK",
+        )
+    logger.debug(
+        "Helper.config_allowed_templates_load() ended with %s entries",
+        len(result),
+    )
+    return result
+
+
 def header_value_allowlist_resolve(logger: logging.Logger, cahandler) -> List[str]:
     """Resolve header-value allowlist for client-selected enrollment parameters.
 

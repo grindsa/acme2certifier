@@ -17,6 +17,7 @@ from acme2certifier.cahandlers.ms_icpr.request import Request
 # pylint: disable=E0401
 from acme2certifier.acme_srv.helper import (
     build_pem_file,
+    config_allowed_templates_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_option_load,
@@ -227,61 +228,7 @@ class CAhandler(KerberosAuthMixin):
 
     def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
         """Load template allowlist from Order.allowed_header_values or CAhandler.allowed_templates."""
-        self.logger.debug("CAhandler._config_allowed_templates_load()")
-        from acme2certifier.acme_srv.helpers.config import (  # pylint: disable=C0415
-            config_allowed_header_values_load,
-        )
-
-        order_values = config_allowed_header_values_load(self.logger, config_dic)
-        if order_values:
-            self.allowed_templates = order_values
-            self.logger.debug(
-                "CAhandler._config_allowed_templates_load() ended with %s entries "
-                "from Order.allowed_header_values",
-                len(self.allowed_templates),
-            )
-            return
-
-        if "allowed_templates" not in config_dic["CAhandler"]:
-            self.logger.warning(
-                "No [Order] allowed_header_values configured; client-selected "
-                "templates are ignored unless %s is set. Configure "
-                "allowed_header_values to restrict enrollment templates without "
-                "the break-glass env.",
-                "ACME2CERTIFIER_I_KNOW_THE_RISK",
-            )
-            self.logger.debug("CAhandler._config_allowed_templates_load() ended")
-            return
-
-        self.logger.warning(
-            "CAhandler allowed_templates is deprecated for header allowlisting; "
-            "move the list to [Order] allowed_header_values"
-        )
-
-        try:
-            loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
-            if not isinstance(loaded, list):
-                raise ValueError("allowed_templates must be a JSON list")
-            self.allowed_templates = [str(item) for item in loaded]
-        except Exception as err_:
-            self.logger.warning(
-                "Failed to parse allowed_templates from configuration: %s. "
-                "Treating as empty allowlist.",
-                err_,
-            )
-            self.allowed_templates = []
-
-        if not self.allowed_templates:
-            self.logger.warning(
-                "allowed_templates is empty; client-selected templates are ignored "
-                "unless %s is set. Configure [Order] allowed_header_values to "
-                "restrict enrollment templates without the break-glass env.",
-                "ACME2CERTIFIER_I_KNOW_THE_RISK",
-            )
-        self.logger.debug(
-            "CAhandler._config_allowed_templates_load() ended with %s entries",
-            len(self.allowed_templates),
-        )
+        self.allowed_templates = config_allowed_templates_load(self.logger, config_dic)
 
     def _domain_controller_resolve(
         self, domain_controller: Optional[str]

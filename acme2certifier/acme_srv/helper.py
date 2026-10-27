@@ -143,6 +143,8 @@ from .helpers.config import (
     config_cert_chain_profile_load,
     config_option_load,
     config_ca_bundle_load,
+    config_allowed_header_values_load,
+    config_allowed_templates_load,
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_shortname_denylist_load,

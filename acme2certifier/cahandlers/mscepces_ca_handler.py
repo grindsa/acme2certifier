@@ -22,6 +22,7 @@ import requests
 from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     build_pem_file,
+    config_allowed_templates_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_option_load,
@@ -35,7 +36,6 @@ from acme2certifier.acme_srv.helper import (
     load_config,
     pkcs7_to_pem,
 )
-from acme2certifier.acme_srv.helpers.config import config_allowed_header_values_load
 from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR_DETAIL
 from acme2certifier.acme_srv.helpers.kerberos_auth import KerberosAuthMixin
 
@@ -831,28 +831,8 @@ class CAhandler(KerberosAuthMixin):
         self.logger.debug("CAhandler._config_headerinfo_load() ended")
 
     def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
-        """Load template allowlist."""
-        self.logger.debug("CAhandler._config_allowed_templates_load()")
-        order_values = config_allowed_header_values_load(self.logger, config_dic)
-        if order_values:
-            self.allowed_templates = order_values
-        elif (
-            "CAhandler" in config_dic and "allowed_templates" in config_dic["CAhandler"]
-        ):
-            self.logger.warning(
-                "CAhandler allowed_templates is deprecated for header allowlisting; "
-                "move the list to [Order] allowed_header_values"
-            )
-            try:
-                loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
-                if isinstance(loaded, list):
-                    self.allowed_templates = [str(item) for item in loaded]
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to parse allowed_templates from configuration: %s", err_
-                )
-                self.allowed_templates = []
-        self.logger.debug("CAhandler._config_allowed_templates_load() ended")
+        """Load template allowlist from Order.allowed_header_values or CAhandler.allowed_templates."""
+        self.allowed_templates = config_allowed_templates_load(self.logger, config_dic)
 
     def _config_proxy_load(self, config_dic: Dict[str, str]) -> None:
         """Load proxy settings for CES/CEP URLs."""
