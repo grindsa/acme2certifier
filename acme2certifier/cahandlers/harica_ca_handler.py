@@ -24,6 +24,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_number_load,
     config_option_load,
     config_ca_bundle_load,
     config_profile_load,
@@ -149,20 +150,6 @@ class CAhandler(object):
                 "CAhandler", option, fallback=str(fallback)
             ).lower() in ("true", "1", "yes")
 
-    def _config_int_get(self, config_dic, option: str, fallback: int) -> int:
-        """Read an integer CAhandler option; keep fallback on parse errors."""
-        try:
-            return int(config_dic.get("CAhandler", option, fallback=fallback))
-        except Exception:
-            return fallback
-
-    def _config_float_get(self, config_dic, option: str, fallback: float) -> float:
-        """Read a float CAhandler option; keep fallback on parse errors."""
-        try:
-            return float(config_dic.get("CAhandler", option, fallback=fallback))
-        except Exception:
-            return fallback
-
     def _config_credentials_load(self, config_dic) -> None:
         """Load requester credentials and certificate profile options."""
         self.api_url = config_dic.get(
@@ -220,14 +207,26 @@ class CAhandler(object):
 
     def _config_http_load(self, config_dic) -> None:
         """Load HTTP client timeouts/retries and optional CA bundle."""
-        self.request_timeout = self._config_int_get(
-            config_dic, "request_timeout", self.request_timeout
+        self.request_timeout = config_number_load(
+            self.logger,
+            config_dic,
+            "request_timeout",
+            cast=int,
+            current=self.request_timeout,
         )
-        self.request_retries = self._config_int_get(
-            config_dic, "request_retries", self.request_retries
+        self.request_retries = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retries",
+            cast=int,
+            current=self.request_retries,
         )
-        self.request_retry_backoff = self._config_float_get(
-            config_dic, "request_retry_backoff", self.request_retry_backoff
+        self.request_retry_backoff = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retry_backoff",
+            cast=float,
+            current=self.request_retry_backoff,
         )
         self.ca_bundle = config_ca_bundle_load(
             self.logger, config_dic, current=self.ca_bundle

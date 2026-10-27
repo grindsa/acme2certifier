@@ -25,6 +25,7 @@ from acme2certifier.acme_srv.helper import (
     config_allowed_templates_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
+    config_number_load,
     config_option_load,
     config_profile_load,
     config_proxy_load,
@@ -785,7 +786,13 @@ class CAhandler(KerberosAuthMixin):
             self.logger, config_dic, "ca_certificates", current=self.ca_certificates
         )
         self.verify = config_dic.getboolean("CAhandler", "verify", fallback=True)
-        self.timeout = config_dic.getint("CAhandler", "timeout", fallback=self.timeout)
+        self.timeout = config_number_load(
+            self.logger,
+            config_dic,
+            "timeout",
+            cast=int,
+            current=self.timeout,
+        )
         mode = config_dic.get(
             "CAhandler", "ca_templates_check", fallback=self.ca_templates_check
         )

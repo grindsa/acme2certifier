@@ -22,6 +22,7 @@ from acme2certifier.acme_srv.helper import (
     convert_string_to_byte,
     config_proxy_load,
     handler_config_check,
+    config_number_load,
     config_option_load,
     pkcs7_to_pem,
     config_ca_bundle_load,
@@ -216,17 +217,13 @@ class CAhandler(object):
             self.logger, config_dic, current=self.ca_bundle
         )
 
-        try:
-            self.request_timeout = int(
-                config_dic.get(
-                    "CAhandler", "request_timeout", fallback=self.request_timeout
-                )
-            )
-        except Exception:
-            self.logger.error(
-                "Could not load request_timeout:%s",
-                config_dic.get("CAhandler", "request_timeout"),
-            )
+        self.request_timeout = config_number_load(
+            self.logger,
+            config_dic,
+            "request_timeout",
+            cast=int,
+            current=self.request_timeout,
+        )
 
         self.logger.debug("CAhandler._config_load() ended")
 

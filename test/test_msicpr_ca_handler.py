@@ -628,7 +628,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
         self.assertIn(
-            "WARNING:test_a2c:Failed to parse 'timeout' from configuration. Using default value 5. Error: invalid literal for int() with base 10: 'aaaa'",
+            "WARNING:test_a2c:Failed to parse timeout parameter: invalid literal for int() with base 10: 'aaaa'",
             lcm.output,
         )
         self.assertEqual(5, self.cahandler.timeout)

@@ -28,6 +28,7 @@ from acme2certifier.acme_srv.helper import (
     enrollment_config_log,
     handler_config_check,
     config_ca_bundle_load,
+    config_number_load,
     ca_api_request,
 )
 
@@ -143,47 +144,34 @@ class CAhandler(object):
             )
             self.vault_token = config_dic.get("CAhandler", "vault_token", fallback=None)
             self.issuer_ref = config_dic.get("CAhandler", "issuer_ref", fallback=None)
-            try:
-                self.request_timeout = int(
-                    config_dic.get(
-                        "CAhandler", "request_timeout", fallback=self.request_timeout
-                    )
-                )
-            except Exception as err:
-                self.logger.error("Failed to parse request_timeout parameter: %s", err)
-            try:
-                self.request_retries = int(
-                    config_dic.get(
-                        "CAhandler", "request_retries", fallback=self.request_retries
-                    )
-                )
-            except Exception as err:
-                self.logger.error("Failed to parse request_retries parameter: %s", err)
-            try:
-                self.request_retry_backoff = float(
-                    config_dic.get(
-                        "CAhandler",
-                        "request_retry_backoff",
-                        fallback=self.request_retry_backoff,
-                    )
-                )
-            except Exception as err:
-                self.logger.error(
-                    "Failed to parse request_retry_backoff parameter: %s", err
-                )
-            try:
-                self.cert_validity_days = int(
-                    config_dic.get(
-                        "CAhandler",
-                        "cert_validity_days",
-                        fallback=self.cert_validity_days,
-                    )
-                )
-            except Exception as err:
-                self.logger.error(
-                    "Failed to parse cert_validity_days %s parameter",
-                    err,
-                )
+            self.request_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "request_timeout",
+                cast=int,
+                current=self.request_timeout,
+            )
+            self.request_retries = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retries",
+                cast=int,
+                current=self.request_retries,
+            )
+            self.request_retry_backoff = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retry_backoff",
+                cast=float,
+                current=self.request_retry_backoff,
+            )
+            self.cert_validity_days = config_number_load(
+                self.logger,
+                config_dic,
+                "cert_validity_days",
+                cast=int,
+                current=self.cert_validity_days,
+            )
 
             self.ca_bundle = config_ca_bundle_load(
                 self.logger, config_dic, current=self.ca_bundle

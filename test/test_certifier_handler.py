@@ -233,7 +233,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Invalid value for polling_timeout in configuration. Using default: 60",
+            "WARNING:test_a2c:Failed to parse polling_timeout parameter: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertEqual("api_host", self.cahandler.api_host)
@@ -475,7 +475,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Invalid value for request_timeout in configuration. Using default: 20",
+            "WARNING:test_a2c:Failed to parse request_timeout parameter: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertEqual(20, self.cahandler.request_timeout)
@@ -1746,7 +1746,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Invalid value for request_retries in configuration. Using default: 3",
+            "WARNING:test_a2c:Failed to parse request_retries parameter: invalid literal for int() with base 10: 'invalid'",
             lcm.output,
         )
 
@@ -1765,7 +1765,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Invalid value for request_retry_backoff in configuration. Using default: 2.0",
+            "WARNING:test_a2c:Failed to parse request_retry_backoff parameter: could not convert string to float: 'invalid'",
             lcm.output,
         )
 

@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     build_pem_file,
     config_allowed_templates_load,
     config_eab_profile_load,
+    config_number_load,
     config_enroll_config_log_load,
     config_option_load,
     config_profile_load,
@@ -171,14 +172,14 @@ class CAhandler(KerberosAuthMixin):
             self.enrollment_config_log_skip_list,
         ) = config_enroll_config_log_load(self.logger, config_dic)
 
-        try:
-            self.timeout = config_dic.getint("CAhandler", "timeout", fallback=5)
-        except Exception as err_:
-            self.logger.warning(
-                "Failed to parse 'timeout' from configuration. Using default value 5. Error: %s",
-                err_,
-            )
-            self.timeout = 5
+        self.timeout = config_number_load(
+            self.logger,
+            config_dic,
+            "timeout",
+            cast=int,
+            current=self.timeout,
+            log_level="warning",
+        )
 
         try:
             self.use_kerberos = config_dic.getboolean(

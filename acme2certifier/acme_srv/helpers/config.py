@@ -7,7 +7,7 @@ import logging
 import os
 import threading
 import warnings
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar
 
 import yaml
 
@@ -631,6 +631,48 @@ def config_cert_chain_profile_load(
         return config_cert_chain_link_check_load(logger, config_dic, "CAhandler")
     logger.debug("Helper.config_cert_chain_profile_load() ended (unknown key)")
     return None, None
+
+
+_TNumber = TypeVar("_TNumber", int, float)
+
+
+def config_number_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    option: str,
+    *,
+    cast: Callable[[Any], _TNumber],
+    current: _TNumber,
+    section: str = "CAhandler",
+    log_level: str = "error",
+) -> _TNumber:
+    """Load a numeric config option, keeping ``current`` when parsing fails.
+
+    Uses ``config_dic.get(section, option, fallback=current)`` then ``cast``.
+    On failure logs ``Failed to parse {option} parameter: ...`` at
+    ``log_level`` (``error`` or ``warning``) and returns ``current``.
+    """
+    logger.debug("Helper.config_number_load(%s)", option)
+    if not config_dic or section not in config_dic:
+        logger.debug("Helper.config_number_load(%s) ended (no section)", option)
+        return current
+    try:
+        if isinstance(config_dic, dict):
+            section_data = config_dic.get(section) or {}
+            raw = (
+                section_data.get(option, current)
+                if hasattr(section_data, "get")
+                else current
+            )
+        else:
+            raw = config_dic.get(section, option, fallback=current)
+        value = cast(raw)
+    except Exception as err:
+        log_fn = getattr(logger, log_level, logger.error)
+        log_fn("Failed to parse %s parameter: %s", option, err)
+        return current
+    logger.debug("Helper.config_number_load(%s) ended", option)
+    return value
 
 
 def config_option_load(

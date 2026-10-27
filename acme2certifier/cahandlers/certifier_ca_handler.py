@@ -19,6 +19,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_number_load,
     config_option_load,
     config_ca_bundle_load,
     config_profile_load,
@@ -351,29 +352,22 @@ class CAhandler(object):
                 CONFIGURATION_ERROR_DETAIL,
             )
 
-        try:
-            self.polling_timeout = int(
-                config_dic.get(
-                    "CAhandler", "polling_timeout", fallback=self.polling_timeout
-                )
-            )
-        except Exception:
-            self.logger.warning(
-                "Invalid value for polling_timeout in configuration. Using default: %s",
-                self.polling_timeout,
-            )
-
-        try:
-            self.request_timeout = int(
-                config_dic.get(
-                    "CAhandler", "request_timeout", fallback=self.request_timeout
-                )
-            )
-        except Exception:
-            self.logger.warning(
-                "Invalid value for request_timeout in configuration. Using default: %s",
-                self.request_timeout,
-            )
+        self.polling_timeout = config_number_load(
+            self.logger,
+            config_dic,
+            "polling_timeout",
+            cast=int,
+            current=self.polling_timeout,
+            log_level="warning",
+        )
+        self.request_timeout = config_number_load(
+            self.logger,
+            config_dic,
+            "request_timeout",
+            cast=int,
+            current=self.request_timeout,
+            log_level="warning",
+        )
 
         # load enrollment config log
         (
@@ -386,31 +380,22 @@ class CAhandler(object):
             "CAhandler", self.profile_mapping_field, fallback=None
         )
 
-        try:
-            self.request_retries = int(
-                config_dic.get(
-                    "CAhandler", "request_retries", fallback=self.request_retries
-                )
-            )
-        except Exception:
-            self.logger.warning(
-                "Invalid value for request_retries in configuration. Using default: %s",
-                self.request_retries,
-            )
-
-        try:
-            self.request_retry_backoff = float(
-                config_dic.get(
-                    "CAhandler",
-                    "request_retry_backoff",
-                    fallback=self.request_retry_backoff,
-                )
-            )
-        except Exception:
-            self.logger.warning(
-                "Invalid value for request_retry_backoff in configuration. Using default: %s",
-                self.request_retry_backoff,
-            )
+        self.request_retries = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retries",
+            cast=int,
+            current=self.request_retries,
+            log_level="warning",
+        )
+        self.request_retry_backoff = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retry_backoff",
+            cast=float,
+            current=self.request_retry_backoff,
+            log_level="warning",
+        )
 
         self.ca_bundle = config_ca_bundle_load(
             self.logger, config_dic, current=self.ca_bundle

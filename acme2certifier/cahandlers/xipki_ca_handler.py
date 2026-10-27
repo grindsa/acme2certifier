@@ -24,6 +24,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_number_load,
     config_option_load,
     config_profile_load,
     config_proxy_load,
@@ -113,13 +114,13 @@ class CAhandler(object):
             self.profile = config_dic.get(
                 "CAhandler", self.profile_mapping_field, fallback=self.profile
             )
-            try:
-                self.request_timeout = int(
-                    config_dic.get("CAhandler", "request_timeout", fallback=20)
-                )
-            except Exception as err:
-                self.logger.error("Could not load request_timeout:%s", err)
-                self.request_timeout = 20
+            self.request_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "request_timeout",
+                cast=int,
+                current=self.request_timeout,
+            )
 
             self.ca_bundle = config_ca_bundle_load(
                 self.logger, config_dic, current=self.ca_bundle

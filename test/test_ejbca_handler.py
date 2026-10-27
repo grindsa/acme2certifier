@@ -90,7 +90,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_server_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:Could not load request_timeout parameter:invalid literal for int() with base 10: 'aa'",
+            "ERROR:test_a2c:Failed to parse request_timeout parameter: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -1308,7 +1308,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_server_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:Could not load request_retries parameter:invalid literal for int() with base 10: 'invalid'",
+            "ERROR:test_a2c:Failed to parse request_retries parameter: invalid literal for int() with base 10: 'invalid'",
             lcm.output,
         )
         self.assertEqual(3, self.cahandler.request_retries)
@@ -1323,7 +1323,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_server_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:Could not load request_retry_backoff parameter:could not convert string to float: 'invalid'",
+            "ERROR:test_a2c:Failed to parse request_retry_backoff parameter: could not convert string to float: 'invalid'",
             lcm.output,
         )
         self.assertEqual(2.0, self.cahandler.request_retry_backoff)

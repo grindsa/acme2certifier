@@ -2811,7 +2811,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.cahandler._config_dns_update_script_load(parser)
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._config_dns_update_script_load(): Failed to parse dns_validation_timeout parameter: invalid literal for int() with base 10: 'not_an_int'",
+            "WARNING:test_a2c:Failed to parse dns_validation_timeout parameter: invalid literal for int() with base 10: 'not_an_int'",
             lcm.output,
         )
         self.assertEqual(self.cahandler.dns_validation_timeout, 20)

@@ -501,7 +501,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:Failed to parse cert_validity_days invalid literal for int() with base 10: 'aa' parameter",
+            "ERROR:test_a2c:Failed to parse cert_validity_days parameter: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertTrue(mock_session.called)

@@ -37,6 +37,7 @@ from acme2certifier.acme_srv.helper import (
     convert_byte_to_string,
     csr_cn_get,
     config_enroll_config_log_load,
+    config_number_load,
     config_option_load,
     config_shortname_denylist_load,
     enrollment_config_log,
@@ -520,8 +521,13 @@ class CAhandler(object):
                 )
                 self.ca_cert_chain = []
 
-        if "cert_validity_days" in config_dic["CAhandler"]:
-            self.cert_validity_days = int(config_dic["CAhandler"]["cert_validity_days"])
+        self.cert_validity_days = config_number_load(
+            self.logger,
+            config_dic,
+            "cert_validity_days",
+            cast=int,
+            current=self.cert_validity_days,
+        )
         try:
             self.cn_enforce = config_dic.getboolean(
                 "CAhandler", "cn_enforce", fallback=False

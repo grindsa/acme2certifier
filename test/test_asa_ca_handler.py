@@ -279,7 +279,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:request_timeout parameter is not an integer. Error: invalid literal for int() with base 10: 'aa'",
+            "ERROR:test_a2c:Failed to parse request_timeout parameter: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -1397,7 +1397,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
             self.cahandler._config_load()
         self.assertTrue(
             any(
-                "request_retries parameter is not an integer" in msg
+                "Failed to parse request_retries parameter" in msg
                 for msg in lcm.output
             )
         )

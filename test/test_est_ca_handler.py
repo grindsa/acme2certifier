@@ -466,7 +466,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_parameters_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:Could not load request_timeout:aa",
+            "ERROR:test_a2c:Failed to parse request_timeout parameter: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertTrue(self.cahandler.ca_bundle)

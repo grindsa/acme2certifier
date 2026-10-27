@@ -24,6 +24,7 @@ from acme2certifier.acme_srv.helper import (
     enrollment_config_log,
     request_operation,
     config_ca_bundle_load,
+    config_number_load,
 )
 
 
@@ -126,31 +127,22 @@ class CAhandler(object):
             section=self.CONFIG_SECTION,
         )
 
-        try:
-            self.request_retries = int(
-                config_dic.get(
-                    self.CONFIG_SECTION,
-                    "request_retries",
-                    fallback=self.request_retries,
-                )
-            )
-        except ValueError:
-            self.logger.error(
-                "CAhandler._config_load(): request_retries is not an integer, using default"
-            )
-
-        try:
-            self.request_retry_backoff = float(
-                config_dic.get(
-                    self.CONFIG_SECTION,
-                    "request_retry_backoff",
-                    fallback=self.request_retry_backoff,
-                )
-            )
-        except ValueError:
-            self.logger.error(
-                "CAhandler._config_load(): request_retry_backoff is not a float, using default"
-            )
+        self.request_retries = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retries",
+            cast=int,
+            current=self.request_retries,
+            section=self.CONFIG_SECTION,
+        )
+        self.request_retry_backoff = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retry_backoff",
+            cast=float,
+            current=self.request_retry_backoff,
+            section=self.CONFIG_SECTION,
+        )
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(

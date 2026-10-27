@@ -1722,6 +1722,49 @@ def test_672_challenge_type_configuration_validate_empty_config(
     warning_mock.assert_not_called()
 
 
+def test_674_config_number_load(
+    logger: logging.Logger, capture_logs: Callable[..., AbstractContextManager[Any]]
+) -> None:
+    """config_number_load parses int/float and keeps current on failure"""
+    from acme2certifier.acme_srv.helpers.config import config_number_load
+    import configparser
+
+    empty = configparser.ConfigParser()
+    assert 10 == config_number_load(
+        logger, empty, "request_timeout", cast=int, current=10
+    )
+
+    parser = configparser.ConfigParser()
+    parser["CAhandler"] = {
+        "request_timeout": "15",
+        "request_retry_backoff": "1.5",
+        "request_retries": "bad",
+    }
+    assert 15 == config_number_load(
+        logger, parser, "request_timeout", cast=int, current=10
+    )
+    assert 1.5 == config_number_load(
+        logger, parser, "request_retry_backoff", cast=float, current=2.0
+    )
+    with capture_logs("test_a2c", level="ERROR") as lcm:
+        assert 3 == config_number_load(
+            logger, parser, "request_retries", cast=int, current=3
+        )
+    assert any(
+        "Failed to parse request_retries parameter:" in msg for msg in lcm.output
+    )
+    assert 10 == config_number_load(
+        logger, parser, "missing_option", cast=int, current=10
+    )
+    assert 12 == config_number_load(
+        logger,
+        {"CAhandler": {"request_timeout": "12"}},
+        "request_timeout",
+        cast=int,
+        current=10,
+    )
+
+
 def test_677_cahandler_section_merged_config_passthrough(
     logger: logging.Logger,
 ) -> None:

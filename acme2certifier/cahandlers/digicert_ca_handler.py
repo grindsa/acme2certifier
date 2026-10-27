@@ -12,6 +12,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_number_load,
     config_profile_load,
     csr_cn_lookup,
     eab_profile_header_info_check,
@@ -133,40 +134,34 @@ class CAhandler(object):
             self.signature_hash = config_dic.get(
                 "CAhandler", "signature_hash", fallback="sha256"
             )
-            try:
-                self.order_validity = int(
-                    config_dic.get("CAhandler", "order_validity", fallback=1)
-                )
-            except Exception as err:
-                self.logger.error(
-                    "Could not load order_validity:%s",
-                    err,
-                )
-
-            try:
-                self.request_timeout = int(
-                    config_dic.get("CAhandler", "request_timeout", fallback=10)
-                )
-            except Exception as err:
-                self.logger.error(
-                    "Could not load request_timeout:%s",
-                    err,
-                )
-                self.request_timeout = 10
-            try:
-                self.request_retries = int(
-                    config_dic.get("CAhandler", "request_retries", fallback=3)
-                )
-            except Exception as err:
-                self.logger.error("Could not load request_retries:%s", err)
-                self.request_retries = 3
-            try:
-                self.request_retry_backoff = float(
-                    config_dic.get("CAhandler", "request_retry_backoff", fallback=2.0)
-                )
-            except Exception as err:
-                self.logger.error("Could not load request_retry_backoff:%s", err)
-                self.request_retry_backoff = 2.0
+            self.order_validity = config_number_load(
+                self.logger,
+                config_dic,
+                "order_validity",
+                cast=int,
+                current=self.order_validity,
+            )
+            self.request_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "request_timeout",
+                cast=int,
+                current=self.request_timeout,
+            )
+            self.request_retries = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retries",
+                cast=int,
+                current=self.request_retries,
+            )
+            self.request_retry_backoff = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retry_backoff",
+                cast=float,
+                current=self.request_retry_backoff,
+            )
             self.organization_id = config_dic.get(
                 "CAhandler", "organization_id", fallback=self.organization_id
             )

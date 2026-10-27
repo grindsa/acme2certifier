@@ -22,6 +22,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_number_load,
     config_option_load,
     config_profile_load,
     config_proxy_load,
@@ -75,14 +76,6 @@ class CAhandler(object):
     def __exit__(self, *args):
         """Close the connection at the end of the context."""
 
-    def _config_number(self, config_dic, key: str, current, cast):
-        """Load a numeric option, keeping current when parsing fails."""
-        try:
-            return cast(config_dic.get("CAhandler", key, fallback=current))
-        except Exception as err:
-            self.logger.error("Could not load %s: %s", key, err)
-            return current
-
     def _config_load(self) -> None:
         """Load config from file."""
         self.logger.debug("CAhandler._config_load()")
@@ -101,14 +94,26 @@ class CAhandler(object):
             self.chain_file = config_dic.get(
                 "CAhandler", "chain_file", fallback=self.chain_file
             )
-            self.request_timeout = self._config_number(
-                config_dic, "request_timeout", self.request_timeout, int
+            self.request_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "request_timeout",
+                cast=int,
+                current=self.request_timeout,
             )
-            self.request_retries = self._config_number(
-                config_dic, "request_retries", self.request_retries, int
+            self.request_retries = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retries",
+                cast=int,
+                current=self.request_retries,
             )
-            self.request_retry_backoff = self._config_number(
-                config_dic, "request_retry_backoff", self.request_retry_backoff, float
+            self.request_retry_backoff = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retry_backoff",
+                cast=float,
+                current=self.request_retry_backoff,
             )
             self.ca_bundle = config_ca_bundle_load(
                 self.logger, config_dic, current=self.ca_bundle

@@ -31,6 +31,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_headerinfo_load,
     config_enroll_config_log_load,
+    config_number_load,
     config_profile_load,
     config_shortname_denylist_load,
     eab_profile_as_bool,
@@ -184,19 +185,14 @@ class CAhandler(object):
                 "CAhandler", "acme_sh_shell", fallback=self.acme_sh_shell
             )
 
-            try:
-                self.dns_validation_timeout = int(
-                    config_dic.get(
-                        "CAhandler",
-                        "dns_validation_timeout",
-                        fallback=self.dns_validation_timeout,
-                    )
-                )
-            except Exception as err:
-                self.logger.warning(
-                    "CAhandler._config_dns_update_script_load(): Failed to parse dns_validation_timeout parameter: %s",
-                    err,
-                )
+            self.dns_validation_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "dns_validation_timeout",
+                cast=int,
+                current=self.dns_validation_timeout,
+                log_level="warning",
+            )
 
             try:
                 self.dns_update_script_variables = json.loads(

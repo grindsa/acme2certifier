@@ -25,6 +25,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_number_load,
     config_option_load,
     config_profile_load,
     config_proxy_load,
@@ -266,33 +267,41 @@ class CAhandler:
                 current=self.aws_session_token,
             )
 
-            for attr, key, cast in (
-                ("validity_days", "validity_days", int),
-                ("poll_timeout", "poll_timeout", int),
-                ("request_timeout", "request_timeout", int),
-                ("request_retries", "request_retries", int),
-            ):
-                try:
-                    setattr(
-                        self,
-                        attr,
-                        cast(
-                            config_dic.get(
-                                "CAhandler", key, fallback=getattr(self, attr)
-                            )
-                        ),
-                    )
-                except Exception as err:
-                    self.logger.error("Failed to parse %s parameter: %s", key, err)
-
-            try:
-                self.poll_interval = float(
-                    config_dic.get(
-                        "CAhandler", "poll_interval", fallback=self.poll_interval
-                    )
-                )
-            except Exception as err:
-                self.logger.error("Failed to parse poll_interval parameter: %s", err)
+            self.validity_days = config_number_load(
+                self.logger,
+                config_dic,
+                "validity_days",
+                cast=int,
+                current=self.validity_days,
+            )
+            self.poll_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "poll_timeout",
+                cast=int,
+                current=self.poll_timeout,
+            )
+            self.request_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "request_timeout",
+                cast=int,
+                current=self.request_timeout,
+            )
+            self.request_retries = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retries",
+                cast=int,
+                current=self.request_retries,
+            )
+            self.poll_interval = config_number_load(
+                self.logger,
+                config_dic,
+                "poll_interval",
+                cast=float,
+                current=self.poll_interval,
+            )
 
             self.ca_bundle = config_ca_bundle_load(
                 self.logger, config_dic, current=self.ca_bundle

@@ -225,7 +225,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_server_load(parser)
         self.assertFalse(self.cahandler.host)
         self.assertIn(
-            "ERROR:test_a2c:Could not load request_timeout from config: invalid literal for int() with base 10: 'aaa'",
+            "ERROR:test_a2c:Failed to parse request_timeout parameter: invalid literal for int() with base 10: 'aaa'",
             lcm.output,
         )
         self.assertEqual(5, self.cahandler.request_timeout)
@@ -275,7 +275,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_ca_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:Failed to load polling_timeout from config: invalid literal for int() with base 10: 'polling_timeout'",
+            "ERROR:test_a2c:Failed to parse polling_timeout parameter: invalid literal for int() with base 10: 'polling_timeout'",
             lcm.output,
         )
         self.assertEqual(0, self.cahandler.polling_timeout)
@@ -920,7 +920,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_server_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:Could not load request_retries from config: invalid literal for int() with base 10: 'invalid'",
+            "ERROR:test_a2c:Failed to parse request_retries parameter: invalid literal for int() with base 10: 'invalid'",
             lcm.output,
         )
 
@@ -931,7 +931,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_server_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:Could not load request_retry_backoff from config: could not convert string to float: 'invalid'",
+            "ERROR:test_a2c:Failed to parse request_retry_backoff parameter: could not convert string to float: 'invalid'",
             lcm.output,
         )
 
