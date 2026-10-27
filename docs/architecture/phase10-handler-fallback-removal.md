@@ -87,7 +87,7 @@ Path-in-`*_module` uses the same file loader as today's `*_file` keys — no pac
 
 Search for `handler_file`, `eab_handler_file`, `hooks_file`, `warn_file_config`, `warn_default_ca`, `acme_srv.ca_handler`:
 
-- `test/test_helper.py` (plugin loader / deprecation cases)
+- `test/test_plugin_loader.py` (plugin loader / deprecation cases)
 - `test/test_compat.py`
 - `test/test_trigger.py`, `test/test_renewalinfo.py`, `test/test_account.py`, `test/test_directory.py`, `test/test_message.py` (any `*_file` fixtures)
 

@@ -3758,9 +3758,7 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.allow_shortname_from_fqdn = False
         self.order.repository.account_lookup.return_value = {"eab_kid": "kid_sn"}
         mock_eab_handler = MagicMock()
-        profile_dic = {
-            "kid_sn": {"order": {"allow_shortname_from_fqdn": True}}
-        }
+        profile_dic = {"kid_sn": {"order": {"allow_shortname_from_fqdn": True}}}
         mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
         self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
 
@@ -3773,9 +3771,7 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.shortname_denylist = []
         self.order.repository.account_lookup.return_value = {"eab_kid": "kid_dn"}
         mock_eab_handler = MagicMock()
-        profile_dic = {
-            "kid_dn": {"order": {"shortname_denylist": ["mail", "vpn"]}}
-        }
+        profile_dic = {"kid_dn": {"order": {"shortname_denylist": ["mail", "vpn"]}}}
         mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
         self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
 
@@ -3857,6 +3853,28 @@ class TestOrderClass(unittest.TestCase):
         self.assertEqual(payload["identifiers"][0]["status"], "pending")
         self.assertEqual(payload["identifiers"][1]["status"], "pending")
         self.order.repository.update_authorization.assert_not_called()
+
+    def test_232_skip_shortname_challenge_ignores_non_dns(self):
+        """IP identifiers are not eligible for the shortname challenge skip."""
+        self.order.config.allow_shortname_without_challenge_validation = True
+        identifier = {"type": "ip", "value": "10.0.0.1"}
+        identifiers = [identifier, {"type": "dns", "value": "host.intra.net"}]
+        self.assertFalse(
+            self.order._should_skip_shortname_challenge_validation(
+                identifier, identifiers
+            )
+        )
+
+    def test_233_dns_identifier_values_skips_non_dict(self):
+        """Non-dict identifier entries are ignored when collecting DNS names."""
+        values = self.order._dns_identifier_values(
+            [
+                "not-a-dict",
+                {"type": "dns", "value": "host.example"},
+                {"type": "ip", "value": "10.0.0.1"},
+            ]
+        )
+        self.assertEqual(["host.example"], values)
 
 
 if __name__ == "__main__":

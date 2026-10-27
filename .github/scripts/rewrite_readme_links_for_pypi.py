@@ -100,9 +100,7 @@ def main() -> None:
     if rewritten == original:
         raise SystemExit(f"No relative links rewritten in {readme}")
     readme.write_text(rewritten, encoding="utf-8")
-    print(
-        f"Rewrote relative links in {readme} → github.com/{args.repo}/…/{args.ref}/…"
-    )
+    print(f"Rewrote relative links in {readme} → github.com/{args.repo}/…/{args.ref}/…")
 
 
 if __name__ == "__main__":

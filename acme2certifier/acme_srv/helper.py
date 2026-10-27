@@ -185,6 +185,22 @@ from .helpers.logging_utils import (
     handle_exception,
 )
 
+# Optional OpenTelemetry facade (experimental; NoOp unless configured)
+from .helpers.otel import (
+    context_attach,
+    context_capture,
+    counter_add,
+    get_trace_context_ids,
+    histogram_record,
+    http_request_span,
+    init_otel,
+    install_log_correlation,
+    is_otel_enabled,
+    mark_http_status,
+    set_span_outcome,
+    span,
+)
+
 # Plugin loaders
 from .helpers.plugin_loader import (
     ca_handler_load,

@@ -4,13 +4,14 @@
 from __future__ import print_function
 
 import base64
+import hashlib
 import re
 from typing import Optional, Tuple
 from urllib.parse import urlencode
 
 import requests
 from cryptography import x509
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.serialization import Encoding
 from requests.auth import HTTPBasicAuth
 
 # pylint: disable=e0401
@@ -123,9 +124,7 @@ class CAhandler(object):
             self.ca_bundle = config_ca_bundle_load(
                 self.logger, config_dic, current=self.ca_bundle
             )
-            self.proxy = config_proxy_load(
-                self.logger, config_dic, self.api_host
-            )
+            self.proxy = config_proxy_load(self.logger, config_dic, self.api_host)
 
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -199,14 +198,26 @@ class CAhandler(object):
         return base64.b64decode(csr_b64)
 
     def _ca_sha1_from_der(self, der_cert: bytes) -> str:
-        """SHA-1 fingerprint of a DER certificate as lowercase hex"""
+        """SHA-1 fingerprint of a DER certificate as lowercase hex.
+
+        XiPKI revoke-cert selects the issuer with this fingerprint (ca-sha1).
+        """
         cert = x509.load_der_x509_certificate(der_cert)
-        return cert.fingerprint(hashes.SHA1()).hex()
+        return hashlib.sha1(
+            cert.public_bytes(Encoding.DER),
+            usedforsecurity=False,
+        ).hexdigest()
+
+    def _http_failure(self, message: str, text: str) -> str:
+        """append response text when present and log the error"""
+        if text:
+            message = f"{message} - {text}"
+        self.logger.error("%s", message)
+        return message
 
     def _cacert_cache(self) -> Tuple[Optional[str], Optional[str]]:
         """fetch and cache CA cert (/cacert) and chain (/cacerts)"""
         self.logger.debug("CAhandler._cacert_cache()")
-        error = None
         api_host = self._api_host_normalize()
         if not api_host:
             return f"{CONFIGURATION_ERROR_DETAIL}: api_host missing", None
@@ -215,35 +226,27 @@ class CAhandler(object):
             return None, self._cacerts_pem
 
         code, content, text = self._http_request("GET", f"{api_host}/cacerts")
-        if code == 200 and content:
-            self._cacerts_pem = convert_byte_to_string(content)
-            if not self._cacerts_pem.endswith("\n"):
-                self._cacerts_pem = f"{self._cacerts_pem}\n"
-        else:
-            error = f"Could not fetch /cacerts: HTTP {code}"
-            if text:
-                error = f"{error} - {text}"
-            self.logger.error("%s", error)
-            return error, None
+        if code != 200 or not content:
+            message = f"Could not fetch /cacerts: HTTP {code}"
+            return self._http_failure(message, text), None
+
+        self._cacerts_pem = convert_byte_to_string(content)
+        if not self._cacerts_pem.endswith("\n"):
+            self._cacerts_pem = f"{self._cacerts_pem}\n"
 
         code, content, text = self._http_request("GET", f"{api_host}/cacert")
-        if code == 200 and content:
-            try:
-                self._ca_sha1 = self._ca_sha1_from_der(content)
-            except Exception as err:
-                error = f"Could not parse /cacert: {err}"
-                self.logger.error("%s", error)
-                return error, None
-        else:
-            error = f"Could not fetch /cacert: HTTP {code}"
-            if text:
-                error = f"{error} - {text}"
+        if code != 200 or not content:
+            message = f"Could not fetch /cacert: HTTP {code}"
+            return self._http_failure(message, text), None
+
+        try:
+            self._ca_sha1 = self._ca_sha1_from_der(content)
+        except Exception as err:
+            error = f"Could not parse /cacert: {err}"
             self.logger.error("%s", error)
             return error, None
 
-        self.logger.debug(
-            "CAhandler._cacert_cache() ended ca-sha1=%s", self._ca_sha1
-        )
+        self.logger.debug("CAhandler._cacert_cache() ended ca-sha1=%s", self._ca_sha1)
         return None, self._cacerts_pem
 
     def _enroll_post(self, csr_der: bytes) -> Tuple[Optional[str], Optional[bytes]]:
@@ -292,37 +295,43 @@ class CAhandler(object):
             self.logger.error("%s", error)
             return error, None, None
 
+    def _enroll_csr(
+        self, csr: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """fetch CA certs, submit the CSR, and build the PEM bundle"""
+        self.logger.debug("CAhandler._enroll_csr()")
+        error, ca_pem = self._cacert_cache()
+        if error:
+            return error, None, None
+
+        try:
+            csr_der = self._csr_der_get(csr)
+        except Exception as err:
+            error = f"Invalid CSR: {err}"
+            self.logger.error("%s", error)
+            return error, None, None
+
+        error, leaf_der = self._enroll_post(csr_der)
+        if error or not leaf_der:
+            return error, None, None
+
+        return self._bundle_create(leaf_der, ca_pem)
+
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """enroll certificate via XiPKI REST"""
         self.logger.debug("CAhandler.enroll()")
 
         cert_bundle = None
-        error = None
         cert_raw = None
         poll_identifier = None
 
         error = eab_profile_header_info_check(
             self.logger, self, csr, self.profile_mapping_field
         )
-
-        if not error:
-            error, ca_pem = self._cacert_cache()
-            if not error:
-                try:
-                    csr_der = self._csr_der_get(csr)
-                except Exception as err:
-                    error = f"Invalid CSR: {err}"
-                    self.logger.error("%s", error)
-                    csr_der = None
-
-                if not error and csr_der is not None:
-                    error, leaf_der = self._enroll_post(csr_der)
-                    if not error and leaf_der:
-                        error, cert_bundle, cert_raw = self._bundle_create(
-                            leaf_der, ca_pem
-                        )
-        else:
+        if error:
             self.logger.warning("CSR check failed: %s", error)
+        else:
+            error, cert_bundle, cert_raw = self._enroll_csr(csr)
 
         self.logger.debug("CAhandler.enroll() ended with error: %s", error)
         return (error, cert_bundle, cert_raw, poll_identifier)

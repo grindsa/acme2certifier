@@ -1,5 +1,8 @@
 name: Deployment - Publish to PyPI
 
+# release: published does not run when Create Release uses GITHUB_TOKEN.
+# main-create-release-push-images-to-dockerhub.yml dispatches this workflow
+# with confirm=publish and tag=<version> after it creates a release.
 on:
   release:
     types: [published]
@@ -8,6 +11,10 @@ on:
       confirm:
         description: "Type publish to upload the current checkout to PyPI"
         required: true
+        default: ""
+      tag:
+        description: "Release tag to build and to pin README links"
+        required: false
         default: ""
 
 permissions: {}
@@ -28,6 +35,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag || github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -41,7 +50,7 @@ jobs:
 
       - name: Rewrite README links for PyPI
         env:
-          README_REF: ${{ github.event.release.tag_name || github.sha }}
+          README_REF: ${{ github.event.release.tag_name || inputs.tag || github.sha }}
         run: |
           python .github/scripts/rewrite_readme_links_for_pypi.py README.md \
             --repo "${{ github.repository }}" \

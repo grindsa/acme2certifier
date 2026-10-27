@@ -143,6 +143,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  publish_pypi:
+    name: Trigger PyPI publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: create_release
+    permissions:
+      actions: write
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && needs.create_release.result == 'success'
+      && needs.create_release.outputs.created_release == 'true'
+    steps:
+      - name: Dispatch publish-pypi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create_release.outputs.tag_n }}
+        run: |
+          set -euo pipefail
+          gh workflow run publish-pypi.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref master \
+            -f confirm=publish \
+            -f tag="${TAG}"
+
   resolve_versions:
     name: Resolve supported tags
     runs-on: ubuntu-latest

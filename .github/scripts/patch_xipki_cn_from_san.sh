@@ -65,7 +65,9 @@ unzip -q -d "${PATCH_DIR}/war" "${WAR}"
 mkdir -p "${PATCH_DIR}/extra-lib"
 cp -a "${GW_LIB}"/*.jar "${PATCH_DIR}/extra-lib/" 2>/dev/null || true
 
-curl -fsSL -o "${PATCH_DIR}/RestResponder.java" \
+# Refuse a redirect onto clear text (shell:S6506).
+curl --proto '=https' --proto-redir '=https' -fsSL \
+  -o "${PATCH_DIR}/RestResponder.java" \
   "https://raw.githubusercontent.com/xipki/xipki/v6.3.0/ca-gateway/rest-gateway/src/main/java/org/xipki/ca/gateway/rest/RestResponder.java"
 
 python3 - "${PATCH_DIR}/RestResponder.java" <<'PY'

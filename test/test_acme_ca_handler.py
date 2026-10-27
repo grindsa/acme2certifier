@@ -3724,6 +3724,29 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert", "reason", "date"),
         )
 
+    def test_176_eab_profile_list_check_shortname_denylist(self):
+        """shortname_denylist list values are stored on the handler."""
+        self.cahandler.shortname_denylist = []
+        result = self.cahandler.eab_profile_list_check(
+            None, "csr", "shortname_denylist", ["mail", "vpn"]
+        )
+        self.assertIsNone(result)
+        self.assertEqual(["mail", "vpn"], self.cahandler.shortname_denylist)
+
+    def test_177_eab_profile_list_check_shortname_denylist_not_list(self):
+        """A non-list shortname_denylist is rejected with a warning."""
+        self.cahandler.shortname_denylist = ["keep"]
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            result = self.cahandler.eab_profile_list_check(
+                None, "csr", "shortname_denylist", "mail"
+            )
+        self.assertIsNone(result)
+        self.assertEqual(["keep"], self.cahandler.shortname_denylist)
+        self.assertIn(
+            "WARNING:test_a2c:handler specific EAB profile list checking: shortname_denylist must be a list",
+            lcm.output,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

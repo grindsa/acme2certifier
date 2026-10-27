@@ -26,6 +26,9 @@ RUN apt-get update  && \
     python3-impacket \
     python3-mssql-django \
     python3-mysqldb \
+    python3-opentelemetry-api \
+    python3-opentelemetry-exporter-otlp-proto-http \
+    python3-opentelemetry-sdk \
     python3-psycopg2 \
     python3-pymysql \
     python3-pyodbc \

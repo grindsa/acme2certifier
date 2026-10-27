@@ -7,7 +7,7 @@ import time
 from configparser import ConfigParser
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
-from threading import Thread
+from acme2certifier.acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 from acme2certifier.acme_srv.helper import (
     generate_random_string,
     jwk_thumbprint_get,
@@ -29,6 +29,13 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     ownership_lookup_failed,
     resolve_resource_ownership,
+)
+from acme2certifier.acme_srv.helpers.otel import (
+    ATTR_CHALLENGE_TYPE,
+    ATTR_OUTCOME,
+    counter_add,
+    set_span_outcome,
+    span,
 )
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.message import Message, finish_response
@@ -233,41 +240,46 @@ class DatabaseChallengeRepository(ChallengeRepository):
     def create_challenge(self, request: ChallengeCreationRequest) -> Optional[str]:
         """Create a new challenge and return its name."""
         self.logger.debug("DatabaseChallengeRepository.create_challenge(%s)", request)
-        try:
-            challenge_name = generate_random_string(self.logger, 12)
-            data_dic = {
-                "name": challenge_name,
-                "expires": uts_now() + self.expiry,
-                # "expires": request.expires if request.expires else uts_now() + self.expiry,
-                "type": request.challenge_type,
-                "token": request.token,
-                "authorization": request.authorization_name,
-                "status": 2,  # pending
-            }
+        chall_attrs = {ATTR_CHALLENGE_TYPE: request.challenge_type or ""}
+        with span("acme.challenge.create", attributes=chall_attrs) as chall_span:
+            try:
+                challenge_name = generate_random_string(self.logger, 12)
+                data_dic = {
+                    "name": challenge_name,
+                    "expires": uts_now() + self.expiry,
+                    # "expires": request.expires if request.expires else uts_now() + self.expiry,
+                    "type": request.challenge_type,
+                    "token": request.token,
+                    "authorization": request.authorization_name,
+                    "status": 2,  # pending
+                }
 
-            # Handle special challenge types
-            if request.challenge_type == "email-reply-00":
-                token1 = generate_random_string(self.logger, 32)
-                data_dic["keyauthorization"] = token1
-                # Email sending would be handled elsewhere
-            elif request.challenge_type == "sectigo-email-01":
-                data_dic["status"] = 5  # valid
+                # Handle special challenge types
+                if request.challenge_type == "email-reply-00":
+                    token1 = generate_random_string(self.logger, 32)
+                    data_dic["keyauthorization"] = token1
+                    # Email sending would be handled elsewhere
+                elif request.challenge_type == "sectigo-email-01":
+                    data_dic["status"] = 5  # valid
 
-            chid = self.dbstore.challenge_add(
-                request.value, request.challenge_type, data_dic
-            )
-            self.logger.debug(
-                "DatabaseChallengeRepository.create_challenge() ended: created challenge %s/%s",
-                challenge_name,
-                chid,
-            )
-            return challenge_name if chid else None
+                chid = self.dbstore.challenge_add(
+                    request.value, request.challenge_type, data_dic
+                )
+                self.logger.debug(
+                    "DatabaseChallengeRepository.create_challenge() ended: created challenge %s/%s",
+                    challenge_name,
+                    chid,
+                )
+                outcome = "success" if chid else "failure"
+                set_span_outcome(chall_span, outcome)
+                return challenge_name if chid else None
 
-        except Exception as err:
-            self.logger.critical(
-                f"{DB_ERROR_MSG}: failed to add new challenge: %s", err
-            )
-            raise DatabaseError(f"Failed to create challenge: {err}") from err
+            except Exception as err:
+                set_span_outcome(chall_span, "error", err)
+                self.logger.critical(
+                    f"{DB_ERROR_MSG}: failed to add new challenge: %s", err
+                )
+                raise DatabaseError(f"Failed to create challenge: {err}") from err
 
     def update_challenge(self, request: ChallengeUpdateRequest) -> bool:
         """Update an existing challenge."""
@@ -507,35 +519,62 @@ class Challenge:
             raise ValidationError("Could not retrieve challenge details for validation")
 
         challenge_type = challenge_details["type"]
+        span_attrs = {ATTR_CHALLENGE_TYPE: challenge_type}
 
-        # Check if challenge type is supported
-        if not self.validator_registry.is_supported(challenge_type):
-            raise UnsupportedChallengeTypeError(
-                challenge_type, self.validator_registry.get_supported_types()
-            )
+        with span("acme.challenge.validate", attributes=span_attrs) as active:
+            try:
+                if not self.validator_registry.is_supported(challenge_type):
+                    raise UnsupportedChallengeTypeError(
+                        challenge_type,
+                        self.validator_registry.get_supported_types(),
+                    )
 
-        # Create validation context
-        context = ChallengeContext(
-            challenge_name=challenge_name,
-            token=challenge_details["token"],
-            jwk_thumbprint=challenge_details["jwk_thumbprint"],
-            keyauthorization=challenge_details["keyauthorization"],
-            authorization_type=challenge_details["authorization_type"],
-            authorization_value=challenge_details["authorization_value"],
-            dns_servers=self.config.dns_server_list,
-            proxy_servers=self.config.proxy_server_list,
-            timeout=self.config.validation_timeout,
-            options={
-                "accounturi": challenge_details.get("accounturi"),
-                "issuer_domain_names": self.config.caaidentities or [],
-                "allow_policy_wildcard": self.config.dns_persist_allow_policy_wildcard,
-                "http01_block_private_ips": self.config.http01_block_private_ips,
-                "challenge_message_id": challenge_details.get("challenge_message_id"),
-            },
-        )
+                context = ChallengeContext(
+                    challenge_name=challenge_name,
+                    token=challenge_details["token"],
+                    jwk_thumbprint=challenge_details["jwk_thumbprint"],
+                    keyauthorization=challenge_details["keyauthorization"],
+                    authorization_type=challenge_details["authorization_type"],
+                    authorization_value=challenge_details["authorization_value"],
+                    dns_servers=self.config.dns_server_list,
+                    proxy_servers=self.config.proxy_server_list,
+                    timeout=self.config.validation_timeout,
+                    options={
+                        "accounturi": challenge_details.get("accounturi"),
+                        "issuer_domain_names": self.config.caaidentities or [],
+                        "allow_policy_wildcard": (
+                            self.config.dns_persist_allow_policy_wildcard
+                        ),
+                        "http01_block_private_ips": (
+                            self.config.http01_block_private_ips
+                        ),
+                        "challenge_message_id": challenge_details.get(
+                            "challenge_message_id"
+                        ),
+                    },
+                )
 
-        # Perform validation with retry logic for DNS challenges
-        return self._perform_validation_with_retry(challenge_type, context)
+                result = self._perform_validation_with_retry(challenge_type, context)
+                outcome = "success" if result.success else "failure"
+                set_span_outcome(active, outcome)
+                counter_add(
+                    "acme.challenge.validation",
+                    attributes={
+                        ATTR_CHALLENGE_TYPE: challenge_type,
+                        ATTR_OUTCOME: outcome,
+                    },
+                )
+                return result
+            except Exception as err:
+                set_span_outcome(active, "error", err)
+                counter_add(
+                    "acme.challenge.validation",
+                    attributes={
+                        ATTR_CHALLENGE_TYPE: challenge_type,
+                        ATTR_OUTCOME: "error",
+                    },
+                )
+                raise
 
     def _extract_challenge_name_from_url(self, url: str) -> str:
         """Extract challenge name from URL."""
@@ -1306,8 +1345,9 @@ class Challenge:
     def _start_async_validation(self, challenge_name: str, payload: Dict[str, str]):
         """Start asynchronous challenge validation."""
         self.logger.debug("Challenge._start_async_validation(%s)", challenge_name)
-        # start challenge validation in separate thread
-        twrv = Thread(
+        # ThreadWithReturnValue propagates OTEL context so challenge.validate
+        # nests under the enrollment-session http.request (plain Thread does not).
+        twrv = ThreadWithReturnValue(
             target=self._perform_challenge_validation, args=(challenge_name, payload)
         )
         twrv.start()

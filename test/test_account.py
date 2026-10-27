@@ -2146,6 +2146,14 @@ class TestAccount(unittest.TestCase):
             self.assertEqual(result, {"data": {"status": "valid"}})
             mock_parse_request.assert_called_once_with(content)
 
+    def test_120_outcome_from_response_code(self):
+        """map ACME status codes onto acme.outcome"""
+        self.assertEqual("success", self.account._outcome_from_response_code(200))
+        self.assertEqual("success", self.account._outcome_from_response_code("201"))
+        self.assertEqual("error", self.account._outcome_from_response_code(503))
+        self.assertEqual("failure", self.account._outcome_from_response_code(400))
+        self.assertEqual("failure", self.account._outcome_from_response_code("nope"))
+
 
 if __name__ == "__main__":
     unittest.main()

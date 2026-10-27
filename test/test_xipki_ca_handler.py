@@ -70,9 +70,7 @@ class TestACMEHandler(unittest.TestCase):
         cls.ca_sha1 = ca_cert.fingerprint(hashes.SHA1()).hex()
         cls.leaf_der = leaf.public_bytes(serialization.Encoding.DER)
         cls.leaf_b64url = (
-            base64.urlsafe_b64encode(
-                leaf.public_bytes(serialization.Encoding.DER)
-            )
+            base64.urlsafe_b64encode(leaf.public_bytes(serialization.Encoding.DER))
             .decode()
             .rstrip("=")
         )
@@ -186,9 +184,7 @@ class TestACMEHandler(unittest.TestCase):
                                     return_value=(False, []),
                                 ):
                                     self.cahandler._config_load()
-        self.assertEqual(
-            "https://xipki.example/gw/rest/ca", self.cahandler.api_host
-        )
+        self.assertEqual("https://xipki.example/gw/rest/ca", self.cahandler.api_host)
         self.assertEqual("user", self.cahandler.api_user)
         self.assertEqual("secret", self.cahandler.api_password)
         self.assertEqual("tls", self.cahandler.profile)
@@ -228,11 +224,11 @@ class TestACMEHandler(unittest.TestCase):
                                     "acme2certifier.cahandlers.xipki_ca_handler.config_enroll_config_log_load",
                                     return_value=(False, []),
                                 ):
-                                    with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                                    with self.assertLogs(
+                                        "test_a2c", level="ERROR"
+                                    ) as lcm:
                                         self.cahandler._config_load()
-        self.assertTrue(
-            any("api_host" in line for line in lcm.output)
-        )
+        self.assertTrue(any("api_host" in line for line in lcm.output))
 
     def test_009_auth_set(self):
         """_auth_set configures BasicAuth"""
@@ -349,9 +345,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._ca_sha1 = self.ca_sha1
         mock_cache.return_value = (None, self.ca_pem)
         mock_http.return_value = (200, b"", "")
-        code, message, detail = self.cahandler.revoke(
-            self.leaf_b64url, "keyCompromise"
-        )
+        code, message, detail = self.cahandler.revoke(self.leaf_b64url, "keyCompromise")
         self.assertEqual(200, code)
         self.assertIsNone(message)
         self.assertIsNone(detail)
@@ -389,12 +383,237 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.ca_bundle = True
         self.cahandler.proxy = None
         self.cahandler.request_timeout = 5
-        code, content, text = self.cahandler._http_request(
-            "GET", "https://example"
-        )
+        code, content, text = self.cahandler._http_request("GET", "https://example")
         self.assertEqual(500, code)
         self.assertEqual(b"", content)
         self.assertIn("conn fail", text)
+
+    def test_022_auth_set_incomplete(self):
+        """_auth_set logs when user or password is missing."""
+        self.cahandler.api_user = "user"
+        self.cahandler.api_password = None
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.cahandler._auth_set()
+        self.assertIn(
+            'Auth incomplete. Either "api_user" or "api_password" is missing',
+            lcm.output[0],
+        )
+        self.assertIsNone(self.cahandler.session.auth)
+
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.load_config")
+    def test_023_config_load_bad_timeout(self, mock_load_cfg):
+        """Invalid request_timeout falls back to 20 and is logged."""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "api_host": "https://xipki.example/gw/rest/ca",
+            "api_user": "user",
+            "api_password": "secret",
+            "profile": "tls",
+            "request_timeout": "nope",
+        }
+        mock_load_cfg.return_value = parser
+        with patch(
+            "acme2certifier.cahandlers.xipki_ca_handler.config_option_load",
+            side_effect=lambda _l, _c, option, current=None: {
+                "api_user": "user",
+                "api_password": "secret",
+            }.get(option, current),
+        ):
+            with patch(
+                "acme2certifier.cahandlers.xipki_ca_handler.config_ca_bundle_load",
+                return_value=True,
+            ):
+                with patch(
+                    "acme2certifier.cahandlers.xipki_ca_handler.config_proxy_load",
+                    return_value={},
+                ):
+                    with patch(
+                        "acme2certifier.cahandlers.xipki_ca_handler.config_eab_profile_load",
+                        return_value=(False, None),
+                    ):
+                        with patch(
+                            "acme2certifier.cahandlers.xipki_ca_handler.config_profile_load",
+                            return_value={},
+                        ):
+                            with patch(
+                                "acme2certifier.cahandlers.xipki_ca_handler.config_headerinfo_load",
+                                return_value=False,
+                            ):
+                                with patch(
+                                    "acme2certifier.cahandlers.xipki_ca_handler.config_enroll_config_log_load",
+                                    return_value=(False, []),
+                                ):
+                                    with self.assertLogs(
+                                        "test_a2c", level="ERROR"
+                                    ) as lcm:
+                                        self.cahandler._config_load()
+        self.assertEqual(20, self.cahandler.request_timeout)
+        self.assertTrue(any("request_timeout" in line for line in lcm.output))
+
+    def test_024_http_request_success(self):
+        """_http_request returns status, body, and text from the session."""
+        response = Mock()
+        response.status_code = 204
+        response.content = b"body"
+        response.text = "body"
+        self.cahandler.session = Mock()
+        self.cahandler.session.request.return_value = response
+        self.cahandler.ca_bundle = True
+        self.cahandler.proxy = None
+        self.cahandler.request_timeout = 5
+        code, content, text = self.cahandler._http_request("GET", "https://example")
+        self.assertEqual(204, code)
+        self.assertEqual(b"body", content)
+        self.assertEqual("body", text)
+
+    def test_025_reason_normalize_blank(self):
+        """Whitespace revocation reasons map to UNSPECIFIED."""
+        self.assertEqual("UNSPECIFIED", self.cahandler._reason_normalize("   "))
+
+    def test_026_cacert_cache_missing_host(self):
+        """_cacert_cache fails when api_host is unset."""
+        error, pem = self.cahandler._cacert_cache()
+        self.assertIn("api_host", error)
+        self.assertIsNone(pem)
+
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.CAhandler._http_request")
+    def test_027_cacert_cache_appends_newline_and_parse_error(self, mock_http):
+        """PEM without a trailing newline is normalized; bad /cacert is an error."""
+        self.cahandler.api_host = "https://xipki.example/gw/rest/ca"
+        mock_http.side_effect = [
+            (200, b"CERTDATA", "CERTDATA"),
+            (200, b"not-a-cert", "not-a-cert"),
+        ]
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, pem = self.cahandler._cacert_cache()
+        self.assertIn("Could not parse /cacert", error)
+        self.assertIsNone(pem)
+        self.assertTrue(self.cahandler._cacerts_pem.endswith("\n"))
+        self.assertTrue(any("Could not parse /cacert" in line for line in lcm.output))
+
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.CAhandler._http_request")
+    def test_028_cacert_cache_cacert_http_error(self, mock_http):
+        """_cacert_cache reports a failed /cacert fetch."""
+        self.cahandler.api_host = "https://xipki.example/gw/rest/ca"
+        mock_http.side_effect = [
+            (200, self.ca_pem.encode(), self.ca_pem),
+            (404, b"", "missing"),
+        ]
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, pem = self.cahandler._cacert_cache()
+        self.assertIn("Could not fetch /cacert: HTTP 404", error)
+        self.assertIn("missing", error)
+        self.assertIsNone(pem)
+        self.assertTrue(any("Could not fetch /cacert" in line for line in lcm.output))
+
+    def test_029_enroll_post_missing_host(self):
+        """_enroll_post fails when api_host is unset."""
+        error, leaf = self.cahandler._enroll_post(b"csr-der")
+        self.assertIn("api_host", error)
+        self.assertIsNone(leaf)
+
+    def test_030_enroll_post_missing_profile(self):
+        """_enroll_post fails when profile is unset."""
+        self.cahandler.api_host = "https://xipki.example/gw/rest/ca"
+        error, leaf = self.cahandler._enroll_post(b"csr-der")
+        self.assertIn("profile", error)
+        self.assertIsNone(leaf)
+
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.CAhandler._http_request")
+    def test_031_enroll_post_logs_config(self, mock_http, mock_log):
+        """enrollment_config_log is emitted before the enroll POST."""
+        self.cahandler.api_host = "https://xipki.example/gw/rest/ca"
+        self.cahandler.profile = "tls"
+        self.cahandler.enrollment_config_log = True
+        self.cahandler.enrollment_config_log_skip_list = ["api_password"]
+        mock_http.return_value = (200, self.leaf_der, "ok")
+        error, leaf = self.cahandler._enroll_post(b"csr-der")
+        self.assertIsNone(error)
+        self.assertEqual(self.leaf_der, leaf)
+        self.assertTrue(mock_log.called)
+
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.CAhandler._http_request")
+    def test_032_enroll_post_http_error(self, mock_http):
+        """_enroll_post includes the response text in the error."""
+        self.cahandler.api_host = "https://xipki.example/gw/rest/ca"
+        self.cahandler.profile = "tls"
+        mock_http.return_value = (401, b"", "denied")
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, leaf = self.cahandler._enroll_post(b"csr-der")
+        self.assertEqual("Enrollment failed: HTTP 401 - denied", error)
+        self.assertIsNone(leaf)
+        self.assertIn("ERROR:test_a2c:Enrollment failed: HTTP 401 - denied", lcm.output)
+
+    def test_033_bundle_create_bad_der(self):
+        """_bundle_create reports a certificate that cannot be parsed."""
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, bundle, raw = self.cahandler._bundle_create(b"not-der", self.ca_pem)
+        self.assertIn("Certificate parse failed", error)
+        self.assertIsNone(bundle)
+        self.assertIsNone(raw)
+        self.assertTrue(any("Certificate parse failed" in line for line in lcm.output))
+
+    @patch(
+        "acme2certifier.cahandlers.xipki_ca_handler.eab_profile_header_info_check",
+        return_value=None,
+    )
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.CAhandler._cacert_cache")
+    def test_034_enroll_invalid_csr(self, mock_cache, _mock_eab):
+        """enroll rejects a CSR that is not valid base64."""
+        mock_cache.return_value = (None, self.ca_pem)
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, bundle, cert_raw, _poll = self.cahandler.enroll("abc$")
+        self.assertIn("Invalid CSR", error)
+        self.assertIsNone(bundle)
+        self.assertIsNone(cert_raw)
+        self.assertTrue(any("Invalid CSR" in line for line in lcm.output))
+
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.eab_profile_revocation_check")
+    def test_035_revoke_runs_eab_revocation_check(self, mock_check):
+        """eab profiling runs the revocation profile check."""
+        self.cahandler.eab_profiling = True
+        code, _message, detail = self.cahandler.revoke(self.leaf_b64url)
+        self.assertEqual(400, code)
+        self.assertIn("api_host", detail)
+        mock_check.assert_called_once()
+
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.CAhandler._cacert_cache")
+    def test_036_revoke_cache_error(self, mock_cache):
+        """revoke stops when the CA certificate cache fails."""
+        self.cahandler.api_host = "https://xipki.example/gw/rest/ca"
+        mock_cache.return_value = ("Could not fetch /cacerts: HTTP 500", None)
+        code, _message, detail = self.cahandler.revoke(self.leaf_b64url)
+        self.assertEqual(400, code)
+        self.assertEqual("Could not fetch /cacerts: HTTP 500", detail)
+
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.CAhandler._cacert_cache")
+    def test_037_revoke_bad_certificate(self, mock_cache):
+        """revoke rejects a certificate whose serial cannot be parsed."""
+        self.cahandler.api_host = "https://xipki.example/gw/rest/ca"
+        self.cahandler._ca_sha1 = self.ca_sha1
+        mock_cache.return_value = (None, self.ca_pem)
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            code, _message, detail = self.cahandler.revoke("%%%")
+        self.assertEqual(400, code)
+        self.assertIn("Invalid certificate", detail)
+        self.assertTrue(
+            any("Could not parse certificate serial" in line for line in lcm.output)
+        )
+
+    @patch(
+        "acme2certifier.cahandlers.xipki_ca_handler.eab_profile_header_info_check",
+        return_value=None,
+    )
+    @patch("acme2certifier.cahandlers.xipki_ca_handler.CAhandler._cacert_cache")
+    def test_038_enroll_cache_error(self, mock_cache, _mock_eab):
+        """enroll stops when the CA certificate cache fails"""
+        mock_cache.return_value = ("Could not fetch /cacerts: HTTP 500", None)
+        error, bundle, cert_raw, poll = self.cahandler.enroll(self.csr_b64url)
+        self.assertEqual("Could not fetch /cacerts: HTTP 500", error)
+        self.assertIsNone(bundle)
+        self.assertIsNone(cert_raw)
+        self.assertIsNone(poll)
 
 
 if __name__ == "__main__":

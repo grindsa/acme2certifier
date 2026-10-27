@@ -65,6 +65,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Root OTEL span per request (NoOp unless [OpenTelemetry] is enabled).
+    "acme2certifier.django_app.middleware.AcmeOpenTelemetryMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

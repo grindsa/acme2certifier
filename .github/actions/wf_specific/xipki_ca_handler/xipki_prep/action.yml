@@ -271,31 +271,50 @@ runs:
         -e HOME=/tmp \
         eclipse-temurin:17-jdk bash -lc '
       set -euo pipefail
-      bash bin/stop 2>/dev/null || true
-      rm -f data/port lock 2>/dev/null || true
-      mkdir -p data/log
-      mv data/log/karaf.log data/log/karaf.log.prev 2>/dev/null || true
-      : > data/log/karaf.log
-      rm -f /tmp/karaf.in
-      mkfifo /tmp/karaf.in
-      bash bin/karaf < /tmp/karaf.in &
-      KPID=$!
-      exec 3>/tmp/karaf.in
+      # Karaf occasionally hangs after lock/startlevel with an empty feature log.
+      # One clean retry (wipe cache) covers that flake without raising the wait.
       ready=0
-      for i in $(seq 1 120); do
-        if grep -q "Registering commands for bundle org.xipki.shell.ca-mgmt-shell" data/log/karaf.log 2>/dev/null; then
-          echo "karaf features ready (${i})"
-          ready=1
+      for attempt in 1 2; do
+        bash bin/stop 2>/dev/null || true
+        rm -f data/port lock 2>/dev/null || true
+        rm -rf data/cache data/generated data/tmp 2>/dev/null || true
+        mkdir -p data/log
+        if [ -s data/log/karaf.log ]; then
+          mv data/log/karaf.log "data/log/karaf.log.prev.${attempt}" 2>/dev/null || true
+        fi
+        : > data/log/karaf.log
+        rm -f /tmp/karaf.in
+        mkfifo /tmp/karaf.in
+        bash bin/karaf < /tmp/karaf.in &
+        KPID=$!
+        exec 3>/tmp/karaf.in
+        ready=0
+        for i in $(seq 1 120); do
+          if grep -q "Registering commands for bundle org.xipki.shell.ca-mgmt-shell" data/log/karaf.log 2>/dev/null; then
+            echo "karaf features ready (attempt ${attempt}, ${i}s)"
+            ready=1
+            break
+          fi
+          if ! kill -0 "${KPID}" 2>/dev/null; then
+            echo "karaf exited early (attempt ${attempt}, ${i}s)"
+            break
+          fi
+          sleep 1
+        done
+        if [ "${ready}" = "1" ]; then
           break
         fi
-        sleep 1
-      done
-      if [ "${ready}" != "1" ]; then
-        echo "TIMEOUT waiting for ca-mgmt-shell"
+        echo "TIMEOUT waiting for ca-mgmt-shell (attempt ${attempt}/2)"
+        echo "karaf pid alive: $(kill -0 "${KPID}" 2>/dev/null && echo yes || echo no)"
         tail -n 80 data/log/karaf.log || true
+        exec 3>&- 2>/dev/null || true
         kill "${KPID}" 2>/dev/null || true
-        exit 1
-      fi
+        wait "${KPID}" 2>/dev/null || true
+        if [ "${attempt}" = "2" ]; then
+          exit 1
+        fi
+        echo "retrying karaf after cache wipe..."
+      done
       sleep 5
       printf "%s\n" \
         "source xipki/ca-setup/cacert-present/setup-rsa-p12.script" \

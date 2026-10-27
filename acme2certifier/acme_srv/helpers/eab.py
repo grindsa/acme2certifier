@@ -386,7 +386,9 @@ def eab_profile_check(
     return result
 
 
-def _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value, cahandler=None):
+def _eab_profile_list_allowed_domainlist(
+    logger, eab_handler, csr, value, cahandler=None
+):
     """Validate CSR against an EAB allowed_domainlist profile value."""
     if "allowed_domains_check" in dir(eab_handler):
         logger.info("Execute allowed_domains_check() from eab handler")

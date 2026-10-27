@@ -1,0 +1,104 @@
+name: "opentelemetry - enable in a2c container"
+description: >-
+  Append [OpenTelemetry] to acme_srv.cfg, start Jaeger on the ACME docker
+  network, restart a2c (OTEL Python packages are baked into the image).
+inputs:
+  VOLUME_CFG:
+    description: "Path to acme_srv.cfg on the runner (bind-mounted into a2c)"
+    required: false
+    default: "examples/Docker/data/acme_srv.cfg"
+  DOCKER_COMPOSE_FILE_PATH:
+    description: "Path to docker compose directory"
+    required: false
+    default: "examples/Docker/"
+  NAME_SPACE:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+  JAEGER_NAME:
+    description: "Jaeger container name (also DNS name on the ACME network)"
+    required: false
+    default: "jaeger-otel"
+  JAEGER_IMAGE:
+    description: "Jaeger all-in-one image"
+    required: false
+    default: "jaegertracing/all-in-one:1.62.0"
+  SERVICE_NAME:
+    description: "OTEL service.name"
+    required: false
+    default: "acme2certifier"
+  ACME_CONTAINER:
+    description: "a2c container name"
+    required: false
+    default: "acme-srv"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Append [OpenTelemetry] to acme_srv.cfg"
+      run: |
+        set -euo pipefail
+        sudo chmod 666 "${VOLUME_CFG}"
+        if ! grep -q '^\[OpenTelemetry\]' "${VOLUME_CFG}"; then
+          cat <<EOF | sudo tee -a "${VOLUME_CFG}" >/dev/null
+
+        [OpenTelemetry]
+        opentelemetry_support: True
+        endpoint: http://${JAEGER_NAME}:4318
+        protocol: http/protobuf
+        service_name: ${SERVICE_NAME}
+        sample_ratio: 1.0
+        metrics_export: False
+        EOF
+        fi
+        grep -A20 '^\[OpenTelemetry\]' "${VOLUME_CFG}"
+      shell: bash
+      env:
+        VOLUME_CFG: ${{ inputs.VOLUME_CFG }}
+        JAEGER_NAME: ${{ inputs.JAEGER_NAME }}
+        SERVICE_NAME: ${{ inputs.SERVICE_NAME }}
+
+    - name: "Start Jaeger on ACME network"
+      run: |
+        set -euo pipefail
+        docker rm -f "${JAEGER_NAME}" 2>/dev/null || true
+        docker run -d --name "${JAEGER_NAME}" \
+          --network "${NAME_SPACE}" \
+          -e COLLECTOR_OTLP_ENABLED=true \
+          -p 16686:16686 \
+          "${JAEGER_IMAGE}"
+        for i in $(seq 1 30); do
+          if curl -fsS "http://127.0.0.1:16686/" >/dev/null; then
+            echo "Jaeger UI is up"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "Jaeger failed to become ready" >&2
+        docker logs "${JAEGER_NAME}" || true
+        exit 1
+      shell: bash
+      env:
+        JAEGER_NAME: ${{ inputs.JAEGER_NAME }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        JAEGER_IMAGE: ${{ inputs.JAEGER_IMAGE }}
+
+    - name: "Verify OpenTelemetry packages in image"
+      run: |
+        set -euo pipefail
+        docker exec "${ACME_CONTAINER}" python3 -c \
+          "import opentelemetry.sdk; import opentelemetry.exporter.otlp.proto.http.trace_exporter"
+      shell: bash
+      env:
+        ACME_CONTAINER: ${{ inputs.ACME_CONTAINER }}
+
+    - name: "Restart a2c to load OTEL config"
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: docker compose restart
+      shell: bash
+
+    - name: "Wait for ACME directory after restart"
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_CONTAINER }}

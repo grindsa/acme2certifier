@@ -1,0 +1,30 @@
+name: cfssl
+
+services:
+  cfssl:
+    image: cfssl/cfssl:latest
+    container_name: cfssl
+    command:
+      - serve
+      - -address
+      - 0.0.0.0
+      - -port
+      - "8888"
+      - -ca
+      - /cfssl/ca.pem
+      - -ca-key
+      - /cfssl/ca-key.pem
+      - -config
+      - /cfssl/config.json
+      - -db-config
+      - /cfssl/db.json
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./data:/cfssl:rw
+    restart: "no"
+
+networks:
+  default:
+    name: acme
+    external: true

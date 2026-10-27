@@ -129,12 +129,19 @@ def _element_text(element: Optional[ET.Element]) -> Optional[str]:
 
 
 def _soap_envelope(
+    logger: object,
     action: str,
     to_url: str,
     body_payload: ET.Element,
     username_token: Optional[Dict[str, str]] = None,
 ) -> bytes:
     """Build a SOAP 1.2 envelope with WS-Addressing headers."""
+    logger.debug(
+        "_soap_envelope(%s, %s, username_token=%s)",
+        action,
+        to_url,
+        bool(username_token),
+    )
     envelope = ET.Element(ET.QName(NS_SOAP, "Envelope"))
     header = ET.SubElement(envelope, ET.QName(NS_SOAP, "Header"))
 
@@ -169,8 +176,9 @@ def _soap_envelope(
     return ET.tostring(envelope, encoding="utf-8", xml_declaration=True)
 
 
-def _xcep_get_policies_body() -> ET.Element:
+def _xcep_get_policies_body(logger: object) -> ET.Element:
     """Build MS-XCEP GetPolicies body."""
+    logger.debug("_xcep_get_policies_body()")
     get_policies = ET.Element(ET.QName(NS_XCEP, "GetPolicies"))
     client = ET.SubElement(get_policies, ET.QName(NS_XCEP, "client"))
     last_update = ET.SubElement(client, ET.QName(NS_XCEP, "lastUpdate"))
@@ -187,42 +195,158 @@ def _xcep_get_policies_body() -> ET.Element:
     return get_policies
 
 
-def _parse_xcep_get_policies(response_xml: str) -> Dict[str, Any]:
-    """Parse GetPoliciesResponse into templates, CES URIs, and CA certificates."""
-    root = ET.fromstring(response_xml)
+def _xcep_ca_uri_entries(logger: object, ca_el: ET.Element) -> List[Tuple[int, str]]:
+    """Return ``(priority, uri)`` pairs from a CEP ``cA`` element (priority asc)."""
+    logger.debug("_xcep_ca_uri_entries()")
+    entries: List[Tuple[int, str]] = []
+    for ca_uri in _find_all(ca_el, "cAURI"):
+        uri = _element_text(_find_first(ca_uri, "uri"))
+        if not uri:
+            continue
+        priority_text = _element_text(_find_first(ca_uri, "priority"))
+        try:
+            priority = int(priority_text) if priority_text is not None else 100
+        except ValueError:
+            priority = 100
+        entries.append((priority, uri))
+    entries.sort(key=lambda item: (item[0], item[1]))
+    return entries
+
+
+def _unique_extend(target: List[str], items: List[str]) -> None:
+    """Append items to ``target`` preserving order and skipping duplicates."""
+    for item in items:
+        if item not in target:
+            target.append(item)
+
+
+def _xcep_raise_if_fault(root: ET.Element) -> None:
+    """Raise RuntimeError when the SOAP body contains a Fault."""
     fault = _find_first(root, "Fault")
-    if fault is not None:
-        reason = _element_text(_find_first(fault, "Text")) or "SOAP Fault"
-        raise RuntimeError(f"XCEP SOAP Fault: {reason}")
+    if fault is None:
+        return
+    reason = _element_text(_find_first(fault, "Text")) or "SOAP Fault"
+    raise RuntimeError(f"XCEP SOAP Fault: {reason}")
 
-    templates: List[str] = []
-    for common_name in _find_all(root, "commonName"):
-        name = _element_text(common_name)
-        if name and name not in templates:
-            templates.append(name)
 
-    ces_uris: List[str] = []
-    for uri_el in _find_all(root, "uri"):
-        uri = _element_text(uri_el)
-        if uri and uri not in ces_uris:
-            ces_uris.append(uri)
-
+def _xcep_cas_index(
+    logger: object, root: ET.Element
+) -> Tuple[Dict[str, List[Tuple[int, str]]], List[str]]:
+    """Index CEP ``cA`` elements by reference id and collect CA PEMs."""
+    logger.debug("_xcep_cas_index()")
+    ca_by_ref: Dict[str, List[Tuple[int, str]]] = {}
     ca_certificates: List[str] = []
     for ca_el in _find_all(root, "cA"):
+        ref_id = _element_text(_find_first(ca_el, "cAReferenceID"))
+        if ref_id is not None:
+            ca_by_ref[ref_id] = _xcep_ca_uri_entries(logger, ca_el)
         cert_el = _find_first(ca_el, "certificate")
-        pem = _certificate_element_to_pem(_element_text(cert_el))
+        pem = _certificate_element_to_pem(logger, _element_text(cert_el))
         if pem and pem not in ca_certificates:
             ca_certificates.append(pem)
+    return (ca_by_ref, ca_certificates)
 
+
+def _xcep_policy_ces_uris(
+    ca_by_ref: Dict[str, List[Tuple[int, str]]], policy: ET.Element
+) -> List[str]:
+    """Ordered unique CES URIs for one policy via ``cAReference`` → CA URIs."""
+    candidates: List[Tuple[int, str]] = []
+    for ref_el in _find_all(policy, "cAReference"):
+        ref_id = _element_text(ref_el)
+        if ref_id is None:
+            continue
+        candidates.extend(ca_by_ref.get(ref_id) or [])
+    if not candidates:
+        return []
+    candidates.sort(key=lambda item: (item[0], item[1]))
+    uris: List[str] = []
+    _unique_extend(uris, [uri for _priority, uri in candidates])
+    return uris
+
+
+def _xcep_template_ces_build(
+    logger: object,
+    root: ET.Element,
+    ca_by_ref: Dict[str, List[Tuple[int, str]]],
+) -> Tuple[List[str], Dict[str, List[str]]]:
+    """Build template commonName list and template → CES URI map."""
+    logger.debug("_xcep_template_ces_build()")
+    templates: List[str] = []
+    template_ces: Dict[str, List[str]] = {}
+    for policy in _find_all(root, "policy"):
+        name = _element_text(_find_first(policy, "commonName"))
+        if not name:
+            continue
+        if name not in templates:
+            templates.append(name)
+        uris = _xcep_policy_ces_uris(ca_by_ref, policy)
+        if not uris:
+            continue
+        existing = template_ces.setdefault(name, [])
+        _unique_extend(existing, uris)
+    return (templates, template_ces)
+
+
+def _xcep_ces_uris_flatten(
+    logger: object, root: ET.Element, template_ces: Dict[str, List[str]]
+) -> List[str]:
+    """Flatten template CES URIs; fall back to raw ``uri`` elements if empty."""
+    logger.debug("_xcep_ces_uris_flatten()")
+    ces_uris: List[str] = []
+    for uris in template_ces.values():
+        _unique_extend(ces_uris, uris)
+    if ces_uris:
+        return ces_uris
+    for uri_el in _find_all(root, "uri"):
+        uri = _element_text(uri_el)
+        if uri:
+            _unique_extend(ces_uris, [uri])
+    return ces_uris
+
+
+def _parse_xcep_get_policies(logger: object, response_xml: str) -> Dict[str, Any]:
+    """Parse GetPoliciesResponse into templates, CES URIs, and CA certificates.
+
+    Also builds ``template_ces``: template commonName → ordered CES URI list
+    (by CEP ``priority``, then URI), using ``policy/cAs/cAReference`` →
+    ``cA/cAReferenceID``.
+    """
+    logger.debug("_parse_xcep_get_policies()")
+    root = ET.fromstring(response_xml)
+    _xcep_raise_if_fault(root)
+    ca_by_ref, ca_certificates = _xcep_cas_index(logger, root)
+    templates, template_ces = _xcep_template_ces_build(logger, root, ca_by_ref)
+    ces_uris = _xcep_ces_uris_flatten(logger, root, template_ces)
     return {
         "templates": templates,
         "ces_uris": ces_uris,
         "ca_certificates": ca_certificates,
+        "template_ces": template_ces,
     }
 
 
-def _certificate_element_to_pem(cert_b64: Optional[str]) -> Optional[str]:
+def _ces_uri_from_policies(
+    logger: object, policies: Dict[str, Any], template: str
+) -> Optional[str]:
+    """Pick the preferred CES URI for ``template`` from parsed GetPolicies."""
+    logger.debug("_ces_uri_from_policies(%s)", template)
+    template_ces = policies.get("template_ces") or {}
+    uris = template_ces.get(template) or []
+    if uris:
+        return uris[0]
+    # Fallback: single advertised CES (legacy flatten / one-CA policies).
+    ces_uris = policies.get("ces_uris") or []
+    if len(ces_uris) == 1:
+        return ces_uris[0]
+    return None
+
+
+def _certificate_element_to_pem(
+    logger: object, cert_b64: Optional[str]
+) -> Optional[str]:
     """Decode XCEP ``cA/certificate`` (base64 DER) to PEM."""
+    logger.debug("_certificate_element_to_pem()")
     if not cert_b64:
         return None
     from cryptography import x509  # pylint: disable=C0415
@@ -237,8 +361,9 @@ def _certificate_element_to_pem(cert_b64: Optional[str]) -> Optional[str]:
     return convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
 
 
-def _pem_certificates_split(pem_bundle: str) -> List[str]:
+def _pem_certificates_split(logger: object, pem_bundle: str) -> List[str]:
     """Split a PEM bundle into individual certificate PEM strings."""
+    logger.debug("_pem_certificates_split()")
     return re.findall(
         r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
         pem_bundle,
@@ -246,12 +371,13 @@ def _pem_certificates_split(pem_bundle: str) -> List[str]:
     )
 
 
-def _cert_bundle_with_ca(leaf_pem: str, ca_pem_list: List[str]) -> str:
+def _cert_bundle_with_ca(logger: object, leaf_pem: str, ca_pem_list: List[str]) -> str:
     """Append CA PEMs to the leaf, skipping duplicates."""
+    logger.debug("_cert_bundle_with_ca(ca_count=%s)", len(ca_pem_list))
     bundle = leaf_pem if leaf_pem.endswith("\n") else leaf_pem + "\n"
-    existing = set(_pem_certificates_split(bundle))
+    existing = set(_pem_certificates_split(logger, bundle))
     for ca_pem in ca_pem_list:
-        for cert_pem in _pem_certificates_split(ca_pem):
+        for cert_pem in _pem_certificates_split(logger, ca_pem):
             if cert_pem in existing:
                 continue
             bundle += cert_pem if cert_pem.endswith("\n") else cert_pem + "\n"
@@ -259,8 +385,11 @@ def _cert_bundle_with_ca(leaf_pem: str, ca_pem_list: List[str]) -> str:
     return bundle
 
 
-def _wstep_issue_body(pkcs10_b64: str, template: Optional[str]) -> ET.Element:
+def _wstep_issue_body(
+    logger: object, pkcs10_b64: str, template: Optional[str]
+) -> ET.Element:
     """Build MS-WSTEP RequestSecurityToken Issue body."""
+    logger.debug("_wstep_issue_body(template=%s)", template)
     rst = ET.Element(ET.QName(NS_WST, "RequestSecurityToken"))
     token_type = ET.SubElement(rst, ET.QName(NS_WST, "TokenType"))
     token_type.text = TOKEN_TYPE_X509
@@ -282,8 +411,9 @@ def _wstep_issue_body(pkcs10_b64: str, template: Optional[str]) -> ET.Element:
     return rst
 
 
-def _wstep_query_body(request_id: str) -> ET.Element:
+def _wstep_query_body(logger: object, request_id: str) -> ET.Element:
     """Build MS-WSTEP QueryTokenStatus body."""
+    logger.debug("_wstep_query_body(%s)", request_id)
     rst = ET.Element(ET.QName(NS_WST, "RequestSecurityToken"))
     request_type = ET.SubElement(rst, ET.QName(NS_WST, "RequestType"))
     request_type.text = REQUEST_TYPE_QUERY
@@ -292,8 +422,9 @@ def _wstep_query_body(request_id: str) -> ET.Element:
     return rst
 
 
-def _wstep_token_text(response: ET.Element) -> Optional[str]:
+def _wstep_token_text(logger: object, response: ET.Element) -> Optional[str]:
     """Extract BinarySecurityToken text from RequestedSecurityToken, if present."""
+    logger.debug("_wstep_token_text()")
     requested_token = _find_first(response, "RequestedSecurityToken")
     if requested_token is None:
         return None
@@ -303,8 +434,9 @@ def _wstep_token_text(response: ET.Element) -> Optional[str]:
     return requested_text.replace("\r", "")
 
 
-def _wstep_reference_uri(response: ET.Element) -> Optional[str]:
+def _wstep_reference_uri(logger: object, response: ET.Element) -> Optional[str]:
     """Extract Reference URI attribute from a WSTEP response, if present."""
+    logger.debug("_wstep_reference_uri()")
     reference = _find_first(response, "Reference")
     if reference is None:
         return None
@@ -315,9 +447,18 @@ def _wstep_reference_uri(response: ET.Element) -> Optional[str]:
 
 
 def _wstep_status(
-    disposition: str, token_text: Optional[str], request_id: Optional[str]
+    logger: object,
+    disposition: str,
+    token_text: Optional[str],
+    request_id: Optional[str],
 ) -> str:
     """Map disposition / token / request id to issued|pending|denied|unknown."""
+    logger.debug(
+        "_wstep_status(disposition=%s, has_token=%s, request_id=%s)",
+        disposition,
+        bool(token_text),
+        request_id,
+    )
     disposition_lower = disposition.lower()
     if "denied" in disposition_lower or "rejected" in disposition_lower:
         return "denied"
@@ -328,8 +469,9 @@ def _wstep_status(
     return "unknown"
 
 
-def _parse_wstep_response(response_xml: str) -> Dict[str, Any]:
+def _parse_wstep_response(logger: object, response_xml: str) -> Dict[str, Any]:
     """Parse RequestSecurityTokenResponseCollection into a structured result."""
+    logger.debug("_parse_wstep_response()")
     root = ET.fromstring(response_xml)
     fault = _find_first(root, "Fault")
     if fault is not None:
@@ -342,19 +484,20 @@ def _parse_wstep_response(response_xml: str) -> Dict[str, Any]:
 
     disposition = _element_text(_find_first(response, "DispositionMessage")) or ""
     request_id = _element_text(_find_first(response, "RequestID"))
-    token_text = _wstep_token_text(response)
+    token_text = _wstep_token_text(logger, response)
 
     return {
-        "status": _wstep_status(disposition, token_text, request_id),
+        "status": _wstep_status(logger, disposition, token_text, request_id),
         "disposition": disposition,
         "request_id": request_id,
         "token": token_text,
-        "reference": _wstep_reference_uri(response),
+        "reference": _wstep_reference_uri(logger, response),
     }
 
 
 def _csr_to_pkcs10_b64(logger: object, csr: str) -> str:
     """Convert ACME CSR (urlsafe b64 or PEM) to standard base64 PKCS#10 DER."""
+    logger.debug("_csr_to_pkcs10_b64()")
     from cryptography import x509  # pylint: disable=C0415
     from cryptography.hazmat.primitives import serialization  # pylint: disable=C0415
 
@@ -374,6 +517,7 @@ def _token_to_pem_bundle(
     logger: object, token_b64: str
 ) -> Tuple[Optional[str], Optional[str]]:
     """Convert WSTEP BinarySecurityToken into (cert_bundle_pem, cert_raw_b64)."""
+    logger.debug("_token_to_pem_bundle()")
     from cryptography import x509  # pylint: disable=C0415
     from cryptography.hazmat.primitives import serialization  # pylint: disable=C0415
 
@@ -396,35 +540,36 @@ def _token_to_pem_bundle(
     if "BEGIN CERTIFICATE" in text or "BEGIN PKCS7" in text:
         try:
             pem_bundle = pkcs7_to_pem(logger, text, "string")
-            leaf = _leaf_pem_from_bundle(pem_bundle)
-            return (pem_bundle, _pem_to_raw_b64(leaf))
+            leaf = _leaf_pem_from_bundle(logger, pem_bundle)
+            return (pem_bundle, _pem_to_raw_b64(logger, leaf))
         except Exception:
             try:
                 cert = x509.load_pem_x509_certificate(convert_string_to_byte(text))
                 leaf = convert_byte_to_string(
                     cert.public_bytes(serialization.Encoding.PEM)
                 )
-                return (leaf, _pem_to_raw_b64(leaf))
+                return (leaf, _pem_to_raw_b64(logger, leaf))
             except Exception:
                 pass
 
     try:
         cert = x509.load_der_x509_certificate(raw_bytes)
         leaf = convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
-        return (leaf, _pem_to_raw_b64(leaf))
+        return (leaf, _pem_to_raw_b64(logger, leaf))
     except Exception:
         pass
 
     try:
         pem_bundle = pkcs7_to_pem(logger, raw_bytes, "string")
-        leaf = _leaf_pem_from_bundle(pem_bundle)
-        return (pem_bundle, _pem_to_raw_b64(leaf))
+        leaf = _leaf_pem_from_bundle(logger, pem_bundle)
+        return (pem_bundle, _pem_to_raw_b64(logger, leaf))
     except Exception:
         return (None, None)
 
 
-def _leaf_pem_from_bundle(pem_bundle: str) -> str:
+def _leaf_pem_from_bundle(logger: object, pem_bundle: str) -> str:
     """Return the first PEM certificate from a bundle."""
+    logger.debug("_leaf_pem_from_bundle()")
     match = re.search(
         r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
         pem_bundle,
@@ -433,31 +578,38 @@ def _leaf_pem_from_bundle(pem_bundle: str) -> str:
     return match.group(0) + "\n" if match else pem_bundle
 
 
-def _pem_to_raw_b64(pem: str) -> str:
+def _pem_to_raw_b64(logger: object, pem: str) -> str:
     """Strip PEM headers and newlines for ACME cert_raw."""
+    logger.debug("_pem_to_raw_b64()")
     raw = pem.replace("-----BEGIN CERTIFICATE-----", "")
     raw = raw.replace("-----END CERTIFICATE-----", "")
     raw = raw.replace("\r", "").replace("\n", "").strip()
     return raw
 
 
-def _poll_identifier_encode(request_id: str, reference: str) -> str:
+def _poll_identifier_encode(logger: object, request_id: str, reference: str) -> str:
     """Encode pending poll identifier."""
+    logger.debug("_poll_identifier_encode(%s, %s)", request_id, reference)
     return f"{request_id}{POLL_ID_SEPARATOR}{reference}"
 
 
 def _poll_identifier_decode(
+    logger: object,
     poll_identifier: str,
 ) -> Tuple[Optional[str], Optional[str]]:
     """Decode pending poll identifier into (request_id, reference)."""
+    logger.debug("_poll_identifier_decode(%s)", poll_identifier)
     if not poll_identifier or POLL_ID_SEPARATOR not in poll_identifier:
         return (poll_identifier or None, None)
     request_id, reference = poll_identifier.split(POLL_ID_SEPARATOR, 1)
     return (request_id or None, reference or None)
 
 
-def _username_token_fields(username: str, password: str) -> Dict[str, str]:
+def _username_token_fields(
+    logger: object, username: str, password: str
+) -> Dict[str, str]:
     """Build WS-Security UsernameToken field values."""
+    logger.debug("_username_token_fields(%s)", username)
     created = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     nonce_raw = f"{username}:{password}:{created}".encode("utf-8")
     nonce = base64.b64encode(hashlib.md5(nonce_raw).digest()).decode("ascii")
@@ -469,8 +621,9 @@ def _username_token_fields(username: str, password: str) -> Dict[str, str]:
     }
 
 
-def gssapi_channel_bindings_supported() -> bool:
+def gssapi_channel_bindings_supported(logger: object) -> bool:
     """Return True when requests_gssapi supports channel_bindings."""
+    logger.debug("gssapi_channel_bindings_supported()")
     try:
         requests_gssapi = importlib.import_module("requests_gssapi")
         auth_cls = getattr(requests_gssapi, "HTTPSPNEGOAuth", None)
@@ -528,12 +681,14 @@ class CAhandler(KerberosAuthMixin):
 
     def __enter__(self):
         """Makes CAhandler a Context Manager."""
+        self.logger.debug("CAhandler.__enter__()")
         if not self.ces_url:
             self._config_load()
         return self
 
     def __exit__(self, *args):
         """Close the connection at the end of the context."""
+        self.logger.debug("CAhandler.__exit__()")
 
     def _config_load(self) -> None:
         """Load config from file."""
@@ -681,27 +836,23 @@ class CAhandler(KerberosAuthMixin):
         order_values = config_allowed_header_values_load(self.logger, config_dic)
         if order_values:
             self.allowed_templates = order_values
-            return
-
-        if (
-            "CAhandler" not in config_dic
-            or "allowed_templates" not in config_dic["CAhandler"]
+        elif (
+            "CAhandler" in config_dic and "allowed_templates" in config_dic["CAhandler"]
         ):
-            return
-
-        self.logger.warning(
-            "CAhandler allowed_templates is deprecated for header allowlisting; "
-            "move the list to [Order] allowed_header_values"
-        )
-        try:
-            loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
-            if isinstance(loaded, list):
-                self.allowed_templates = [str(item) for item in loaded]
-        except Exception as err_:
             self.logger.warning(
-                "Failed to parse allowed_templates from configuration: %s", err_
+                "CAhandler allowed_templates is deprecated for header allowlisting; "
+                "move the list to [Order] allowed_header_values"
             )
-            self.allowed_templates = []
+            try:
+                loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
+                if isinstance(loaded, list):
+                    self.allowed_templates = [str(item) for item in loaded]
+            except Exception as err_:
+                self.logger.warning(
+                    "Failed to parse allowed_templates from configuration: %s", err_
+                )
+                self.allowed_templates = []
+        self.logger.debug("CAhandler._config_allowed_templates_load() ended")
 
     def _config_proxy_load(self, config_dic: Dict[str, str]) -> None:
         """Load proxy settings for CES/CEP URLs."""
@@ -712,7 +863,7 @@ class CAhandler(KerberosAuthMixin):
 
     def _https_url_check(self, url: Optional[str], label: str) -> Optional[str]:
         """Require HTTPS for configured endpoints."""
-        self.logger.debug("CAhandler._https_url_check()")
+        self.logger.debug("CAhandler._https_url_check(%s, %s)", label, url)
         if not url:
             return None
         if url.strip().lower().startswith("https://"):
@@ -726,14 +877,16 @@ class CAhandler(KerberosAuthMixin):
 
     def _credentials_are_configured(self) -> bool:
         """Return True when auth credentials are complete."""
-        self.logger.debug("CAhandler._credentials_are_configured()")
+        self.logger.debug(
+            "CAhandler._credentials_are_configured(auth_method=%s)", self.auth_method
+        )
         if self.auth_method == "gssapi" and self._kerberos_keytab_is_configured():
             return True
         return bool(self.user and self.password)
 
     def _allowed_templates_check(self) -> Optional[str]:
         """Enforce configured allowed_templates allowlist."""
-        self.logger.debug("CAhandler._allowed_templates_check()")
+        self.logger.debug("CAhandler._allowed_templates_check(%s)", self.template)
         if not self.allowed_templates:
             return None
         if self.template not in self.allowed_templates:
@@ -833,10 +986,13 @@ class CAhandler(KerberosAuthMixin):
 
     def _gssapi_channel_bindings_resolve(self) -> Tuple[Optional[str], Optional[str]]:
         """Resolve gssapi_channel_bindings mode."""
-        self.logger.debug("CAhandler._gssapi_channel_bindings_resolve()")
+        self.logger.debug(
+            "CAhandler._gssapi_channel_bindings_resolve(%s)",
+            self.gssapi_channel_bindings,
+        )
         if self.auth_method != "gssapi" or self.gssapi_channel_bindings == "off":
             return (None, None)
-        supported = gssapi_channel_bindings_supported()
+        supported = gssapi_channel_bindings_supported(self.logger)
         if self.gssapi_channel_bindings == "on":
             if not supported:
                 return (
@@ -854,7 +1010,7 @@ class CAhandler(KerberosAuthMixin):
 
     def _username_token(self) -> Optional[Dict[str, str]]:
         """Return UsernameToken fields for SOAP message auth."""
-        self.logger.debug("CAhandler._username_token()")
+        self.logger.debug("CAhandler._username_token(auth_method=%s)", self.auth_method)
         if self.auth_method != "username_password":
             return None
         if not (self.ces_username and self.ces_password):
@@ -862,13 +1018,15 @@ class CAhandler(KerberosAuthMixin):
                 "ces_username and ces_password are required for "
                 "username_password authentication"
             )
-        return _username_token_fields(self.ces_username, self.ces_password)
+        return _username_token_fields(self.logger, self.ces_username, self.ces_password)
 
     def _soap_post(self, url: str, action: str, body_payload: ET.Element) -> str:
         """POST a SOAP envelope and return response text."""
         self.logger.debug("CAhandler._soap_post(%s, %s)", url, action)
         headers = {"Content-Type": "application/soap+xml; charset=utf-8"}
-        data = _soap_envelope(action, url, body_payload, self._username_token())
+        data = _soap_envelope(
+            self.logger, action, url, body_payload, self._username_token()
+        )
         response = requests.post(
             url,
             data=data,
@@ -887,6 +1045,7 @@ class CAhandler(KerberosAuthMixin):
     @contextmanager
     def _kerberos_runtime_environment(self):
         """Scope KRB5_CONFIG for SPNEGO/TGS."""
+        self.logger.debug("CAhandler._kerberos_runtime_environment()")
         previous = os.environ.get("KRB5_CONFIG")
         krb5_config = self._kerberos_config_path_resolve()
         if krb5_config:
@@ -898,11 +1057,16 @@ class CAhandler(KerberosAuthMixin):
                 os.environ.pop("KRB5_CONFIG", None)
             else:
                 os.environ["KRB5_CONFIG"] = previous
+            self.logger.debug("CAhandler._kerberos_runtime_environment() ended")
 
     def _kerberos_gssapi_creds_from_cache(
         self,
     ) -> Tuple[Optional[object], Optional[str]]:
         """Load initiate GSSAPI credentials from the prepared ccache."""
+        self.logger.debug(
+            "CAhandler._kerberos_gssapi_creds_from_cache(auth_method=%s)",
+            self.auth_method,
+        )
         if self.auth_method != "gssapi":
             return (None, None)
 
@@ -936,6 +1100,7 @@ class CAhandler(KerberosAuthMixin):
         the unusable ccache and let ``_session_auth`` acquire via
         ``acquire_cred_with_password`` instead of failing enroll/poll.
         """
+        self.logger.debug("CAhandler._kerberos_bind_gssapi_creds()")
         gssapi_creds, gssapi_creds_error = self._kerberos_gssapi_creds_from_cache()
         if not gssapi_creds_error:
             return (gssapi_creds, None)
@@ -954,6 +1119,7 @@ class CAhandler(KerberosAuthMixin):
 
     def _kerberos_prepare_gssapi_password_backend(self) -> Optional[str]:
         """Prepare GSSAPI creds for user/password via kinit."""
+        self.logger.debug("CAhandler._kerberos_prepare_gssapi_password_backend()")
         if not (self.user and self.password):
             return None
         if self.krb5_config and not self._kerberos_config_path_resolve():
@@ -969,6 +1135,10 @@ class CAhandler(KerberosAuthMixin):
 
     def _kerberos_prepare_gssapi_backend(self) -> Optional[str]:
         """Prepare kerberos credentials for GSSAPI."""
+        self.logger.debug(
+            "CAhandler._kerberos_prepare_gssapi_backend(auth_method=%s)",
+            self.auth_method,
+        )
         if self.auth_method != "gssapi":
             return None
         if not self._kerberos_keytab_is_configured():
@@ -981,17 +1151,22 @@ class CAhandler(KerberosAuthMixin):
 
     def _xcep_get_policies(self) -> Dict[str, Any]:
         """Call CEP GetPolicies (cached for the current enroll/poll)."""
+        self.logger.debug("CAhandler._xcep_get_policies(%s)", self.cep_url)
         if self._policies_cache is not None:
+            self.logger.debug("CAhandler._xcep_get_policies() cache hit")
             return self._policies_cache
         if not self.cep_url:
             raise RuntimeError("cep_url is not configured")
-        body = _xcep_get_policies_body()
+        body = _xcep_get_policies_body(self.logger)
         response_xml = self._soap_post(self.cep_url, ACTION_GET_POLICIES, body)
-        self._policies_cache = _parse_xcep_get_policies(response_xml)
+        self._policies_cache = _parse_xcep_get_policies(self.logger, response_xml)
         return self._policies_cache
 
     def _ca_certificates_from_file(self) -> List[str]:
         """Load optional PEM CA chain from ``ca_certificates`` file."""
+        self.logger.debug(
+            "CAhandler._ca_certificates_from_file(%s)", self.ca_certificates
+        )
         if not self.ca_certificates:
             return []
         if not os.path.exists(self.ca_certificates):
@@ -1007,11 +1182,12 @@ class CAhandler(KerberosAuthMixin):
             return []
         return [
             pem if pem.endswith("\n") else pem + "\n"
-            for pem in _pem_certificates_split(content)
+            for pem in _pem_certificates_split(self.logger, content)
         ]
 
     def _ca_certificates_from_cep(self) -> List[str]:
         """Fetch issuing CA certificate(s) from CEP GetPolicies."""
+        self.logger.debug("CAhandler._ca_certificates_from_cep(%s)", self.cep_url)
         if not self.cep_url:
             return []
         try:
@@ -1023,6 +1199,7 @@ class CAhandler(KerberosAuthMixin):
 
     def _ca_chain_pem_list(self) -> List[str]:
         """Build CA PEM list from CEP and/or ``ca_certificates`` file."""
+        self.logger.debug("CAhandler._ca_chain_pem_list()")
         ca_list: List[str] = []
         for pem in self._ca_certificates_from_cep() + self._ca_certificates_from_file():
             normalized = pem if pem.endswith("\n") else pem + "\n"
@@ -1032,6 +1209,11 @@ class CAhandler(KerberosAuthMixin):
 
     def _ca_templates_membership_check(self) -> Optional[str]:
         """Optionally validate template against CEP policy."""
+        self.logger.debug(
+            "CAhandler._ca_templates_membership_check(%s, mode=%s)",
+            self.template,
+            self.ca_templates_check,
+        )
         if self.ca_templates_check == "off" or not self.cep_url or not self.template:
             return None
         try:
@@ -1055,23 +1237,76 @@ class CAhandler(KerberosAuthMixin):
         self.logger.warning(message)
         return None
 
-    def _wstep_issue(self, csr: str) -> Dict[str, Any]:
+    def _ces_url_resolve(self) -> Tuple[Optional[str], Optional[str]]:
+        """Return CES URL: configured ``ces_url``, or discover from CEP for template."""
+        self.logger.debug(
+            "CAhandler._ces_url_resolve(ces_url=%s, cep_url=%s, template=%s)",
+            self.ces_url,
+            self.cep_url,
+            self.template,
+        )
+        if self.ces_url:
+            return (self.ces_url, None)
+        if not self.cep_url:
+            return (
+                None,
+                "ces_url is not configured and cep_url is missing for CES discovery",
+            )
+        if not self.template:
+            return (None, "template is required to discover CES from CEP")
+        try:
+            policies = self._xcep_get_policies()
+        except Exception as err:
+            return (None, f"CEP GetPolicies failed during CES discovery: {err}")
+        uri = _ces_uri_from_policies(self.logger, policies, self.template)
+        if not uri:
+            template_ces = policies.get("template_ces") or {}
+            return (
+                None,
+                f"No CES URI found in CEP policy for template '{self.template}' "
+                f"(known: {sorted(template_ces.keys())})",
+            )
+        if len((policies.get("template_ces") or {}).get(self.template) or []) > 1:
+            self.logger.info(
+                "Multiple CES URIs for template '%s'; using %s",
+                self.template,
+                uri,
+            )
+        else:
+            self.logger.debug("Discovered CES URL from CEP: %s", uri)
+        return (uri, None)
+
+    def _wstep_issue(self, csr: str, ces_url: str) -> Dict[str, Any]:
         """Submit CSR via WSTEP Issue."""
+        self.logger.debug(
+            "CAhandler._wstep_issue(ces_url=%s, template=%s)",
+            ces_url,
+            self.template,
+        )
         pkcs10_b64 = _csr_to_pkcs10_b64(self.logger, csr)
-        body = _wstep_issue_body(pkcs10_b64, self.template)
-        response_xml = self._soap_post(self.ces_url, ACTION_WSTEP_RST, body)
-        return _parse_wstep_response(response_xml)
+        body = _wstep_issue_body(self.logger, pkcs10_b64, self.template)
+        response_xml = self._soap_post(ces_url, ACTION_WSTEP_RST, body)
+        return _parse_wstep_response(self.logger, response_xml)
 
     def _wstep_poll(self, request_id: str, ces_url: str) -> Dict[str, Any]:
         """Poll pending request via WSTEP QueryTokenStatus."""
-        body = _wstep_query_body(request_id)
+        self.logger.debug(
+            "CAhandler._wstep_poll(request_id=%s, ces_url=%s)",
+            request_id,
+            ces_url,
+        )
+        body = _wstep_query_body(self.logger, request_id)
         response_xml = self._soap_post(ces_url, ACTION_WSTEP_RST, body)
-        return _parse_wstep_response(response_xml)
+        return _parse_wstep_response(self.logger, response_xml)
 
     def _result_from_issued_wstep(
         self, result: Dict[str, Any]
     ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         """Map an issued WSTEP result to enroll/poll tuple parts."""
+        self.logger.debug(
+            "CAhandler._result_from_issued_wstep(status=%s)",
+            result.get("status"),
+        )
         token = result.get("token")
         if not token:
             return (self.CERT_FETCH_ERROR, None, None, None)
@@ -1085,7 +1320,7 @@ class CAhandler(KerberosAuthMixin):
             )
         ca_list = self._ca_chain_pem_list()
         if ca_list:
-            cert_bundle = _cert_bundle_with_ca(cert_bundle or "", ca_list)
+            cert_bundle = _cert_bundle_with_ca(self.logger, cert_bundle or "", ca_list)
         elif not self.cep_url and not self.ca_certificates:
             self.logger.warning(
                 "No CA chain appended: configure cep_url (preferred) or "
@@ -1094,9 +1329,14 @@ class CAhandler(KerberosAuthMixin):
         return (None, cert_bundle, cert_raw, None)
 
     def _result_from_wstep(
-        self, result: Dict[str, Any]
+        self, result: Dict[str, Any], ces_url: Optional[str] = None
     ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         """Map WSTEP result to enroll/poll tuple parts."""
+        self.logger.debug(
+            "CAhandler._result_from_wstep(status=%s, ces_url=%s)",
+            result.get("status"),
+            ces_url,
+        )
         status = result.get("status")
         if status == "issued":
             return self._result_from_issued_wstep(result)
@@ -1105,12 +1345,12 @@ class CAhandler(KerberosAuthMixin):
             request_id = result.get("request_id")
             if not request_id:
                 return ("Pending response missing RequestID", None, None, None)
-            reference = result.get("reference") or self.ces_url
+            reference = result.get("reference") or ces_url or self.ces_url
             return (
                 None,
                 None,
                 None,
-                _poll_identifier_encode(str(request_id), reference),
+                _poll_identifier_encode(self.logger, str(request_id), reference),
             )
 
         if status == "denied":
@@ -1128,7 +1368,7 @@ class CAhandler(KerberosAuthMixin):
         self, csr: str
     ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         """Enroll certificate via CES."""
-        self.logger.debug("CAhandler._enroll()")
+        self.logger.debug("CAhandler._enroll(%s)", self.template)
         if self.enrollment_config_log:
             enrollment_config_log(
                 self.logger,
@@ -1149,9 +1389,16 @@ class CAhandler(KerberosAuthMixin):
         if template_error:
             return (template_error, None, None, None)
 
+        ces_url, ces_error = self._ces_url_resolve()
+        if ces_error or not ces_url:
+            return (ces_error or "CES URL could not be resolved", None, None, None)
+        https_error = self._https_url_check(ces_url, "ces_url")
+        if https_error:
+            return (https_error, None, None, None)
+
         try:
-            result = self._wstep_issue(csr)
-            return self._result_from_wstep(result)
+            result = self._wstep_issue(csr, ces_url)
+            return self._result_from_wstep(result, ces_url=ces_url)
         except Exception as err:
             self.logger.error("Failed to enroll certificate from CES: %s", err)
             return (self.CERT_FETCH_ERROR, None, None, None)
@@ -1163,13 +1410,18 @@ class CAhandler(KerberosAuthMixin):
         self.logger.debug("CAhandler.enroll(%s)", self.template)
         self._gssapi_creds = None
 
-        if not (self.ces_url and self._credentials_are_configured() and self.template):
+        if not (
+            (self.ces_url or self.cep_url)
+            and self._credentials_are_configured()
+            and self.template
+        ):
             self.logger.error("%s", CONFIGURATION_ERROR_DETAIL)
             return (CONFIGURATION_ERROR_DETAIL, None, None, None)
 
-        https_error = self._https_url_check(self.ces_url, "ces_url")
-        if https_error:
-            return (https_error, None, None, None)
+        if self.ces_url:
+            https_error = self._https_url_check(self.ces_url, "ces_url")
+            if https_error:
+                return (https_error, None, None, None)
         https_error = self._https_url_check(self.cep_url, "cep_url")
         if https_error:
             return (https_error, None, None, None)
@@ -1206,8 +1458,11 @@ class CAhandler(KerberosAuthMixin):
     def handler_check(self) -> Optional[str]:
         """Check that required config is present and CEP/CES URLs use HTTPS."""
         self.logger.debug("CAhandler.handler_check()")
-        if not self.ces_url:
-            error = "ces_url parameter is missing in config file"
+        if not self.ces_url and not self.cep_url:
+            error = (
+                "ces_url or cep_url parameter is missing in config file "
+                "(ces_url may be discovered from CEP when cep_url is set)"
+            )
             self.logger.error("%s: %s", CONFIGURATION_ERROR_DETAIL, error)
             return error
 
@@ -1215,7 +1470,7 @@ class CAhandler(KerberosAuthMixin):
         if not (self.auth_method == "gssapi" and self._kerberos_keytab_is_configured()):
             required.extend(["ces_username", "ces_password"])
         error = handler_config_check(self.logger, self, required)
-        if not error:
+        if not error and self.ces_url:
             error = self._https_url_check(self.ces_url, "ces_url")
         if not error:
             error = self._https_url_check(self.cep_url, "cep_url")
@@ -1228,7 +1483,7 @@ class CAhandler(KerberosAuthMixin):
         """Poll status of pending CSR and download certificates."""
         self.logger.debug("CAhandler.poll(%s)", poll_identifier)
         rejected = False
-        request_id, reference = _poll_identifier_decode(poll_identifier)
+        request_id, reference = _poll_identifier_decode(self.logger, poll_identifier)
         if not request_id:
             return ("Invalid poll identifier", None, None, poll_identifier, False)
 
@@ -1269,6 +1524,7 @@ class CAhandler(KerberosAuthMixin):
         self, _cert: str, _rev_reason: str, _rev_date: str
     ) -> Tuple[int, str, str]:
         """Revoke certificate (not supported by CEP/CES)."""
+        self.logger.debug("CAhandler.revoke()")
         return (
             500,
             "urn:ietf:params:acme:error:serverInternal",
@@ -1277,4 +1533,5 @@ class CAhandler(KerberosAuthMixin):
 
     def trigger(self, _payload: str) -> Tuple[str, str, str]:
         """Process trigger message (not supported)."""
+        self.logger.debug("CAhandler.trigger()")
         return ("Method not implemented.", None, None)
