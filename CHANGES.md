@@ -6,6 +6,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.46.3
+
+**Bug Fixes and Improvements**:
+
+- Drop the exact `pyOpenSSL==26.1.0` pin so a normal install can resolve current pyOpenSSL / cryptography; XCA subject/`x509super` hashes now use OpenSSL `X509_NAME_hash` via cryptography’s libcrypto binding instead of pyOpenSSL (`load_certificate_request` removed in pyOpenSSL 26.3) ([#404](https://github.com/grindsa/acme2certifier/issues/404))
+
 ## Changes in 0.46.2
 
 **New Features**:
