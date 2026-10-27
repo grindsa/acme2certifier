@@ -1521,3 +1521,39 @@ def test_055_otlp_http_export_appears_in_jaeger() -> None:
         f"Jaeger did not show service={service!r} with traces within timeout "
         f"(endpoint={endpoint}, last_err={last_err})"
     )
+
+
+def test_056_disabled_and_attribute_edge_returns() -> None:
+    """Disabled gates and span_attribute/tag errors stay NoOp-safe."""
+    noop = otel_mod._NoOpSpan()
+    otel_mod._enabled = False
+    otel_mod.set_span_outcome(noop, "error", RuntimeError("disabled"))
+    otel_mod._enabled = True
+    otel_mod.set_span_outcome(noop, "error")
+
+    otel_mod._enabled = False
+    assert otel_mod.context_capture() is None
+    with otel_mod.context_attach(None):
+        pass
+    with otel_mod.context_attach(object()):
+        pass
+    otel_mod.forget_nonce_span_contexts(["nonce:x"])
+    otel_mod.forget_nonce_span_contexts([])
+    otel_mod.mark_enrollment_session_complete()
+
+    class _NoAttrs:
+        attributes = None
+
+    class _BoomGet:
+        @property
+        def attributes(self) -> Any:
+            raise RuntimeError("attrs")
+
+    assert otel_mod.span_attribute(_NoAttrs(), otel_mod.ATTR_CAHANDLER) is None
+    assert otel_mod.span_attribute(_BoomGet(), otel_mod.ATTR_CAHANDLER) is None
+
+    otel_mod._enabled = True
+    with patch(
+        "opentelemetry.trace.get_current_span", side_effect=RuntimeError("trace")
+    ):
+        otel_mod.tag_current_span({otel_mod.ATTR_CAHANDLER: "openssl"})
