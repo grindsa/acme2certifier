@@ -41,6 +41,7 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     resolve_resource_ownership,
 )
+from acme2certifier.acme_srv.helpers.otel import set_span_outcome, span
 from acme2certifier.acme_srv.helpers.security_gate import (
     SECURITY_DISABLE_ACK_ENV,
     shortname_without_challenge_validation_decide,
@@ -278,40 +279,61 @@ class Order(object):
             error = None
             identifiers = payload["identifiers"]
             for auth in identifiers:
-                auth_name = generate_random_string(self.logger, 12)
-                auth_dic[auth_name] = auth.copy()
-                auth["name"] = auth_name
-                auth["order"] = oid
-                auth["status"] = "pending"
-                auth["expires"] = uts_now() + self.config.authz_validity
-                skip_shortname_challenge = (
-                    self._should_skip_shortname_challenge_validation(auth, identifiers)
+                error = self._add_one_authorization_to_db(
+                    oid, auth, identifiers, auth_dic
                 )
-                try:
-                    self.repository.add_authorization(auth)
-                    if self.config.sectigo_sim or skip_shortname_challenge:
-                        auth["status"] = "valid"
-                        self.repository.update_authorization(auth)
-                        if skip_shortname_challenge:
-                            self.logger.warning(
-                                "[Order] allow_shortname_without_challenge_validation "
-                                "is active with %s; skipping challenge validation for "
-                                "shortname %s; relying on sibling FQDN authorization "
-                                "in the same order",
-                                SECURITY_DISABLE_ACK_ENV,
-                                auth.get("value"),
-                            )
-                except Exception as err_:
-                    self.logger.critical(
-                        f"{DB_ERROR_MSG}: failed to add authorization: %s", err_
-                    )
-                    error = self.error_msg_dic["serverinternal"]
+                if error:
                     break
         else:
             error = self.error_msg_dic["malformed"]
 
         self.logger.debug("Order._add_authorizations_to_db() ended with %s", error)
         return error
+
+    def _add_one_authorization_to_db(
+        self,
+        oid: str,
+        auth: Dict[str, str],
+        identifiers: List[Dict[str, str]],
+        auth_dic: Dict[str, str],
+    ) -> Optional[str]:
+        """Persist one authorization; return error detail or None on success."""
+        auth_name = generate_random_string(self.logger, 12)
+        auth_dic[auth_name] = auth.copy()
+        auth["name"] = auth_name
+        auth["order"] = oid
+        auth["status"] = "pending"
+        auth["expires"] = uts_now() + self.config.authz_validity
+        skip_shortname_challenge = self._should_skip_shortname_challenge_validation(
+            auth, identifiers
+        )
+        try:
+            authz_attrs = {
+                "acme.identifier_type": auth.get("type") or "",
+            }
+            with span(
+                "acme.authorization.create", attributes=authz_attrs
+            ) as authz_span:
+                self.repository.add_authorization(auth)
+                if self.config.sectigo_sim or skip_shortname_challenge:
+                    auth["status"] = "valid"
+                    self.repository.update_authorization(auth)
+                    if skip_shortname_challenge:
+                        self.logger.warning(
+                            "[Order] allow_shortname_without_challenge_validation "
+                            "is active with %s; skipping challenge validation for "
+                            "shortname %s; relying on sibling FQDN authorization "
+                            "in the same order",
+                            SECURITY_DISABLE_ACK_ENV,
+                            auth.get("value"),
+                        )
+                set_span_outcome(authz_span, "success")
+        except Exception as err_:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to add authorization: %s", err_
+            )
+            return self.error_msg_dic["serverinternal"]
+        return None
 
     def is_profile_valid(self, profile: str) -> str:
         """Check if the given profile is valid."""
@@ -358,14 +380,26 @@ class Order(object):
         """Add order and its authorizations to the database. Returns error message or None."""
         self.logger.debug("Order._add_order_and_authorizations()")
 
-        try:
-            oid = self.repository.add_order(data_dic)
-        except Exception as err_:
-            self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err_)
-            oid = None
+        with span("acme.order.create") as order_span:
+            create_exc: Optional[Exception] = None
+            try:
+                oid = self.repository.add_order(data_dic)
+            except Exception as err_:
+                create_exc = err_
+                self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err_)
+                oid = None
 
-        if not error:
-            error = self._add_authorizations_to_db(oid, payload, auth_dic)
+            if not error:
+                error = self._add_authorizations_to_db(oid, payload, auth_dic)
+            if create_exc is not None:
+                set_span_outcome(order_span, "error", create_exc)
+            else:
+                set_span_outcome(
+                    order_span, "failure" if error or not oid else "success"
+                )
+            order_name = data_dic.get("name")
+            if order_name:
+                order_span.set_attribute("acme.order_name", str(order_name))
 
         self.logger.debug("Order._add_order_and_authorizations() ended with %s", error)
         return error

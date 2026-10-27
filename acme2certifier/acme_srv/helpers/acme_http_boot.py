@@ -43,6 +43,8 @@ def boot_acme_http_stack(*, log_startup_version: bool = False) -> AcmeHttpStack:
     config = helper_mod.load_config()
     debug = helper_mod.config_debug_get(config)
     logger = helper_mod.logger_setup(debug)
+    # Optional OpenTelemetry (experimental); NoOp unless configured.
+    helper_mod.init_otel(logger)
     if log_startup_version:
         logger.info("starting acme2certifier version %s", __version__)
     helper_mod.log_loaded_acme_srv_cfg(logger)

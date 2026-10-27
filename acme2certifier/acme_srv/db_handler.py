@@ -23,6 +23,7 @@ from acme2certifier.acme_srv.helpers.db_handler_select import (
     resolve_db_handler,
     warn_dbhandler_cfg_missing,
 )
+from acme2certifier.acme_srv.helpers.otel import instrument_dbstore_class
 
 _LOGGER = logging.getLogger("acme2certifier.db_handler")
 
@@ -73,5 +74,6 @@ def log_active_db_handler(
 _handler_module_path, _handler_source = resolve_db_handler()
 _handler_module = importlib.import_module(_handler_module_path)
 
-DBstore = _handler_module.DBstore
+# Light ``acme.db.*`` spans on public DBstore methods (NoOp unless OTEL on).
+DBstore = instrument_dbstore_class(_handler_module.DBstore)
 initialize = getattr(_handler_module, "initialize", lambda: None)

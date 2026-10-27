@@ -69,7 +69,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install lxml beautifulsoup4 html5lib
-          pip install ".[test,gssapi]"
+          pip install ".[test,gssapi,otel]"
           pip install pytest-cov impacket
           cp examples/acme_srv.cfg acme2certifier/acme_srv/
           pytest --cov=./ --cov-report=xml
@@ -108,7 +108,7 @@ jobs:
       - name: Install pytest coverage and any other packages
         run: |
           python -m pip install --upgrade pip
-          pip install ".[test,gssapi]"
+          pip install ".[test,gssapi,otel]"
           pip install coverage impacket
           cp examples/acme_srv.cfg acme2certifier/acme_srv/
 

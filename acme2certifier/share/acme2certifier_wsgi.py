@@ -4,6 +4,7 @@
 """wsgi based acme server"""
 
 from __future__ import print_function
+import io
 import re
 import json
 import sys
@@ -29,6 +30,12 @@ from acme2certifier.acme_srv.helpers.acme_http_boot import (
     CONTENT_TYPE_JSON,
     acme_response_content_type,
     boot_acme_http_stack,
+)
+from acme2certifier.acme_srv.helpers.otel import (
+    acme_traced_request,
+    is_otel_enabled,
+    jws_trace_body_max_bytes,
+    mark_http_status,
 )
 from acme2certifier.acme_srv.version import __version__
 
@@ -659,6 +666,27 @@ def get_path_with_prefix(environ, config):
     return path.lstrip("/")
 
 
+def _otel_peek_wsgi_body(environ):
+    """Read and restore wsgi.input when OTEL setup-trace chaining is active.
+
+    Skips peek when Content-Length exceeds the JWS tip-parse cap so large
+    bodies are not buffered solely for tracing.
+    """
+    if not is_otel_enabled():
+        return b""
+    try:
+        size = int(environ.get("CONTENT_LENGTH") or 0)
+    except (TypeError, ValueError):
+        size = 0
+    if size <= 0 or WSGI_INPUT not in environ:
+        return b""
+    if size > jws_trace_body_max_bytes():
+        return b""
+    data = environ[WSGI_INPUT].read(size)
+    environ[WSGI_INPUT] = io.BytesIO(data)
+    return data
+
+
 def application(environ, start_response):
     """The main WSGI application if nothing matches call the not_found function."""
 
@@ -667,13 +695,26 @@ def application(environ, start_response):
         URLS.append((r"^.well-known/acme-challenge/", acmechallenge_serve))
 
     path = get_path_with_prefix(environ, CONFIG)
+    method = environ.get("REQUEST_METHOD", "")
+    body = _otel_peek_wsgi_body(environ) if method == "POST" else b""
 
-    for regex, callback in URLS:
-        match = re.search(regex, path)
-        if match is not None:
-            environ["myapp.url_args"] = match.groups()
-            return callback(environ, start_response)
-    return not_found(environ, start_response)
+    with acme_traced_request(method, path, body) as active:
+
+        def _start_response(status, headers, exc_info=None):
+            try:
+                mark_http_status(active, int(str(status).split()[0]))
+            except (TypeError, ValueError, IndexError, AttributeError):
+                pass
+            if exc_info is None:
+                return start_response(status, headers)
+            return start_response(status, headers, exc_info)
+
+        for regex, callback in URLS:
+            match = re.search(regex, path)
+            if match is not None:
+                environ["myapp.url_args"] = match.groups()
+                return callback(environ, _start_response)
+        return not_found(environ, _start_response)
 
 
 def get_handler_cls():

@@ -445,6 +445,33 @@ class TestACMEHandler(unittest.TestCase):
             (False, "error"), self.signature.eab_check("content", "mac_key")
         )
 
+    @patch("acme2certifier.acme_srv.signature.counter_add")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
+    def test_039_check_failure_counts(self, mock_jwk, mock_sig, mock_counter):
+        """failed account-key verification increments the auth failure counter"""
+        mock_jwk.return_value = {"kty": "oct"}
+        mock_sig.return_value = (False, "bad sig")
+        self.assertEqual(
+            (False, "bad sig", None), self.signature.check("acct", "content")
+        )
+        mock_counter.assert_called_once_with(
+            "acme.auth.failure", attributes={"acme.auth_kind": "jws"}
+        )
+
+    @patch("acme2certifier.acme_srv.signature.counter_add")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    def test_040_check_emb_key_failure_counts(self, mock_sig, mock_counter):
+        """failed embedded-JWK verification increments the auth failure counter"""
+        mock_sig.return_value = (False, "bad sig")
+        self.assertEqual(
+            (False, "bad sig", None),
+            self.signature.check(None, "content", True, {"jwk": {"kty": "oct"}}),
+        )
+        mock_counter.assert_called_once_with(
+            "acme.auth.failure", attributes={"acme.auth_kind": "jws"}
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -872,7 +872,9 @@ class TestChallenge(unittest.TestCase):
         self.assertTrue(result.invalid)
 
     def test_062_start_async_validation(self):
-        with patch("acme2certifier.acme_srv.challenge.Thread") as mock_thread:
+        with patch(
+            "acme2certifier.acme_srv.challenge.ThreadWithReturnValue"
+        ) as mock_thread:
             instance = mock_thread.return_value
             instance.join.return_value = True
             instance.is_alive.return_value = False
@@ -3218,7 +3220,7 @@ class TestChallenge(unittest.TestCase):
         mock_get_details.assert_called_once_with(url)
         self.assertEqual(result, expected_result)
 
-    @patch("acme2certifier.acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue")
     def test_160_start_async_validation_sync_mode(self, mock_thread_class):
         """Test _start_async_validation with sync mode (async_mode=False)"""
         # Setup
@@ -3257,7 +3259,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    @patch("acme2certifier.acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue")
     def test_161_start_async_validation_async_mode(self, mock_thread_class):
         """Test _start_async_validation with async mode (async_mode=True)"""
         # Setup
@@ -3297,7 +3299,7 @@ class TestChallenge(unittest.TestCase):
             )
         )
 
-    @patch("acme2certifier.acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue")
     def test_162_start_async_validation_empty_payload(self, mock_thread_class):
         """Test _start_async_validation with empty payload"""
         # Setup
@@ -3321,7 +3323,7 @@ class TestChallenge(unittest.TestCase):
         mock_thread.start.assert_called_once()
         mock_thread.join.assert_called_once_with(timeout=15)
 
-    @patch("acme2certifier.acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue")
     def test_163_start_async_validation_complex_payload(self, mock_thread_class):
         """Test _start_async_validation with complex payload data"""
         # Setup
@@ -3348,7 +3350,7 @@ class TestChallenge(unittest.TestCase):
         mock_thread.start.assert_called_once()
         mock_thread.join.assert_not_called()  # async mode
 
-    @patch("acme2certifier.acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue")
     def test_164_start_async_validation_different_timeout_values(
         self, mock_thread_class
     ):
@@ -3376,7 +3378,7 @@ class TestChallenge(unittest.TestCase):
                 # Verify correct timeout is used
                 mock_thread.join.assert_called_once_with(timeout=timeout)
 
-    @patch("acme2certifier.acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue")
     def test_165_start_async_validation_thread_target_arguments(
         self, mock_thread_class
     ):
@@ -3413,7 +3415,7 @@ class TestChallenge(unittest.TestCase):
                     args=(challenge_name, payload),
                 )
 
-    @patch("acme2certifier.acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue")
     def test_166_start_async_validation_logging_behavior(self, mock_thread_class):
         """Test _start_async_validation logging in both sync and async modes"""
         # Setup
@@ -3480,7 +3482,7 @@ class TestChallenge(unittest.TestCase):
             any("http01_block_private_ips=True" in line for line in lcm.output)
         )
 
-    @patch("acme2certifier.acme_srv.challenge.Thread")
+    @patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue")
     def test_168_start_async_validation_timeout_still_processing(
         self, mock_thread_class
     ):

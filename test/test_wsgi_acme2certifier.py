@@ -3,6 +3,8 @@
 """unittests for openssl_ca_handler"""
 
 # pylint: disable=C0415, R0904, R0913, W0212
+import importlib
+import io
 import sys
 import os
 import tempfile
@@ -1585,6 +1587,54 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_get.called)
         self.assertTrue(mock_post.called)
         self.assertTrue(mock_body.called)
+
+    def test_082_otel_peek_wsgi_body(self):
+        """peek restores wsgi.input and skips oversized or unreadable bodies"""
+        wsgi_mod = importlib.import_module(_WSGI_MODULE)
+        with patch.object(wsgi_mod, "is_otel_enabled", return_value=False):
+            self.assertEqual(b"", wsgi_mod._otel_peek_wsgi_body({}))
+        with patch.object(wsgi_mod, "is_otel_enabled", return_value=True):
+            self.assertEqual(
+                b"", wsgi_mod._otel_peek_wsgi_body({"CONTENT_LENGTH": "nope"})
+            )
+            self.assertEqual(
+                b"",
+                wsgi_mod._otel_peek_wsgi_body(
+                    {"CONTENT_LENGTH": "0", "wsgi.input": io.BytesIO(b"")}
+                ),
+            )
+            with patch.object(wsgi_mod, "jws_trace_body_max_bytes", return_value=1):
+                self.assertEqual(
+                    b"",
+                    wsgi_mod._otel_peek_wsgi_body(
+                        {"CONTENT_LENGTH": "4", "wsgi.input": io.BytesIO(b"abcd")}
+                    ),
+                )
+            environ = {"CONTENT_LENGTH": "4", "wsgi.input": io.BytesIO(b"abcd")}
+            self.assertEqual(b"abcd", wsgi_mod._otel_peek_wsgi_body(environ))
+            self.assertEqual(b"abcd", environ["wsgi.input"].read())
+
+    def test_083_application_start_response_status_and_exc_info(self):
+        """bad status is ignored; exc_info is forwarded to the WSGI server"""
+        wsgi_mod = importlib.import_module(_WSGI_MODULE)
+
+        def fake_not_found(_environ, start_response):
+            start_response("bogus", [])
+            start_response("200 OK", [], (ValueError, ValueError("x"), None))
+            return [b"nf"]
+
+        real_start = MagicMock()
+        with patch.object(wsgi_mod, "not_found", fake_not_found):
+            result = wsgi_mod.application(
+                {"PATH_INFO": "zz-unmatched", "REQUEST_METHOD": "GET"}, real_start
+            )
+        self.assertEqual([b"nf"], result)
+        self.assertEqual("bogus", real_start.call_args_list[0].args[0])
+        self.assertEqual(
+            (ValueError, real_start.call_args_list[1].args[2][1].__class__),
+            (ValueError, ValueError),
+        )
+        self.assertIsInstance(real_start.call_args_list[1].args[2][1], ValueError)
 
 
 if __name__ == "__main__":
