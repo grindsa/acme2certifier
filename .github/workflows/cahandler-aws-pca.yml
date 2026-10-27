@@ -1,0 +1,150 @@
+name: CA-Handler Tests - AWS Private CA (LocalStack)
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  guard:
+    permissions: {}
+    # Limit spend: master/devel always; feature branches only when name contains "aws".
+    if: ${{ inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'aws') }}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  # ---------------------------------------------------------
+  # Lean container smoke against ephemeral LocalStack ACM PCA.
+  # Skip RPM/deb (CA is runner-local Docker, same idea as CFSSL).
+  # ---------------------------------------------------------
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier1'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['nginx']
+        dbhandler: ['wsgi']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Parse LOCALSTACK_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.LOCALSTACK_CFG }}
+
+      - name: "Instanciate LocalStack ACM PCA"
+        uses: ./.github/actions/wf_specific/aws_pca_ca_handler/localstack_prep
+        with:
+          NAME_SPACE: acme
+          AWS_REGION: eu-central-1
+
+      - name: "Setup a2c with aws_pca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.aws_pca_ca_handler
+          OPTIONS: |
+            aws_region: ${{ env.AWS_PCA_REGION }}
+            certificate_authority_arn: ${{ env.AWS_PCA_CA_ARN }}
+            endpoint_url: ${{ env.AWS_PCA_ENDPOINT_URL }}
+            signing_algorithm: SHA256WITHRSA
+            validity_days: 30
+            enrollment_config_log: True
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "*.bar.local"]
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 60
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: acme
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+        with:
+          NAME_SPACE: acme
+          USE_CERTBOT: "true"
+          TEST_ADL: "true"
+          REVOCATION: "true"
+
+      - name: "Verify allowed_domainlist error"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Stop LocalStack"
+        if: ${{ always() }}
+        run: |
+          docker compose -f .github/actions/wf_specific/aws_pca_ca_handler/localstack_prep/compose.yaml down -v || true
+          docker rm -f localstack || true
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
