@@ -91,7 +91,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
         self.assertEqual("plain", _unquote_uwsgi_value("plain"))
         self.assertEqual("sek$ret", _unquote_uwsgi_value("sek$$ret"))
 
-    def test_006b_unquote_uwsgi_value_percent_escape(self) -> None:
+    def test_007_unquote_uwsgi_value_percent_escape(self) -> None:
         """_unquote_uwsgi_value expands %% so MSSQL extra_params stay percent-encoded"""
         escaped = (
             "mssql://u:p@ms-sql.acme:1433/acme2certifier"
@@ -105,7 +105,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
         )
         self.assertEqual(expected, _unquote_uwsgi_value(escaped))
 
-    def test_007_parse_apache_export_invalid_lines(self) -> None:
+    def test_008_parse_apache_export_invalid_lines(self) -> None:
         """_parse_apache_export returns None for non-export and malformed lines"""
         self.assertIsNone(_parse_apache_export("ACME2CERTIFIER_DEBUG=1"))
         self.assertIsNone(_parse_apache_export('export ACME2CERTIFIER_DEBUG="unclosed'))
@@ -119,7 +119,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
         ):
             self.assertIsNone(_parse_apache_export("export ACME2CERTIFIER_DEBUG=1"))
 
-    def test_008_read_apache_envvars(self) -> None:
+    def test_009_read_apache_envvars(self) -> None:
         """_read_apache_envvars parses export lines and skips missing files"""
         from acme2certifier.tools.a2c_django_deploy_env import _read_apache_envvars
 
@@ -138,7 +138,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
             self.assertEqual("a,b", env["ACME2CERTIFIER_ALLOWED_HOSTS"])
             self.assertNotIn("OTHER_VAR", env)
 
-    def test_009_load_deploy_env_generates_secret_and_main(self) -> None:
+    def test_010_load_deploy_env_generates_secret_and_main(self) -> None:
         """load_deploy_env generates SECRET_KEY; main prints set keys"""
         from acme2certifier.tools.a2c_django_deploy_env import main
 
@@ -166,7 +166,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
                 printed = " ".join(str(c) for c in mock_print.call_args_list)
                 self.assertIn("ACME2CERTIFIER_SECRET_KEY is set", printed)
 
-    def test_010_load_deploy_env_reads_opt_ini(self) -> None:
+    def test_011_load_deploy_env_reads_opt_ini(self) -> None:
         """Unset BASE_DIR loads ACME2CERTIFIER_* from the /opt uWSGI ini."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -208,7 +208,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
                 )
                 self.assertEqual(str(opt), os.environ["ACME2CERTIFIER_BASE_DIR"])
 
-    def test_011_load_deploy_env_prefers_www_ini_over_opt(self) -> None:
+    def test_012_load_deploy_env_prefers_www_ini_over_opt(self) -> None:
         """When both install roots have an ini, /var/www wins."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -249,7 +249,7 @@ class TestA2cDjangoDeployEnv(unittest.TestCase):
                 )
                 self.assertEqual(str(www), os.environ["ACME2CERTIFIER_BASE_DIR"])
 
-    def test_012_module_main_guard(self) -> None:
+    def test_013_module_main_guard(self) -> None:
         """Running the module as __main__ invokes main()"""
         import runpy
         from acme2certifier.tools.a2c_django_deploy_env import __file__ as mod_file

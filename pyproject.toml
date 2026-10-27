@@ -16,7 +16,7 @@ dependencies = [
     "setuptools",
     "jwcrypto",
     "cryptography",
-    "pyOpenssl==26.1.0",
+    "pyOpenSSL",
     "dnspython",
     "python-dateutil",
     "requests",
