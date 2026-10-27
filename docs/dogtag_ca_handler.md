@@ -1,6 +1,6 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title: Dogtag CA Handler Documentation -->
+<!-- wiki-title: Dogtag CA -->
 <!-- wiki-category: CA Handlers -->
 
 # [Dogtag CA](https://www.dogtagpki.org/) Handler Documentation

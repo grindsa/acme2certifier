@@ -1,6 +1,6 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title: CA Handler for EJBCA -->
+<!-- wiki-title: EJBCA / Keyfactor -->
 <!-- wiki-category: CA Handlers -->
 
 # Connecting to Keyfactor's EJBCA

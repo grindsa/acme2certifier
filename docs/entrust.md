@@ -1,6 +1,6 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title: CA Handler for Entrust ECS Enterprise -->
+<!-- wiki-title: Entrust ECS Enterprise -->
 <!-- wiki-category: CA Handlers -->
 
 # Connecting to Entrust ECS Enterprise

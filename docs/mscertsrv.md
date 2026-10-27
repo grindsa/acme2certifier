@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 MD014 -->
 
-<!-- wiki-title: CA Handler for Microsoft Certification Authority Web Enrollment Service -->
+<!-- wiki-title: Microsoft Certification Authority Web Enrollment Service -->
 <!-- wiki-category: CA Handlers -->
 
 # CA Handler for Microsoft Certification Authority Web Enrollment Service

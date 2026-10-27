@@ -39,6 +39,7 @@ from acme2certifier.acme_srv.helper import (
 
 CONTENT_TYPE = "application/x-amz-json-1.1"
 SERVICE = "acm-pca"
+ACME_ERR_SERVER_INTERNAL = "urn:ietf:params:acme:error:serverInternal"
 
 # ACME / RFC 5280 reason names -> AWS PCA RevocationReason
 _REV_REASON_MAP: Dict[str, str] = {
@@ -364,6 +365,43 @@ class CAhandler:
                 return f"{err_type}: {message}".strip(": ")
         return f"HTTP {code}: {content}"
 
+    def _response_content(self, response: requests.Response) -> Any:
+        """Parse JSON body when possible; otherwise return raw text."""
+        self.logger.debug("CAhandler._response_content()")
+        try:
+            return response.json() if response.text else {}
+        except Exception:
+            return response.text
+
+    @staticmethod
+    def _http_retryable(status_code: int) -> bool:
+        return status_code in (429, 500, 502, 503, 504)
+
+    @staticmethod
+    def _api_backoff(attempt: int) -> None:
+        time.sleep(min(2.0 * attempt, 5.0))
+
+    def _api_response_process(
+        self, response: requests.Response, attempt: int, attempts: int
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Interpret an ACM PCA HTTP response.
+
+        Returns the JSON body on success, None when the caller should retry,
+        or raises RuntimeError for a non-retryable failure.
+        """
+        content = self._response_content(response)
+        if response.status_code < 400:
+            if not isinstance(content, dict):
+                raise RuntimeError(f"Unexpected ACM PCA response: {content}")
+            return content
+
+        last_error = self._api_error_message(response.status_code, content)
+        # Retry only on transient HTTP codes
+        if self._http_retryable(response.status_code) and attempt < attempts:
+            return None
+        raise RuntimeError(last_error)
+
     def _api_call(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """POST ACMPrivateCA.<action> with SigV4; return parsed JSON body."""
         self.logger.debug("CAhandler._api_call(%s)", action)
@@ -394,30 +432,16 @@ class CAhandler:
                     proxies=self.proxy or None,
                     verify=self._tls_verify(),
                 )
-                try:
-                    content: Any = response.json() if response.text else {}
-                except Exception:
-                    content = response.text
-
-                if response.status_code >= 400:
-                    last_error = self._api_error_message(response.status_code, content)
-                    # Retry only on transient HTTP codes
-                    if (
-                        response.status_code in (429, 500, 502, 503, 504)
-                        and attempt < attempts
-                    ):
-                        time.sleep(min(2.0 * attempt, 5.0))
-                        continue
-                    raise RuntimeError(last_error)
-
-                if not isinstance(content, dict):
-                    raise RuntimeError(f"Unexpected ACM PCA response: {content}")
+                result = self._api_response_process(response, attempt, attempts)
+                if result is None:
+                    self._api_backoff(attempt)
+                    continue
                 self.logger.debug("CAhandler._api_call(%s) ended", action)
-                return content
+                return result
             except requests.RequestException as err:
                 last_error = str(err)
                 if attempt < attempts:
-                    time.sleep(min(2.0 * attempt, 5.0))
+                    self._api_backoff(attempt)
                     continue
                 raise RuntimeError(last_error) from err
 
@@ -444,9 +468,9 @@ class CAhandler:
         text = str(err)
         return "RequestInProgress" in text
 
-    @staticmethod
-    def _pem_blocks(pem_text: str) -> list:
+    def _pem_blocks(self, pem_text: str) -> list:
         """Split a PEM blob into individual certificate blocks."""
+        self.logger.debug("CAhandler._pem_blocks()")
         blocks: list = []
         if not pem_text:
             return blocks
@@ -457,6 +481,7 @@ class CAhandler:
             if "-----END CERTIFICATE-----" in line:
                 blocks.append("\n".join(current).strip())
                 current = []
+        self.logger.debug("CAhandler._pem_blocks() ended with %s blocks", len(blocks))
         return blocks
 
     def _issuing_ca_chain_pems(self) -> list:
@@ -628,14 +653,14 @@ class CAhandler:
 
         error = self._config_check()
         if error:
-            return 500, "urn:ietf:params:acme:error:serverInternal", error
+            return 500, ACME_ERR_SERVER_INTERNAL, error
 
         cert_serial = cert_serial_get(self.logger, certificate_raw, hexformat=True)
         if not cert_serial:
             self.logger.error("Failed to get certificate serial number")
             return (
                 500,
-                "urn:ietf:params:acme:error:serverInternal",
+                ACME_ERR_SERVER_INTERNAL,
                 "Failed to parse certificate serial",
             )
 
@@ -654,7 +679,7 @@ class CAhandler:
             code = 200
         except RuntimeError as err:
             code = 500
-            message = "urn:ietf:params:acme:error:serverInternal"
+            message = ACME_ERR_SERVER_INTERNAL
             detail = str(err)
             self.logger.error("Failed to revoke certificate: %s", detail)
 

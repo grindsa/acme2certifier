@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title: CA Handler for Cloudflare CFSSL -->
+<!-- wiki-title: Cloudflare CFSSL -->
 <!-- wiki-category: CA Handlers -->
 
 # Connecting to Cloudflare CFSSL

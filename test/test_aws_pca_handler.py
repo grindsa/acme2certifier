@@ -219,7 +219,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.assertEqual(mock_api.call_count, 3)
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._api_call")
-    def test_012b_get_certificate_merges_partial_pca_chain(self, mock_api):
+    def test_013_get_certificate_merges_partial_pca_chain(self, mock_api):
         """GetCertificate returns only ICA; CA API supplies ICA+root (deduped)."""
         self._ready()
         leaf = "-----BEGIN CERTIFICATE-----\nLEAF\n-----END CERTIFICATE-----"
@@ -239,7 +239,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._api_call")
-    def test_013_handler_check(self, mock_api):
+    def test_014_handler_check(self, mock_api):
         self._ready()
         mock_api.return_value = {"CertificateAuthority": {"Status": "ACTIVE"}}
         self.assertIsNone(self.cahandler.handler_check())
@@ -247,7 +247,7 @@ class TestAWSPCAHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._api_call")
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.cert_serial_get")
-    def test_014_revoke(self, mock_serial, mock_api):
+    def test_015_revoke(self, mock_serial, mock_api):
         self._ready()
         mock_serial.return_value = "ABCD"
         mock_api.return_value = {}
@@ -259,7 +259,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.assertEqual(mock_api.call_args[0][1]["RevocationReason"], "KEY_COMPROMISE")
         self.assertEqual(mock_api.call_args[0][1]["CertificateSerial"], "abcd")
 
-    def test_015_sigv4_with_session_token(self):
+    def test_016_sigv4_with_session_token(self):
         """session token is included in SigV4 signed headers"""
         from acme2certifier.cahandlers.aws_pca_ca_handler import _sigv4_sign
 
@@ -279,13 +279,13 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.assertIn("x-amz-security-token", headers["Authorization"].lower())
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._config_load")
-    def test_016_enter_loads_config_when_arn_missing(self, mock_load):
+    def test_017_enter_loads_config_when_arn_missing(self, mock_load):
         """__enter__ loads config when certificate_authority_arn is unset"""
         with self.cahandler as handler:
             self.assertIs(handler, self.cahandler)
         mock_load.assert_called_once_with()
 
-    def test_017_enter_skips_load_when_arn_set(self):
+    def test_018_enter_skips_load_when_arn_set(self):
         """__enter__ skips config load when ARN is already set"""
         self.cahandler.certificate_authority_arn = self.ca_arn
         with patch.object(self.cahandler, "_config_load") as mock_load:
@@ -293,7 +293,10 @@ class TestAWSPCAHandler(unittest.TestCase):
                 pass
             mock_load.assert_not_called()
 
-    @patch("acme2certifier.cahandlers.aws_pca_ca_handler.config_proxy_load", return_value={})
+    @patch(
+        "acme2certifier.cahandlers.aws_pca_ca_handler.config_proxy_load",
+        return_value={},
+    )
     @patch(
         "acme2certifier.cahandlers.aws_pca_ca_handler.config_enroll_config_log_load",
         return_value=(False, []),
@@ -312,7 +315,7 @@ class TestAWSPCAHandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.config_option_load")
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.load_config")
-    def test_018_config_load_full(
+    def test_019_config_load_full(
         self,
         mock_load_cfg,
         mock_option,
@@ -360,7 +363,10 @@ class TestAWSPCAHandler(unittest.TestCase):
         mock_enroll.assert_called_once()
         mock_proxy.assert_called_once()
 
-    @patch("acme2certifier.cahandlers.aws_pca_ca_handler.config_proxy_load", return_value={})
+    @patch(
+        "acme2certifier.cahandlers.aws_pca_ca_handler.config_proxy_load",
+        return_value={},
+    )
     @patch(
         "acme2certifier.cahandlers.aws_pca_ca_handler.config_enroll_config_log_load",
         return_value=(False, []),
@@ -382,7 +388,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         return_value=None,
     )
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.load_config")
-    def test_019_config_load_bad_ints_and_env(
+    def test_020_config_load_bad_ints_and_env(
         self,
         mock_load_cfg,
         _mock_option,
@@ -418,13 +424,20 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.assertEqual(self.cahandler.aws_secret_access_key, "env-secret")
         self.assertEqual(self.cahandler.aws_session_token, "env-token")
         self.assertTrue(
-            any("Failed to parse validity_days parameter" in line for line in lcm.output)
+            any(
+                "Failed to parse validity_days parameter" in line for line in lcm.output
+            )
         )
         self.assertTrue(
-            any("Failed to parse poll_interval parameter" in line for line in lcm.output)
+            any(
+                "Failed to parse poll_interval parameter" in line for line in lcm.output
+            )
         )
 
-    @patch("acme2certifier.cahandlers.aws_pca_ca_handler.config_proxy_load", return_value={})
+    @patch(
+        "acme2certifier.cahandlers.aws_pca_ca_handler.config_proxy_load",
+        return_value={},
+    )
     @patch(
         "acme2certifier.cahandlers.aws_pca_ca_handler.config_enroll_config_log_load",
         return_value=(False, []),
@@ -442,7 +455,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         return_value=(False, None),
     )
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.load_config")
-    def test_020_config_load_without_cahandler_section(
+    def test_021_config_load_without_cahandler_section(
         self,
         mock_load_cfg,
         _mock_eab,
@@ -456,7 +469,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertIsNone(self.cahandler.aws_region)
 
-    def test_021_api_error_message_fallback(self):
+    def test_022_api_error_message_fallback(self):
         """non-dict / empty error bodies fall back to HTTP status text"""
         self.assertEqual(
             self.cahandler._api_error_message(502, "gateway"),
@@ -469,7 +482,7 @@ class TestAWSPCAHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.time.sleep")
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.requests.post")
-    def test_022_api_call_json_error_retry_and_non_dict(self, mock_post, mock_sleep):
+    def test_023_api_call_json_error_retry_and_non_dict(self, mock_post, mock_sleep):
         """API call retries transient HTTP, handles bad JSON, rejects non-dict"""
         self._ready()
         self.cahandler.request_retries = 1
@@ -490,7 +503,9 @@ class TestAWSPCAHandler(unittest.TestCase):
         ok.json.return_value = {"ok": True}
 
         mock_post.side_effect = [transient, ok]
-        self.assertEqual(self.cahandler._api_call("DescribeCertificateAuthority", {}), {"ok": True})
+        self.assertEqual(
+            self.cahandler._api_call("DescribeCertificateAuthority", {}), {"ok": True}
+        )
         mock_sleep.assert_called()
 
         mock_post.side_effect = [bad_json]
@@ -501,7 +516,7 @@ class TestAWSPCAHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.time.sleep")
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.requests.post")
-    def test_023_api_call_request_exception_retries(self, mock_post, mock_sleep):
+    def test_024_api_call_request_exception_retries(self, mock_post, mock_sleep):
         """RequestException retries then raises RuntimeError"""
         self._ready()
         self.cahandler.request_retries = 1
@@ -515,7 +530,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         mock_sleep.assert_called()
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._api_call")
-    def test_024_issue_certificate_with_template(self, mock_api):
+    def test_025_issue_certificate_with_template(self, mock_api):
         """template_arn is forwarded to IssueCertificate"""
         self._ready()
         self.cahandler.template_arn = "arn:aws:acm-pca:::template/EndEntity/1"
@@ -531,7 +546,7 @@ class TestAWSPCAHandler(unittest.TestCase):
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.time.sleep")
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.time.time")
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._api_call")
-    def test_025_get_certificate_timeout(self, mock_api, mock_time, mock_sleep):
+    def test_026_get_certificate_timeout(self, mock_api, mock_time, mock_sleep):
         """poll timeout raises TimeoutError after RequestInProgress"""
         self._ready()
         self.cahandler.poll_timeout = 1
@@ -545,7 +560,7 @@ class TestAWSPCAHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._api_call")
-    def test_026_enroll_logs_config_and_errors(self, mock_api, mock_enroll_log):
+    def test_027_enroll_logs_config_and_errors(self, mock_api, mock_enroll_log):
         """enrollment_config_log runs; enroll errors are returned"""
         self._ready()
         self.cahandler.enrollment_config_log = True
@@ -607,11 +622,14 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.assertEqual(error, "issue failed")
         self.assertIsNone(bundle)
         self.assertTrue(
-            any("Failed to enroll certificate: issue failed" in line for line in lcm.output)
+            any(
+                "Failed to enroll certificate: issue failed" in line
+                for line in lcm.output
+            )
         )
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._api_call")
-    def test_027_handler_check_api_error(self, mock_api):
+    def test_028_handler_check_api_error(self, mock_api):
         """handler_check surfaces DescribeCertificateAuthority failures"""
         self._ready()
         mock_api.side_effect = RuntimeError("denied")
@@ -623,7 +641,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._get_certificate")
-    def test_028_poll_success_and_errors(self, mock_get):
+    def test_029_poll_success_and_errors(self, mock_get):
         """poll downloads by ARN and maps missing/failure cases"""
         self._ready()
         leaf = "-----BEGIN CERTIFICATE-----\nLEAF\n-----END CERTIFICATE-----"
@@ -660,7 +678,7 @@ class TestAWSPCAHandler(unittest.TestCase):
             any("Failed to poll certificate: slow" in line for line in lcm.output)
         )
 
-    def test_029_revoke_config_and_serial_errors(self):
+    def test_030_revoke_config_and_serial_errors(self):
         """revoke returns ACME serverInternal on config/serial failures"""
         code, message, detail = self.cahandler.revoke("certraw")
         self.assertEqual(code, 500)
@@ -679,13 +697,15 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.assertEqual(code, 500)
         self.assertEqual(detail, "Failed to parse certificate serial")
         self.assertTrue(
-            any("Failed to get certificate serial number" in line for line in lcm.output)
+            any(
+                "Failed to get certificate serial number" in line for line in lcm.output
+            )
         )
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.eab_profile_revocation_check")
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._api_call")
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.cert_serial_get")
-    def test_030_revoke_eab_and_api_error(self, mock_serial, mock_api, mock_eab):
+    def test_031_revoke_eab_and_api_error(self, mock_serial, mock_api, mock_eab):
         """revoke runs EAB profiling check and maps API failures"""
         self._ready()
         self.cahandler.eab_profiling = True
@@ -698,11 +718,14 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.assertEqual(detail, "revoke denied")
         mock_eab.assert_called_once()
         self.assertTrue(
-            any("Failed to revoke certificate: revoke denied" in line for line in lcm.output)
+            any(
+                "Failed to revoke certificate: revoke denied" in line
+                for line in lcm.output
+            )
         )
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.CAhandler._api_call")
-    def test_031_get_certificate_non_progress_error(self, mock_api):
+    def test_032_get_certificate_non_progress_error(self, mock_api):
         """non-RequestInProgress errors are re-raised immediately"""
         self._ready()
         mock_api.side_effect = RuntimeError("ValidationException: bad arn")
@@ -711,7 +734,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.assertIn("ValidationException", str(ctx.exception))
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.requests.post")
-    def test_032_api_call_defensive_empty_attempts(self, mock_post):
+    def test_033_api_call_defensive_empty_attempts(self, mock_post):
         """defensive final raise when the retry loop never runs"""
         self._ready()
         with patch("builtins.max", return_value=-1):
@@ -720,7 +743,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.assertEqual(str(ctx.exception), "ACM PCA request failed")
         mock_post.assert_not_called()
 
-    def test_033_tls_verify_defaults_and_options(self):
+    def test_034_tls_verify_defaults_and_options(self):
         """_tls_verify maps verify / ca_bundle like mscepces"""
         self.assertTrue(self.cahandler._tls_verify())
         self.cahandler.ca_bundle = "/tmp/custom-ca.pem"
@@ -731,7 +754,10 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.cahandler.verify = False
         self.assertFalse(self.cahandler._tls_verify())
 
-    @patch("acme2certifier.cahandlers.aws_pca_ca_handler.config_proxy_load", return_value={})
+    @patch(
+        "acme2certifier.cahandlers.aws_pca_ca_handler.config_proxy_load",
+        return_value={},
+    )
     @patch(
         "acme2certifier.cahandlers.aws_pca_ca_handler.config_enroll_config_log_load",
         return_value=(False, []),
@@ -753,7 +779,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         return_value=None,
     )
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.load_config")
-    def test_034_config_load_ca_bundle_and_verify(
+    def test_035_config_load_ca_bundle_and_verify(
         self,
         mock_load_cfg,
         _mock_option,
@@ -785,7 +811,7 @@ class TestAWSPCAHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.aws_pca_ca_handler.requests.post")
-    def test_035_api_call_passes_ca_bundle_verify(self, mock_post):
+    def test_036_api_call_passes_ca_bundle_verify(self, mock_post):
         """API calls forward ca_bundle path as requests verify= argument"""
         self._ready()
         self.cahandler.ca_bundle = "/tmp/ca.pem"

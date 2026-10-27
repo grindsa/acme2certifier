@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title: CA Handler for Microsoft ICertPassage Remote Protocol (MS-ICPR) -->
+<!-- wiki-title: Microsoft ICertPassage Remote Protocol (MS-ICPR) -->
 <!-- wiki-category: CA Handlers -->
 
 # CA Handler for Microsoft ICertPassage Remote Protocol (MS-ICPR)

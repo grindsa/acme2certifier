@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title: Hashicorp Vault PKI CA Handler -->
+<!-- wiki-title: Hashicorp Vault CA -->
 <!-- wiki-category: CA Handlers -->
 
 # Hashicorp Vault PKI CA-handler

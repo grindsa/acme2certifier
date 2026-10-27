@@ -33,7 +33,9 @@ def TestOneInput(data: bytes) -> None:
     """Fuzz cert_acme_tls_alpn_extension_ok."""
     fdp = atheris.FuzzedDataProvider(data)
     recode = fdp.ConsumeBool()
-    digest = fdp.ConsumeUnicodeNoSurrogates(max(1, min(128, fdp.remaining_bytes() // 4)))
+    digest = fdp.ConsumeUnicodeNoSurrogates(
+        max(1, min(128, fdp.remaining_bytes() // 4))
+    )
     certificate = fdp.ConsumeUnicodeNoSurrogates(fdp.remaining_bytes())
     try:
         cert_acme_tls_alpn_extension_ok(_LOGGER, certificate, digest, recode=recode)

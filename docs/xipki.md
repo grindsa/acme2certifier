@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title: CA Handler for XiPKI -->
+<!-- wiki-title: XiPKI CA -->
 <!-- wiki-category: CA Handlers -->
 
 # Connecting to XiPKI via REST

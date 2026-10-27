@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 MD029 -->
 
-<!-- wiki-title: CA Handler for Microsoft CEP/CES (MS-XCEP / MS-WSTEP) -->
+<!-- wiki-title: Microsoft CEP/CES (MS-XCEP / MS-WSTEP) -->
 <!-- wiki-category: CA Handlers -->
 
 # CA Handler for Microsoft CEP/CES (MS-XCEP / MS-WSTEP)

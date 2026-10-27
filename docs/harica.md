@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title: CA Handler for HARICA CertManager -->
+<!-- wiki-title: HARICA CertManager -->
 <!-- wiki-category: CA Handlers -->
 
 # Connecting to HARICA CertManager
