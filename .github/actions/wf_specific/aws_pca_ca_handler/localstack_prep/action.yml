@@ -1,0 +1,82 @@
+name: "localstack_prep"
+description: "Start LocalStack Ultimate, bootstrap ROOT+SUBORDINATE ACM PCA, export endpoint + ARNs"
+inputs:
+  NAME_SPACE:
+    description: "Docker network shared with the acme2certifier container"
+    required: false
+    default: "acme"
+  AWS_REGION:
+    description: "AWS region for ACM PCA / SigV4"
+    required: false
+    default: "eu-central-1"
+  COMPOSE_DIR:
+    description: "Directory containing LocalStack compose.yaml and bootstrap_hierarchy.sh"
+    required: false
+    default: ".github/actions/wf_specific/aws_pca_ca_handler/localstack_prep"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install AWS CLI"
+      shell: bash
+      run: |
+        set -euo pipefail
+        if ! command -v aws >/dev/null 2>&1; then
+          pip3 install --user 'awscli>=1.32'
+          echo "$HOME/.local/bin" >> "${GITHUB_PATH}"
+        fi
+        aws --version
+
+    - name: "Start LocalStack"
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        COMPOSE_DIR: ${{ inputs.COMPOSE_DIR }}
+        LOCALSTACK_AUTH_TOKEN: ${{ env.LOCALSTACK_AUTH_TOKEN }}
+      run: |
+        set -euo pipefail
+        if [[ -z "${LOCALSTACK_AUTH_TOKEN:-}" ]]; then
+          echo "LOCALSTACK_AUTH_TOKEN is empty (expected from LOCALSTACK_CFG JSON secret)" >&2
+          exit 1
+        fi
+
+        docker network inspect "${NAME_SPACE}" >/dev/null 2>&1 || docker network create "${NAME_SPACE}"
+        docker rm -f localstack >/dev/null 2>&1 || true
+
+        sed -i.bak "s/^    name: acme$/    name: ${NAME_SPACE}/" "${COMPOSE_DIR}/compose.yaml"
+        rm -f "${COMPOSE_DIR}/compose.yaml.bak"
+
+        docker compose -f "${COMPOSE_DIR}/compose.yaml" up -d
+
+        deadline=$((SECONDS + 120))
+        while (( SECONDS < deadline )); do
+          if curl -fsS "http://127.0.0.1:4566/_localstack/health" >/dev/null 2>&1; then
+            echo "LocalStack health endpoint is up"
+            break
+          fi
+          sleep 2
+        done
+        if ! curl -fsS "http://127.0.0.1:4566/_localstack/health" >/dev/null 2>&1; then
+          docker logs localstack || true
+          echo "LocalStack did not become healthy within 120s" >&2
+          exit 1
+        fi
+
+    - name: "Bootstrap ROOT + SUBORDINATE ACM PCA"
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: test
+        AWS_SECRET_ACCESS_KEY: test
+        AWS_DEFAULT_REGION: ${{ inputs.AWS_REGION }}
+        AWS_EC2_METADATA_DISABLED: "true"
+        COMPOSE_DIR: ${{ inputs.COMPOSE_DIR }}
+        AWS_REGION: ${{ inputs.AWS_REGION }}
+      run: |
+        set -euo pipefail
+        SCRIPT="${COMPOSE_DIR}/bootstrap_hierarchy.sh"
+        chmod +x "${SCRIPT}"
+        "${SCRIPT}" \
+          --endpoint-url "http://127.0.0.1:4566" \
+          --region "${AWS_REGION}" >> "${GITHUB_ENV}"
+        # a2c container reaches LocalStack via Docker DNS on the shared network.
+        echo "AWS_PCA_ENDPOINT_URL=http://localstack:4566" >> "${GITHUB_ENV}"
