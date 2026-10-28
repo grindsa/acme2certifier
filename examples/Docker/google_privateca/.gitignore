@@ -1,0 +1,6 @@
+ca/
+data/
+__pycache__/
+*.pyc
+server-cert.pem
+server-key.pem

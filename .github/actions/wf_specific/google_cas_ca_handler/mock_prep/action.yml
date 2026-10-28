@@ -1,0 +1,142 @@
+name: "google_cas_mock_prep"
+description: "Build/start Private CAS REST mock, wait for health, export endpoint + pool env"
+inputs:
+  NAME_SPACE:
+    description: "Docker network shared with the acme2certifier container"
+    required: false
+    default: "acme"
+  COMPOSE_DIR:
+    description: "Directory containing compose.yaml (examples/Docker/google_privateca)"
+    required: false
+    default: "examples/Docker/google_privateca"
+  PROJECT:
+    description: "Mock GCP project id"
+    required: false
+    default: "demo"
+  LOCATION:
+    description: "Mock GCP location"
+    required: false
+    default: "europe-west1"
+  POOL:
+    description: "Mock CA pool id"
+    required: false
+    default: "demo-pool"
+  ISSUING_CA_ID:
+    description: "Mock issuing CertificateAuthority id"
+    required: false
+    default: "mock-issuing-ca"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Start Google Private CAS mock"
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        COMPOSE_DIR: ${{ inputs.COMPOSE_DIR }}
+        MOCK_PROJECT: ${{ inputs.PROJECT }}
+        MOCK_LOCATION: ${{ inputs.LOCATION }}
+        MOCK_POOL: ${{ inputs.POOL }}
+        MOCK_ISSUING_CA_ID: ${{ inputs.ISSUING_CA_ID }}
+      run: |
+        set -euo pipefail
+
+        docker network inspect "${NAME_SPACE}" >/dev/null 2>&1 || docker network create "${NAME_SPACE}"
+        docker rm -f google-cas-mock >/dev/null 2>&1 || true
+
+        # Align external network name with channel NAME_SPACE (same pattern as CFSSL/LocalStack).
+        sed -i.bak "s/^    name: acme$/    name: ${NAME_SPACE}/" "${COMPOSE_DIR}/compose.yaml"
+        rm -f "${COMPOSE_DIR}/compose.yaml.bak"
+
+        # Host bind for /data (TLS optional; empty dir → HTTP + auto-bootstrap ca/).
+        data_dir="${GOOGLE_PRIVATECA_DATA:-/srv/data/google_privateca}"
+        mkdir -p "${data_dir}"
+        export GOOGLE_PRIVATECA_DATA="${data_dir}"
+
+        docker compose -f "${COMPOSE_DIR}/compose.yaml" build
+        docker compose -f "${COMPOSE_DIR}/compose.yaml" up -d
+
+        deadline=$((SECONDS + 90))
+        while (( SECONDS < deadline )); do
+          if curl -fsS "http://127.0.0.1:8080/healthz" >/dev/null 2>&1; then
+            echo "google-cas-mock healthz is up"
+            break
+          fi
+          sleep 2
+        done
+        if ! curl -fsS "http://127.0.0.1:8080/healthz" >/dev/null 2>&1; then
+          docker logs google-cas-mock || true
+          echo "google-cas-mock did not become healthy within 90s" >&2
+          exit 1
+        fi
+
+        # Smoke: create + revoke against host-mapped port (Bearer placeholder).
+        python3 - <<'PY'
+        import json
+        import os
+        import subprocess
+        import urllib.error
+        import urllib.request
+
+        project = os.environ["MOCK_PROJECT"]
+        location = os.environ["MOCK_LOCATION"]
+        pool = os.environ["MOCK_POOL"]
+        issuing = os.environ["MOCK_ISSUING_CA_ID"]
+        parent = f"projects/{project}/locations/{location}/caPools/{pool}"
+        base = f"http://127.0.0.1:8080/v1/{parent}/certificates"
+
+        def req(method, url, data=None, token="test"):
+            body = None if data is None else json.dumps(data).encode()
+            headers = {"Content-Type": "application/json"}
+            if token is not None:
+                headers["Authorization"] = f"Bearer {token}"
+            request = urllib.request.Request(
+                url, data=body, method=method, headers=headers
+            )
+            with urllib.request.urlopen(request, timeout=10) as resp:
+                return json.loads(resp.read().decode())
+
+        subprocess.run(
+            [
+                "openssl", "req", "-new", "-newkey", "rsa:2048", "-nodes",
+                "-keyout", "/tmp/gcas-smoke.key", "-out", "/tmp/gcas-smoke.csr",
+                "-subj", "/CN=smoke.acme",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        csr = open("/tmp/gcas-smoke.csr", encoding="utf-8").read()
+        created = req(
+            "POST",
+            base + f"?certificateId=smoke1&issuingCertificateAuthorityId={issuing}",
+            {"pemCsr": csr, "lifetime": "3600s"},
+        )
+        assert created.get("pemCertificate"), created
+        name = created["name"]
+        serial = created["certificateDescription"]["subjectDescription"]["serialNumber"]
+        listed = req("GET", base + f'?filter=serial_number="{serial}"')
+        assert listed.get("certificates"), listed
+        revoked = req(
+            "POST",
+            f"http://127.0.0.1:8080/v1/{name}:revoke",
+            {"reason": "KEY_COMPROMISE"},
+        )
+        assert revoked.get("revocationDetails"), revoked
+        try:
+            req("GET", base, token=None)
+            raise SystemExit("expected 401 without Bearer")
+        except urllib.error.HTTPError as err:
+            if err.code != 401:
+                raise
+        print("google-cas-mock create/list/revoke (+401 without Bearer) ok")
+        PY
+
+        ca_pool="projects/${MOCK_PROJECT}/locations/${MOCK_LOCATION}/caPools/${MOCK_POOL}"
+        {
+          echo "GOOGLE_CAS_ENDPOINT_URL=http://google-cas-mock:8080"
+          echo "GOOGLE_CAS_PROJECT=${MOCK_PROJECT}"
+          echo "GOOGLE_CAS_LOCATION=${MOCK_LOCATION}"
+          echo "GOOGLE_CAS_POOL=${MOCK_POOL}"
+          echo "GOOGLE_CAS_CA_POOL=${ca_pool}"
+          echo "GOOGLE_CAS_ISSUING_CA_ID=${MOCK_ISSUING_CA_ID}"
+        } >> "${GITHUB_ENV}"

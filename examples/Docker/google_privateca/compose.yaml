@@ -1,0 +1,44 @@
+name: google-cas-mock
+
+services:
+  google-cas-mock:
+    build:
+      context: .
+    image: a2c-google-cas-mock:local
+    container_name: google-cas-mock
+    environment:
+      MOCK_PROJECT: ${MOCK_PROJECT:-demo}
+      MOCK_LOCATION: ${MOCK_LOCATION:-europe-west1}
+      MOCK_POOL: ${MOCK_POOL:-demo-pool}
+      MOCK_ISSUING_CA_ID: ${MOCK_ISSUING_CA_ID:-mock-issuing-ca}
+      MOCK_DATA_DIR: /data
+      MOCK_CA_DIR: /data/ca
+      MOCK_LISTEN: 0.0.0.0:8080
+      MOCK_TLS_CERT: /data/server-cert.pem
+      MOCK_TLS_KEY: /data/server-key.pem
+    ports:
+      - "8080:8080"
+    volumes:
+      # Host TLS material + issuing PKI (ca/ created by entrypoint if missing):
+      #   /srv/data/google_privateca/server-cert.pem
+      #   /srv/data/google_privateca/server-key.pem
+      #   /srv/data/google_privateca/ca/   (optional; auto-bootstrapped)
+      - ${GOOGLE_PRIVATECA_DATA:-/srv/data/google_privateca}:/data
+    restart: "no"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import ssl, urllib.request; ok=False\nfor url, ctx in (('http://127.0.0.1:8080/healthz', None), ('https://127.0.0.1:8080/healthz', ssl._create_unverified_context())):\n  try:\n    urllib.request.urlopen(url, timeout=2, context=ctx) if ctx else urllib.request.urlopen(url, timeout=2)\n    ok=True\n    break\n  except Exception:\n    pass\nraise SystemExit(0 if ok else 1)",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+networks:
+  default:
+    name: acme
+    external: true
