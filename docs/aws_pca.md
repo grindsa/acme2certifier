@@ -130,3 +130,9 @@ The subordinate must be `ACTIVE` before a2c enrollment. Point `certificate_autho
 ## Revocation
 
 Revocation maps ACME/RFC 5280 reason names to AWS `RevocationReason` values (`UNSPECIFIED`, `KEY_COMPROMISE`, …). CRL/OCSP publication depends on the CA’s revocation configuration in AWS.
+
+## Acknowledgements
+
+Enrollment and revocation for this handler were developed and exercised in CI against [LocalStack ACM PCA](https://docs.localstack.cloud/aws/services/acm-pca/) on the Ultimate tier. That access was provided by the [LocalStack for Open Source](https://www.localstack.cloud/localstack-open-source) program.
+
+<a href="https://www.localstack.cloud/localstack-open-source"><img alt="Supported by LocalStack" src="https://raw.githubusercontent.com/localstack/.github/main/assets/localstack-readme-banner.svg" width="220"></a>
