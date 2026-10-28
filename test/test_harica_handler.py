@@ -1465,6 +1465,25 @@ class TestHaricaCAhandler(unittest.TestCase):
         self.assertIsNone(bundle)
         self.assertEqual(poll, "txn-keep")
 
+    @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch")
+    @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json")
+    def test_091_transaction_id_skips_incomplete_getcertificate(
+        self, mock_api, mock_fetch
+    ):
+        """Incomplete GetCertificate must not abort serial scan during revoke."""
+        mock_api.side_effect = [
+            (200, [{"id": "txn-incomplete"}, {"id": "txn-done"}]),
+            (200, []),
+        ]
+        mock_fetch.side_effect = [
+            ValueError(
+                "GetCertificate failed (400): The transaction has not been marked completed."
+            ),
+            {"serialNumber": "abcd"},
+        ]
+        self.assertEqual(self.cahandler._transaction_id_by_serial("abcd"), "txn-done")
+        self.assertEqual(mock_fetch.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

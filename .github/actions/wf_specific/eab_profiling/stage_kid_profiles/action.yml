@@ -42,7 +42,7 @@ runs:
             sudo apt-get install -y -qq gettext-base
           fi
           # shellcheck disable=SC2016
-          envsubst '${ACME_KEYPATH} ${APPEND_PREFIX} ${OLD_ROOT_FP} ${OLD_SUB_FP}' \
+          envsubst '${ACME_KEYPATH} ${APPEND_PREFIX} ${OLD_ROOT_FP} ${OLD_SUB_FP} ${ASA_PROFILE1} ${ASA_PROFILE2} ${ASA_PROFILE3} ${ASA_CA_NAME2}' \
             < "${SOURCE}" | sudo tee "${DEST}" >/dev/null
         else
           sudo cp "${SOURCE}" "${DEST}"

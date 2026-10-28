@@ -552,7 +552,9 @@ class TestAWSPCAHandler(unittest.TestCase):
         self.cahandler.poll_timeout = 1
         self.cahandler.poll_interval = 0.01
         mock_api.side_effect = RuntimeError("RequestInProgressException")
-        mock_time.side_effect = [100.0, 100.5, 101.5]
+        # Extra leading tick: on Py<=3.12 LogRecord uses time.time() (patched
+        # via this module), and pytest DEBUG capture consumes one value.
+        mock_time.side_effect = [100.0, 100.0, 100.5, 101.5]
         with self.assertRaises(TimeoutError) as ctx:
             self.cahandler._get_certificate("arn:cert")
         self.assertIn("Timed out waiting for certificate", str(ctx.exception))

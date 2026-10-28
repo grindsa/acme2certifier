@@ -889,7 +889,14 @@ class CAhandler(object):
 
     def _txn_cert_serial_match(self, txn_id: str, serial_norm: str) -> bool:
         """Return True if GetCertificate for txn_id has matching serial."""
-        cert_data = self._certificate_fetch(txn_id)
+        try:
+            cert_data = self._certificate_fetch(txn_id)
+        except ValueError as err_:
+            # Skip them while scanning GetMyTransactions for revoke.
+            self.logger.debug(
+                "CAhandler._txn_cert_serial_match(): skip %s (%s)", txn_id, err_
+            )
+            return False
         if not cert_data:
             return False
         cert_serial = cert_data.get("serialNumber") or cert_data.get("serial")
