@@ -95,6 +95,22 @@ curl -sk -X POST -H "$AUTH" -H 'Content-Type: application/json' \
   "$BASE/v1/${NAME}:revoke"
 ```
 
+Handler documentation (config, **service account JSON / `sa.json`**, TLS, Private CAS vs Public CA): [`docs/google_cas.md`](../../../docs/google_cas.md).
+
+## Manual auth check (`check_auth.py`)
+
+One-off (not CI): exercise `google-auth` / Bearer resolution against this mock or real Private CAS. Use a disposable venv — do not install into the project `.venv`:
+
+```bash
+d=$(mktemp -d)
+python3 -m venv "$d"
+"$d/bin/pip" install 'google-auth' requests
+# optional: export GOOGLE_APPLICATION_CREDENTIALS=/path/sa.json
+"$d/bin/python" check_auth.py --endpoint-url http://127.0.0.1:8080 \
+  --project demo --location europe-west1 --pool demo-pool
+rm -rf "$d"
+```
+
 ## CI
 
 Composite action: [`.github/actions/wf_specific/google_cas_ca_handler/mock_prep`](../../../.github/actions/wf_specific/google_cas_ca_handler/mock_prep/action.yml). Exports:
