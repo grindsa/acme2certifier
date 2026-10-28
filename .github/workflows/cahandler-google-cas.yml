@@ -1,0 +1,63 @@
+name: CA-Handler Tests - Google Private CAS (mock)
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  guard:
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  # ---------------------------------------------------------
+  # Step 1 placeholder: register for dispatch-broker / manual
+  # workflow_dispatch. Full mock-backed container CI lands in
+  # Phase 4 step 2 (test-containers + mock_prep).
+  # ---------------------------------------------------------
+  placeholder:
+    permissions: {}
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - name: "Phase 4 step 1 — dispatch hook only"
+        run: |
+          set -euo pipefail
+          echo "cahandler-google-cas is registered for workflow_dispatch."
+          echo "branch=${{ inputs.branch }} sha=${{ inputs.sha }} run_id=${{ inputs.run_id }}"
+          echo "Full container smoke (mock Private CAS) is not enabled yet."
