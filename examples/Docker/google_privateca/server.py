@@ -63,7 +63,10 @@ class _QuietHandler(WSGIRequestHandler):
 
 def _rfc3339_now() -> str:
     return (
-        datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
     )
 
 
@@ -128,7 +131,9 @@ class MockPrivateCaApp:
         query = parse_qs(environ.get("QUERY_STRING", "") or "")
 
         if path in ("/healthz", "/"):
-            return self._json(start_response, 200, {"status": "ok", "parent": self.parent})
+            return self._json(
+                start_response, 200, {"status": "ok", "parent": self.parent}
+            )
 
         auth_err = self._check_auth(environ)
         if auth_err is not None:

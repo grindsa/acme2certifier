@@ -206,15 +206,11 @@ class CAhandler:
 
         config_dic = load_config(self.logger, "CAhandler")
         if "CAhandler" in config_dic:
-            self.project = config_dic.get(
-                "CAhandler", "project", fallback=self.project
-            )
+            self.project = config_dic.get("CAhandler", "project", fallback=self.project)
             self.location = config_dic.get(
                 "CAhandler", "location", fallback=self.location
             )
-            self.ca_pool = config_dic.get(
-                "CAhandler", "ca_pool", fallback=self.ca_pool
-            )
+            self.ca_pool = config_dic.get("CAhandler", "ca_pool", fallback=self.ca_pool)
             self.issuing_certificate_authority_id = (
                 config_dic.get(
                     "CAhandler",
