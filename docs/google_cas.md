@@ -125,6 +125,8 @@ Prefer `ca_bundle` over turning verification off.
 
 ## Local development / testing
 
+CI: [`.github/workflows/cahandler-google-cas.yml`](../.github/workflows/cahandler-google-cas.yml) — lean nginx/wsgi container smoke against the in-repo mock (`mock_prep` + enroll/revoke).
+
 Mock server (HTTP or HTTPS) and curl examples: [`examples/Docker/google_privateca/README.md`](../examples/Docker/google_privateca/README.md).
 
 Example mock-backed config:

@@ -1,5 +1,6 @@
 ca/
 data/
+ci-data/
 __pycache__/
 *.pyc
 server-cert.pem

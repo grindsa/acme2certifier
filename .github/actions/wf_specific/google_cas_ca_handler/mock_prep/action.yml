@@ -49,9 +49,17 @@ runs:
         rm -f "${COMPOSE_DIR}/compose.yaml.bak"
 
         # Host bind for /data (TLS optional; empty dir → HTTP + auto-bootstrap ca/).
-        data_dir="${GOOGLE_PRIVATECA_DATA:-/srv/data/google_privateca}"
+        # Prefer GOOGLE_PRIVATECA_DATA; else /srv/... when writable; else workspace path (CI).
+        if [[ -n "${GOOGLE_PRIVATECA_DATA:-}" ]]; then
+          data_dir="${GOOGLE_PRIVATECA_DATA}"
+        elif mkdir -p /srv/data/google_privateca 2>/dev/null; then
+          data_dir=/srv/data/google_privateca
+        else
+          data_dir="${GITHUB_WORKSPACE:-.}/examples/Docker/google_privateca/ci-data"
+        fi
         mkdir -p "${data_dir}"
         export GOOGLE_PRIVATECA_DATA="${data_dir}"
+        echo "GOOGLE_PRIVATECA_DATA=${data_dir}"
 
         docker compose -f "${COMPOSE_DIR}/compose.yaml" build
         docker compose -f "${COMPOSE_DIR}/compose.yaml" up -d
