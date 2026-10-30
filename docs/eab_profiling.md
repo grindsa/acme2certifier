@@ -37,6 +37,8 @@ key_file: volume/kid_profiles.json
 eab_profiling: True
 ```
 
+Profiles can also be stored in HashiCorp Vault or OpenBao via the [HashiCorp Vault / OpenBao EAB Handler](eab_hashicorp_vault.md) (`eab_handler_module: acme2certifier.eabhandlers.hashicorp_vault_handler`) instead of a local `key_file`.
+
 The `key_file` allows the specification enrollment parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the \[CAhandler\] configuration section of a handler can be customized. Starting from acme2certifier v0.38 challenge validation can be disabled for a specific eab-user.
 
 Below is an example configuration to be used for [Insta Certifier](certifier.md) with some explanation:

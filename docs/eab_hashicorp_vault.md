@@ -11,7 +11,7 @@ See also [External Account Binding](eab.md) for the general EAB feature, other b
 
 **Scope:** HashiCorp Vault and API-compatible OpenBao only. Other secret managers (for example AWS Secrets Manager, Azure Key Vault, or Google Secret Manager) use different APIs and are not supported by this handler.
 
-The `acme2certifier` module is `acme2certifier.eabhandlers.hashicorp_vault_handler`. Handler configuration in `acme_srv.cfg` will be documented in [Configuration](#configuration) once the module ships; the sections below describe how to prepare Vault / OpenBao and how to create secrets.
+The `acme2certifier` module is `acme2certifier.eabhandlers.hashicorp_vault_handler`. See [Configuration](#configuration) for `acme_srv.cfg` options. The sections below describe how to prepare Vault / OpenBao and how to create secrets.
 
 ## Prerequisites
 
@@ -127,4 +127,64 @@ Do not grant broader `secret/*` access than necessary. The Vault / OpenBao token
 
 ## Configuration
 
-`eab_handler_module: acme2certifier.eabhandlers.hashicorp_vault_handler` and the related `[EABhandler]` options will be documented in this section when the handler module is available. Until then, use the [File](eab.md#file-handler), [JSON](eab.md#json-handler), [SQL](eab.md#sql-handler), or [kid profile](eab_profiling.md) handlers for EAB credentials.
+Activate the handler in the `[EABhandler]` section of `acme_srv.cfg`:
+
+```ini
+[EABhandler]
+eab_handler_module: acme2certifier.eabhandlers.hashicorp_vault_handler
+vault_url: https://vault.example.com:8200
+vault_mount: secret
+vault_prefix: acme/eab
+vault_token_variable: VAULT_TOKEN
+eab_profiling: True
+```
+
+Example with a token set directly in the config file (prefer `vault_token_variable` in production):
+
+```ini
+[EABhandler]
+eab_handler_module: acme2certifier.eabhandlers.hashicorp_vault_handler
+vault_url: https://vault.example.com:8200
+vault_mount: secret
+vault_prefix: acme/eab
+vault_token: s.YourVaultToken
+eab_profiling: True
+```
+
+Shared EAB options such as `eab_strict_mode` and `eabkid_check_disable` are documented in [External Account Binding](eab.md).
+
+### Options
+
+| Option | Required | Default | Description |
+| --- | --- | --- | --- |
+| `eab_handler_module` | yes | — | `acme2certifier.eabhandlers.hashicorp_vault_handler` |
+| `vault_url` | yes | — | Base URL of the Vault / OpenBao server (no `/v1` suffix) |
+| `vault_mount` | no | `secret` | KV v2 mount path |
+| `vault_prefix` | no | `acme/eab` | Path under the mount that holds one secret per kid |
+| `vault_token` | yes\* | — | Vault / OpenBao token used for KV reads |
+| `vault_token_variable` | yes\* | — | Name of an environment variable that holds the token |
+| `vault_secret_key` | no | `value` | Field name inside the KV secret that holds the string or JSON payload |
+| `cache_ttl` | no | `60` | Per-kid in-process cache lifetime in seconds; `0` or negative disables caching |
+| `request_timeout` | no | `20` | HTTP timeout in seconds |
+| `request_retries` | no | `3` | HTTP retry count for Vault API calls |
+| `request_retry_backoff` | no | `2.0` | Backoff factor between retries |
+| `ca_bundle` | no | `True` | TLS verification for the Vault / OpenBao HTTPS endpoint (`True`/`False` or path to a CA bundle) |
+| `eab_profiling` | no | `False` | Enable [EAB profiling](eab_profiling.md) using profile objects stored in Vault |
+
+\* Provide either `vault_token` or `vault_token_variable` (or both). If both are set, `vault_token` overwrites the environment value (same semantics as other handlers that use `*_variable`).
+
+Proxies for the Vault host can be configured via `[DEFAULT] proxy_server_list` as for other handlers.
+
+### Caching
+
+Successful per-kid KV reads are cached in memory on the handler instance for `cache_ttl` seconds (default 60). This reduces load on Vault during hot paths such as EAB kid checks and profiling lookups. The cache is not shared across processes or workers. There is no push invalidation when a secret is rotated in Vault; updates become visible after the TTL expires (or immediately if `cache_ttl` is `0` or negative). Listing kids under the prefix is not cached.
+
+### Auth notes
+
+- MVP authentication is **token only** (static token or token from the environment). AppRole / Kubernetes auth is not implemented in this handler.
+- The token used by the [Vault PKI CA handler](vault.md) (`[CAhandler]`) is independent of the EAB handler token. You may use the same token or separate least-privilege tokens.
+- OpenBao is configured the same way: point `vault_url` at the OpenBao API and use an OpenBao token.
+
+### EAB profiling with this handler
+
+Set `eab_profiling: True` and store JSON profile objects (with `hmac` plus optional `cahandler` / `challenge` / …) for the kids that need enrollment overrides. HMAC-only string secrets remain valid for account binding but contribute no profiling parameters. Profile field semantics are unchanged from [EAB profiling](eab_profiling.md).
