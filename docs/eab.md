@@ -201,6 +201,10 @@ db_password:
 
 Above, allowed values for `db_system` are either `mssql` or `postgres`.
 
+## HashiCorp Vault / OpenBao Handler
+
+To load EAB credentials (and optional profiling data) from HashiCorp Vault or OpenBao KV v2, see [HashiCorp Vault / OpenBao EAB Handler](eab_hashicorp_vault.md). That handler supports Vault / OpenBao only.
+
 ## Keyfile Verification
 
 To check the consistency of the keyfile, use the EAB check utility:

@@ -59,6 +59,10 @@ docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-v
 
 This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
 
+To store EAB MAC keys and optional profiling data in HashiCorp Vault or OpenBao (KV v2) instead of a local key file, see [HashiCorp Vault / OpenBao EAB Handler](eab_hashicorp_vault.md). That path is for Vault / OpenBao only; other secret managers are not supported.
+
+Example using a local kid-profile file (regression-test style):
+
 ```cfg
 [EABhandler]
 eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
