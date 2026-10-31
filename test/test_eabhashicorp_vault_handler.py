@@ -31,9 +31,7 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         """default test which always passes"""
         self.assertEqual("foo", "foo")
 
-    @patch(
-        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._config_load"
-    )
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._config_load")
     def test_002_enter(self, mock_config_load):
         """test enter calls config load"""
         mock_config_load.return_value = None
@@ -150,7 +148,7 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         self.assertEqual(result["hmac"], "nested")
         self.assertEqual(result["challenge"]["x"], "1")
 
-    def test_012b_payload_normalize_keeps_section_case(self):
+    def test_013_payload_normalize_keeps_section_case(self):
         """Payload parse keeps section casing; apply-paths lowercase separately"""
         payload = {
             "hmac": "mac",
@@ -160,39 +158,35 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         self.assertEqual(result["hmac"], "mac")
         self.assertIn("Order", result)
 
-    def test_013_payload_normalize_single_string_field(self):
+    def test_014_payload_normalize_single_string_field(self):
         """single string-valued field without value/hmac key"""
         self.assertEqual(
             self.eabhandler._payload_normalize({"mac": "only"}),
             {"hmac": "only"},
         )
 
-    def test_014_payload_normalize_bad_json(self):
+    def test_015_payload_normalize_bad_json(self):
         """invalid JSON string returns None"""
         self.assertIsNone(self.eabhandler._payload_normalize("{not-json"))
 
-    def test_015_payload_normalize_missing_hmac(self):
+    def test_016_payload_normalize_missing_hmac(self):
         """object without hmac or value returns None"""
-        self.assertIsNone(
-            self.eabhandler._payload_normalize({"cahandler": {"a": "b"}})
-        )
+        self.assertIsNone(self.eabhandler._payload_normalize({"cahandler": {"a": "b"}}))
 
-    def test_016_mac_key_get_no_kid(self):
+    def test_017_mac_key_get_no_kid(self):
         """mac_key_get without kid"""
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.assertIsNone(self.eabhandler.mac_key_get(None))
         self.assertIn("WARNING:test_a2c:MAC key retrieval failed: kid=None", lcm.output)
 
-    def test_017_mac_key_get_missing_config(self):
+    def test_018_mac_key_get_missing_config(self):
         """mac_key_get without vault_url/token"""
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.assertIsNone(self.eabhandler.mac_key_get("keyid_00"))
-        self.assertTrue(
-            any("MAC key retrieval failed" in line for line in lcm.output)
-        )
+        self.assertTrue(any("MAC key retrieval failed" in line for line in lcm.output))
 
     @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.ca_api_request")
-    def test_018_mac_key_get_string_secret(self, mock_api):
+    def test_019_mac_key_get_string_secret(self, mock_api):
         """mac_key_get with string HMAC in value field"""
         self.eabhandler.vault_url = "http://vault:8200"
         self.eabhandler.vault_token = "token"
@@ -207,7 +201,7 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         self.assertIn("/v1/secret/data/acme/eab/keyid_00", args[0][2])
 
     @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.ca_api_request")
-    def test_019_mac_key_get_profile_object(self, mock_api):
+    def test_020_mac_key_get_profile_object(self, mock_api):
         """mac_key_get with full profile object in value"""
         self.eabhandler.vault_url = "http://vault:8200"
         self.eabhandler.vault_token = "token"
@@ -227,7 +221,7 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         self.assertEqual(self.eabhandler.mac_key_get("keyid_01"), "profile-hmac")
 
     @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.ca_api_request")
-    def test_020_mac_key_get_top_level_hmac(self, mock_api):
+    def test_021_mac_key_get_top_level_hmac(self, mock_api):
         """mac_key_get when secret data is profile without value wrapper"""
         self.eabhandler.vault_url = "http://vault:8200"
         self.eabhandler.vault_token = "token"
@@ -238,7 +232,7 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         self.assertEqual(self.eabhandler.mac_key_get("keyid_02"), "top-hmac")
 
     @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.ca_api_request")
-    def test_021_mac_key_get_http_error(self, mock_api):
+    def test_022_mac_key_get_http_error(self, mock_api):
         """mac_key_get on non-200 response"""
         self.eabhandler.vault_url = "http://vault:8200"
         self.eabhandler.vault_token = "token"
@@ -248,7 +242,7 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         self.assertTrue(any("http_code=404" in line for line in lcm.output))
 
     @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.ca_api_request")
-    def test_022_mac_key_get_uses_cache(self, mock_api):
+    def test_023_mac_key_get_uses_cache(self, mock_api):
         """second mac_key_get for same kid uses cache"""
         self.eabhandler.vault_url = "http://vault:8200"
         self.eabhandler.vault_token = "token"
@@ -262,7 +256,7 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         self.assertEqual(mock_api.call_count, 1)
 
     @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.ca_api_request")
-    def test_023_key_file_load(self, mock_api):
+    def test_024_key_file_load(self, mock_api):
         """key_file_load lists kids and loads profiles"""
         self.eabhandler.vault_url = "http://vault:8200"
         self.eabhandler.vault_token = "token"
@@ -295,10 +289,8 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
     @patch(
         "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.key_file_load"
     )
-    @patch(
-        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.eab_kid_get"
-    )
-    def test_024_eab_profile_get(self, mock_kid, mock_load):
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.eab_kid_get")
+    def test_025_eab_profile_get(self, mock_kid, mock_load):
         """eab_profile_get returns cahandler block for kid"""
         mock_kid.return_value = "keyid_01"
         mock_load.return_value = {
@@ -315,10 +307,8 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
     @patch(
         "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.key_file_load"
     )
-    @patch(
-        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.eab_kid_get"
-    )
-    def test_025_eab_profile_get_hmac_only(self, mock_kid, mock_load):
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.eab_kid_get")
+    def test_026_eab_profile_get_hmac_only(self, mock_kid, mock_load):
         """eab_profile_get returns empty for hmac-only kid"""
         mock_kid.return_value = "keyid_00"
         mock_load.return_value = {"keyid_00": {"hmac": "only"}}
@@ -327,10 +317,8 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
     @patch(
         "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.key_file_load"
     )
-    @patch(
-        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.eab_kid_get"
-    )
-    def test_026_cahandler_name_get(self, mock_kid, mock_load):
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.eab_kid_get")
+    def test_027_cahandler_name_get(self, mock_kid, mock_load):
         """cahandler_name_get returns registry name"""
         mock_kid.return_value = "keyid_01"
         mock_load.return_value = {
@@ -339,9 +327,7 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
                 "cahandler_name": "vault_primary",
             }
         }
-        self.assertEqual(
-            self.eabhandler.cahandler_name_get("csr"), "vault_primary"
-        )
+        self.assertEqual(self.eabhandler.cahandler_name_get("csr"), "vault_primary")
 
 
 if __name__ == "__main__":

@@ -24,8 +24,6 @@ and pick the appropriate release branch.
 **Bug Fixes and Improvements**:
 
 - EAB profile apply paths lowercase top-level section titles (`Order` / `Cahandler` / `Challenge` / … → `order` / `cahandler` / `challenge`), so section names are case-insensitive regardless of EAB storage backend
-
-
 - Docker Django: migration files come from the image (aligned with DEB/RPM); `volume/migrations` is deprecated and ignored. See [Upgrading — Docker (Django)](docs/upgrading.md#docker-django).
 - [AWS Private CA handler](docs/aws_pca.md): development and CI against LocalStack ACM PCA (Ultimate) are acknowledged as supported by the [LocalStack for Open Source](https://www.localstack.cloud/localstack-open-source) program.
 

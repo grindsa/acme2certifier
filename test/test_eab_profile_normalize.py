@@ -34,15 +34,11 @@ class TestEabProfileNormalize(unittest.TestCase):
         )
         self.assertIn("order", result)
         self.assertNotIn("Order", result)
-        self.assertEqual(
-            result["order"]["allowed_domainlist"], ["www.example.com"]
-        )
+        self.assertEqual(result["order"]["allowed_domainlist"], ["www.example.com"])
 
     def test_002_cahandler_section_case(self):
         """Cahandler section title is lowercased"""
-        result = self.normalize_entry(
-            {"HMAC": "mac", "Cahandler": {"ca_name": "pki"}}
-        )
+        result = self.normalize_entry({"HMAC": "mac", "Cahandler": {"ca_name": "pki"}})
         self.assertEqual(result["hmac"], "mac")
         self.assertEqual(result["cahandler"]["ca_name"], "pki")
 

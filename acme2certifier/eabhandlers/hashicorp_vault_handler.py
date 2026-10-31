@@ -270,9 +270,7 @@ class EABhandler(EABhandlerBase, EabProfileMixin):
             profile = self._kid_secret_get(kid)
             if profile is not None:
                 data_dic[kid] = profile
-        self.logger.debug(
-            "EABhandler.key_file_load() ended with %s", bool(data_dic)
-        )
+        self.logger.debug("EABhandler.key_file_load() ended with %s", bool(data_dic))
         return data_dic
 
     def mac_key_get(self, kid: str = None) -> Optional[str]:
