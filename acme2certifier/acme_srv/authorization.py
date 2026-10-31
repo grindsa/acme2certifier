@@ -932,15 +932,21 @@ class Authorization(object):
             return
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
+                from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+                    eab_profile_kid_entry_get,
+                )
+
                 profile_dic = eab_handler.key_file_load()
+                entry = eab_profile_kid_entry_get(profile_dic, eab_kid)
+                authorization_cfg = entry.get("authorization", {})
+                if not isinstance(authorization_cfg, dict):
+                    authorization_cfg = {}
                 for key, attr in [
                     ("prevalidated_domainlist", "prevalidated_domainlist"),
                     ("prevalidated_iplist", "prevalidated_iplist"),
                     ("prevalidated_emaillist", "prevalidated_emaillist"),
                 ]:
-                    value = (
-                        profile_dic.get(eab_kid, {}).get("authorization", {}).get(key)
-                    )
+                    value = authorization_cfg.get(key)
                     if value:
                         self.logger.debug(
                             f"Authorization._apply_eab_and_domain_whitelist() - apply {key} from eab profile."

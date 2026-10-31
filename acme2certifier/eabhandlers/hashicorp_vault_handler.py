@@ -165,7 +165,7 @@ class EABhandler(EABhandlerBase, EabProfileMixin):
             return None
 
         secret_key = self.vault_secret_key or "value"
-        if secret_key in data:
+        if secret_key in data and secret_key != "hmac":
             return self._payload_normalize(data[secret_key])
 
         if "hmac" in data:
@@ -287,31 +287,3 @@ class EABhandler(EABhandlerBase, EabProfileMixin):
                 mac_key = profile["hmac"]
         self.logger.debug("EABhandler.mac_key_get() ended with: %s", bool(mac_key))
         return mac_key
-
-    def eab_profile_get(self, csr: str, revocation: bool = False) -> Dict[str, Any]:
-        """Return the per-kid cahandler profile dict via a single KV read."""
-        self.logger.debug("EABhandler.eab_profile_get()")
-        eab_kid = self.eab_kid_get(csr, revocation=revocation)
-        profile_dic: Dict[str, Any] = {}
-        if eab_kid:
-            profile = self._kid_secret_get(eab_kid)
-            if profile and "cahandler" in profile:
-                profile_dic = profile["cahandler"]
-        self.logger.debug(
-            "EABhandler.eab_profile_get() ended with: %s", bool(profile_dic)
-        )
-        return profile_dic
-
-    def cahandler_name_get(
-        self, csr: str, revocation: bool = False
-    ) -> Optional[str]:
-        """Return per-kid cahandler_name via a single KV read."""
-        self.logger.debug("EABhandler.cahandler_name_get()")
-        name = None
-        eab_kid = self.eab_kid_get(csr, revocation=revocation)
-        if eab_kid:
-            profile = self._kid_secret_get(eab_kid)
-            if profile and "cahandler_name" in profile:
-                name = profile["cahandler_name"]
-        self.logger.debug("EABhandler.cahandler_name_get() ended with: %s", name)
-        return name

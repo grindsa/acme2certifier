@@ -150,6 +150,16 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         self.assertEqual(result["hmac"], "nested")
         self.assertEqual(result["challenge"]["x"], "1")
 
+    def test_012b_payload_normalize_keeps_section_case(self):
+        """Payload parse keeps section casing; apply-paths lowercase separately"""
+        payload = {
+            "hmac": "mac",
+            "Order": {"allowed_domainlist": ["www.example.com"]},
+        }
+        result = self.eabhandler._payload_normalize(payload)
+        self.assertEqual(result["hmac"], "mac")
+        self.assertIn("Order", result)
+
     def test_013_payload_normalize_single_string_field(self):
         """single string-valued field without value/hmac key"""
         self.assertEqual(
@@ -283,17 +293,19 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         self.assertEqual(result["keyid_01"]["cahandler"]["ca_name"], "pki")
 
     @patch(
-        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._kid_secret_get"
+        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.key_file_load"
     )
     @patch(
         "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.eab_kid_get"
     )
-    def test_024_eab_profile_get(self, mock_kid, mock_secret):
+    def test_024_eab_profile_get(self, mock_kid, mock_load):
         """eab_profile_get returns cahandler block for kid"""
         mock_kid.return_value = "keyid_01"
-        mock_secret.return_value = {
-            "hmac": "x",
-            "cahandler": {"allowed_domainlist": ["a.com"]},
+        mock_load.return_value = {
+            "keyid_01": {
+                "hmac": "x",
+                "Cahandler": {"allowed_domainlist": ["a.com"]},
+            }
         }
         self.assertEqual(
             self.eabhandler.eab_profile_get("csr"),
@@ -301,29 +313,31 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         )
 
     @patch(
-        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._kid_secret_get"
+        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.key_file_load"
     )
     @patch(
         "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.eab_kid_get"
     )
-    def test_025_eab_profile_get_hmac_only(self, mock_kid, mock_secret):
+    def test_025_eab_profile_get_hmac_only(self, mock_kid, mock_load):
         """eab_profile_get returns empty for hmac-only kid"""
         mock_kid.return_value = "keyid_00"
-        mock_secret.return_value = {"hmac": "only"}
+        mock_load.return_value = {"keyid_00": {"hmac": "only"}}
         self.assertEqual(self.eabhandler.eab_profile_get("csr"), {})
 
     @patch(
-        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._kid_secret_get"
+        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.key_file_load"
     )
     @patch(
         "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler.eab_kid_get"
     )
-    def test_026_cahandler_name_get(self, mock_kid, mock_secret):
+    def test_026_cahandler_name_get(self, mock_kid, mock_load):
         """cahandler_name_get returns registry name"""
         mock_kid.return_value = "keyid_01"
-        mock_secret.return_value = {
-            "hmac": "x",
-            "cahandler_name": "vault_primary",
+        mock_load.return_value = {
+            "keyid_01": {
+                "hmac": "x",
+                "cahandler_name": "vault_primary",
+            }
         }
         self.assertEqual(
             self.eabhandler.cahandler_name_get("csr"), "vault_primary"

@@ -70,16 +70,55 @@ def wllist_check(
     return check_result
 
 
-def _profile_entry_as_dict(entry: Any) -> Dict[str, Any]:
-    """Normalize a per-kid profile value (dict or JSON string) to a dict."""
+def eab_profile_entry_normalize(entry: Any) -> Dict[str, Any]:
+    """Lowercase top-level keys of a kid profile entry.
+
+    Makes section titles case-insensitive (``Order`` / ``Cahandler`` /
+    ``Challenge`` / ``Authorization`` / ``HMAC`` → lowercase). Nested keys
+    inside those sections are left unchanged. Kid identifiers in a multi-kid
+    map are not modified; call :func:`eab_profiles_normalize` for that.
+    """
     if isinstance(entry, str):
         try:
             entry = json.loads(entry)
         except Exception:
             return {}
-    if isinstance(entry, dict):
-        return entry
-    return {}
+    if not isinstance(entry, dict):
+        return {}
+    return {str(key).lower(): value for key, value in entry.items()}
+
+
+def eab_profile_kid_entry_get(
+    profiles_dic: Any, eab_kid: Optional[str]
+) -> Dict[str, Any]:
+    """Return one kid's profile entry with section titles lowercased.
+
+    Used when applying EAB profiles so handlers can store ``Order`` /
+    ``Cahandler`` / etc. without each backend normalizing on load.
+    """
+    if not eab_kid or not isinstance(profiles_dic, dict) or eab_kid not in profiles_dic:
+        return {}
+    return eab_profile_entry_normalize(profiles_dic.get(eab_kid))
+
+
+def eab_profiles_normalize(profiles_dic: Any) -> Dict[str, Any]:
+    """Normalize every kid profile entry in a ``kid -> profile`` mapping."""
+    if not isinstance(profiles_dic, dict):
+        return {}
+    normalized: Dict[str, Any] = {}
+    for kid, entry in profiles_dic.items():
+        if isinstance(entry, dict) or (
+            isinstance(entry, str) and entry.strip().startswith("{")
+        ):
+            normalized[kid] = eab_profile_entry_normalize(entry)
+        else:
+            normalized[kid] = entry
+    return normalized
+
+
+def _profile_entry_as_dict(entry: Any) -> Dict[str, Any]:
+    """Normalize a per-kid profile value (dict or JSON string) to a dict."""
+    return eab_profile_entry_normalize(entry)
 
 
 class EabProfileMixin:
@@ -157,14 +196,9 @@ class EabProfileMixin:
         self.logger.debug("EABhandler._eab_profile_get()")
         profiles_dic = self.key_file_load()
         eab_kid = self.eab_kid_get(csr, revocation=revocation)
-        if (
-            profiles_dic
-            and eab_kid
-            and eab_kid in profiles_dic
-            and "cahandler" in profiles_dic[eab_kid]
-        ):
-            profile_dic = profiles_dic[eab_kid]["cahandler"]
-        else:
+        entry = eab_profile_kid_entry_get(profiles_dic, eab_kid)
+        profile_dic = entry.get("cahandler", {}) if entry else {}
+        if not isinstance(profile_dic, dict):
             profile_dic = {}
         self.logger.debug(
             "EABhandler._eab_profile_get() ended with: %s", bool(profile_dic)
@@ -177,9 +211,8 @@ class EabProfileMixin:
         name = None
         profiles_dic = self.key_file_load()
         eab_kid = self.eab_kid_get(csr, revocation=revocation)
-        if profiles_dic and eab_kid and eab_kid in profiles_dic:
-            entry = _profile_entry_as_dict(profiles_dic[eab_kid])
-            if "cahandler_name" in entry:
-                name = entry["cahandler_name"]
+        entry = eab_profile_kid_entry_get(profiles_dic, eab_kid)
+        if "cahandler_name" in entry:
+            name = entry["cahandler_name"]
         self.logger.debug("EABhandler.cahandler_name_get() ended with: %s", name)
         return name

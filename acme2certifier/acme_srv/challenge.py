@@ -1064,10 +1064,17 @@ class Challenge:
             "Challenge._get_challenge_profile_settings() for kid: %s", eab_kid
         )
 
-        if eab_kid not in profile_dic:
+        from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+            eab_profile_kid_entry_get,
+        )
+
+        entry = eab_profile_kid_entry_get(profile_dic, eab_kid)
+        if not entry:
             return {}
 
-        challenge_profile = profile_dic.get(eab_kid, {}).get("challenge", {})
+        challenge_profile = entry.get("challenge", {})
+        if not isinstance(challenge_profile, dict):
+            challenge_profile = {}
 
         settings = {
             "challenge_validation_disable": eab_profile_as_bool(
@@ -1150,11 +1157,12 @@ class Challenge:
 
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
+                from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+                    eab_profile_kid_entry_get,
+                )
+
                 profile_dic = eab_handler.key_file_load()
-                if (
-                    eab_kid not in profile_dic
-                    or "challenge" not in profile_dic[eab_kid]
-                ):
+                if "challenge" not in eab_profile_kid_entry_get(profile_dic, eab_kid):
                     return
                 settings = self._get_challenge_profile_settings(profile_dic, eab_kid)
                 self._apply_eab_profile_settings(settings, eab_kid)
@@ -1183,11 +1191,14 @@ class Challenge:
         # Load and apply EAB profile settings
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
+                from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+                    eab_profile_kid_entry_get,
+                )
+
                 profile_dic = eab_handler.key_file_load()
 
                 # Check if profile contains challenge settings
-                if eab_kid in profile_dic and "challenge" in profile_dic[eab_kid]:
-
+                if "challenge" in eab_profile_kid_entry_get(profile_dic, eab_kid):
                     settings = self._get_challenge_profile_settings(
                         profile_dic, eab_kid
                     )

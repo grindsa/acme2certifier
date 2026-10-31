@@ -679,8 +679,14 @@ class Order(object):
         self, profile_dic, eab_kid, param_name, default=None, section="order"
     ):
         """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
-        profile_entry = profile_dic.get(eab_kid, {})
+        from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+            eab_profile_kid_entry_get,
+        )
+
+        profile_entry = eab_profile_kid_entry_get(profile_dic, eab_kid)
         order_cfg = profile_entry.get(section, {})
+        if not isinstance(order_cfg, dict):
+            order_cfg = {}
 
         # Prefer order section and honor explicit falsy values like False or []
         if param_name in order_cfg:
@@ -694,6 +700,8 @@ class Order(object):
         # Backward compatibility for deprecated cahandler section
         if section == "order":
             cahandler_cfg = profile_entry.get("cahandler", {})
+            if not isinstance(cahandler_cfg, dict):
+                cahandler_cfg = {}
             if param_name in cahandler_cfg:
                 value = cahandler_cfg.get(param_name)
                 if param_name != self.config.profile_mapping_field:
