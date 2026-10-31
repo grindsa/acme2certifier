@@ -1,0 +1,78 @@
+name: "vault_eab_profiles_load"
+description: "Enable KV v2 and load EAB kid profiles from a JSON fixture into Vault"
+inputs:
+  SOURCE:
+    description: "Path to kid_profiles JSON fixture (kid -> profile object)"
+    required: true
+    default: ".github/actions/wf_specific/eab_profiling/fixtures/vault.json"
+  VAULT_TOKEN:
+    description: "Vault root/ops token with KV write access"
+    required: true
+  VAULT_CONTAINER:
+    description: "Docker container name running Vault"
+    required: false
+    default: "vault"
+  VAULT_MOUNT:
+    description: "KV v2 mount path"
+    required: false
+    default: "secret"
+  VAULT_PREFIX:
+    description: "Path prefix under the mount (one secret per kid)"
+    required: false
+    default: "acme/eab"
+  VAULT_SECRET_KEY:
+    description: "KV field name that stores the profile JSON / HMAC string"
+    required: false
+    default: "value"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Load EAB profiles into Vault KV v2"
+      shell: bash
+      env:
+        SOURCE: ${{ inputs.SOURCE }}
+        VAULT_TOKEN: ${{ inputs.VAULT_TOKEN }}
+        VAULT_CONTAINER: ${{ inputs.VAULT_CONTAINER }}
+        VAULT_MOUNT: ${{ inputs.VAULT_MOUNT }}
+        VAULT_PREFIX: ${{ inputs.VAULT_PREFIX }}
+        VAULT_SECRET_KEY: ${{ inputs.VAULT_SECRET_KEY }}
+      run: |
+        set -euo pipefail
+        if [ ! -f "${SOURCE}" ]; then
+          echo "EAB profile fixture not found: ${SOURCE}"
+          exit 1
+        fi
+        if ! command -v jq >/dev/null 2>&1; then
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq
+        fi
+
+        # Enable KV v2 when missing (ignore "path is already in use")
+        set +e
+        enable_out="$(docker exec -e VAULT_TOKEN="${VAULT_TOKEN}" "${VAULT_CONTAINER}" \
+          vault secrets enable -path="${VAULT_MOUNT}" kv-v2 2>&1)"
+        enable_rc=$?
+        set -e
+        if [ "${enable_rc}" -ne 0 ]; then
+          if echo "${enable_out}" | grep -Eqi 'path is already in use|already exists'; then
+            echo "KV mount ${VAULT_MOUNT} already present; continuing"
+          else
+            echo "${enable_out}"
+            exit "${enable_rc}"
+          fi
+        fi
+
+        prefix="${VAULT_PREFIX#/}"
+        prefix="${prefix%/}"
+        while IFS= read -r kid; do
+          [ -n "${kid}" ] || continue
+          value="$(jq -c --arg kid "${kid}" '.[$kid]' "${SOURCE}")"
+          echo "Writing secret ${VAULT_MOUNT}/${prefix}/${kid}"
+          # Pass KEY=VALUE as a single argv so nested JSON is not re-split by a shell
+          docker exec -e VAULT_TOKEN="${VAULT_TOKEN}" "${VAULT_CONTAINER}" \
+            vault kv put -mount="${VAULT_MOUNT}" "${prefix}/${kid}" \
+            "${VAULT_SECRET_KEY}=${value}"
+        done < <(jq -r 'keys[]' "${SOURCE}")
+
+        echo "Loaded $(jq -r 'keys | length' "${SOURCE}") EAB profile(s) into Vault"

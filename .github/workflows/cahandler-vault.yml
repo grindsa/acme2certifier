@@ -139,20 +139,27 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+      - name: "Load EAB profiles into Vault KV"
+        uses: ./.github/actions/wf_specific/vault_ca_handler/vault_eab_profiles_load
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/vault.json
-          DEST: examples/Docker/data/kid_profiles.json
-      - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+
+      - name: "EAB ACME Profiling - setup a2c with hashicorp_vault_handler"
         run: |
           sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.hashicorp_vault_handler" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "vault_url: https://vault.acme:8200" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "vault_mount: secret" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "vault_prefix: acme/eab" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "vault_token: ${VAULT_TOKEN}" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
           cd examples/Docker/
           docker compose restart
+        env:
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
       - name: "EAB ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_eab_acmeprofile
@@ -271,18 +278,24 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+      - name: "Load EAB profiles into Vault KV"
+        uses: ./.github/actions/wf_specific/vault_ca_handler/vault_eab_profiles_load
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/vault.json
-          DEST: data/volume/acme_ca/kid_profiles.json
-      - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+
+      - name: "EAB ACME Profiling - setup a2c with hashicorp_vault_handler"
         run: |
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.hashicorp_vault_handler" >> data/volume/acme_srv.cfg
+          sudo echo "vault_url: https://vault.acme:8200" >> data/volume/acme_srv.cfg
+          sudo echo "vault_mount: secret" >> data/volume/acme_srv.cfg
+          sudo echo "vault_prefix: acme/eab" >> data/volume/acme_srv.cfg
+          sudo echo "vault_token: ${VAULT_TOKEN}" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
+        env:
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
       - name: "Reconfigure a2c"
         run: |
@@ -401,18 +414,24 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+      - name: "Load EAB profiles into Vault KV"
+        uses: ./.github/actions/wf_specific/vault_ca_handler/vault_eab_profiles_load
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/vault.json
-          DEST: data/volume/acme_ca/kid_profiles.json
-      - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+
+      - name: "EAB ACME Profiling - setup a2c with hashicorp_vault_handler"
         run: |
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.hashicorp_vault_handler" >> data/volume/acme_srv.cfg
+          sudo echo "vault_url: https://vault.acme:8200" >> data/volume/acme_srv.cfg
+          sudo echo "vault_mount: secret" >> data/volume/acme_srv.cfg
+          sudo echo "vault_prefix: acme/eab" >> data/volume/acme_srv.cfg
+          sudo echo "vault_token: ${VAULT_TOKEN}" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
+        env:
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
       - name: "Reconfigure a2c "
         run: |
@@ -420,6 +439,9 @@ jobs:
         env:
           WEBSRV: ${{ matrix.websrv }}
           MODE: ${{ matrix.mode }}
+
+      - name: "EAB ACME Profiling - enrollment"
+        uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_eab_acmeprofile
 
       - name: "Channel teardown"
         if: ${{ always() }}
