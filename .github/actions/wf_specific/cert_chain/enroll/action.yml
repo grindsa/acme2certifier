@@ -137,7 +137,8 @@ runs:
         test -s "${crt}"
 
         fp() {
-          openssl x509 -in "$1" -noout -fingerprint -sha256 \
+          local cert="$1"
+          openssl x509 -in "$cert" -noout -fingerprint -sha256 \
             | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]'
         }
         old_root="$(fp "${CA_PATH}/root-ca-cert.pem")"
@@ -171,7 +172,7 @@ runs:
           echo "  $(openssl x509 -in "${f}" -noout -subject) fp=${this}"
           found="${found} ${this}"
         done
-        has() { [[ " ${found} " == *" $1 "* ]]; }
+        has() { local needle="$1"; [[ " ${found} " == *" ${needle} "* ]]; }
 
         verify_new() {
           openssl verify -CAfile "${CA_PATH}/new-root.pem" -untrusted "${chain}" "${leaf}"
@@ -215,6 +216,10 @@ runs:
             has "${old_root}" || { echo "missing old root" >&2; exit 1; }
             has "${new_root}" && { echo "new-root unexpectedly in stock chain" >&2; exit 1; }
             verify_old
+            ;;
+          *)
+            echo "ERROR: unexpected LAYOUT=${LAYOUT}" >&2
+            exit 1
             ;;
         esac
 

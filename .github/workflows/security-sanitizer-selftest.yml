@@ -22,14 +22,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          secret_marker="secret"
           mkdir -p artifact/data artifact/upload artifact/acme-sh/accounts
           echo "safe-log" > artifact/data/service.log
-          echo "secret" > artifact/data/private.key
-          echo "secret" > artifact/data/cert.pem
-          echo "secret" > artifact/data/krb5.keytab
-          echo "secret" > artifact/data/acme_srv.cfg
-          echo "secret" > artifact/data/settings.py
-          echo "secret" > artifact/acme-sh/accounts/account.json
+          echo "${secret_marker}" > artifact/data/private.key
+          echo "${secret_marker}" > artifact/data/cert.pem
+          echo "${secret_marker}" > artifact/data/krb5.keytab
+          echo "${secret_marker}" > artifact/data/acme_srv.cfg
+          echo "${secret_marker}" > artifact/data/settings.py
+          echo "${secret_marker}" > artifact/acme-sh/accounts/account.json
 
       - name: Run sanitizer
         uses: ./.github/actions/sanitize_artifact_payload

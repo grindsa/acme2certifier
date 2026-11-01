@@ -118,7 +118,7 @@ jobs:
       - name: "Verify tnauth enrollment failed without acknowledgement"
         run: |
           if [[ "${{ steps.tnauth_fail_closed.outcome }}" != "failure" ]]; then
-            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK"
+            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK" >&2
             exit 1
           fi
           echo "tnauth enrollment failed as expected without break-glass acknowledgement"
@@ -236,7 +236,7 @@ jobs:
       - name: "Verify tnauth enrollment failed without acknowledgement"
         run: |
           if [[ "${{ steps.tnauth_fail_closed.outcome }}" != "failure" ]]; then
-            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK"
+            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK" >&2
             exit 1
           fi
           echo "tnauth enrollment failed as expected without break-glass acknowledgement"
@@ -349,7 +349,7 @@ jobs:
       - name: "Verify tnauth enrollment failed without acknowledgement"
         run: |
           if [[ "${{ steps.tnauth_fail_closed.outcome }}" != "failure" ]]; then
-            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK"
+            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK" >&2
             exit 1
           fi
           echo "tnauth enrollment failed as expected without break-glass acknowledgement"

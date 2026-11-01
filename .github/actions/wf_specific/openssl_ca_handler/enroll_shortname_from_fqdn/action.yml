@@ -146,6 +146,7 @@ runs:
           container) (cd examples/Docker && docker compose restart) ;;
           rpm) docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart ;;
           deb) docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "${WEBSRV}" ;;
+          *) echo "ERROR: unexpected DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2; exit 1 ;;
         esac
       shell: bash
       env:
@@ -198,6 +199,7 @@ runs:
           container) (cd examples/Docker && docker compose restart) ;;
           rpm) docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart ;;
           deb) docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "${WEBSRV}" ;;
+          *) echo "ERROR: unexpected DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2; exit 1 ;;
         esac
       shell: bash
       env:

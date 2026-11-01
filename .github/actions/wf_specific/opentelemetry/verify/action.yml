@@ -24,17 +24,15 @@ runs:
         DEADLINE=$((SECONDS + TIMEOUT_SEC))
         echo "Waiting for service=${SERVICE_NAME} traces at ${UI} (timeout ${TIMEOUT_SEC}s)"
         while (( SECONDS < DEADLINE )); do
-          if SERVICES=$(curl -fsS "${UI}/api/services" 2>/dev/null); then
-            if echo "${SERVICES}" | grep -q "\"${SERVICE_NAME}\""; then
-              TRACES=$(curl -fsS "${UI}/api/traces?service=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "${SERVICE_NAME}")&limit=5" || true)
-              if echo "${TRACES}" | grep -q '"data"'; then
-                # non-empty data array
-                if echo "${TRACES}" | python3 -c 'import json,sys; d=json.load(sys.stdin).get("data") or []; sys.exit(0 if d else 1)'; then
-                  echo "Found traces for ${SERVICE_NAME}"
-                  echo "${TRACES}" | python3 -c 'import json,sys; d=json.load(sys.stdin).get("data") or []; print(f"trace_count={len(d)}")'
-                  exit 0
-                fi
-              fi
+          if SERVICES=$(curl -fsS "${UI}/api/services" 2>/dev/null) \
+            && echo "${SERVICES}" | grep -q "\"${SERVICE_NAME}\""; then
+            TRACES=$(curl -fsS "${UI}/api/traces?service=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "${SERVICE_NAME}")&limit=5" || true)
+            # non-empty data array
+            if echo "${TRACES}" | grep -q '"data"' \
+              && echo "${TRACES}" | python3 -c 'import json,sys; d=json.load(sys.stdin).get("data") or []; sys.exit(0 if d else 1)'; then
+              echo "Found traces for ${SERVICE_NAME}"
+              echo "${TRACES}" | python3 -c 'import json,sys; d=json.load(sys.stdin).get("data") or []; print(f"trace_count={len(d)}")'
+              exit 0
             fi
           fi
           sleep 2

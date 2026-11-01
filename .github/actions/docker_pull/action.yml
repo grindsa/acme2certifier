@@ -32,13 +32,16 @@ runs:
 
         # True when IMAGE already includes a registry host (ghcr.io, mcr.microsoft.com, ...).
         has_registry() {
-          case "${1}" in
+          local image="${1}"
+          case "${image}" in
             */*)
-              first="${1%%/*}"
+              local first="${image%%/*}"
               case "${first}" in
                 *.*|*:*|localhost) return 0 ;;
+                *) ;;
               esac
               ;;
+            *) ;;
           esac
           return 1
         }

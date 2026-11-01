@@ -85,4 +85,8 @@ runs:
             sudo cp "${env_file}" "${VOLUME_DIR}/django.env"
             sudo cp "${settings_src}" "${VOLUME_DIR}/acme2certifier/settings.py"
             ;;
+          *)
+            echo "Unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
         esac

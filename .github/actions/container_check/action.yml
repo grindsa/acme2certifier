@@ -50,6 +50,7 @@ runs:
         # --- Web server: installed binary + running process ---
         # Use in-container ps output; docker top formatting varies by daemon.
         has_comm() {
+          local proc_name="$1"
           exec_in sh -c '
             name="$1"
             i=0
@@ -61,7 +62,7 @@ runs:
               sleep 1
             done
             exit 1
-          ' sh "$1"
+          ' sh "${proc_name}"
         }
         list_comms() {
           exec_in sh -c 'ps -eo comm= 2>/dev/null || true' | sort -u
