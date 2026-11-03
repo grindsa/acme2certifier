@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from typing import Any
@@ -313,6 +314,29 @@ def test_376_validate_fqdn(logger: logging.Logger) -> None:
 def test_377_validate_fqdn(logger: logging.Logger) -> None:
     """test validate_fqdn()"""
     assert validate_fqdn(logger, "*.bar.local")
+
+
+def test_validate_fqdn_rejects_redos_payload(logger: logging.Logger) -> None:
+    """H1: adversarial almost-match must fail quickly (no nested-quantifier ReDoS)."""
+    payload = ("a" * 40) + "!"
+    started = time.perf_counter()
+    assert not validate_fqdn(logger, payload)
+    assert time.perf_counter() - started < 0.05
+
+
+def test_validate_fqdn_rejects_oversized_label(logger: logging.Logger) -> None:
+    """Labels longer than 63 octets must be rejected."""
+    assert not validate_fqdn(logger, ("a" * 64) + ".com")
+    assert validate_fqdn(logger, ("a" * 63) + ".com")
+
+
+def test_validate_fqdn_accepts_trailing_dot_and_shortname(
+    logger: logging.Logger,
+) -> None:
+    """Trailing root dot and single-label names remain valid."""
+    assert validate_fqdn(logger, "foo.bar.com.")
+    assert validate_fqdn(logger, "localhost")
+    assert not validate_fqdn(logger, "*.bar.local.")
 
 
 def test_378_validate_ip(logger: logging.Logger) -> None:
