@@ -33,8 +33,11 @@ def wildcard_domain_check(
 
     result = False
     if domain.startswith("*."):
-        # Both input and pattern are wildcards. Check if input domain base includes the pattern
-        if encoded_domain.endswith(encoded_pattern_base):
+        # Both input and pattern are wildcards. Require exact base match or a label
+        # boundary so *.attackerexample.com does not match *.example.com.
+        if encoded_domain == encoded_pattern_base or encoded_domain.endswith(
+            b"." + encoded_pattern_base
+        ):
             result = True
     else:
         # Input is not a wildcard, pattern is. Check endswith. Add '.' to pattern base so it's not approving the base domain
