@@ -6,14 +6,18 @@ import textwrap
 import logging
 
 
-def b64decode_pad(logger: logging.Logger, string: str) -> bytes:
+def b64decode_pad(logger: logging.Logger, string: str) -> str:
     """b64 decoding and padding of missing "=" """
     logger.debug("Helper.b64decode_pad()")
     try:
         b64dec = base64.urlsafe_b64decode(string + "=" * (4 - len(string) % 4))
+        # decode() must stay inside the try block: input can be valid base64
+        # while decoding to bytes that are not valid UTF-8, which would
+        # otherwise raise UnicodeDecodeError instead of returning the
+        # documented error marker.
+        return b64dec.decode("utf-8")
     except Exception:
-        b64dec = b"ERR: b64 decoding error"
-    return b64dec.decode("utf-8")
+        return "ERR: b64 decoding error"
 
 
 def b64_decode(logger: logging.Logger, string: str) -> str:
