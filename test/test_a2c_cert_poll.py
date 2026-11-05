@@ -80,6 +80,52 @@ class TestA2CCertPoll(unittest.TestCase):
 
         mock_cert.poll.assert_not_called()
 
+    def test_004_main_skips_missing_poll_identifier(self):
+        """main() skips processing certs without poll_identifier"""
+        mock_cert_cm = MagicMock()
+        mock_cert = MagicMock()
+        mock_cert_cm.__enter__.return_value = mock_cert
+        mock_cert_cm.__exit__.return_value = False
+        mock_cert.certlist_search.return_value = [
+            {
+                "name": "stuck",
+                "poll_identifier": None,
+                "csr": "csr0",
+                "order__name": "o0",
+            },
+            {
+                "name": "c1",
+                "poll_identifier": "p1",
+                "csr": "csr1",
+                "order__name": "o1",
+            },
+            {
+                "name": "empty",
+                "poll_identifier": "",
+                "csr": "csr2",
+                "order__name": "o2",
+            },
+        ]
+        mock_logger = MagicMock()
+
+        with (
+            patch("acme2certifier.tools.a2c_cert_poll.initialize"),
+            patch(
+                "acme2certifier.tools.a2c_cert_poll.logger_setup",
+                return_value=mock_logger,
+            ),
+            patch(
+                "acme2certifier.tools.a2c_cert_poll.Certificate",
+                return_value=mock_cert_cm,
+            ),
+        ):
+            from acme2certifier.tools import a2c_cert_poll
+
+            a2c_cert_poll.main()
+
+        mock_cert.poll.assert_called_once_with("c1", "p1", "csr1", "o1")
+        self.assertEqual(mock_logger.warning.call_count, 2)
+
     def test_003_module_main_entrypoint(self):
         """``__main__`` guard calls main()"""
         import runpy
