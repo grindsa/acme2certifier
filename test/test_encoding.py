@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 
 import pytest
@@ -39,6 +40,12 @@ def test_002_helper_b64decode_pad(logger: logging.Logger) -> None:
 def test_003_helper_b64decode_pad(logger: logging.Logger) -> None:
     """test b64 decoding failure"""
     assert "ERR: b64 decoding error" == b64decode_pad(logger, "b")
+
+
+def test_004_helper_b64decode_pad(logger: logging.Logger) -> None:
+    """valid base64 of non-UTF-8 bytes returns the error marker"""
+    payload = base64.urlsafe_b64encode(b"\xff\xfe").decode()
+    assert "ERR: b64 decoding error" == b64decode_pad(logger, payload)
 
 
 def test_033_helper_b64_url_recode(logger: logging.Logger) -> None:
