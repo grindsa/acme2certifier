@@ -5,15 +5,20 @@ import base64
 import textwrap
 import logging
 
+B64_DECODE_ERROR = "ERR: b64 decoding error"
+
 
 def b64decode_pad(logger: logging.Logger, string: str) -> str:
-    """b64 decoding and padding of missing "=" """
+    """b64url-decode with missing "=" padding; reject non-alphabet input."""
     logger.debug("Helper.b64decode_pad()")
     try:
-        b64dec = base64.urlsafe_b64decode(string + "=" * (4 - len(string) % 4))
-        return b64dec.decode("utf-8")
+        padded = string + "=" * (-len(string) % 4)
+        # urlsafe_b64decode() silently strips non-alphabet chars; use
+        # b64decode(..., validate=True) so junk cannot become "".
+        raw = base64.b64decode(padded, altchars=b"-_", validate=True)
+        return raw.decode("utf-8")
     except Exception:
-        return "ERR: b64 decoding error"
+        return B64_DECODE_ERROR
 
 
 def b64_decode(logger: logging.Logger, string: str) -> str:
