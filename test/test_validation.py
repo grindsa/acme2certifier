@@ -330,6 +330,13 @@ def test_validate_fqdn_rejects_oversized_label(logger: logging.Logger) -> None:
     assert validate_fqdn(logger, ("a" * 63) + ".com")
 
 
+def test_validate_fqdn_rejects_oversized_name(logger: logging.Logger) -> None:
+    """DNS names longer than 253 octets are rejected."""
+    long_name = ".".join(["abcd"] * 64)  # 64*4 + 63 dots = 319
+    assert len(long_name) > 253
+    assert not validate_fqdn(logger, long_name)
+
+
 def test_validate_fqdn_accepts_trailing_dot_and_shortname(
     logger: logging.Logger,
 ) -> None:

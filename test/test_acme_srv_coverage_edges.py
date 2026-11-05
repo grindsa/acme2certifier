@@ -70,6 +70,7 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
         response.text = "body"
         response.status_code = 404
         response.reason = "Not Found"
+        response.is_redirect = False
         mock_get.return_value = response
 
         body, code, error = url_get_dns_pinned(

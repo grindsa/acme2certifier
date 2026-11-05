@@ -11,11 +11,12 @@ import re
 import threading
 import time
 from typing import Any, List, Dict, Tuple, Union, Optional
-from urllib.parse import urlparse, urlunparse, quote
+from urllib.parse import urljoin, urlparse, urlunparse, quote
 from urllib3.util import connection
 import socks
 import dns.resolver
 import requests
+from requests.adapters import HTTPAdapter
 from .config import load_config
 from .validation import ipv6_chk
 from .encoding import convert_string_to_byte, b64_encode
@@ -23,6 +24,10 @@ from .global_variables import USER_AGENT
 
 # Backward-compatible alias used by existing tests that patch this symbol.
 urllib3_cn = connection
+
+_HTTP01_REDIRECT_VALIDATE_ENDED = (
+    "Helper.http01_redirect_target_validate() ended: %s"
+)
 
 
 def _caaidentities_parse(logger: logging.Logger, value: str) -> List[str]:
@@ -249,7 +254,7 @@ _dns_connect_wrapper_installed = False
 
 
 def _first_resolved_address(
-    resolved: Union[str, List[str], None], fallback: str
+    resolved: str | List[str] | None, fallback: str
 ) -> str:
     """Pick a single connect address from fqdn_resolve output."""
     if isinstance(resolved, list):
@@ -461,18 +466,44 @@ def url_get(
     proxy_server=None,
     verify=True,
     timeout=20,
+    http01_restrict_redirects: bool = False,
+    max_redirects: int = 5,
+    allow_ip_redirect: bool = False,
+    block_private: bool = False,
 ) -> Tuple[Optional[str], int, Optional[str]]:
-    """http get with enhanced error reporting"""
+    """http get with enhanced error reporting
+
+    When ``http01_restrict_redirects`` is True (HTTP-01 challenge validation
+    only), redirects are followed under ACME-safe constraints instead of the
+    requests default.
+    """
     logger.debug("Helper.url_get(%s) vrf=%s, timout:%s", url, verify, timeout)
     # pylint: disable=w0621
-    # configure proxy servers if specified
-    if proxy_server:
-        proxy_list = {"http": proxy_server, "https": proxy_server}
-    else:
-        proxy_list = {}
-    if dns_server_list and not proxy_server:
+    if http01_restrict_redirects:
+        logger.debug("Helper.url_get() http01_restrict_redirects is True")
+        result, status_code, error_msg = _url_get_http01(
+            logger,
+            url,
+            dns_server_list=dns_server_list,
+            proxy_server=proxy_server,
+            verify=verify,
+            timeout=timeout,
+            max_redirects=max_redirects,
+            allow_ip_redirect=allow_ip_redirect,
+            block_private=block_private,
+            pinned_ips=None,
+            initial_host=None,
+        )
+    elif dns_server_list and not proxy_server:
+        logger.debug("Helper.url_get() dns_server_list and not proxy_server")
         result, status_code, error_msg = url_get_with_own_dns(logger, url, verify)
     else:
+        logger.debug("Helper.url_get() else")
+        # configure proxy servers if specified
+        if proxy_server:
+            proxy_list = {"http": proxy_server, "https": proxy_server}
+        else:
+            proxy_list = {}
         result, status_code, error_msg = url_get_with_default_dns(
             logger, url, proxy_list, verify, timeout
         )
@@ -484,7 +515,7 @@ def url_get(
 
 
 def normalize_resolved_ips(
-    resolved: Union[str, List[str], None],
+    resolved: str | List[str] | None,
 ) -> List[str]:
     """Normalize fqdn_resolve output to a list of IP strings."""
     if resolved is None:
@@ -552,6 +583,470 @@ def _http_host_header(host: str) -> str:
     return _http_url_host(host)
 
 
+def _http01_path_with_query(parsed) -> str:
+    """Path (+ query) for a pinned HTTP-01 connect URL."""
+    path = parsed.path or "/"
+    if parsed.query:
+        return f"{path}?{parsed.query}"
+    return path
+
+
+def _http01_redirect_structure_error(parsed) -> Optional[str]:
+    """Return an error if scheme/userinfo/host/port are not ACME-safe."""
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        return f"HTTP-01 redirect scheme not allowed: {scheme or '(none)'}"
+    if parsed.username is not None or parsed.password is not None:
+        return "HTTP-01 redirect must not include userinfo"
+    if not parsed.hostname:
+        return "HTTP-01 redirect is missing a hostname"
+    port = parsed.port
+    if scheme == "http" and port is not None and port != 80:
+        return f"HTTP-01 redirect port not allowed for http: {port}"
+    if scheme == "https" and port is not None and port != 443:
+        return f"HTTP-01 redirect port not allowed for https: {port}"
+    return None
+
+
+def _http01_host_is_ip(host: str) -> bool:
+    """True when host is a literal IP address."""
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
+def _http01_redirect_candidate_ips(
+    logger: logging.Logger,
+    host: str,
+    *,
+    allow_ip: bool,
+    dns_server_list: Optional[List[str]],
+) -> Tuple[List[str], Optional[str]]:
+    """Resolve redirect host to candidate connect IPs."""
+    logger.debug("Helper._http01_redirect_candidate_ips(%s)", host)
+    if _http01_host_is_ip(host):
+        if not allow_ip:
+            return [], "HTTP-01 redirect to IP address is not allowed"
+        return [host], None
+
+    resolved, invalid, resolve_error = fqdn_resolve(
+        logger, host, dns_server_list, catch_all=True
+    )
+    if invalid:
+        return [], resolve_error or f"DNS resolution failed for {host}"
+    logger.debug("Helper._http01_redirect_candidate_ips() ended with: %s", resolved)
+    return normalize_resolved_ips(resolved), None
+
+
+def http01_redirect_target_validate(
+    logger: logging.Logger,
+    target_url: str,
+    *,
+    allow_ip: bool = False,
+    block_private: bool = False,
+    dns_server_list: Optional[List[str]] = None,
+) -> Tuple[Optional[str], List[str], Optional[str]]:
+    """Validate an HTTP-01 redirect target URL.
+
+    Returns ``(hostname, allowed_ips, error_msg)``. Hostname is suitable for
+    the Host header / logical URL; allowed_ips are filtered connect peers.
+    """
+    logger.debug("Helper.http01_redirect_target_validate(%s)", target_url)
+    parsed = urlparse(target_url)
+    structure_error = _http01_redirect_structure_error(parsed)
+    if structure_error:
+        logger.debug(_HTTP01_REDIRECT_VALIDATE_ENDED, structure_error)
+        return None, [], structure_error
+
+    host = parsed.hostname or ""
+    candidate_ips, resolve_error = _http01_redirect_candidate_ips(
+        logger,
+        host,
+        allow_ip=allow_ip,
+        dns_server_list=dns_server_list,
+    )
+    if resolve_error:
+        logger.debug(_HTTP01_REDIRECT_VALIDATE_ENDED, resolve_error)
+        return None, [], resolve_error
+
+    allowed_ips, filter_error = filter_http01_target_ips(
+        logger, candidate_ips, block_private=block_private
+    )
+    if filter_error or not allowed_ips:
+        error_msg = filter_error or "No allowed address for HTTP-01 validation"
+        logger.debug(_HTTP01_REDIRECT_VALIDATE_ENDED, error_msg)
+        return None, [], error_msg
+
+    logger.debug(
+        "Helper.http01_redirect_target_validate() ended with host=%s ips=%s",
+        host,
+        allowed_ips,
+    )
+    return host, allowed_ips, None
+
+
+def _http01_request_headers(host: str) -> Dict[str, str]:
+    """Standard HTTP-01 request headers with logical Host."""
+    return {
+        "Connection": "close",
+        "Accept-Encoding": "gzip",
+        "User-Agent": USER_AGENT,
+        "Host": _http_host_header(host),
+    }
+
+
+def _http01_sni_hostname(host_header: str) -> Optional[str]:
+    """Return SNI/cert hostname from Host header, or None for literal IPs."""
+    if not host_header:
+        return None
+    host = host_header
+    if host.startswith("[") and "]" in host:
+        host = host[1 : host.index("]")]
+    elif ":" in host:
+        # host:port (IPv4/name); IPv6 without brackets is not a Host header form
+        host = host.rsplit(":", 1)[0]
+    try:
+        ipaddress.ip_address(host)
+        return None
+    except ValueError:
+        return host or None
+
+
+class _HostHeaderSSLAdapter(HTTPAdapter):
+    """HTTPS adapter: dial by IP but use Host header for SNI / cert hostname.
+
+    Plain ``requests.get('https://<ip>', headers={'Host': name})`` sends SNI as
+    the IP, which breaks HTTP-01 redirects to HTTPS virtual hosts.
+    """
+
+    def send(self, request, **kwargs):
+        host_header = None
+        for header, value in request.headers.items():
+            if header.lower() == "host":
+                host_header = value
+                break
+        pool_kw = self.poolmanager.connection_pool_kw
+        sni = _http01_sni_hostname(host_header) if host_header else None
+        if sni:
+            pool_kw["server_hostname"] = sni
+            pool_kw["assert_hostname"] = sni
+        else:
+            pool_kw.pop("server_hostname", None)
+            pool_kw.pop("assert_hostname", None)
+        return super().send(request, **kwargs)
+
+
+def _http01_single_get(
+    logger: logging.Logger,
+    connect_url: str,
+    headers: Dict[str, str],
+    *,
+    verify: bool,
+    timeout: int,
+    proxies: Dict[str, str],
+) -> Tuple[Optional[Any], int, Optional[str]]:
+    """One HTTP GET with redirects disabled. Returns (response, status, error)."""
+    logger.debug("Helper._http01_single_get(%s)", connect_url)
+    use_host_sni = connect_url.lower().startswith("https:") and bool(
+        _http01_sni_hostname(headers.get("Host", ""))
+    )
+    try:
+        if use_host_sni:
+            # Pin to IP in the URL while presenting the logical name via SNI.
+            session = requests.Session()
+            session.mount("https://", _HostHeaderSSLAdapter())
+            req = session.get(
+                connect_url,
+                verify=verify,
+                timeout=timeout,
+                headers=headers,
+                proxies=proxies,
+                allow_redirects=False,
+            )
+        else:
+            req = requests.get(
+                connect_url,
+                verify=verify,
+                timeout=timeout,
+                headers=headers,
+                proxies=proxies,
+                allow_redirects=False,
+            )
+        return req, req.status_code, None
+    except requests.exceptions.ReadTimeout:
+        error_msg = f"Could not fetch URL: {connect_url} - Read timeout."
+        logger.error(error_msg)
+        return None, 500, error_msg
+    except requests.exceptions.ConnectionError:
+        error_msg = f"Could not fetch URL: {connect_url} - Connection error."
+        logger.error(error_msg)
+        return None, 500, error_msg
+    except Exception as err:
+        error_msg = f"Could not fetch URL: {connect_url}: {err}"
+        logger.error(error_msg)
+        return None, 500, error_msg
+
+
+_HTTP01_GET_ENDED = "Helper._url_get_http01() ended: %s"
+
+
+def _http01_status_error(url: str, req: Any, status_code: int) -> Optional[str]:
+    """Non-200 responses keep a short URL + reason detail."""
+    if status_code == 200:
+        return None
+    return f"{url} {req.reason}"
+
+
+def _http01_fetch_via_pins(
+    logger: logging.Logger,
+    parsed,
+    hop_ips: List[str],
+    headers: Dict[str, str],
+    *,
+    verify: bool,
+    timeout: int,
+) -> Tuple[Optional[Any], int, Optional[str]]:
+    """GET via each pinned peer IP until one connects."""
+    logger.debug("Helper._http01_fetch_via_pins(%s)", hop_ips)
+    last_error: Optional[str] = "No pinned IP addresses provided"
+    last_status = 500
+    for ip_str in hop_ips:
+        try:
+            ipaddress.ip_address(ip_str)
+        except ValueError:
+            last_error = f"Invalid pinned IP: {ip_str}"
+            continue
+        connect_url = (
+            f"{parsed.scheme}://{_http_url_host(ip_str)}"
+            f"{_http01_path_with_query(parsed)}"
+        )
+        req, status_code, error_msg = _http01_single_get(
+            logger,
+            connect_url,
+            headers,
+            verify=verify,
+            timeout=timeout,
+            proxies={},
+        )
+        if req is not None:
+            logger.debug(
+                "Helper._url_get_http01() connected via %s status=%s",
+                ip_str,
+                status_code,
+            )
+            return req, status_code, _http01_status_error(connect_url, req, status_code)
+        last_status = status_code
+        last_error = error_msg
+    logger.debug("Helper._http01_fetch_via_pins() ended with: %s", last_error)
+    return None, last_status, last_error
+
+
+def _http01_fetch_via_hostname(
+    logger: logging.Logger,
+    logical_url: str,
+    headers: Dict[str, str],
+    *,
+    dns_server_list: Optional[List[str]],
+    proxy_server: Optional[str],
+    proxies: Dict[str, str],
+    verify: bool,
+    timeout: int,
+) -> Tuple[Optional[Any], int, Optional[str]]:
+    """GET the logical URL (proxy and/or custom DNS resolver)."""
+    logger.debug("Helper._http01_fetch_via_hostname(%s)", logical_url)
+    use_custom_dns = bool(dns_server_list) and not proxy_server
+    if use_custom_dns:
+        _ensure_custom_dns_connect_wrapper()
+        _dns_connect_tls.use_custom_dns = True
+    try:
+        req, status_code, error_msg = _http01_single_get(
+            logger,
+            logical_url,
+            headers,
+            verify=verify,
+            timeout=timeout,
+            proxies=proxies,
+        )
+    finally:
+        if use_custom_dns:
+            _dns_connect_tls.use_custom_dns = False
+    if req is None:
+        return None, status_code, error_msg
+    logger.debug("Helper._http01_fetch_via_hostname() ended with: %s", status_code)
+    return req, status_code, _http01_status_error(logical_url, req, status_code)
+
+
+def _http01_next_redirect_target(
+    logger: logging.Logger,
+    logical_url: str,
+    req: Any,
+    *,
+    redirects_followed: int,
+    max_redirects: int,
+    allow_ip_redirect: bool,
+    block_private: bool,
+    dns_server_list: Optional[List[str]],
+) -> Tuple[Optional[str], Optional[str], List[str], Optional[str]]:
+    """Validate redirect hop. Returns (url, host, ips, error)."""
+    logger.debug("Helper._http01_next_redirect_target(%s)", logical_url)
+    if redirects_followed >= max_redirects:
+        error_msg = f"HTTP-01 redirect limit exceeded ({max_redirects})"
+        logger.debug(_HTTP01_GET_ENDED, error_msg)
+        return None, None, [], error_msg
+
+    location = req.headers.get("Location")
+    if not location:
+        error_msg = "HTTP-01 redirect missing Location header"
+        logger.debug(_HTTP01_GET_ENDED, error_msg)
+        return None, None, [], error_msg
+
+    next_logical = urljoin(logical_url, location)
+    next_host, next_ips, validate_error = http01_redirect_target_validate(
+        logger,
+        next_logical,
+        allow_ip=allow_ip_redirect,
+        block_private=block_private,
+        dns_server_list=dns_server_list,
+    )
+    if validate_error or not next_host or not next_ips:
+        error_msg = validate_error or "Invalid HTTP-01 redirect target"
+        logger.debug(_HTTP01_GET_ENDED, error_msg)
+        return None, None, [], error_msg
+    logger.debug("Helper._http01_next_redirect_target() ended with: %s", next_logical)
+    return next_logical, next_host, next_ips, None
+
+
+def _http01_fetch_hop(
+    logger: logging.Logger,
+    *,
+    use_pinning: bool,
+    parsed,
+    hop_ips: List[str],
+    logical_url: str,
+    host: str,
+    dns_server_list: Optional[List[str]],
+    proxy_server: Optional[str],
+    proxies: Dict[str, str],
+    verify: bool,
+    timeout: int,
+) -> Tuple[Optional[Any], int, Optional[str]]:
+    """Fetch one HTTP-01 hop via pinned IPs or logical hostname."""
+    logger.debug("Helper._http01_fetch_hop(%s)", use_pinning)
+    headers = _http01_request_headers(host)
+    if use_pinning:
+        logger.debug("Helper._http01_fetch_hop() use_pinning is True")
+        return _http01_fetch_via_pins(
+            logger,
+            parsed,
+            hop_ips,
+            headers,
+            verify=verify,
+            timeout=timeout,
+        )
+    logger.debug("Helper._http01_fetch_hop() use_pinning is False")
+    return _http01_fetch_via_hostname(
+        logger,
+        logical_url,
+        headers,
+        dns_server_list=dns_server_list,
+        proxy_server=proxy_server,
+        proxies=proxies,
+        verify=verify,
+        timeout=timeout,
+    )
+
+
+def _url_get_http01(
+    logger: logging.Logger,
+    logical_url: str,
+    *,
+    dns_server_list: Optional[List[str]] = None,
+    proxy_server: Optional[str] = None,
+    verify: bool = False,
+    timeout: int = 20,
+    max_redirects: int = 5,
+    allow_ip_redirect: bool = False,
+    block_private: bool = False,
+    pinned_ips: Optional[List[str]] = None,
+    initial_host: Optional[str] = None,
+) -> Tuple[Optional[str], int, Optional[str]]:
+    """HTTP-01 GET with constrained redirect following and optional DNS pinning."""
+    logger.debug(
+        "Helper._url_get_http01(%s, max_redirects=%s, allow_ip=%s, block_private=%s)",
+        logical_url,
+        max_redirects,
+        allow_ip_redirect,
+        block_private,
+    )
+    max_redirects = max(0, max_redirects)
+    proxies = (
+        {"http": proxy_server, "https": proxy_server} if proxy_server else {}
+    )
+
+    parsed = urlparse(logical_url)
+    host = initial_host or parsed.hostname or ""
+    if not host:
+        return None, 500, "HTTP-01 URL is missing a hostname"
+
+    use_pinning = bool(pinned_ips) and not proxy_server
+    hop_ips: List[str] = list(pinned_ips) if use_pinning else []
+    redirects_followed = 0
+
+    while True:
+        req, last_status, last_error = _http01_fetch_hop(
+            logger,
+            use_pinning=use_pinning,
+            parsed=parsed,
+            hop_ips=hop_ips,
+            logical_url=logical_url,
+            host=host,
+            dns_server_list=dns_server_list,
+            proxy_server=proxy_server,
+            proxies=proxies,
+            verify=verify,
+            timeout=timeout,
+        )
+        if req is None:
+            return None, last_status, last_error
+
+        if not req.is_redirect:
+            logger.debug(
+                "Helper._url_get_http01() ended with status: %s, error: %s",
+                last_status,
+                last_error,
+            )
+            return req.text, last_status, last_error
+
+        next_logical, next_host, next_ips, redirect_error = (
+            _http01_next_redirect_target(
+                logger,
+                logical_url,
+                req,
+                redirects_followed=redirects_followed,
+                max_redirects=max_redirects,
+                allow_ip_redirect=allow_ip_redirect,
+                block_private=block_private,
+                dns_server_list=dns_server_list,
+            )
+        )
+        if redirect_error or not next_logical or not next_host:
+            return None, 500, redirect_error
+
+        logical_url = next_logical
+        parsed = urlparse(logical_url)
+        host = next_host
+        hop_ips = next_ips
+        use_pinning = not proxy_server
+        redirects_followed += 1
+        logger.debug(
+            "Helper._url_get_http01() following redirect #%s to %s",
+            redirects_followed,
+            logical_url,
+        )
+
+
 def url_get_dns_pinned(
     logger: logging.Logger,
     host: str,
@@ -559,12 +1054,19 @@ def url_get_dns_pinned(
     pinned_ips: List[str],
     verify: bool = True,
     timeout: int = 20,
+    max_redirects: int = 5,
+    allow_ip_redirect: bool = False,
+    block_private: bool = False,
+    dns_server_list: Optional[List[str]] = None,
 ) -> Tuple[Optional[str], int, Optional[str]]:
     """HTTP GET to a pinned peer IP while keeping the logical Host header.
 
     Uses ``http://<pinned-ip>/...`` with ``Host: <host>`` so the TCP peer is
     bound without a process-global urllib3 ``create_connection`` monkey-patch
     (avoids cross-request pin races). Proxy-based HTTP-01 skips this helper.
+
+    Redirects are followed only under HTTP-01 constraints (http/https, ports
+    80/443, per-hop IP filtering, optional IP Location policy).
     """
     logger.debug(
         "Helper.url_get_dns_pinned(host=%s, path=%s, ips=%s)", host, path, pinned_ips
@@ -572,65 +1074,21 @@ def url_get_dns_pinned(
     if not path.startswith("/"):
         path = f"/{path}"
 
-    host_header = _http_host_header(host)
-    headers = {
-        "Connection": "close",
-        "Accept-Encoding": "gzip",
-        "User-Agent": USER_AGENT,
-        "Host": host_header,
-    }
-
-    last_error: Optional[str] = "No pinned IP addresses provided"
-    last_status = 500
-    for ip_str in pinned_ips:
-        try:
-            ipaddress.ip_address(ip_str)
-        except ValueError:
-            last_error = f"Invalid pinned IP: {ip_str}"
-            continue
-
-        url = f"http://{_http_url_host(ip_str)}{path}"
-        try:
-            req = requests.get(
-                url,
-                verify=verify,
-                timeout=timeout,
-                headers=headers,
-                proxies={},
-            )
-            result = req.text
-            status_code = req.status_code
-            if status_code != 200:
-                error_msg = f"{url} {req.reason}"
-            else:
-                error_msg = None
-            logger.debug(
-                "Helper.url_get_dns_pinned() connected via %s status=%s",
-                ip_str,
-                status_code,
-            )
-            return result, status_code, error_msg
-        except requests.exceptions.ReadTimeout:
-            last_status = 500
-            last_error = f"Could not fetch URL via pinned IP {ip_str} - Read timeout."
-            logger.error(last_error)
-        except requests.exceptions.ConnectionError:
-            last_status = 500
-            last_error = (
-                f"Could not fetch URL via pinned IP {ip_str} - Connection error."
-            )
-            logger.error(last_error)
-        except Exception as err:
-            last_status = 500
-            last_error = f"Could not fetch URL via pinned IP {ip_str}: {err}"
-            logger.error(last_error)
-
-    logger.debug(
-        "Helper.url_get_dns_pinned() ended with status: %s, error: %s",
-        last_status,
-        last_error,
+    # RFC 8555 §8.3: HTTP-01 starts on http:// (port 80), not https.
+    logical_url = f"http://{_http_url_host(host)}{path}"  # NOSONAR
+    return _url_get_http01(
+        logger,
+        logical_url,
+        dns_server_list=dns_server_list,
+        proxy_server=None,
+        verify=verify,
+        timeout=timeout,
+        max_redirects=max_redirects,
+        allow_ip_redirect=allow_ip_redirect,
+        block_private=block_private,
+        pinned_ips=pinned_ips,
+        initial_host=host,
     )
-    return None, last_status, last_error
 
 
 def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> List[str]:
@@ -1030,7 +1488,7 @@ def _request_send_by_method(
 
 def _request_parse_response(
     logger: logging.Logger, api_response: requests.Response
-) -> Tuple[int, Optional[Union[Dict, str]]]:
+) -> Tuple[int, Dict | str | None]:
     """Parse HTTP response body as JSON when possible."""
     code = api_response.status_code
     if not api_response.text:
@@ -1163,7 +1621,7 @@ def ca_api_request(
     method: str,
     url: str,
     **kwargs: Any,
-) -> Tuple[int, Optional[Union[Dict, str]]]:
+) -> Tuple[int, Dict | str | None]:
     """Thin CA-handler wrapper around request_operation."""
     logger.debug("CAhandler._api_%s()", method.lower())
     code, content = request_operation(logger, method=method, url=url, **kwargs)

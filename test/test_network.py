@@ -2029,6 +2029,7 @@ def test_632_url_get_dns_pinned_success(
     mock_resp.text = "token.thumb"
     mock_resp.status_code = 200
     mock_resp.reason = "OK"
+    mock_resp.is_redirect = False
     mock_get.return_value = mock_resp
     result, status, err = url_get_dns_pinned(
         logger,
@@ -2045,6 +2046,7 @@ def test_632_url_get_dns_pinned_success(
     assert "http://8.8.8.8/.well-known/acme-challenge/tok" == args[0]
     assert "example.com" == kwargs["headers"]["Host"]
     assert {} == kwargs["proxies"]
+    assert kwargs["allow_redirects"] is False
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
@@ -2058,6 +2060,7 @@ def test_633_url_get_dns_pinned_ipv6_host_and_peer(
     mock_resp.text = "ok"
     mock_resp.status_code = 200
     mock_resp.reason = "OK"
+    mock_resp.is_redirect = False
     mock_get.return_value = mock_resp
     url_get_dns_pinned(
         logger, host="example.com", path="/path", pinned_ips=["2606:4700:4700::1111"]
@@ -2074,6 +2077,373 @@ def test_633_url_get_dns_pinned_ipv6_host_and_peer(
     args, kwargs = mock_get.call_args
     assert "http://[2606:4700:4700::1111]/path" == args[0]
     assert "[2606:4700:4700::1111]" == kwargs["headers"]["Host"]
+
+
+def test_634_http01_redirect_target_validate_rejects_ip_by_default(
+    logger: logging.Logger,
+) -> None:
+    """HTTP-01 redirect to IP Location is rejected unless allow_ip"""
+    from acme2certifier.acme_srv.helpers.network import http01_redirect_target_validate
+
+    host, ips, err = http01_redirect_target_validate(
+        logger, "http://169.254.169.254/latest/meta-data/"
+    )
+    assert host is None
+    assert [] == ips
+    assert "IP address is not allowed" in err
+
+
+def test_635_http01_redirect_target_validate_rejects_bad_port(
+    logger: logging.Logger,
+) -> None:
+    """HTTP-01 redirect ports other than 80/443 are rejected"""
+    from acme2certifier.acme_srv.helpers.network import http01_redirect_target_validate
+
+    _host, _ips, err = http01_redirect_target_validate(
+        logger, "http://example.com:8080/path", allow_ip=False
+    )
+    assert "port not allowed" in err
+    _host, _ips, err = http01_redirect_target_validate(
+        logger, "https://example.com:8443/path"
+    )
+    assert "port not allowed" in err
+
+
+def test_636_http01_redirect_target_validate_allows_ip_when_enabled(
+    logger: logging.Logger,
+) -> None:
+    """http01_redirect_allow_ip still applies private-IP filter"""
+    from acme2certifier.acme_srv.helpers.network import http01_redirect_target_validate
+
+    host, ips, err = http01_redirect_target_validate(
+        logger,
+        "http://8.8.8.8/.well-known/acme-challenge/t",
+        allow_ip=True,
+        block_private=True,
+    )
+    assert "8.8.8.8" == host
+    assert ["8.8.8.8"] == ips
+    assert err is None
+    host, ips, err = http01_redirect_target_validate(
+        logger,
+        "http://169.254.169.254/latest/",
+        allow_ip=True,
+        block_private=True,
+    )
+    assert host is None
+    assert "No allowed address" in err
+
+
+@patch("acme2certifier.acme_srv.helpers.network.fqdn_resolve")
+@patch("acme2certifier.acme_srv.helpers.network.requests.Session")
+@patch("acme2certifier.acme_srv.helpers.network.requests.get")
+def test_637_url_get_dns_pinned_follows_https_redirect(
+    mock_get: MagicMock,
+    mock_session_cls: MagicMock,
+    mock_resolve: MagicMock,
+    logger: logging.Logger,
+) -> None:
+    """Pinned HTTP-01 follows http→https redirect with re-resolve and pin"""
+    from acme2certifier.acme_srv.helpers.network import (
+        url_get_dns_pinned,
+        _HostHeaderSSLAdapter,
+    )
+
+    mock_resolve.return_value = (["1.1.1.1"], False, None)
+    redirect = Mock()
+    redirect.status_code = 302
+    redirect.reason = "Found"
+    redirect.is_redirect = True
+    redirect.headers = {"Location": "https://challenge.example.com/tok"}
+    redirect.text = ""
+    final = Mock()
+    final.status_code = 200
+    final.reason = "OK"
+    final.is_redirect = False
+    final.text = "token.thumb"
+    mock_get.return_value = redirect
+    session = Mock()
+    session.get.return_value = final
+    mock_session_cls.return_value = session
+
+    result, status, err = url_get_dns_pinned(
+        logger,
+        host="example.com",
+        path="/tok",
+        pinned_ips=["8.8.8.8"],
+        verify=False,
+        timeout=5,
+        max_redirects=5,
+        block_private=True,
+    )
+    assert "token.thumb" == result
+    assert 200 == status
+    assert err is None
+    assert 1 == mock_get.call_count
+    assert mock_get.call_args.args[0] == "http://8.8.8.8/tok"
+    assert mock_get.call_args.kwargs["allow_redirects"] is False
+    session.mount.assert_called_once()
+    assert session.mount.call_args.args[0] == "https://"
+    assert isinstance(session.mount.call_args.args[1], _HostHeaderSSLAdapter)
+    assert session.get.call_args.args[0] == "https://1.1.1.1/tok"
+    assert session.get.call_args.kwargs["headers"]["Host"] == "challenge.example.com"
+    assert session.get.call_args.kwargs["allow_redirects"] is False
+
+
+@patch("acme2certifier.acme_srv.helpers.network.requests.get")
+def test_638_url_get_dns_pinned_rejects_metadata_redirect(
+    mock_get: MagicMock, logger: logging.Logger
+) -> None:
+    """Redirect to link-local metadata IP is rejected by default"""
+    from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
+
+    redirect = Mock()
+    redirect.status_code = 302
+    redirect.reason = "Found"
+    redirect.is_redirect = True
+    redirect.headers = {"Location": "http://169.254.169.254/latest/meta-data/"}
+    redirect.text = ""
+    mock_get.return_value = redirect
+
+    result, status, err = url_get_dns_pinned(
+        logger,
+        host="example.com",
+        path="/tok",
+        pinned_ips=["8.8.8.8"],
+        verify=False,
+        max_redirects=5,
+        allow_ip_redirect=False,
+        block_private=True,
+    )
+    assert result is None
+    assert 500 == status
+    assert "IP address is not allowed" in err
+    assert 1 == mock_get.call_count
+
+
+@patch("acme2certifier.acme_srv.helpers.network.fqdn_resolve")
+@patch("acme2certifier.acme_srv.helpers.network.requests.Session")
+@patch("acme2certifier.acme_srv.helpers.network.requests.get")
+def test_639_url_get_dns_pinned_enforces_max_redirects(
+    mock_get: MagicMock,
+    mock_session_cls: MagicMock,
+    mock_resolve: MagicMock,
+    logger: logging.Logger,
+) -> None:
+    """HTTP-01 stops after http01_max_redirects hops"""
+    from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
+
+    mock_resolve.return_value = (["1.1.1.1"], False, None)
+
+    def _redirect_resp(location: str) -> Mock:
+        resp = Mock()
+        resp.status_code = 302
+        resp.reason = "Found"
+        resp.is_redirect = True
+        resp.headers = {"Location": location}
+        resp.text = ""
+        return resp
+
+    mock_get.return_value = _redirect_resp("https://a.example.com/1")
+    session = Mock()
+    session.get.side_effect = [
+        _redirect_resp("https://b.example.com/2"),
+        _redirect_resp("https://c.example.com/3"),
+    ]
+    mock_session_cls.return_value = session
+    result, status, err = url_get_dns_pinned(
+        logger,
+        host="example.com",
+        path="/tok",
+        pinned_ips=["8.8.8.8"],
+        verify=False,
+        max_redirects=2,
+        block_private=True,
+    )
+    assert result is None
+    assert 500 == status
+    assert "redirect limit exceeded" in err
+    assert 1 == mock_get.call_count
+    assert 2 == session.get.call_count
+
+
+def test_645_http01_sni_hostname_from_host_header() -> None:
+    """SNI helper keeps names and drops literal IP Host values"""
+    from acme2certifier.acme_srv.helpers.network import _http01_sni_hostname
+
+    assert _http01_sni_hostname("challenge.example.com") == "challenge.example.com"
+    assert _http01_sni_hostname("challenge.example.com:443") == "challenge.example.com"
+    assert _http01_sni_hostname("8.8.8.8") is None
+    assert _http01_sni_hostname("[2001:db8::1]") is None
+    assert _http01_sni_hostname("") is None
+
+
+def test_646_host_header_ssl_adapter_sets_server_hostname() -> None:
+    """Adapter copies Host name into urllib3 server_hostname / assert_hostname"""
+    from requests.adapters import HTTPAdapter
+
+    from acme2certifier.acme_srv.helpers.network import _HostHeaderSSLAdapter
+
+    adapter = _HostHeaderSSLAdapter()
+    adapter.poolmanager = Mock()
+    adapter.poolmanager.connection_pool_kw = {}
+    request = Mock()
+    request.headers = {"Host": "www.example.com", "User-Agent": "test"}
+    with patch.object(HTTPAdapter, "send", return_value=Mock()) as mock_super:
+        adapter.send(request, timeout=5)
+    assert (
+        adapter.poolmanager.connection_pool_kw["server_hostname"] == "www.example.com"
+    )
+    assert (
+        adapter.poolmanager.connection_pool_kw["assert_hostname"] == "www.example.com"
+    )
+    mock_super.assert_called_once()
+
+
+def test_640_http01_redirect_structure_errors(logger: logging.Logger) -> None:
+    """Redirect Location scheme/userinfo/host checks"""
+    from acme2certifier.acme_srv.helpers.network import http01_redirect_target_validate
+
+    _h, _i, err = http01_redirect_target_validate(logger, "ftp://example.com/x")
+    assert "scheme not allowed" in err
+    _h, _i, err = http01_redirect_target_validate(
+        logger, "http://user:pass@example.com/x"
+    )
+    assert "userinfo" in err
+    _h, _i, err = http01_redirect_target_validate(logger, "http:///nohost")
+    assert "hostname" in err
+
+
+@patch("acme2certifier.acme_srv.helpers.network.fqdn_resolve")
+def test_641_http01_redirect_dns_failure(
+    mock_resolve: MagicMock, logger: logging.Logger
+) -> None:
+    """Hostname redirect fails closed when DNS resolution is invalid"""
+    from acme2certifier.acme_srv.helpers.network import http01_redirect_target_validate
+
+    mock_resolve.return_value = (None, True, "NXDOMAIN")
+    _h, _i, err = http01_redirect_target_validate(
+        logger, "https://missing.example.com/tok"
+    )
+    assert "NXDOMAIN" in err
+
+
+@patch("acme2certifier.acme_srv.helpers.network.requests.get")
+def test_642_url_get_http01_restrict_redirects_proxy_and_query(
+    mock_get: MagicMock, logger: logging.Logger
+) -> None:
+    """url_get(http01_restrict_redirects) uses hostname path; query kept on pins"""
+    from acme2certifier.acme_srv.helpers.network import url_get, url_get_dns_pinned
+
+    resp = Mock()
+    resp.status_code = 200
+    resp.reason = "OK"
+    resp.is_redirect = False
+    resp.text = "ok"
+    mock_get.return_value = resp
+
+    body, code, err = url_get(
+        logger,
+        "http://example.com/.well-known/acme-challenge/t",
+        proxy_server="http://proxy.example:8080",
+        verify=False,
+        http01_restrict_redirects=True,
+        max_redirects=2,
+    )
+    assert body == "ok"
+    assert code == 200
+    assert err is None
+    assert mock_get.call_args.kwargs["proxies"] == {
+        "http": "http://proxy.example:8080",
+        "https": "http://proxy.example:8080",
+    }
+    assert mock_get.call_args.kwargs["allow_redirects"] is False
+
+    mock_get.reset_mock()
+    url_get_dns_pinned(
+        logger,
+        host="example.com",
+        path="/tok?x=1",
+        pinned_ips=["8.8.8.8"],
+        verify=False,
+    )
+    assert mock_get.call_args.args[0] == "http://8.8.8.8/tok?x=1"
+
+
+@patch("acme2certifier.acme_srv.helpers.network.requests.get")
+def test_643_url_get_dns_pinned_missing_location_and_hostname(
+    mock_get: MagicMock, logger: logging.Logger
+) -> None:
+    """Redirect without Location and URL without host both fail"""
+    from acme2certifier.acme_srv.helpers.network import (
+        url_get_dns_pinned,
+        _url_get_http01,
+    )
+
+    redirect = Mock()
+    redirect.status_code = 302
+    redirect.reason = "Found"
+    redirect.is_redirect = True
+    redirect.headers = {}
+    redirect.text = ""
+    mock_get.return_value = redirect
+    body, code, err = url_get_dns_pinned(
+        logger, host="example.com", path="/tok", pinned_ips=["8.8.8.8"], verify=False
+    )
+    assert body is None
+    assert code == 500
+    assert "Location" in err
+
+    body, code, err = _url_get_http01(logger, "http:///tok", pinned_ips=["8.8.8.8"])
+    assert body is None
+    assert code == 500
+    assert "hostname" in err
+
+
+@patch("acme2certifier.acme_srv.helpers.network._http01_single_get")
+def test_644_http01_fetch_via_hostname_custom_dns_and_failure(
+    mock_single: MagicMock, logger: logging.Logger
+) -> None:
+    """Custom DNS flag is set around hostname fetch; connection failure returns error"""
+    from acme2certifier.acme_srv.helpers.network import (
+        _http01_fetch_via_hostname,
+        _dns_connect_tls,
+    )
+
+    mock_single.return_value = (None, 500, "down")
+    _dns_connect_tls.use_custom_dns = False
+    body_req, status, err = _http01_fetch_via_hostname(
+        logger,
+        "http://example.com/tok",
+        {"Host": "example.com"},
+        dns_server_list=["1.1.1.1"],
+        proxy_server=None,
+        proxies={},
+        verify=False,
+        timeout=5,
+    )
+    assert body_req is None
+    assert status == 500
+    assert err == "down"
+    assert _dns_connect_tls.use_custom_dns is False
+
+    ok = Mock()
+    ok.reason = "OK"
+    mock_single.return_value = (ok, 200, None)
+    body_req, status, err = _http01_fetch_via_hostname(
+        logger,
+        "http://example.com/tok",
+        {"Host": "example.com"},
+        dns_server_list=["1.1.1.1"],
+        proxy_server=None,
+        proxies={},
+        verify=False,
+        timeout=5,
+    )
+    assert body_req is ok
+    assert status == 200
+    assert err is None
+    assert _dns_connect_tls.use_custom_dns is False
 
 
 def test_699_proxy_url_for_log_userinfo_without_scheme() -> None:

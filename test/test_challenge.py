@@ -3482,6 +3482,50 @@ class TestChallenge(unittest.TestCase):
             any("http01_block_private_ips=True" in line for line in lcm.output)
         )
 
+    def test_167b_load_http01_redirect_settings(self):
+        """http01_max_redirects and http01_redirect_allow_ip load from config"""
+        from configparser import ConfigParser
+
+        config_dic = ConfigParser()
+        config_dic.add_section("Challenge")
+        self.challenge._load_address_check_configuration(config_dic)
+        self.assertEqual(5, self.challenge.config.http01_max_redirects)
+        self.assertFalse(self.challenge.config.http01_redirect_allow_ip)
+
+        config_dic.set("Challenge", "http01_max_redirects", "2")
+        config_dic.set("Challenge", "http01_redirect_allow_ip", "True")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.challenge._load_address_check_configuration(config_dic)
+        self.assertEqual(2, self.challenge.config.http01_max_redirects)
+        self.assertTrue(self.challenge.config.http01_redirect_allow_ip)
+        self.assertTrue(
+            any("http01_redirect_allow_ip=True" in line for line in lcm.output)
+        )
+
+        config_dic.set("Challenge", "http01_max_redirects", "-3")
+        self.challenge._load_address_check_configuration(config_dic)
+        self.assertEqual(0, self.challenge.config.http01_max_redirects)
+
+        config_dic.set("Challenge", "http01_max_redirects", "not-an-int")
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.challenge._load_address_check_configuration(config_dic)
+        self.assertTrue(
+            any("Failed to parse http01_max_redirects" in line for line in lcm.output)
+        )
+
+    def test_167c_get_challenge_profile_settings_non_dict_challenge(self):
+        """Non-dict challenge profile section is treated as empty"""
+        profile_dic = {"test_kid": {"challenge": ["not", "a", "dict"]}}
+        result = self.challenge._get_challenge_profile_settings(profile_dic, "test_kid")
+        self.assertEqual(
+            result,
+            {
+                "challenge_validation_disable": False,
+                "forward_address_check": False,
+                "reverse_address_check": False,
+            },
+        )
+
     @patch("acme2certifier.acme_srv.challenge.ThreadWithReturnValue")
     def test_168_start_async_validation_timeout_still_processing(
         self, mock_thread_class
