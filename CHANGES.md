@@ -30,6 +30,19 @@ and pick the appropriate release branch.
 - EAB profile apply paths lowercase top-level section titles (`Order` / `Cahandler` / `Challenge` / … → `order` / `cahandler` / `challenge`), so section names are case-insensitive regardless of EAB storage backend
 - Docker Django: migration files come from the image (aligned with DEB/RPM); `volume/migrations` is deprecated and ignored. See [Upgrading — Docker (Django)](docs/upgrading.md#docker-django).
 - [AWS Private CA handler](docs/aws_pca.md): development and CI against LocalStack ACM PCA (Ultimate) are acknowledged as supported by the [LocalStack for Open Source](https://www.localstack.cloud/localstack-open-source) program.
+- `b64decode_pad` returns an error string instead of raising `UnicodeDecodeError` when decoded base64 is not valid UTF-8 ([#411](https://github.com/grindsa/acme2certifier/issues/411))
+- DigiCert CA handler: pass CSR DNS SANs as `certificate.dns_names` on order create (DigiCert Services API does not extract SANs from the CSR) ([#412](https://github.com/grindsa/acme2certifier/issues/412))
+- `validate_fqdn` no longer uses a catastrophic-backtracking regex; FQDNs (including wildcards) are checked label-by-label to avoid ReDoS
+- Uncaught exceptions from CA handler `enroll()` are treated as enrollment failures (error persisted, order invalidated) instead of leaving the request incomplete ([#414](https://github.com/grindsa/acme2certifier/issues/414))
+
+## Changes in 0.46.4
+
+**Bug Fixes and Improvements**:
+
+- `b64decode_pad` returns an error string instead of raising `UnicodeDecodeError` when decoded base64 is not valid UTF-8 ([#411](https://github.com/grindsa/acme2certifier/issues/411))
+- DigiCert CA handler: pass CSR DNS SANs as `certificate.dns_names` on order create (DigiCert Services API does not extract SANs from the CSR) ([#412](https://github.com/grindsa/acme2certifier/issues/412))
+- `validate_fqdn` no longer uses a catastrophic-backtracking regex; FQDNs (including wildcards) are checked label-by-label to avoid ReDoS
+- Uncaught exceptions from CA handler `enroll()` are treated as enrollment failures (error persisted, order invalidated) instead of leaving the request incomplete ([#414](https://github.com/grindsa/acme2certifier/issues/414))
 
 ## Changes in 0.46.3
 
