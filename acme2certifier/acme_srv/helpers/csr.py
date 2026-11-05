@@ -81,6 +81,20 @@ def csr_cn_get(logger: logging.Logger, csr_pem: str) -> str:
     return common_name
 
 
+def csr_subject_cn_only(subject: x509.Name) -> x509.Name:
+    """Return a Name with at most the first Common Name from CSR subject.
+
+    Extra CNs and non-CN RDNs (O/OU/…) are dropped so openssl/xca issuance
+    cannot copy unbound subject attributes into the certificate.
+    """
+    for attribute in subject:
+        if attribute.oid == x509.NameOID.COMMON_NAME:
+            return x509.Name(
+                [x509.NameAttribute(x509.NameOID.COMMON_NAME, attribute.value)]
+            )
+    return x509.Name([])
+
+
 def csr_dn_get(logger: logging.Logger, csr: str) -> str:
     """get subject from certificate request in openssl notation"""
     logger.debug("Helper.csr_dn_get()")

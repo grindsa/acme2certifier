@@ -36,6 +36,7 @@ from acme2certifier.acme_srv.helper import (
     convert_string_to_byte,
     convert_byte_to_string,
     csr_cn_get,
+    csr_subject_cn_only,
     san_general_names_acme_bound,
     config_enroll_config_log_load,
     config_number_load,
@@ -820,6 +821,26 @@ class CAhandler(object):
         self.logger.debug("CAhandler._certexpiry_date_set() ended")
         return cert_validity
 
+    def _cert_subject_from_request(
+        self, req: object, enforce_cn: Optional[str] = None
+    ) -> x509.Name:
+        """Build issued subject: first CSR CN only, or cn_enforce override."""
+        self.logger.debug("CAhandler._cert_subject_from_request()")
+        if self.cn_enforce and enforce_cn:
+            self.logger.info("Overwrite CN with %s", enforce_cn)
+            subject = x509.Name(
+                [x509.NameAttribute(NameOID.COMMON_NAME, enforce_cn)]
+            )
+        else:
+            csr_rdn_count = len(list(req.subject)) if req.subject else 0
+            subject = csr_subject_cn_only(req.subject)
+            if csr_rdn_count > len(list(subject)):
+                self.logger.warning(
+                    "Dropped non-CN subject RDNs from CSR for issued certificate"
+                )
+        self.logger.debug("CAhandler._cert_subject_from_request() ended")
+        return subject
+
     def _cert_signing_prep(self, ca_cert: object, req: object, subject: str) -> object:
         """enroll certificate"""
         # pylint: disable=R0914, R0915
@@ -961,13 +982,7 @@ class CAhandler(object):
                     req = x509.load_pem_x509_csr(
                         convert_string_to_byte(csr), default_backend()
                     )
-                    subject = req.subject
-
-                    if self.cn_enforce and enforce_cn:
-                        self.logger.info("Overwrite CN with %s", enforce_cn)
-                        subject = x509.Name(
-                            [x509.NameAttribute(NameOID.COMMON_NAME, enforce_cn)]
-                        )
+                    subject = self._cert_subject_from_request(req, enforce_cn)
 
                     builder = self._cert_signing_prep(ca_cert, req, subject)
                     builder = self._cert_extension_apply(builder, ca_cert, req)

@@ -49,6 +49,7 @@ from .helpers.certificates import (
 from .helpers.csr import (
     csr_load,
     csr_cn_get,
+    csr_subject_cn_only,
     csr_dn_get,
     csr_pubkey_get,
     csr_san_get,

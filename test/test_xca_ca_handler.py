@@ -1893,52 +1893,76 @@ class TestACMEHandler(unittest.TestCase):
             ["foo1", "foo2"], self.cahandler._cdp_list_generate(cdp_string)
         )
 
-    @patch("cryptography.x509.Name")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._subject_modify")
-    def test_168__cert_subject_generate(self, mock_submod, mock_name):
-        """_cert_subject_generate()"""
+    def test_168__cert_subject_generate(self, mock_submod):
+        """_cert_subject_generate() keeps first CN only from CSR subject"""
+        from cryptography.x509.oid import NameOID
+
         req = Mock()
-        req.subject = "subject"
+        req.subject = x509.Name(
+            [
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Evil Org"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "ok.example"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "second.example"),
+            ]
+        )
         request_name = "request_name"
         dn_dic = {}
+        subject = self.cahandler._cert_subject_generate(req, request_name, dn_dic)
         self.assertEqual(
-            "subject", self.cahandler._cert_subject_generate(req, request_name, dn_dic)
+            [attr.rfc4514_string() for attr in subject],
+            ["CN=ok.example"],
         )
         self.assertFalse(mock_submod.called)
-        self.assertFalse(mock_name.called)
 
-    @patch("cryptography.x509.Name")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._subject_modify")
-    def test_169__cert_subject_generate(self, mock_submod, mock_name):
-        """_cert_subject_generate()"""
+    def test_169__cert_subject_generate(self, mock_submod):
+        """_cert_subject_generate() rewrites CN when CSR subject is empty"""
         req = Mock()
-        req.subject = None
-        mock_name.return_value = "mock_name"
+        req.subject = x509.Name([])
         request_name = "request_name"
         dn_dic = {}
+        subject = self.cahandler._cert_subject_generate(req, request_name, dn_dic)
         self.assertEqual(
-            "mock_name",
-            self.cahandler._cert_subject_generate(req, request_name, dn_dic),
+            [attr.rfc4514_string() for attr in subject],
+            ["CN=request_name"],
         )
         self.assertFalse(mock_submod.called)
-        self.assertTrue(mock_name.called)
 
-    @patch("cryptography.x509.Name")
     @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._subject_modify")
-    def test_170__cert_subject_generate(self, mock_submod, mock_name):
-        """_cert_subject_generate()"""
+    def test_170__cert_subject_generate(self, mock_submod):
+        """_cert_subject_generate() applies template DN after CN rewrite"""
         req = Mock()
-        req.subject = None
-        mock_name.return_value = "mock_name"
+        req.subject = x509.Name([])
         mock_submod.return_value = "mock_submod"
         request_name = "request_name"
-        dn_dic = {"foo": "bar"}
+        dn_dic = {"organizationName": "acme corp"}
         self.assertEqual(
             "mock_submod",
             self.cahandler._cert_subject_generate(req, request_name, dn_dic),
         )
         self.assertTrue(mock_submod.called)
-        self.assertTrue(mock_name.called)
+        passed_subject = mock_submod.call_args[0][0]
+        self.assertEqual(
+            [attr.rfc4514_string() for attr in passed_subject],
+            ["CN=request_name"],
+        )
+
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._subject_modify")
+    def test_170b__cert_subject_generate_ou_only_rewrites_cn(self, mock_submod):
+        """H4: OU-only CSR subject does not keep OU; CN falls back to request_name"""
+        from cryptography.x509.oid import NameOID
+
+        req = Mock()
+        req.subject = x509.Name(
+            [x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "attacker")]
+        )
+        subject = self.cahandler._cert_subject_generate(req, "ok.example", {})
+        self.assertEqual(
+            [attr.rfc4514_string() for attr in subject],
+            ["CN=ok.example"],
+        )
+        self.assertFalse(mock_submod.called)
 
     @patch("acme2certifier.cahandlers.xca_ca_handler.ExtendedKeyUsage")
     @patch("acme2certifier.cahandlers.xca_ca_handler.AuthorityKeyIdentifier")

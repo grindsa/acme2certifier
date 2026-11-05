@@ -1331,6 +1331,44 @@ class TestACMEHandler(unittest.TestCase):
         result = {"foo": {"critical": False, "subject": True, "value": "bar"}}
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
+    def test_118b_cert_subject_from_request_drops_ou_and_extra_cn(self):
+        """H4 residual: openssl issued subject keeps first CN only"""
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+
+        req = Mock()
+        req.subject = x509.Name(
+            [
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Evil Org"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "ok.example"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "second.example"),
+            ]
+        )
+        subject = self.cahandler._cert_subject_from_request(req)
+        self.assertEqual(
+            [attr.rfc4514_string() for attr in subject],
+            ["CN=ok.example"],
+        )
+
+    def test_118c_cert_subject_from_request_cn_enforce(self):
+        """cn_enforce replaces subject with a single CN"""
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+
+        self.cahandler.cn_enforce = True
+        req = Mock()
+        req.subject = x509.Name(
+            [
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Evil Org"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "ok.example"),
+            ]
+        )
+        subject = self.cahandler._cert_subject_from_request(req, "enforced.example")
+        self.assertEqual(
+            [attr.rfc4514_string() for attr in subject],
+            ["CN=enforced.example"],
+        )
+
     @patch("acme2certifier.cahandlers.openssl_ca_handler.CAhandler._config_check")
     def test_119_enroll(self, mock_chk):
         """enroll test error returned from config_check"""
@@ -1830,7 +1868,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_store.called)
         self.assertTrue(mock_bpf.called)
         self.assertTrue(mock_b64e.called)
-        self.assertFalse(mock_name.called)
+        # H4: subject rebuilt via csr_subject_cn_only → x509.Name([]) for empty mock subject
+        self.assertTrue(mock_name.called)
         self.assertFalse(mock_nameattr.called)
 
     @patch("builtins.open", mock_open(read_data="cacert"), create=True)

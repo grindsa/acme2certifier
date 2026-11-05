@@ -16,6 +16,7 @@ from acme2certifier.acme_srv.helpers.csr import (
     csr_bound_names_get,
     csr_cn_get,
     csr_cn_lookup,
+    csr_subject_cn_only,
     csr_dn_get,
     csr_extensions_get,
     csr_pubkey_get,
@@ -588,3 +589,26 @@ def test_667_csr_unbound_san_types_empty_for_dns_only(logger: logging.Logger) ->
     """DNS-only CSR has no unbound SAN types"""
     csr = "MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDBvH7P73CwR7AF/WGeTfIDLlMWD6VZV3CTZBF0AwNMTFU/zbdAX8r63pzElX/5C5ZVsc36XHqdAJcioJlI33uE3RhOSvDyOcDgWlnPK9gj2soQ7enizGqd1u7hf6C3IwFtc4uGNOU3Z/tnTzVdYiCSKS+5lTZfMxn4FtEUN+w90NHBvC+AlTo3Gl0gqbYOZgg/UwWj60u7S2gBzSeb2/w62Z7bz+SknGZbeI4ySo30ET6oCSCAUN42jE+1dHI/Y+tGBtqP3h7W7OezKeLsJjD9r07U0+uMoVCY9oKTyT0gK8+gsde0tpt6QKa93HJGUPAP9ehrKCl335QcJESFw67/AgMBAAGgOTA3BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEAf4cdGpYHLqX+06BFF7+NqXLmKvc7n66vAfevLN75eu/pCXhhRSdpXvcYm+mAVEXJCPaG2kFGt6wfBvVWoVX/91d+OuAtiUHmhY95Oi7g3RF3ThCrvT2mR4zsNiKgC34jXbl9489iIiFRBQXkq2fLwN5JwBYutUENwkDIeApRRbmUzTDbar1xoBAQ3GjVtOAEjHc/3S1yyKkCpM6Qkg8uWOJAXw9INJqH6x55nMZrvTUuXkURc/mvhV+bp2vdKoigGvfa3VVfoAI0BZLQMohQ9QLKoNQsKxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A=="
     assert csr_unbound_san_types(logger, csr) == []
+
+
+def test_668_csr_subject_cn_only_drops_ou_and_extra_cn() -> None:
+    """H4 residual: issued subject keeps first CN only"""
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+
+    subject = x509.Name(
+        [
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Evil Org"),
+            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "Attackers"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "ok.example"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "second.example"),
+        ]
+    )
+    cn_only = csr_subject_cn_only(subject)
+    assert [attr.rfc4514_string() for attr in cn_only] == ["CN=ok.example"]
+    assert list(csr_subject_cn_only(x509.Name([]))) == []
+    assert list(
+        csr_subject_cn_only(
+            x509.Name([x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Evil")])
+        )
+    ) == []
