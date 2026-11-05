@@ -9,7 +9,7 @@ import secrets
 from string import digits, ascii_letters
 from typing import Dict, Tuple
 from jwcrypto import jwk, jws
-from .encoding import b64decode_pad, b64_encode
+from .encoding import B64_DECODE_ERROR, b64decode_pad, b64_encode
 from .validation import dkeys_lower
 
 
@@ -19,7 +19,7 @@ def decode_deserialize(logger: logging.Logger, string: str) -> Dict:
     # b64 decode
     string_decode = b64decode_pad(logger, string)
     # deserialize if b64 decoding was successful
-    if string_decode and string_decode != "ERR: b64 decoding error":
+    if string_decode and string_decode != B64_DECODE_ERROR:
         try:
             string_decode = json.loads(string_decode)
         except ValueError:

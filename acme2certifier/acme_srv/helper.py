@@ -8,6 +8,7 @@ to maintain compatibility with existing code.
 
 # Encoding and base64 operations
 from .helpers.encoding import (
+    B64_DECODE_ERROR,
     b64decode_pad,
     b64_decode,
     b64_encode,
