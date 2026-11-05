@@ -100,6 +100,8 @@ class ChallengeConfiguration:
     forward_address_check: bool = False
     reverse_address_check: bool = False
     http01_block_private_ips: bool = False
+    http01_max_redirects: int = 5
+    http01_redirect_allow_ip: bool = False
     source_address: Optional[str] = None
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
@@ -548,6 +550,10 @@ class Challenge:
                         "http01_block_private_ips": (
                             self.config.http01_block_private_ips
                         ),
+                        "http01_max_redirects": self.config.http01_max_redirects,
+                        "http01_redirect_allow_ip": (
+                            self.config.http01_redirect_allow_ip
+                        ),
                         "challenge_message_id": challenge_details.get(
                             "challenge_message_id"
                         ),
@@ -832,6 +838,30 @@ class Challenge:
             self.logger.info(
                 "HTTP-01 private/non-global IP blocking is enabled "
                 "(http01_block_private_ips=True)."
+            )
+        try:
+            self.config.http01_max_redirects = max(
+                0,
+                int(
+                    config_dic.get(
+                        "Challenge",
+                        "http01_max_redirects",
+                        fallback=self.config.http01_max_redirects,
+                    )
+                ),
+            )
+        except Exception as err_:
+            self.logger.warning(
+                "Failed to parse http01_max_redirects from configuration: %s",
+                err_,
+            )
+        self.config.http01_redirect_allow_ip = config_dic.getboolean(
+            "Challenge", "http01_redirect_allow_ip", fallback=False
+        )
+        if self.config.http01_redirect_allow_ip:
+            self.logger.info(
+                "HTTP-01 redirects to IP literals are allowed "
+                "(http01_redirect_allow_ip=True)."
             )
         self.logger.debug("Challenge._load_address_check_configuration() ended")
 

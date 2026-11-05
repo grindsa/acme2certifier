@@ -110,6 +110,7 @@ from .helpers.network import (
     url_get,
     normalize_resolved_ips,
     filter_http01_target_ips,
+    http01_redirect_target_validate,
     url_get_dns_pinned,
     txt_get,
     proxystring_convert,

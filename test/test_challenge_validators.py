@@ -581,6 +581,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
             pinned_ips=["8.8.8.8"],
             verify=False,
             timeout=10,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=False,
+            dns_server_list=None,
         )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
@@ -641,6 +645,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
             pinned_ips=["192.168.1.1"],
             verify=False,
             timeout=10,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=False,
+            dns_server_list=None,
         )
 
     @patch("acme2certifier.acme_srv.helper.ip_validate")
@@ -828,6 +836,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
             proxy_server="http://proxy.example.com:8080",
             verify=False,
             timeout=10,
+            http01_restrict_redirects=True,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=False,
         )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
@@ -905,6 +917,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
             pinned_ips=["10.0.0.5"],
             verify=False,
             timeout=10,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=False,
+            dns_server_list=None,
         )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
@@ -939,7 +955,34 @@ class TestHttpChallengeValidator(unittest.TestCase):
             pinned_ips=["8.8.8.8"],
             verify=False,
             timeout=10,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=True,
+            dns_server_list=None,
         )
+
+    @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
+    @patch("acme2certifier.acme_srv.helper.url_get_dns_pinned")
+    def test_153_perform_validation_invalid_max_redirects_falls_back(
+        self, mock_url_get_dns_pinned, mock_fqdn_resolve
+    ):
+        """Non-integer http01_max_redirects falls back to 5"""
+        mock_fqdn_resolve.return_value = (["8.8.8.8"], False, None)
+        mock_url_get_dns_pinned.return_value = ("test_token.test_thumb", 200, None)
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+            options={"http01_max_redirects": "not-an-int"},
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertTrue(result.success)
+        self.assertEqual(5, mock_url_get_dns_pinned.call_args.kwargs["max_redirects"])
 
 
 class TestDnsChallengeValidator(unittest.TestCase):
