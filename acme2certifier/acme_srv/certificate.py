@@ -23,6 +23,7 @@ from acme2certifier.acme_srv.helper import (
     csr_san_get,
     csr_bound_names_get,
     csr_extensions_get,
+    csr_unbound_san_types,
     san_list_to_bound_names,
     date_to_uts_utc,
     error_dic_get,
@@ -914,7 +915,15 @@ class Certificate(object):
         # do we need to check for tnauth
         tnauthlist_identifer_in = self._check_for_tnauth_identifiers(identifiers)
 
-        if self.config.tnauthlist_support and tnauthlist_identifer_in:
+        # Reject SAN GeneralNames that binding never sees (URI, otherName, …).
+        unbound_san_types = csr_unbound_san_types(self.logger, csr)
+        if unbound_san_types:
+            self.logger.warning(
+                "CSR contains SAN types not covered by ACME binding: %s",
+                unbound_san_types,
+            )
+            identifier_status = [False]
+        elif self.config.tnauthlist_support and tnauthlist_identifer_in:
             # get list of certextensions in base64 format
             try:
                 tnauthlist = csr_extensions_get(self.logger, csr)

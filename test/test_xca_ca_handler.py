@@ -2094,6 +2094,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_convert.side_effect = ["mock_convert", "subjectAltName"]
         mock_san.return_value = "mock_san"
         ext = Mock()
+        ext.value = x509.SubjectAlternativeName([x509.DNSName("ok.example")])
         csr_extensions_list = [ext, ext]
         template_dic = {}
         self.assertEqual(

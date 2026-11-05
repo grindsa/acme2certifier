@@ -15,6 +15,43 @@ from .encoding import (
     b64_encode,
 )
 
+# SAN GeneralName types covered by ACME identifier binding (dns / ip / email).
+_ACME_BOUND_SAN_TYPES = (x509.DNSName, x509.IPAddress, x509.RFC822Name)
+
+
+def san_general_names_acme_bound(
+    san_extension: x509.SubjectAlternativeName,
+) -> List[x509.GeneralName]:
+    """Return SAN GeneralNames that ACME identifier binding understands."""
+    return [
+        name for name in san_extension if isinstance(name, _ACME_BOUND_SAN_TYPES)
+    ]
+
+
+def csr_unbound_san_types(logger: logging.Logger, csr: str) -> List[str]:
+    """Class names of CSR SAN GeneralNames outside ACME DNS/IP/email binding."""
+    logger.debug("Helper.csr_unbound_san_types()")
+    unbound: List[str] = []
+    if not csr:
+        logger.debug("Helper.csr_unbound_san_types() ended with: %s", unbound)
+        return unbound
+
+    try:
+        csr_obj = csr_load(logger, csr)
+        ext = csr_obj.extensions.get_extension_for_oid(
+            x509.OID_SUBJECT_ALTERNATIVE_NAME
+        )
+        for name in ext.value:
+            if not isinstance(name, _ACME_BOUND_SAN_TYPES):
+                unbound.append(type(name).__name__)
+    except x509.ExtensionNotFound:
+        pass
+    except Exception as err:
+        logger.error("Error while checking unbound SAN types: %s", err)
+
+    logger.debug("Helper.csr_unbound_san_types() ended with: %s", unbound)
+    return unbound
+
 
 def csr_load(logger: logging.Logger, csr: str) -> x509.CertificateSigningRequest:
     """load certificate object from pem _Format"""
