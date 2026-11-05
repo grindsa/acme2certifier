@@ -648,6 +648,30 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.organization_id = "organization_id"
         self.assertEqual(("code", "content"), self.cahandler._order_send("csr", "cn"))
         self.assertFalse(mock_orgid.called)
+        data_dic = mock_post.call_args[0][1]
+        self.assertNotIn("dns_names", data_dic["certificate"])
+
+    @patch(
+        "acme2certifier.cahandlers.digicert_ca_handler.CAhandler._organiation_id_get"
+    )
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._api_post")
+    def test_035a_order_send_dns_names(self, mock_post, mock_orgid):
+        """test _order_send() posts DNS SANs as certificate.dns_names"""
+        mock_post.return_value = ("code", "content")
+        self.cahandler.organization_id = "organization_id"
+        self.assertEqual(
+            ("code", "content"),
+            self.cahandler._order_send(
+                "csr",
+                "cn",
+                ["DNS:foo.example", "DNS:bar.example", "IP:1.2.3.4", "EMAIL:a@b.c"],
+            ),
+        )
+        self.assertFalse(mock_orgid.called)
+        data_dic = mock_post.call_args[0][1]
+        self.assertEqual(
+            ["foo.example", "bar.example"], data_dic["certificate"]["dns_names"]
+        )
 
     @patch(
         "acme2certifier.cahandlers.digicert_ca_handler.CAhandler._organiation_id_get"
@@ -939,16 +963,24 @@ class TestACMEHandler(unittest.TestCase):
         "acme2certifier.cahandlers.digicert_ca_handler.CAhandler._order_response_parse"
     )
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._order_send")
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.csr_san_get")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.csr_cn_lookup")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._config_check")
     def test_054_enroll(
-        self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse
+        self,
+        mock_cfgchk,
+        mock_csrchk,
+        mock_cnget,
+        mock_sanget,
+        mock_ordersend,
+        mock_orderparse,
     ):
         """test enroll()"""
         mock_cfgchk.return_value = False
         mock_csrchk.return_value = False
         mock_cnget.return_value = "cn"
+        mock_sanget.return_value = ["DNS:foo.example"]
         mock_ordersend.return_value = ("code", "content")
         mock_orderparse.return_value = ("pem", "b64", "id")
         self.assertEqual(
@@ -958,23 +990,32 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cfgchk.called)
         self.assertTrue(mock_csrchk.called)
         self.assertTrue(mock_cnget.called)
-        self.assertTrue(mock_ordersend.called)
+        self.assertTrue(mock_sanget.called)
+        mock_ordersend.assert_called_with("csr", "cn", ["DNS:foo.example"])
         self.assertFalse(mock_orderparse.called)
 
     @patch(
         "acme2certifier.cahandlers.digicert_ca_handler.CAhandler._order_response_parse"
     )
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._order_send")
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.csr_san_get")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.csr_cn_lookup")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._config_check")
     def test_055_enroll(
-        self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse
+        self,
+        mock_cfgchk,
+        mock_csrchk,
+        mock_cnget,
+        mock_sanget,
+        mock_ordersend,
+        mock_orderparse,
     ):
         """test enroll()"""
         mock_cfgchk.return_value = False
         mock_csrchk.return_value = False
         mock_cnget.return_value = "cn"
+        mock_sanget.return_value = ["DNS:foo.example"]
         mock_ordersend.return_value = (
             "code",
             {"errors": [{"code": "code", "message": "content"}]},
@@ -992,30 +1033,42 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cfgchk.called)
         self.assertTrue(mock_csrchk.called)
         self.assertTrue(mock_cnget.called)
-        self.assertTrue(mock_ordersend.called)
+        self.assertTrue(mock_sanget.called)
+        mock_ordersend.assert_called_with("csr", "cn", ["DNS:foo.example"])
         self.assertFalse(mock_orderparse.called)
 
     @patch(
         "acme2certifier.cahandlers.digicert_ca_handler.CAhandler._order_response_parse"
     )
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._order_send")
+    @patch("acme2certifier.cahandlers.digicert_ca_handler.csr_san_get")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.csr_cn_lookup")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._csr_check")
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._config_check")
     def test_056_enroll(
-        self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse
+        self,
+        mock_cfgchk,
+        mock_csrchk,
+        mock_cnget,
+        mock_sanget,
+        mock_ordersend,
+        mock_orderparse,
     ):
         """test enroll()"""
         mock_cfgchk.return_value = False
         mock_csrchk.return_value = False
         mock_cnget.return_value = "cn"
+        mock_sanget.return_value = ["DNS:foo.example", "DNS:bar.example"]
         mock_ordersend.return_value = (200, "content")
         mock_orderparse.return_value = ("pem", "b64", "id")
         self.assertEqual((False, "pem", "b64", "id"), self.cahandler.enroll("csr"))
         self.assertTrue(mock_cfgchk.called)
         self.assertTrue(mock_csrchk.called)
         self.assertTrue(mock_cnget.called)
-        self.assertTrue(mock_ordersend.called)
+        self.assertTrue(mock_sanget.called)
+        mock_ordersend.assert_called_with(
+            "csr", "cn", ["DNS:foo.example", "DNS:bar.example"]
+        )
         self.assertTrue(mock_orderparse.called)
 
     @patch("acme2certifier.cahandlers.digicert_ca_handler.CAhandler._config_check")

@@ -42,6 +42,7 @@ from acme2certifier.acme_srv.helper import (
     convert_string_to_byte,
     csr_cn_get,
     csr_san_get,
+    san_general_names_acme_bound,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     enrollment_config_log,
@@ -1218,21 +1219,27 @@ class CAhandler:
         else:
             extension_list = self._extension_list_default(ca_cert, cert)
 
-        # add subjectAltName(s)
+        # add subjectAltName(s) (DNS/IP/email only; drop URI/otherName/…)
         if "subjectAltName" in csr_extensions_dic:
             # pylint: disable=C2801
             self.logger.debug(
                 "CAhandler._extension_list_generate(): adding subAltNames: %s",
                 csr_extensions_dic["subjectAltName"].__str__(),
             )
-            extension_list.append(
-                {
-                    "name": SubjectAlternativeName(
-                        csr_extensions_dic["subjectAltName"].value
-                    ),
-                    "critical": False,
-                }
+            bound_sans = san_general_names_acme_bound(
+                csr_extensions_dic["subjectAltName"].value
             )
+            if bound_sans:
+                extension_list.append(
+                    {
+                        "name": SubjectAlternativeName(bound_sans),
+                        "critical": False,
+                    }
+                )
+            elif list(csr_extensions_dic["subjectAltName"].value):
+                self.logger.warning(
+                    "Dropped unbound SAN GeneralNames from CSR; none remain"
+                )
 
         self.logger.debug("CAhandler._extension_list_generate() ended")
         return extension_list

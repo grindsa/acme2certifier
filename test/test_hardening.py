@@ -47,6 +47,7 @@ def _build_csr_b64(
     cn: Optional[str] = None,
     dns_sans: Optional[Iterable[str]] = None,
     email_sans: Optional[Iterable[str]] = None,
+    extra_sans: Optional[Iterable[x509.GeneralName]] = None,
 ) -> str:
     """Build a base64 DER CSR for binding regression tests."""
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -61,6 +62,8 @@ def _build_csr_b64(
         san_entries.append(x509.DNSName(dns))
     for email in email_sans or ():
         san_entries.append(x509.RFC822Name(email))
+    for extra in extra_sans or ():
+        san_entries.append(extra)
     if san_entries:
         builder = builder.add_extension(
             x509.SubjectAlternativeName(san_entries),
@@ -780,6 +783,120 @@ class TestCsrBinding:
                 "identifiers": identifiers,
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
+
+    def test_035_unbound_uri_san_rejected(self, certificate) -> None:
+        """H4: URI SAN ignored by binding must still fail finalize."""
+        csr = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_sans=[x509.UniformResourceIdentifier("spiffe://corp/admin")],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_036_unbound_othername_upn_rejected(self, certificate) -> None:
+        """H4: otherName (UPN) ignored by binding must still fail finalize."""
+        # UTF8String encoding of administrator@corp.local
+        upn_value = b"\x0c\x18administrator@corp.local"
+        csr = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_sans=[
+                x509.OtherName(
+                    x509.ObjectIdentifier("1.3.6.1.4.1.311.20.2.3"),
+                    upn_value,
+                )
+            ],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_037_legacy_non_strict_still_rejects_unbound_uri(
+        self, certificate
+    ) -> None:
+        """Unbound SAN reject applies even when csr_binding_strict is False."""
+        certificate.config.csr_binding_strict = False
+        csr = _build_csr_b64(
+            dns_sans=["ok.example"],
+            extra_sans=[x509.UniformResourceIdentifier("spiffe://corp/admin")],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_035_unbound_uri_othername_san_rejected(self, certificate) -> None:
+        """H4: URI/otherName SANs invisible to binding must fail finalize."""
+        from cryptography.x509.oid import ObjectIdentifier
+
+        upn = "administrator@corp.local"
+        upn_der = bytes([0x0C, len(upn)]) + upn.encode()
+        csr = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_sans=[
+                x509.UniformResourceIdentifier("spiffe://corp/admin"),
+                x509.OtherName(
+                    ObjectIdentifier("1.3.6.1.4.1.311.20.2.3"),
+                    upn_der,
+                ),
+            ],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            # Without unbound-SAN reject, bound names would equal the order.
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_036_legacy_non_strict_still_rejects_unbound_san(
+        self, certificate
+    ) -> None:
+        """Unbound SAN types are rejected even when csr_binding_strict is False."""
+        certificate.config.csr_binding_strict = False
+        csr = _build_csr_b64(
+            dns_sans=["ok.example"],
+            extra_sans=[
+                x509.UniformResourceIdentifier("spiffe://corp/admin"),
+            ],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
 
     def test_035_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
         """email_identifier_rewrite: dns:user@host order matches CSR DNS+EMAIL SANs."""

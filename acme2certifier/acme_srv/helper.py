@@ -8,6 +8,7 @@ to maintain compatibility with existing code.
 
 # Encoding and base64 operations
 from .helpers.encoding import (
+    B64_DECODE_ERROR,
     b64decode_pad,
     b64_decode,
     b64_encode,
@@ -56,6 +57,8 @@ from .helpers.csr import (
     csr_extensions_get,
     csr_subject_get,
     csr_cn_lookup,
+    csr_unbound_san_types,
+    san_general_names_acme_bound,
     san_list_to_bound_names,
 )
 

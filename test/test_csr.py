@@ -22,6 +22,8 @@ from acme2certifier.acme_srv.helpers.csr import (
     csr_san_byte_get,
     csr_san_get,
     csr_subject_get,
+    csr_unbound_san_types,
+    san_general_names_acme_bound,
 )
 
 pytestmark = pytest.mark.usefixtures("clear_config_cache", "_silence_logging")
@@ -513,3 +515,76 @@ def test_664_csr_bound_names_get_malformed_san(
             result = csr_bound_names_get(logger, "dummy-csr")
     assert set() == result
     assert any(("Error while splitting SAN malformed" in msg for msg in lcm.output))
+
+
+def test_665_san_general_names_acme_bound_filters_uri_and_othername() -> None:
+    """san_general_names_acme_bound keeps DNS/IP/email only"""
+    import ipaddress
+
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID, ObjectIdentifier
+
+    san = x509.SubjectAlternativeName(
+        [
+            x509.DNSName("ok.example"),
+            x509.IPAddress(ipaddress.ip_address("192.0.2.1")),
+            x509.RFC822Name("user@example.com"),
+            x509.UniformResourceIdentifier("spiffe://corp/admin"),
+            x509.OtherName(
+                ObjectIdentifier("1.3.6.1.4.1.311.20.2.3"),
+                b"\x0c\x18administrator@corp.local",
+            ),
+            x509.DirectoryName(
+                x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "forged")])
+            ),
+        ]
+    )
+    bound = san_general_names_acme_bound(san)
+    assert [type(n).__name__ for n in bound] == ["DNSName", "IPAddress", "RFC822Name"]
+    assert bound[0].value == "ok.example"
+
+
+def test_666_csr_unbound_san_types_detects_uri_and_othername(
+    logger: logging.Logger,
+) -> None:
+    """csr_unbound_san_types reports URI/otherName beside a DNS SAN (H4)"""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID, ObjectIdentifier
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    csr_obj = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(
+            x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "ok.example")])
+        )
+        .add_extension(
+            x509.SubjectAlternativeName(
+                [
+                    x509.DNSName("ok.example"),
+                    x509.UniformResourceIdentifier("spiffe://corp/admin"),
+                    x509.OtherName(
+                        ObjectIdentifier("1.3.6.1.4.1.311.20.2.3"),
+                        b"\x0c\x18administrator@corp.local",
+                    ),
+                ]
+            ),
+            critical=False,
+        )
+        .sign(key, hashes.SHA256())
+    )
+    csr = base64.b64encode(csr_obj.public_bytes(serialization.Encoding.DER)).decode()
+    unbound = csr_unbound_san_types(logger, csr)
+    assert "UniformResourceIdentifier" in unbound
+    assert "OtherName" in unbound
+    # Binding still only sees DNS — the pre-fix gap H4 described.
+    assert {("dns", "ok.example")} == csr_bound_names_get(logger, csr)
+    assert csr_unbound_san_types(logger, "") == []
+    assert csr_unbound_san_types(logger, None) == []
+
+
+def test_667_csr_unbound_san_types_empty_for_dns_only(logger: logging.Logger) -> None:
+    """DNS-only CSR has no unbound SAN types"""
+    csr = "MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDBvH7P73CwR7AF/WGeTfIDLlMWD6VZV3CTZBF0AwNMTFU/zbdAX8r63pzElX/5C5ZVsc36XHqdAJcioJlI33uE3RhOSvDyOcDgWlnPK9gj2soQ7enizGqd1u7hf6C3IwFtc4uGNOU3Z/tnTzVdYiCSKS+5lTZfMxn4FtEUN+w90NHBvC+AlTo3Gl0gqbYOZgg/UwWj60u7S2gBzSeb2/w62Z7bz+SknGZbeI4ySo30ET6oCSCAUN42jE+1dHI/Y+tGBtqP3h7W7OezKeLsJjD9r07U0+uMoVCY9oKTyT0gK8+gsde0tpt6QKa93HJGUPAP9ehrKCl335QcJESFw67/AgMBAAGgOTA3BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEAf4cdGpYHLqX+06BFF7+NqXLmKvc7n66vAfevLN75eu/pCXhhRSdpXvcYm+mAVEXJCPaG2kFGt6wfBvVWoVX/91d+OuAtiUHmhY95Oi7g3RF3ThCrvT2mR4zsNiKgC34jXbl9489iIiFRBQXkq2fLwN5JwBYutUENwkDIeApRRbmUzTDbar1xoBAQ3GjVtOAEjHc/3S1yyKkCpM6Qkg8uWOJAXw9INJqH6x55nMZrvTUuXkURc/mvhV+bp2vdKoigGvfa3VVfoAI0BZLQMohQ9QLKoNQsKxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A=="
+    assert csr_unbound_san_types(logger, csr) == []

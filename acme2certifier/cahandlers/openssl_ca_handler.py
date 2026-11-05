@@ -36,6 +36,7 @@ from acme2certifier.acme_srv.helper import (
     convert_string_to_byte,
     convert_byte_to_string,
     csr_cn_get,
+    san_general_names_acme_bound,
     config_enroll_config_log_load,
     config_number_load,
     config_option_load,
@@ -900,13 +901,22 @@ class CAhandler(object):
         else:
             extension_list = self._cert_extension_default(ca_cert, req)
 
-        # add subject alternative names
+        # add subject alternative names (DNS/IP/email only; drop URI/otherName/…)
         if req:
             for ext in req.extensions:
                 if ext.oid._name == "subjectAltName":  # pylint: disable=W0212
-                    extension_list.append(
-                        {"name": SubjectAlternativeName(ext.value), "critical": False}
-                    )
+                    bound_sans = san_general_names_acme_bound(ext.value)
+                    if bound_sans:
+                        extension_list.append(
+                            {
+                                "name": SubjectAlternativeName(bound_sans),
+                                "critical": False,
+                            }
+                        )
+                    elif list(ext.value):
+                        self.logger.warning(
+                            "Dropped unbound SAN GeneralNames from CSR; none remain"
+                        )
 
         for extension in extension_list:
             # add extensions to csr

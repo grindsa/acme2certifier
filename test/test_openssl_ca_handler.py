@@ -1750,6 +1750,8 @@ class TestACMEHandler(unittest.TestCase):
     )
     def test_142__cert_extension_apply(self, mock_cel, mock_cep, mock_ced, mock_san):
         """test _cert_extension_apply()"""
+        from cryptography import x509
+
         mock_cel.return_value = {"foo": "bar"}
         mock_cep.return_value = [{"name": "mock_cep", "critical": False}]
         mock_ced.return_value = [{"name": "mock_ced", "critical": False}]
@@ -1757,6 +1759,7 @@ class TestACMEHandler(unittest.TestCase):
         req = Mock()
         ext1 = Mock()
         ext1.oid._name = "subjectAltName"
+        ext1.value = x509.SubjectAlternativeName([x509.DNSName("ok.example")])
         ext2 = Mock()
         ext2.oid._name = "mock_ext"
         req.extensions = [ext1, ext2]

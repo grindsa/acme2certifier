@@ -3,6 +3,7 @@
 
 # pylint: disable=r0913
 from threading import Thread
+from typing import Any, Optional
 
 from acme2certifier.acme_srv.helpers.otel import context_attach, context_capture
 
@@ -16,14 +17,20 @@ class ThreadWithReturnValue(Thread):
         Thread.__init__(self, group, target, name, args, kwargs, daemon=daemon)
 
         self._return = None
+        self._exception: Optional[Exception] = None
         # Propagate OTEL context so child spans nest under the HTTP root span.
         self._otel_context = context_capture()
 
     def run(self):
         with context_attach(self._otel_context):
             if self._target is not None:
-                self._return = self._target(*self._args, **self._kwargs)
+                try:
+                    self._return = self._target(*self._args, **self._kwargs)
+                except Exception as err:
+                    self._exception = err
 
-    def join(self, timeout: int = None):
+    def join(self, timeout: int = None) -> Any:
         Thread.join(self, timeout=timeout)
+        if self._exception is not None:
+            raise self._exception
         return self._return
