@@ -17,9 +17,18 @@ def main() -> None:
             "order__status_id", 4, ("name", "poll_identifier", "csr", "order__name")
         )
         for cert in cert_list:
+            poll_identifier = cert.get("poll_identifier")
+            if not poll_identifier:
+                logger.warning(
+                    "Skipping certificate %s (order=%s): missing poll_identifier; "
+                    "not eligible for CA polling",
+                    cert.get("name"),
+                    cert.get("order__name"),
+                )
+                continue
             certificate.poll(
                 cert["name"],
-                cert["poll_identifier"],
+                poll_identifier,
                 cert["csr"],
                 cert["order__name"],
             )

@@ -4083,6 +4083,71 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
+    def test_process_certificate_enrollment_enroll_exception(self):
+        """enroll() exceptions become an enrollment error tuple (no cert/poll id)."""
+        handler_factory = MagicMock()
+        handler_factory.name = "testhandler"
+        handler_factory.section = None
+        handler_factory.return_value.__enter__.return_value.enroll.side_effect = (
+            RuntimeError("ca boom")
+        )
+        handler_factory.return_value.__exit__.return_value = False
+        self.cert.config.cert_reusage_timeframe = 0
+        with (
+            patch.object(self.cert, "_resolve_cahandler", return_value=handler_factory),
+            patch.object(self.cert, "_persist_order_cahandler"),
+            self.assertLogs(self.cert.logger, level="ERROR") as log,
+        ):
+            result = self.cert._process_certificate_enrollment("csr", "order")
+        self.assertEqual(result, ("ca boom", None, None, None, False))
+        self.assertIn("enroll() raised", log.output[0])
+
+    def test_process_enrollment_unexpected_exception_invalidates_order(self):
+        """Unexpected enrollment exceptions go through _handle_enrollment_error."""
+        with (
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
+            patch.object(
+                self.cert,
+                "_process_certificate_enrollment",
+                side_effect=RuntimeError("unexpected"),
+            ),
+            patch.object(
+                self.cert,
+                "_handle_enrollment_error",
+                return_value=(None, "serverinternal", "enrollment failed"),
+            ) as mock_handle,
+            self.assertLogs(self.cert.logger, level="ERROR") as log,
+        ):
+            result = self.cert._process_enrollment_and_store_certificate(
+                "cert_name", "csr", "order_name"
+            )
+        self.assertEqual(result, (None, "serverinternal", "enrollment failed"))
+        mock_handle.assert_called_once_with(
+            "unexpected", None, "order_name", "cert_name"
+        )
+        self.assertIn("Unexpected error during enrollment", log.output[0])
+
+    def test_handle_enrollment_thread_execution_records_failure(self):
+        """Thread setup failures also persist error / invalidate order."""
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.ThreadWithReturnValue",
+                side_effect=Exception("Thread error"),
+            ),
+            patch.object(
+                self.cert,
+                "_handle_enrollment_error",
+                return_value=(None, "serverinternal", "detail"),
+            ) as mock_handle,
+        ):
+            result = self.cert._handle_enrollment_thread_execution(
+                "cert_name", "csr", "order"
+            )
+        self.assertEqual(result[0], "serverinternal")
+        mock_handle.assert_called_once_with(
+            "Thread error", None, "order", "cert_name"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

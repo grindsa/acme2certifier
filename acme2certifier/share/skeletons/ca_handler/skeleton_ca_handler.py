@@ -42,7 +42,15 @@ class CAhandler(object):
         self.logger.debug("CAhandler._stub_func() ended")
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
-        """enroll certificate"""
+        """enroll certificate
+
+        Return exactly one outcome:
+          - issued:  error=None, cert_bundle/cert_raw set, poll_identifier usually None
+          - pending: error=None, no cert, poll_identifier REQUIRED (for ca_handler.poll)
+          - failed:  error=set, no cert, poll_identifier optional/None
+
+        Signal failures via ``error``; do not raise for expected enrollment errors.
+        """
         self.logger.debug("CAhandler.enroll()")
 
         cert_bundle = None
