@@ -1124,6 +1124,46 @@ class TestEabProfileDenylist:
         assert cahandler.acme_keyfile == ("/var/www/acme2certifier/volume/acme/ok.json")
         assert mock_warn.call_count >= 3
 
+    def test_046b_bool_entry_skips_denied_attr(self) -> None:
+        """JSON bool profile values must honor eab_profile_attr_denied()."""
+        from acme2certifier.acme_srv.helpers.eab import _eab_profile_entry_check
+
+        class _Handler:
+            ca_bundle = True
+            verify = True
+            ssl_verify = True
+            eab_profiling = True
+            allow_shortname_from_fqdn = False
+
+        cahandler = _Handler()
+        logger = logging.getLogger("test_hardening_eab_deny_bool")
+        eab_handler = MagicMock()
+        with patch.object(logger, "warning") as mock_warn:
+            for key in ("ca_bundle", "verify", "ssl_verify", "eab_profiling"):
+                assert (
+                    _eab_profile_entry_check(
+                        logger, cahandler, eab_handler, "csr", key, False
+                    )
+                    is None
+                )
+            assert (
+                _eab_profile_entry_check(
+                    logger,
+                    cahandler,
+                    eab_handler,
+                    "csr",
+                    "allow_shortname_from_fqdn",
+                    True,
+                )
+                is None
+            )
+        assert cahandler.ca_bundle is True
+        assert cahandler.verify is True
+        assert cahandler.ssl_verify is True
+        assert cahandler.eab_profiling is True
+        assert cahandler.allow_shortname_from_fqdn is True
+        assert mock_warn.call_count == 4
+
     def test_047_list_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
 
