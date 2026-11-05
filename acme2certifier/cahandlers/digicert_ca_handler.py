@@ -2,7 +2,7 @@
 """CA handler using Digicert CertCentralAPI"""
 
 from __future__ import print_function
-from typing import Tuple, Dict
+from typing import Dict, List, Optional, Tuple
 
 # pylint: disable=e0401
 from acme2certifier.acme_srv.helper import (
@@ -14,6 +14,7 @@ from acme2certifier.acme_srv.helper import (
     config_headerinfo_load,
     config_profile_load,
     csr_cn_lookup,
+    csr_san_get,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     enrollment_config_log,
@@ -190,7 +191,27 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_load() ended")
 
-    def _order_send(self, csr: str, csr_cn) -> Tuple[str, str]:
+    def _dns_names_from_san_list(
+        self, csr_san_list: Optional[List[str]]
+    ) -> List[str]:
+        """Extract unique DNS SANs for DigiCert dns_names (IP/EMAIL ignored)."""
+        dns_names: List[str] = []
+        for san in csr_san_list or []:
+            try:
+                san_type, san_value = san.split(":", 1)
+            except ValueError as err:
+                self.logger.error("Error while splitting SAN %s: %s", san, err)
+                continue
+            if san_type == "DNS" and san_value and san_value not in dns_names:
+                dns_names.append(san_value)
+        return dns_names
+
+    def _order_send(
+        self,
+        csr: str,
+        csr_cn,
+        csr_san_list: Optional[List[str]] = None,
+    ) -> Tuple[str, str]:
         """place certificate order"""
         self.logger.debug("CAhandler._order_send()")
         order_url = f"{self.api_url}order/certificate/{self.cert_type}"
@@ -211,27 +232,31 @@ class CAhandler(object):
         ):
             self.organization_id = self._organiation_id_get()
 
-        if self.organization_id:
-            data_dic = {
-                "certificate": {
-                    "common_name": csr_cn,
-                    "csr": csr,
-                    "signature_hash": self.signature_hash,
-                    "server_platform": {"id": 34},
-                },
-                "organization": {
-                    "id": self.organization_id,
-                },
-                "order_validity": {"years": self.order_validity},
-            }
-            # enroll certificate
-            code, content = self._api_post(order_url, data_dic)
-        else:
+        if not self.organization_id:
             self.logger.error(
                 "%s: organisation_id is missing", CONFIGURATION_ERROR_DETAIL
             )
-            code = 500
-            content = "organisation_id is missing"
+            self.logger.debug("CAhandler._order_send() ended with code: %s", 500)
+            return 500, "organisation_id is missing"
+
+        data_dic = {
+            "certificate": {
+                "common_name": csr_cn,
+                "csr": csr,
+                "signature_hash": self.signature_hash,
+                "server_platform": {"id": 34},
+            },
+            "organization": {
+                "id": self.organization_id,
+            },
+            "order_validity": {"years": self.order_validity},
+        }
+        # DigiCert Services API does not extract SANs from the CSR;
+        # DNS names must be supplied explicitly.
+        dns_names = self._dns_names_from_san_list(csr_san_list)
+        if dns_names:
+            data_dic["certificate"]["dns_names"] = dns_names
+        code, content = self._api_post(order_url, data_dic)
 
         self.logger.debug("CAhandler._order_send() ended with code: %s", code)
         return code, content
@@ -326,7 +351,8 @@ class CAhandler(object):
 
             if not error:
                 csr_cn = csr_cn_lookup(self.logger, csr)
-                code, content = self._order_send(csr, csr_cn)
+                csr_san_list = csr_san_get(self.logger, csr)
+                code, content = self._order_send(csr, csr_cn, csr_san_list)
 
                 if code in (200, 201):
                     # successful

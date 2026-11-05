@@ -11,6 +11,7 @@ and pick the appropriate release branch.
 **Bug Fixes and Improvements**:
 
 - `b64decode_pad` returns an error string instead of raising `UnicodeDecodeError` when decoded base64 is not valid UTF-8 ([#411](https://github.com/grindsa/acme2certifier/issues/411))
+- DigiCert CA handler: pass CSR DNS SANs as `certificate.dns_names` on order create (DigiCert Services API does not extract SANs from the CSR) ([#412](https://github.com/grindsa/acme2certifier/issues/412))
 - `validate_fqdn` no longer uses a catastrophic-backtracking regex; FQDNs (including wildcards) are checked label-by-label to avoid ReDoS
 - Uncaught exceptions from CA handler `enroll()` are treated as enrollment failures (error persisted, order invalidated) instead of leaving the request incomplete ([#414](https://github.com/grindsa/acme2certifier/issues/414))
 
