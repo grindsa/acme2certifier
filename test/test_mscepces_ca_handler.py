@@ -380,6 +380,38 @@ class TestMscepcesCaHandler(unittest.TestCase):
         error, _, _, _ = self.cahandler.enroll(TEST_CSR_B64)
         self.assertIn("HTTPS", error)
 
+    @patch(
+        "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_cleanup_temporary_ccache"
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_bind_gssapi_creds",
+        return_value=(None, None),
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._kerberos_prepare_gssapi_backend",
+        return_value=None,
+    )
+    @patch(
+        "acme2certifier.cahandlers.mscepces_ca_handler.eab_profile_header_info_check"
+    )
+    def test_019b_enroll_rejects_http_ces_url_after_eab_profile(
+        self, mock_eab, _mock_prepare, _mock_bind, mock_cleanup
+    ):
+        """EAB profile ces_url override must not bypass HTTPS enrollment check"""
+        self._set_enroll_ready()
+
+        def _apply_http_ces(_logger, cahandler, _csr, _field):
+            cahandler.ces_url = "http://attacker.example/CES"
+            return None
+
+        mock_eab.side_effect = _apply_http_ces
+        error, cert_bundle, cert_raw, _poll = self.cahandler.enroll(TEST_CSR_B64)
+        self.assertIn("HTTPS", error)
+        self.assertIsNone(cert_bundle)
+        self.assertIsNone(cert_raw)
+        self.assertTrue(mock_eab.called)
+        self.assertTrue(mock_cleanup.called)
+
     @patch("acme2certifier.cahandlers.mscepces_ca_handler.CAhandler._soap_post")
     def test_020_soap_post_action_for_issue(self, mock_soap):
         """Issue uses WSTEP RST action"""

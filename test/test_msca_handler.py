@@ -1012,6 +1012,30 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(cert_raw)
         self.assertTrue(any("must use HTTPS" in msg for msg in lcm.output))
 
+    @patch(
+        "acme2certifier.cahandlers.mscertsrv_ca_handler.eab_profile_header_info_check"
+    )
+    def test_063b_enroll_rejects_http_url_after_eab_profile(self, mock_eab):
+        """EAB profile url override must not bypass HTTPS enrollment check"""
+        self.cahandler.host = "host"
+        self.cahandler.url = "https://ca.example.com/certsrv"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+
+        def _apply_http_url(_logger, cahandler, _csr, _field):
+            cahandler.url = "http://attacker.example/certsrv"
+            return None
+
+        mock_eab.side_effect = _apply_http_url
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            error, cert_bundle, cert_raw, _poll = self.cahandler.enroll("csr")
+        self.assertIn("must use HTTPS", error)
+        self.assertIsNone(cert_bundle)
+        self.assertIsNone(cert_raw)
+        self.assertTrue(any("must use HTTPS" in msg for msg in lcm.output))
+        self.assertTrue(mock_eab.called)
+
     def test_064_config_headerinfo_load(self):
         """test config_headerinfo_load()"""
         config_dic = {"Order": {"header_info_list": '["foo", "bar", "foobar"]'}}

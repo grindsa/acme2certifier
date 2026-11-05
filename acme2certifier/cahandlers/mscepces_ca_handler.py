@@ -1410,6 +1410,17 @@ class CAhandler(KerberosAuthMixin):
             self._kerberos_cleanup_temporary_ccache()
             return (error, None, None, None)
 
+        # Re-check after profile: kid profiles may override ces_url / cep_url.
+        if self.ces_url:
+            https_error = self._https_url_check(self.ces_url, "ces_url")
+            if https_error:
+                self._kerberos_cleanup_temporary_ccache()
+                return (https_error, None, None, None)
+        https_error = self._https_url_check(self.cep_url, "cep_url")
+        if https_error:
+            self._kerberos_cleanup_temporary_ccache()
+            return (https_error, None, None, None)
+
         error = self._allowed_templates_check()
         if error:
             self._kerberos_cleanup_temporary_ccache()

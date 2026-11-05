@@ -710,13 +710,18 @@ class CAhandler(KerberosAuthMixin):
         if error:
             self.logger.error("EAB profile check failed: %s", error)
         else:
-            error = self._allowed_templates_check()
-            if error:
-                self.logger.error("Template allowlist check failed: %s", error)
+            # Re-check after profile: kid profiles may override url.
+            https_error = self._enrollment_url_https_check()
+            if https_error:
+                error = https_error
             else:
-                # explicit GSSAPI creds for the TGT; KRB5_CONFIG scoped for TGS/SPNEGO
-                with self._kerberos_runtime_environment():
-                    error, cert_bundle, cert_raw = self._enroll(csr)
+                error = self._allowed_templates_check()
+                if error:
+                    self.logger.error("Template allowlist check failed: %s", error)
+                else:
+                    # explicit GSSAPI creds for the TGT; KRB5_CONFIG scoped for TGS/SPNEGO
+                    with self._kerberos_runtime_environment():
+                        error, cert_bundle, cert_raw = self._enroll(csr)
 
         self._kerberos_cleanup_temporary_ccache()
         self.logger.debug("Certificate.enroll() ended")
