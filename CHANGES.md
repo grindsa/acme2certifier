@@ -6,6 +6,26 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.46.4
+
+**Bug Fixes and Improvements**:
+
+- `b64decode_pad` returns an error string instead of raising `UnicodeDecodeError` when decoded base64 is not valid UTF-8 ([#411](https://github.com/grindsa/acme2certifier/issues/411))
+- `validate_fqdn` no longer uses a catastrophic-backtracking regex; FQDNs (including wildcards) are checked label-by-label to avoid ReDoS
+- Uncaught exceptions from CA handler `enroll()` are treated as enrollment failures (error persisted, order invalidated) instead of leaving the request incomplete ([#414](https://github.com/grindsa/acme2certifier/issues/414))
+
+## Changes in 0.46.3
+
+**Bug Fixes and Improvements**:
+
+- Drop the exact `pyOpenSSL==26.1.0` pin so a normal install can resolve current pyOpenSSL / cryptography; XCA subject/`x509super` hashes now use OpenSSL `X509_NAME_hash` via cryptography’s libcrypto binding instead of pyOpenSSL (`load_certificate_request` removed in pyOpenSSL 26.3) ([#404](https://github.com/grindsa/acme2certifier/issues/404))
+
+## Changes in 0.46.2
+
+**Bug Fixes and Improvements**:
+
+- Docker images install companion `python3-requests-gssapi` and `python3-requests-pkcs12` `.deb` packages from [grindsa/sbom](https://github.com/grindsa/sbom) (replaces distro apt `python3-requests-gssapi` and `pip install requests-pkcs12`)
+
 ## Changes in 0.46.1
 
 **Bug Fixes and Improvements**:
