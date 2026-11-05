@@ -73,4 +73,6 @@ jobs:
             main-create-release-push-images-to-dockerhub.yml,
             publish-pypi.yml,
             helper-dump-secrets.yml,
-            quality-codescanner.yml
+            quality-codescanner.yml,
+            security-artifact-policy.yml,
+            security-sanitizer-selftest.yml
