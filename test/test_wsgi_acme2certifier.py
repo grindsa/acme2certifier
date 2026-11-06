@@ -1458,23 +1458,19 @@ class TestACMEHandler(unittest.TestCase):
             wsgi_mod.not_found = orig_not_found
             wsgi_mod.URLS[:] = orig_URLS
 
-    def test_075_application_dynamic_challenge_url(self):
-        """Test application() dynamically adds challenge URL pattern if config present."""
+    def test_075_application_challenge_url_at_module_load(self):
+        """Challenge URL is registered once when CAhandler.acme_url is set."""
         import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
 
-        # Patch CONFIG and URLS
-        orig_CONFIG = dict(wsgi_mod.CONFIG)
         orig_URLS = wsgi_mod.URLS[:]
-        orig_acmechallenge_serve = wsgi_mod.acmechallenge_serve
-        wsgi_mod.CONFIG["CAhandler"] = {"acme_url": "something"}
-        wsgi_mod.URLS.clear()
         called = {}
 
         def fake_callback(environ, start_response):
             called["challenge"] = True
             return ["challenge"]
 
-        wsgi_mod.acmechallenge_serve = fake_callback
+        wsgi_mod.URLS.clear()
+        wsgi_mod.URLS.append((r"^.well-known/acme-challenge/", fake_callback))
         try:
             environ = {"PATH_INFO": ".well-known/acme-challenge/abc"}
             start_response = lambda *a, **kw: None
@@ -1482,7 +1478,23 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(result, ["challenge"])
             self.assertTrue(called.get("challenge"))
         finally:
-            wsgi_mod.acmechallenge_serve = orig_acmechallenge_serve
+            wsgi_mod.URLS[:] = orig_URLS
+
+    def test_075b_application_does_not_grow_urls(self):
+        """application() must not append routes on each request (M8)."""
+        import acme2certifier.share.acme2certifier_wsgi as wsgi_mod
+
+        orig_CONFIG = dict(wsgi_mod.CONFIG)
+        orig_URLS = wsgi_mod.URLS[:]
+        wsgi_mod.CONFIG["CAhandler"] = {"acme_url": "something"}
+        before = len(wsgi_mod.URLS)
+        try:
+            environ = {"PATH_INFO": "doesnotmatch"}
+            start_response = lambda *a, **kw: None
+            for _ in range(5):
+                wsgi_mod.application(environ, start_response)
+            self.assertEqual(len(wsgi_mod.URLS), before)
+        finally:
             wsgi_mod.URLS[:] = orig_URLS
             wsgi_mod.CONFIG.clear()
             wsgi_mod.CONFIG.update(orig_CONFIG)

@@ -23,6 +23,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- Security: classic WSGI registers `.well-known/acme-challenge/` once at module load when `[CAhandler] acme_url` is set (no longer appends to the route table on every request)
 - Security: RFC 8823 email-reply IMAP/SMTP TLS now verifies certificates and hostname by default (`ssl.create_default_context()`); optional `[DEFAULT] email_ssl_verify: False` disables verification for that path only (WARNING logged). See [RFC 8823 email identifiers](docs/rfc8823_email_identifier.md)
 - Security: `reverse_address_check` requires an exact PTR match for the authorization DNS name (case-insensitive; trailing dots ignored); subdomain PTRs such as `x.bank.com` no longer validate `bank.com`
 - Security: `reverse_address_check` forward-confirms the PTR hostname by default (FCrDNS: A/AAAA must include the client source address); optional `[Challenge] fcrdns_check_disable` (also via EAB challenge profile) skips FCrDNS for split-DNS deployments where a2c cannot resolve the PTR name

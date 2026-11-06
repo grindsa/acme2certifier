@@ -650,6 +650,9 @@ if HOUSEKEEPING_CLI_ENABLED:
 if TRIGGER_ENDPOINT_ENABLED:
     URLS.append((r"^trigger(/.*)?$", trigger))
 
+if "CAhandler" in CONFIG and "acme_url" in CONFIG["CAhandler"]:
+    URLS.append((r"^.well-known/acme-challenge/", acmechallenge_serve))
+
 
 # Helper to extract path with prefix
 def get_path_with_prefix(environ, config):
@@ -694,10 +697,6 @@ def _otel_peek_wsgi_body(environ):
 
 def application(environ, start_response):
     """The main WSGI application if nothing matches call the not_found function."""
-
-    # check if we need to activate the url pattern for challenge verification
-    if "CAhandler" in CONFIG and "acme_url" in CONFIG["CAhandler"]:
-        URLS.append((r"^.well-known/acme-challenge/", acmechallenge_serve))
 
     path = get_path_with_prefix(environ, CONFIG)
     method = environ.get("REQUEST_METHOD", "")
