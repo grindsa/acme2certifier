@@ -42,6 +42,7 @@ class TestChallengeConfiguration(unittest.TestCase):
         self.assertIsNone(config.email_address)
         self.assertFalse(config.forward_address_check)
         self.assertFalse(config.reverse_address_check)
+        self.assertFalse(config.fcrdns_check_disable)
         self.assertIsNone(config.source_address)
         self.assertFalse(config.eab_profiling)
 
@@ -520,12 +521,28 @@ class TestChallenge(unittest.TestCase):
             self.challenge._load_address_check_configuration(config_dic)
         self.assertTrue(self.challenge.config.forward_address_check)
         self.assertTrue(self.challenge.config.reverse_address_check)
+        self.assertFalse(self.challenge.config.fcrdns_check_disable)
         self.assertTrue(self.challenge.config.validation_disabled)
         self.assertTrue(
             any(
                 "challenge_validation_disable is active with address checks" in line
                 for line in lcm.output
             )
+        )
+
+    def test_035b_load_address_check_configuration_fcrdns_check_disable(self):
+        from configparser import ConfigParser
+
+        config_dic = ConfigParser()
+        config_dic.add_section("Challenge")
+        config_dic.set("Challenge", "reverse_address_check", "True")
+        config_dic.set("Challenge", "fcrdns_check_disable", "True")
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.challenge._load_address_check_configuration(config_dic)
+        self.assertTrue(self.challenge.config.reverse_address_check)
+        self.assertTrue(self.challenge.config.fcrdns_check_disable)
+        self.assertTrue(
+            any("fcrdns_check_disable is enabled" in line for line in lcm.output)
         )
 
     def test_036_load_address_check_configuration_naked_disable_ignored(self):
@@ -2030,6 +2047,7 @@ class TestChallenge(unittest.TestCase):
             "challenge_validation_disable": True,
             "forward_address_check": True,
             "reverse_address_check": False,
+            "fcrdns_check_disable": False,
         }
         self.assertEqual(result, expected_settings)
 
@@ -2043,6 +2061,7 @@ class TestChallenge(unittest.TestCase):
             "challenge_validation_disable": False,
             "forward_address_check": False,
             "reverse_address_check": False,
+            "fcrdns_check_disable": False,
         }
         self.assertEqual(result, expected_settings)
 
@@ -2056,6 +2075,7 @@ class TestChallenge(unittest.TestCase):
             "challenge_validation_disable": False,
             "forward_address_check": False,
             "reverse_address_check": False,
+            "fcrdns_check_disable": False,
         }
         self.assertEqual(result, expected_settings)
 
@@ -2172,6 +2192,27 @@ class TestChallenge(unittest.TestCase):
                 in record.message
                 for record in log_context.records
                 if record.levelname == "INFO"
+            )
+        )
+
+    def test_118b_apply_eab_profile_settings_fcrdns_check_disable(self):
+        """EAB profile can enable fcrdns_check_disable."""
+        settings = {
+            "challenge_validation_disable": False,
+            "forward_address_check": False,
+            "reverse_address_check": False,
+            "fcrdns_check_disable": True,
+        }
+        self.challenge.config.fcrdns_check_disable = False
+
+        with self.assertLogs("test_a2c", level="WARNING") as log_context:
+            self.challenge._apply_eab_profile_settings(settings, "test_kid")
+
+        self.assertTrue(self.challenge.config.fcrdns_check_disable)
+        self.assertTrue(
+            any(
+                "fcrdns_check_disable is enabled via EAB profiling" in record.message
+                for record in log_context.records
             )
         )
 
@@ -3523,6 +3564,7 @@ class TestChallenge(unittest.TestCase):
                 "challenge_validation_disable": False,
                 "forward_address_check": False,
                 "reverse_address_check": False,
+                "fcrdns_check_disable": False,
             },
         )
 

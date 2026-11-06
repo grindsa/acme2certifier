@@ -99,6 +99,7 @@ class ChallengeConfiguration:
     caaidentities: Optional[List[str]] = None
     forward_address_check: bool = False
     reverse_address_check: bool = False
+    fcrdns_check_disable: bool = False
     http01_block_private_ips: bool = False
     http01_max_redirects: int = 5
     http01_redirect_allow_ip: bool = False
@@ -821,6 +822,15 @@ class Challenge:
         self.config.reverse_address_check = config_dic.getboolean(
             "Challenge", "reverse_address_check", fallback=False
         )
+        self.config.fcrdns_check_disable = config_dic.getboolean(
+            "Challenge", "fcrdns_check_disable", fallback=False
+        )
+        if self.config.fcrdns_check_disable:
+            self.logger.warning(
+                "fcrdns_check_disable is enabled: reverse_address_check will trust "
+                "exact PTR matches without forward confirmation (A/AAAA). "
+                "Use only when a2c cannot resolve PTR hostnames (split DNS)."
+            )
         requested_disable = config_dic.getboolean(
             "Challenge", "challenge_validation_disable", fallback=False
         )
@@ -1116,6 +1126,9 @@ class Challenge:
             "reverse_address_check": eab_profile_as_bool(
                 challenge_profile.get("reverse_address_check"), False
             ),
+            "fcrdns_check_disable": eab_profile_as_bool(
+                challenge_profile.get("fcrdns_check_disable"), False
+            ),
         }
         for key in CHALLENGE_TYPE_SUPPORT_KEYS:
             if key in challenge_profile:
@@ -1149,6 +1162,15 @@ class Challenge:
                 eab_kid,
             )
             self.config.reverse_address_check = True
+
+        if settings.get("fcrdns_check_disable"):
+            self.logger.warning(
+                "fcrdns_check_disable is enabled via EAB profiling (eab_kid: %s): "
+                "reverse_address_check will trust exact PTR matches without "
+                "forward confirmation (A/AAAA).",
+                eab_kid,
+            )
+            self.config.fcrdns_check_disable = True
 
         # Decide after address-check overlay so global forward/reverse combine
         # with a profile that only sets challenge_validation_disable.
@@ -1322,6 +1344,7 @@ class Challenge:
                 options={
                     "forward_address_check": self.config.forward_address_check,
                     "reverse_address_check": self.config.reverse_address_check,
+                    "fcrdns_check_disable": self.config.fcrdns_check_disable,
                 },
             )
 

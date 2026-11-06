@@ -14,11 +14,16 @@ class SourceAddressValidator(ChallengeValidator):
     """Validator for source address checks across all challenge types."""
 
     def __init__(
-        self, logger, forward_check: bool = False, reverse_check: bool = False
+        self,
+        logger,
+        forward_check: bool = False,
+        reverse_check: bool = False,
+        fcrdns_check_disable: bool = False,
     ):
         super().__init__(logger)
         self.forward_check = forward_check
         self.reverse_check = reverse_check
+        self.fcrdns_check_disable = fcrdns_check_disable
 
     def get_challenge_type(self) -> str:
         return "source-address"
@@ -41,14 +46,7 @@ class SourceAddressValidator(ChallengeValidator):
                 details={"import_error": str(e)},
             )
 
-        self.logger.debug(
-            "SourceAddressValidator.perform_validation(): source address validation for %s (forward: %s, reverse: %s)",
-            context.authorization_value,
-            self.forward_check,
-            self.reverse_check,
-        )
-
-        # Update forward and reverse check settings from context options if available
+        # Update check settings from context options if available
         if context.options:
             self.forward_check = context.options.get(
                 "forward_address_check", self.forward_check
@@ -56,6 +54,18 @@ class SourceAddressValidator(ChallengeValidator):
             self.reverse_check = context.options.get(
                 "reverse_address_check", self.reverse_check
             )
+            self.fcrdns_check_disable = context.options.get(
+                "fcrdns_check_disable", self.fcrdns_check_disable
+            )
+
+        self.logger.debug(
+            "SourceAddressValidator.perform_validation(): source address validation "
+            "for %s (forward: %s, reverse: %s, fcrdns_check_disable: %s)",
+            context.authorization_value,
+            self.forward_check,
+            self.reverse_check,
+            self.fcrdns_check_disable,
+        )
 
         # Get source address from context
         source_address = getattr(context, "source_address", None)
@@ -205,7 +215,11 @@ class SourceAddressValidator(ChallengeValidator):
     def _perform_reverse_check(
         self, domain: str, source_address: str, dns_servers: List[str]
     ) -> Dict[str, Any]:
-        """Perform reverse DNS lookup to verify domain ownership."""
+        """Perform reverse DNS lookup with FCrDNS confirmation.
+
+        Requires an exact PTR match for ``domain``, then verifies that the PTR
+        hostname's A/AAAA records include ``source_address``.
+        """
         self.logger.debug(
             "SourceAddressValidator._perform_reverse_check(): Performing reverse address check: %s -> %s",
             source_address,
@@ -232,25 +246,59 @@ class SourceAddressValidator(ChallengeValidator):
                     "error": "PTR resolution failed",
                 }
 
-            reverse_check_passed = self._domain_matches(domain, reverse_hostname)
-            self.logger.debug(
-                "SourceAddressValidator._perform_reverse_check(): Reverse check %s for %s",
-                "passed" if reverse_check_passed else "failed",
-                domain,
-            )
+            if not self._domain_matches(domain, reverse_hostname):
+                self.logger.debug(
+                    "SourceAddressValidator._perform_reverse_check(): "
+                    "No matching reverse domains found: %s",
+                    reverse_domains,
+                )
+                return {
+                    "reverse_check_passed": False,
+                    "reverse_domains": reverse_domains,
+                    "source_address": source_address,
+                    "error": "No matching domains found",
+                }
 
             result = {
-                "reverse_check_passed": reverse_check_passed,
                 "reverse_domains": reverse_domains,
                 "source_address": source_address,
             }
-            if not reverse_check_passed:
-                self.logger.debug(
-                    "SourceAddressValidator._perform_reverse_check(): No matching reverse domains found: %s",
-                    reverse_domains,
-                )
-                result["error"] = "No matching domains found"
 
+            if self.fcrdns_check_disable:
+                self.logger.debug(
+                    "SourceAddressValidator._perform_reverse_check(): "
+                    "FCrDNS skipped (fcrdns_check_disable=True) for %s",
+                    domain,
+                )
+                result["reverse_check_passed"] = True
+                result["fcrdns_skipped"] = True
+                return result
+
+            # Forward-confirm the PTR hostname (FCrDNS): A/AAAA must include source IP
+            fcrdns = self._perform_forward_check(
+                reverse_hostname, source_address, dns_servers
+            )
+            result["fcrdns_resolved_ips"] = fcrdns.get("resolved_ips")
+            if not fcrdns.get("forward_check_passed", False):
+                self.logger.debug(
+                    "SourceAddressValidator._perform_reverse_check(): "
+                    "FCrDNS failed for PTR %s / source %s",
+                    reverse_hostname,
+                    source_address,
+                )
+                result["reverse_check_passed"] = False
+                result["error"] = (
+                    "FCrDNS failed: "
+                    f"{fcrdns.get('error', 'PTR hostname does not resolve to source address')}"
+                )
+                return result
+
+            self.logger.debug(
+                "SourceAddressValidator._perform_reverse_check(): "
+                "Reverse check passed for %s (exact PTR + FCrDNS)",
+                domain,
+            )
+            result["reverse_check_passed"] = True
             return result
 
         except Exception as e:

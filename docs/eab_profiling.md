@@ -76,7 +76,8 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
     "challenge": {
       "challenge_validation_disable": "True",
       "foward_address_check": "True",
-      "reverse_address_check": "True"
+      "reverse_address_check": "True",
+      "fcrdns_check_disable": "False"
     }
   },
   "keyid_03": {
@@ -143,6 +144,7 @@ keyid_02:
     challenge_validation_disable: True
     forward_address_check: True
     reverse_address_check: True
+    fcrdns_check_disable: False
 
 keyid_03:
   hmac: "hmac-key"
