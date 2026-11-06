@@ -2837,6 +2837,95 @@ class TestACMEHandler(unittest.TestCase):
             0, self.dbstore.order_update_if_status("ord-cas", "processing", "ready")
         )
 
+    def test_128b_challenge_update_if_status(self):
+        """conditional pending→processing updates once then returns 0"""
+        self.dbstore.account_add(
+            {
+                "alg": "alg1",
+                "jwk": '{"key11": "val11", "key12": "val12"}',
+                "contact": "contact1",
+                "name": "name1",
+            }
+        )
+        self.dbstore.order_add(
+            {
+                "name": "ord-chal-cas",
+                "identifiers": "identifiers",
+                "account": "name1",
+                "status": 2,
+                "expires": "25",
+            }
+        )
+        self.dbstore.authorization_add(
+            {"name": "authz-cas", "type": "dns", "value": "ex.com", "order": 1}
+        )
+        self.dbstore.challenge_add(
+            "ex.com",
+            "http-01",
+            {
+                "name": "chal-cas",
+                "token": "tok",
+                "authorization": "authz-cas",
+                "expires": 25,
+                "type": "http-01",
+            },
+        )
+        self.assertEqual(
+            1,
+            self.dbstore.challenge_update_if_status(
+                "chal-cas", "processing", "pending"
+            ),
+        )
+        self.assertEqual(
+            "processing",
+            self.dbstore.challenge_lookup("name", "chal-cas")["status"],
+        )
+        self.assertEqual(
+            0,
+            self.dbstore.challenge_update_if_status(
+                "chal-cas", "processing", "pending"
+            ),
+        )
+
+    def test_128c_authorization_update_if_status(self):
+        """conditional pending→valid updates once then returns 0"""
+        self.dbstore.account_add(
+            {
+                "alg": "alg1",
+                "jwk": '{"key11": "val11", "key12": "val12"}',
+                "contact": "contact1",
+                "name": "name1",
+            }
+        )
+        self.dbstore.order_add(
+            {
+                "name": "ord-az-cas",
+                "identifiers": "identifiers",
+                "account": "name1",
+                "status": 2,
+                "expires": "25",
+            }
+        )
+        self.dbstore.authorization_add(
+            {"name": "authz-cas2", "type": "dns", "value": "ex.com", "order": 1}
+        )
+        self.assertEqual(
+            1,
+            self.dbstore.authorization_update_if_status(
+                "authz-cas2", "valid", "pending"
+            ),
+        )
+        rows = self.dbstore.authorization_lookup(
+            "name", "authz-cas2", ["status__name"]
+        )
+        self.assertEqual("valid", rows[0]["status__name"])
+        self.assertEqual(
+            0,
+            self.dbstore.authorization_update_if_status(
+                "authz-cas2", "valid", "pending"
+            ),
+        )
+
     def test_129_order_update(self):
         """test DBstore.order_add() method for a new entry"""
         data_dic = {

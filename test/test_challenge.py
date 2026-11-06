@@ -226,6 +226,35 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
         self.dbstore.authorization_update.return_value = None
         self.assertTrue(self.repo.update_authorization_status("c1", "valid"))
 
+    def test_012b_update_challenge_if_status_success(self):
+        self.dbstore.challenge_update_if_status.return_value = 1
+        self.assertTrue(
+            self.repo.update_challenge_if_status("c1", "processing", "pending")
+        )
+        self.dbstore.challenge_update_if_status.assert_called_once_with(
+            "c1", "processing", "pending"
+        )
+
+    def test_012c_update_challenge_if_status_no_row(self):
+        self.dbstore.challenge_update_if_status.return_value = 0
+        self.assertFalse(
+            self.repo.update_challenge_if_status("c1", "processing", "pending")
+        )
+
+    def test_012d_update_authorization_status_if_success(self):
+        self.dbstore.challenge_lookup.return_value = {"authorization": "authz1"}
+        self.dbstore.authorization_update_if_status.return_value = 1
+        self.assertTrue(
+            self.repo.update_authorization_status_if("c1", "valid", "pending")
+        )
+        self.dbstore.authorization_update_if_status.assert_called_once_with(
+            "authz1", "valid", "pending"
+        )
+
+    def test_012e_get_authorization_status_success(self):
+        self.dbstore.authorization_lookup.return_value = [{"status__name": "pending"}]
+        self.assertEqual(self.repo.get_authorization_status("authz1"), "pending")
+
     def test_013_update_authorization_status_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
@@ -368,9 +397,11 @@ class TestChallenge(unittest.TestCase):
         self.challenge = Challenge(debug=True, logger=self.logger, srv_name="srv")
         self.challenge.dbstore = Mock()
         self.challenge.repository = Mock()
+        self.challenge.repository.get_authorization_status.return_value = "pending"
         self.challenge.message = Mock()
         self.challenge.error_handler = Mock()
         self.challenge.state_manager = Mock()
+        self.challenge.state_manager.transition_to_processing.return_value = True
         self.challenge.validator_registry = Mock()
         self.challenge.config = self.ChallengeConfiguration()
         self.challenge.config.dns_server_list = ["8.8.8.8"]
@@ -459,6 +490,42 @@ class TestChallenge(unittest.TestCase):
             200, {}, {"url": "u"}, "c1", info
         )
         self.assertEqual(resp["status"], "ok")
+        self.challenge._start_async_validation.assert_called_once()
+
+    def test_030b_handle_challenge_validation_request_invalid_no_retry(self):
+        """M6: invalid challenges must not restart validation (RFC 8555 §7.1.6)."""
+        info = self.ChallengeInfo(
+            "c1", "dns-01", "tok", "invalid", "authz", "dns", "val", "url"
+        )
+        self.challenge.config.tnauthlist_support = False
+        self.challenge.repository.get_challenge_by_name.return_value = info
+        self.challenge._start_async_validation = Mock()
+        self.challenge._create_success_response = Mock(return_value={"status": "ok"})
+        resp = self.challenge._handle_challenge_validation_request(
+            200, {}, {"url": "u"}, "c1", info
+        )
+        self.assertEqual(resp["status"], "ok")
+        self.challenge._start_async_validation.assert_not_called()
+
+    def test_030c_handle_challenge_validation_request_authz_not_pending(self):
+        """M6: sibling challenge must not revive an already-invalid authorization."""
+        info = self.ChallengeInfo(
+            "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
+        )
+        self.challenge.config.tnauthlist_support = False
+        self.challenge.repository.get_authorization_status.return_value = "invalid"
+        self.challenge.repository.get_challenge_by_name.return_value = info
+        self.challenge._start_async_validation = Mock()
+        self.challenge._create_success_response = Mock(return_value={"status": "ok"})
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            resp = self.challenge._handle_challenge_validation_request(
+                200, {}, {"url": "u"}, "c1", info
+            )
+        self.assertEqual(resp["status"], "ok")
+        self.challenge._start_async_validation.assert_not_called()
+        self.assertTrue(
+            any("Skipping challenge validation" in line for line in lcm.output)
+        )
 
     def test_031_handle_challenge_validation_request_tnauthlist(self):
         info = self.ChallengeInfo(
@@ -769,20 +836,31 @@ class TestChallenge(unittest.TestCase):
             self.challenge._ensure_components_initialized()
 
     def test_051_perform_challenge_validation_success(self):
-        self.challenge.state_manager.transition_to_processing = Mock()
+        self.challenge.state_manager.transition_to_processing = Mock(return_value=True)
         self.challenge.config.validation_disabled = False
         self.challenge._execute_challenge_validation = Mock()
         self.challenge._update_challenge_state_from_validation = Mock(return_value=True)
         self.assertTrue(self.challenge._perform_challenge_validation("c1", {}))
 
+    def test_051b_perform_challenge_validation_cas_abort(self):
+        """M6: lost pending→processing race aborts without validating."""
+        self.challenge.state_manager.transition_to_processing = Mock(return_value=False)
+        self.challenge._execute_challenge_validation = Mock()
+        self.challenge._update_challenge_state_from_validation = Mock()
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.challenge._perform_challenge_validation("c1", {}))
+        self.challenge._execute_challenge_validation.assert_not_called()
+        self.challenge._update_challenge_state_from_validation.assert_not_called()
+        self.assertTrue(any("already claimed" in line for line in lcm.output))
+
     def test_052_perform_challenge_validation_disabled(self):
-        self.challenge.state_manager.transition_to_processing = Mock()
+        self.challenge.state_manager.transition_to_processing = Mock(return_value=True)
         self.challenge.config.validation_disabled = True
         self.challenge._handle_validation_disabled = Mock(return_value=True)
         self.assertTrue(self.challenge._perform_challenge_validation("c1", {}))
 
     def test_053_perform_challenge_validation_exception(self):
-        self.challenge.state_manager.transition_to_processing = Mock()
+        self.challenge.state_manager.transition_to_processing = Mock(return_value=True)
         self.challenge.config.validation_disabled = False
         self.challenge._execute_challenge_validation = Mock(
             side_effect=Exception("fail")

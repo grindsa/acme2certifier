@@ -313,6 +313,48 @@ class TestDjangoHandler(unittest.TestCase):
             0, self.dbstore.order_update_if_status("ordCAS", "processing", "ready")
         )
 
+    def test_019b_challenge_update_if_status(self) -> None:
+        """conditional challenge pending→processing updates once then returns 0"""
+        acct = self._seed_account("acctChCAS")
+        order = self._seed_order(acct, "ordChCAS")
+        self._seed_authz(order, "azChCAS")
+        self.dbstore.challenge_add(
+            "ex.com",
+            "http-01",
+            {
+                "name": "chCAS",
+                "authorization": "azChCAS",
+                "type": "http-01",
+                "token": "tok",
+                "status": 2,
+                "expires": 1,
+            },
+        )
+        self.assertEqual(
+            1,
+            self.dbstore.challenge_update_if_status("chCAS", "processing", "pending"),
+        )
+        self.assertEqual(4, Challenge.objects.get(name="chCAS").status_id)
+        self.assertEqual(
+            0,
+            self.dbstore.challenge_update_if_status("chCAS", "processing", "pending"),
+        )
+
+    def test_019c_authorization_update_if_status(self) -> None:
+        """conditional authorization pending→valid updates once then returns 0"""
+        acct = self._seed_account("acctAzCAS")
+        order = self._seed_order(acct, "ordAzCAS")
+        self._seed_authz(order, "azCAS")
+        self.assertEqual(
+            1,
+            self.dbstore.authorization_update_if_status("azCAS", "valid", "pending"),
+        )
+        self.assertEqual(5, Authorization.objects.get(name="azCAS").status_id)
+        self.assertEqual(
+            0,
+            self.dbstore.authorization_update_if_status("azCAS", "valid", "pending"),
+        )
+
     def test_020_orders_invalid_search(self) -> None:
         """test DBstore.orders_invalid_search()"""
         acct = self._seed_account("acctOIS")

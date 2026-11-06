@@ -273,8 +273,27 @@ class MockChallengeRepository:
         self.call_log.append(("update_challenge", request))
         return True
 
+    def update_challenge_if_status(self, name: str, new_status: str, expected_status: str):
+        self.call_log.append(
+            ("update_challenge_if_status", name, new_status, expected_status)
+        )
+        return True
+
     def update_authorization_status(self, challenge_name: str, status: str):
         self.call_log.append(("update_authorization_status", challenge_name, status))
+        return True
+
+    def update_authorization_status_if(
+        self, challenge_name: str, status: str, expected_status: str
+    ):
+        self.call_log.append(
+            (
+                "update_authorization_status_if",
+                challenge_name,
+                status,
+                expected_status,
+            )
+        )
         return True
 
     def get_account_jwk(self, challenge_name: str):
@@ -284,6 +303,10 @@ class MockChallengeRepository:
     def get_authorization_account_name(self, authorization_name: str):
         self.call_log.append(("get_authorization_account_name", authorization_name))
         return "acct-test"
+
+    def get_authorization_status(self, authorization_name: str):
+        self.call_log.append(("get_authorization_status", authorization_name))
+        return "pending"
 
 
 class TestChallengeStateManager(unittest.TestCase):
@@ -305,7 +328,7 @@ class TestChallengeStateManager(unittest.TestCase):
         self.assertEqual(self.state_manager.logger, self.logger)
 
     def test_014_transition_to_processing_success(self):
-        """Test successful transition to processing state"""
+        """Test successful CAS transition to processing state"""
         result = self.state_manager.transition_to_processing("test-challenge")
 
         self.assertTrue(result)
@@ -314,15 +337,14 @@ class TestChallengeStateManager(unittest.TestCase):
         # Check that repository was called correctly
         calls = self.repository.call_log
         self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][0], "update_challenge")
-        update_request = calls[0][1]
-        self.assertEqual(update_request.name, "test-challenge")
-        self.assertEqual(update_request.status, "processing")
+        self.assertEqual(calls[0][0], "update_challenge_if_status")
+        self.assertEqual(calls[0][1], "test-challenge")
+        self.assertEqual(calls[0][2], "processing")
+        self.assertEqual(calls[0][3], "pending")
 
     def test_015_transition_to_processing_failure(self):
-        """Test failed transition to processing state"""
-        # Mock repository to return False
-        self.repository.update_challenge = Mock(return_value=False)
+        """Test failed CAS transition to processing state"""
+        self.repository.update_challenge_if_status = Mock(return_value=False)
 
         result = self.state_manager.transition_to_processing("test-challenge")
 
@@ -350,10 +372,11 @@ class TestChallengeStateManager(unittest.TestCase):
         self.assertEqual(update_request.source, "192.168.1.1")
         self.assertEqual(update_request.validated, 1640995200)
 
-        # Second call should update authorization
-        self.assertEqual(calls[1][0], "update_authorization_status")
+        # Second call should CAS-update authorization pending → valid
+        self.assertEqual(calls[1][0], "update_authorization_status_if")
         self.assertEqual(calls[1][1], "test-challenge")
         self.assertEqual(calls[1][2], "valid")
+        self.assertEqual(calls[1][3], "pending")
         self.logger.debug.assert_any_call(
             "Challenge state transition: challenge=%s status=valid success=%s",
             "test-challenge",
@@ -383,12 +406,19 @@ class TestChallengeStateManager(unittest.TestCase):
         self.repository.update_challenge.assert_called_once()
 
     def test_019_transition_to_valid_authorization_update_failure(self):
-        """Test transition to valid fails on authorization update"""
-        self.repository.update_authorization_status = Mock(return_value=False)
+        """Test transition to valid fails when authz is not pending"""
+        self.repository.update_authorization_status_if = Mock(return_value=False)
 
         result = self.state_manager.transition_to_valid("test-challenge")
 
         self.assertFalse(result)
+        # Challenge rolled back to invalid
+        update_calls = [
+            c for c in self.repository.call_log if c[0] == "update_challenge"
+        ]
+        self.assertEqual(len(update_calls), 2)
+        self.assertEqual(update_calls[0][1].status, "valid")
+        self.assertEqual(update_calls[1][1].status, "invalid")
 
     def test_020_transition_to_invalid_success(self):
         """Test successful transition to invalid state"""
@@ -512,7 +542,9 @@ class TestChallengeStateManager(unittest.TestCase):
 
     def test_031_state_manager_repository_exception_handling(self):
         """Test state manager behavior when repository raises exceptions"""
-        self.repository.update_challenge = Mock(side_effect=Exception("Database error"))
+        self.repository.update_challenge_if_status = Mock(
+            side_effect=Exception("Database error")
+        )
 
         # The implementation doesn't handle exceptions, so this will raise
         with self.assertRaises(Exception):

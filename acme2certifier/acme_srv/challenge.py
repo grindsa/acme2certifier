@@ -314,6 +314,43 @@ class DatabaseChallengeRepository(ChallengeRepository):
             self.logger.critical(f"{DB_ERROR_MSG}: failed to update challenge: %s", err)
             raise DatabaseError(f"Failed to update challenge: {err}") from err
 
+    def update_challenge_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> bool:
+        """Conditionally update challenge status; True if a row changed."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.update_challenge_if_status(%s, %s -> %s)",
+            name,
+            expected_status,
+            new_status,
+        )
+        try:
+            updated = self.dbstore.challenge_update_if_status(
+                name, new_status, expected_status
+            )
+            result = updated > 0
+            self.logger.debug(
+                "DatabaseChallengeRepository.update_challenge_if_status() ended: %s",
+                result,
+            )
+            return result
+        except Exception as err:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed conditional challenge status update: %s", err
+            )
+            raise DatabaseError(
+                f"Failed conditional challenge status update: {err}"
+            ) from err
+
+    def _authorization_name_for_challenge(self, challenge_name: str) -> Optional[str]:
+        """Resolve authorization name for a challenge."""
+        authz_info = self.dbstore.challenge_lookup(
+            "name", challenge_name, ["authorization__name"]
+        )
+        if authz_info and "authorization" in authz_info:
+            return authz_info["authorization"]
+        return None
+
     def update_authorization_status(self, challenge_name: str, status: str) -> bool:
         """Update authorization status based on challenge."""
         self.logger.debug(
@@ -323,13 +360,10 @@ class DatabaseChallengeRepository(ChallengeRepository):
         )
         try:
             result = False
-            # Get authorization name from challenge
-            authz_info = self.dbstore.challenge_lookup(
-                "name", challenge_name, ["authorization__name"]
-            )
+            authz_name = self._authorization_name_for_challenge(challenge_name)
 
-            if authz_info and "authorization" in authz_info:
-                data_dic = {"name": authz_info["authorization"], "status": status}
+            if authz_name:
+                data_dic = {"name": authz_name, "status": status}
                 self.dbstore.authorization_update(data_dic)
                 result = True
 
@@ -345,6 +379,38 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 f"{DB_ERROR_MSG}: failed to update authorization: %s", err
             )
             raise DatabaseError(f"Failed to update authorization: {err}") from err
+
+    def update_authorization_status_if(
+        self, challenge_name: str, status: str, expected_status: str
+    ) -> bool:
+        """Conditionally update authorization status; True if a row changed."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.update_authorization_status_if(%s, %s -> %s)",
+            challenge_name,
+            expected_status,
+            status,
+        )
+        try:
+            result = False
+            authz_name = self._authorization_name_for_challenge(challenge_name)
+            if authz_name:
+                updated = self.dbstore.authorization_update_if_status(
+                    authz_name, status, expected_status
+                )
+                result = updated > 0
+            self.logger.debug(
+                "DatabaseChallengeRepository.update_authorization_status_if() ended: %s",
+                result,
+            )
+            return result
+        except Exception as err:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed conditional authorization status update: %s",
+                err,
+            )
+            raise DatabaseError(
+                f"Failed conditional authorization status update: {err}"
+            ) from err
 
     def get_account_jwk(self, challenge_name: str) -> Optional[Dict[str, Any]]:
         """Get JWK for the account associated with the challenge."""
@@ -417,6 +483,26 @@ class DatabaseChallengeRepository(ChallengeRepository):
             raise DatabaseError(
                 f"Failed to get authorization account name: {err}"
             ) from err
+
+    def get_authorization_status(self, authorization_name: str) -> Optional[str]:
+        """Get current authorization status name."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.get_authorization_status(%s)",
+            authorization_name,
+        )
+        try:
+            authorization_list = self.dbstore.authorization_lookup(
+                "name", authorization_name, ["status__name"]
+            )
+            if authorization_list and isinstance(authorization_list, list):
+                entry = authorization_list[0]
+                return entry.get("status") or entry.get("status__name")
+            return None
+        except Exception as err:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to get authorization status: %s", err
+            )
+            raise DatabaseError(f"Failed to get authorization status: {err}") from err
 
 
 class Challenge:
@@ -688,9 +774,19 @@ class Challenge:
             if tnauthlist_result["code"] != 200:
                 return tnauthlist_result
 
-        # Start validation if challenge is not already valid or processing
-        if challenge_info.status not in ("valid", "processing"):
-            self._start_async_validation(challenge_name, payload)
+        # RFC 8555 §7.1.6: only pending may start validation; invalid is final
+        if challenge_info.status == "pending":
+            authz_status = self.repository.get_authorization_status(
+                challenge_info.authorization_name
+            )
+            if authz_status == "pending":
+                self._start_async_validation(challenge_name, payload)
+            else:
+                self.logger.info(
+                    "Skipping challenge validation: challenge=%s authz_status=%s",
+                    challenge_name,
+                    authz_status,
+                )
 
         # Get updated challenge info
         updated_challenge_info = self.repository.get_challenge_by_name(challenge_name)
@@ -1270,8 +1366,14 @@ class Challenge:
         """Perform complete challenge validation process."""
         self.logger.debug("Challenge._perform_challenge_validation(%s)", challenge_name)
         try:
-            # Transition to processing state
-            self.state_manager.transition_to_processing(challenge_name)
+            # CAS pending → processing; lose the race → abort (no second validation)
+            if not self.state_manager.transition_to_processing(challenge_name):
+                self.logger.info(
+                    "Challenge validation aborted (not pending or already claimed): "
+                    "challenge=%s",
+                    challenge_name,
+                )
+                return False
 
             # check if challenge validation/source address checking got configured via eab profiling
             self._check_challenge_validation_eabprofile(challenge_name)

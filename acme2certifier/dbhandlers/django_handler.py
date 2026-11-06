@@ -297,6 +297,26 @@ class DBstore(object):
             .values(*vlist)
         )
 
+    def authorization_update_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> int:
+        """Update authorization status only when current status matches; return row count."""
+        self.logger.debug(
+            "authorization_update_if_status(%s, %s -> %s)",
+            name,
+            expected_status,
+            new_status,
+        )
+        new_inst = self._status_getinstance(new_status, "name")
+        expected_inst = self._status_getinstance(expected_status, "name")
+        updated = Authorization.objects.filter(name=name, status=expected_inst).update(
+            status=new_inst
+        )
+        self.logger.debug(
+            "DBStore.authorization_update_if_status() ended with: %s", updated
+        )
+        return updated
+
     def authorization_update(self, data_dic: Dict[str, str]) -> int:
         """update existing authorization"""
         self.logger.debug("DBStore.authorization_update(%s)", data_dic)
@@ -538,6 +558,23 @@ class DBstore(object):
             return obj
 
         self._sqlite_immediate_write(_update_challenge)
+
+    def challenge_update_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> int:
+        """Update challenge status only when current status matches; return row count."""
+        self.logger.debug(
+            "challenge_update_if_status(%s, %s -> %s)", name, expected_status, new_status
+        )
+        new_inst = self._status_getinstance(new_status, "name")
+        expected_inst = self._status_getinstance(expected_status, "name")
+        updated = Challenge.objects.filter(name=name, status=expected_inst).update(
+            status=new_inst
+        )
+        self.logger.debug(
+            "DBStore.challenge_update_if_status() ended with: %s", updated
+        )
+        return updated
 
     def cli_jwk_load(self, aname: str) -> Dict[str, str]:
         """looad account informatino and build jwk key dictionary from cliaccounts teable"""
