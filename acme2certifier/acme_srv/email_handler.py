@@ -2,6 +2,7 @@
 
 import time
 import email
+import ssl
 import smtplib
 import imaplib
 import threading
@@ -29,6 +30,9 @@ class EmailHandler:
         self.smtp_server = None
         self.smtp_port = 587
         self.smtp_use_tls = True
+
+        # TLS certificate verification for IMAP SSL / SMTP SSL / STARTTLS
+        self.email_ssl_verify = True
 
         # Authentication
         self.username = None
@@ -96,6 +100,25 @@ class EmailHandler:
             self.smtp_use_tls = config_dic.getboolean(
                 "DEFAULT", "smtp_use_tls", fallback=True
             )
+
+            try:
+                self.email_ssl_verify = config_dic.getboolean(
+                    "DEFAULT", "email_ssl_verify", fallback=True
+                )
+            except ValueError as err:
+                self.logger.warning(
+                    "Failed to parse email_ssl_verify from configuration. "
+                    "Using default True. Error: %s",
+                    err,
+                )
+                self.email_ssl_verify = True
+
+            if self.email_ssl_verify is False:
+                self.logger.warning(
+                    "TLS certificate verification is disabled "
+                    "(email_ssl_verify=False). IMAP/SMTP traffic is vulnerable "
+                    "to MITM. Prefer system trust."
+                )
 
             # Authentication
             self.username = config_dic.get("DEFAULT", "username", fallback=None)
@@ -184,15 +207,19 @@ or application."""
                 msg.attach(part1)
                 msg.attach(part2)
 
-            # Connect to SMTP server
+            # Connect to SMTP server (verify TLS certificates / hostname)
+            tls_context = self._ssl_context()
             if self.smtp_use_tls:
                 server = smtplib.SMTP(
                     self.smtp_server, self.smtp_port, timeout=self.connection_timeout
                 )
-                server.starttls()
+                server.starttls(context=tls_context)
             else:
                 server = smtplib.SMTP_SSL(
-                    self.smtp_server, self.smtp_port, timeout=self.connection_timeout
+                    self.smtp_server,
+                    self.smtp_port,
+                    timeout=self.connection_timeout,
+                    context=tls_context,
                 )
 
             # Authenticate and send
@@ -241,11 +268,24 @@ or application."""
             self.logger.error("Failed to receive emails: %s", err)
             return []
 
+    def _ssl_context(self) -> ssl.SSLContext:
+        """Return SSL context for IMAP/SMTP; honors ``email_ssl_verify``."""
+        if self.email_ssl_verify:
+            return ssl.create_default_context()
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context
+
     def _imap_connect(self):
         """Connect to IMAP server and set timeout."""
         self.logger.debug("EmailHandler._imap_connect()")
         if self.imap_use_ssl:
-            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
+            mail = imaplib.IMAP4_SSL(
+                self.imap_server,
+                self.imap_port,
+                ssl_context=self._ssl_context(),
+            )
         else:
             mail = imaplib.IMAP4(self.imap_server, self.imap_port)
         mail.socket().settimeout(self.connection_timeout)

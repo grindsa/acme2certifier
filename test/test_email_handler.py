@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import MagicMock, Mock, patch, call
 import threading
 import logging
+import ssl
 import time
 import sys
 import configparser
@@ -89,6 +90,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(self.email_handler.email_address, "test@test.com")
         self.assertEqual(self.email_handler.polling_timer, 120)
         self.assertEqual(self.email_handler.connection_timeout, 45)
+        self.assertTrue(self.email_handler.email_ssl_verify)
 
     @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_002_config_load_fallback_values(self, mock_load_config):
@@ -113,6 +115,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(self.email_handler.smtp_port, 587)  # default
         self.assertEqual(self.email_handler.polling_timer, 60)  # default
         self.assertEqual(self.email_handler.connection_timeout, 30)  # default
+        self.assertTrue(self.email_handler.email_ssl_verify)
 
     @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_003_config_load_no_default_section(self, mock_load_config):
@@ -251,6 +254,10 @@ class TestEmailHandler(unittest.TestCase):
         self.assertTrue(result)
         mock_smtp.assert_called_once_with("smtp.test.com", 587, timeout=30)
         mock_server.starttls.assert_called_once()
+        starttls_kwargs = mock_server.starttls.call_args.kwargs
+        self.assertIsInstance(starttls_kwargs.get("context"), ssl.SSLContext)
+        self.assertEqual(starttls_kwargs["context"].verify_mode, ssl.CERT_REQUIRED)
+        self.assertTrue(starttls_kwargs["context"].check_hostname)
         mock_server.login.assert_called_once_with("test@test.com", "testpass")
         mock_server.send_message.assert_called_once()
         mock_server.quit.assert_called_once()
@@ -282,6 +289,10 @@ class TestEmailHandler(unittest.TestCase):
         # Assertions
         self.assertTrue(result)
         mock_smtp_ssl.assert_called_once()
+        ssl_kwargs = mock_smtp_ssl.call_args.kwargs
+        self.assertIsInstance(ssl_kwargs.get("context"), ssl.SSLContext)
+        self.assertEqual(ssl_kwargs["context"].verify_mode, ssl.CERT_REQUIRED)
+        self.assertTrue(ssl_kwargs["context"].check_hostname)
         mock_server.starttls.assert_not_called()
         mock_server.send_message.assert_called_once()
 
@@ -364,6 +375,11 @@ class TestEmailHandler(unittest.TestCase):
 
         # Assertions
         self.assertEqual(len(emails), 2)  # Two email IDs: 1 and 2
+        mock_imap.assert_called_once()
+        imap_kwargs = mock_imap.call_args.kwargs
+        self.assertIsInstance(imap_kwargs.get("ssl_context"), ssl.SSLContext)
+        self.assertEqual(imap_kwargs["ssl_context"].verify_mode, ssl.CERT_REQUIRED)
+        self.assertTrue(imap_kwargs["ssl_context"].check_hostname)
         mock_mail.login.assert_called_once_with("test@test.com", "testpass")
         mock_mail.select.assert_called_once_with("INBOX")
         mock_mail.search.assert_called_once_with(None, "UNSEEN")
@@ -386,6 +402,7 @@ class TestEmailHandler(unittest.TestCase):
 
         # Assertions
         mock_imap.assert_called_once()
+        self.assertNotIn("ssl_context", mock_imap.call_args.kwargs)
         self.assertEqual(len(emails), 0)
 
     def test_019_receive_emails_invalid_config(self):
@@ -995,6 +1012,60 @@ class TestEmailHandler(unittest.TestCase):
         mock_server.login.assert_not_called()
         mock_server.send_message.assert_called_once()
         mock_server.quit.assert_called_once()
+
+    def test_051_ssl_context_verifies_certificates(self):
+        """_ssl_context returns a verifying default SSL context"""
+        self.email_handler.email_ssl_verify = True
+        ctx = self.email_handler._ssl_context()
+        self.assertIsInstance(ctx, ssl.SSLContext)
+        self.assertEqual(ctx.verify_mode, ssl.CERT_REQUIRED)
+        self.assertTrue(ctx.check_hostname)
+
+    def test_052_ssl_context_disabled(self):
+        """_ssl_context disables verification when email_ssl_verify is False"""
+        self.email_handler.email_ssl_verify = False
+        ctx = self.email_handler._ssl_context()
+        self.assertIsInstance(ctx, ssl.SSLContext)
+        self.assertEqual(ctx.verify_mode, ssl.CERT_NONE)
+        self.assertFalse(ctx.check_hostname)
+
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
+    def test_053_config_load_email_ssl_verify_false(self, mock_load_config):
+        """_config_load accepts email_ssl_verify=False and logs a warning"""
+        parser = configparser.ConfigParser()
+        parser["DEFAULT"] = {
+            "imap_server": "imap.test.com",
+            "email_ssl_verify": "False",
+        }
+        mock_load_config.return_value = parser
+
+        with self.assertLogs(self.logger, level="WARNING") as log:
+            self.email_handler._config_load()
+
+        self.assertFalse(self.email_handler.email_ssl_verify)
+        self.assertTrue(
+            any("email_ssl_verify=False" in entry for entry in log.output),
+            log.output,
+        )
+
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
+    def test_054_config_load_email_ssl_verify_invalid(self, mock_load_config):
+        """Invalid email_ssl_verify keeps default True"""
+        parser = configparser.ConfigParser()
+        parser["DEFAULT"] = {
+            "imap_server": "imap.test.com",
+            "email_ssl_verify": "not-a-bool",
+        }
+        mock_load_config.return_value = parser
+
+        with self.assertLogs(self.logger, level="WARNING") as log:
+            self.email_handler._config_load()
+
+        self.assertTrue(self.email_handler.email_ssl_verify)
+        self.assertTrue(
+            any("Failed to parse email_ssl_verify" in entry for entry in log.output),
+            log.output,
+        )
 
 
 if __name__ == "__main__":
