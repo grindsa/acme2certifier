@@ -23,6 +23,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- Security: `reverse_address_check` requires an exact PTR match for the authorization DNS name (case-insensitive; trailing dots ignored); subdomain PTRs such as `x.bank.com` no longer validate `bank.com`
 - HTTP-01 challenge validation follows redirects under constrained policy (http/https, ports 80/443, per-hop IP filtering via `http01_block_private_ips`; configurable `http01_max_redirects` default 5; IP `Location` rejected unless `http01_redirect_allow_ip=True`)
 - Security: require a label boundary for wildcard-vs-wildcard domain matches so `*.attackerexample.com` no longer matches `*.example.com` (prevalidation / `allowed_domainlist` / CA routing)
 - Security: HTTP-01 challenge validation follows redirects under constrained policy (http/https, ports 80/443, per-hop IP filtering via `http01_block_private_ips`; configurable `http01_max_redirects` default 5; IP `Location` rejected unless `http01_redirect_allow_ip=True`)

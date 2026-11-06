@@ -245,17 +245,17 @@ class SourceAddressValidator(ChallengeValidator):
             }
 
     def _domain_matches(self, requested_domain: str, resolved_domain: str) -> bool:
-        """Check if domains match (exact or subdomain)."""
+        """Check if domains match exactly (case-insensitive; trailing dots ignored).
+
+        Subdomain PTR matches (e.g. ``x.foo.com`` for authz ``foo.com``) are
+        rejected so reverse-address checks cannot validate a parent name from a
+        child PTR.
+        """
         if requested_domain:
             requested_domain = requested_domain.lower().rstrip(".")
         if resolved_domain:
             resolved_domain = resolved_domain.lower().rstrip(".")
 
-        # Exact match
-        if requested_domain == resolved_domain:
-            return True
-
-        if not resolved_domain:
+        if not requested_domain or not resolved_domain:
             return False
-        # Subdomain match (resolved domain ends with requested domain)
-        return resolved_domain.endswith("." + requested_domain)
+        return requested_domain == resolved_domain

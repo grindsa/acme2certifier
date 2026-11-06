@@ -2602,10 +2602,12 @@ class TestSourceAddressValidator(unittest.TestCase):
         result = self.validator._domain_matches("example.com", "example.com")
         self.assertTrue(result)
 
-    def test_112_domain_matches_subdomain(self):
-        """Test _domain_matches with subdomain"""
-        result = self.validator._domain_matches("example.com", "www.example.com")
-        self.assertTrue(result)
+    def test_112_domain_matches_subdomain_rejected(self):
+        """Subdomain PTR must not validate a parent authz name (M4 item 1)."""
+        self.assertFalse(
+            self.validator._domain_matches("example.com", "www.example.com")
+        )
+        self.assertFalse(self.validator._domain_matches("bank.com", "x.bank.com"))
 
     def test_113_domain_matches_no_match(self):
         """Test _domain_matches with no match"""
@@ -2698,14 +2700,25 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertEqual(result["error"], "PTR resolution failed")
 
     @patch("acme2certifier.acme_srv.helper.ptr_resolve")
-    def test_120_perform_reverse_check_subdomain_match(self, mock_ptr_resolve):
-        """Test _perform_reverse_check passes for PTR subdomain of requested domain"""
+    def test_120_perform_reverse_check_subdomain_rejected(self, mock_ptr_resolve):
+        """Subdomain PTR must not pass reverse check for a parent authz name."""
         mock_ptr_resolve.return_value = ("www.example.com", False)
 
         result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
 
-        self.assertTrue(result["reverse_check_passed"])
+        self.assertFalse(result["reverse_check_passed"])
         self.assertEqual(result["reverse_domains"], ["www.example.com"])
+        self.assertEqual(result["error"], "No matching domains found")
+
+    @patch("acme2certifier.acme_srv.helper.ptr_resolve")
+    def test_120b_perform_reverse_check_exact_match(self, mock_ptr_resolve):
+        """Exact PTR match still passes reverse check."""
+        mock_ptr_resolve.return_value = ("example.com", False)
+
+        result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
+
+        self.assertTrue(result["reverse_check_passed"])
+        self.assertEqual(result["reverse_domains"], ["example.com"])
 
 
 class TestDnsPersistChallengeValidator(unittest.TestCase):
