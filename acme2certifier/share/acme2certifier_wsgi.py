@@ -302,8 +302,13 @@ def cert(environ, start_response):
             log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
-            # send response
-            return [response_dic["data"]]
+            # send response (wsgiref requires bytes)
+            data = response_dic["data"]
+            if isinstance(data, bytes):
+                return [data]
+            if isinstance(data, str):
+                return [data.encode("utf-8")]
+            return [json.dumps(data, indent=2).encode("utf-8")]
 
         else:
             err_wrong_request_method(start_response)

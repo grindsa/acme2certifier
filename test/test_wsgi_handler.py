@@ -1711,6 +1711,38 @@ class TestACMEHandler(unittest.TestCase):
         """test DBstore.certificate_lookup() by name (successful)"""
         self.assertFalse(self.dbstore.certificate_lookup("name", "certname"))
 
+    def test_084b_certificate_lookup_rejects_like_wildcards(self):
+        """exact name match only — LIKE metacharacters must not enumerate (M7)"""
+        data_dic = {
+            "alg": "alg1",
+            "jwk": '{"key11": "val11", "key12": "val12"}',
+            "contact": "contact1",
+            "name": "name1",
+        }
+        self.dbstore.account_add(data_dic)
+        data_dic = {
+            "name": "name1",
+            "identifiers": "identifiers",
+            "account": "name1",
+            "status": 1,
+            "expires": "25",
+        }
+        self.dbstore.order_add(data_dic)
+        data_dic = {
+            "name": "certname1",
+            "csr": "csr1",
+            "cert": "cert",
+            "order": "name1",
+        }
+        self.dbstore.certificate_add(data_dic)
+
+        exact = self.dbstore.certificate_lookup("name", "certname1")
+        self.assertEqual("certname1", exact.get("name"))
+        self.assertFalse(self.dbstore.certificate_lookup("name", "%"))
+        self.assertFalse(self.dbstore.certificate_lookup("name", "cert%"))
+        self.assertFalse(self.dbstore.certificate_lookup("name", "c%1"))
+        self.assertFalse(self.dbstore.certificate_lookup("name", "_________"))
+
     def test_085_certificate_lookup(self):
         """test DBstore.certificate_lookup() methodwith modified output"""
         data_dic = {

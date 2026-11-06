@@ -1120,32 +1120,25 @@ class TestCertificate(unittest.TestCase):
         with patch.object(
             self.cert, "_handle_valid_certificate", return_value={"code": 200}
         ):
-            result = self.cert._determine_certificate_response({"status": "valid"})
-            # Accept either the mocked return or the error dict if not handled
-            if result.get("code") == 200:
-                self.assertEqual(result, {"code": 200})
-            else:
-                self.assertEqual(
-                    result, {"code": 500, "data": "serverinternal", "detail": None}
-                )
+            result = self.cert._determine_certificate_response(
+                {"order__status_id": self.cert.ORDER_STATUS_VALID, "cert": "c"}
+            )
+            self.assertEqual(result, {"code": 200})
 
     def test_083_determine_certificate_response_processing(self):
         # Patch _handle_processing_certificate to return {'code': 202} for 'processing' status
         with patch.object(
             self.cert, "_handle_processing_certificate", return_value={"code": 202}
         ):
-            result = self.cert._determine_certificate_response({"status": "processing"})
-            # Accept either the mocked return or the error dict if not handled
-            if result.get("code") == 202:
-                self.assertEqual(result, {"code": 202})
-            else:
-                self.assertEqual(
-                    result, {"code": 500, "data": "serverinternal", "detail": None}
-                )
+            result = self.cert._determine_certificate_response(
+                {"order__status_id": self.cert.ORDER_STATUS_PROCESSING}
+            )
+            self.assertEqual(result, {"code": 202})
 
     def test_084_determine_certificate_response_invalid(self):
-        result = self.cert._determine_certificate_response({"status": "invalid"})
-        self.assertIsInstance(result, dict)
+        self.cert.err_msg_dic["ordernotready"] = "ordernotready"
+        result = self.cert._determine_certificate_response({"order__status_id": 99})
+        self.assertEqual(result["code"], 403)
 
     def test_085_validate_input_parameters_invalid(self):
         with patch.object(
@@ -1596,9 +1589,12 @@ class TestCertificate(unittest.TestCase):
             )
 
     def test_120_determine_certificate_response_no_cert_info(self):
-        """Test _determine_certificate_response with no cert info"""
+        """Test _determine_certificate_response with no cert info → 404"""
+        self.cert.err_msg_dic["malformed"] = "malformed"
         result = self.cert._determine_certificate_response({})
-        self.assertEqual(result["code"], 500)
+        self.assertEqual(result["code"], 404)
+        self.assertEqual(result["data"], "malformed")
+        self.assertEqual(result["detail"], "Certificate not found")
 
     def test_121_determine_certificate_response_valid_order(self):
         """Test _determine_certificate_response with valid order"""

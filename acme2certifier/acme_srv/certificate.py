@@ -2064,7 +2064,12 @@ class Certificate(object):
         self.logger.debug("Certificate._determine_certificate_response()")
 
         if not cert_info or "order__status_id" not in cert_info:
-            return self._create_error_response(500, self.err_msg_dic["serverinternal"])
+            # Unknown / non-matching certificate name (client error, not a server fault)
+            return self._create_error_response(
+                404,
+                self.err_msg_dic["malformed"],
+                "Certificate not found",
+            )
 
         order_status = cert_info["order__status_id"]
 
@@ -2212,7 +2217,7 @@ class Certificate(object):
                 "Certificate retrieval failed",
                 {},
             )
-        if response_dic["code"] in (400, 403, 500):
+        if response_dic["code"] in (400, 403, 404, 500):
             return (
                 response_dic["code"],
                 response_dic["data"],

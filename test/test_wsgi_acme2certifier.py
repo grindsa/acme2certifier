@@ -611,12 +611,39 @@ class TestACMEHandler(unittest.TestCase):
         }
         mock_header.return_value = {"header": "foo"}
         mock_get.return_value = {"code": 200, "data": "data"}
-        self.assertEqual(["data"], self.cert(environ, Mock()))
+        self.assertEqual([b"data"], self.cert(environ, Mock()))
         self.assertTrue(mock_get.called)
         self.assertFalse(mock_post.called)
         self.assertTrue(mock_url.called)
         self.assertTrue(mock_header.called)
         self.assertFalse(mock_body.called)
+
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_post")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_get")
+    def test_038b_cert_get_error_returns_bytes(
+        self, mock_get, mock_post, mock_url, mock_header, mock_body
+    ):
+        """cert GET error body must be bytes for wsgiref"""
+        environ = {
+            "REQUEST_METHOD": "GET",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "/acme/cert/d%",
+        }
+        mock_header.return_value = {"header": "foo"}
+        mock_get.return_value = {
+            "code": 403,
+            "data": "urn:ietf:params:acme:error:orderNotReady",
+            "detail": None,
+        }
+        body = self.cert(environ, Mock())
+        self.assertEqual(1, len(body))
+        self.assertIsInstance(body[0], bytes)
+        self.assertIn(b"orderNotReady", body[0])
+        self.assertTrue(mock_get.called)
+        self.assertFalse(mock_post.called)
 
     @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
     @patch("acme2certifier.share.acme2certifier_wsgi.create_header")

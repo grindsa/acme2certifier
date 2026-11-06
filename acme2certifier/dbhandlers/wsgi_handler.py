@@ -136,10 +136,10 @@ class DBstore(object):
         try:
             if active:
                 pre_statement = (
-                    f"SELECT * from account WHERE {column} LIKE ? AND status_id = 5"
+                    f"SELECT * from account WHERE {column} = ? AND status_id = 5"
                 )
             else:
-                pre_statement = f"SELECT * from account WHERE {column} LIKE ?"
+                pre_statement = f"SELECT * from account WHERE {column} = ?"
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
         except Exception as err:
@@ -177,7 +177,7 @@ class DBstore(object):
                         LEFT JOIN orders on orders.id = authorization.order_id
                         LEFT JOIN status on status.id = authorization.status_id
                         LEFT JOIN account on account.id = orders.account_id
-                        WHERE {column} LIKE ?"""
+                        WHERE {column} = ?"""
         try:
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchall()
@@ -201,7 +201,7 @@ class DBstore(object):
             self.logger.warning(COLUMN_NOT_IN_TABLE_MSG, column, "cahandler")
             return []
         self._db_open()
-        pre_statement = f"""SELECT cahandler.* from cahandler WHERE {column} LIKE ?"""
+        pre_statement = f"""SELECT cahandler.* from cahandler WHERE {column} = ?"""
         try:
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
@@ -325,7 +325,7 @@ class DBstore(object):
                             from certificate
                             INNER JOIN orders on orders.id = certificate.order_id
                             INNER JOIN account on account.id = orders.account_id
-                            WHERE {column} LIKE ?"""
+                            WHERE {column} = ?"""
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self._db_close()
@@ -358,7 +358,7 @@ class DBstore(object):
             INNER JOIN authorization on authorization.id = challenge.authorization_id
             INNER JOIN orders on orders.id = authorization.order_id
             INNER JOIN account on account.id = orders.account_id
-            WHERE challenge.{column} LIKE ?"""
+            WHERE challenge.{column} = ?"""
         try:
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
@@ -383,7 +383,7 @@ class DBstore(object):
             return {}
         self._db_open()
         try:
-            pre_statement = f"SELECT * from cliaccount WHERE {column} LIKE ?"
+            pre_statement = f"SELECT * from cliaccount WHERE {column} = ?"
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
         except Exception as err:
@@ -738,7 +738,7 @@ class DBstore(object):
         self.logger.debug("DBStore._db_update_status()")
 
         # add additional values to status table
-        pre_statement = "SELECT * from status WHERE status.name LIKE ?"
+        pre_statement = "SELECT * from status WHERE status.name = ?"
         self.cursor.execute(pre_statement, ["deactivated"])
         if not self.cursor.fetchone():
             self.logger.info("adding additional status")
@@ -767,7 +767,7 @@ class DBstore(object):
                     from orders
                     INNER JOIN status on status.id = orders.status_id
                     INNER JOIN account on account.id = orders.account_id
-                    WHERE orders.{column} LIKE ?"""
+                    WHERE orders.{column} = ?"""
         try:
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
@@ -791,7 +791,7 @@ class DBstore(object):
             self.logger.warning(COLUMN_NOT_IN_TABLE_MSG, column, "status")
             return (None, None)
         self._db_open()
-        pre_statement = f"SELECT * from status WHERE status.{column} LIKE ?"
+        pre_statement = f"SELECT * from status WHERE status.{column} = ?"
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self._db_close()
@@ -836,7 +836,7 @@ class DBstore(object):
         """add account in database"""
         self.logger.debug("DBStore.account_delete(%s)", aname)
         self._db_open()
-        pre_statement = "DELETE FROM account WHERE name LIKE ?"
+        pre_statement = "DELETE FROM account WHERE name = ?"
         self.cursor.execute(pre_statement, [aname])
         result = bool(self.cursor.rowcount)
         self._db_close()
@@ -1547,7 +1547,7 @@ class DBstore(object):
             INNER JOIN authorization on authorization.id = challenge.authorization_id
             INNER JOIN orders on orders.id = authorization.order_id
             INNER JOIN account on account.id = orders.account_id
-            WHERE {column} LIKE ?"""
+            WHERE {column} = ?"""
         self.cursor.execute(pre_statement, [string])
         rows = self.cursor.fetchall()
         challenge_list = []
@@ -1752,7 +1752,7 @@ class DBstore(object):
         """get db version from housekeeping table"""
         self.logger.debug("DBStore.dbversion_get()")
         self._db_open()
-        pre_statement = "SELECT value from housekeeping WHERE housekeeping.name LIKE ?"
+        pre_statement = "SELECT value from housekeeping WHERE housekeeping.name = ?"
         self.cursor.execute(pre_statement, ["dbversion"])
         query = list(self.cursor.fetchone())
         if query:
@@ -1794,7 +1794,7 @@ class DBstore(object):
         """get parameter from housekeeping table"""
         self.logger.debug("DBStore.hkparameter_get()")
         self._db_open()
-        pre_statement = "SELECT value from housekeeping WHERE housekeeping.name LIKE ?"
+        pre_statement = "SELECT value from housekeeping WHERE housekeeping.name = ?"
         self.cursor.execute(pre_statement, [parameter])
         try:
             query = list(self.cursor.fetchone())
