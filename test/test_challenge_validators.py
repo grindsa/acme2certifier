@@ -2388,8 +2388,8 @@ class TestSourceAddressValidator(unittest.TestCase):
         result = self.validator.perform_validation(context)
         self.assertIsInstance(result, ValidationResult)
 
-    def test_100_perform_validation_no_source_address(self):
-        """Test perform_validation with no source address"""
+    def test_100_perform_validation_no_source_address_checks_enabled(self):
+        """Missing source with address checks enabled must fail closed (M4 item 2)."""
         context = ChallengeContext(
             challenge_name="test",
             token="test_token",
@@ -2397,9 +2397,29 @@ class TestSourceAddressValidator(unittest.TestCase):
             authorization_type="dns",
             authorization_value="example.com",
         )
-        # No source_address set
+        # No source_address set; setUp enables forward and reverse checks
 
         result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertEqual(result.details["message"], "No source address provided")
+        self.assertIn("no source address provided", result.error_message)
+
+    def test_100b_perform_validation_no_source_address_checks_disabled(self):
+        """Missing source is skipped only when neither address check is enabled."""
+        validator = SourceAddressValidator(
+            self.logger, forward_check=False, reverse_check=False
+        )
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+        )
+
+        result = validator.perform_validation(context)
 
         self.assertTrue(result.success)
         self.assertFalse(result.invalid)

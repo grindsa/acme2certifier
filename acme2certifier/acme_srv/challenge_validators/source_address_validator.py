@@ -60,6 +60,23 @@ class SourceAddressValidator(ChallengeValidator):
         # Get source address from context
         source_address = getattr(context, "source_address", None)
         if not source_address:
+            if self.forward_check or self.reverse_check:
+                self.logger.debug(
+                    "SourceAddressValidator.perform_validation(): "
+                    "No source address provided with address checks enabled"
+                )
+                return ValidationResult(
+                    success=False,
+                    invalid=True,
+                    error_message=json.dumps(
+                        {
+                            "status": 400,
+                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "detail": "Source address check failed: no source address provided",
+                        }
+                    ),
+                    details={"message": "No source address provided"},
+                )
             return ValidationResult(
                 success=True,
                 invalid=False,
