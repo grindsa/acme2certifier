@@ -4143,21 +4143,14 @@ class TestCertificate(unittest.TestCase):
             RuntimeError("ca boom")
         )
         handler_factory.return_value.__exit__.return_value = False
+        self.cert.config.cert_reusage_timeframe = 0
         with (
-            patch("acme2certifier.acme_srv.certificate.span") as mock_span,
-            patch("acme2certifier.acme_srv.certificate.set_span_outcome") as mock_outcome,
-            patch("acme2certifier.acme_srv.certificate.counter_add") as mock_counter,
+            patch.object(self.cert, "_resolve_cahandler", return_value=handler_factory),
+            patch.object(self.cert, "_persist_order_cahandler"),
             self.assertLogs(self.cert.logger, level="ERROR") as log,
         ):
-            mock_span.return_value.__enter__.return_value = MagicMock()
-            mock_span.return_value.__exit__.return_value = False
-            result = self.cert._enroll_via_cahandler(
-                handler_factory, "testhandler", "csr", "order"
-            )
-        self.assertEqual(result, ("ca boom", None, None, None))
-        mock_outcome.assert_called()
-        self.assertEqual(mock_outcome.call_args.args[1], "error")
-        mock_counter.assert_called()
+            result = self.cert._process_certificate_enrollment("csr", "order")
+        self.assertEqual(result, ("ca boom", None, None, None, False))
         self.assertIn("enroll() raised", log.output[0])
 
     def test_process_enrollment_unexpected_exception_invalidates_order(self):

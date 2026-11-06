@@ -60,7 +60,7 @@ jobs:
       !startsWith(github.event.client_payload.branch, 'wf_')
     steps:
       - name: Dispatch broker
-        uses: grindsa/dispatch-broker-action@11e2c684a324cbbcdd76063e839b4c36b5a30d37 # v1
+        uses: grindsa/dispatch-broker-action@5d6f41009a0977d8f39f100f837f6e4c192aaff7 # v1
         with:
           token: ${{ secrets.GH_WF_TOKEN }}
           repository: ${{ github.repository }}
@@ -73,4 +73,6 @@ jobs:
             main-create-release-push-images-to-dockerhub.yml,
             publish-pypi.yml,
             helper-dump-secrets.yml,
-            quality-codescanner.yml
+            quality-codescanner.yml,
+            security-artifact-policy.yml,
+            security-sanitizer-selftest.yml
