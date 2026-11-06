@@ -254,7 +254,7 @@ _dns_connect_wrapper_installed = False
 
 
 def _first_resolved_address(
-    resolved: str | List[str] | None, fallback: str
+    resolved: Optional[Union[str, List[str]]], fallback: str
 ) -> str:
     """Pick a single connect address from fqdn_resolve output."""
     if isinstance(resolved, list):
@@ -515,7 +515,7 @@ def url_get(
 
 
 def normalize_resolved_ips(
-    resolved: str | List[str] | None,
+    resolved: Optional[Union[str, List[str]]],
 ) -> List[str]:
     """Normalize fqdn_resolve output to a list of IP strings."""
     if resolved is None:
@@ -1488,7 +1488,7 @@ def _request_send_by_method(
 
 def _request_parse_response(
     logger: logging.Logger, api_response: requests.Response
-) -> Tuple[int, Dict | str | None]:
+) -> Tuple[int, Optional[Union[Dict, str]]]:
     """Parse HTTP response body as JSON when possible."""
     code = api_response.status_code
     if not api_response.text:
@@ -1621,7 +1621,7 @@ def ca_api_request(
     method: str,
     url: str,
     **kwargs: Any,
-) -> Tuple[int, Dict | str | None]:
+) -> Tuple[int, Optional[Union[Dict, str]]]:
     """Thin CA-handler wrapper around request_operation."""
     logger.debug("CAhandler._api_%s()", method.lower())
     code, content = request_operation(logger, method=method, url=url, **kwargs)
