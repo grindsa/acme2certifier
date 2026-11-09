@@ -67,6 +67,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
             proxy_server,
             sni,
             connect_host=connect_host,
+            timeout=context.timeout,
         )
 
         if not cert:

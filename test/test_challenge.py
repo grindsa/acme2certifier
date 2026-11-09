@@ -3650,13 +3650,14 @@ class TestChallenge(unittest.TestCase):
     def test_168_start_async_validation_timeout_still_processing(
         self, mock_thread_class
     ):
-        """sync mode WARNING when validation thread is still alive after join"""
+        """sync mode marks challenge invalid when validation thread is still alive"""
         mock_thread = Mock()
         mock_thread.is_alive.return_value = True
         mock_thread_class.return_value = mock_thread
         self.challenge.config.async_mode = False
         self.challenge.config.validation_timeout = 7
         self.challenge._perform_challenge_validation = Mock()
+        self.challenge.state_manager.transition_to_invalid = Mock()
 
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.challenge._start_async_validation("slow_chal", {})
@@ -3664,8 +3665,13 @@ class TestChallenge(unittest.TestCase):
         mock_thread.join.assert_called_once_with(timeout=7)
         self.assertIn(
             "WARNING:test_a2c:Challenge validation still processing after timeout: "
-            "challenge=slow_chal timeout=7 (result will be applied asynchronously)",
+            "challenge=slow_chal timeout=7 (marking invalid)",
             lcm.output,
+        )
+        self.challenge.state_manager.transition_to_invalid.assert_called_once_with(
+            "slow_chal",
+            self.challenge.source_address,
+            "challenge validation timed out after 7s",
         )
 
     def test_169_format_challenge_validation_reason_json_non_dict(self):

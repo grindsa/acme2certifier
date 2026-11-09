@@ -1532,11 +1532,19 @@ class Challenge:
             )
             twrv.join(timeout=self.config.validation_timeout)
             if twrv.is_alive():
+                timeout_reason = (
+                    f"challenge validation timed out after "
+                    f"{self.config.validation_timeout}s"
+                )
                 self.logger.warning(
                     "Challenge validation still processing after timeout: "
-                    "challenge=%s timeout=%s (result will be applied asynchronously)",
+                    "challenge=%s timeout=%s (marking invalid)",
                     challenge_name,
                     self.config.validation_timeout,
+                )
+                # CAS processing → invalid so a late worker success cannot revive it.
+                self.state_manager.transition_to_invalid(
+                    challenge_name, self.source_address, timeout_reason
                 )
             else:
                 self.logger.debug(

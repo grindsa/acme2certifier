@@ -1357,6 +1357,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
                 None,
                 "example.com",
                 connect_host="192.168.1.1",
+                timeout=10,
             )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
@@ -1427,6 +1428,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
                 None,
                 "192.168.1.1",
                 connect_host="192.168.1.1",
+                timeout=10,
             )
 
     @patch("acme2certifier.acme_srv.helper.ip_validate")
@@ -1739,6 +1741,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
                 "proxy.example.com:8080",
                 "example.com",
                 connect_host="192.168.1.1",
+                timeout=10,
             )
 
 

@@ -28,6 +28,9 @@ urllib3_cn = connection
 _HTTP01_REDIRECT_VALIDATE_ENDED = (
     "Helper.http01_redirect_target_validate() ended: %s"
 )
+# HTTP-01 key authorization is ~80–100 bytes; keep a small hard cap against
+# oversize / gzip-bomb responses (M9).
+HTTP01_MAX_RESPONSE_BYTES = 10 * 1024
 
 
 def _caaidentities_parse(logger: logging.Logger, value: str) -> List[str]:
@@ -688,13 +691,91 @@ def http01_redirect_target_validate(
 
 
 def _http01_request_headers(host: str) -> Dict[str, str]:
-    """Standard HTTP-01 request headers with logical Host."""
+    """Standard HTTP-01 request headers with logical Host.
+
+    ``Accept-Encoding: identity`` avoids transparent gzip decompression so a
+    compressed bomb cannot expand past ``HTTP01_MAX_RESPONSE_BYTES``.
+    """
     return {
         "Connection": "close",
-        "Accept-Encoding": "gzip",
+        "Accept-Encoding": "identity",
         "User-Agent": USER_AGENT,
         "Host": _http_host_header(host),
     }
+
+
+def _http01_remaining_timeout(deadline: float) -> Optional[float]:
+    """Seconds left until *deadline*, or None when the budget is exhausted."""
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        return None
+    return remaining
+
+
+def _http01_read_body_capped(
+    logger: logging.Logger,
+    req: Any,
+    max_bytes: int = HTTP01_MAX_RESPONSE_BYTES,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Read an HTTP-01 response body with a hard size cap. Returns (text, error)."""
+    logger.debug("Helper._http01_read_body_capped(max_bytes=%s)", max_bytes)
+    content_encoding = (req.headers.get("Content-Encoding") or "identity").strip().lower()
+    if content_encoding not in ("", "identity"):
+        error_msg = (
+            f"HTTP-01 compressed responses are not allowed "
+            f"(Content-Encoding: {content_encoding})"
+        )
+        logger.debug("Helper._http01_read_body_capped() ended: %s", error_msg)
+        req.close()
+        return None, error_msg
+
+    content_length = req.headers.get("Content-Length")
+    if content_length is not None:
+        try:
+            if int(content_length) > max_bytes:
+                error_msg = f"HTTP-01 response exceeds {max_bytes} bytes"
+                logger.debug("Helper._http01_read_body_capped() ended: %s", error_msg)
+                req.close()
+                return None, error_msg
+        except ValueError:
+            pass
+
+    # Never let urllib3 auto-decompress while streaming.
+    raw = getattr(req, "raw", None)
+    if raw is not None:
+        try:
+            raw.decode_content = False
+        except Exception:
+            pass
+
+    chunks: List[bytes] = []
+    total = 0
+    try:
+        for chunk in req.iter_content(chunk_size=1024):
+            if not chunk:
+                continue
+            total += len(chunk)
+            if total > max_bytes:
+                error_msg = f"HTTP-01 response exceeds {max_bytes} bytes"
+                logger.debug("Helper._http01_read_body_capped() ended: %s", error_msg)
+                return None, error_msg
+            chunks.append(chunk)
+    except Exception as err:
+        error_msg = f"HTTP-01 response read failed: {err}"
+        logger.error(error_msg)
+        return None, error_msg
+    finally:
+        req.close()
+
+    encoding = req.encoding or getattr(req, "apparent_encoding", None) or "utf-8"
+    try:
+        text = b"".join(chunks).decode(encoding, errors="replace")
+    except Exception:
+        text = b"".join(chunks).decode("utf-8", errors="replace")
+    logger.debug(
+        "Helper._http01_read_body_capped() ended with %s bytes", total
+    )
+    return text, None
 
 
 def _http01_sni_hostname(host_header: str) -> Optional[str]:
@@ -744,10 +825,13 @@ def _http01_single_get(
     headers: Dict[str, str],
     *,
     verify: bool,
-    timeout: int,
+    timeout: float,
     proxies: Dict[str, str],
 ) -> Tuple[Optional[Any], int, Optional[str]]:
-    """One HTTP GET with redirects disabled. Returns (response, status, error)."""
+    """One HTTP GET with redirects disabled. Returns (response, status, error).
+
+    Uses ``stream=True`` so the caller can enforce ``HTTP01_MAX_RESPONSE_BYTES``.
+    """
     logger.debug("Helper._http01_single_get(%s)", connect_url)
     use_host_sni = connect_url.lower().startswith("https:") and bool(
         _http01_sni_hostname(headers.get("Host", ""))
@@ -764,6 +848,7 @@ def _http01_single_get(
                 headers=headers,
                 proxies=proxies,
                 allow_redirects=False,
+                stream=True,
             )
         else:
             req = requests.get(
@@ -773,6 +858,7 @@ def _http01_single_get(
                 headers=headers,
                 proxies=proxies,
                 allow_redirects=False,
+                stream=True,
             )
         return req, req.status_code, None
     except requests.exceptions.ReadTimeout:
@@ -806,13 +892,19 @@ def _http01_fetch_via_pins(
     headers: Dict[str, str],
     *,
     verify: bool,
-    timeout: int,
+    timeout: float,
+    deadline: float,
 ) -> Tuple[Optional[Any], int, Optional[str]]:
     """GET via each pinned peer IP until one connects."""
     logger.debug("Helper._http01_fetch_via_pins(%s)", hop_ips)
     last_error: Optional[str] = "No pinned IP addresses provided"
     last_status = 500
     for ip_str in hop_ips:
+        remaining = _http01_remaining_timeout(deadline)
+        if remaining is None:
+            last_error = "HTTP-01 validation timed out"
+            last_status = 500
+            break
         try:
             ipaddress.ip_address(ip_str)
         except ValueError:
@@ -827,7 +919,7 @@ def _http01_fetch_via_pins(
             connect_url,
             headers,
             verify=verify,
-            timeout=timeout,
+            timeout=min(timeout, remaining),
             proxies={},
         )
         if req is not None:
@@ -852,10 +944,14 @@ def _http01_fetch_via_hostname(
     proxy_server: Optional[str],
     proxies: Dict[str, str],
     verify: bool,
-    timeout: int,
+    timeout: float,
+    deadline: float,
 ) -> Tuple[Optional[Any], int, Optional[str]]:
     """GET the logical URL (proxy and/or custom DNS resolver)."""
     logger.debug("Helper._http01_fetch_via_hostname(%s)", logical_url)
+    remaining = _http01_remaining_timeout(deadline)
+    if remaining is None:
+        return None, 500, "HTTP-01 validation timed out"
     use_custom_dns = bool(dns_server_list) and not proxy_server
     if use_custom_dns:
         _ensure_custom_dns_connect_wrapper()
@@ -866,7 +962,7 @@ def _http01_fetch_via_hostname(
             logical_url,
             headers,
             verify=verify,
-            timeout=timeout,
+            timeout=min(timeout, remaining),
             proxies=proxies,
         )
     finally:
@@ -930,7 +1026,8 @@ def _http01_fetch_hop(
     proxy_server: Optional[str],
     proxies: Dict[str, str],
     verify: bool,
-    timeout: int,
+    timeout: float,
+    deadline: float,
 ) -> Tuple[Optional[Any], int, Optional[str]]:
     """Fetch one HTTP-01 hop via pinned IPs or logical hostname."""
     logger.debug("Helper._http01_fetch_hop(%s)", use_pinning)
@@ -944,6 +1041,7 @@ def _http01_fetch_hop(
             headers,
             verify=verify,
             timeout=timeout,
+            deadline=deadline,
         )
     logger.debug("Helper._http01_fetch_hop() use_pinning is False")
     return _http01_fetch_via_hostname(
@@ -955,6 +1053,7 @@ def _http01_fetch_hop(
         proxies=proxies,
         verify=verify,
         timeout=timeout,
+        deadline=deadline,
     )
 
 
@@ -972,7 +1071,11 @@ def _url_get_http01(
     pinned_ips: Optional[List[str]] = None,
     initial_host: Optional[str] = None,
 ) -> Tuple[Optional[str], int, Optional[str]]:
-    """HTTP-01 GET with constrained redirect following and optional DNS pinning."""
+    """HTTP-01 GET with constrained redirect following and optional DNS pinning.
+
+    Enforces a shared wall-clock budget of ``timeout`` seconds across all hops
+    and caps the final response body at ``HTTP01_MAX_RESPONSE_BYTES``.
+    """
     logger.debug(
         "Helper._url_get_http01(%s, max_redirects=%s, allow_ip=%s, block_private=%s)",
         logical_url,
@@ -981,6 +1084,8 @@ def _url_get_http01(
         block_private,
     )
     max_redirects = max(0, max_redirects)
+    hop_timeout = float(max(timeout, 0))
+    deadline = time.monotonic() + hop_timeout
     proxies = (
         {"http": proxy_server, "https": proxy_server} if proxy_server else {}
     )
@@ -995,6 +1100,9 @@ def _url_get_http01(
     redirects_followed = 0
 
     while True:
+        if _http01_remaining_timeout(deadline) is None:
+            return None, 500, "HTTP-01 validation timed out"
+
         req, last_status, last_error = _http01_fetch_hop(
             logger,
             use_pinning=use_pinning,
@@ -1006,18 +1114,23 @@ def _url_get_http01(
             proxy_server=proxy_server,
             proxies=proxies,
             verify=verify,
-            timeout=timeout,
+            timeout=hop_timeout,
+            deadline=deadline,
         )
         if req is None:
             return None, last_status, last_error
 
         if not req.is_redirect:
+            body, body_error = _http01_read_body_capped(logger, req)
+            if body_error:
+                logger.debug(_HTTP01_GET_ENDED, body_error)
+                return None, 500, body_error
             logger.debug(
                 "Helper._url_get_http01() ended with status: %s, error: %s",
                 last_status,
                 last_error,
             )
-            return req.text, last_status, last_error
+            return body, last_status, last_error
 
         next_logical, next_host, next_ips, redirect_error = (
             _http01_next_redirect_target(
@@ -1031,6 +1144,7 @@ def _url_get_http01(
                 dns_server_list=dns_server_list,
             )
         )
+        req.close()
         if redirect_error or not next_logical or not next_host:
             return None, 500, redirect_error
 
@@ -1175,15 +1289,22 @@ def servercert_get(
     proxy_server: str = None,
     sni: str = None,
     connect_host: Optional[str] = None,
+    timeout: int = 20,
 ) -> Tuple[Optional[str], Optional[str]]:
     """Fetch peer certificate over TLS with ALPN ``acme-tls/1``.
 
     Returns ``(pem_cert, selected_alpn)``. When *connect_host* is set, TCP
     connects to that address while SNI remains *sni* (or *hostname*) so DNS
     validation can pin the resolved IP (RFC 8737 / rebinding mitigation).
+
+    *timeout* bounds connect and handshake (socket ``settimeout``).
     """
     logger.debug(
-        "Helper.servercert_get(%s:%s connect_host=%s)", hostname, port, connect_host
+        "Helper.servercert_get(%s:%s connect_host=%s timeout=%s)",
+        hostname,
+        port,
+        connect_host,
+        timeout,
     )
 
     pem_cert = None
@@ -1221,6 +1342,7 @@ def servercert_get(
             logger.debug("servercert_get(): configure proxy")
             sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
     try:
+        sock.settimeout(float(max(timeout, 0)))
         sock.connect((connect_target, port))
         with context.wrap_socket(sock, server_hostname=sni) as sslsock:
             selected_alpn = sslsock.selected_alpn_protocol()
@@ -1240,6 +1362,10 @@ def servercert_get(
         logger.error("Could not get peer certificate. Error: %s", err_)  # NOSONAR
         pem_cert = None
         selected_alpn = None
+        try:
+            sock.close()
+        except Exception:
+            pass
 
     if pem_cert:
         logger.debug(

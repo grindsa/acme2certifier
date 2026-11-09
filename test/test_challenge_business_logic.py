@@ -351,7 +351,7 @@ class TestChallengeStateManager(unittest.TestCase):
         self.assertFalse(result)
 
     def test_016_transition_to_valid_success(self):
-        """Test successful transition to valid state"""
+        """Test successful CAS transition to valid state"""
         result = self.state_manager.transition_to_valid(
             "test-challenge",
             source_address="192.168.1.1",
@@ -362,21 +362,27 @@ class TestChallengeStateManager(unittest.TestCase):
 
         # Check repository calls
         calls = self.repository.call_log
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3)
 
-        # First call should update challenge
-        self.assertEqual(calls[0][0], "update_challenge")
-        update_request = calls[0][1]
+        # First call: CAS processing → valid
+        self.assertEqual(calls[0][0], "update_challenge_if_status")
+        self.assertEqual(calls[0][1], "test-challenge")
+        self.assertEqual(calls[0][2], "valid")
+        self.assertEqual(calls[0][3], "processing")
+
+        # Second call: source / validated metadata
+        self.assertEqual(calls[1][0], "update_challenge")
+        update_request = calls[1][1]
         self.assertEqual(update_request.name, "test-challenge")
-        self.assertEqual(update_request.status, "valid")
+        self.assertIsNone(update_request.status)
         self.assertEqual(update_request.source, "192.168.1.1")
         self.assertEqual(update_request.validated, 1640995200)
 
-        # Second call should CAS-update authorization pending → valid
-        self.assertEqual(calls[1][0], "update_authorization_status_if")
-        self.assertEqual(calls[1][1], "test-challenge")
-        self.assertEqual(calls[1][2], "valid")
-        self.assertEqual(calls[1][3], "pending")
+        # Third call: CAS-update authorization pending → valid
+        self.assertEqual(calls[2][0], "update_authorization_status_if")
+        self.assertEqual(calls[2][1], "test-challenge")
+        self.assertEqual(calls[2][2], "valid")
+        self.assertEqual(calls[2][3], "pending")
         self.logger.debug.assert_any_call(
             "Challenge state transition: challenge=%s status=valid success=%s",
             "test-challenge",
@@ -389,21 +395,30 @@ class TestChallengeStateManager(unittest.TestCase):
 
         self.assertTrue(result)
 
-        update_request = self.repository.call_log[0][1]
-        self.assertEqual(update_request.name, "test-challenge")
-        self.assertEqual(update_request.status, "valid")
-        self.assertIsNone(update_request.source)
-        self.assertIsNone(update_request.validated)
+        self.assertEqual(self.repository.call_log[0][0], "update_challenge_if_status")
+        self.assertEqual(self.repository.call_log[0][2], "valid")
+        self.assertEqual(self.repository.call_log[0][3], "processing")
+        # No metadata update when source/validated are unset
+        self.assertEqual(
+            self.repository.call_log[1][0], "update_authorization_status_if"
+        )
 
     def test_018_transition_to_valid_challenge_update_failure(self):
-        """Test transition to valid fails on challenge update"""
-        self.repository.update_challenge = Mock(return_value=False)
+        """Test transition to valid fails on CAS challenge update"""
+        self.repository.update_challenge_if_status = Mock(return_value=False)
 
         result = self.state_manager.transition_to_valid("test-challenge")
 
         self.assertFalse(result)
-        # Authorization update should not be called if challenge update fails
-        self.repository.update_challenge.assert_called_once()
+        self.repository.update_challenge_if_status.assert_called_once_with(
+            "test-challenge", "valid", "processing"
+        )
+        authz_calls = [
+            c
+            for c in self.repository.call_log
+            if c[0] == "update_authorization_status_if"
+        ]
+        self.assertEqual(authz_calls, [])
 
     def test_019_transition_to_valid_authorization_update_failure(self):
         """Test transition to valid fails when authz is not pending"""
@@ -412,16 +427,22 @@ class TestChallengeStateManager(unittest.TestCase):
         result = self.state_manager.transition_to_valid("test-challenge")
 
         self.assertFalse(result)
-        # Challenge rolled back to invalid
+        # CAS to valid, then rollback to invalid
         update_calls = [
             c for c in self.repository.call_log if c[0] == "update_challenge"
         ]
-        self.assertEqual(len(update_calls), 2)
-        self.assertEqual(update_calls[0][1].status, "valid")
-        self.assertEqual(update_calls[1][1].status, "invalid")
+        self.assertEqual(len(update_calls), 1)
+        self.assertEqual(update_calls[0][1].status, "invalid")
+        cas_calls = [
+            c
+            for c in self.repository.call_log
+            if c[0] == "update_challenge_if_status"
+        ]
+        self.assertEqual(cas_calls[0][2], "valid")
+        self.assertEqual(cas_calls[0][3], "processing")
 
     def test_020_transition_to_invalid_success(self):
-        """Test successful transition to invalid state"""
+        """Test successful CAS transition to invalid state"""
         result = self.state_manager.transition_to_invalid(
             "test-challenge",
             source_address="192.168.1.100",
@@ -431,17 +452,23 @@ class TestChallengeStateManager(unittest.TestCase):
         self.assertTrue(result)
 
         calls = self.repository.call_log
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3)
 
-        # Check challenge update
-        update_request = calls[0][1]
+        # CAS processing → invalid
+        self.assertEqual(calls[0][0], "update_challenge_if_status")
+        self.assertEqual(calls[0][2], "invalid")
+        self.assertEqual(calls[0][3], "processing")
+
+        # Metadata (source / validation_error)
+        update_request = calls[1][1]
         self.assertEqual(update_request.name, "test-challenge")
-        self.assertEqual(update_request.status, "invalid")
+        self.assertIsNone(update_request.status)
         self.assertEqual(update_request.source, "192.168.1.100")
+        self.assertEqual(update_request.validation_error, "boom")
 
         # Check authorization update
-        self.assertEqual(calls[1][0], "update_authorization_status")
-        self.assertEqual(calls[1][2], "invalid")
+        self.assertEqual(calls[2][0], "update_authorization_status")
+        self.assertEqual(calls[2][2], "invalid")
         self.logger.warning.assert_called_with(
             "Challenge state transition: challenge=%s status=invalid success=%s reason=%s",
             "test-challenge",
@@ -455,12 +482,15 @@ class TestChallengeStateManager(unittest.TestCase):
 
         self.assertTrue(result)
 
-        update_request = self.repository.call_log[0][1]
-        self.assertIsNone(update_request.source)
+        self.assertEqual(self.repository.call_log[0][0], "update_challenge_if_status")
+        self.assertEqual(self.repository.call_log[0][2], "invalid")
+        self.assertEqual(self.repository.call_log[0][3], "processing")
+        # No metadata update when source/validation_error are unset
+        self.assertEqual(self.repository.call_log[1][0], "update_authorization_status")
 
     def test_022_transition_to_invalid_challenge_failure(self):
-        """Test transition to invalid fails on challenge update"""
-        self.repository.update_challenge = Mock(return_value=False)
+        """Test transition to invalid fails on CAS challenge update"""
+        self.repository.update_challenge_if_status = Mock(return_value=False)
 
         result = self.state_manager.transition_to_invalid("test-challenge")
 
@@ -559,7 +589,8 @@ class TestChallengeStateManager(unittest.TestCase):
         )
 
         self.assertTrue(result)
-        update_request = self.repository.call_log[0][1]
+        # call_log[0] is CAS processing→valid; metadata follows
+        update_request = self.repository.call_log[1][1]
         self.assertEqual(update_request.validated, large_timestamp)
 
 

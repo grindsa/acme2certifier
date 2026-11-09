@@ -7,7 +7,7 @@ import configparser
 import logging
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from typing import Any
+from typing import Any, Dict, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import dns.resolver
@@ -2018,6 +2018,28 @@ def test_631_filter_http01_target_ips_strict(logger: logging.Logger) -> None:
     assert "No allowed address for HTTP-01 validation" == err
 
 
+def _http01_mock_response(
+    *,
+    body: bytes = b"token.thumb",
+    status_code: int = 200,
+    reason: str = "OK",
+    is_redirect: bool = False,
+    headers: Optional[Dict[str, str]] = None,
+) -> Mock:
+    """Build a streamed HTTP-01 response mock for requests.get."""
+    resp = Mock()
+    resp.status_code = status_code
+    resp.reason = reason
+    resp.is_redirect = is_redirect
+    resp.headers = headers if headers is not None else {}
+    resp.encoding = "utf-8"
+    resp.iter_content = Mock(return_value=[body] if body else [])
+    resp.close = Mock()
+    resp.raw = Mock()
+    resp.text = body.decode("utf-8", errors="replace") if body else ""
+    return resp
+
+
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
 def test_632_url_get_dns_pinned_success(
     mock_get: MagicMock, logger: logging.Logger
@@ -2025,12 +2047,7 @@ def test_632_url_get_dns_pinned_success(
     """url_get_dns_pinned dials pinned IP URL with logical Host header"""
     from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
 
-    mock_resp = Mock()
-    mock_resp.text = "token.thumb"
-    mock_resp.status_code = 200
-    mock_resp.reason = "OK"
-    mock_resp.is_redirect = False
-    mock_get.return_value = mock_resp
+    mock_get.return_value = _http01_mock_response(body=b"token.thumb")
     result, status, err = url_get_dns_pinned(
         logger,
         host="example.com",
@@ -2045,8 +2062,10 @@ def test_632_url_get_dns_pinned_success(
     args, kwargs = mock_get.call_args
     assert "http://8.8.8.8/.well-known/acme-challenge/tok" == args[0]
     assert "example.com" == kwargs["headers"]["Host"]
+    assert "identity" == kwargs["headers"]["Accept-Encoding"]
     assert {} == kwargs["proxies"]
     assert kwargs["allow_redirects"] is False
+    assert kwargs["stream"] is True
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
@@ -2056,12 +2075,7 @@ def test_633_url_get_dns_pinned_ipv6_host_and_peer(
     """IPv6 pin and identifier are bracketed in URL and Host"""
     from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
 
-    mock_resp = Mock()
-    mock_resp.text = "ok"
-    mock_resp.status_code = 200
-    mock_resp.reason = "OK"
-    mock_resp.is_redirect = False
-    mock_get.return_value = mock_resp
+    mock_get.return_value = _http01_mock_response(body=b"ok")
     url_get_dns_pinned(
         logger, host="example.com", path="/path", pinned_ips=["2606:4700:4700::1111"]
     )
@@ -2150,17 +2164,14 @@ def test_637_url_get_dns_pinned_follows_https_redirect(
     )
 
     mock_resolve.return_value = (["1.1.1.1"], False, None)
-    redirect = Mock()
-    redirect.status_code = 302
-    redirect.reason = "Found"
-    redirect.is_redirect = True
-    redirect.headers = {"Location": "https://challenge.example.com/tok"}
-    redirect.text = ""
-    final = Mock()
-    final.status_code = 200
-    final.reason = "OK"
-    final.is_redirect = False
-    final.text = "token.thumb"
+    redirect = _http01_mock_response(
+        body=b"",
+        status_code=302,
+        reason="Found",
+        is_redirect=True,
+        headers={"Location": "https://challenge.example.com/tok"},
+    )
+    final = _http01_mock_response(body=b"token.thumb")
     mock_get.return_value = redirect
     session = Mock()
     session.get.return_value = final
@@ -2182,12 +2193,15 @@ def test_637_url_get_dns_pinned_follows_https_redirect(
     assert 1 == mock_get.call_count
     assert mock_get.call_args.args[0] == "http://8.8.8.8/tok"
     assert mock_get.call_args.kwargs["allow_redirects"] is False
+    assert mock_get.call_args.kwargs["stream"] is True
+    redirect.close.assert_called()
     session.mount.assert_called_once()
     assert session.mount.call_args.args[0] == "https://"
     assert isinstance(session.mount.call_args.args[1], _HostHeaderSSLAdapter)
     assert session.get.call_args.args[0] == "https://1.1.1.1/tok"
     assert session.get.call_args.kwargs["headers"]["Host"] == "challenge.example.com"
     assert session.get.call_args.kwargs["allow_redirects"] is False
+    assert session.get.call_args.kwargs["stream"] is True
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
@@ -2197,12 +2211,13 @@ def test_638_url_get_dns_pinned_rejects_metadata_redirect(
     """Redirect to link-local metadata IP is rejected by default"""
     from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
 
-    redirect = Mock()
-    redirect.status_code = 302
-    redirect.reason = "Found"
-    redirect.is_redirect = True
-    redirect.headers = {"Location": "http://169.254.169.254/latest/meta-data/"}
-    redirect.text = ""
+    redirect = _http01_mock_response(
+        body=b"",
+        status_code=302,
+        reason="Found",
+        is_redirect=True,
+        headers={"Location": "http://169.254.169.254/latest/meta-data/"},
+    )
     mock_get.return_value = redirect
 
     result, status, err = url_get_dns_pinned(
@@ -2219,6 +2234,7 @@ def test_638_url_get_dns_pinned_rejects_metadata_redirect(
     assert 500 == status
     assert "IP address is not allowed" in err
     assert 1 == mock_get.call_count
+    redirect.close.assert_called()
 
 
 @patch("acme2certifier.acme_srv.helpers.network.fqdn_resolve")
@@ -2236,13 +2252,13 @@ def test_639_url_get_dns_pinned_enforces_max_redirects(
     mock_resolve.return_value = (["1.1.1.1"], False, None)
 
     def _redirect_resp(location: str) -> Mock:
-        resp = Mock()
-        resp.status_code = 302
-        resp.reason = "Found"
-        resp.is_redirect = True
-        resp.headers = {"Location": location}
-        resp.text = ""
-        return resp
+        return _http01_mock_response(
+            body=b"",
+            status_code=302,
+            reason="Found",
+            is_redirect=True,
+            headers={"Location": location},
+        )
 
     mock_get.return_value = _redirect_resp("https://a.example.com/1")
     session = Mock()
@@ -2335,12 +2351,7 @@ def test_642_url_get_http01_restrict_redirects_proxy_and_query(
     """url_get(http01_restrict_redirects) uses hostname path; query kept on pins"""
     from acme2certifier.acme_srv.helpers.network import url_get, url_get_dns_pinned
 
-    resp = Mock()
-    resp.status_code = 200
-    resp.reason = "OK"
-    resp.is_redirect = False
-    resp.text = "ok"
-    mock_get.return_value = resp
+    mock_get.return_value = _http01_mock_response(body=b"ok")
 
     body, code, err = url_get(
         logger,
@@ -2358,8 +2369,11 @@ def test_642_url_get_http01_restrict_redirects_proxy_and_query(
         "https": "http://proxy.example:8080",
     }
     assert mock_get.call_args.kwargs["allow_redirects"] is False
+    assert mock_get.call_args.kwargs["stream"] is True
+    assert mock_get.call_args.kwargs["headers"]["Accept-Encoding"] == "identity"
 
     mock_get.reset_mock()
+    mock_get.return_value = _http01_mock_response(body=b"ok")
     url_get_dns_pinned(
         logger,
         host="example.com",
@@ -2380,12 +2394,13 @@ def test_643_url_get_dns_pinned_missing_location_and_hostname(
         _url_get_http01,
     )
 
-    redirect = Mock()
-    redirect.status_code = 302
-    redirect.reason = "Found"
-    redirect.is_redirect = True
-    redirect.headers = {}
-    redirect.text = ""
+    redirect = _http01_mock_response(
+        body=b"",
+        status_code=302,
+        reason="Found",
+        is_redirect=True,
+        headers={},
+    )
     mock_get.return_value = redirect
     body, code, err = url_get_dns_pinned(
         logger, host="example.com", path="/tok", pinned_ips=["8.8.8.8"], verify=False
@@ -2393,6 +2408,7 @@ def test_643_url_get_dns_pinned_missing_location_and_hostname(
     assert body is None
     assert code == 500
     assert "Location" in err
+    redirect.close.assert_called()
 
     body, code, err = _url_get_http01(logger, "http:///tok", pinned_ips=["8.8.8.8"])
     assert body is None
@@ -2412,6 +2428,7 @@ def test_644_http01_fetch_via_hostname_custom_dns_and_failure(
 
     mock_single.return_value = (None, 500, "down")
     _dns_connect_tls.use_custom_dns = False
+    deadline = __import__("time").monotonic() + 5
     body_req, status, err = _http01_fetch_via_hostname(
         logger,
         "http://example.com/tok",
@@ -2421,6 +2438,7 @@ def test_644_http01_fetch_via_hostname_custom_dns_and_failure(
         proxies={},
         verify=False,
         timeout=5,
+        deadline=deadline,
     )
     assert body_req is None
     assert status == 500
@@ -2439,11 +2457,125 @@ def test_644_http01_fetch_via_hostname_custom_dns_and_failure(
         proxies={},
         verify=False,
         timeout=5,
+        deadline=deadline,
     )
     assert body_req is ok
     assert status == 200
     assert err is None
     assert _dns_connect_tls.use_custom_dns is False
+
+
+@patch("acme2certifier.acme_srv.helpers.network.requests.get")
+def test_647_http01_rejects_oversized_body(
+    mock_get: MagicMock, logger: logging.Logger
+) -> None:
+    """HTTP-01 fails closed when the response exceeds HTTP01_MAX_RESPONSE_BYTES"""
+    from acme2certifier.acme_srv.helpers.network import (
+        HTTP01_MAX_RESPONSE_BYTES,
+        url_get_dns_pinned,
+    )
+
+    oversized = b"x" * (HTTP01_MAX_RESPONSE_BYTES + 1)
+    mock_get.return_value = _http01_mock_response(body=oversized)
+    result, status, err = url_get_dns_pinned(
+        logger,
+        host="example.com",
+        path="/tok",
+        pinned_ips=["8.8.8.8"],
+        verify=False,
+    )
+    assert result is None
+    assert 500 == status
+    assert f"exceeds {HTTP01_MAX_RESPONSE_BYTES} bytes" in err
+
+
+@patch("acme2certifier.acme_srv.helpers.network.requests.get")
+def test_648_http01_rejects_content_length_over_cap(
+    mock_get: MagicMock, logger: logging.Logger
+) -> None:
+    """HTTP-01 rejects Content-Length above the cap without reading the body"""
+    from acme2certifier.acme_srv.helpers.network import (
+        HTTP01_MAX_RESPONSE_BYTES,
+        url_get_dns_pinned,
+    )
+
+    resp = _http01_mock_response(
+        body=b"",
+        headers={"Content-Length": str(HTTP01_MAX_RESPONSE_BYTES + 100)},
+    )
+    mock_get.return_value = resp
+    result, status, err = url_get_dns_pinned(
+        logger,
+        host="example.com",
+        path="/tok",
+        pinned_ips=["8.8.8.8"],
+        verify=False,
+    )
+    assert result is None
+    assert 500 == status
+    assert f"exceeds {HTTP01_MAX_RESPONSE_BYTES} bytes" in err
+    resp.iter_content.assert_not_called()
+
+
+@patch("acme2certifier.acme_srv.helpers.network.requests.get")
+def test_649_http01_rejects_compressed_encoding(
+    mock_get: MagicMock, logger: logging.Logger
+) -> None:
+    """HTTP-01 rejects Content-Encoding other than identity"""
+    from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
+
+    mock_get.return_value = _http01_mock_response(
+        body=b"token.thumb",
+        headers={"Content-Encoding": "gzip"},
+    )
+    result, status, err = url_get_dns_pinned(
+        logger,
+        host="example.com",
+        path="/tok",
+        pinned_ips=["8.8.8.8"],
+        verify=False,
+    )
+    assert result is None
+    assert 500 == status
+    assert "compressed responses are not allowed" in err
+
+
+@patch("acme2certifier.acme_srv.helpers.network.time.monotonic")
+@patch("acme2certifier.acme_srv.helpers.network.requests.get")
+def test_650_http01_shared_wall_clock_timeout(
+    mock_get: MagicMock, mock_mono: MagicMock, logger: logging.Logger
+) -> None:
+    """Shared wall-clock budget aborts before a hop when the deadline is spent"""
+    from acme2certifier.acme_srv.helpers.network import url_get_dns_pinned
+
+    # deadline = 100 + 1; loop remaining check sees 101.1 → timed out, no GET
+    mock_mono.side_effect = [100.0, 101.1]
+    result, status, err = url_get_dns_pinned(
+        logger,
+        host="example.com",
+        path="/tok",
+        pinned_ips=["8.8.8.8"],
+        verify=False,
+        timeout=1,
+    )
+    assert result is None
+    assert 500 == status
+    assert "timed out" in err
+    assert 0 == mock_get.call_count
+
+
+@patch("acme2certifier.acme_srv.helpers.network.socks.socksocket")
+def test_651_servercert_get_sets_socket_timeout(
+    mock_sock_cls: MagicMock, logger: logging.Logger
+) -> None:
+    """TLS-ALPN socket uses settimeout before connect"""
+    sock = Mock()
+    mock_sock_cls.return_value = sock
+    with patch("ssl.SSLContext.wrap_socket", side_effect=Exception("stop")):
+        pem, alpn = servercert_get(logger, "hostname", timeout=7)
+    assert pem is None
+    assert alpn is None
+    sock.settimeout.assert_called_once_with(7.0)
 
 
 def test_699_proxy_url_for_log_userinfo_without_scheme() -> None:

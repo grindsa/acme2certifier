@@ -23,6 +23,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- Security: HTTP-01 validation caps response bodies at 10 KiB, requests `Accept-Encoding: identity` (rejects compressed bodies), and uses a shared wall-clock timeout across redirect hops; TLS-ALPN sockets use `settimeout`; sync-mode challenges stuck past `challenge_validation_timeout` are marked invalid (CAS `processing` → `invalid` / `valid`)
 - Security: classic WSGI registers `.well-known/acme-challenge/` once at module load when `[CAhandler] acme_url` is set (no longer appends to the route table on every request)
 - Security: RFC 8823 email-reply IMAP/SMTP TLS now verifies certificates and hostname by default (`ssl.create_default_context()`); optional `[DEFAULT] email_ssl_verify: False` disables verification for that path only (WARNING logged). See [RFC 8823 email identifiers](docs/rfc8823_email_identifier.md)
 - Security: `reverse_address_check` requires an exact PTR match for the authorization DNS name (case-insensitive; trailing dots ignored); subdomain PTRs such as `x.bank.com` no longer validate `bank.com`

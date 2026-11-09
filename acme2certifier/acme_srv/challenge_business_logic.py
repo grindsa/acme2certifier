@@ -146,36 +146,46 @@ class ChallengeStateManager:
         source_address: Optional[str] = None,
         validated_timestamp: Optional[int] = None,
     ) -> bool:
-        """Transition challenge to valid; authz only if still pending."""
+        """CAS transition challenge processing → valid; authz only if still pending."""
         self.logger.debug(
             "ChallengeStateManager.transition_to_valid(%s)", challenge_name
         )
 
-        update_request = ChallengeUpdateRequest(
-            name=challenge_name,
-            status="valid",
-            source=source_address,
-            validated=validated_timestamp,
+        success = self.repository.update_challenge_if_status(
+            challenge_name, "valid", "processing"
         )
-
-        success = self.repository.update_challenge(update_request)
-        if success:
-            success = self.repository.update_authorization_status_if(
-                challenge_name, "valid", "pending"
+        if not success:
+            self.logger.warning(
+                "Challenge not processing; refusing valid transition for challenge=%s",
+                challenge_name,
             )
-            if not success:
-                self.logger.warning(
-                    "Authorization not pending; refusing valid transition for challenge=%s",
-                    challenge_name,
+            return False
+
+        if source_address is not None or validated_timestamp is not None:
+            self.repository.update_challenge(
+                ChallengeUpdateRequest(
+                    name=challenge_name,
+                    source=source_address,
+                    validated=validated_timestamp,
                 )
-                self.repository.update_challenge(
-                    ChallengeUpdateRequest(
-                        name=challenge_name,
-                        status="invalid",
-                        source=source_address,
-                        validation_error="authorization not pending",
-                    )
+            )
+
+        success = self.repository.update_authorization_status_if(
+            challenge_name, "valid", "pending"
+        )
+        if not success:
+            self.logger.warning(
+                "Authorization not pending; refusing valid transition for challenge=%s",
+                challenge_name,
+            )
+            self.repository.update_challenge(
+                ChallengeUpdateRequest(
+                    name=challenge_name,
+                    status="invalid",
+                    source=source_address,
+                    validation_error="authorization not pending",
                 )
+            )
 
         self.logger.debug(
             "Challenge state transition: challenge=%s status=valid success=%s",
@@ -190,23 +200,33 @@ class ChallengeStateManager:
         source_address: Optional[str] = None,
         validation_error: Optional[str] = None,
     ) -> bool:
-        """Transition challenge to invalid state."""
+        """CAS transition challenge processing → invalid."""
         self.logger.debug(
             "ChallengeStateManager.transition_to_invalid(%s)", challenge_name
         )
 
-        update_request = ChallengeUpdateRequest(
-            name=challenge_name,
-            status="invalid",
-            source=source_address,
-            validation_error=validation_error,
+        success = self.repository.update_challenge_if_status(
+            challenge_name, "invalid", "processing"
         )
-
-        success = self.repository.update_challenge(update_request)
-        if success:
-            success = self.repository.update_authorization_status(
-                challenge_name, "invalid"
+        if not success:
+            self.logger.warning(
+                "Challenge not processing; refusing invalid transition for challenge=%s",
+                challenge_name,
             )
+            return False
+
+        if source_address is not None or validation_error is not None:
+            self.repository.update_challenge(
+                ChallengeUpdateRequest(
+                    name=challenge_name,
+                    source=source_address,
+                    validation_error=validation_error,
+                )
+            )
+
+        success = self.repository.update_authorization_status(
+            challenge_name, "invalid"
+        )
 
         self.logger.warning(
             "Challenge state transition: challenge=%s status=invalid success=%s reason=%s",
