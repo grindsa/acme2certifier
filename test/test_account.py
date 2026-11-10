@@ -1003,6 +1003,14 @@ class TestAccount(unittest.TestCase):
             log_cm.output,
         )
 
+    def test_060b__handle_deactivation_status_non_string(self):
+        """non-string status must not raise; treat as malformed"""
+        payload = {"status": 1}
+        result = self.account._handle_deactivation("test_account", payload)
+        self.assertEqual(result["code"], 400)
+        self.assertEqual(result["data"]["type"], self.account.err_msg_dic["malformed"])
+        self.assertEqual(result["data"]["detail"], "Invalid status for deactivation")
+
     def test_061__deactivate_account_success(self):
         """test _deactivate_account success"""
         with patch.object(self.account.repository, "update_account", return_value=True):
@@ -1580,6 +1588,32 @@ class TestAccount(unittest.TestCase):
             code, message, detail = self.account._create_account(payload, protected)
             self.assertEqual(code, 400)
             self.assertEqual(message, "contact_error")
+
+    def test_090b__create_account_missing_jwk(self):
+        """_create_account rejects protected header without jwk"""
+        self.account.config.tos_url = None
+        self.account.config.tos_check_disable = False
+        self.account.config.eab_check = False
+        self.account.config.contact_check_disable = True
+        payload = {"contact": ["test@example.com"]}
+        protected = {"alg": "RS256"}
+        code, message, detail = self.account._create_account(payload, protected)
+        self.assertEqual(code, 400)
+        self.assertEqual(message, self.account.err_msg_dic["malformed"])
+        self.assertEqual(detail, "jwk and alg required in protected header")
+
+    def test_090c__create_account_missing_alg(self):
+        """_create_account rejects protected header without alg"""
+        self.account.config.tos_url = None
+        self.account.config.tos_check_disable = False
+        self.account.config.eab_check = False
+        self.account.config.contact_check_disable = True
+        payload = {"contact": ["test@example.com"]}
+        protected = {"jwk": {"kty": "RSA", "n": "abc", "e": "AQAB"}}
+        code, message, detail = self.account._create_account(payload, protected)
+        self.assertEqual(code, 400)
+        self.assertEqual(message, self.account.err_msg_dic["malformed"])
+        self.assertEqual(detail, "jwk and alg required in protected header")
 
     def test_091__create_account_eab_kid_set(self):
         """test _create_account sets eab_kid if present"""

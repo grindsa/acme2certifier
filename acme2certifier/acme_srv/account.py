@@ -540,6 +540,16 @@ class Account:
             if code != 200:
                 return code, message, detail
 
+        if "jwk" not in protected or "alg" not in protected:
+            self.logger.warning(
+                "Account create rejected: missing jwk or alg in protected header"
+            )
+            return (
+                400,
+                self.err_msg_dic["malformed"],
+                "jwk and alg required in protected header",
+            )
+
         # Prepare account data
         account_data = AccountData(
             name=account_name,
@@ -619,7 +629,8 @@ class Account:
     ) -> Dict[str, str]:
         """Handle account deactivation."""
         self.logger.debug("Account._handle_deactivation(%s)", account_name)
-        if payload.get("status", "").lower() == "deactivated":
+        status = str(payload.get("status") or "").lower()
+        if status == "deactivated":
             account_obj = self._lookup_account_by_name(account_name)
             if not account_obj:
                 self.logger.warning(

@@ -1675,6 +1675,38 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertIsInstance(real_start.call_args_list[1].args[2][1], ValueError)
 
+    def test_084_http_status_line_unknown_code(self):
+        """unknown ACME codes must not KeyError"""
+        wsgi_mod = importlib.import_module(_WSGI_MODULE)
+        self.assertEqual(wsgi_mod.http_status_line(429), "429 Too Many Requests")
+        self.assertEqual(wsgi_mod.http_status_line(599), "599 Error")
+        self.assertEqual(wsgi_mod.http_status_line(200), "200 OK")
+        self.assertEqual(wsgi_mod.http_status_line(201), "201 Created")
+
+    def test_085_application_unhandled_exception_returns_nonce(self):
+        """handler crashes become ACME 500 with Replay-Nonce"""
+        wsgi_mod = importlib.import_module(_WSGI_MODULE)
+
+        def boom(_environ, _start_response):
+            raise RuntimeError("boom")
+
+        real_start = MagicMock()
+        with (
+            patch.object(wsgi_mod, "not_found", boom),
+            patch.object(
+                wsgi_mod.Nonce,
+                "generate_and_add",
+                return_value="nonce-l13",
+            ),
+        ):
+            result = wsgi_mod.application(
+                {"PATH_INFO": "zz-unmatched", "REQUEST_METHOD": "POST"}, real_start
+            )
+        self.assertEqual(real_start.call_args.args[0], "500 Internal Server Error")
+        headers = dict(real_start.call_args.args[1])
+        self.assertEqual(headers.get("Replay-Nonce"), "nonce-l13")
+        self.assertIn(b"serverInternal", result[0])
+
 
 if __name__ == "__main__":
 
