@@ -102,7 +102,7 @@ jobs:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: volume/acme_ca/ca_bundle.pem
@@ -140,7 +140,7 @@ jobs:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: volume/acme_ca/ca_bundle.pem
@@ -184,7 +184,7 @@ jobs:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: volume/acme_ca/ca_bundle.pem
@@ -230,7 +230,7 @@ jobs:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: volume/acme_ca/ca_bundle.pem
@@ -264,7 +264,7 @@ jobs:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: volume/acme_ca/ca_bundle.pem
@@ -383,7 +383,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
@@ -427,7 +427,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
@@ -474,7 +474,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
@@ -523,7 +523,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
@@ -561,7 +561,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem
@@ -656,7 +656,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
@@ -698,7 +698,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
@@ -746,7 +746,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
@@ -796,7 +796,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem
@@ -835,7 +835,7 @@ jobs:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.ejbca_ca_handler
           OPTIONS: |
-            api_host: https://ejbca
+            api_host: https://ejbca:8443
             cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12
             cert_passphrase: ${{ env.SAEC }}
             ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem

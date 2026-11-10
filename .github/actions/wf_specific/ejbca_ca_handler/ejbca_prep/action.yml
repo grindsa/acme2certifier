@@ -2,12 +2,16 @@ name: "ejbca_prep"
 description: "ejbca_prep"
 inputs:
   RUNNER_IP:
-    description: "Runner IP"
+    description: "Runner IP (host /etc/hosts for prep curls via published :443)"
     required: true
   WORKING_DIR:
     description: "Working directory"
     required: true
     default: ${{ github.workspace }}
+  NAME_SPACE:
+    description: "Docker network shared with acme-srv (a2c uses https://ejbca:8443)"
+    required: false
+    default: "acme"
 outputs:
   SAEC:
     description: "Superadmin password"
@@ -24,9 +28,14 @@ runs:
     run: |
       mkdir -p data/acme_ca
       sudo chmod -R 777 data/acme_ca
-      sudo sh -c "echo '$EJBCA_IP ejbca' >> /etc/hosts"
+      sudo sh -c "grep -qE '(^|[[:space:]])ejbca($|[[:space:]])' /etc/hosts || echo '$EJBCA_IP ejbca' >> /etc/hosts"
+      if ! docker network inspect "$NAME_SPACE" >/dev/null 2>&1; then
+        echo "create docker network $NAME_SPACE"
+        docker network create "$NAME_SPACE"
+      fi
     env:
       EJBCA_IP: ${{ inputs.RUNNER_IP }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
     shell: bash
 
   - name: "Pull ejbca image"
@@ -36,10 +45,16 @@ runs:
 
   - name: "Instanciate ejbca server"
     run: |
-      docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/ejbca:/tmp/data  -v "$WORKING_DIR/data":/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce
+      docker run -id --rm --network "$NAME_SPACE" -p 80:8080 -p 443:8443 \
+        -e TLS_SETUP_ENABLED=true \
+        -v "$(pwd)/examples/ejbca:/tmp/data" \
+        -v "$WORKING_DIR/data:/tmp/store" \
+        --name ejbca -h ejbca \
+        keyfactor/ejbca-ce
     shell: bash
     env:
       WORKING_DIR: ${{ inputs.WORKING_DIR }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "Sleep for 180s"
     uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
