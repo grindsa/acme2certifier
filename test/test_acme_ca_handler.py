@@ -2706,62 +2706,45 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(chall_content)
         self.assertIsNone(result_challenge)
 
-    def test_122_set_environment_variables(self):
-        """Test _environment_variables_handle with unset=False."""
+    def test_122_dns_script_env_applies_allowed_keys(self):
+        """_dns_script_env copies allowed vars into a local env, not os.environ."""
         self.cahandler.dns_update_script_variables = {
             "TEST_VAR": "test_value",
             "PATH": "/usr/bin",
-            "FORBIDDEN_VAR": "should_not_set",
         }
+        before_path = os.environ.get("PATH")
+        self.assertNotIn("TEST_VAR", os.environ)
 
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
-            self.cahandler._environment_variables_handle(unset=False)
-        self.assertEqual(os.environ.get("TEST_VAR"), "test_value")
-        self.assertNotEqual(os.environ.get("PATH"), "should_not_set")
+            env = self.cahandler._dns_script_env()
+
+        self.assertEqual(env.get("TEST_VAR"), "test_value")
+        self.assertEqual(os.environ.get("PATH"), before_path)
+        self.assertNotIn("TEST_VAR", os.environ)
         joined = "\n".join(lcm.output)
         self.assertNotIn("test_value", joined)
-        self.assertNotIn("should_not_set", joined)
         self.assertIn("TEST_VAR", joined)
         self.assertIn(
-            'WARNING:test_a2c:CAhandler._environment_variables_handle(): environment variable "PATH" is forbidden and will not be changed',
-            lcm.output,
-        )
-        # Clean up
-        if "TEST_VAR" in os.environ:
-            del os.environ["TEST_VAR"]
-
-    def test_123_unset_environment_variables(self):
-        """Test _environment_variables_handle with unset=True."""
-        self.cahandler.dns_update_script_variables = {
-            "TEST_VAR": "test_value",
-            "PATH": "/usr/bin",
-            "FORBIDDEN_VAR": "should_not_set",
-        }
-        os.environ["TEST_VAR"] = "test_value"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._environment_variables_handle(unset=True)
-        self.assertIsNone(os.environ.get("TEST_VAR"))
-        self.assertIn(
-            'WARNING:test_a2c:CAhandler._environment_variables_handle(): environment variable "PATH" is forbidden and will not be changed',
+            'WARNING:test_a2c:CAhandler._dns_script_env(): environment variable "PATH" is forbidden and will not be changed',
             lcm.output,
         )
 
-    def test_124_unset_not_set_variable(self):
-        """Test _environment_variables_handle with unset=True when variable is not set."""
-        self.cahandler.dns_update_script_variables = {
-            "TEST_VAR": "test_value",
-            "PATH": "/usr/bin",
-            "FORBIDDEN_VAR": "should_not_set",
-        }
-        if "TEST_VAR" in os.environ:
-            del os.environ["TEST_VAR"]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._environment_variables_handle(unset=True)
+    def test_123_dns_script_env_none_variables(self):
+        """_dns_script_env tolerates missing dns_update_script_variables."""
+        self.cahandler.dns_update_script_variables = None
+        env = self.cahandler._dns_script_env()
+        self.assertEqual(env.get("PATH"), os.environ.get("PATH"))
+        self.assertIsInstance(env, dict)
 
-        self.assertIn(
-            'WARNING:test_a2c:CAhandler._environment_variables_handle(): environment variable "PATH" is forbidden and will not be changed',
-            lcm.output,
-        )
+    def test_124_dns_script_env_does_not_mutate_process(self):
+        """Secrets from dns_update_script_variables never land in os.environ."""
+        marker = "A2C_L11_SECRET_MARKER"
+        self.cahandler.dns_update_script_variables = {marker: "secret-value"}
+        if marker in os.environ:
+            del os.environ[marker]
+        env = self.cahandler._dns_script_env()
+        self.assertEqual(env.get(marker), "secret-value")
+        self.assertNotIn(marker, os.environ)
 
     @patch("os.path.exists")
     def test_125_dns_update_script_does_not_exist(self, mock_exists):
@@ -2935,7 +2918,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("subprocess.call")
     @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
@@ -2961,52 +2944,45 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-        # Check environment variable handling called for set and unset
-        self.assertEqual(mock_env_handle.call_count, 2)
-        mock_env_handle.assert_any_call(unset=False)
-        mock_env_handle.assert_any_call(unset=True)
+        # Local script env built once (no process-wide set/unset)
+        self.assertEqual(mock_env_handle.call_count, 1)
+        mock_env_handle.assert_called_once_with()
 
-        # Check subprocess called for each record
+        # Check subprocess called for each record with env=
         self.assertEqual(mock_subprocess.call_count, 2)
         calls = [call[0][0] for call in mock_subprocess.call_args_list]
         self.assertTrue(any("_rm test.example.com testvalue" in c for c in calls))
         self.assertTrue(any("_rm other.example.com othervalue" in c for c in calls))
+        for call in mock_subprocess.call_args_list:
+            self.assertIn("env", call.kwargs)
 
     @patch("subprocess.call")
-    @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
-    )
     @patch("os.path.splitext")
     @patch("os.path.basename")
-    def test_135_deprovision_calls_subprocess_and_env(
-        self, mock_basename, mock_splitext, mock_env_handle, mock_subprocess
+    def test_135_deprovision_passes_local_env_not_os_environ(
+        self, mock_basename, mock_splitext, mock_subprocess
     ):
-        """Test _dns_challenge_deprovision with subprocess and environment variable handling."""
+        """DNS script secrets are passed via env=, not process os.environ."""
+        marker = "A2C_L11_DEPROV_SECRET"
         self.cahandler.dns_update_script = "/tmp/dns_update.sh"
         self.cahandler.acme_sh_script = "/tmp/acme.sh"
-        self.cahandler.dns_record_dic = {
-            "test.example.com": b"testvalue",
-            "other.example.com": "othervalue",
-        }
-        self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
+        self.cahandler.dns_record_dic = {"test.example.com": "testvalue"}
+        self.cahandler.dns_update_script_variables = {marker: "secret-value"}
+        if marker in os.environ:
+            del os.environ[marker]
         mock_basename.return_value = "dns_update.sh"
         mock_splitext.side_effect = lambda x: ("/tmp/dns_update", ".sh")
         mock_subprocess.return_value = 0
         self.cahandler._dns_challenge_deprovision()
-        # Check environment variable handling called for set and unset
-        self.assertEqual(mock_env_handle.call_count, 2)
-        mock_env_handle.assert_any_call(unset=False)
-        mock_env_handle.assert_any_call(unset=True)
-
-        # Check subprocess called for each record
-        self.assertEqual(mock_subprocess.call_count, 2)
-        calls = [call[0][0] for call in mock_subprocess.call_args_list]
-        self.assertTrue(any("_rm test.example.com testvalue" in c for c in calls))
-        self.assertTrue(any("_rm other.example.com othervalue" in c for c in calls))
+        self.assertNotIn(marker, os.environ)
+        self.assertEqual(mock_subprocess.call_count, 1)
+        self.assertEqual(
+            mock_subprocess.call_args.kwargs["env"].get(marker), "secret-value"
+        )
 
     @patch("subprocess.call")
     @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
     )
     def test_136_deprovision_no_records(self, mock_env_handle, mock_subprocess):
         """Test _dns_challenge_deprovision with no DNS records."""
@@ -3039,7 +3015,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("time.sleep")
     @patch("subprocess.call")
     @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
@@ -3075,10 +3051,9 @@ class TestACMEHandler(unittest.TestCase):
         # Simulate DNS propagation
         mock_txt_get.side_effect = [None, b"encodedtxt"]
         self.cahandler._dns_challenge_provision(fqdn, key_authorization, user_key)
-        # Check environment variable handling called for set and unset
-        self.assertEqual(mock_env_handle.call_count, 2)
-        mock_env_handle.assert_any_call(unset=False)
-        mock_env_handle.assert_any_call(unset=True)
+        # Local script env built once (no process-wide set/unset)
+        self.assertEqual(mock_env_handle.call_count, 1)
+        mock_env_handle.assert_called_once_with()
 
         # Check subprocess called
         mock_subprocess.assert_called()
@@ -3091,7 +3066,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("time.sleep")
     @patch("subprocess.call")
     @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
@@ -3134,10 +3109,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-        # Check environment variable handling called for set and unset
-        self.assertEqual(mock_env_handle.call_count, 2)
-        mock_env_handle.assert_any_call(unset=False)
-        mock_env_handle.assert_any_call(unset=True)
+        # Local script env built once (no process-wide set/unset)
+        self.assertEqual(mock_env_handle.call_count, 1)
+        mock_env_handle.assert_called_once_with()
 
         # Check subprocess called
         mock_subprocess.assert_called()
@@ -3150,7 +3124,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("time.sleep")
     @patch("subprocess.call")
     @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
@@ -3196,10 +3170,9 @@ class TestACMEHandler(unittest.TestCase):
             "DEBUG:test_a2c:_dns_challenge_provision(): found txt record in DNS",
             lcm.output,
         )
-        # Check environment variable handling called for set and unset
-        self.assertEqual(mock_env_handle.call_count, 2)
-        mock_env_handle.assert_any_call(unset=False)
-        mock_env_handle.assert_any_call(unset=True)
+        # Local script env built once (no process-wide set/unset)
+        self.assertEqual(mock_env_handle.call_count, 1)
+        mock_env_handle.assert_called_once_with()
 
         # Check subprocess called
         mock_subprocess.assert_called()
@@ -3212,7 +3185,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("time.sleep")
     @patch("subprocess.call")
     @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")

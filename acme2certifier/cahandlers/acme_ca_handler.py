@@ -322,21 +322,22 @@ class CAhandler(object):
         self.logger.debug("CAhandler._challenge_info() ended with %s", chall_name)
         return (chall_name, chall_content, challenge)
 
-    def _shell_exec(self, cmd: str) -> int:
+    def _shell_exec(self, cmd: str, env: Optional[Dict[str, str]] = None) -> int:
         """Execute a shell command string.
 
         shell=True is required because the commands use 'source' (a shell builtin)
         to load acme.sh and DNS update scripts. All interpolated values are sanitized
         with shlex.quote() before reaching this method.
         """
+        call_kwargs: Dict[str, Any] = {"shell": True}
+        if env is not None:
+            call_kwargs["env"] = env
         if self.acme_sh_shell:
             self.logger.debug(
                 "CAhandler._shell_exec(): using shell: %s", self.acme_sh_shell
             )
-            return subprocess.call(
-                cmd, shell=True, executable=self.acme_sh_shell
-            )  # nosec B602
-        return subprocess.call(cmd, shell=True)  # nosec B602
+            call_kwargs["executable"] = self.acme_sh_shell
+        return subprocess.call(cmd, **call_kwargs)  # nosec B602
 
     def _dns_challenge_deprovision(self):
         """delete dns challenge"""
@@ -348,8 +349,7 @@ class CAhandler(object):
                 0
             ]
 
-            # set environment variables for dns update script
-            self._environment_variables_handle(unset=False)
+            script_env = self._dns_script_env()
 
             for fqdn, txt_record_value in self.dns_record_dic.items():
                 # remove txt record from dns server - to be moved to a later place in the code
@@ -360,14 +360,11 @@ class CAhandler(object):
                     f"{shlex.quote(fqdn)} "
                     f"{shlex.quote(txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else str(txt_record_value))}"
                 )
-                rcode = self._shell_exec(cmd_list)
+                rcode = self._shell_exec(cmd_list, env=script_env)
 
                 self.logger.debug(
                     "_dns_challenge_deprovision(): %s rcode: %s", fqdn, rcode
                 )
-
-            # unset environment variables for dns update script
-            self._environment_variables_handle(unset=True)
 
     def _dns_challenge_provision(
         self, fqdn: str, key_authorization: str, _user_key: josepy.jwk.JWKRSA
@@ -384,8 +381,7 @@ class CAhandler(object):
 
         basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[0]
 
-        # set environment variables for dns update script
-        self._environment_variables_handle(unset=False)
+        script_env = self._dns_script_env()
 
         # add txt record to dns server
         fqdn_escaped = shlex.quote(fqdn)
@@ -400,12 +396,9 @@ class CAhandler(object):
         basename_w_ext_escaped = shlex.quote(basename_w_ext)
         cmd_list = f"source {acme_sh_script_escaped} &>/dev/null; source {dns_update_script_escaped};  {basename_w_ext_escaped}_add {fqdn_escaped} {txt_record_value_escaped}"  # noqa
 
-        rcode = self._shell_exec(cmd_list)
+        rcode = self._shell_exec(cmd_list, env=script_env)
 
         self.logger.debug("_dns_challenge_provision(): %s rcode: %s", fqdn, rcode)
-
-        # unset environment variables for dns update script
-        self._environment_variables_handle(unset=True)
 
         # store dns record in dictionary
         # if rcode == 0:
@@ -446,9 +439,9 @@ class CAhandler(object):
                     )
                     break
 
-    def _environment_variables_handle(self, unset=False):
-        """set environment variables for dns update script"""
-        self.logger.debug("CAhandler._environment_variables_handle(): unset=%s", unset)
+    def _dns_script_env(self) -> Dict[str, str]:
+        """Build a subprocess env for the DNS update script (never mutates os.environ)."""
+        self.logger.debug("CAhandler._dns_script_env()")
 
         forbidden_variables_list = [
             "SHELL",
@@ -473,32 +466,20 @@ class CAhandler(object):
             "PYTHONHOME",
             "PYTHONUSERBASE",
         ]
-        for key, value in self.dns_update_script_variables.items():
-            if key not in forbidden_variables_list:
-                if unset:
-                    self.logger.debug(
-                        "CAhandler._environment_variables_handle(): unsetting environment variable: %s",
-                        key,
-                    )
-                    # unset environment variable
-                    if key in os.environ:
-                        del os.environ[key]
-                    else:
-                        self.logger.warning(
-                            'CAhandler._environment_variables_handle(): environment variable "%s" is not set and will not be unset',
-                            key,
-                        )
-                else:
-                    self.logger.debug(
-                        "CAhandler._environment_variables_handle(): setting environment variable: %s",
-                        key,
-                    )
-                    os.environ[key] = value
-            else:
+        env = dict(os.environ)
+        for key, value in (self.dns_update_script_variables or {}).items():
+            if key in forbidden_variables_list:
                 self.logger.warning(
-                    'CAhandler._environment_variables_handle(): environment variable "%s" is forbidden and will not be changed',
+                    'CAhandler._dns_script_env(): environment variable "%s" is forbidden and will not be changed',
                     key,
                 )
+                continue
+            self.logger.debug(
+                "CAhandler._dns_script_env(): applying environment variable: %s",
+                key,
+            )
+            env[key] = value
+        return env
 
     def _get_dns_challenge(self, authzr, user_key):
         self.logger.debug("_get_dns_challenge()")
