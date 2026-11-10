@@ -9,6 +9,8 @@ from typing import Dict, Any, List
 import json
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
+ACME_ERROR_UNAUTHORIZED = "urn:ietf:params:acme:error:unauthorized"
+
 
 class SourceAddressValidator(ChallengeValidator):
     """Validator for source address checks across all challenge types."""
@@ -81,7 +83,7 @@ class SourceAddressValidator(ChallengeValidator):
                     error_message=json.dumps(
                         {
                             "status": 400,
-                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "type": ACME_ERROR_UNAUTHORIZED,
                             "detail": "Source address check failed: no source address provided",
                         }
                     ),
@@ -120,7 +122,7 @@ class SourceAddressValidator(ChallengeValidator):
                     error_message=json.dumps(
                         {
                             "status": 400,
-                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "type": ACME_ERROR_UNAUTHORIZED,
                             "detail": f"Forward check failed: {forward_result.get('error', 'Forward address check failed')}",
                         }
                     ),
@@ -147,7 +149,7 @@ class SourceAddressValidator(ChallengeValidator):
                     error_message=json.dumps(
                         {
                             "status": 400,
-                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "type": ACME_ERROR_UNAUTHORIZED,
                             "detail": f"Reverse check failed: {reverse_result.get('error', 'Reverse address check failed')}",
                         }
                     ),

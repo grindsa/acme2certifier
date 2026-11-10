@@ -28,6 +28,8 @@ urllib3_cn = connection
 _HTTP01_REDIRECT_VALIDATE_ENDED = (
     "Helper.http01_redirect_target_validate() ended: %s"
 )
+_HTTP01_BODY_CAPPED_ENDED = "Helper._http01_read_body_capped() ended: %s"
+_HTTP01_VALIDATION_TIMED_OUT = "HTTP-01 validation timed out"
 # HTTP-01 key authorization is ~80–100 bytes; keep a small hard cap against
 # oversize / gzip-bomb responses (M9).
 HTTP01_MAX_RESPONSE_BYTES = 10 * 1024
@@ -712,6 +714,39 @@ def _http01_remaining_timeout(deadline: float) -> Optional[float]:
     return remaining
 
 
+def _http01_body_header_reject(
+    logger: logging.Logger, req: Any, max_bytes: int
+) -> Optional[str]:
+    """Reject compressed or oversized HTTP-01 bodies from response headers."""
+    content_encoding = (req.headers.get("Content-Encoding") or "identity").strip().lower()
+    if content_encoding not in ("", "identity"):
+        return (
+            f"HTTP-01 compressed responses are not allowed "
+            f"(Content-Encoding: {content_encoding})"
+        )
+
+    content_length = req.headers.get("Content-Length")
+    if content_length is None:
+        return None
+    try:
+        if int(content_length) > max_bytes:
+            return f"HTTP-01 response exceeds {max_bytes} bytes"
+    except ValueError:
+        return None
+    return None
+
+
+def _http01_disable_auto_decompress(req: Any) -> None:
+    """Never let urllib3 auto-decompress while streaming."""
+    raw = getattr(req, "raw", None)
+    if raw is None:
+        return
+    try:
+        raw.decode_content = False
+    except Exception:
+        pass
+
+
 def _http01_read_body_capped(
     logger: logging.Logger,
     req: Any,
@@ -719,34 +754,13 @@ def _http01_read_body_capped(
 ) -> Tuple[Optional[str], Optional[str]]:
     """Read an HTTP-01 response body with a hard size cap. Returns (text, error)."""
     logger.debug("Helper._http01_read_body_capped(max_bytes=%s)", max_bytes)
-    content_encoding = (req.headers.get("Content-Encoding") or "identity").strip().lower()
-    if content_encoding not in ("", "identity"):
-        error_msg = (
-            f"HTTP-01 compressed responses are not allowed "
-            f"(Content-Encoding: {content_encoding})"
-        )
-        logger.debug("Helper._http01_read_body_capped() ended: %s", error_msg)
+    header_error = _http01_body_header_reject(logger, req, max_bytes)
+    if header_error:
+        logger.debug(_HTTP01_BODY_CAPPED_ENDED, header_error)
         req.close()
-        return None, error_msg
+        return None, header_error
 
-    content_length = req.headers.get("Content-Length")
-    if content_length is not None:
-        try:
-            if int(content_length) > max_bytes:
-                error_msg = f"HTTP-01 response exceeds {max_bytes} bytes"
-                logger.debug("Helper._http01_read_body_capped() ended: %s", error_msg)
-                req.close()
-                return None, error_msg
-        except ValueError:
-            pass
-
-    # Never let urllib3 auto-decompress while streaming.
-    raw = getattr(req, "raw", None)
-    if raw is not None:
-        try:
-            raw.decode_content = False
-        except Exception:
-            pass
+    _http01_disable_auto_decompress(req)
 
     chunks: List[bytes] = []
     total = 0
@@ -757,7 +771,7 @@ def _http01_read_body_capped(
             total += len(chunk)
             if total > max_bytes:
                 error_msg = f"HTTP-01 response exceeds {max_bytes} bytes"
-                logger.debug("Helper._http01_read_body_capped() ended: %s", error_msg)
+                logger.debug(_HTTP01_BODY_CAPPED_ENDED, error_msg)
                 return None, error_msg
             chunks.append(chunk)
     except Exception as err:
@@ -902,7 +916,7 @@ def _http01_fetch_via_pins(
     for ip_str in hop_ips:
         remaining = _http01_remaining_timeout(deadline)
         if remaining is None:
-            last_error = "HTTP-01 validation timed out"
+            last_error = _HTTP01_VALIDATION_TIMED_OUT
             last_status = 500
             break
         try:
@@ -951,7 +965,7 @@ def _http01_fetch_via_hostname(
     logger.debug("Helper._http01_fetch_via_hostname(%s)", logical_url)
     remaining = _http01_remaining_timeout(deadline)
     if remaining is None:
-        return None, 500, "HTTP-01 validation timed out"
+        return None, 500, _HTTP01_VALIDATION_TIMED_OUT
     use_custom_dns = bool(dns_server_list) and not proxy_server
     if use_custom_dns:
         _ensure_custom_dns_connect_wrapper()
@@ -1057,6 +1071,22 @@ def _http01_fetch_hop(
     )
 
 
+def _http01_finalize_response(
+    logger: logging.Logger, req: Any, last_status: int, last_error: Optional[str]
+) -> Tuple[Optional[str], int, Optional[str]]:
+    """Read the final non-redirect HTTP-01 response body."""
+    body, body_error = _http01_read_body_capped(logger, req)
+    if body_error:
+        logger.debug(_HTTP01_GET_ENDED, body_error)
+        return None, 500, body_error
+    logger.debug(
+        "Helper._url_get_http01() ended with status: %s, error: %s",
+        last_status,
+        last_error,
+    )
+    return body, last_status, last_error
+
+
 def _url_get_http01(
     logger: logging.Logger,
     logical_url: str,
@@ -1101,7 +1131,7 @@ def _url_get_http01(
 
     while True:
         if _http01_remaining_timeout(deadline) is None:
-            return None, 500, "HTTP-01 validation timed out"
+            return None, 500, _HTTP01_VALIDATION_TIMED_OUT
 
         req, last_status, last_error = _http01_fetch_hop(
             logger,
@@ -1121,16 +1151,7 @@ def _url_get_http01(
             return None, last_status, last_error
 
         if not req.is_redirect:
-            body, body_error = _http01_read_body_capped(logger, req)
-            if body_error:
-                logger.debug(_HTTP01_GET_ENDED, body_error)
-                return None, 500, body_error
-            logger.debug(
-                "Helper._url_get_http01() ended with status: %s, error: %s",
-                last_status,
-                last_error,
-            )
-            return body, last_status, last_error
+            return _http01_finalize_response(logger, req, last_status, last_error)
 
         next_logical, next_host, next_ips, redirect_error = (
             _http01_next_redirect_target(
