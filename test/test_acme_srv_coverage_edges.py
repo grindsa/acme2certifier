@@ -67,10 +67,15 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
     ) -> None:
         """url_get_dns_pinned skips bad IP and normalizes token path"""
         response = Mock()
-        response.text = "body"
         response.status_code = 404
         response.reason = "Not Found"
         response.is_redirect = False
+        response.headers = {}
+        response.encoding = "utf-8"
+        response.iter_content = Mock(return_value=[b"body"])
+        response.close = Mock()
+        response.raw = Mock()
+        response.text = "body"
         mock_get.return_value = response
 
         body, code, error = url_get_dns_pinned(

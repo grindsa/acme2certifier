@@ -81,6 +81,7 @@ def unhandled_exception_response(start_response) -> list:
     start_response(http_status_line(500), headers)
     return [body]
 
+
 WRT_ERROR_MSG = json.dumps(
     {
         "status": 405,
