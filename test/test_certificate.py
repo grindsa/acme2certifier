@@ -4202,6 +4202,33 @@ class TestCertificate(unittest.TestCase):
             "Thread error", None, "order", "cert_name"
         )
 
+    def test_267_handle_enrollment_thread_store_failure_logs_critical(self):
+        """Nested store failure while recording thread error is CRITICAL."""
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.ThreadWithReturnValue",
+                side_effect=Exception("Thread error"),
+            ),
+            patch.object(
+                self.cert,
+                "_handle_enrollment_error",
+                side_effect=Exception("store fail"),
+            ),
+            self.assertLogs("test_a2c", level="INFO") as lcm,
+        ):
+            result = self.cert._handle_enrollment_thread_execution(
+                "cert_name", "csr", "order"
+            )
+        self.assertEqual(result[0], self.cert.err_msg_dic["serverinternal"])
+        self.assertEqual(result[1], "Enrollment thread execution failed")
+        self.assertTrue(
+            any(
+                "failed to record enrollment thread failure: store fail" in line
+                for line in lcm.output
+                if line.startswith("CRITICAL:")
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

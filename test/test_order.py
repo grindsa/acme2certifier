@@ -3897,6 +3897,22 @@ class TestOrderClass(unittest.TestCase):
         )
         self.assertEqual(["host.example"], values)
 
+    def test_234_load_eab_profile_param_order_section_non_dict(self):
+        """Non-dict order section is treated as empty"""
+        profile_dic = {"kid": {"order": "not-a-dict"}}
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid", "allowed_domainlist", ["default.com"]
+        )
+        self.assertEqual(value, ["default.com"])
+
+    def test_235_load_eab_profile_param_cahandler_section_non_dict(self):
+        """Non-dict cahandler fallback section is treated as empty"""
+        profile_dic = {"kid": {"order": {}, "cahandler": "not-a-dict"}}
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid", "allowed_domainlist", ["default.com"]
+        )
+        self.assertEqual(value, ["default.com"])
+
 
 if __name__ == "__main__":
     unittest.main()

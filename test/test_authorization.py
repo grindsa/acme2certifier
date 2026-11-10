@@ -3304,6 +3304,15 @@ class TestAuthorization(unittest.TestCase):
             )
         )
 
+    def test_150_eab_profile_authorization_cfg_non_dict(self):
+        """Non-dict authorization entry is treated as empty config"""
+        self._mock_eab_profile({"kid": {"authorization": "not-a-dict"}})
+        self.authorization.config.prevalidated_domainlist = None
+        self.authorization._apply_eab_profile(
+            "authz", {"order__account__eab_kid": "kid"}
+        )
+        self.assertIsNone(self.authorization.config.prevalidated_domainlist)
+
 
 class TestAuthorizationExceptions(unittest.TestCase):
     # Test custom exception classes

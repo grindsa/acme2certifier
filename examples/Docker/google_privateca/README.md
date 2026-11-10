@@ -37,8 +37,10 @@ If both `server-cert.pem` and `server-key.pem` are present, the mock listens wit
 
 ```bash
 sudo mkdir -p /srv/data/google_privateca
+sudo chown 1000:1000 /srv/data/google_privateca   # container runs as uid 1000
 # optional TLS:
 # sudo cp server-cert.pem server-key.pem /srv/data/google_privateca/
+# sudo chown 1000:1000 /srv/data/google_privateca/server-*.pem
 docker network create acme   # if needed
 cd examples/Docker/google_privateca
 docker compose up --build -d

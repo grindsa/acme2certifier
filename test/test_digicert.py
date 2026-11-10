@@ -1157,6 +1157,17 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(2.0, self.cahandler.request_retry_backoff)
 
+    def test_064_dns_names_from_san_list_malformed(self):
+        """Malformed SAN entries without colon are skipped with ERROR"""
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._dns_names_from_san_list(
+                ["DNS:ok.example", "malformed", "IP:192.0.2.1", "DNS:ok.example"]
+            )
+        self.assertEqual(["ok.example"], result)
+        self.assertTrue(
+            any("Error while splitting SAN malformed" in line for line in lcm.output)
+        )
+
 
 if __name__ == "__main__":
 

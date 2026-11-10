@@ -4245,6 +4245,31 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._openssl_name_hash(cert.subject)
         self.assertIn("d2i_X509_NAME failed", str(ctx.exception))
 
+    @patch("acme2certifier.cahandlers.xca_ca_handler.convert_byte_to_string")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._extension_list_default")
+    @patch("acme2certifier.cahandlers.xca_ca_handler.CAhandler._xca_template_process")
+    def test_272_extension_list_generate_unbound_san_warning(
+        self, mock_template, mock_extlist, mock_convert
+    ):
+        """URI-only SAN is dropped with WARNING when no ACME-bound names remain"""
+        mock_extlist.return_value = ["mock_extlist"]
+        mock_template.return_value = "mock_template"
+        mock_convert.return_value = "subjectAltName"
+        ext = Mock()
+        ext.oid._name = "subjectAltName"
+        ext.value = x509.SubjectAlternativeName(
+            [x509.UniformResourceIdentifier("spiffe://corp/admin")]
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._extension_list_generate(
+                {}, Mock(), Mock(), [ext]
+            )
+        self.assertEqual(["mock_extlist"], result)
+        self.assertIn(
+            "WARNING:test_a2c:Dropped unbound SAN GeneralNames from CSR; none remain",
+            lcm.output,
+        )
+
 
 if __name__ == "__main__":
 

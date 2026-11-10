@@ -13,7 +13,12 @@ COPY pki.py bootstrap_ca.py server.py ./
 # Mount host data at /data (see compose.yaml):
 #   server-cert.pem / server-key.pem  → optional HTTPS
 #   ca/                               → issuing PKI (bootstrapped if missing)
-RUN mkdir -p /data/ca
+# Bind-mounted host dirs must be writable by uid/gid 1000.
+RUN groupadd --gid 1000 casmock \
+    && useradd --uid 1000 --gid casmock --home-dir /opt/google_privateca \
+        --shell /usr/sbin/nologin casmock \
+    && mkdir -p /data/ca \
+    && chown -R casmock:casmock /opt/google_privateca /data
 VOLUME ["/data"]
 
 ENV MOCK_LISTEN=0.0.0.0:8080 \
@@ -29,6 +34,9 @@ ENV MOCK_LISTEN=0.0.0.0:8080 \
 EXPOSE 8080
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh \
+    && chown casmock:casmock /docker-entrypoint.sh
+
+USER casmock
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

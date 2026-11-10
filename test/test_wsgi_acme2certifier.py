@@ -1707,6 +1707,63 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(headers.get("Replay-Nonce"), "nonce-l13")
         self.assertIn(b"serverInternal", result[0])
 
+    def test_086_unhandled_exception_nonce_failure(self):
+        """Nonce issuance failure still returns ACME 500 without Replay-Nonce"""
+        wsgi_mod = importlib.import_module(_WSGI_MODULE)
+        real_start = MagicMock()
+        with patch.object(
+            wsgi_mod.Nonce,
+            "generate_and_add",
+            side_effect=RuntimeError("nonce fail"),
+        ):
+            result = wsgi_mod.unhandled_exception_response(real_start)
+        headers = dict(real_start.call_args.args[1])
+        self.assertNotIn("Replay-Nonce", headers)
+        self.assertIn(b"serverInternal", result[0])
+
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_request_body")
+    @patch("acme2certifier.share.acme2certifier_wsgi.create_header")
+    @patch("acme2certifier.share.acme2certifier_wsgi.get_url")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_post")
+    @patch("acme2certifier.acme_srv.certificate.Certificate.new_get")
+    def test_087_cert_get_bytes_and_dict_bodies(
+        self, mock_get, mock_post, mock_url, mock_header, mock_body
+    ):
+        """cert GET returns bytes as-is and JSON-encodes dict bodies"""
+        environ = {
+            "REQUEST_METHOD": "GET",
+            "REMOTE_ADDR": "REMOTE_ADDR",
+            "PATH_INFO": "PATH_INFO",
+        }
+        mock_header.return_value = {"header": "foo"}
+        mock_get.return_value = {"code": 200, "data": b"raw-bytes"}
+        self.assertEqual([b"raw-bytes"], self.cert(environ, Mock()))
+
+        mock_get.return_value = {"code": 200, "data": {"status": "valid"}}
+        body = self.cert(environ, Mock())
+        self.assertEqual(1, len(body))
+        self.assertIn(b'"status": "valid"', body[0])
+        self.assertFalse(mock_post.called)
+        self.assertFalse(mock_body.called)
+
+    def test_088_urls_register_acmechallenge_when_acme_url(self):
+        """Module import appends ACME HTTP-01 route when CAhandler.acme_url is set"""
+        cfg_path = os.path.join(self._tmpdir, "acme_srv_acme_url.cfg")
+        with open(cfg_path, "w", encoding="utf-8") as handle:
+            handle.write("[CAhandler]\nacme_url = http://acme.example/directory\n")
+        with patch.dict(
+            os.environ,
+            {
+                "ACME_SRV_CONFIGFILE": cfg_path,
+                "ACME2CERTIFIER_BASE_DIR": self._tmpdir,
+                "ACME2CERTIFIER_DEBUG": "0",
+            },
+        ):
+            sys.modules.pop(_WSGI_MODULE, None)
+            wsgi_mod = importlib.import_module(_WSGI_MODULE)
+        patterns = [pattern for pattern, _callback in wsgi_mod.URLS]
+        self.assertIn("^.well-known/acme-challenge/", patterns)
+
 
 if __name__ == "__main__":
 

@@ -2610,3 +2610,198 @@ def test_699_proxy_url_for_log_userinfo_without_scheme() -> None:
         proxy_url_for_log("alice:s3cret@proxy.example:8080") == "***@proxy.example:8080"
     )
     assert proxy_url_for_log(None) is None
+
+
+def test_700_http01_read_body_invalid_content_length(
+    logger: logging.Logger,
+) -> None:
+    """Invalid Content-Length is ignored and the body is still read"""
+    from acme2certifier.acme_srv.helpers.network import _http01_read_body_capped
+
+    class _Resp:
+        encoding = "utf-8"
+        headers = {"Content-Length": "not-an-int"}
+        raw = None
+
+        def iter_content(self, chunk_size: int = 1024):
+            return [b"token.thumb"]
+
+        def close(self) -> None:
+            return None
+
+    text, err = _http01_read_body_capped(logger, _Resp())
+    assert text == "token.thumb"
+    assert err is None
+
+
+def test_701_http01_read_body_decode_content_and_empty_chunks(
+    logger: logging.Logger,
+) -> None:
+    """decode_content failures are ignored; empty chunks are skipped"""
+    from acme2certifier.acme_srv.helpers.network import _http01_read_body_capped
+
+    class _Raw:
+        def __setattr__(self, name, value):
+            if name == "decode_content":
+                raise RuntimeError("locked")
+            super().__setattr__(name, value)
+
+    class _Resp:
+        encoding = "utf-8"
+        headers: Dict[str, str] = {}
+        raw = _Raw()
+
+        def iter_content(self, chunk_size: int = 1024):
+            return [b"", b"token.thumb"]
+
+        def close(self) -> None:
+            return None
+
+    text, err = _http01_read_body_capped(logger, _Resp())
+    assert text == "token.thumb"
+    assert err is None
+
+
+def test_702_http01_read_body_iter_exception(
+    logger: logging.Logger, capture_logs
+) -> None:
+    """iter_content failures become HTTP-01 read errors"""
+    from acme2certifier.acme_srv.helpers.network import _http01_read_body_capped
+
+    class _Resp:
+        encoding = "utf-8"
+        headers: Dict[str, str] = {}
+        raw = None
+
+        def iter_content(self, chunk_size: int = 1024):
+            raise RuntimeError("stream broken")
+
+        def close(self) -> None:
+            return None
+
+    with capture_logs("test_a2c", level="INFO") as lcm:
+        text, err = _http01_read_body_capped(logger, _Resp())
+    assert text is None
+    assert "HTTP-01 response read failed: stream broken" in err
+    assert any("HTTP-01 response read failed" in line for line in lcm.output)
+
+
+def test_703_http01_read_body_decode_fallback(logger: logging.Logger) -> None:
+    """Decode failure falls back to utf-8 replace"""
+    from acme2certifier.acme_srv.helpers.network import _http01_read_body_capped
+
+    class _BadEncoding(str):
+        def decode(self, *args, **kwargs):  # type: ignore[override]
+            raise RuntimeError("bad encoding object")
+
+    class _Resp:
+        encoding = _BadEncoding("latin-1")
+        headers: Dict[str, str] = {}
+        raw = None
+
+        def iter_content(self, chunk_size: int = 1024):
+            return [b"\xff\xfe token"]
+
+        def close(self) -> None:
+            return None
+
+    # Force join().decode(encoding) to fail by making encoding non-string
+    class _Resp2:
+        encoding = object()
+        headers: Dict[str, str] = {}
+        raw = None
+
+        def iter_content(self, chunk_size: int = 1024):
+            return [b"ok-bytes"]
+
+        def close(self) -> None:
+            return None
+
+    text, err = _http01_read_body_capped(logger, _Resp2())
+    assert text == "ok-bytes"
+    assert err is None
+
+
+def test_704_host_header_ssl_adapter_clears_sni_for_ip() -> None:
+    """Literal IP Host clears server_hostname / assert_hostname"""
+    from requests.adapters import HTTPAdapter
+
+    from acme2certifier.acme_srv.helpers.network import _HostHeaderSSLAdapter
+
+    adapter = _HostHeaderSSLAdapter()
+    adapter.poolmanager = Mock()
+    adapter.poolmanager.connection_pool_kw = {
+        "server_hostname": "old.example",
+        "assert_hostname": "old.example",
+    }
+    request = Mock()
+    request.headers = {"Host": "8.8.8.8"}
+    with patch.object(HTTPAdapter, "send", return_value=Mock()) as mock_super:
+        adapter.send(request, timeout=5)
+    assert "server_hostname" not in adapter.poolmanager.connection_pool_kw
+    assert "assert_hostname" not in adapter.poolmanager.connection_pool_kw
+    mock_super.assert_called_once()
+
+
+def test_705_http01_fetch_via_pins_deadline_expired(
+    logger: logging.Logger,
+) -> None:
+    """Pinned hop aborts when shared deadline is already spent"""
+    from urllib.parse import urlparse
+
+    from acme2certifier.acme_srv.helpers.network import _http01_fetch_via_pins
+
+    parsed = urlparse("http://example.com/.well-known/acme-challenge/tok")
+    req, status, err = _http01_fetch_via_pins(
+        logger,
+        parsed,
+        ["8.8.8.8"],
+        {"Host": "example.com"},
+        verify=False,
+        timeout=1.0,
+        deadline=0.0,
+    )
+    assert req is None
+    assert status == 500
+    assert "timed out" in err
+
+
+def test_706_http01_fetch_via_hostname_deadline_expired(
+    logger: logging.Logger,
+) -> None:
+    """Hostname hop aborts when shared deadline is already spent"""
+    from acme2certifier.acme_srv.helpers.network import _http01_fetch_via_hostname
+
+    req, status, err = _http01_fetch_via_hostname(
+        logger,
+        "http://example.com/.well-known/acme-challenge/tok",
+        {"Host": "example.com"},
+        dns_server_list=None,
+        proxy_server=None,
+        proxies={},
+        verify=False,
+        timeout=1.0,
+        deadline=0.0,
+    )
+    assert req is None
+    assert status == 500
+    assert "timed out" in err
+
+
+@patch("socks.socksocket")
+def test_707_servercert_get_close_exception_ignored(
+    mock_sock_cls: MagicMock, logger: logging.Logger, capture_logs
+) -> None:
+    """sock.close failures during error cleanup are swallowed"""
+    sock = Mock()
+    sock.close.side_effect = RuntimeError("close fail")
+    mock_sock_cls.return_value = sock
+    with (
+        patch("ssl.SSLContext.wrap_socket", side_effect=Exception("tls fail")),
+        capture_logs("test_a2c", level="INFO") as lcm,
+    ):
+        pem, alpn = servercert_get(logger, "hostname", 443)
+    assert pem is None
+    assert alpn is None
+    sock.close.assert_called()
+    assert any("Could not get peer certificate" in line for line in lcm.output)

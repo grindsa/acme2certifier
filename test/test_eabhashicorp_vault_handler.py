@@ -374,6 +374,116 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
         }
         self.assertEqual(self.eabhandler.cahandler_name_get("csr"), "vault_primary")
 
+    def test_028_vault_kv_path_skips_none_and_empty_segments(self):
+        """_vault_kv_path ignores None parts and empty slash segments"""
+        from acme2certifier.eabhandlers.hashicorp_vault_handler import _vault_kv_path
+
+        self.assertEqual(_vault_kv_path(None, "secret", "", "/acme/eab/"), "secret/acme/eab")
+
+    def test_029_payload_normalize_none_and_unsupported(self):
+        """None and non-dict/non-str payloads are rejected"""
+        self.assertIsNone(self.eabhandler._payload_normalize(None))
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(self.eabhandler._payload_normalize(["list"]))
+        self.assertTrue(
+            any("Unsupported secret payload type" in line for line in lcm.output)
+        )
+
+    def test_030_cache_get_expired_and_cache_set_disabled(self):
+        """Expired cache entries are dropped; cache_ttl<=0 disables writes"""
+        import time
+
+        self.eabhandler._cache["kid"] = (time.time() - 1, {"hmac": "stale"})
+        self.assertIsNone(self.eabhandler._cache_get("kid"))
+        self.assertNotIn("kid", self.eabhandler._cache)
+
+        self.eabhandler.cache_ttl = 0
+        self.eabhandler._cache_set("kid", {"hmac": "x"})
+        self.assertNotIn("kid", self.eabhandler._cache)
+
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._api_get")
+    def test_031_kid_secret_get_api_exception(self, mock_api):
+        """API exceptions during kid fetch are logged and return None"""
+        self.eabhandler.vault_url = "http://vault:8200"
+        self.eabhandler.vault_token = "token"
+        mock_api.side_effect = RuntimeError("boom")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(self.eabhandler._kid_secret_get("keyid_00"))
+        self.assertTrue(any("Vault request failed for kid=keyid_00" in line for line in lcm.output))
+
+    @patch(
+        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._payload_normalize",
+        return_value=None,
+    )
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._api_get")
+    def test_032_kid_secret_get_normalize_none(self, mock_api, _mock_norm):
+        """Failed payload normalize logs WARNING and returns None"""
+        self.eabhandler.vault_url = "http://vault:8200"
+        self.eabhandler.vault_token = "token"
+        mock_api.return_value = (200, {"data": {"data": {"value": "x"}}})
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(self.eabhandler._kid_secret_get("keyid_00"))
+        self.assertTrue(
+            any("could not normalize payload" in line for line in lcm.output)
+        )
+
+    @patch(
+        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._payload_normalize",
+        return_value={"cahandler": {}},
+    )
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._api_get")
+    def test_033_kid_secret_get_missing_hmac(self, mock_api, _mock_norm):
+        """Normalized profile without hmac is rejected"""
+        self.eabhandler.vault_url = "http://vault:8200"
+        self.eabhandler.vault_token = "token"
+        mock_api.return_value = (200, {"data": {"data": {"value": "x"}}})
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertIsNone(self.eabhandler._kid_secret_get("keyid_00"))
+        self.assertTrue(any("missing hmac in profile" in line for line in lcm.output))
+
+    def test_034_kids_list_missing_credentials(self):
+        """_kids_list returns empty without vault_url/token"""
+        self.eabhandler.vault_url = None
+        self.eabhandler.vault_token = None
+        self.assertEqual(self.eabhandler._kids_list(), [])
+
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._api_get")
+    def test_035_kids_list_api_exception(self, mock_api):
+        """List API exceptions are logged and return empty"""
+        self.eabhandler.vault_url = "http://vault:8200"
+        self.eabhandler.vault_token = "token"
+        mock_api.side_effect = RuntimeError("list boom")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(self.eabhandler._kids_list(), [])
+        self.assertTrue(any("Vault list failed: list boom" in line for line in lcm.output))
+
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._api_get")
+    def test_036_kids_list_http_error(self, mock_api):
+        """Non-200 list responses are logged and return empty"""
+        self.eabhandler.vault_url = "http://vault:8200"
+        self.eabhandler.vault_token = "token"
+        mock_api.return_value = (500, {"errors": ["nope"]})
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(self.eabhandler._kids_list(), [])
+        self.assertTrue(any("http_code=500" in line for line in lcm.output))
+
+    @patch("acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._api_get")
+    def test_037_kids_list_skips_unsafe_kid(self, mock_api):
+        """Unsafe kids from Vault list are skipped with WARNING"""
+        self.eabhandler.vault_url = "http://vault:8200"
+        self.eabhandler.vault_token = "token"
+        mock_api.return_value = (
+            200,
+            {"data": {"keys": ["safe_kid", "../escape", "also.ok"]}},
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            kids = self.eabhandler._kids_list()
+        self.assertIn("safe_kid", kids)
+        self.assertNotIn("../escape", kids)
+        self.assertTrue(
+            any("Skipping unsafe EAB kid from Vault list" in line for line in lcm.output)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

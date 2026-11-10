@@ -341,6 +341,45 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             lcm.output,
         )
 
+    def test_022_update_challenge_if_status_db_error(self):
+        self.dbstore.challenge_update_if_status.side_effect = Exception("db fail")
+        with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+            with self.assertRaises(self.DatabaseError):
+                self.repo.update_challenge_if_status("c1", "processing", "pending")
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed conditional challenge status update: db fail",
+            lcm.output,
+        )
+
+    def test_023_authorization_name_for_challenge_missing_key(self):
+        self.dbstore.challenge_lookup.return_value = {"status": "pending"}
+        self.assertIsNone(self.repo._authorization_name_for_challenge("c1"))
+
+    def test_024_update_authorization_status_if_db_error(self):
+        self.dbstore.challenge_lookup.return_value = {"authorization": "authz1"}
+        self.dbstore.authorization_update_if_status.side_effect = Exception("db fail")
+        with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+            with self.assertRaises(self.DatabaseError):
+                self.repo.update_authorization_status_if("c1", "valid", "pending")
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed conditional authorization status update: db fail",
+            lcm.output,
+        )
+
+    def test_025_get_authorization_status_empty(self):
+        self.dbstore.authorization_lookup.return_value = []
+        self.assertIsNone(self.repo.get_authorization_status("authz1"))
+
+    def test_026_get_authorization_status_db_error(self):
+        self.dbstore.authorization_lookup.side_effect = Exception("db fail")
+        with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
+            with self.assertRaises(self.DatabaseError):
+                self.repo.get_authorization_status("authz1")
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to get authorization status: db fail",
+            lcm.output,
+        )
+
 
 class TestChallenge(unittest.TestCase):
     def setUp(self):
@@ -3794,6 +3833,52 @@ class TestChallenge(unittest.TestCase):
         self.assertIn(
             "ERROR:test_a2c:Failed to process EAB challenge profile (kid: kid-01): "
             "eab boom",
+            lcm.output,
+        )
+
+    def test_177_process_challenge_request_missing_after_ownership(self):
+        """Ownership OK but challenge gone: same 403 as denial, WARNING logged"""
+        self.challenge.factory = Mock()
+        self.challenge.service = Mock()
+        self.challenge.message = Mock()
+        self.challenge.err_msg_dic = {"malformed": "malformed"}
+        self.challenge.repository = Mock()
+        self.challenge.message.check.return_value = (
+            200,
+            "",
+            "",
+            {"url": "https://example.com/acme/chall/c1"},
+            {},
+            "account",
+        )
+        self.challenge.repository.get_challenge_by_name.return_value = None
+
+        with (
+            patch.object(
+                self.challenge,
+                "_extract_challenge_name_from_url",
+                return_value="c1",
+            ),
+            patch.object(
+                self.challenge,
+                "_check_challenge_ownership",
+                return_value=(200, "", ""),
+            ),
+            patch.object(
+                self.challenge, "_create_error_response"
+            ) as mock_error_response,
+            self.assertLogs("test_a2c", level="INFO") as lcm,
+        ):
+            mock_error_response.return_value = {"code": 403}
+            self.challenge.process_challenge_request("content")
+        mock_error_response.assert_called_once_with(
+            403,
+            "urn:ietf:params:acme:error:unauthorized",
+            "Unauthorized",
+            account_name="account",
+        )
+        self.assertIn(
+            "WARNING:test_a2c:Challenge not found after ownership check: c1",
             lcm.output,
         )
 

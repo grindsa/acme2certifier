@@ -75,7 +75,7 @@ def _parse_lifetime(value: Any) -> int:
     if value is None:
         return 365 * 24 * 3600
     text = str(value).strip()
-    match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)s", text)
+    match = re.fullmatch(r"(\d+(?:\.\d+)?)s", text)
     if not match:
         raise ValueError(f"Invalid lifetime duration: {value!r}")
     return max(int(float(match.group(1))), 60)

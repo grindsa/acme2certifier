@@ -83,6 +83,36 @@ class TestEabProfileNormalize(unittest.TestCase):
         self.assertNotIn("Order", entry)
         self.assertEqual(self.kid_entry_get(profiles, "missing"), {})
 
+    def test_007_profiles_normalize_non_dict(self):
+        """Non-dict profiles map becomes empty"""
+        self.assertEqual(self.normalize_profiles(["not", "a", "map"]), {})
+        self.assertEqual(self.normalize_profiles(None), {})
+
+    def test_008_profiles_normalize_passthrough_non_object_entry(self):
+        """Scalar / non-JSON string entries are kept as-is"""
+        result = self.normalize_profiles(
+            {"kid_hmac": "raw-hmac-string", "kid_num": 42}
+        )
+        self.assertEqual(result["kid_hmac"], "raw-hmac-string")
+        self.assertEqual(result["kid_num"], 42)
+
+    def test_009_eab_profile_get_cahandler_non_dict(self):
+        """Mixin eab_profile_get treats non-dict cahandler as empty"""
+        import logging
+        from acme2certifier.acme_srv.helpers.eab_profile import EabProfileMixin
+
+        class _Handler(EabProfileMixin):
+            def __init__(self):
+                self.logger = logging.getLogger("test_a2c")
+
+            def key_file_load(self):
+                return {"kid": {"hmac": "x", "cahandler": "not-a-dict"}}
+
+            def eab_kid_get(self, _csr, revocation=False):
+                return "kid"
+
+        self.assertEqual(_Handler().eab_profile_get("csr"), {})
+
 
 if __name__ == "__main__":
     unittest.main()
