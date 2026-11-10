@@ -60,6 +60,32 @@ runs:
         sudo sed -i "s/whoami.acme/${RUNNER_HOSTNAME}/g" "${WORKING_DIRECTORY}/docker-compose.yml"
         sudo sed -i "s/CHALLENGE_TYPE/${CHALLENGE_TYPE}/g" "${WORKING_DIRECTORY}/docker-compose.yml"
         docker compose -f "${WORKING_DIRECTORY}/docker-compose.yml" up -d
+
+        # HTTP-01/TLS-ALPN validation runs inside acme-srv and DNS-pins the
+        # runner FQDN to the host eth0 IP. Hairpin to host-published :80/:443
+        # can blackhole (challenge validation timed out after 10s). Prefer the
+        # Traefik IP on the shared Docker network instead.
+        traefik_ip=""
+        for _ in $(seq 1 15); do
+          traefik_ip="$(docker inspect -f '{{(index .NetworkSettings.Networks "acme").IPAddress}}' traefik 2>/dev/null || true)"
+          if [[ -n "${traefik_ip}" ]]; then
+            break
+          fi
+          sleep 1
+        done
+        if [[ -z "${traefik_ip}" ]]; then
+          echo "ERROR: traefik has no IP on network acme" >&2
+          docker network inspect acme || true
+          docker inspect traefik || true
+          exit 1
+        fi
+        if docker ps --format '{{.Names}}' | grep -qx acme-srv; then
+          docker exec acme-srv bash -c \
+            "grep -qF '${RUNNER_HOSTNAME}' /etc/hosts || echo '${traefik_ip} ${RUNNER_HOSTNAME}' >> /etc/hosts"
+          echo "Mapped ${RUNNER_HOSTNAME} -> ${traefik_ip} inside acme-srv"
+        else
+          echo "WARN: acme-srv container not running; skip hosts mapping"
+        fi
       shell: bash
       env:
         WORKING_DIRECTORY: ${{ inputs.WORKING_DIRECTORY }}

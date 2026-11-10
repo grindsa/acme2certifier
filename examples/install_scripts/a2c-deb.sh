@@ -61,6 +61,22 @@ usage() {
   sed -n '2,38p' "$0" | sed 's/^# \{0,1\}//'
 }
 
+# Retry apt-get on transient mirror/lock failures (exit 100 is common in CI).
+apt_retry() {
+  local attempts="${APT_RETRY_ATTEMPTS:-3}"
+  local sleep_s="${APT_RETRY_SLEEP:-5}"
+  local n=1
+  until "$@"; do
+    if ((n >= attempts)); then
+      echo "ERROR: apt command failed after ${attempts} attempts: $*" >&2
+      return 1
+    fi
+    echo "==> apt command failed (attempt ${n}/${attempts}), retrying in ${sleep_s}s: $*" >&2
+    sleep "${sleep_s}"
+    n=$((n + 1))
+  done
+}
+
 # Resolve a path or glob to one .deb (newest mtime wins if several match).
 pick_deb() {
   local pattern="$1"
@@ -297,8 +313,8 @@ maybe_install_mssql() {
   fi
   echo "==> Installing Microsoft ODBC / mssql-django from ${pkg}"
   ${SUDO} dpkg -i "${pkg}" || true
-  ${SUDO} apt-get update
-  ACCEPT_EULA=Y ${SUDO} apt-get install -y msodbcsql18 python3-mssql-django || true
+  apt_retry ${SUDO} apt-get update
+  apt_retry ${SUDO} env ACCEPT_EULA=Y apt-get install -y msodbcsql18 python3-mssql-django || true
 }
 
 restart_services() {
@@ -463,11 +479,11 @@ DEB_FILE="$(readlink -f "${DEB_FILE}")"
 echo "==> Using package: ${DEB_FILE}"
 
 echo "==> Installing system packages (${WEBSRV})"
-${SUDO} apt-get update
+apt_retry ${SUDO} apt-get update
 if [[ "${WEBSRV}" == "${WEBSRV_APACHE2}" ]]; then
-  ${SUDO} apt-get install -y apache2 apache2-data libapache2-mod-wsgi-py3 curl openssl
+  apt_retry ${SUDO} apt-get install -y apache2 apache2-data libapache2-mod-wsgi-py3 curl openssl
 else
-  ${SUDO} apt-get install -y nginx uwsgi uwsgi-plugin-python3 curl openssl
+  apt_retry ${SUDO} apt-get install -y nginx uwsgi uwsgi-plugin-python3 curl openssl
 fi
 
 if [[ "${MODE}" == "${MODE_DJANGO}" ]]; then
@@ -477,7 +493,7 @@ fi
 echo "==> Installing ${DEB_FILE}"
 # Keep existing conffiles (N/O): CI/lab volume overlay must not be replaced by
 # the package sample at /var/www/acme2certifier/acme_srv.cfg.
-DEBIAN_FRONTEND=noninteractive ${SUDO} apt-get install -y \
+apt_retry ${SUDO} env DEBIAN_FRONTEND=noninteractive apt-get install -y \
   -o Dpkg::Options::='--force-confdef' \
   -o Dpkg::Options::='--force-confold' \
   "${DEB_FILE}"
@@ -488,7 +504,7 @@ command -v a2c-cli >/dev/null
 
 if [[ "${INSTALL_PKCS12}" -eq 1 ]]; then
   echo "==> Installing requests-pkcs12 (optional CA handlers)"
-  ${SUDO} apt-get install -y python3-pip
+  apt_retry ${SUDO} apt-get install -y python3-pip
   # --no-deps: keep apt python3-cryptography / python3-openssl; a full pip
   # resolve upgrades cryptography and breaks pyOpenSSL (GEN_EMAIL AttributeError).
   # Pin <1.23: 1.23+ requires cryptography>=42 (not_valid_after_utc); Ubuntu 24.04
