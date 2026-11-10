@@ -767,7 +767,7 @@ def _http01_read_body_capped(
     finally:
         req.close()
 
-    encoding = req.encoding or getattr(req, "apparent_encoding", None) or "utf-8"
+    encoding = req.encoding or "utf-8"
     try:
         text = b"".join(chunks).decode(encoding, errors="replace")
     except Exception:

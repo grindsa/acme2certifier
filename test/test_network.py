@@ -2578,6 +2578,30 @@ def test_651_servercert_get_sets_socket_timeout(
     sock.settimeout.assert_called_once_with(7.0)
 
 
+def test_652_http01_decodes_body_without_charset(logger: logging.Logger) -> None:
+    """HTTP-01 decode must not touch apparent_encoding after stream consume"""
+    from acme2certifier.acme_srv.helpers.network import _http01_read_body_capped
+
+    class _StreamedResp:
+        encoding = None
+        headers: Dict[str, str] = {}
+        raw = None
+
+        @property
+        def apparent_encoding(self) -> str:
+            raise RuntimeError("The content for this response was already consumed")
+
+        def iter_content(self, chunk_size: int = 1024):
+            return [b"token.thumb"]
+
+        def close(self) -> None:
+            return None
+
+    text, err = _http01_read_body_capped(logger, _StreamedResp())
+    assert "token.thumb" == text
+    assert err is None
+
+
 def test_699_proxy_url_for_log_userinfo_without_scheme() -> None:
     """userinfo is stripped when a proxy string has no scheme"""
     from acme2certifier.acme_srv.helpers.network import proxy_url_for_log
