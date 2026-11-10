@@ -102,6 +102,51 @@ class TestEABHashicorpVaultHandler(unittest.TestCase):
             "http://vault:8200/v1/secret/data/acme/eab/keyid_00",
         )
 
+    def test_006b_secret_url_encodes_metacharacters(self):
+        """L10: kid is one encoded segment (no / or .. traversal)"""
+        self.eabhandler.vault_url = "http://vault:8200"
+        self.eabhandler.vault_mount = "secret"
+        self.eabhandler.vault_prefix = "acme/eab"
+        url = self.eabhandler._secret_url("../sys")
+        # Entire kid is one segment; dots and slash encoded
+        self.assertEqual(
+            url,
+            "http://vault:8200/v1/secret/data/acme/eab/%2E%2E%2Fsys",
+        )
+        self.assertNotIn("/../", url)
+        url_slash = self.eabhandler._secret_url("a/b")
+        self.assertEqual(
+            url_slash,
+            "http://vault:8200/v1/secret/data/acme/eab/a%2Fb",
+        )
+        url_q = self.eabhandler._secret_url("a?x=1")
+        self.assertIn("a%3Fx%3D1", url_q)
+        self.assertNotIn("?", url_q.split("/v1/", 1)[1])
+
+    def test_006c_kid_is_safe_allowlist(self):
+        """L10: only base64url-like kids are accepted for Vault lookup"""
+        self.assertTrue(self.eabhandler._kid_is_safe("keyid_00"))
+        self.assertTrue(self.eabhandler._kid_is_safe("abc-DEF_012"))
+        self.assertFalse(self.eabhandler._kid_is_safe(""))
+        self.assertFalse(self.eabhandler._kid_is_safe("../secret"))
+        self.assertFalse(self.eabhandler._kid_is_safe("a/b"))
+        self.assertFalse(self.eabhandler._kid_is_safe("a?b"))
+        self.assertFalse(self.eabhandler._kid_is_safe(None))
+
+    @patch(
+        "acme2certifier.eabhandlers.hashicorp_vault_handler.EABhandler._api_get"
+    )
+    def test_006d_kid_secret_get_rejects_unsafe_kid(self, mock_api):
+        """L10: unsafe kid never hits Vault"""
+        self.eabhandler.vault_url = "http://vault:8200"
+        self.eabhandler.vault_token = "t"
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertIsNone(self.eabhandler._kid_secret_get("../sys"))
+        mock_api.assert_not_called()
+        self.assertTrue(
+            any("Rejected unsafe EAB kid" in line for line in lcm.output)
+        )
+
     def test_007_list_url(self):
         """test KV v2 metadata list URL construction"""
         self.eabhandler.vault_url = "http://vault:8200"

@@ -4,9 +4,11 @@
 from __future__ import print_function
 
 import json
+import re
 import time
 from logging import Logger
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import quote
 
 from acme2certifier.acme_srv.helper import (
     ca_api_request,
@@ -20,6 +22,27 @@ from acme2certifier.acme_srv.helpers.eab_profile import EabProfileMixin
 from acme2certifier.eabhandlers.base import EABhandlerBase
 
 CONTENT_TYPE = "application/json"
+# ACME EAB kids are typically base64url; reject path/query metacharacters (L10).
+_EAB_KID_RE = re.compile(r"^[A-Za-z0-9_-]{1,256}$")
+
+
+def _vault_path_segment(segment: str) -> str:
+    """Percent-encode one path segment; also encode ``.`` so ``..`` cannot traverse."""
+    # quote() never encodes ``._-~``; force-dot encoding closes ``../`` escapes.
+    return quote(segment, safe="").replace(".", "%2E")
+
+
+def _vault_kv_path(*parts: str) -> str:
+    """Join operator-configured path parts (``/`` separates intentional segments)."""
+    segments: List[str] = []
+    for part in parts:
+        if part is None:
+            continue
+        for segment in str(part).strip("/").split("/"):
+            if not segment:
+                continue
+            segments.append(_vault_path_segment(segment))
+    return "/".join(segments)
 
 
 class EABhandler(EABhandlerBase, EabProfileMixin):
@@ -110,19 +133,30 @@ class EABhandler(EABhandlerBase, EabProfileMixin):
         self.proxy = config_proxy_load(self.logger, config_dic, self.vault_url or "")
         self.logger.debug("EABhandler._config_load() ended")
 
+    @staticmethod
+    def _kid_is_safe(kid: Any) -> bool:
+        """True when kid is a single safe path segment (base64url-like)."""
+        return isinstance(kid, str) and bool(_EAB_KID_RE.fullmatch(kid))
+
     def _secret_url(self, kid: str) -> str:
-        """Build KV v2 data URL for a kid."""
+        """Build KV v2 data URL for a kid (path-safe encoded segments).
+
+        The kid is a single segment (never split on ``/``) so ``a/b`` cannot
+        escape the configured prefix; combined with ``_kid_is_safe`` allowlist.
+        """
         prefix = (self.vault_prefix or "").strip("/")
         mount = (self.vault_mount or "secret").strip("/")
         base = (self.vault_url or "").rstrip("/")
-        return f"{base}/v1/{mount}/data/{prefix}/{kid}"
+        path = _vault_kv_path(mount, "data", prefix)
+        return f"{base}/v1/{path}/{_vault_path_segment(kid)}"
 
     def _list_url(self) -> str:
         """Build KV v2 metadata list URL for the configured prefix."""
         prefix = (self.vault_prefix or "").strip("/")
         mount = (self.vault_mount or "secret").strip("/")
         base = (self.vault_url or "").rstrip("/")
-        return f"{base}/v1/{mount}/metadata/{prefix}?list=true"
+        path = _vault_kv_path(mount, "metadata", prefix)
+        return f"{base}/v1/{path}?list=true"
 
     def _api_get(self, url: str) -> Tuple[int, Any]:
         """GET from Vault / OpenBao with token auth."""
@@ -212,6 +246,12 @@ class EABhandler(EABhandlerBase, EabProfileMixin):
             )
             return None
 
+        if not self._kid_is_safe(kid):
+            self.logger.warning(
+                "Rejected unsafe EAB kid for Vault path lookup: %r", kid
+            )
+            return None
+
         try:
             code, content = self._api_get(self._secret_url(kid))
         except Exception as err:
@@ -258,7 +298,17 @@ class EABhandler(EABhandlerBase, EabProfileMixin):
             self.logger.warning("Vault list failed: http_code=%s", code)
             return []
         keys = content.get("data", {}).get("keys", []) if content.get("data") else []
-        kids = [key.rstrip("/") for key in keys if key and not str(key).endswith("/")]
+        kids = []
+        for key in keys:
+            if not key or str(key).endswith("/"):
+                continue
+            kid = str(key).rstrip("/")
+            if not self._kid_is_safe(kid):
+                self.logger.warning(
+                    "Skipping unsafe EAB kid from Vault list: %r", kid
+                )
+                continue
+            kids.append(kid)
         self.logger.debug("EABhandler._kids_list() ended with %s kids", len(kids))
         return kids
 
