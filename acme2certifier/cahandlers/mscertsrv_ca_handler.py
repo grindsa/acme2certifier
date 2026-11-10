@@ -10,7 +10,7 @@ import importlib
 import subprocess
 import threading
 from contextlib import contextmanager
-from typing import List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 
 # pylint: disable=e0401, e0611
 from acme2certifier.cahandlers.certsrv import (
@@ -121,7 +121,7 @@ class CAhandler(KerberosAuthMixin):
 
         return (error, cert_bundle, cert_raw)
 
-    def _config_headerinfo_load(self, config_dic: Dict[str, str]):
+    def _config_headerinfo_load(self, config_dic: Any):
         """load parameters"""
         self.logger.debug("_config_header_info()")
 
@@ -142,7 +142,7 @@ class CAhandler(KerberosAuthMixin):
 
         self.logger.debug("_config_header_info() ended")
 
-    def _config_user_load(self, config_dic: Dict[str, str]):
+    def _config_user_load(self, config_dic: Any):
         """load username"""
         self.logger.debug("CAhandler._config_user_load()")
         self.user = config_option_load(
@@ -150,7 +150,7 @@ class CAhandler(KerberosAuthMixin):
         )
         self.logger.debug("CAhandler._config_user_load() ended")
 
-    def _config_password_load(self, config_dic: Dict[str, str]):
+    def _config_password_load(self, config_dic: Any):
         """load username"""
         self.logger.debug("CAhandler._config_password_load()")
         self.password = config_option_load(
@@ -158,7 +158,7 @@ class CAhandler(KerberosAuthMixin):
         )
         self.logger.debug("CAhandler._config_password_load() ended")
 
-    def _config_hostname_load(self, config_dic: Dict[str, str]):
+    def _config_hostname_load(self, config_dic: Any):
         """load hostname"""
         self.logger.debug("CAhandler._config_hostname_load()")
         self.host = config_option_load(
@@ -172,7 +172,7 @@ class CAhandler(KerberosAuthMixin):
             )
         self.logger.debug("CAhandler._config_hostname_load() ended")
 
-    def _config_url_load(self, config_dic: Dict[str, str]):
+    def _config_url_load(self, config_dic: Any):
         self.url = config_option_load(self.logger, config_dic, "url", current=self.url)
 
         self._enrollment_url_https_check()
@@ -192,7 +192,7 @@ class CAhandler(KerberosAuthMixin):
         self.logger.error(error)
         return error
 
-    def _config_parameters_load(self, config_dic: Dict[str, str]):
+    def _config_parameters_load(self, config_dic: Any):
         """load hostname"""
         self.logger.debug("CAhandler._config_parameters_load()")
 
@@ -253,11 +253,11 @@ class CAhandler(KerberosAuthMixin):
             )
         self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
 
-    def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
+    def _config_allowed_templates_load(self, config_dic: Any) -> None:
         """Load template allowlist from Order.allowed_header_values or CAhandler.allowed_templates."""
         self.allowed_templates = config_allowed_templates_load(self.logger, config_dic)
 
-    def _config_ca_templates_check_load(self, config_dic: Dict[str, str]) -> None:
+    def _config_ca_templates_check_load(self, config_dic: Any) -> None:
         """Load ca_templates_check mode (warn|on|off)."""
         self.logger.debug("CAhandler._config_ca_templates_check_load()")
         mode = config_dic.get(
@@ -279,7 +279,7 @@ class CAhandler(KerberosAuthMixin):
             self.ca_templates_check,
         )
 
-    def _config_proxy_load(self, config_dic: Dict[str, str]):
+    def _config_proxy_load(self, config_dic: Any):
         """load hostname"""
         self.logger.debug("CAhandler._config_proxy_load()")
         host_ref = self.url or self.host or ""

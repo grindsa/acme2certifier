@@ -724,7 +724,7 @@ class CAhandler(KerberosAuthMixin):
         self._config_proxy_load(config_dic)
         self.logger.debug("CAhandler._config_load() ended")
 
-    def _config_parameters_load(self, config_dic: Dict[str, str]) -> None:
+    def _config_parameters_load(self, config_dic: Any) -> None:
         """Load handler parameters."""
         self.logger.debug("CAhandler._config_parameters_load()")
         self.template = config_dic.get(
@@ -798,7 +798,7 @@ class CAhandler(KerberosAuthMixin):
             )
         self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
 
-    def _config_headerinfo_load(self, config_dic: Dict[str, str]) -> None:
+    def _config_headerinfo_load(self, config_dic: Any) -> None:
         """Load Order.header_info_list."""
         self.logger.debug("CAhandler._config_headerinfo_load()")
         if (
@@ -817,11 +817,11 @@ class CAhandler(KerberosAuthMixin):
                 )
         self.logger.debug("CAhandler._config_headerinfo_load() ended")
 
-    def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
+    def _config_allowed_templates_load(self, config_dic: Any) -> None:
         """Load template allowlist from Order.allowed_header_values or CAhandler.allowed_templates."""
         self.allowed_templates = config_allowed_templates_load(self.logger, config_dic)
 
-    def _config_proxy_load(self, config_dic: Dict[str, str]) -> None:
+    def _config_proxy_load(self, config_dic: Any) -> None:
         """Load proxy settings for CES/CEP URLs."""
         self.logger.debug("CAhandler._config_proxy_load()")
         host_ref = self.ces_url or self.cep_url or ""

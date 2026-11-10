@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """ejbca rest ca handler"""
 
-from typing import List, Tuple, Dict
+from typing import Any, List, Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 
@@ -117,7 +117,7 @@ class CAhandler(object):
 
         return certstatus_response
 
-    def _config_server_load(self, config_dic: Dict[str, str]):
+    def _config_server_load(self, config_dic: Any):
         """load server information"""
         self.logger.debug("CAhandler._config_auth_load()")
 
@@ -152,7 +152,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_server_load() ended")
 
-    def _config_authuser_load(self, config_dic: Dict[str, str]):
+    def _config_authuser_load(self, config_dic: Any):
         self.logger.debug("CAhandler._config_authuser_load()")
 
         # check if we need to add the common name of a certificate to the username
@@ -181,7 +181,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_auth_load() ended")
 
-    def _config_enrollmentcode_load(self, config_dic: Dict[str, str]):
+    def _config_enrollmentcode_load(self, config_dic: Any):
         self.logger.debug("CAhandler._config_enrollmentcode_load()")
         if (
             "enrollment_code_variable" in config_dic["CAhandler"]
@@ -198,7 +198,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_enrollmentcode_load() ended")
 
-    def _config_session_load(self, config_dic: Dict[str, str]):
+    def _config_session_load(self, config_dic: Any):
         self.logger.debug("CAhandler._config_session_load()")
 
         if (
@@ -230,7 +230,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_session_load() ended")
 
-    def _config_auth_load(self, config_dic: Dict[str, str]):
+    def _config_auth_load(self, config_dic: Any):
         """load authentication information"""
         self.logger.debug("CAhandler._config_authuser_load()")
 
@@ -242,7 +242,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_auth_load() ended")
 
-    def _config_cainfo_load(self, config_dic: Dict[str, str]):
+    def _config_cainfo_load(self, config_dic: Any):
         """load ca information"""
         self.logger.debug("CAhandler._config_cainfo_load()")
 

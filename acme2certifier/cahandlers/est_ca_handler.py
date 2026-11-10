@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import textwrap
-from typing import List, Tuple, Dict
+from typing import Any, List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
 from requests_pkcs12 import Pkcs12Adapter
@@ -115,7 +115,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._cert_bundle_create()")
         return (error, cert_bundle, cert_raw)
 
-    def _config_host_load(self, config_dic: Dict[str, str]):
+    def _config_host_load(self, config_dic: Any):
         """load est server address"""
         self.logger.debug("CAhandler._config_host_load()")
 
@@ -127,7 +127,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_host_load() ended")
 
-    def _cert_passphrase_load(self, config_dic: Dict[str, str]):
+    def _cert_passphrase_load(self, config_dic: Any):
         """load cert passphrase"""
         self.logger.debug("CAhandler._cert_passphrase_load()")
         self.cert_passphrase = config_option_load(
@@ -135,7 +135,7 @@ class CAhandler(object):
         )
         self.logger.debug("CAhandler._cert_passphrase_load() ended")
 
-    def _config_clientauth_load(self, config_dic: Dict[str, str]):
+    def _config_clientauth_load(self, config_dic: Any):
         """check if we need to use clientauth"""
         self.logger.debug("CAhandler._config_clientauth_load()")
 
@@ -173,7 +173,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_clientauth_load() ended")
 
-    def _config_userauth_load(self, config_dic: Dict[str, str]):
+    def _config_userauth_load(self, config_dic: Any):
         """check if we need to use user-auth"""
         self.logger.debug("CAhandler._config_userauth_load()")
 
@@ -187,7 +187,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_userauth_load() ended")
 
-    def _config_password_load(self, config_dic: Dict[str, str]):
+    def _config_password_load(self, config_dic: Any):
         """load password"""
         self.logger.debug("CAhandler._config_password_load()")
 
@@ -209,7 +209,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_password_load() ended")
 
-    def _config_parameters_load(self, config_dic: Dict[str, str]):
+    def _config_parameters_load(self, config_dic: Any):
         """load config paramters"""
         self.logger.debug("CAhandler._config_load()")
 
@@ -227,7 +227,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_load() ended")
 
-    def _config_proxy_load(self, config_dic: Dict[str, str]):
+    def _config_proxy_load(self, config_dic: Any):
         """load config paramters"""
         self.logger.debug("CAhandler._config_proxy_load()")
         self.proxy = config_proxy_load(self.logger, config_dic, self.est_host)

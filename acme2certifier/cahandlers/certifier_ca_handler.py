@@ -303,7 +303,7 @@ class CAhandler(object):
 
         return (code, message, detail)
 
-    def _config_user_load(self, config_dic: Dict[str, str]):
+    def _config_user_load(self, config_dic: Any):
         """load username"""
         self.logger.debug("_config_user_load()")
         if (
@@ -321,7 +321,7 @@ class CAhandler(object):
 
         self.logger.debug("_config_user_load() ended")
 
-    def _config_password_load(self, config_dic: Dict[str, str]):
+    def _config_password_load(self, config_dic: Any):
         """load password"""
         self.logger.debug("_config_password_load()")
 
@@ -340,7 +340,7 @@ class CAhandler(object):
 
         self.logger.debug("_config_password_load() ended")
 
-    def _config_parameter_load(self, config_dic: Dict[str, str]):
+    def _config_parameter_load(self, config_dic: Any):
         """load parameters"""
         self.logger.debug("_config_parameter_load()")
 
@@ -403,7 +403,7 @@ class CAhandler(object):
 
         self.logger.debug("_config_parameter_load() ended")
 
-    def _config_proxy_load(self, config_dic: Dict[str, str]):
+    def _config_proxy_load(self, config_dic: Any):
         """load parameters"""
         self.logger.debug("_config_proxy_load()")
         self.proxy = config_proxy_load(self.logger, config_dic, self.api_host)

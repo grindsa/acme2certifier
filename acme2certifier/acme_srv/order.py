@@ -718,7 +718,7 @@ class Order(object):
 
         return default
 
-    def _load_header_info_config(self, config_dic: Dict[str, str]):
+    def _load_header_info_config(self, config_dic: Any):
         """Load header info list from config file."""
         self.logger.debug("Order._load_header_info_config()")
         if "Order" in config_dic and "header_info_list" in config_dic["Order"]:
@@ -733,7 +733,7 @@ class Order(object):
                 )
         self.logger.debug("Order._load_header_info_config() ended")
 
-    def _load_order_config(self, config_dic: Dict[str, str]):
+    def _load_order_config(self, config_dic: Any):
         """Load order-related configuration from file."""
         self.logger.debug("Order._load_order_config()")
         if "Challenge" in config_dic:
@@ -811,7 +811,7 @@ class Order(object):
 
         self.logger.debug("Order._load_order_config() ended")
 
-    def _load_profile_config(self, config_dic: Dict[str, str]):
+    def _load_profile_config(self, config_dic: Any):
         """Load profiles from file or database."""
         self.logger.debug("Order._load_profile_config()")
         self._load_profiles_from_config(config_dic)
@@ -819,14 +819,14 @@ class Order(object):
         self._maybe_disable_profile_check(config_dic)
         self.logger.debug("Order._load_profile_config() ended")
 
-    def _load_profiles_from_config(self, config_dic: Dict[str, str]):
+    def _load_profiles_from_config(self, config_dic: Any):
         """Load profiles from configuration file."""
         if "Order" in config_dic and "profiles" in config_dic["Order"]:
             self.logger.debug("Order._config_load(): profile check enabled")
             self.config.profiles_check_disable = False
             self.config.profiles = config_profile_load(self.logger, config_dic)
 
-    def _load_profiles_from_db_if_sync(self, config_dic: Dict[str, str]):
+    def _load_profiles_from_db_if_sync(self, config_dic: Any):
         """Load profiles from database if profiles_sync is set."""
         if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
             self.config.profiles_sync = config_dic.getboolean(
@@ -856,7 +856,7 @@ class Order(object):
                 "Error when loading the profiles parameter from database: %s", err_
             )
 
-    def _maybe_disable_profile_check(self, config_dic: Dict[str, str]):
+    def _maybe_disable_profile_check(self, config_dic: Any):
         """Disable profile check"""
         if self.config.profiles and "Order" in config_dic:
             self.config.profiles_check_disable = config_dic.getboolean(
@@ -914,7 +914,7 @@ class Order(object):
 
         self.logger.debug("Order._load_configuration() ended.")
 
-    def _load_profile_mapping_field(self, config_dic: Dict[str, str]) -> Optional[str]:
+    def _load_profile_mapping_field(self, config_dic: Any) -> Optional[str]:
         """Load profile mapping field from configuration."""
         self.logger.debug("Order._load_profile_mapping_field()")
         ca_handler_module = ca_handler_load(self.logger, config_dic)

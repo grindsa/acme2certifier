@@ -622,7 +622,7 @@ class Certificate(object):
         )
         return (None, cert, cert_raw, message)
 
-    def _load_hooks_configuration(self, config_dic: Dict[str, str]):
+    def _load_hooks_configuration(self, config_dic: Any):
         """Load hook configuration from config dictionary"""
         self.logger.debug("Certificate._load_hooks_configuration()")
 
@@ -652,7 +652,7 @@ class Certificate(object):
 
         self.logger.debug("Certificate._load_hooks_configuration() ended")
 
-    def _load_certificate_parameters(self, config_dic: Dict[str, str] = None):
+    def _load_certificate_parameters(self, config_dic: Optional[Any] = None):
         """Load various certificate parameters - now handled by CertificateConfig"""
         self.logger.debug(
             "Certificate._load_certificate_parameters() - delegated to CertificateConfig"
@@ -1276,7 +1276,11 @@ class Certificate(object):
         return self.err_msg_dic["serverinternal"], ENROLLMENT_FAILED_DETAIL
 
     def _handle_enrollment_error(
-        self, error: str, poll_identifier: str, order_name: str, certificate_name: str
+        self,
+        error: str,
+        poll_identifier: Optional[str],
+        order_name: str,
+        certificate_name: str,
     ) -> Tuple[None, str, str]:
         """Store error message for later analysis"""
         self.logger.debug("Certificate._handle_enrollment_error(%s)", error)
@@ -1793,7 +1797,7 @@ class Certificate(object):
         return cert_id
 
     def _store_certificate_error(
-        self, certificate_name: str, error: str, poll_identifier: str
+        self, certificate_name: str, error: str, poll_identifier: Optional[str]
     ) -> int:
         """Store certificate error information in database"""
         self.logger.debug("Certificate._store_certificate_error(%s)", certificate_name)

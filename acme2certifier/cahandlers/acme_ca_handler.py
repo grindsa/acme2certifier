@@ -101,7 +101,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """close the connection at the end of the context"""
 
-    def _config_account_load(self, config_dic: Dict[str, str]):
+    def _config_account_load(self, config_dic: Any):
         self.logger.debug("CAhandler._config_account_load()")
 
         self.acme_keyfile = config_dic.get("CAhandler", "acme_keyfile", fallback=None)
@@ -134,7 +134,7 @@ class CAhandler(object):
                 self.logger.warning("Failed to parse ssl_verify parameter: %s", err)
         self.logger.debug("CAhandler._config_account_load() ended")
 
-    def _config_parameters_load(self, config_dic: Dict[str, str]):
+    def _config_parameters_load(self, config_dic: Any):
         """ " load eab config"""
         self.logger.debug("CAhandler._config_eab_load()")
 
@@ -151,7 +151,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_eab_load() ended")
 
-    def _config_dns_update_script_load(self, config_dic: Dict[str, str]):
+    def _config_dns_update_script_load(self, config_dic: Any):
         """ " load dns update script"""
         self.logger.debug("CAhandler._config_dns_update_script_load()")
 
@@ -208,7 +208,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_dns_update_script_load() ended")
 
-    def _config_profiles_load(self, config_dic: Dict[str, str]) -> Dict[str, str]:
+    def _config_profiles_load(self, config_dic: Any) -> Dict[str, str]:
         """ " load profiles from config file"""
         self.logger.debug("CAhandler._config_profiles_load()")
         if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:

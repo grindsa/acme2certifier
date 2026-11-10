@@ -115,7 +115,7 @@ def log_loaded_acme_srv_cfg(logger: logging.Logger) -> None:
         _log_cfg_loaded_once(logger, path, source, cfg_format)
 
 
-def config_check(logger: logging.Logger, config_dic: Dict):
+def config_check(logger: logging.Logger, config_dic: Any):
     """check configuration"""
     logger.debug("Helper.config_check()")
 
@@ -129,7 +129,7 @@ def config_check(logger: logging.Logger, config_dic: Dict):
                 )
 
 
-def config_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_profile_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_profile_load()")
 
@@ -145,7 +145,7 @@ def config_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return profiles
 
 
-def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_eab_profile_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_eab_profile_load()")
 
@@ -196,7 +196,7 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return eab_profiling, eab_handler
 
 
-def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_headerinfo_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_headerinfo_load()")
 
@@ -343,7 +343,7 @@ def header_value_allowlist_resolve(logger: logging.Logger, cahandler) -> List[st
     return []
 
 
-def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_enroll_config_log_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_enroll_config_log_load()")
 
@@ -445,7 +445,7 @@ def _config_str_list_load(
 
 def config_cert_chain_skip_list_load(
     logger: logging.Logger,
-    config_dic: Dict[str, str],
+    config_dic: Any,
     section: str = "CAhandler",
 ) -> Tuple[Optional[str], Optional[List[str]]]:
     """Load ``cert_chain_skip_list`` from *section*.
@@ -527,7 +527,7 @@ def _cert_chain_append_file_load(
 
 def config_cert_chain_append_load(
     logger: logging.Logger,
-    config_dic: Dict[str, str],
+    config_dic: Any,
     section: str = "CAhandler",
 ) -> Tuple[Optional[str], Optional[List[str]]]:
     """Load ``cert_chain_append`` PEM files from *section*.
@@ -675,7 +675,7 @@ def config_number_load(
 
 def config_option_load(
     logger: logging.Logger,
-    config_dic: Dict[str, str],
+    config_dic: Any,
     option: str,
     *,
     section: str = "CAhandler",
@@ -809,7 +809,7 @@ def config_ca_bundle_load(
 
 
 def config_dns_server_list_load(
-    logger: logging.Logger, config_dic: Dict[str, str]
+    logger: logging.Logger, config_dic: Any
 ) -> Tuple[List[str], int]:
     """load parameters"""
     logger.debug("Helper.config_dns_server_list_load()")
@@ -853,7 +853,7 @@ def config_dns_server_list_load(
     return dns_server_list, dns_validation_pause_timer
 
 
-def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_allowed_domainlist_load()")
 
@@ -892,7 +892,7 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
     return allowed_domainlist
 
 
-def config_allowed_iplist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_allowed_iplist_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_allowed_iplist_load()")
 
@@ -909,7 +909,7 @@ def config_allowed_iplist_load(logger: logging.Logger, config_dic: Dict[str, str
     return allowed_iplist
 
 
-def config_shortname_denylist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_shortname_denylist_load(logger: logging.Logger, config_dic: Any):
     """Load Order.shortname_denylist JSON list from configuration."""
     logger.debug("Helper.config_shortname_denylist_load()")
 
@@ -947,7 +947,7 @@ def warn_shortname_without_domainlist(
 
 
 def config_async_mode_load(
-    logger: logging.Logger, config_dic: Dict[str, str], db_type: str
+    logger: logging.Logger, config_dic: Any, db_type: str
 ):
     """load parameters"""
     logger.debug("Helper.config_async_mode_load()")
@@ -1051,7 +1051,7 @@ def acme_get_method_not_allowed_problem() -> Dict[str, Any]:
     }
 
 
-def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
+def config_proxy_load(logger, config_dic: Any, host_name: str):
     """load parameters"""
     logger.debug("_config_proxy_load()")
 
@@ -1805,7 +1805,7 @@ def client_parameter_validate(
     return value_to_set, error
 
 
-def config_dryrun_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_dryrun_load(logger: logging.Logger, config_dic: Any):
     """load dryrun configuration"""
     logger.debug("Helper.config_dryrun_load()")
 

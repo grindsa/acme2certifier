@@ -8,7 +8,7 @@ import tempfile
 import importlib
 import subprocess
 from contextlib import contextmanager
-from typing import List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 
 # pylint: disable=e0401, e0611
 from acme2certifier.cahandlers.ms_icpr.target import Target
@@ -90,7 +90,7 @@ class CAhandler(KerberosAuthMixin):
     def __exit__(self, *args):
         """close the connection at the end of the context"""
 
-    def _config_headerinfo_load(self, config_dic: Dict[str, str]):
+    def _config_headerinfo_load(self, config_dic: Any):
         """load parameters"""
         self.logger.debug("_config_header_info()")
 
@@ -111,7 +111,7 @@ class CAhandler(KerberosAuthMixin):
 
         self.logger.debug("_config_header_info() ended")
 
-    def _config_host_load(self, config_dic: Dict[str, str]):
+    def _config_host_load(self, config_dic: Any):
         """load host variable"""
         self.logger.debug("CAhandler._config_host_load()")
         self.host = config_option_load(
@@ -119,7 +119,7 @@ class CAhandler(KerberosAuthMixin):
         )
         self.logger.debug("CAhandler._config_host_load() ended")
 
-    def _config_credentials_load(self, config_dic: Dict[str, str]):
+    def _config_credentials_load(self, config_dic: Any):
         """load host variable"""
         self.logger.debug("CAhandler._config_credentials_load()")
 
@@ -133,7 +133,7 @@ class CAhandler(KerberosAuthMixin):
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
 
-    def _config_parameters_load(self, config_dic: Dict[str, str]):
+    def _config_parameters_load(self, config_dic: Any):
         """load parameters"""
         self.logger.debug("CAhandler._config_parameters_load()")
 
@@ -213,7 +213,7 @@ class CAhandler(KerberosAuthMixin):
         )
         self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
 
-    def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
+    def _config_allowed_templates_load(self, config_dic: Any) -> None:
         """Load template allowlist from Order.allowed_header_values or CAhandler.allowed_templates."""
         self.allowed_templates = config_allowed_templates_load(self.logger, config_dic)
 

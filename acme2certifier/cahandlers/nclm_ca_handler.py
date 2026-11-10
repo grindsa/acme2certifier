@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import time
-from typing import List, Tuple, Dict
+from typing import Any, List, Tuple, Dict
 import requests
 
 # pylint: disable=e0401, r0913
@@ -452,7 +452,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_check() ended")
 
-    def _config_api_user_load(self, config_dic: Dict[str, str]):
+    def _config_api_user_load(self, config_dic: Any):
         """load user"""
         self.logger.debug("CAhandler._config_api_user_load()")
         self.credential_dic["api_user"] = config_option_load(
@@ -463,7 +463,7 @@ class CAhandler(object):
         )
         self.logger.debug("CAhandler._config_api_user_load() ended.")
 
-    def _config_api_password_load(self, config_dic: Dict[str, str]):
+    def _config_api_password_load(self, config_dic: Any):
         """load password"""
         self.logger.debug("CAhandler._config_api_password_load()")
         self.credential_dic["api_password"] = config_option_load(
@@ -474,7 +474,7 @@ class CAhandler(object):
         )
         self.logger.debug("CAhandler._config_api_password_load() ended")
 
-    def _config_names_load(self, config_dic: Dict[str, str]):
+    def _config_names_load(self, config_dic: Any):
         """load names from config"""
         self.logger.debug("CAhandler._config_names_load()")
 
@@ -498,13 +498,13 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_names_load() ended")
 
-    def _config_proxy_load(self, config_dic: Dict[str, str]):
+    def _config_proxy_load(self, config_dic: Any):
         """load proxy configuration"""
         self.logger.debug("CAhandler._config_proxy_load()")
         self.proxy = config_proxy_load(self.logger, config_dic, self.api_host)
         self.logger.debug("CAhandler._config_proxy_load() ended")
 
-    def _config_timer_load(self, config_dic: Dict[str, str]):
+    def _config_timer_load(self, config_dic: Any):
         """load timer"""
         self.logger.debug("CAhandler._config_proxy_load()")
 
