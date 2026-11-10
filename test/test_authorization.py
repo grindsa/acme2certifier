@@ -1955,7 +1955,7 @@ class TestAuthorization(unittest.TestCase):
                         expected_status_dic = {
                             "code": 403,
                             "type": "urn:ietf:params:acme:error:unauthorized",
-                            "detail": "authorization lookup failed",
+                            "detail": "Unauthorized",
                         }
                         self.assertEqual(status_dic, expected_status_dic)
         self.assertIsInstance(result, dict)

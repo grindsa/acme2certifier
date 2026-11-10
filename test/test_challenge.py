@@ -1729,14 +1729,12 @@ class TestChallenge(unittest.TestCase):
             )
 
     def test_099_process_challenge_request_nonexistent_challenge_name(self):
-        """Test process_challenge_request when challenge doesn't exist in repository (line 924)"""
-        # Set up necessary components
+        """Missing challenge returns the same unauthorized client error as ownership denial."""
         self.challenge.factory = Mock()
         self.challenge.service = Mock()
         self.challenge.message = Mock()
         self.challenge.err_msg_dic = {"malformed": "malformed"}
         self.challenge.repository = Mock()
-        # Message check succeeds, URL exists, challenge name extracted but challenge doesn't exist
         self.challenge.message.check.return_value = (
             200,
             "",
@@ -1745,11 +1743,8 @@ class TestChallenge(unittest.TestCase):
             {},
             "account",
         )
-        self.challenge.repository.get_challenge_by_name.return_value = (
-            None  # Challenge not found
-        )
+        self.challenge.repository.get_challenge_owner_account_name.return_value = None
 
-        # Mock the extract method to return valid challenge name
         with (
             patch.object(
                 self.challenge,
@@ -1759,21 +1754,22 @@ class TestChallenge(unittest.TestCase):
             patch.object(
                 self.challenge, "_create_error_response"
             ) as mock_error_response,
+            patch.object(
+                self.challenge, "_handle_challenge_validation_request"
+            ) as mock_handle,
         ):
-            mock_error_response.return_value = {
-                "code": 400,
-                "type": "malformed",
-                "detail": "invalid challenge: nonexistent_challenge",
-            }
+            mock_error_response.return_value = {"code": 403}
             self.challenge.process_challenge_request(
                 "content_with_nonexistent_challenge"
             )
             mock_error_response.assert_called_once_with(
-                400,
-                "malformed",
-                "invalid challenge: nonexistent_challenge",
+                403,
+                "urn:ietf:params:acme:error:unauthorized",
+                "Unauthorized",
                 account_name="account",
             )
+            mock_handle.assert_not_called()
+            self.challenge.repository.get_challenge_by_name.assert_not_called()
 
     # Tests for the final remaining uncovered lines (389-402, 508, 515)
     def test_100_execute_challenge_validation_full_context_creation(self):

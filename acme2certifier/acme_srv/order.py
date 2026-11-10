@@ -39,6 +39,7 @@ from acme2certifier.acme_srv.helpers.global_variables import (
 )
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
+    ownership_unauthorized,
     resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.helpers.otel import set_span_outcome, span
@@ -1978,12 +1979,13 @@ class Order(object):
         if "url" in protected:
             order_name = self._name_get(protected["url"])
             if order_name:
-                order_dic = self.get_order_details(order_name)
-                if order_dic:
-                    code, message, detail = self._check_order_ownership(
-                        order_name, account_name
-                    )
-                    if code == 200:
+                # Ownership before get_order_details (pending→ready side effect).
+                code, message, detail = self._check_order_ownership(
+                    order_name, account_name
+                )
+                if code == 200:
+                    order_dic = self.get_order_details(order_name)
+                    if order_dic:
                         (
                             code,
                             message,
@@ -1992,14 +1994,13 @@ class Order(object):
                         ) = self._process_order_request(
                             order_name, protected, payload, header
                         )
-                else:
-                    self.logger.warning(
-                        "Order request failed: order not found order=%s",
-                        order_name,
-                    )
-                    code = 403
-                    message = self.error_msg_dic["ordernotready"]
-                    detail = "order not found"
+                    else:
+                        # Same client error as missing/denied (no existence oracle).
+                        self.logger.warning(
+                            "Order request failed: order not found order=%s",
+                            order_name,
+                        )
+                        code, message, detail = ownership_unauthorized()
             else:
                 self.logger.warning("Order request failed: order name missing")
                 code = 400

@@ -28,6 +28,7 @@ from acme2certifier.acme_srv.helpers.security_gate import (
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     ownership_lookup_failed,
+    ownership_unauthorized,
     resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.helpers.otel import (
@@ -1740,15 +1741,6 @@ class Challenge:
                     account_name=account_name,
                 )
 
-            challenge_info = self.repository.get_challenge_by_name(challenge_name)
-            if not challenge_info:
-                return self._create_error_response(
-                    400,
-                    self.err_msg_dic["malformed"],
-                    f"invalid challenge: {challenge_name}",
-                    account_name=account_name,
-                )
-
             try:
                 own_code, own_message, own_detail = self._check_challenge_ownership(
                     challenge_name, account_name
@@ -1756,6 +1748,20 @@ class Challenge:
             except ResourceOwnershipLookupError:
                 own_code, own_message, own_detail = ownership_lookup_failed()
             if own_code != 200:
+                return self._create_error_response(
+                    own_code,
+                    own_message,
+                    own_detail,
+                    account_name=account_name,
+                )
+
+            challenge_info = self.repository.get_challenge_by_name(challenge_name)
+            if not challenge_info:
+                # Same client error as ownership denial (no existence oracle).
+                self.logger.warning(
+                    "Challenge not found after ownership check: %s", challenge_name
+                )
+                own_code, own_message, own_detail = ownership_unauthorized()
                 return self._create_error_response(
                     own_code,
                     own_message,

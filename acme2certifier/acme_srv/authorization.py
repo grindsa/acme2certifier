@@ -33,6 +33,7 @@ from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     SERVER_INTERNAL_TYPE,
     ResourceOwnershipLookupError,
+    ownership_unauthorized,
     resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.helpers.security_gate import (
@@ -1264,12 +1265,10 @@ class Authorization(object):
                 {},
             )
         if not auth_info:
-            return (
-                403,
-                "urn:ietf:params:acme:error:unauthorized",
-                "authorization lookup failed",
-                {},
-            )
+            # Same client error as ownership denial (no existence oracle).
+            self.logger.warning("Authorization request failed: authorization lookup empty")
+            own_code, own_message, own_detail = ownership_unauthorized()
+            return own_code, own_message, own_detail, {}
         return code, message, detail, {"data": auth_info}
 
     def _process_valid_post(

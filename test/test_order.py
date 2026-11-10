@@ -748,13 +748,34 @@ class TestOrderClass(unittest.TestCase):
                         {"url": "url"}, {}, None, account_name="acc"
                     )
                     self.assertEqual(code, 200)
-            # url in protected, order_name, no order_dic
-            with patch.object(self.order, "get_order_details", return_value={}):
+            # Missing/denied ownership: same unauthorized client error; no side-effect lookup
+            with (
+                patch.object(
+                    self.order, "_get_order_account_name", return_value=None
+                ),
+                patch.object(self.order, "get_order_details") as mock_details,
+            ):
+                code, msg, detail, _cert, _order = self.order._parse_order_message(
+                    {"url": "url"}, {}, None, account_name="attacker"
+                )
+                self.assertEqual(code, 403)
+                self.assertEqual(msg, "urn:ietf:params:acme:error:unauthorized")
+                self.assertEqual(detail, "Unauthorized")
+                mock_details.assert_not_called()
+            # Ownership ok but details empty: still uniform unauthorized (no oracle)
+            with (
+                patch.object(
+                    self.order, "_get_order_account_name", return_value="acc"
+                ),
+                patch.object(self.order, "get_order_details", return_value={}),
+            ):
                 with self.assertLogs("test_a2c", level="WARNING") as log_cm:
-                    code, _msg, _detail, _cert, _order = (
-                        self.order._parse_order_message({"url": "url"}, {}, None)
+                    code, msg, detail, _cert, _order = self.order._parse_order_message(
+                        {"url": "url"}, {}, None, account_name="acc"
                     )
                 self.assertEqual(code, 403)
+                self.assertEqual(msg, "urn:ietf:params:acme:error:unauthorized")
+                self.assertEqual(detail, "Unauthorized")
                 self.assertIn(
                     "WARNING:test_a2c:Order request failed: order not found order=order",
                     log_cm.output,
