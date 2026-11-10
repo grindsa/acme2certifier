@@ -62,10 +62,20 @@ usage() {
 }
 
 # Retry apt-get on transient mirror/lock failures (exit 100 is common in CI).
+# On failure, refresh indexes before retrying installs so Packages/404 races
+# (security.ubuntu.com) can recover; skip the refresh when already updating.
 apt_retry() {
   local attempts="${APT_RETRY_ATTEMPTS:-3}"
   local sleep_s="${APT_RETRY_SLEEP:-5}"
   local n=1
+  local is_update=0
+  local arg
+  for arg in "$@"; do
+    if [[ "${arg}" == "update" ]]; then
+      is_update=1
+      break
+    fi
+  done
   until "$@"; do
     if ((n >= attempts)); then
       echo "ERROR: apt command failed after ${attempts} attempts: $*" >&2
@@ -73,6 +83,10 @@ apt_retry() {
     fi
     echo "==> apt command failed (attempt ${n}/${attempts}), retrying in ${sleep_s}s: $*" >&2
     sleep "${sleep_s}"
+    if ((is_update == 0)); then
+      echo "==> refreshing apt indexes before retry" >&2
+      ${SUDO} apt-get update || true
+    fi
     n=$((n + 1))
   done
 }
