@@ -146,24 +146,41 @@ def validate_ip(logger: logging.Logger, ip: str, raw=False) -> ipaddress._BaseAd
     return result
 
 
+def _dns_label_valid(label: str) -> bool:
+    """Return True if label is a lowercase LDH DNS label (1..63 octets)."""
+    if not label or len(label) > 63:
+        return False
+    if label[0] == "-" or label[-1] == "-":
+        return False
+    return all(
+        ("a" <= char <= "z") or ("0" <= char <= "9") or char == "-" for char in label
+    )
+
+
+def _dns_name_valid(name: str) -> bool:
+    """Return True if name is a DNS hostname (no wildcard), length-capped."""
+    if not name or len(name) > 253:
+        return False
+    return all(_dns_label_valid(label) for label in name.split("."))
+
+
 def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
     """validate fqdn"""
     logger.debug("Helper.validate_fqdn()")
 
     result = False
-    regex = r"^(([a-z0-9]\-*[a-z0-9]*){1,63}\.?){1,255}$"
-    p = re.compile(regex)
-    if re.search(p, fqdn):
-        result = True
-
-    if not result:
-        logger.debug(
-            "Helper.validate_fqdn(): invalid fqdn. Check for wildcard : %s", fqdn
-        )
-        regex = r"^\*\.[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-        p = re.compile(regex)
-        if re.search(p, fqdn):
-            result = True
+    if fqdn:
+        # Optional trailing root dot; reject before any expensive parse.
+        name = fqdn[:-1] if fqdn.endswith(".") else fqdn
+        if name.startswith("*."):
+            logger.debug(
+                "Helper.validate_fqdn(): invalid fqdn. Check for wildcard : %s", fqdn
+            )
+            # Trailing dot is not accepted on wildcards (previous behavior).
+            if not fqdn.endswith("."):
+                result = _dns_name_valid(name[2:])
+        else:
+            result = _dns_name_valid(name)
 
     logger.debug("Helper.validate_fqdn() ended with: %s", result)
     return result
