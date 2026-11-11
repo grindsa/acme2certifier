@@ -720,6 +720,7 @@ def _http01_body_header_reject(
     """Reject compressed or oversized HTTP-01 bodies from response headers."""
     content_encoding = (req.headers.get("Content-Encoding") or "identity").strip().lower()
     if content_encoding not in ("", "identity"):
+        logger.debug("Helper._http01_body_header_reject(): compressed responses are not allowed (Content-Encoding: %s)", content_encoding)
         return (
             f"HTTP-01 compressed responses are not allowed "
             f"(Content-Encoding: {content_encoding})"
