@@ -61,10 +61,10 @@ runs:
         sudo sed -i "s/CHALLENGE_TYPE/${CHALLENGE_TYPE}/g" "${WORKING_DIRECTORY}/docker-compose.yml"
         docker compose -f "${WORKING_DIRECTORY}/docker-compose.yml" up -d
 
-        # HTTP-01/TLS-ALPN validation runs inside acme-srv and DNS-pins the
-        # runner FQDN to the host eth0 IP. Hairpin to host-published :80/:443
-        # can blackhole (challenge validation timed out after 10s). Prefer the
-        # Traefik IP on the shared Docker network instead.
+        # HTTP-01/TLS-ALPN validation DNS-pins via dnspython (ignores /etc/hosts).
+        # Hairpin to host-published :80/:443 can blackhole (challenge timed out
+        # after 10s). Make Docker DNS return Traefik on network acme, with DNAT
+        # fallback when acme-srv is privileged and still resolves eth0.
         traefik_ip=""
         for _ in $(seq 1 15); do
           traefik_ip="$(docker inspect -f '{{(index .NetworkSettings.Networks "acme").IPAddress}}' traefik 2>/dev/null || true)"
@@ -79,12 +79,71 @@ runs:
           docker inspect traefik || true
           exit 1
         fi
+
+        docker network disconnect acme traefik
+        docker network connect --alias "${RUNNER_HOSTNAME}" acme traefik
+        traefik_ip="$(docker inspect -f '{{(index .NetworkSettings.Networks "acme").IPAddress}}' traefik)"
+        if [[ -z "${traefik_ip}" ]]; then
+          echo "ERROR: traefik lost IP on network acme after alias reconnect" >&2
+          exit 1
+        fi
+        echo "Traefik alias on acme: ${RUNNER_HOSTNAME} -> ${traefik_ip}"
+
         if docker ps --format '{{.Names}}' | grep -qx acme-srv; then
           docker exec acme-srv bash -c \
             "grep -qF '${RUNNER_HOSTNAME}' /etc/hosts || echo '${traefik_ip} ${RUNNER_HOSTNAME}' >> /etc/hosts"
-          echo "Mapped ${RUNNER_HOSTNAME} -> ${traefik_ip} inside acme-srv"
+          echo "Mapped ${RUNNER_HOSTNAME} -> ${traefik_ip} in acme-srv /etc/hosts (getaddrinfo only)"
+
+          resolved=""
+          dns_probe_ok=0
+          if docker exec acme-srv python3 -c "import dns.resolver" >/dev/null 2>&1; then
+            dns_probe_ok=1
+          fi
+          for _ in $(seq 1 15); do
+            if [[ "${dns_probe_ok}" -eq 1 ]]; then
+              resolved="$(
+                docker exec acme-srv python3 -c \
+                  "import dns.resolver; print(dns.resolver.resolve('${RUNNER_HOSTNAME}', 'A')[0].to_text())" \
+                  2>/dev/null || true
+              )"
+            else
+              resolved="$(
+                docker exec acme-srv getent ahostsv4 "${RUNNER_HOSTNAME}" 2>/dev/null \
+                  | awk '{print $1; exit}' || true
+              )"
+            fi
+            if [[ "${resolved}" == "${traefik_ip}" ]]; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "${dns_probe_ok}" -eq 1 ]]; then
+            echo "acme-srv dnspython A ${RUNNER_HOSTNAME} -> ${resolved:-<empty>} (want ${traefik_ip})"
+          else
+            echo "acme-srv getent A ${RUNNER_HOSTNAME} -> ${resolved:-<empty>} (want ${traefik_ip}; dnspython unavailable for probe)"
+          fi
+
+          if [[ "${resolved}" != "${traefik_ip}" ]]; then
+            host_ip="$(ip -4 -o addr show eth0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 || true)"
+            if [[ -z "${host_ip}" ]]; then
+              echo "WARN: could not read eth0 IPv4 for DNAT fallback" >&2
+            elif docker exec -e HOST_IP="${host_ip}" -e TRAEFIK_IP="${traefik_ip}" acme-srv bash -c '
+              set -euo pipefail
+              command -v iptables >/dev/null 2>&1 || exit 2
+              for port in 80 443; do
+                iptables -t nat -C OUTPUT -d "$HOST_IP" -p tcp --dport "$port" \
+                  -j DNAT --to-destination "${TRAEFIK_IP}:${port}" 2>/dev/null \
+                  || iptables -t nat -A OUTPUT -d "$HOST_IP" -p tcp --dport "$port" \
+                    -j DNAT --to-destination "${TRAEFIK_IP}:${port}"
+              done
+            '; then
+              echo "DNAT fallback: ${host_ip}:80/443 -> ${traefik_ip} inside acme-srv"
+            else
+              echo "WARN: DNAT fallback unavailable (need privileged/NET_ADMIN + iptables); alias/hosts may be insufficient" >&2
+            fi
+          fi
         else
-          echo "WARN: acme-srv container not running; skip hosts mapping"
+          echo "WARN: acme-srv container not running; skip DNS/DNAT hardening"
         fi
       shell: bash
       env:
