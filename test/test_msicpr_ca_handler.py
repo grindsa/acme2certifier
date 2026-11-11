@@ -1724,8 +1724,8 @@ class TestACMEHandler(unittest.TestCase):
             },
             call_kwargs["store"],
         )
-        self.assertEqual("principal_obj", call_kwargs["desired_name"])
-        self.assertEqual("initiate", call_kwargs["cred_usage"])
+        self.assertEqual("principal_obj", call_kwargs["name"])
+        self.assertEqual("initiate", call_kwargs["usage"])
 
     def test_088_kerberos_acquire_with_gssapi_raw_exception(self):
         """test kerberos raw gssapi acquire exception path"""

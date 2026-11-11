@@ -1286,6 +1286,9 @@ class TestACMEHandler(unittest.TestCase):
             )
         )
         gssapi.raw.acquire_cred_from.assert_called_once()
+        call_kwargs = gssapi.raw.acquire_cred_from.call_args.kwargs
+        self.assertIn("name", call_kwargs)
+        self.assertEqual("initiate", call_kwargs["usage"])
 
     def test_085_kerberos_acquire_with_gssapi_raw_unavailable(self):
         """_kerberos_acquire_with_gssapi_raw returns False when raw API missing"""

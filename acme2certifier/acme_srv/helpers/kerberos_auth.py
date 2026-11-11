@@ -175,8 +175,8 @@ class KerberosAuthMixin:
             }
             raw_acquire(
                 store=store,
-                desired_name=principal,
-                cred_usage="initiate",
+                name=principal,
+                usage="initiate",
             )
             self.logger.debug(
                 "Kerberos credentials acquired using gssapi.raw.acquire_cred_from"

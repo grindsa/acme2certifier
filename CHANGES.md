@@ -2,8 +2,7 @@
 
 # Acme2certifier changelog
 
-This is a high-level summary of the most important changes. For a full list of
-changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
+This is a high-level summary of the most important changes. For a full list of changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
 ## Changes in 0.47
@@ -11,29 +10,31 @@ and pick the appropriate release branch.
 **New Features**:
 
 - Unified Docker images per webserver (`apache2` / `nginx`): WSGI and Django in one image; handler selected at runtime via `[DBhandler]` / `ACME_SRV_DB_HANDLER` (entrypoint retargets Apache/uWSGI). Hub primary tags are `apache2` / `nginx` (`latest` → `apache2`); legacy `*-wsgi` / `*-django` tags remain for compatibility. See [Containerized installation](docs/install_docker.md).
-- [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword; optional CES URL discovery from CEP `GetPolicies` when `ces_url` is unset ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
-- [Cloudflare CFSSL](docs/cfssl.md) CA handler (`cfssl_ca_handler`) for `cfssl serve`: synchronous enroll via `/sign` or HMAC `/authsign`, issuer chain from `/info`, revoke via `/revoke` when CFSSL is started with `-db-config`
-- [HashiCorp Vault / OpenBao EAB handler](docs/eab_hashicorp_vault.md) (`hashicorp_vault_handler`) loads EAB MAC keys and optional kid profiles from KV v2 (string = HMAC-only, JSON object = full profile); token / `vault_token_variable` auth, per-kid TTL cache; Vault / OpenBao only
-- Optional `[Order] allow_shortname_from_fqdn` (default `False`) and `shortname_denylist` so single-label DNS names can pass `allowed_domainlist` when the same order/CSR also contains an allowed multi-label FQDN with a matching first label; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
-- Optional `[Order] allow_shortname_without_challenge_validation` (default `False`, requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1`) marks qualifying shortname authorizations valid at order creation while sibling FQDN challenge validation still gates issuance; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
+- [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR).
+- [Cloudflare CFSSL](docs/cfssl.md) CA handler (`cfssl_ca_handler`)
+- [HashiCorp Vault / OpenBao EAB handler](docs/eab_hashicorp_vault.md) (`hashicorp_vault_handler`) loads EAB MAC keys and optional kid profiles from KV v2.
+- Optional `[Order] allow_shortname_from_fqdn` and `shortname_denylist` so single-label DNS names can pass `allowed_domainlist` when the same order/CSR also contains an allowed multi-label FQDN with a matching first label([#400](https://github.com/grindsa/acme2certifier/discussions/400)).
+- Optional `[Order] allow_shortname_without_challenge_validation` (default `False`, requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1`) marks qualifying shortname authorizations valid at order creation while sibling FQDN challenge validation still gates issuance; ([#400](https://github.com/grindsa/acme2certifier/discussions/400)).
 - ***Experimental Features***
-  - [AWS Private CA (ACM PCA)](docs/aws_pca.md) CA handler (`aws_pca_ca_handler`) for enroll/revoke via ACM PCA HTTPS JSON APIs + SigV4 (no `boto3`); optional `endpoint_url` for LocalStack (Ultimate) or VPC endpoints (not yet validated against a real AWS PCA; real-world testers welcome).
-  - [Google Cloud Private CAS](docs/google_cas.md) CA handler (`google_cas_ca_handler`) for enroll/revoke via Private CAS REST + Bearer (`acme2certifier[gcp]` / `google-auth` optional); in-repo mock under `examples/Docker/google_privateca` (validated against the mock, not yet against real GCP CAS).
-  - [OpenTelemetry](docs/opentelemetry.md) support (`[OpenTelemetry] opentelemetry_support`, default `False`; install `acme2certifier[otel]`). Shared `acme_traced_request` (Django / classic WSGI) builds one enrollment-session trace via Replay-Nonce + session tip; nested spans/metrics for account create/query, challenge validation, enroll, CA handler, auth/EAB failures; OTLP HTTP export. Logging remains primary.
+  - [AWS Private CA (ACM PCA)](docs/aws_pca.md) CA handler (`aws_pca_ca_handler`) for enroll/revoke via ACM PCA HTTPS JSON APIs + SigV4.
+  - [Google Cloud Private CAS](docs/google_cas.md) CA handler (`google_cas_ca_handler`) for enroll/revoke via GC Private CAS REST.
+  - [OpenTelemetry](docs/opentelemetry.md) support - Shared `acme_traced_request` (Django / classic WSGI) builds one enrollment-session trace via Replay-Nonce + session tip; nested spans/metrics for account create/query, challenge validation, enroll, CA handler, auth/EAB failures.
 
 **Bug Fixes and Improvements**:
 
+- Kerberos keytab: call `gssapi.raw.acquire_cred_from` with python-gssapi kwargs (`name` / `usage`) ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
+- HARICA: keep the CertManager transaction id in `poll_identifier` after successful enroll and prefer it on revoke (avoids a slow serial scan of `GetMyTransactions` that can exceed ACME client timeouts)
 - After CA enrollment/poll, compare CSR SANs against the issued leaf certificate and log an error when SANs are missing; optional `[Certificate] cert_san_check_strict` refuses delivery ([#413](https://github.com/grindsa/acme2certifier/issues/413)); containers-only CI in `feature-cert-san-check.yml`
 - Docker Django: migration files come from the image (aligned with DEB/RPM); `volume/migrations` is deprecated and ignored. See [Upgrading — Docker (Django)](docs/upgrading.md#docker-django).
-- Security: HTTP-01 validation caps response bodies at 10 KiB, requests `Accept-Encoding: identity` (rejects compressed bodies), and uses a shared wall-clock timeout across redirect hops; TLS-ALPN sockets use `settimeout`; sync-mode challenges stuck past `challenge_validation_timeout` are marked invalid (CAS `processing` → `invalid` / `valid`)
+- Security: HTTP-01 validation caps response bodies at 10 KiB, requests `Accept-Encoding: identity` (rejects compressed bodies), and uses a shared wall-clock timeout across redirect hops
+- challenges validation attempts stuck past `challenge_validation_timeout` are marked invalid
 - Security: RFC 8823 email-reply IMAP/SMTP TLS now verifies certificates and hostname by default (`ssl.create_default_context()`); optional `[DEFAULT] email_ssl_verify: False` disables verification for that path only (WARNING logged). See [RFC 8823 email identifiers](docs/rfc8823_email_identifier.md)
-- Security: `reverse_address_check` requires an exact PTR match for the authorization DNS name (case-insensitive; trailing dots ignored); subdomain PTRs such as `x.bank.com` no longer validate `bank.com`
+- Security: `reverse_address_check` requires an exact PTR match for the authorization DNS name (case-insensitive; trailing dots ignored); subdomain PTRs such as `x.foo.com` no longer validate `foo.com`
 - Security: `reverse_address_check` forward-confirms the PTR hostname by default (FCrDNS: A/AAAA must include the client source address); optional `[Challenge] fcrdns_check_disable` (also via EAB challenge profile) skips FCrDNS for split-DNS deployments where a2c cannot resolve the PTR name
-- Security: source-address validation fails closed when `forward_address_check` or `reverse_address_check` is enabled but the client source address is missing (no longer skipped as success)
+- Security: source-address validation fails closed when `forward_address_check` or `reverse_address_check` is enabled but the client source address is missing
 - HTTP-01 challenge validation follows redirects under constrained policy (http/https, ports 80/443, per-hop IP filtering via `http01_block_private_ips`; configurable `http01_max_redirects` default 5; IP `Location` rejected unless `http01_redirect_allow_ip=True`)
-- Security: HTTP-01 challenge validation follows redirects under constrained policy (http/https, ports 80/443, per-hop IP filtering via `http01_block_private_ips`; configurable `http01_max_redirects` default 5; IP `Location` rejected unless `http01_redirect_allow_ip=True`)
-- Security: reject CSR SAN GeneralNames outside ACME binding (URI / otherName / dirName / …) at finalize; openssl and xca handlers copy only DNS/IP/email SANs into issued certificates
-- Security: openssl and xca handlers issue certificates with at most the first CSR Common Name in the subject (plus CA template DN for xca); extra CN / O / OU from the CSR are no longer copied
+- Security: reject CSR SAN GeneralNames outside ACME binding (URI / otherName / dirName / …) at finalize
+- Security: openssl and xca handlers issue certificates with first CSR Common Name in the subject (plus CA template DN for xca); extra CN / O / OU from the CSR are no longer copied
 - EAB profile apply paths lowercase top-level section titles (`Order` / `Cahandler` / `Challenge` / … → `order` / `cahandler` / `challenge`), so section names are case-insensitive regardless of EAB storage backend
 
 ## Changes in 0.46.4
