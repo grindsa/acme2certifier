@@ -125,7 +125,7 @@ Most ACME clients time out quickly on `processing`. For long approval delays, ke
 
 ## Revocation
 
-Revocation looks up the HARICA transaction by certificate serial and calls `RevokeCertificate`.
+Successful enrollment stores the HARICA transaction id in `poll_identifier`. Revocation uses that id when present; otherwise it looks up the transaction by certificate serial (newest `GetMyTransactions` entries first) and calls `RevokeCertificate`.
 
 ## EAB Profiling and ACME Profiles
 

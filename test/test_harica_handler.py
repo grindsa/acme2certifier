@@ -447,7 +447,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(cert_bundle, "bundle")
         self.assertEqual(cert_raw, "raw")
-        self.assertIsNone(poll_identifier)
+        self.assertEqual(poll_identifier, "txn-456")
 
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._login")
     @patch(
@@ -505,6 +505,10 @@ class TestHaricaCAhandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._login")
     @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.CAhandler._transaction_id_from_db",
+        return_value=None,
+    )
+    @patch(
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._transaction_id_by_serial",
         return_value="txn-rev",
     )
@@ -513,13 +517,48 @@ class TestHaricaCAhandler(unittest.TestCase):
         return_value=(200, {}),
     )
     def test_027_revoke_success(
-        self, mock_api, mock_txn, mock_login, mock_cfg, mock_serial
+        self, mock_api, mock_txn, mock_db, mock_login, mock_cfg, mock_serial
     ):
         code, message, detail = self.cahandler.revoke("cert-raw")
         self.assertEqual(code, 200)
         self.assertIsNone(message)
+        mock_db.assert_called_once_with("cert-raw")
+        mock_txn.assert_called_once_with("01AB")
         mock_api.assert_called_once()
         self.assertEqual(mock_api.call_args[0][0], "/api/Certificate/RevokeCertificate")
+
+    @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.cert_serial_get",
+        return_value="01AB",
+    )
+    @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.CAhandler._config_check",
+        return_value=None,
+    )
+    @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._login")
+    @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.CAhandler._transaction_id_from_db",
+        return_value="txn-from-db",
+    )
+    @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.CAhandler._transaction_id_by_serial",
+    )
+    @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.CAhandler._api_post_json",
+        return_value=(200, {}),
+    )
+    def test_027b_revoke_uses_stored_poll_identifier(
+        self, mock_api, mock_txn, mock_db, mock_login, mock_cfg, mock_serial
+    ):
+        code, message, detail = self.cahandler.revoke("cert-raw")
+        self.assertEqual(code, 200)
+        self.assertIsNone(message)
+        mock_db.assert_called_once_with("cert-raw")
+        mock_txn.assert_not_called()
+        self.assertEqual(
+            mock_api.call_args[0][1]["transactionId"],
+            "txn-from-db",
+        )
 
     def test_028_trigger_not_implemented(self):
         error, cert_bundle, cert_raw = self.cahandler.trigger("payload")
@@ -1379,11 +1418,15 @@ class TestHaricaCAhandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._login")
     @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.CAhandler._transaction_id_from_db",
+        return_value=None,
+    )
+    @patch(
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._transaction_id_by_serial",
         return_value=None,
     )
     def test_084_revoke_txn_not_found(
-        self, mock_txn, mock_login, mock_cfg, mock_serial
+        self, mock_txn, mock_db, mock_login, mock_cfg, mock_serial
     ):
         code, message, detail = self.cahandler.revoke("cert")
         self.assertEqual(code, 404)
@@ -1399,6 +1442,10 @@ class TestHaricaCAhandler(unittest.TestCase):
     )
     @patch("acme2certifier.cahandlers.harica_ca_handler.CAhandler._login")
     @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.CAhandler._transaction_id_from_db",
+        return_value=None,
+    )
+    @patch(
         "acme2certifier.cahandlers.harica_ca_handler.CAhandler._transaction_id_by_serial",
         return_value="txn-rev",
     )
@@ -1407,7 +1454,7 @@ class TestHaricaCAhandler(unittest.TestCase):
         return_value=(400, "denied"),
     )
     def test_085_revoke_api_fail(
-        self, mock_api, mock_txn, mock_login, mock_cfg, mock_serial
+        self, mock_api, mock_txn, mock_db, mock_login, mock_cfg, mock_serial
     ):
         code, message, detail = self.cahandler.revoke("cert")
         self.assertEqual(code, 500)
@@ -1471,18 +1518,52 @@ class TestHaricaCAhandler(unittest.TestCase):
         self, mock_api, mock_fetch
     ):
         """Incomplete GetCertificate must not abort serial scan during revoke."""
+        # List is oldest-first; scan walks newest-first so txn-done is tried first.
         mock_api.side_effect = [
             (200, [{"id": "txn-incomplete"}, {"id": "txn-done"}]),
             (200, []),
         ]
         mock_fetch.side_effect = [
+            {"serialNumber": "abcd"},
             ValueError(
                 "GetCertificate failed (400): The transaction has not been marked completed."
             ),
-            {"serialNumber": "abcd"},
         ]
         self.assertEqual(self.cahandler._transaction_id_by_serial("abcd"), "txn-done")
-        self.assertEqual(mock_fetch.call_count, 2)
+        self.assertEqual(mock_fetch.call_count, 1)
+        mock_fetch.assert_called_with("txn-done")
+
+    @patch("acme2certifier.cahandlers.harica_ca_handler.header_info_get")
+    @patch("acme2certifier.cahandlers.harica_ca_handler.b64_url_recode", return_value="re")
+    def test_092_transaction_id_from_db(self, mock_recode, mock_hdr):
+        mock_hdr.return_value = [{"poll_identifier": "txn-stored"}]
+        self.assertEqual(self.cahandler._transaction_id_from_db("raw"), "txn-stored")
+        mock_hdr.assert_called_once_with(
+            self.logger,
+            csr="re",
+            vlist=["poll_identifier"],
+            field_name="cert_raw",
+        )
+        mock_hdr.return_value = [{}]
+        self.assertIsNone(self.cahandler._transaction_id_from_db("raw"))
+
+    @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_parse",
+        return_value=("bundle", "raw-b64"),
+    )
+    @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.cert_serial_get",
+        return_value="aabb",
+    )
+    @patch(
+        "acme2certifier.cahandlers.harica_ca_handler.CAhandler._certificate_fetch",
+        return_value={"pemBundle": "-----BEGIN CERTIFICATE-----\nX\n-----END CERTIFICATE-----"},
+    )
+    def test_093_txn_cert_serial_match_from_pem(
+        self, mock_fetch, mock_serial, mock_parse
+    ):
+        self.assertTrue(self.cahandler._txn_cert_serial_match("txn-1", "aabb"))
+        mock_serial.assert_called_once_with(self.logger, "raw-b64", hexformat=True)
 
 
 if __name__ == "__main__":
