@@ -20,6 +20,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- After CA enrollment/poll, compare CSR SANs against the issued leaf certificate and log an error when SANs are missing; optional `[Certificate] cert_san_check_strict` refuses delivery ([#413](https://github.com/grindsa/acme2certifier/issues/413)); containers-only CI in `feature-cert-san-check.yml`
 - Docker Django: migration files come from the image (aligned with DEB/RPM); `volume/migrations` is deprecated and ignored. See [Upgrading — Docker (Django)](docs/upgrading.md#docker-django).
 
 ## Changes in 0.46.3
