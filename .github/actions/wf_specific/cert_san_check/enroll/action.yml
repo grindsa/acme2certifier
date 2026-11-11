@@ -1,0 +1,102 @@
+name: "cert_san_check enroll"
+description: "Enroll multi-SAN CSR; assert missing-SAN log and optional failure"
+inputs:
+  EXPECT:
+    description: "success (deliver + log) | fail (strict refuse)"
+    required: true
+    default: "success"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  NAME_SPACE:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+  DOMAINS:
+    description: "Space-separated DNS names for lego -d flags"
+    required: true
+  DEPLOYMENT_TYPE:
+    description: "container"
+    required: false
+    default: "container"
+  CA_PATH:
+    description: "Path to CA certificates for verify on success"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+      with:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Enroll lego (expect success)"
+      if: ${{ inputs.EXPECT == 'success' }}
+      run: |
+        set -euo pipefail
+        sudo rm -rf lego
+        mkdir -p lego
+        args=()
+        for d in ${DOMAINS}; do
+          args+=(-d "${d}")
+        done
+        primary=$(echo "${DOMAINS}" | awk '{print $1}')
+        docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network "${NAME_SPACE}" \
+          goacme/lego run --tls-skip-verify \
+          -s "https://${ACME_SERVER}" -a --email "lego@example.com" \
+          "${args[@]}" --http
+        sudo openssl verify \
+          -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          "lego/certificates/${primary}.crt"
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        DOMAINS: ${{ inputs.DOMAINS }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+
+    - name: "Enroll lego (expect fail)"
+      if: ${{ inputs.EXPECT == 'fail' }}
+      continue-on-error: true
+      id: legofail
+      run: |
+        set -euo pipefail
+        sudo rm -rf lego
+        mkdir -p lego
+        args=()
+        for d in ${DOMAINS}; do
+          args+=(-d "${d}")
+        done
+        docker run -i -v "$PWD/lego:/.lego/" --rm --name lego --network "${NAME_SPACE}" \
+          goacme/lego run --tls-skip-verify \
+          -s "https://${ACME_SERVER}" -a --email "lego@example.com" \
+          "${args[@]}" --http
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        DOMAINS: ${{ inputs.DOMAINS }}
+
+    - name: "Assert enrollment failed"
+      if: ${{ inputs.EXPECT == 'fail' && steps.legofail.outcome != 'failure' }}
+      run: |
+        echo "Expected enrollment failure, got ${{ steps.legofail.outcome }}"
+        exit 1
+      shell: bash
+
+    - name: "Sleep for log flush"
+      uses: juliangruber/sleep-action@aa7a3ef2f85b9870fba679dfc43d307040c7b528 # v2.0.4
+      with:
+        time: 5s
+
+    - name: "Assert missing-SAN error log"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "Issued certificate missing CSR SANs"
+        FLUSH: "true"
