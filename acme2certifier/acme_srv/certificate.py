@@ -450,7 +450,11 @@ class Certificate(object):
         self.logger.debug("Certificate._missing_csr_sans()")
         try:
             csr_sans = {san.lower() for san in csr_san_get(self.logger, csr)}
-            cert_sans = {san.lower() for san in cert_san_get(self.logger, certificate)}
+            # Enrollment/poll pass a PEM chain (or leaf PEM), not base64url DER.
+            cert_sans = {
+                san.lower()
+                for san in cert_san_get(self.logger, certificate, recode=False)
+            }
         except Exception as err:
             self.logger.warning(
                 "Could not compare CSR SANs against issued certificate: %s", err
