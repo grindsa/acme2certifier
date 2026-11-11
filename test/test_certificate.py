@@ -4296,6 +4296,22 @@ class TestCertificate(unittest.TestCase):
             )
         )
 
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=[])
+    @patch(
+        "acme2certifier.acme_srv.certificate.csr_san_get",
+        return_value=["DNS:a.example.com"],
+    )
+    def test_272b_missing_csr_sans_pem_uses_recode_false(
+        self, mock_csr_san, mock_cert_san
+    ):
+        """PEM from enrollment must be parsed without base64url recode."""
+        pem = "-----BEGIN CERTIFICATE-----\nleaf\n-----END CERTIFICATE-----\n"
+        self.assertEqual(
+            self.cert._missing_csr_sans("csr", pem),
+            ["dns:a.example.com"],
+        )
+        mock_cert_san.assert_called_once_with(self.cert.logger, pem, recode=False)
+
     @patch(
         "acme2certifier.acme_srv.certificate.cert_san_get",
         return_value=["DNS:a.example.com"],
