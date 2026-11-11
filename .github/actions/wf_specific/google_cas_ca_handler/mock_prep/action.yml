@@ -57,7 +57,9 @@ runs:
         else
           data_dir="${GITHUB_WORKSPACE:-.}/examples/Docker/google_privateca/ci-data"
         fi
-        mkdir -p "${data_dir}"
+        mkdir -p "${data_dir}/ca"
+        # Container USER casmock is uid/gid 1000; GHA runner is typically 1001.
+        sudo chown -R 1000:1000 "${data_dir}"
         export GOOGLE_PRIVATECA_DATA="${data_dir}"
         echo "GOOGLE_PRIVATECA_DATA=${data_dir}"
 
