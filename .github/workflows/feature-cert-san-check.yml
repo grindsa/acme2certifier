@@ -1,0 +1,140 @@
+name: Feature Tests - Certificate SAN check
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  guard:
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  # Containers only: openssl handler patched to drop CSR SANs from the issued leaf.
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.repository == 'grindsa/acme2certifier1'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2']
+        dbhandler: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Patch openssl handler to drop CSR SANs"
+        run: |
+          set -euo pipefail
+          sudo cp acme2certifier/cahandlers/openssl_ca_handler.py \
+            examples/Docker/data/ca_handler.py
+          sudo chmod 777 examples/Docker/data/ca_handler.py
+          # Issued leaf gets no SANs; CSR still has them → cert_san_check fires.
+          sudo sed -i \
+            's/bound_sans = san_general_names_acme_bound(ext.value)/bound_sans = []  # CI: drop CSR SANs/g' \
+            examples/Docker/data/ca_handler.py
+          grep -q 'bound_sans = \[\]  # CI: drop CSR SANs' examples/Docker/data/ca_handler.py
+          sudo sed -i \
+            's|handler_module: acme2certifier.cahandlers.openssl_ca_handler|handler_file: /var/www/acme2certifier/volume/ca_handler.py|g' \
+            examples/Docker/data/acme_srv.cfg
+          sudo sed -i \
+            's/challenge_validation_disable: False/challenge_validation_disable: True/g' \
+            examples/Docker/data/acme_srv.cfg
+          sudo sed -i \
+            's/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_san_check_strict: False/g' \
+            examples/Docker/data/acme_srv.cfg
+
+      - name: "Acknowledge naked challenge_validation_disable"
+        uses: ./.github/actions/set_break_glass
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Enroll - missing SANs logged, certificate delivered"
+        uses: ./.github/actions/wf_specific/cert_san_check/enroll
+        with:
+          EXPECT: success
+          DOMAINS: "sans-ok.acme sans-missing.acme"
+          DEPLOYMENT_TYPE: container
+
+      - name: "Enable cert_san_check_strict"
+        run: |
+          set -euo pipefail
+          sudo sed -i 's/cert_san_check_strict: False/cert_san_check_strict: True/g' \
+            examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Enroll - missing SANs refuse delivery"
+        uses: ./.github/actions/wf_specific/cert_san_check/enroll
+        with:
+          EXPECT: fail
+          DOMAINS: "sans-strict-a.acme sans-strict-b.acme"
+          DEPLOYMENT_TYPE: container
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-cert-san-check-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
