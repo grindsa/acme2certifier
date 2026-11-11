@@ -120,7 +120,7 @@ class CAhandler(object):
             )
         self.logger.debug("CAhandler._auth_set() ended")
 
-    def _config_host_load(self, config_dic: Dict[str, str]):
+    def _config_host_load(self, config_dic: Any):
         """load hostname"""
         self.logger.debug("_config_host_load()")
         self.api_host = config_option_load(
@@ -138,7 +138,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._certificates_list() ended")
         return api_response
 
-    def _config_key_load(self, config_dic: Dict[str, str]):
+    def _config_key_load(self, config_dic: Any):
         """load keyname"""
         self.logger.debug("_config_key_load()")
         self.api_key = config_option_load(
@@ -146,7 +146,7 @@ class CAhandler(object):
         )
         self.logger.debug("_config_key_load() ended")
 
-    def _config_password_load(self, config_dic: Dict[str, str]):
+    def _config_password_load(self, config_dic: Any):
         """load passwordname"""
         self.logger.debug("_config_password_load()")
         self.api_password = config_option_load(
@@ -154,7 +154,7 @@ class CAhandler(object):
         )
         self.logger.debug("_config_password_load() ended")
 
-    def _config_user_load(self, config_dic: Dict[str, str]):
+    def _config_user_load(self, config_dic: Any):
         """load username"""
         self.logger.debug("_config_user_load()")
         self.api_user = config_option_load(

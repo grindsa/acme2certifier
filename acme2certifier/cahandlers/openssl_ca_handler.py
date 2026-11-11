@@ -5,7 +5,7 @@ from __future__ import print_function
 import os
 import datetime
 import json
-from typing import List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 import base64
 import uuid
 from cryptography import x509
@@ -404,7 +404,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._config_check() ended")
         return error
 
-    def _config_domainlists_load(self, config_dic: Dict[str, str]):
+    def _config_domainlists_load(self, config_dic: Any):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_domainlists_load()")
 
@@ -474,7 +474,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_domainlists_load() ended")
 
-    def _config_credentials_load(self, config_dic: Dict[str, str]):
+    def _config_credentials_load(self, config_dic: Any):
         """load credential config"""
         self.logger.debug("CAhandler._config_credentials_load()")
 
@@ -500,7 +500,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
 
-    def _config_policy_load(self, config_dic: Dict[str, str]):
+    def _config_policy_load(self, config_dic: Any):
         """load certificate policy"""
         self.logger.debug("CAhandler._config_policy_load()")
 

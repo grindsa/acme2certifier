@@ -267,7 +267,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_load() ended")
 
-    def _config_passphrase_load(self, config_dic: Dict[str, str]):
+    def _config_passphrase_load(self, config_dic: Any):
         """load passphrase"""
         self.logger.debug("CAhandler._config_passphrase_load()")
         self.cert_passphrase = config_option_load(
@@ -275,7 +275,7 @@ class CAhandler(object):
         )
         self.logger.debug("CAhandler._config_passphrase_load() ended")
 
-    def _config_root_load(self, config_dic: Dict[str, str]):
+    def _config_root_load(self, config_dic: Any):
         """load root CA"""
         self.logger.debug("CAhandler._config_root_load()")
         if "entrust_root_cert" in config_dic["CAhandler"]:
@@ -296,7 +296,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_root_load() ended")
 
-    def _config_session_load(self, config_dic: Dict[str, str]):
+    def _config_session_load(self, config_dic: Any):
         """load session"""
         self.logger.debug("CAhandler._config_session_load()")
 

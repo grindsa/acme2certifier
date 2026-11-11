@@ -3,7 +3,7 @@
 
 import math
 import time
-from typing import Tuple, Dict
+from typing import Any, Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 
@@ -172,7 +172,7 @@ class CAhandler(object):
             )
         self.logger.debug("CAhandler._config_ca_load() ended")
 
-    def _config_passphrase_load(self, config_dic: Dict[str, str]):
+    def _config_passphrase_load(self, config_dic: Any):
         """load passphrase"""
         self.logger.debug("CAhandler._config_passphrase_load()")
         self.cert_passphrase = config_option_load(
@@ -180,7 +180,7 @@ class CAhandler(object):
         )
         self.logger.debug("CAhandler._config_passphrase_load() ended")
 
-    def _config_session_load(self, config_dic: Dict[str, str]):
+    def _config_session_load(self, config_dic: Any):
         """load session"""
         self.logger.debug("CAhandler._config_session_load()")
 

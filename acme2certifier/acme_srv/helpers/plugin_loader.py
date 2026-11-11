@@ -7,7 +7,7 @@ from .global_variables import CONFIGURATION_ERROR_DETAIL
 import logging
 import os
 import sys
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Optional, Set, Tuple
 
 from acme2certifier.compat import (
     warn_default_ca_handler,
@@ -268,7 +268,7 @@ def _load_named_ca_handler(
     return None, True
 
 
-def _load_default_ca_handler(logger: logging.Logger, config_dic: Dict) -> Optional[Any]:
+def _load_default_ca_handler(logger: logging.Logger, config_dic: Any) -> Optional[Any]:
     """Load legacy ``acme_srv.ca_handler``, unless multi_handler is enabled."""
     if _section_flag_true(config_dic, "CAhandler", "multi_handler"):
         logger.debug(
@@ -295,7 +295,7 @@ def _load_default_ca_handler(logger: logging.Logger, config_dic: Dict) -> Option
 
 def ca_handler_load_from_section(
     logger: logging.Logger,
-    config_dic: Dict,
+    config_dic: Any,
     section_name: str,
     *,
     allow_default_fallback: bool = True,
@@ -323,7 +323,7 @@ def ca_handler_load_from_section(
 
 
 def ca_handler_load(
-    logger: logging.Logger, config_dic: Dict
+    logger: logging.Logger, config_dic: Any
 ) -> importlib.import_module:
     """load and return ca_handler"""
     logger.debug("Helper.plugin_loader.ca_handler_load() start")
@@ -339,7 +339,7 @@ def ca_handler_load(
 
 
 def eab_handler_load(
-    logger: logging.Logger, config_dic: Dict
+    logger: logging.Logger, config_dic: Any
 ) -> importlib.import_module:
     """load and return eab_handler"""
     logger.debug("Helper.plugin_loader.eab_handler_load() start")
@@ -409,7 +409,7 @@ def eab_handler_load(
 
 
 def db_handler_load(
-    logger: logging.Logger, config_dic: Optional[Dict] = None
+    logger: logging.Logger, config_dic: Optional[Any] = None
 ) -> importlib.import_module:
     """Load and return the configured DB handler module.
 
@@ -436,7 +436,7 @@ def db_handler_load(
     return loaded
 
 
-def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
+def hooks_load(logger: logging.Logger, config_dic: Any) -> importlib.import_module:
     """load and return hooks"""
     logger.debug("Helper.plugin_loader.hooks_load() start")
 
