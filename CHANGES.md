@@ -23,6 +23,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes and Improvements**:
 
+- After CA enrollment/poll, compare CSR SANs against the issued leaf certificate and log an error when SANs are missing; optional `[Certificate] cert_san_check_strict` refuses delivery ([#413](https://github.com/grindsa/acme2certifier/issues/413)); containers-only CI in `feature-cert-san-check.yml`
 - Docker Django: migration files come from the image (aligned with DEB/RPM); `volume/migrations` is deprecated and ignored. See [Upgrading — Docker (Django)](docs/upgrading.md#docker-django).
 - Security: HTTP-01 validation caps response bodies at 10 KiB, requests `Accept-Encoding: identity` (rejects compressed bodies), and uses a shared wall-clock timeout across redirect hops; TLS-ALPN sockets use `settimeout`; sync-mode challenges stuck past `challenge_validation_timeout` are marked invalid (CAS `processing` → `invalid` / `valid`)
 - Security: RFC 8823 email-reply IMAP/SMTP TLS now verifies certificates and hostname by default (`ssl.create_default_context()`); optional `[DEFAULT] email_ssl_verify: False` disables verification for that path only (WARNING logged). See [RFC 8823 email identifiers](docs/rfc8823_email_identifier.md)

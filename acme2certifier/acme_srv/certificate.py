@@ -276,6 +276,7 @@ class CertificateConfiguration:
     cert_reusage_timeframe: int = 0
     cn2san_add: bool = False
     csr_binding_strict: bool = True
+    cert_san_check_strict: bool = False
     email_identifier_rewrite: bool = False
     dryrun: bool = False
     dryrun_profilename: Optional[str] = None
@@ -443,6 +444,41 @@ class Certificate(object):
             if not san_list and cert_cn:
                 san_list.append(f"DNS:{cert_cn}")
         return san_list
+
+    def _missing_csr_sans(self, csr: str, certificate: str) -> List[str]:
+        """Return CSR SANs that are absent from the issued leaf certificate."""
+        self.logger.debug("Certificate._missing_csr_sans()")
+        try:
+            csr_sans = {san.lower() for san in csr_san_get(self.logger, csr)}
+            cert_sans = {san.lower() for san in cert_san_get(self.logger, certificate)}
+        except Exception as err:
+            self.logger.warning(
+                "Could not compare CSR SANs against issued certificate: %s", err
+            )
+            return []
+
+        missing = sorted(csr_sans - cert_sans)
+        self.logger.debug("Certificate._missing_csr_sans() ended with %s", missing)
+        return missing
+
+    def _check_issued_certificate_sans(
+        self, csr: str, certificate: str
+    ) -> Optional[str]:
+        """Log (and optionally fail) when the issued cert is missing CSR SANs."""
+        self.logger.debug("Certificate._check_issued_certificate_sans()")
+        missing = self._missing_csr_sans(csr, certificate)
+        if not missing:
+            self.logger.debug("Certificate._check_issued_certificate_sans() ended")
+            return None
+
+        self.logger.error("Issued certificate missing CSR SANs: %s", missing)
+        if self.config.cert_san_check_strict:
+            self.logger.debug(
+                "Certificate._check_issued_certificate_sans() ended with error"
+            )
+            return f"Issued certificate missing CSR SANs: {missing}"
+        self.logger.debug("Certificate._check_issued_certificate_sans() ended")
+        return None
 
     def _validate_authorization_sans(
         self, identifiers: list, certificate: str
@@ -697,6 +733,9 @@ class Certificate(object):
 
         self.config.csr_binding_strict = config_dic.getboolean(
             "Certificate", "csr_binding_strict", fallback=True
+        )
+        self.config.cert_san_check_strict = config_dic.getboolean(
+            "Certificate", "cert_san_check_strict", fallback=False
         )
 
         # Order section
@@ -1271,6 +1310,8 @@ class Certificate(object):
                 self.err_msg_dic["rejectedidentifier"],
                 "CN or SANs are not allowed by configuration",
             )
+        if raw_error and raw_error.startswith("Issued certificate missing CSR SANs"):
+            return self.err_msg_dic["serverinternal"], raw_error
         if self.config.ca_error_details_forward and raw_error:
             return self.err_msg_dic["serverinternal"], raw_error
         return self.err_msg_dic["serverinternal"], ENROLLMENT_FAILED_DETAIL
@@ -1397,6 +1438,11 @@ class Certificate(object):
                 cert_reusage,
             ) = self._process_certificate_enrollment(csr, order_name)
             if certificate:
+                san_error = self._check_issued_certificate_sans(csr, certificate)
+                if san_error:
+                    return self._handle_enrollment_error(
+                        san_error, None, order_name, certificate_name
+                    )
                 result, error = self._store_certificate_and_update_order(
                     certificate,
                     certificate_raw,
@@ -2571,9 +2617,20 @@ class Certificate(object):
 
             # Process poll result
             if certificate:
-                result = self._handle_successful_certificate_poll(
-                    certificate_name, certificate, certificate_raw, order_name
-                )
+                san_error = self._check_issued_certificate_sans(csr, certificate)
+                if san_error:
+                    self._handle_failed_certificate_poll(
+                        certificate_name,
+                        san_error,
+                        poll_identifier,
+                        order_name,
+                        True,
+                    )
+                    result = None
+                else:
+                    result = self._handle_successful_certificate_poll(
+                        certificate_name, certificate, certificate_raw, order_name
+                    )
             else:
                 self._handle_failed_certificate_poll(
                     certificate_name, error, poll_identifier, order_name, rejected
