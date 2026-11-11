@@ -111,13 +111,29 @@ runs:
       fi
       FQDN="certbot${HOSTNAME_SUFFIX}.${DOMAIN}"
       CERT_NAME="certbot${HOSTNAME_SUFFIX}"
-      echo "Enrolling ${FQDN}"
-      docker run -i --rm --name "certbot${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
-        -v "$PWD/certbot:/etc/letsencrypt/" certbot/certbot certonly \
-        --standalone --preferred-challenges http --server https://acme-srv \
-        --email grindsa@foo.bar --agree-tos --no-eff-email --no-verify-ssl \
-        -d "${FQDN}" --cert-name "${CERT_NAME}" \
-        --issuance-timeout "${CERT_TIMEOUT}"
+      # HARICA staging sometimes marks a finalized order invalid with no error;
+      # retry a few times like the lego warm-up path for account flakiness.
+      attempts=3
+      backoff_s=20
+      for attempt in $(seq 1 "${attempts}"); do
+        sudo rm -rf certbot
+        mkdir -p certbot
+        echo "Enrolling ${FQDN} (attempt ${attempt}/${attempts}, issuance-timeout=${CERT_TIMEOUT}s)"
+        if docker run -i --rm --name "certbot${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
+          -v "$PWD/certbot:/etc/letsencrypt/" certbot/certbot certonly \
+          --standalone --preferred-challenges http --server https://acme-srv \
+          --email grindsa@foo.bar --agree-tos --no-eff-email --no-verify-ssl \
+          -d "${FQDN}" --cert-name "${CERT_NAME}" \
+          --issuance-timeout "${CERT_TIMEOUT}"; then
+          exit 0
+        fi
+        if [ "${attempt}" -eq "${attempts}" ]; then
+          echo "Certbot enroll failed after ${attempts} attempts" >&2
+          exit 1
+        fi
+        echo "Certbot enroll attempt ${attempt} failed; sleeping ${backoff_s}s before retry"
+        sleep "${backoff_s}"
+      done
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
