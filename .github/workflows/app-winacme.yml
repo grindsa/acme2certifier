@@ -414,10 +414,10 @@ jobs:
           $ErrorActionPreference = "Stop"
           $release = Invoke-RestMethod -Uri https://api.github.com/repos/win-acme/win-acme/releases/latest
           $asset = $release.assets |
-            Where-Object { $_.name -match '^win-acme\.v.*\.x64\.trimmed\.zip$' } |
+            Where-Object { $_.name -match '^win-acme\.v.*\.x64\.pluggable\.zip$' } |
             Select-Object -First 1
           if (-not $asset) {
-            throw "No win-acme x64 trimmed zip found in release $($release.tag_name)"
+            throw "No win-acme x64 pluggable zip found in release $($release.tag_name)"
           }
           Write-Host "Downloading $($asset.name) ($($release.tag_name))"
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile win-acme.zip
