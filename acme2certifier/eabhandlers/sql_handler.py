@@ -142,7 +142,7 @@ class EABhandler(EABhandlerBase, EabProfileMixin):
             row = cursor.fetchone()
             return bool(row and row[0])
         cursor.execute(
-            "SELECT OBJECT_ID(%s, 'U')",
+            "SELECT OBJECT_ID(?, 'U')",
             (f"dbo.{table_name}",),
         )
         row = cursor.fetchone()
