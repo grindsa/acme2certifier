@@ -6,6 +6,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.47
+
+**Bug Fixes and Improvements**:
+
+- EAB SQL handler: restore PostgreSQL via **psycopg2** (MSSQL stays on **pyodbc**); lazy imports; auto-migrate legacy `credentials`/`status` → `acme_credential`/`enabled` when detected ([#418](https://github.com/grindsa/acme2certifier/issues/418)). See [`docs/eab.md`](docs/eab.md#sql-handler) and [`docs/upgrading.md`](docs/upgrading.md#eab-sql-handler-postgresql--mssql).
+
 ## Changes in 0.46.4
 
 **Bug Fixes and Improvements**:

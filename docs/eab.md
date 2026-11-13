@@ -101,7 +101,13 @@ Using a database is beneficial also when rotating and managing `kid/mac_key` pai
 
 ### Database Schema
 
-The database schema includes two tables, one for actual credentials used by `acme2certifier` and another for managing accounts related to the credentials. Any number of credentials can be related to a single account.
+The schema includes the credentials table used at runtime and an optional parent table for operator bookkeeping. Any number of credentials can be related to a single parent row.
+
+**Only `acme_credential` is used by `acme2certifier`**, via:
+
+```sql
+SELECT key_id, profile FROM acme_credential WHERE enabled = 1;
+```
 
 Only the `acme_credential` table is actually used by `acme2certifier` in the query `SELECT key_id, profile FROM acme_credential WHERE enabled = 1;`. You may implement any number additional columns for these tables if you wish, as they do not affect the functionality of this application.
 
@@ -158,14 +164,12 @@ INSERT INTO acme_account (name, email)
   VALUES ('myaccount', 'contact@myaccount.com');
 ```
 
-The `profile` column in `acme_credential` table should contain JSON data in the same format as it is used in JSON Handler.
-
-Example:
+The `profile` column must contain JSON in the same shape as the JSON handler (including `hmac`).
 
 ```sql
 INSERT INTO acme_credential (account_id, key_id, description, profile, enabled)
   VALUES (
-    (SELECT id FROM account WHERE account.name = 'myaccount'),
+    (SELECT id FROM acme_account WHERE acme_account.name = 'myaccount'),
     'keyid_03',
     'mykey',
     '{
@@ -178,11 +182,33 @@ INSERT INTO acme_credential (account_id, key_id, description, profile, enabled)
   );
 ```
 
+### Upgrading from the pre-0.46 table names
+
+Older deployments used `credentials` / `status` (and optionally `account`). On connect, the handler detects the legacy credentials table and **automatically** renames:
+
+- `credentials` → `acme_credential`
+- `status` → `enabled`
+
+The optional parent rename is **not** applied automatically. If you want naming consistency:
+
+```sql
+-- PostgreSQL
+ALTER TABLE account RENAME TO acme_account;
+ALTER TABLE acme_account RENAME COLUMN contact TO email;  -- only if you used contact
+
+-- SQL Server
+EXEC sp_rename 'account', 'acme_account';
+EXEC sp_rename 'acme_account.contact', 'email', 'COLUMN';  -- only if you used contact
+```
+
 ### Install additional packages
 
-SQL handler uses [pyodbc](https://pypi.org/project/pyodbc/) for database connections and database drivers are also required. On your acme2certifier server, install the Python module with `pip install pyodbc`. Then, install `unixODBC` with your system's package manager.
+| `db_system` | Python driver | System packages |
+| --- | --- | --- |
+| `postgres` | [psycopg2](https://pypi.org/project/psycopg2/) / `psycopg2-binary` | Django docker images already include `python3-psycopg2` |
+| `mssql` | [pyodbc](https://pypi.org/project/pyodbc/) | `unixODBC` + [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/microsoft-odbc-driver-for-sql-server) |
 
-For SQL Server, follow these [instructions](https://learn.microsoft.com/en-us/sql/connect/odbc/microsoft-odbc-driver-for-sql-server) to install Microsoft ODBC 18. For PostgreSQL, see [psqlODBC](https://odbc.postgresql.org/) to get packages for your system.
+Drivers are imported lazily: a Postgres-only install does not need `pyodbc`, and an MSSQL-only install does not need `psycopg2`.
 
 ### Activate Handler
 
