@@ -64,6 +64,45 @@ runs:
           -e 's/ALLOWED_HOSTS = \["127.0.0.1"\]/ALLOWED_HOSTS = ["127.0.0.1", "*"]/' \
           -e "s/ALLOWED_HOSTS = \['127.0.0.1'\]/ALLOWED_HOSTS = ['127.0.0.1', '*']/" \
           "${VOLUME_DIR}/settings.py"
+        # Tag settings.py is MySQL with HOST/PASSWORD = "TO BE REPLACED"; CI uses
+        # sqlite on the volume (EAB Postgres is only for sql_handler, not Django).
+        VOLUME_DIR="${VOLUME_DIR}" sudo -E python3 - <<'PY'
+        import os
+        from pathlib import Path
+
+        path = Path(os.environ["VOLUME_DIR"]) / "settings.py"
+        text = path.read_text()
+        marker = "DATABASES"
+        start = text.find(marker)
+        if start < 0:
+            raise SystemExit(f"DATABASES not found in {path}")
+        eq = text.find("=", start)
+        brace = text.find("{", eq)
+        if eq < 0 or brace < 0:
+            raise SystemExit(f"DATABASES assignment not found in {path}")
+        depth = 0
+        end = None
+        for i, ch in enumerate(text[brace:], start=brace):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        if end is None:
+            raise SystemExit(f"unbalanced DATABASES braces in {path}")
+        sqlite = (
+            "DATABASES = {\n"
+            '    "default": {\n'
+            '        "ENGINE": "django.db.backends.sqlite3",\n'
+            '        "NAME": "/var/www/acme2certifier/volume/db.sqlite3",\n'
+            "    }\n"
+            "}"
+        )
+        path.write_text(text[:start] + sqlite + text[end:])
+        print(f"Patched {path} DATABASES -> sqlite3")
+        PY
 
         {
           echo "[DEFAULT]"
