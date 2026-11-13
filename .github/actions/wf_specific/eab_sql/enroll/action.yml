@@ -34,7 +34,8 @@ runs:
       run: |
         set -euo pipefail
         sudo rm -rf "${PWD}/${LEGO_DIR}"
-        docker run -i -v "${PWD}/${LEGO_DIR}:/.lego/" --rm --name lego --network acme \
+        docker run -i -v "${PWD}/${LEGO_DIR}:/.lego/" --rm --name lego \
+          --network acme --network-alias "${DOMAIN}" \
           goacme/lego run --tls-skip-verify -s "https://${ACME_SERVER}" -a \
           --email "lego-eab-sql@example.com" \
           --eab --eab.kid "${KEY_ID}" --eab.hmac "${HMAC}" \
