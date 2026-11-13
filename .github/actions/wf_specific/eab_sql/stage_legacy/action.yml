@@ -58,6 +58,12 @@ runs:
           secret="$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')"
           printf "\nSECRET_KEY = '%s'\n" "${secret}" | sudo tee -a "${VOLUME_DIR}/settings.py" >/dev/null
         fi
+        # 0.43.x entrypoint only widens ALLOWED_HOSTS when it creates settings.py;
+        # a pre-staged file keeps ["127.0.0.1"] and Host: acme-srv → HTTP 400.
+        sudo sed -i \
+          -e 's/ALLOWED_HOSTS = \["127.0.0.1"\]/ALLOWED_HOSTS = ["127.0.0.1", "*"]/' \
+          -e "s/ALLOWED_HOSTS = \['127.0.0.1'\]/ALLOWED_HOSTS = ['127.0.0.1', '*']/" \
+          "${VOLUME_DIR}/settings.py"
 
         {
           echo "[DEFAULT]"
