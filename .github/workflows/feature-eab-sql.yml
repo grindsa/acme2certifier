@@ -1,0 +1,377 @@
+name: Feature Tests - EAB SQL
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions: {}
+
+env:
+  EAB_KEY_ID: keyid_02
+  EAB_HMAC: dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM
+  EAB_DB_NAME: eab
+  EAB_DB_USER: eabuser
+  EAB_DB_PASSWORD: EabPassw0rd
+
+jobs:
+  guard:
+    permissions: {}
+    uses: ./.github/workflows/_guard.yml
+    with:
+      sha: ${{ inputs.sha }}
+      run_id: ${{ inputs.run_id }}
+      branch: ${{ inputs.branch }}
+
+  # ---------------------------------------------------------
+  # Job A — fresh acme_credential schema (postgres + mssql)
+  # ---------------------------------------------------------
+  fresh-schema:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        db_system: ['postgres', 'mssql']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: apache2
+          DB_HANDLER: django
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
+
+      - name: "Bring up EAB database"
+        uses: ./.github/actions/wf_specific/eab_sql/bringup_db
+        with:
+          DB_SYSTEM: ${{ matrix.db_system }}
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+
+      - name: "Create current schema + seed"
+        uses: ./.github/actions/wf_specific/eab_sql/prepare_schema
+        with:
+          DB_SYSTEM: ${{ matrix.db_system }}
+          SCHEMA_VERSION: current
+          PROFILE_FORMAT: json
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+          HMAC: ${{ env.EAB_HMAC }}
+
+      - name: "Configure sql_handler"
+        uses: ./.github/actions/wf_specific/eab_sql/configure_handler
+        with:
+          VOLUME_DIR: examples/Docker/data
+          DB_SYSTEM: ${{ matrix.db_system }}
+          DB_HOST: ${{ matrix.db_system == 'postgres' && 'postgresdbsrv' || 'ms-sql' }}
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+          HANDLER_STYLE: module
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: django
+          WEB_SRV: apache2
+
+      - name: "a2c-eab-chk"
+        uses: ./.github/actions/wf_specific/eab_sql/eab_chk
+        with:
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+
+      - name: "EAB enroll"
+        uses: ./.github/actions/wf_specific/eab_sql/enroll
+        with:
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+          HMAC: ${{ env.EAB_HMAC }}
+          DOMAIN: lego-eab-sql-fresh-${{ matrix.db_system }}.acme
+          LEGO_DIR: lego-eab-sql-fresh-${{ matrix.db_system }}
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: eab-sql-fresh-${{ matrix.db_system }}.tar.gz
+
+  # ---------------------------------------------------------
+  # Job B1 — legacy schema auto-migrate under current handler
+  # ---------------------------------------------------------
+  legacy-migrate:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        db_system: ['postgres', 'mssql']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: apache2
+          DB_HANDLER: django
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
+
+      - name: "Bring up EAB database"
+        uses: ./.github/actions/wf_specific/eab_sql/bringup_db
+        with:
+          DB_SYSTEM: ${{ matrix.db_system }}
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+
+      - name: "Create legacy schema + seed"
+        uses: ./.github/actions/wf_specific/eab_sql/prepare_schema
+        with:
+          DB_SYSTEM: ${{ matrix.db_system }}
+          SCHEMA_VERSION: legacy
+          PROFILE_FORMAT: json
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+          HMAC: ${{ env.EAB_HMAC }}
+
+      - name: "Configure sql_handler"
+        uses: ./.github/actions/wf_specific/eab_sql/configure_handler
+        with:
+          VOLUME_DIR: examples/Docker/data
+          DB_SYSTEM: ${{ matrix.db_system }}
+          DB_HOST: ${{ matrix.db_system == 'postgres' && 'postgresdbsrv' || 'ms-sql' }}
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+          HANDLER_STYLE: module
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: django
+          WEB_SRV: apache2
+
+      - name: "Trigger auto-migrate via a2c-eab-chk"
+        uses: ./.github/actions/wf_specific/eab_sql/eab_chk
+        with:
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+
+      - name: "Assert credentials → acme_credential migration"
+        uses: ./.github/actions/wf_specific/eab_sql/assert_migrated
+        with:
+          DB_SYSTEM: ${{ matrix.db_system }}
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+
+      - name: "EAB enroll after migrate"
+        uses: ./.github/actions/wf_specific/eab_sql/enroll
+        with:
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+          HMAC: ${{ env.EAB_HMAC }}
+          DOMAIN: lego-eab-sql-migrate-${{ matrix.db_system }}.acme
+          LEGO_DIR: lego-eab-sql-migrate-${{ matrix.db_system }}
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: eab-sql-migrate-${{ matrix.db_system }}.tar.gz
+
+  # ---------------------------------------------------------
+  # Job B2 — real hop: 0.43.2-apache2-django → current (Postgres)
+  # ---------------------------------------------------------
+  upgrade-0432:
+    permissions:
+      contents: read
+      actions: write
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: "Prepare container environment (no image build)"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: django
+          WEB_SRV: apache2
+          CONTAINER_BUILD: "false"
+          NAME_SPACE: acme
+
+      - name: "Ensure tag 0.43.2 is available"
+        run: git rev-parse --verify refs/tags/0.43.2 >/dev/null
+
+      - name: "Stage legacy 0.43.2 handlers + cfg"
+        uses: ./.github/actions/wf_specific/eab_sql/stage_legacy
+        with:
+          VOLUME_DIR: examples/Docker/data
+          FROM_TAG: "0.43.2"
+
+      - name: "Bring up EAB Postgres"
+        uses: ./.github/actions/wf_specific/eab_sql/bringup_db
+        with:
+          DB_SYSTEM: postgres
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+
+      - name: "Legacy schema + plain hmac profile (0.43.x mac_key_get)"
+        uses: ./.github/actions/wf_specific/eab_sql/prepare_schema
+        with:
+          DB_SYSTEM: postgres
+          SCHEMA_VERSION: legacy
+          PROFILE_FORMAT: plain
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+          HMAC: ${{ env.EAB_HMAC }}
+
+      - name: "Configure legacy eab_handler_file"
+        uses: ./.github/actions/wf_specific/eab_sql/configure_handler
+        with:
+          VOLUME_DIR: examples/Docker/data
+          DB_SYSTEM: postgres
+          DB_HOST: postgresdbsrv
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+          HANDLER_STYLE: file
+          HANDLER_FILE: /var/www/acme2certifier/volume/eab_sql_handler.py
+
+      - name: "Spin-up 0.43.2-apache2-django"
+        uses: ./.github/actions/container_run
+        with:
+          DB_HANDLER: django
+          WEB_SRV: apache2
+          VERSION: "0.43.2"
+          NAME_SPACE: acme
+
+      - name: "EAB enroll on 0.43.2"
+        uses: ./.github/actions/wf_specific/eab_sql/enroll
+        with:
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+          HMAC: ${{ env.EAB_HMAC }}
+          DOMAIN: lego-eab-sql-0432.acme
+          LEGO_DIR: lego-eab-sql-0432
+
+      - name: "Stop 0.43.2 container"
+        run: docker stop acme-srv || true
+
+      - name: "Modernize cfg + JSON profile for current handler"
+        uses: ./.github/actions/wf_specific/eab_sql/modernize_for_upgrade
+        with:
+          VOLUME_DIR: examples/Docker/data
+          DB_SYSTEM: postgres
+          DB_HOST: postgresdbsrv
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+          HMAC: ${{ env.EAB_HMAC }}
+
+      - name: "Download and import build container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.apache2.django.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Spin-up current build artifact"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: django
+          WEB_SRV: apache2
+
+      - name: "Trigger auto-migrate via a2c-eab-chk"
+        uses: ./.github/actions/wf_specific/eab_sql/eab_chk
+        with:
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+
+      - name: "Assert schema migrated"
+        uses: ./.github/actions/wf_specific/eab_sql/assert_migrated
+        with:
+          DB_SYSTEM: postgres
+          DB_NAME: ${{ env.EAB_DB_NAME }}
+          DB_USER: ${{ env.EAB_DB_USER }}
+          DB_PASSWORD: ${{ env.EAB_DB_PASSWORD }}
+
+      - name: "EAB enroll after upgrade"
+        uses: ./.github/actions/wf_specific/eab_sql/enroll
+        with:
+          KEY_ID: ${{ env.EAB_KEY_ID }}
+          HMAC: ${{ env.EAB_HMAC }}
+          DOMAIN: lego-eab-sql-047.acme
+          LEGO_DIR: lego-eab-sql-047
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: eab-sql-upgrade-0432.tar.gz

@@ -1,0 +1,43 @@
+name: "eab_sql_enroll"
+description: "Single lego EAB enroll against sql_handler seeded key"
+inputs:
+  ACME_SERVER:
+    required: false
+    default: "acme-srv"
+  KEY_ID:
+    required: false
+    default: "keyid_02"
+  HMAC:
+    required: false
+    default: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+  DOMAIN:
+    required: false
+    default: "lego-eab-sql.acme"
+  LEGO_DIR:
+    required: false
+    default: "lego-eab-sql"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+
+    - name: "Lego EAB enroll (${{ inputs.KEY_ID }})"
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        KEY_ID: ${{ inputs.KEY_ID }}
+        HMAC: ${{ inputs.HMAC }}
+        DOMAIN: ${{ inputs.DOMAIN }}
+        LEGO_DIR: ${{ inputs.LEGO_DIR }}
+      run: |
+        set -euo pipefail
+        sudo rm -rf "${PWD}/${LEGO_DIR}"
+        docker run -i -v "${PWD}/${LEGO_DIR}:/.lego/" --rm --name lego \
+          --network acme --network-alias "${DOMAIN}" \
+          goacme/lego run --tls-skip-verify -s "https://${ACME_SERVER}" -a \
+          --email "lego-eab-sql@example.com" \
+          --eab --eab.kid "${KEY_ID}" --eab.hmac "${HMAC}" \
+          -d "${DOMAIN}" --http
+        sudo openssl x509 -in "${LEGO_DIR}/certificates/${DOMAIN}.crt" -noout -subject

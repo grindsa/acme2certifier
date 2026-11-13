@@ -1,0 +1,24 @@
+name: "eab_sql_eab_chk"
+description: "Run a2c-eab-chk against configured SQL EAB handler"
+inputs:
+  CONFIGFILE:
+    required: false
+    default: "/var/www/acme2certifier/volume/acme_srv.cfg"
+  KEY_ID:
+    required: false
+    default: "keyid_02"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "a2c-eab-chk summary"
+      shell: bash
+      env:
+        CONFIGFILE: ${{ inputs.CONFIGFILE }}
+        KEY_ID: ${{ inputs.KEY_ID }}
+      run: |
+        set -euo pipefail
+        out="$(docker exec acme-srv python3 -m acme2certifier.tools.a2c_eab_chk \
+          -c "${CONFIGFILE}" -v -k "${KEY_ID}" 2>&1)"
+        echo "${out}"
+        echo "${out}" | grep -q "${KEY_ID}"

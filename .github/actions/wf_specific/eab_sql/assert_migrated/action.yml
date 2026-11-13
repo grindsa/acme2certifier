@@ -1,0 +1,64 @@
+name: "eab_sql_assert_migrated"
+description: "Assert legacy credentials/status were renamed to acme_credential/enabled"
+inputs:
+  DB_SYSTEM:
+    required: true
+  DB_NAME:
+    required: false
+    default: "eab"
+  DB_USER:
+    required: false
+    default: "eabuser"
+  DB_PASSWORD:
+    required: false
+    default: "EabPassw0rd"
+  MSSQL_SA_PASSWORD:
+    required: false
+    default: "Mssqlpassw0rd"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Assert migrated schema (Postgres)"
+      if: inputs.DB_SYSTEM == 'postgres'
+      shell: bash
+      env:
+        DB_NAME: ${{ inputs.DB_NAME }}
+        DB_USER: ${{ inputs.DB_USER }}
+        DB_PASSWORD: ${{ inputs.DB_PASSWORD }}
+      run: |
+        set -euo pipefail
+        docker exec -e PGPASSWORD="${DB_PASSWORD}" postgresdbsrv \
+          psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -tAc \
+          "SELECT to_regclass('public.acme_credential') IS NOT NULL;" | grep -qx t
+        docker exec -e PGPASSWORD="${DB_PASSWORD}" postgresdbsrv \
+          psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -tAc \
+          "SELECT to_regclass('public.credentials') IS NULL;" | grep -qx t
+        docker exec -e PGPASSWORD="${DB_PASSWORD}" postgresdbsrv \
+          psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -tAc \
+          "SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_name='acme_credential' AND column_name='enabled';" | grep -qx 1
+        echo "Postgres EAB schema migrated OK"
+
+    - name: "Assert migrated schema (MSSQL)"
+      if: inputs.DB_SYSTEM == 'mssql'
+      shell: bash
+      env:
+        DB_NAME: ${{ inputs.DB_NAME }}
+        ROOT_PWD: ${{ inputs.MSSQL_SA_PASSWORD }}
+      run: |
+        set -euo pipefail
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "${ROOT_PWD}" \
+          -d "${DB_NAME}" -h -1 -W -Q \
+          "SET NOCOUNT ON; SELECT CASE WHEN OBJECT_ID('dbo.acme_credential','U') IS NOT NULL THEN 1 ELSE 0 END;" \
+          | tr -d '[:space:]' | grep -qx 1
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "${ROOT_PWD}" \
+          -d "${DB_NAME}" -h -1 -W -Q \
+          "SET NOCOUNT ON; SELECT CASE WHEN OBJECT_ID('dbo.credentials','U') IS NULL THEN 1 ELSE 0 END;" \
+          | tr -d '[:space:]' | grep -qx 1
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "${ROOT_PWD}" \
+          -d "${DB_NAME}" -h -1 -W -Q \
+          "SET NOCOUNT ON; SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_NAME='acme_credential' AND COLUMN_NAME='enabled';" \
+          | tr -d '[:space:]' | grep -qx 1
+        echo "MSSQL EAB schema migrated OK"

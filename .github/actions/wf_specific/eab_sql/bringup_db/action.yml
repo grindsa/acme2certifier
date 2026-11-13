@@ -1,0 +1,103 @@
+name: "eab_sql_bringup_db"
+description: "Start Postgres or MSSQL and create a dedicated EAB database"
+inputs:
+  DB_SYSTEM:
+    description: "postgres or mssql"
+    required: true
+  NAME_SPACE:
+    description: "Docker network"
+    required: false
+    default: "acme"
+  DB_NAME:
+    description: "EAB database name"
+    required: false
+    default: "eab"
+  DB_USER:
+    description: "EAB database user"
+    required: false
+    default: "eabuser"
+  DB_PASSWORD:
+    description: "EAB database password"
+    required: false
+    default: "EabPassw0rd"
+  MSSQL_SA_PASSWORD:
+    description: "MSSQL SA password"
+    required: false
+    default: "Mssqlpassw0rd"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Bring up Postgres for EAB"
+      if: inputs.DB_SYSTEM == 'postgres'
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        DB_NAME: ${{ inputs.DB_NAME }}
+        DB_USER: ${{ inputs.DB_USER }}
+        DB_PASSWORD: ${{ inputs.DB_PASSWORD }}
+      run: |
+        set -euo pipefail
+        if ! docker inspect postgresdbsrv >/dev/null 2>&1; then
+          docker run --name postgresdbsrv --network "${NAME_SPACE}" \
+            -e POSTGRES_PASSWORD=foobar -d postgres
+        fi
+        for i in $(seq 1 60); do
+          if docker exec postgresdbsrv psql -U postgres -c 'SELECT 1' >/dev/null 2>&1; then
+            break
+          fi
+          sleep 1
+          if [ "$i" -eq 60 ]; then
+            echo "postgres not ready" >&2
+            docker logs postgresdbsrv || true
+            exit 1
+          fi
+        done
+        if [ "$(docker exec postgresdbsrv psql -U postgres -tAc \
+          "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'")" != "1" ]; then
+          docker exec postgresdbsrv psql -U postgres -c \
+            "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
+        fi
+        if [ "$(docker exec postgresdbsrv psql -U postgres -tAc \
+          "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'")" != "1" ]; then
+          docker exec postgresdbsrv psql -U postgres -c \
+            "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};"
+        fi
+        docker exec postgresdbsrv psql -U postgres -d "${DB_NAME}" -c \
+          "GRANT ALL ON SCHEMA public TO ${DB_USER}; ALTER SCHEMA public OWNER TO ${DB_USER};"
+
+    - name: "Bring up MSSQL for EAB"
+      if: inputs.DB_SYSTEM == 'mssql'
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        DB_NAME: ${{ inputs.DB_NAME }}
+        DB_USER: ${{ inputs.DB_USER }}
+        DB_PASSWORD: ${{ inputs.DB_PASSWORD }}
+        ROOT_PWD: ${{ inputs.MSSQL_SA_PASSWORD }}
+      run: |
+        set -euo pipefail
+        if ! docker inspect ms-sql >/dev/null 2>&1; then
+          docker run --rm -d --network "${NAME_SPACE}" \
+            -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=${ROOT_PWD}" \
+            -p 1433:1433 --name ms-sql --hostname ms-sql \
+            mcr.microsoft.com/mssql/server:2022-latest
+        fi
+        for i in $(seq 1 90); do
+          if docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost \
+            -U SA -P "${ROOT_PWD}" -Q "SELECT 1" >/dev/null 2>&1; then
+            break
+          fi
+          sleep 1
+          if [ "$i" -eq 90 ]; then
+            echo "mssql not ready" >&2
+            docker logs ms-sql || true
+            exit 1
+          fi
+        done
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "${ROOT_PWD}" -Q \
+          "IF DB_ID('${DB_NAME}') IS NULL CREATE DATABASE [${DB_NAME}];"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "${ROOT_PWD}" -Q \
+          "IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name='${DB_USER}') CREATE LOGIN [${DB_USER}] WITH PASSWORD=N'${DB_PASSWORD}';"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "${ROOT_PWD}" -Q \
+          "USE [${DB_NAME}]; IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name='${DB_USER}') CREATE USER [${DB_USER}] FOR LOGIN [${DB_USER}]; ALTER ROLE db_owner ADD MEMBER [${DB_USER}];"
