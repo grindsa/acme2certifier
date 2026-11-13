@@ -1,0 +1,87 @@
+name: "eab_sql_stage_legacy"
+description: "Stage 0.43.x openssl CA + EAB SQL handler (file-based) for upgrade-from hop"
+inputs:
+  VOLUME_DIR:
+    required: false
+    default: "examples/Docker/data"
+  FROM_TAG:
+    description: "Legacy git tag for handler sources"
+    required: false
+    default: "0.43.2"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Generate openssl test CA"
+      uses: ./.github/actions/generate_openssl_test_ca
+      with:
+        CA_DIR: test/ca
+
+    - name: "Stage legacy handlers, settings, and cfg"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        FROM_TAG: ${{ inputs.FROM_TAG }}
+      run: |
+        set -euo pipefail
+        sudo mkdir -p "${VOLUME_DIR}/acme_ca/certs"
+        sudo cp test/ca/root-ca-cert.pem "${VOLUME_DIR}/acme_ca/"
+        sudo cp test/ca/sub-ca-key.pem "${VOLUME_DIR}/acme_ca/"
+        sudo cp test/ca/sub-ca-cert.pem "${VOLUME_DIR}/acme_ca/"
+        sudo cp test/ca/sub-ca-crl.pem "${VOLUME_DIR}/acme_ca/"
+
+        git show "${FROM_TAG}:examples/ca_handler/openssl_ca_handler.py" \
+          | sudo tee "${VOLUME_DIR}/ca_handler.py" >/dev/null
+
+        # Guard mssql_python import so Postgres-only CI works on 0.43.2 images.
+        git show "${FROM_TAG}:examples/eab_handler/sql_handler.py" > /tmp/eab_sql_handler.py
+        python3 - <<'PY'
+        from pathlib import Path
+        path = Path("/tmp/eab_sql_handler.py")
+        text = path.read_text()
+        old = "from mssql_python import connect\n"
+        new = (
+            "try:\n"
+            "    from mssql_python import connect\n"
+            "except ImportError:\n"
+            "    connect = None\n"
+        )
+        if old not in text:
+            raise SystemExit("expected mssql_python import not found in legacy sql_handler")
+        path.write_text(text.replace(old, new, 1))
+        PY
+        sudo cp /tmp/eab_sql_handler.py "${VOLUME_DIR}/eab_sql_handler.py"
+
+        git show "${FROM_TAG}:examples/django/acme2certifier/settings.py" \
+          | sudo tee "${VOLUME_DIR}/settings.py" >/dev/null
+        if ! sudo grep -qE '^SECRET_KEY\s*=' "${VOLUME_DIR}/settings.py"; then
+          secret="$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')"
+          printf "\nSECRET_KEY = '%s'\n" "${secret}" | sudo tee -a "${VOLUME_DIR}/settings.py" >/dev/null
+        fi
+
+        {
+          echo "[DEFAULT]"
+          echo "debug: True"
+          echo
+          echo "[Nonce]"
+          echo "nonce_check_disable: False"
+          echo
+          echo "[Certificate]"
+          echo "revocation_reason_check_disable: False"
+          echo
+          echo "[Challenge]"
+          echo "challenge_validation_disable: False"
+          echo
+          echo "[Order]"
+          echo "tnauthlist_support: False"
+          echo
+          echo "[CAhandler]"
+          echo "handler_file: /var/www/acme2certifier/volume/ca_handler.py"
+          echo 'ca_cert_chain_list: ["volume/acme_ca/root-ca-cert.pem"]'
+          echo "issuing_ca_key: volume/acme_ca/sub-ca-key.pem"
+          echo "issuing_ca_key_passphrase: Test1234"
+          echo "issuing_ca_cert: volume/acme_ca/sub-ca-cert.pem"
+          echo "issuing_ca_crl: volume/acme_ca/sub-ca-crl.pem"
+          echo "cert_validity_days: 30"
+          echo "cert_save_path: volume/acme_ca/certs"
+        } | sudo tee "${VOLUME_DIR}/acme_srv.cfg" >/dev/null

@@ -1,0 +1,129 @@
+name: "eab_sql_prepare_schema"
+description: "Create EAB SQL schema (current or legacy) and seed a kid/hmac"
+inputs:
+  DB_SYSTEM:
+    description: "postgres or mssql"
+    required: true
+  SCHEMA_VERSION:
+    description: "current or legacy"
+    required: true
+  PROFILE_FORMAT:
+    description: "json ({hmac:...}) or plain (hmac string only, for 0.43.x mac_key_get)"
+    required: false
+    default: "json"
+  DB_NAME:
+    required: false
+    default: "eab"
+  DB_USER:
+    required: false
+    default: "eabuser"
+  DB_PASSWORD:
+    required: false
+    default: "EabPassw0rd"
+  KEY_ID:
+    required: false
+    default: "keyid_02"
+  HMAC:
+    required: false
+    default: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+  MSSQL_SA_PASSWORD:
+    required: false
+    default: "Mssqlpassw0rd"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Apply schema + seed (Postgres)"
+      if: inputs.DB_SYSTEM == 'postgres'
+      shell: bash
+      env:
+        SCHEMA_VERSION: ${{ inputs.SCHEMA_VERSION }}
+        PROFILE_FORMAT: ${{ inputs.PROFILE_FORMAT }}
+        DB_NAME: ${{ inputs.DB_NAME }}
+        DB_USER: ${{ inputs.DB_USER }}
+        DB_PASSWORD: ${{ inputs.DB_PASSWORD }}
+        KEY_ID: ${{ inputs.KEY_ID }}
+        HMAC: ${{ inputs.HMAC }}
+      run: |
+        set -euo pipefail
+        if [ "${SCHEMA_VERSION}" = "legacy" ]; then
+          schema=".github/actions/wf_specific/eab_sql/fixtures/schema_legacy_pg.sql"
+          table="credentials"
+          enabled_col="status"
+          account_table="account"
+          account_col="contact"
+        else
+          schema=".github/actions/wf_specific/eab_sql/fixtures/schema_current_pg.sql"
+          table="acme_credential"
+          enabled_col="enabled"
+          account_table="acme_account"
+          account_col="email"
+        fi
+        docker cp "${schema}" postgresdbsrv:/tmp/eab_schema.sql
+        docker exec -e PGPASSWORD="${DB_PASSWORD}" postgresdbsrv \
+          psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -f /tmp/eab_schema.sql
+
+        if [ "${PROFILE_FORMAT}" = "plain" ]; then
+          profile_sql="to_jsonb('${HMAC}'::text)"
+        else
+          profile_sql="jsonb_build_object('hmac', '${HMAC}')"
+        fi
+
+        docker exec -e PGPASSWORD="${DB_PASSWORD}" postgresdbsrv \
+          psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -c \
+          "DELETE FROM ${table}; DELETE FROM ${account_table};"
+        docker exec -e PGPASSWORD="${DB_PASSWORD}" postgresdbsrv \
+          psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -c \
+          "INSERT INTO ${account_table} (name, ${account_col}) VALUES ('ci-account', 'ci@example.com');"
+        docker exec -e PGPASSWORD="${DB_PASSWORD}" postgresdbsrv \
+          psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -c \
+          "INSERT INTO ${table} (account_id, key_id, description, profile, ${enabled_col})
+             VALUES (
+               (SELECT id FROM ${account_table} ORDER BY id LIMIT 1),
+               '${KEY_ID}',
+               'ci',
+               ${profile_sql},
+               1
+             );"
+
+    - name: "Apply schema + seed (MSSQL)"
+      if: inputs.DB_SYSTEM == 'mssql'
+      shell: bash
+      env:
+        SCHEMA_VERSION: ${{ inputs.SCHEMA_VERSION }}
+        PROFILE_FORMAT: ${{ inputs.PROFILE_FORMAT }}
+        DB_NAME: ${{ inputs.DB_NAME }}
+        KEY_ID: ${{ inputs.KEY_ID }}
+        HMAC: ${{ inputs.HMAC }}
+        ROOT_PWD: ${{ inputs.MSSQL_SA_PASSWORD }}
+      run: |
+        set -euo pipefail
+        if [ "${SCHEMA_VERSION}" = "legacy" ]; then
+          schema=".github/actions/wf_specific/eab_sql/fixtures/schema_legacy_mssql.sql"
+          table="credentials"
+          enabled_col="status"
+          account_table="account"
+          account_col="contact"
+        else
+          schema=".github/actions/wf_specific/eab_sql/fixtures/schema_current_mssql.sql"
+          table="acme_credential"
+          enabled_col="enabled"
+          account_table="acme_account"
+          account_col="email"
+        fi
+        docker cp "${schema}" ms-sql:/tmp/eab_schema.sql
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "${ROOT_PWD}" \
+          -d "${DB_NAME}" -i /tmp/eab_schema.sql
+        if [ "${PROFILE_FORMAT}" = "plain" ]; then
+          profile_val="${HMAC}"
+        else
+          profile_val="{\"hmac\": \"${HMAC}\"}"
+        fi
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P "${ROOT_PWD}" \
+          -d "${DB_NAME}" -Q "
+          IF OBJECT_ID('dbo.${table}', 'U') IS NOT NULL DELETE FROM ${table};
+          IF OBJECT_ID('dbo.${account_table}', 'U') IS NOT NULL DELETE FROM ${account_table};
+          INSERT INTO ${account_table} (name, ${account_col}) VALUES (N'ci-account', N'ci@example.com');
+          INSERT INTO ${table} (account_id, key_id, description, profile, ${enabled_col})
+            VALUES ((SELECT TOP 1 id FROM ${account_table}), N'${KEY_ID}', N'ci', N'${profile_val}', 1);
+          "

@@ -1,0 +1,87 @@
+name: "eab_sql_configure_handler"
+description: "Append or replace [EABhandler] SQL handler settings in acme_srv.cfg"
+inputs:
+  VOLUME_DIR:
+    description: "Host volume with acme_srv.cfg"
+    required: false
+    default: "examples/Docker/data"
+  DB_SYSTEM:
+    description: "postgres or mssql"
+    required: true
+  DB_HOST:
+    description: "DB hostname on docker network"
+    required: true
+  DB_NAME:
+    required: false
+    default: "eab"
+  DB_USER:
+    required: false
+    default: "eabuser"
+  DB_PASSWORD:
+    required: false
+    default: "EabPassw0rd"
+  HANDLER_STYLE:
+    description: "module (0.45+) or file (≤0.44 eab_handler_file)"
+    required: false
+    default: "module"
+  HANDLER_FILE:
+    description: "Path inside container when HANDLER_STYLE=file"
+    required: false
+    default: "/var/www/acme2certifier/volume/eab_sql_handler.py"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Configure EABhandler SQL section"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        DB_SYSTEM: ${{ inputs.DB_SYSTEM }}
+        DB_HOST: ${{ inputs.DB_HOST }}
+        DB_NAME: ${{ inputs.DB_NAME }}
+        DB_USER: ${{ inputs.DB_USER }}
+        DB_PASSWORD: ${{ inputs.DB_PASSWORD }}
+        HANDLER_STYLE: ${{ inputs.HANDLER_STYLE }}
+        HANDLER_FILE: ${{ inputs.HANDLER_FILE }}
+      run: |
+        set -euo pipefail
+        cfg="${VOLUME_DIR}/acme_srv.cfg"
+        sudo test -f "${cfg}"
+        # Drop existing [EABhandler] section if present
+        VOLUME_DIR="${VOLUME_DIR}" sudo -E python3 - <<'PY'
+        import os
+        cfg = os.environ["VOLUME_DIR"] + "/acme_srv.cfg"
+        with open(cfg) as f:
+            lines = f.readlines()
+        out = []
+        skip = False
+        for line in lines:
+            if line.strip().startswith("[") and line.strip().endswith("]"):
+                skip = line.strip().lower() == "[eabhandler]"
+            if not skip:
+                out.append(line)
+        while out and out[-1].strip() == "":
+            out.pop()
+        out.append("\n")
+        tmp = cfg + ".tmp"
+        with open(tmp, "w") as f:
+            f.writelines(out)
+        os.replace(tmp, cfg)
+        PY
+        if [ "${HANDLER_STYLE}" = "file" ]; then
+          handler_line="eab_handler_file: ${HANDLER_FILE}"
+        else
+          handler_line="eab_handler_module: acme2certifier.eabhandlers.sql_handler"
+        fi
+        {
+          echo
+          echo "[EABhandler]"
+          echo "${handler_line}"
+          echo "eab_profiling: False"
+          echo "db_system: ${DB_SYSTEM}"
+          echo "db_host: ${DB_HOST}"
+          echo "db_name: ${DB_NAME}"
+          echo "db_user: ${DB_USER}"
+          echo "db_password: ${DB_PASSWORD}"
+        } | sudo tee -a "${cfg}" >/dev/null
+        echo "Configured EAB SQL handler (${HANDLER_STYLE}) -> ${DB_SYSTEM}@${DB_HOST}/${DB_NAME}"
