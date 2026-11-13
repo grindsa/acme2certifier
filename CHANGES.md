@@ -36,6 +36,7 @@ and pick the appropriate release branch.
 - Security: reject CSR SAN GeneralNames outside ACME binding (URI / otherName / dirName / …) at finalize
 - Security: openssl and xca handlers issue certificates with first CSR Common Name in the subject (plus CA template DN for xca); extra CN / O / OU from the CSR are no longer copied
 - EAB profile apply paths lowercase top-level section titles (`Order` / `Cahandler` / `Challenge` / … → `order` / `cahandler` / `challenge`), so section names are case-insensitive regardless of EAB storage backend
+- EAB SQL handler: restore PostgreSQL via **psycopg2** (MSSQL stays on **pyodbc**); lazy imports; auto-migrate legacy `credentials`/`status` → `acme_credential`/`enabled` when detected ([#418](https://github.com/grindsa/acme2certifier/issues/418)). See [`docs/eab.md`](docs/eab.md#sql-handler) and [`docs/upgrading.md`](docs/upgrading.md#eab-sql-handler-postgresql--mssql).
 
 ## Changes in 0.46.4
 

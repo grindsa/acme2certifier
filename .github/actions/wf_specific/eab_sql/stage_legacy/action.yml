@@ -1,0 +1,132 @@
+name: "eab_sql_stage_legacy"
+description: "Stage 0.43.x openssl CA + EAB SQL handler (file-based) for upgrade-from hop"
+inputs:
+  VOLUME_DIR:
+    required: false
+    default: "examples/Docker/data"
+  FROM_TAG:
+    description: "Legacy git tag for handler sources"
+    required: false
+    default: "0.43.2"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Generate openssl test CA"
+      uses: ./.github/actions/generate_openssl_test_ca
+      with:
+        CA_DIR: test/ca
+
+    - name: "Stage legacy handlers, settings, and cfg"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        FROM_TAG: ${{ inputs.FROM_TAG }}
+      run: |
+        set -euo pipefail
+        sudo mkdir -p "${VOLUME_DIR}/acme_ca/certs"
+        sudo cp test/ca/root-ca-cert.pem "${VOLUME_DIR}/acme_ca/"
+        sudo cp test/ca/sub-ca-key.pem "${VOLUME_DIR}/acme_ca/"
+        sudo cp test/ca/sub-ca-cert.pem "${VOLUME_DIR}/acme_ca/"
+        sudo cp test/ca/sub-ca-crl.pem "${VOLUME_DIR}/acme_ca/"
+
+        git show "${FROM_TAG}:examples/ca_handler/openssl_ca_handler.py" \
+          | sudo tee "${VOLUME_DIR}/ca_handler.py" >/dev/null
+
+        # Guard mssql_python import so Postgres-only CI works on 0.43.2 images.
+        git show "${FROM_TAG}:examples/eab_handler/sql_handler.py" > /tmp/eab_sql_handler.py
+        python3 - <<'PY'
+        from pathlib import Path
+        path = Path("/tmp/eab_sql_handler.py")
+        text = path.read_text()
+        old = "from mssql_python import connect\n"
+        new = (
+            "try:\n"
+            "    from mssql_python import connect\n"
+            "except ImportError:\n"
+            "    connect = None\n"
+        )
+        if old not in text:
+            raise SystemExit("expected mssql_python import not found in legacy sql_handler")
+        path.write_text(text.replace(old, new, 1))
+        PY
+        sudo cp /tmp/eab_sql_handler.py "${VOLUME_DIR}/eab_sql_handler.py"
+
+        git show "${FROM_TAG}:examples/django/acme2certifier/settings.py" \
+          | sudo tee "${VOLUME_DIR}/settings.py" >/dev/null
+        if ! sudo grep -qE '^SECRET_KEY\s*=' "${VOLUME_DIR}/settings.py"; then
+          secret="$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')"
+          printf "\nSECRET_KEY = '%s'\n" "${secret}" | sudo tee -a "${VOLUME_DIR}/settings.py" >/dev/null
+        fi
+        # 0.43.x entrypoint only widens ALLOWED_HOSTS when it creates settings.py;
+        # a pre-staged file keeps ["127.0.0.1"] and Host: acme-srv → HTTP 400.
+        sudo sed -i \
+          -e 's/ALLOWED_HOSTS = \["127.0.0.1"\]/ALLOWED_HOSTS = ["127.0.0.1", "*"]/' \
+          -e "s/ALLOWED_HOSTS = \['127.0.0.1'\]/ALLOWED_HOSTS = ['127.0.0.1', '*']/" \
+          "${VOLUME_DIR}/settings.py"
+        # Tag settings.py is MySQL with HOST/PASSWORD = "TO BE REPLACED"; CI uses
+        # sqlite on the volume (EAB Postgres is only for sql_handler, not Django).
+        VOLUME_DIR="${VOLUME_DIR}" sudo -E python3 - <<'PY'
+        import os
+        from pathlib import Path
+
+        path = Path(os.environ["VOLUME_DIR"]) / "settings.py"
+        text = path.read_text()
+        marker = "DATABASES"
+        start = text.find(marker)
+        if start < 0:
+            raise SystemExit(f"DATABASES not found in {path}")
+        eq = text.find("=", start)
+        brace = text.find("{", eq)
+        if eq < 0 or brace < 0:
+            raise SystemExit(f"DATABASES assignment not found in {path}")
+        depth = 0
+        end = None
+        for i, ch in enumerate(text[brace:], start=brace):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        if end is None:
+            raise SystemExit(f"unbalanced DATABASES braces in {path}")
+        sqlite = (
+            "DATABASES = {\n"
+            '    "default": {\n'
+            '        "ENGINE": "django.db.backends.sqlite3",\n'
+            '        "NAME": "/var/www/acme2certifier/volume/db.sqlite3",\n'
+            "    }\n"
+            "}"
+        )
+        path.write_text(text[:start] + sqlite + text[end:])
+        print(f"Patched {path} DATABASES -> sqlite3")
+        PY
+
+        {
+          echo "[DEFAULT]"
+          echo "debug: True"
+          echo
+          echo "[Nonce]"
+          echo "nonce_check_disable: False"
+          echo
+          echo "[Certificate]"
+          echo "revocation_reason_check_disable: False"
+          echo
+          echo "[Challenge]"
+          echo "challenge_validation_disable: False"
+          echo
+          echo "[Order]"
+          echo "tnauthlist_support: False"
+          echo
+          echo "[CAhandler]"
+          echo "handler_file: /var/www/acme2certifier/volume/ca_handler.py"
+          echo 'ca_cert_chain_list: ["volume/acme_ca/root-ca-cert.pem"]'
+          echo "issuing_ca_key: volume/acme_ca/sub-ca-key.pem"
+          echo "issuing_ca_key_passphrase: Test1234"
+          echo "issuing_ca_cert: volume/acme_ca/sub-ca-cert.pem"
+          echo "issuing_ca_crl: volume/acme_ca/sub-ca-crl.pem"
+          echo "cert_validity_days: 30"
+          echo "cert_save_path: volume/acme_ca/certs"
+        } | sudo tee "${VOLUME_DIR}/acme_srv.cfg" >/dev/null

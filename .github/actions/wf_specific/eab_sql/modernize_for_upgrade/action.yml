@@ -1,0 +1,83 @@
+name: "eab_sql_modernize_for_upgrade"
+description: "Prepare volume for 0.47+ after 0.43.x hop: modern cfg, settings, JSON profile"
+inputs:
+  VOLUME_DIR:
+    required: false
+    default: "examples/Docker/data"
+  DB_SYSTEM:
+    required: true
+  DB_HOST:
+    required: true
+  DB_NAME:
+    required: false
+    default: "eab"
+  DB_USER:
+    required: false
+    default: "eabuser"
+  DB_PASSWORD:
+    required: false
+    default: "EabPassw0rd"
+  KEY_ID:
+    required: false
+    default: "keyid_02"
+  HMAC:
+    required: false
+    default: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Rewrite profile to JSON for modern mac_key_get"
+      shell: bash
+      env:
+        DB_SYSTEM: ${{ inputs.DB_SYSTEM }}
+        DB_NAME: ${{ inputs.DB_NAME }}
+        DB_USER: ${{ inputs.DB_USER }}
+        DB_PASSWORD: ${{ inputs.DB_PASSWORD }}
+        KEY_ID: ${{ inputs.KEY_ID }}
+        HMAC: ${{ inputs.HMAC }}
+      run: |
+        set -euo pipefail
+        # 0.43.x mac_key_get returned the profile cell as-is; modern expects {"hmac":...}.
+        # Convert before starting the new handler (still on legacy table names).
+        if [ "${DB_SYSTEM}" = "postgres" ]; then
+          docker exec -e PGPASSWORD="${DB_PASSWORD}" postgresdbsrv \
+            psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -c \
+            "UPDATE credentials SET profile = jsonb_build_object('hmac', '${HMAC}')
+               WHERE key_id = '${KEY_ID}';"
+        else
+          echo "B2 is Postgres-only for now" >&2
+          exit 1
+        fi
+
+    - name: "Install modern openssl CA + django settings + EABhandler module cfg"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+      run: |
+        set -euo pipefail
+        # Modern django settings / sqlite URL
+        sudo cp .github/django_settings.py "${VOLUME_DIR}/settings.py"
+        sudo touch "${VOLUME_DIR}/django.env"
+        sudo chown "$(id -u):$(id -g)" "${VOLUME_DIR}/django.env"
+        bash .github/scripts/django_ci_database_url.sh \
+          --django-db sqlite3 \
+          --secret "${ACME2CERTIFIER_SECRET_KEY:-$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')}" \
+          --env-file "${VOLUME_DIR}/django.env" \
+          --github-env
+
+    - name: "Setup modern openssl ca_handler cfg"
+      uses: ./.github/actions/setup_openssl_cahandler
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+
+    - name: "Configure modern EAB SQL handler module"
+      uses: ./.github/actions/wf_specific/eab_sql/configure_handler
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        DB_SYSTEM: ${{ inputs.DB_SYSTEM }}
+        DB_HOST: ${{ inputs.DB_HOST }}
+        DB_NAME: ${{ inputs.DB_NAME }}
+        DB_USER: ${{ inputs.DB_USER }}
+        DB_PASSWORD: ${{ inputs.DB_PASSWORD }}
+        HANDLER_STYLE: module
