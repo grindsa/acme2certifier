@@ -10,6 +10,7 @@ from .config import (
     cahandler_config_section_reset,
     cahandler_config_section_set,
     config_cert_chain_append_load,
+    config_cert_chain_append_matching_only_load,
     config_cert_chain_link_check_load,
     config_cert_chain_profile_load,
     config_cert_chain_skip_list_load,
@@ -71,7 +72,12 @@ def _cert_chain_bind_kwargs(
     link_error, link_check = config_cert_chain_link_check_load(
         logger, config_dic, section
     )
+    filter_error, matching_only = config_cert_chain_append_matching_only_load(
+        logger, config_dic, section
+    )
     return {
+        "cert_chain_append_matching_only": matching_only,
+        "cert_chain_append_matching_only_error": filter_error,
         "cert_chain_skip_list": skip_list or [],
         "cert_chain_skip_list_error": skip_error,
         "cert_chain_append": append_pems or [],
@@ -120,6 +126,8 @@ class BoundCAHandler:
         cert_chain_skip_list_error: Optional[str] = None,
         cert_chain_append: Optional[List[str]] = None,
         cert_chain_append_error: Optional[str] = None,
+        cert_chain_append_matching_only: bool = False,
+        cert_chain_append_matching_only_error: Optional[str] = None,
         cert_chain_link_check: bool = True,
         cert_chain_link_check_error: Optional[str] = None,
     ) -> None:
@@ -130,6 +138,10 @@ class BoundCAHandler:
         self.cert_chain_skip_list_error = cert_chain_skip_list_error
         self.cert_chain_append = cert_chain_append or []
         self.cert_chain_append_error = cert_chain_append_error
+        self.cert_chain_append_matching_only = cert_chain_append_matching_only
+        self.cert_chain_append_matching_only_error = (
+            cert_chain_append_matching_only_error
+        )
         self.cert_chain_link_check = cert_chain_link_check
         self.cert_chain_link_check_error = cert_chain_link_check_error
 
@@ -165,6 +177,8 @@ class BoundCAHandler:
         skip_error = self.cert_chain_skip_list_error
         append = self.cert_chain_append
         append_error = self.cert_chain_append_error
+        matching_only = self.cert_chain_append_matching_only
+        filter_error = self.cert_chain_append_matching_only_error
         link_check = self.cert_chain_link_check
         link_error = self.cert_chain_link_check_error
         changed = False
@@ -175,6 +189,11 @@ class BoundCAHandler:
             error, loaded = config_cert_chain_profile_load(
                 logger, key, profile_dic[key]
             )
+            if key == "cert_chain_append_matching_only":
+                if error:
+                    return error, self
+                matching_only, filter_error = loaded, error
+                continue
             (
                 skip_list,
                 skip_error,
@@ -205,6 +224,8 @@ class BoundCAHandler:
             cert_chain_skip_list_error=skip_error,
             cert_chain_append=append,
             cert_chain_append_error=append_error,
+            cert_chain_append_matching_only=matching_only,
+            cert_chain_append_matching_only_error=filter_error,
             cert_chain_link_check=link_check,
             cert_chain_link_check_error=link_error,
         )
@@ -216,6 +237,7 @@ class BoundCAHandler:
         error = (
             self.cert_chain_skip_list_error
             or self.cert_chain_append_error
+            or self.cert_chain_append_matching_only_error
             or self.cert_chain_link_check_error
         )
         if error:
@@ -233,6 +255,7 @@ class BoundCAHandler:
             pem_bundle,
             self.cert_chain_append,
             link_check=self.cert_chain_link_check,
+            matching_only=self.cert_chain_append_matching_only,
         )
 
     def __call__(self, debug: bool, logger: logging.Logger) -> Any:
@@ -692,6 +715,12 @@ class CAHandlerRegistry:
             cert_chain_skip_list_error=entry.get("cert_chain_skip_list_error"),
             cert_chain_append=entry.get("cert_chain_append") or [],
             cert_chain_append_error=entry.get("cert_chain_append_error"),
+            cert_chain_append_matching_only=entry.get(
+                "cert_chain_append_matching_only", False
+            ),
+            cert_chain_append_matching_only_error=entry.get(
+                "cert_chain_append_matching_only_error"
+            ),
             cert_chain_link_check=entry.get("cert_chain_link_check", True),
             cert_chain_link_check_error=entry.get("cert_chain_link_check_error"),
         )
