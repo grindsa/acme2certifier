@@ -6,6 +6,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.46.5
+
+**Bug Fixes and Improvements**:
+
+- Security: wildcard-vs-wildcard domain matching in allow/prevalidation lists now requires a DNS label boundary, so `*.example.com` no longer matches `*.evilexample.com` ([GHSA-4g95-ff7v-34mr](https://github.com/grindsa/acme2certifier/security/advisories/GHSA-4g95-ff7v-34mr))
+
 ## Changes in 0.46.4
 
 **Bug Fixes and Improvements**:
