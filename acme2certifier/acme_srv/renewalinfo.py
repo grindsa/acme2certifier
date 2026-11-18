@@ -2,6 +2,7 @@
 """Renewalinfo class: ACME renewal info handler with separated config and repository helpers."""
 
 from __future__ import print_function
+import base64
 from typing import Dict, Optional, Tuple, Any, Callable
 from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
@@ -17,7 +18,6 @@ from acme2certifier.acme_srv.helper import (
     cert_serial_get,
     cert_aki_get,
     b64_url_recode,
-    b64_decode,
     duration_to_seconds,
     parse_url,
 )
@@ -416,11 +416,13 @@ class Renewalinfo(object):
         self.logger.debug("Renewalinfo._extract_serial_and_aki_from_string()")
         renewalinfo_list = renewalinfo_string.split(".")
         if len(renewalinfo_list) == 2:
-            serial = b64_decode(
-                self.logger, b64_url_recode(self.logger, renewalinfo_list[1])
+            # decode to raw bytes: b64_decode() returns str when the bytes
+            # happen to be valid UTF-8, and str has no .hex()
+            serial = base64.b64decode(
+                b64_url_recode(self.logger, renewalinfo_list[1])
             ).hex()
-            aki = b64_decode(
-                self.logger, b64_url_recode(self.logger, renewalinfo_list[0])
+            aki = base64.b64decode(
+                b64_url_recode(self.logger, renewalinfo_list[0])
             ).hex()
         else:
             serial = None
