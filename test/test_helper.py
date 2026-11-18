@@ -6256,6 +6256,20 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         entry = "*.example.com"
         self.assertTrue(self.is_domain_whitelisted(self.logger, entry, list_))
 
+    def test_503a_is_domain_whitelisted_wildcard_requires_label_boundary(self):
+        """Wildcard vs wildcard must not match on bare suffix (H2 / GHSA-4g95-ff7v-34mr)."""
+        list_ = ["*.example.com"]
+        self.assertFalse(
+            self.is_domain_whitelisted(self.logger, "*.attackerexample.com", list_)
+        )
+        self.assertFalse(
+            self.is_domain_whitelisted(self.logger, "*.notexample.com", list_)
+        )
+        self.assertTrue(self.is_domain_whitelisted(self.logger, "*.example.com", list_))
+        self.assertTrue(
+            self.is_domain_whitelisted(self.logger, "*.foo.example.com", list_)
+        )
+
     @patch("idna.encode")
     def test_504_is_domain_whitelisted(self, mock_idna):
         """exception"""
