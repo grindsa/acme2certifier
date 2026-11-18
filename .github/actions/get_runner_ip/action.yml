@@ -1,0 +1,50 @@
+name: "Get runner IP"
+description: "Resolve the runner primary IPv4 without hardcoding eth0; set RUNNER_IP and RUNNER_PATH"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Get runner ip"
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        runner_ip=""
+
+        # Prefer the IPv4 used for the default route (interface-name agnostic).
+        if command -v ip >/dev/null 2>&1; then
+          runner_ip="$(
+            ip -4 route get 1.1.1.1 2>/dev/null \
+              | awk '{for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit }}' \
+              || true
+          )"
+
+          # Fallback: first global-scope IPv4 that is not link-local.
+          if [[ -z "${runner_ip}" ]]; then
+            runner_ip="$(
+              ip -4 -o addr show scope global 2>/dev/null \
+                | awk '{ print $4 }' \
+                | cut -d/ -f1 \
+                | awk '!/^169\.254\./ { print; exit }' \
+                || true
+            )"
+          fi
+        fi
+
+        # Last resort on minimal images.
+        if [[ -z "${runner_ip}" ]] && command -v hostname >/dev/null 2>&1; then
+          runner_ip="$(hostname -I 2>/dev/null | awk '{ print $1 }' || true)"
+        fi
+
+        if [[ -z "${runner_ip}" ]]; then
+          echo "Could not determine runner IPv4 address" >&2
+          if command -v ip >/dev/null 2>&1; then
+            ip -4 -o addr show >&2 || true
+            ip -4 route show >&2 || true
+          fi
+          exit 1
+        fi
+
+        echo "Using runner IPv4: ${runner_ip}"
+        echo "RUNNER_IP=${runner_ip}" >> "${GITHUB_ENV}"
+        echo "RUNNER_PATH=$(pwd | sed 's_/_\\/_g')" >> "${GITHUB_ENV}"

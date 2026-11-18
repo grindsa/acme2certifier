@@ -65,13 +65,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
+        uses: ./.github/actions/get_runner_ip
 
       - name: "Instanciate ejbca"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/ejbca_prep
@@ -347,12 +341,7 @@ jobs:
           json_secret: ${{ secrets.GH_CFG }}
 
       - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
+        uses: ./.github/actions/get_runner_ip
 
       - name: "Instanciate ejbca"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/ejbca_prep
