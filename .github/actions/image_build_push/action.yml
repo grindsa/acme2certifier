@@ -7,6 +7,14 @@ inputs:
   websrv:
     description: "Web server variant (apache2|nginx)"
     required: true
+  layout:
+    description: "combined: one Dockerfile per websrv plus a thin *-django alias. split: real ${websrv}/${dbhandler} Dockerfiles (N-1, through 0.46)."
+    required: false
+    default: "combined"
+  dbhandler:
+    description: "DB handler variant (wsgi|django). Required when layout is split."
+    required: false
+    default: ""
   tag_n:
     description: "Current supported tag N (enables floating tags when tag == tag_n)"
     required: true
@@ -81,53 +89,76 @@ runs:
         username: ${{ inputs.ghcr_user }}
         password: ${{ inputs.ghcr_token }}
 
-    - name: Compute primary and legacy-wsgi tags
+    - name: Compute image tags
       id: tags
       shell: bash
       env:
+        LAYOUT: ${{ inputs.layout }}
         WEBSRV: ${{ inputs.websrv }}
+        DBHANDLER: ${{ inputs.dbhandler }}
         TAG: ${{ inputs.tag }}
         TAG_N: ${{ inputs.tag_n }}
       run: |
         set -euo pipefail
         DH="grindsa/acme2certifier"
         GH="ghcr.io/grindsa/acme2certifier"
-        # Primary: websrv. Compat: same-digest *-wsgi aliases.
-        TAG_LIST=(
-          "${DH}:${TAG}-${WEBSRV}"
-          "${GH}:${TAG}-${WEBSRV}"
-          "${DH}:${TAG}-${WEBSRV}-wsgi"
-          "${GH}:${TAG}-${WEBSRV}-wsgi"
-        )
 
-        if [[ "${TAG}" == "${TAG_N}" ]]; then
-          TAG_LIST+=(
-            "${DH}:${WEBSRV}" "${GH}:${WEBSRV}"
-            "${DH}:${WEBSRV}-wsgi" "${GH}:${WEBSRV}-wsgi"
+        if [[ "${LAYOUT}" == "split" ]]; then
+          if [[ -z "${DBHANDLER}" ]]; then
+            echo "dbhandler is required when layout=split" >&2
+            exit 1
+          fi
+          BUILD_NAME="${WEBSRV}-${DBHANDLER}"
+          # N-1 images are four real builds. No websrv primary, floating tags, or django alias.
+          TAG_LIST=(
+            "${DH}:${TAG}-${BUILD_NAME}"
+            "${GH}:${TAG}-${BUILD_NAME}"
           )
-          if [[ "${WEBSRV}" == "apache2" ]]; then
-            TAG_LIST+=("${DH}:latest" "${GH}:latest")
-          fi
-        fi
-
-        {
-          echo "tags<<EOF"
-          printf "%s\n" "${TAG_LIST[@]}"
-          echo "EOF"
-          echo "django_tags<<EOF"
-          echo "${DH}:${TAG}-${WEBSRV}-django"
-          echo "${GH}:${TAG}-${WEBSRV}-django"
+          {
+            echo "tags<<EOF"
+            printf "%s\n" "${TAG_LIST[@]}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+          echo "Building ${BUILD_NAME} for tag ${TAG} (split)"
+        elif [[ "${LAYOUT}" == "combined" ]]; then
+          # Primary: websrv. Compat: same-digest *-wsgi aliases.
+          TAG_LIST=(
+            "${DH}:${TAG}-${WEBSRV}"
+            "${GH}:${TAG}-${WEBSRV}"
+            "${DH}:${TAG}-${WEBSRV}-wsgi"
+            "${GH}:${TAG}-${WEBSRV}-wsgi"
+          )
           if [[ "${TAG}" == "${TAG_N}" ]]; then
-            echo "${DH}:${WEBSRV}-django"
-            echo "${GH}:${WEBSRV}-django"
+            TAG_LIST+=(
+              "${DH}:${WEBSRV}" "${GH}:${WEBSRV}"
+              "${DH}:${WEBSRV}-wsgi" "${GH}:${WEBSRV}-wsgi"
+            )
+            if [[ "${WEBSRV}" == "apache2" ]]; then
+              TAG_LIST+=("${DH}:latest" "${GH}:latest")
+            fi
           fi
-          echo "EOF"
-        } >> "${GITHUB_OUTPUT}"
-
-        echo "Building ${WEBSRV} (default wsgi) for tag ${TAG}"
+          {
+            echo "tags<<EOF"
+            printf "%s\n" "${TAG_LIST[@]}"
+            echo "EOF"
+            echo "django_tags<<EOF"
+            echo "${DH}:${TAG}-${WEBSRV}-django"
+            echo "${GH}:${TAG}-${WEBSRV}-django"
+            if [[ "${TAG}" == "${TAG_N}" ]]; then
+              echo "${DH}:${WEBSRV}-django"
+              echo "${GH}:${WEBSRV}-django"
+            fi
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+          echo "Building ${WEBSRV} (default wsgi) for tag ${TAG}"
+        else
+          echo "Unknown layout: ${LAYOUT}" >&2
+          exit 1
+        fi
         printf "%s\n" "${TAG_LIST[@]}"
 
     - name: Build and push primary multi-arch image (wsgi default)
+      if: inputs.layout == 'combined'
       uses: docker/build-push-action@v7
       with:
         context: image-src
@@ -138,8 +169,19 @@ runs:
           ACME_SRV_DB_HANDLER=wsgi
         tags: ${{ steps.tags.outputs.tags }}
 
+    - name: Build and push split multi-arch image
+      if: inputs.layout == 'split'
+      uses: docker/build-push-action@v7
+      with:
+        context: image-src
+        file: image-src/examples/Docker/${{ inputs.websrv }}/${{ inputs.dbhandler }}/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.tags.outputs.tags }}
+
     # Thin config-layer alias so pull-and-run without cfg still boots Django.
     - name: Build and push legacy *-django aliases
+      if: inputs.layout == 'combined'
       shell: bash
       env:
         WEBSRV: ${{ inputs.websrv }}
