@@ -8,15 +8,11 @@ and pick the appropriate release branch.
 
 ## Changes in 0.47
 
-**New Features**:
+**Bug Fixes and Improvements**:
 
-- **Experimental:** optional [OpenTelemetry](docs/opentelemetry.md) support (`[OpenTelemetry] opentelemetry_support`, default `False`; install `acme2certifier[otel]`). Shared `acme_traced_request` (Django / classic WSGI) builds one enrollment-session trace via Replay-Nonce + session tip; nested spans/metrics for account create/query, challenge validation, enroll, CA handler, auth/EAB failures; OTLP HTTP export. Logging remains primary.
-- Unified Docker images per webserver (`apache2` / `nginx`): WSGI and Django in one image; handler selected at runtime via `[DBhandler]` / `ACME_SRV_DB_HANDLER` (entrypoint retargets Apache/uWSGI). Hub primary tags are `apache2` / `nginx` (`latest` → `apache2`); legacy `*-wsgi` / `*-django` tags remain for compatibility. See [Containerized installation](docs/install_docker.md).
-- [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
-- [Cloudflare CFSSL](docs/cfssl.md) CA handler (`cfssl_ca_handler`) for `cfssl serve`: synchronous enroll via `/sign` or HMAC `/authsign`, issuer chain from `/info`, revoke via `/revoke` when CFSSL is started with `-db-config`
-- [Microsoft CEP/CES CA handler](docs/mscepces.md) (`mscepces_ca_handler`) for AD CS enrollment via MS-XCEP/MS-WSTEP SOAP over HTTPS (Impacket/Certipy-free alternative to MS-ICPR); optional CEP policy check, pending poll, GSSAPI / UsernamePassword; optional CES URL discovery from CEP `GetPolicies` when `ces_url` is unset ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
-- Optional `[Order] allow_shortname_from_fqdn` (default `False`) and `shortname_denylist` so single-label DNS names can pass `allowed_domainlist` when the same order/CSR also contains an allowed multi-label FQDN with a matching first label; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
-- Optional `[Order] allow_shortname_without_challenge_validation` (default `False`, requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1`) marks qualifying shortname authorizations valid at order creation while sibling FQDN challenge validation still gates issuance; EAB order-section overrides supported ([#400](https://github.com/grindsa/acme2certifier/discussions/400))
+- EAB SQL handler: restore PostgreSQL via **psycopg2** (MSSQL stays on **pyodbc**); lazy imports; auto-migrate legacy `credentials`/`status` → `acme_credential`/`enabled` when detected ([#418](https://github.com/grindsa/acme2certifier/issues/418)). See [`docs/eab.md`](docs/eab.md#sql-handler) and [`docs/upgrading.md`](docs/upgrading.md#eab-sql-handler-postgresql--mssql).
+
+## Changes in 0.46.4
 
 **Bug Fixes and Improvements**:
 
