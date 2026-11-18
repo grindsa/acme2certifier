@@ -5,6 +5,11 @@ on:
     branches: ["master"]
   workflow_dispatch:
     inputs:
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
       readme_only:
         description: "Only update Docker Hub README (skip release, image build, and tests)"
         type: boolean
@@ -122,7 +127,7 @@ jobs:
 
       - name: Create GitHub release and upload packages
         if: steps.versions.outputs.created_release == 'true'
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.versions.outputs.tag_n }}
           name: ${{ steps.versions.outputs.app_name }} ${{ steps.versions.outputs.tag_n }}
@@ -138,6 +143,30 @@ jobs:
           preserve_order: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish_pypi:
+    name: Trigger PyPI publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: create_release
+    permissions:
+      actions: write
+    if: >-
+      github.repository == 'grindsa/acme2certifier'
+      && needs.create_release.result == 'success'
+      && needs.create_release.outputs.created_release == 'true'
+    steps:
+      - name: Dispatch publish-pypi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create_release.outputs.tag_n }}
+        run: |
+          set -euo pipefail
+          gh workflow run publish-pypi.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref master \
+            -f confirm=publish \
+            -f tag="${TAG}"
 
   resolve_versions:
     name: Resolve supported tags
@@ -171,7 +200,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
   build_and_push_n1:
-    name: Build and push N-1 images
+    name: Build and push N-1 images (${{ matrix.websrv }})
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs: [create_release, resolve_versions]
@@ -182,7 +211,6 @@ jobs:
       fail-fast: false
       matrix:
         websrv: [apache2, nginx]
-        dbhandler: [wsgi, django]
     steps:
       - name: Checkout workflow sources
         uses: actions/checkout@v7
@@ -197,12 +225,11 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}
         uses: ./.github/actions/image_build_push
         with:
           tag: ${{ needs.resolve_versions.outputs.tag_n1 }}
           websrv: ${{ matrix.websrv }}
-          dbhandler: ${{ matrix.dbhandler }}
           tag_n: ${{ needs.resolve_versions.outputs.tag_n }}
           dockerhub_user: ${{ env.DOCKERHUB_USER }}
           dockerhub_token: ${{ env.DOCKERHUB_TOKEN }}
@@ -213,7 +240,7 @@ jobs:
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
   build_and_push_n:
-    name: Build and push N images
+    name: Build and push N images (${{ matrix.websrv }})
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs: [resolve_versions, build_and_push_n1]
@@ -224,7 +251,6 @@ jobs:
       fail-fast: false
       matrix:
         websrv: [apache2, nginx]
-        dbhandler: [wsgi, django]
     steps:
       - name: Checkout workflow sources
         uses: actions/checkout@v7
@@ -239,12 +265,11 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n }}-${{ matrix.websrv }}
         uses: ./.github/actions/image_build_push
         with:
           tag: ${{ needs.resolve_versions.outputs.tag_n }}
           websrv: ${{ matrix.websrv }}
-          dbhandler: ${{ matrix.dbhandler }}
           tag_n: ${{ needs.resolve_versions.outputs.tag_n }}
           dockerhub_user: ${{ env.DOCKERHUB_USER }}
           dockerhub_token: ${{ env.DOCKERHUB_TOKEN }}
@@ -339,6 +364,7 @@ jobs:
         uses: ./.github/actions/sanitize_artifact_payload
         with:
           ARTIFACT_DIR: ${{ github.workspace }}/artifact
+          ENABLED: ${{ inputs.sanitize_artifacts }}
 
       - name: Upload failure artifacts
         if: failure()
@@ -395,6 +421,7 @@ jobs:
         uses: ./.github/actions/sanitize_artifact_payload
         with:
           ARTIFACT_DIR: ${{ github.workspace }}/artifact
+          ENABLED: ${{ inputs.sanitize_artifacts }}
 
       - name: Upload failure artifacts
         if: failure()
@@ -452,6 +479,7 @@ jobs:
         uses: ./.github/actions/sanitize_artifact_payload
         with:
           ARTIFACT_DIR: ${{ github.workspace }}/artifact
+          ENABLED: ${{ inputs.sanitize_artifacts }}
 
       - name: Upload failure artifacts
         if: failure()
@@ -481,7 +509,6 @@ jobs:
       max-parallel: 1
       matrix:
         websrv: [apache2, nginx]
-        dbhandler: [wsgi, django]
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -541,9 +568,9 @@ jobs:
       - name: Generate SBOM
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/grindsa/acme2certifier:${WEBSRV}-${DBHANDLER}"
+          IMAGE="ghcr.io/grindsa/acme2certifier:${WEBSRV}"
           SBOM_DIR="/tmp/sbom/sbom/acme2certifier"
-          BASE="${SBOM_DIR}/acme2certifier-${WEBSRV}-${DBHANDLER}_sbom"
+          BASE="${SBOM_DIR}/acme2certifier-${WEBSRV}_sbom"
           mkdir -p "${SBOM_DIR}"
 
           # Remove any leftover uncompressed SBOMs for this image
@@ -554,7 +581,6 @@ jobs:
           gzip -f "${BASE}.txt" "${BASE}.json"
         env:
           WEBSRV: ${{ matrix.websrv }}
-          DBHANDLER: ${{ matrix.dbhandler }}
 
       - name: Upload SBOM changes
         run: |
@@ -568,9 +594,8 @@ jobs:
 
           git add -A sbom/acme2certifier/
           git diff --cached --quiet && echo "No SBOM changes" && exit 0
-          git commit -m "SBOM update (${WEBSRV}-${DBHANDLER})"
+          git commit -m "SBOM update (${WEBSRV})"
           git push
         env:
           EMAIL: ${{ env.EMAIL }}
           WEBSRV: ${{ matrix.websrv }}
-          DBHANDLER: ${{ matrix.dbhandler }}

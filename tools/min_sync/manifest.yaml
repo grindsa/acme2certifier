@@ -55,28 +55,43 @@ min_owned:
 # Removed after a port into a min target (in addition to non-kept handlers)
 strip_into_min:
   - acme2certifier/cahandlers/ms_icpr
+  - acme2certifier/eabhandlers/hashicorp_vault_handler.py
+  - acme2certifier/tools/a2c_harica_totp.py
+  - acme2certifier/tools/a2c_msicpr_connection_test.py
+  - acme2certifier/tools/a2c_mscepces_connection_test.py
   - .github/workflows/helper-dump-secrets.yml
   - .github/workflows/cahandler-asa.yml
   - .github/workflows/cahandler-certifier.yml
   - .github/workflows/cahandler-nclm.yml
-  - .github/workflows/helper-dump-secrets.yml
   - .github/workflows/publish-pypi.yml
   - .github/workflows/quality-error.yml
   - .github/workflows/deployment-rpm.yml
-  - acme2certifier/tools/a2c_msicpr_connection_test.py
-  - acme2certifier/tools/a2c_mswcce_connection_test.py
-  - test/test_a2c_msicpr_connection_test.py
   - .github/workflows/deployment-wsgi2django.yml
   - .github/actions/wf_specific/wsgi2django/
+  - docs/aws_pca.md
+  - docs/cfssl.md
+  - docs/eab_hashicorp_vault.md
+  - docs/google_cas.md
+  - docs/xipki.md
+  - test/test_a2c_harica_totp.py
+  - test/test_a2c_msicpr_connection_test.py
+  - test/test_a2c_mscepces_connection_test.py
+  - test/test_mscepces_ca_handler.py
+  - test/fixtures/mscepces/
   - test/test_acme_ca_handler.py
+  - test/test_aws_pca_handler.py
   - test/test_certsrv.py
+  - test/test_cfssl_ca_handler.py
   - test/test_cmp_ca_handler.py
   - test/test_digicert.py
   - test/test_dogtag_ca_handler.py
   - test/test_ejbca_handler.py
+  - test/test_eabhashicorp_vault_handler.py
   - test/test_entrust.py
   - test/test_est_ca_handler.py
   - test/test_freeipa_ca_handler.py
+  - test/test_google_cas_handler.py
+  - test/test_harica_handler.py
   - test/test_msca_handler.py
   - test/test_msicpr_ca_handler.py
   - test/test_msicpr_helpers.py
@@ -87,6 +102,8 @@ strip_into_min:
   - test/test_skeleton_ca_handler.py
   - test/test_vault_handler.py
   - test/test_xca_ca_handler.py
+  - test/test_xca_sqlite_dump.py
+  - test/test_xipki_ca_handler.py
   - test/test_trigger.py
   - examples/Docker
   - examples/ejbca
@@ -99,11 +116,14 @@ strip_into_min:
   - examples/install_scripts/a2c-rel-nginx.sh
   - examples/install_scripts/a2c-ubuntu-apache2.sh
   - examples/install_scripts/a2c-ubuntu-nginx.sh
+  - examples/install_scripts/fetch-sbom-debs.sh
   - examples/install_scripts/fetch-sbom-rpms.sh
 
 # [project.scripts] entry points removed after a port into min
 strip_pyproject_scripts_into_min:
   - a2c-msicpr-connection-test
+  - a2c-mscepces-connection-test
+  - a2c-harica-totp
 
 # Optional: do not open promote PRs; min-devel -> min stays manual
 promote: false

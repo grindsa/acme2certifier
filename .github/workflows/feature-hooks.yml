@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
@@ -140,6 +145,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: container-tests-hooks-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
   # Test container images - hooks exception handling
@@ -346,6 +352,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-exception-handling-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
   # Test container images - email hooks
@@ -440,6 +447,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: container-tests-email-hooks-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
@@ -542,6 +550,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) hooks exception handling
@@ -739,6 +748,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-hooks-exception-rh${{ matrix.rhversion }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) email hooks
@@ -823,3 +833,4 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-email-hooks-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

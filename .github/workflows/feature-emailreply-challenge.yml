@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
@@ -109,7 +114,7 @@ jobs:
           # sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nemail_ssl_verify: False\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -179,6 +184,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   test-rpm:
     permissions:
@@ -245,7 +251,7 @@ jobs:
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nemail_ssl_verify: False\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -322,6 +328,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   test-deb:
     permissions:
@@ -387,7 +394,7 @@ jobs:
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nemail_ssl_verify: False\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -460,3 +467,4 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

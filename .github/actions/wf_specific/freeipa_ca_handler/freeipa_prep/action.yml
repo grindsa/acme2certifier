@@ -123,24 +123,25 @@ runs:
       docker exec freeipa bash -c "echo -e '${A2C_PASSWORD}' | ipa user-add ${A2C_USER} --first=ACME --last=Certifier --password"
       docker exec freeipa ipa user-mod ${A2C_USER} --setattr=krbPasswordExpiration=20991231235959Z
 
-      docker exec freeipa ipa privilege-add "Host-Cert API Management" --desc "Privilege to manage hosts and enroll certificates via JSON API"
-      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="System: Add Hosts"
-      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="System: Modify Hosts"
-      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="System: Manage Host Keytab"
-      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="Request Certificate"
-      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="System: Manage Host Certificates"
-      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="Revoke Certificate"
-      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="Retrieve Certificates from the CA"
+      host_cert_priv="Host-Cert API Management"
+      docker exec freeipa ipa privilege-add "${host_cert_priv}" --desc "Privilege to manage hosts and enroll certificates via JSON API"
+      docker exec freeipa ipa privilege-add-permission "${host_cert_priv}" --permissions="System: Add Hosts"
+      docker exec freeipa ipa privilege-add-permission "${host_cert_priv}" --permissions="System: Modify Hosts"
+      docker exec freeipa ipa privilege-add-permission "${host_cert_priv}" --permissions="System: Manage Host Keytab"
+      docker exec freeipa ipa privilege-add-permission "${host_cert_priv}" --permissions="Request Certificate"
+      docker exec freeipa ipa privilege-add-permission "${host_cert_priv}" --permissions="System: Manage Host Certificates"
+      docker exec freeipa ipa privilege-add-permission "${host_cert_priv}" --permissions="Revoke Certificate"
+      docker exec freeipa ipa privilege-add-permission "${host_cert_priv}" --permissions="Retrieve Certificates from the CA"
 
       docker exec freeipa ipa permission-add "Manage Host Kerberos Principals" \
           --right=write \
           --type=host \
           --attrs=krbprincipalname
 
-      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="Manage Host Kerberos Principals"
+      docker exec freeipa ipa privilege-add-permission "${host_cert_priv}" --permissions="Manage Host Kerberos Principals"
 
       docker exec freeipa ipa role-add "API Provisioning Role" --desc "Role for automated host provisioning and certificate management"
-      docker exec freeipa ipa role-add-privilege "API Provisioning Role" --privileges="Host-Cert API Management"
+      docker exec freeipa ipa role-add-privilege "API Provisioning Role" --privileges="${host_cert_priv}"
       docker exec freeipa ipa role-add-member "API Provisioning Role" --users=${A2C_USER}
     shell: bash
     env:

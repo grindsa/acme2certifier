@@ -72,7 +72,8 @@ runs:
             exit 1
           fi
           version_lt() {
-            [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" == "$1" && "$1" != "$2" ]]
+            local left="$1" right="$2"
+            [[ "$(printf '%s\n%s\n' "${left}" "${right}" | sort -V | head -n1)" == "${left}" && "${left}" != "${right}" ]]
           }
           # 0.44 Django layout: acme_srv app, not acme2certifier.django_app.
           # 0.45 already ships django_app paths.

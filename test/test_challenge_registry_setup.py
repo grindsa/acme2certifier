@@ -24,6 +24,7 @@ class MockConfig:
         self.dns_persist_01_support = kwargs.get("dns_persist_01_support", False)
         self.forward_address_check = kwargs.get("forward_address_check", False)
         self.reverse_address_check = kwargs.get("reverse_address_check", False)
+        self.fcrdns_check_disable = kwargs.get("fcrdns_check_disable", False)
 
 
 class TestChallengeRegistrySetup(unittest.TestCase):
@@ -1042,7 +1043,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Verify source address validator registered with correct parameters
             mock_source_validator.assert_called_once_with(
-                self.logger, forward_check=True, reverse_check=False
+                self.logger,
+                forward_check=True,
+                reverse_check=False,
+                fcrdns_check_disable=False,
             )
             mock_registry_instance.register_validator.assert_any_call(
                 mock_source_instance
@@ -1121,7 +1125,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Verify source address validator registered with correct parameters
             mock_source_validator.assert_called_once_with(
-                self.logger, forward_check=False, reverse_check=True
+                self.logger,
+                forward_check=False,
+                reverse_check=True,
+                fcrdns_check_disable=False,
             )
             mock_registry_instance.register_validator.assert_any_call(
                 mock_source_instance
@@ -1196,7 +1203,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Verify source address validator registered with both checks
             mock_source_validator.assert_called_once_with(
-                self.logger, forward_check=True, reverse_check=True
+                self.logger,
+                forward_check=True,
+                reverse_check=True,
+                fcrdns_check_disable=False,
             )
 
     @patch.dict(

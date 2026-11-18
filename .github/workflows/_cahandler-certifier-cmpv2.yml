@@ -10,6 +10,11 @@ on:
         description: Live EC2 public IP from instance_start
         type: string
         required: true
+      sanitize_artifacts:
+        description: Sanitize failure artifacts (false keeps acme_srv.cfg / keys; secrets in upload)
+        type: boolean
+        required: false
+        default: true
 
 permissions: {}
 
@@ -222,6 +227,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-cmpv2-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
 
   test-cmpv2-rpm:
@@ -419,6 +425,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-cmpv2-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
 
   test-cmpv2-deb:
@@ -621,3 +628,4 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: test-cmpv2-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

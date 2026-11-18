@@ -115,6 +115,10 @@ runs:
                 sudo mkdir -p "${VOLUME_DIR}/acme2certifier"
                 sudo cp /tmp/django_settings_mariadb.py "${VOLUME_DIR}/acme2certifier/settings.py"
                 ;;
+              *)
+                echo "Unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+                exit 1
+                ;;
             esac
           elif [[ "${http_code}" == "404" ]]; then
             rm -f /tmp/django_settings_mariadb.py

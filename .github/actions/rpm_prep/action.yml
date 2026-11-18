@@ -59,12 +59,13 @@ runs:
         echo "IPv6 is $IPV6"
         if [ "$IPV6" == "false" ]; then
           echo "create v4 namespace"
-          docker network create $NAME_SPACE
+          docker network inspect "$NAME_SPACE" >/dev/null 2>&1 || docker network create "$NAME_SPACE"
         else
           echo "create v6 namespace"
-          docker network create $NAME_SPACE --ipv6 --subnet "fdbb:6445:65b4:0a60::/64"
+          docker network inspect "$NAME_SPACE" >/dev/null 2>&1 || docker network create "$NAME_SPACE" --ipv6 --subnet "fdbb:6445:65b4:0a60::/64"
         fi
         sudo mkdir -p data/volume
+
         sudo mkdir -p data/acme2certifier
         sudo mkdir -p data/nginx
         sudo chmod -R 777 data

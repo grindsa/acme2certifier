@@ -31,7 +31,9 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_headerinfo_load,
     config_enroll_config_log_load,
+    config_number_load,
     config_profile_load,
+    config_shortname_denylist_load,
     eab_profile_as_bool,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
@@ -87,6 +89,8 @@ class CAhandler(object):
         self.profiles = {}
         self.ssl_verify = True
         self.profile_mapping_field = "profile"
+        self.allow_shortname_from_fqdn = False
+        self.shortname_denylist = []
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -97,7 +101,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """close the connection at the end of the context"""
 
-    def _config_account_load(self, config_dic: Dict[str, str]):
+    def _config_account_load(self, config_dic: Any):
         self.logger.debug("CAhandler._config_account_load()")
 
         self.acme_keyfile = config_dic.get("CAhandler", "acme_keyfile", fallback=None)
@@ -130,7 +134,7 @@ class CAhandler(object):
                 self.logger.warning("Failed to parse ssl_verify parameter: %s", err)
         self.logger.debug("CAhandler._config_account_load() ended")
 
-    def _config_parameters_load(self, config_dic: Dict[str, str]):
+    def _config_parameters_load(self, config_dic: Any):
         """ " load eab config"""
         self.logger.debug("CAhandler._config_eab_load()")
 
@@ -147,7 +151,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_eab_load() ended")
 
-    def _config_dns_update_script_load(self, config_dic: Dict[str, str]):
+    def _config_dns_update_script_load(self, config_dic: Any):
         """ " load dns update script"""
         self.logger.debug("CAhandler._config_dns_update_script_load()")
 
@@ -181,19 +185,14 @@ class CAhandler(object):
                 "CAhandler", "acme_sh_shell", fallback=self.acme_sh_shell
             )
 
-            try:
-                self.dns_validation_timeout = int(
-                    config_dic.get(
-                        "CAhandler",
-                        "dns_validation_timeout",
-                        fallback=self.dns_validation_timeout,
-                    )
-                )
-            except Exception as err:
-                self.logger.warning(
-                    "CAhandler._config_dns_update_script_load(): Failed to parse dns_validation_timeout parameter: %s",
-                    err,
-                )
+            self.dns_validation_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "dns_validation_timeout",
+                cast=int,
+                current=self.dns_validation_timeout,
+                log_level="warning",
+            )
 
             try:
                 self.dns_update_script_variables = json.loads(
@@ -209,7 +208,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_dns_update_script_load() ended")
 
-    def _config_profiles_load(self, config_dic: Dict[str, str]) -> Dict[str, str]:
+    def _config_profiles_load(self, config_dic: Any) -> Dict[str, str]:
         """ " load profiles from config file"""
         self.logger.debug("CAhandler._config_profiles_load()")
         if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
@@ -257,6 +256,13 @@ class CAhandler(object):
         # load profiles
         # self.profiles = config_profile_load(self.logger, config_dic)
         self.profiles = self._config_profiles_load(config_dic)
+        self.shortname_denylist = config_shortname_denylist_load(
+            self.logger, config_dic
+        )
+        if "Order" in config_dic:
+            self.allow_shortname_from_fqdn = config_dic.getboolean(
+                "Order", "allow_shortname_from_fqdn", fallback=False
+            )
 
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
@@ -316,21 +322,22 @@ class CAhandler(object):
         self.logger.debug("CAhandler._challenge_info() ended with %s", chall_name)
         return (chall_name, chall_content, challenge)
 
-    def _shell_exec(self, cmd: str) -> int:
+    def _shell_exec(self, cmd: str, env: Optional[Dict[str, str]] = None) -> int:
         """Execute a shell command string.
 
         shell=True is required because the commands use 'source' (a shell builtin)
         to load acme.sh and DNS update scripts. All interpolated values are sanitized
         with shlex.quote() before reaching this method.
         """
+        call_kwargs: Dict[str, Any] = {"shell": True}
+        if env is not None:
+            call_kwargs["env"] = env
         if self.acme_sh_shell:
             self.logger.debug(
                 "CAhandler._shell_exec(): using shell: %s", self.acme_sh_shell
             )
-            return subprocess.call(
-                cmd, shell=True, executable=self.acme_sh_shell
-            )  # nosec B602
-        return subprocess.call(cmd, shell=True)  # nosec B602
+            call_kwargs["executable"] = self.acme_sh_shell
+        return subprocess.call(cmd, **call_kwargs)  # nosec B602
 
     def _dns_challenge_deprovision(self):
         """delete dns challenge"""
@@ -342,8 +349,7 @@ class CAhandler(object):
                 0
             ]
 
-            # set environment variables for dns update script
-            self._environment_variables_handle(unset=False)
+            script_env = self._dns_script_env()
 
             for fqdn, txt_record_value in self.dns_record_dic.items():
                 # remove txt record from dns server - to be moved to a later place in the code
@@ -354,14 +360,11 @@ class CAhandler(object):
                     f"{shlex.quote(fqdn)} "
                     f"{shlex.quote(txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else str(txt_record_value))}"
                 )
-                rcode = self._shell_exec(cmd_list)
+                rcode = self._shell_exec(cmd_list, env=script_env)
 
                 self.logger.debug(
                     "_dns_challenge_deprovision(): %s rcode: %s", fqdn, rcode
                 )
-
-            # unset environment variables for dns update script
-            self._environment_variables_handle(unset=True)
 
     def _dns_challenge_provision(
         self, fqdn: str, key_authorization: str, _user_key: josepy.jwk.JWKRSA
@@ -378,8 +381,7 @@ class CAhandler(object):
 
         basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[0]
 
-        # set environment variables for dns update script
-        self._environment_variables_handle(unset=False)
+        script_env = self._dns_script_env()
 
         # add txt record to dns server
         fqdn_escaped = shlex.quote(fqdn)
@@ -394,12 +396,9 @@ class CAhandler(object):
         basename_w_ext_escaped = shlex.quote(basename_w_ext)
         cmd_list = f"source {acme_sh_script_escaped} &>/dev/null; source {dns_update_script_escaped};  {basename_w_ext_escaped}_add {fqdn_escaped} {txt_record_value_escaped}"  # noqa
 
-        rcode = self._shell_exec(cmd_list)
+        rcode = self._shell_exec(cmd_list, env=script_env)
 
         self.logger.debug("_dns_challenge_provision(): %s rcode: %s", fqdn, rcode)
-
-        # unset environment variables for dns update script
-        self._environment_variables_handle(unset=True)
 
         # store dns record in dictionary
         # if rcode == 0:
@@ -440,9 +439,9 @@ class CAhandler(object):
                     )
                     break
 
-    def _environment_variables_handle(self, unset=False):
-        """set environment variables for dns update script"""
-        self.logger.debug("CAhandler._environment_variables_handle(): unset=%s", unset)
+    def _dns_script_env(self) -> Dict[str, str]:
+        """Build a subprocess env for the DNS update script (never mutates os.environ)."""
+        self.logger.debug("CAhandler._dns_script_env()")
 
         forbidden_variables_list = [
             "SHELL",
@@ -467,32 +466,20 @@ class CAhandler(object):
             "PYTHONHOME",
             "PYTHONUSERBASE",
         ]
-        for key, value in self.dns_update_script_variables.items():
-            if key not in forbidden_variables_list:
-                if unset:
-                    self.logger.debug(
-                        "CAhandler._environment_variables_handle(): unsetting environment variable: %s",
-                        key,
-                    )
-                    # unset environment variable
-                    if key in os.environ:
-                        del os.environ[key]
-                    else:
-                        self.logger.warning(
-                            'CAhandler._environment_variables_handle(): environment variable "%s" is not set and will not be unset',
-                            key,
-                        )
-                else:
-                    self.logger.debug(
-                        "CAhandler._environment_variables_handle(): setting environment variable: %s",
-                        key,
-                    )
-                    os.environ[key] = value
-            else:
+        env = dict(os.environ)
+        for key, value in (self.dns_update_script_variables or {}).items():
+            if key in forbidden_variables_list:
                 self.logger.warning(
-                    'CAhandler._environment_variables_handle(): environment variable "%s" is forbidden and will not be changed',
+                    'CAhandler._dns_script_env(): environment variable "%s" is forbidden and will not be changed',
                     key,
                 )
+                continue
+            self.logger.debug(
+                "CAhandler._dns_script_env(): applying environment variable: %s",
+                key,
+            )
+            env[key] = value
+        return env
 
     def _get_dns_challenge(self, authzr, user_key):
         self.logger.debug("_get_dns_challenge()")
@@ -1071,9 +1058,26 @@ class CAhandler(object):
                 self.logger.debug(
                     "Helper.eab_profile_list_check(): execute default allowed_domainlist_check()"
                 )
-                error = allowed_domainlist_check(self.logger, csr, value)
+                error = allowed_domainlist_check(
+                    self.logger,
+                    csr,
+                    value,
+                    allow_shortname_from_fqdn=self.allow_shortname_from_fqdn,
+                    shortname_denylist=self.shortname_denylist,
+                )
             if error:
                 result = error
+        elif key == "shortname_denylist":
+            if isinstance(value, list):
+                self.logger.debug(
+                    "CAhandler._eab_profile_list_check(): setting shortname_denylist to %s",
+                    value,
+                )
+                self.shortname_denylist = value
+            else:
+                self.logger.warning(
+                    "handler specific EAB profile list checking: shortname_denylist must be a list"
+                )
         elif hasattr(self, key):
             if not eab_profile_warn_if_denied(self.logger, key):
                 result = self._eab_profile_list_set(csr, key, value)

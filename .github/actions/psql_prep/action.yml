@@ -110,9 +110,12 @@ runs:
       if: inputs.INSTANCIATE == 'true'
       run: |
         set -euo pipefail
-        # pg_isready can succeed while connections still get FATAL "starting up".
+        # Unix-socket psql (no -h) can succeed against the entrypoint's temporary
+        # initdb server before TCP listens; configure then gets Connection refused.
+        # Probe TCP like mariadb_prep.
         for i in $(seq 1 60); do
-          if docker exec postgresdbsrv psql -U postgres -c 'SELECT 1' >/dev/null 2>&1; then
+          if docker exec -e PGPASSWORD=foobar postgresdbsrv \
+               psql -h 127.0.0.1 -U postgres -c 'SELECT 1' >/dev/null 2>&1; then
             echo "postgres ready after ${i}s"
             exit 0
           fi

@@ -6,6 +6,11 @@ on:
         description: Producer workflow run ID
         type: string
         required: true
+      sanitize_artifacts:
+        description: Sanitize failure artifacts (false keeps acme_srv.cfg / keys; secrets in upload)
+        type: boolean
+        required: false
+        default: true
 
 permissions: {}
 
@@ -321,3 +326,4 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

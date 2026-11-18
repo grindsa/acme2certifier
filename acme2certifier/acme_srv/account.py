@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import json
-from typing import List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 from dataclasses import dataclass, field
 from acme2certifier.acme_srv.helper import (
     generate_random_string,
@@ -24,6 +24,11 @@ from acme2certifier.acme_srv.signature import Signature
 from acme2certifier.acme_srv.helpers.global_variables import (
     DB_ERROR_MSG,
     CONFIGURATION_ERROR_DETAIL,
+)
+from acme2certifier.acme_srv.helpers.otel import (
+    ATTR_ACCOUNT_NAME,
+    set_span_outcome,
+    span,
 )
 
 
@@ -535,6 +540,16 @@ class Account:
             if code != 200:
                 return code, message, detail
 
+        if "jwk" not in protected or "alg" not in protected:
+            self.logger.warning(
+                "Account create rejected: missing jwk or alg in protected header"
+            )
+            return (
+                400,
+                self.err_msg_dic["malformed"],
+                "jwk and alg required in protected header",
+            )
+
         # Prepare account data
         account_data = AccountData(
             name=account_name,
@@ -614,7 +629,8 @@ class Account:
     ) -> Dict[str, str]:
         """Handle account deactivation."""
         self.logger.debug("Account._handle_deactivation(%s)", account_name)
-        if payload.get("status", "").lower() == "deactivated":
+        status = str(payload.get("status") or "").lower()
+        if status == "deactivated":
             account_obj = self._lookup_account_by_name(account_name)
             if not account_obj:
                 self.logger.warning(
@@ -1016,14 +1032,44 @@ class Account:
         if code != 200:
             return self._build_response(code, message, detail, payload)
 
-        # onlyReturnExisting check
+        # onlyReturnExisting is a lookup, not a create
         if "onlyreturnexisting" in payload:
-            code, message, detail = self._onlyreturnexisting(protected, payload)
+            with span(
+                "acme.account.query",
+                attributes={"acme.account.operation": "onlyreturnexisting"},
+            ) as active:
+                code, message, detail = self._onlyreturnexisting(protected, payload)
+                set_span_outcome(active, "success" if code == 200 else "failure")
+                if code == 200 and message:
+                    active.set_attribute(ATTR_ACCOUNT_NAME, str(message))
         else:
-            code, message, detail = self._create_account(payload, protected)
+            with span("acme.account.create") as active:
+                code, message, detail = self._create_account(payload, protected)
+                set_span_outcome(active, "success" if code in (200, 201) else "failure")
+                if code in (200, 201) and message:
+                    active.set_attribute(ATTR_ACCOUNT_NAME, str(message))
 
         self.logger.debug("Account.create_account() ended with: %s, %s", code, message)
         return self._build_response(code, message, detail, payload)
+
+    def _account_span_attrs(self, account_name: Optional[str]) -> Dict[str, str]:
+        """Common attributes for account mutation/query spans."""
+        attrs: Dict[str, str] = {}
+        if account_name:
+            attrs[ATTR_ACCOUNT_NAME] = str(account_name)
+        return attrs
+
+    def _outcome_from_response_code(self, code: Any) -> str:
+        """Map ACME HTTP response code to ``acme.outcome``."""
+        try:
+            status = int(code)
+        except (TypeError, ValueError):
+            return "failure"
+        if status >= 500:
+            return "error"
+        if status in (200, 201):
+            return "success"
+        return "failure"
 
     def parse_request(self, content: Dict[str, str]) -> Dict[str, str]:
         """Public method to parse an account-related request."""
@@ -1036,14 +1082,37 @@ class Account:
                 code, message, detail, account_name=account_name
             )
 
+        span_attrs = self._account_span_attrs(account_name)
         if "status" in payload:
-            return self._handle_deactivation(account_name, payload)
+            with span("acme.account.deactivate", attributes=span_attrs) as active:
+                response_dic = self._handle_deactivation(account_name, payload)
+                set_span_outcome(
+                    active, self._outcome_from_response_code(response_dic.get("code"))
+                )
+                return response_dic
         elif "contact" in payload:
-            return self._handle_contact_update(account_name, payload)
+            with span("acme.account.contact_update", attributes=span_attrs) as active:
+                response_dic = self._handle_contact_update(account_name, payload)
+                set_span_outcome(
+                    active, self._outcome_from_response_code(response_dic.get("code"))
+                )
+                return response_dic
         elif "payload" in payload:
-            return self._handle_key_change(account_name, payload, protected)
+            with span("acme.account.key_change", attributes=span_attrs) as active:
+                response_dic = self._handle_key_change(account_name, payload, protected)
+                set_span_outcome(
+                    active, self._outcome_from_response_code(response_dic.get("code"))
+                )
+                return response_dic
         elif not payload:
-            return self._handle_account_query(account_name)
+            query_attrs = dict(span_attrs)
+            query_attrs["acme.account.operation"] = "get"
+            with span("acme.account.query", attributes=query_attrs) as active:
+                response_dic = self._handle_account_query(account_name)
+                set_span_outcome(
+                    active, self._outcome_from_response_code(response_dic.get("code"))
+                )
+                return response_dic
         else:
             self.logger.warning("Unknown request account=%s", account_name)
             return self._build_response(

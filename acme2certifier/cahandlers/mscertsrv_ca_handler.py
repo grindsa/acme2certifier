@@ -10,7 +10,7 @@ import importlib
 import subprocess
 import threading
 from contextlib import contextmanager
-from typing import List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 
 # pylint: disable=e0401, e0611
 from acme2certifier.cahandlers.certsrv import (
@@ -20,6 +20,7 @@ from acme2certifier.cahandlers.certsrv import (
 )
 from acme2certifier.acme_srv.helper import (
     b64_url_recode,
+    config_allowed_templates_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_option_load,
@@ -120,7 +121,7 @@ class CAhandler(KerberosAuthMixin):
 
         return (error, cert_bundle, cert_raw)
 
-    def _config_headerinfo_load(self, config_dic: Dict[str, str]):
+    def _config_headerinfo_load(self, config_dic: Any):
         """load parameters"""
         self.logger.debug("_config_header_info()")
 
@@ -141,7 +142,7 @@ class CAhandler(KerberosAuthMixin):
 
         self.logger.debug("_config_header_info() ended")
 
-    def _config_user_load(self, config_dic: Dict[str, str]):
+    def _config_user_load(self, config_dic: Any):
         """load username"""
         self.logger.debug("CAhandler._config_user_load()")
         self.user = config_option_load(
@@ -149,7 +150,7 @@ class CAhandler(KerberosAuthMixin):
         )
         self.logger.debug("CAhandler._config_user_load() ended")
 
-    def _config_password_load(self, config_dic: Dict[str, str]):
+    def _config_password_load(self, config_dic: Any):
         """load username"""
         self.logger.debug("CAhandler._config_password_load()")
         self.password = config_option_load(
@@ -157,7 +158,7 @@ class CAhandler(KerberosAuthMixin):
         )
         self.logger.debug("CAhandler._config_password_load() ended")
 
-    def _config_hostname_load(self, config_dic: Dict[str, str]):
+    def _config_hostname_load(self, config_dic: Any):
         """load hostname"""
         self.logger.debug("CAhandler._config_hostname_load()")
         self.host = config_option_load(
@@ -171,7 +172,7 @@ class CAhandler(KerberosAuthMixin):
             )
         self.logger.debug("CAhandler._config_hostname_load() ended")
 
-    def _config_url_load(self, config_dic: Dict[str, str]):
+    def _config_url_load(self, config_dic: Any):
         self.url = config_option_load(self.logger, config_dic, "url", current=self.url)
 
         self._enrollment_url_https_check()
@@ -191,7 +192,7 @@ class CAhandler(KerberosAuthMixin):
         self.logger.error(error)
         return error
 
-    def _config_parameters_load(self, config_dic: Dict[str, str]):
+    def _config_parameters_load(self, config_dic: Any):
         """load hostname"""
         self.logger.debug("CAhandler._config_parameters_load()")
 
@@ -224,21 +225,6 @@ class CAhandler(KerberosAuthMixin):
         self.ca_bundle = config_dic.get(
             "CAhandler", "ca_bundle", fallback=self.ca_bundle
         )
-        self.krb5_principal = config_dic.get(
-            "CAhandler", "krb5_principal", fallback=self.krb5_principal
-        )
-        self.krb5_keytab = config_dic.get(
-            "CAhandler", "krb5_keytab", fallback=self.krb5_keytab
-        )
-        self.krb5_cache = config_dic.get(
-            "CAhandler", "krb5_cache", fallback=self.krb5_cache
-        )
-        self.krb5_config = config_dic.get(
-            "CAhandler", "krb5_config", fallback=self.krb5_config
-        )
-        self.krb5_kinit_path = config_dic.get(
-            "CAhandler", "krb5_kinit_path", fallback=self.krb5_kinit_path
-        )
         self.verify = config_dic.getboolean("CAhandler", "verify", fallback=True)
 
         # load enrollment config log
@@ -267,65 +253,11 @@ class CAhandler(KerberosAuthMixin):
             )
         self.logger.debug("CAhandler._security_configuration_warnings_log() ended")
 
-    def _config_allowed_templates_load(self, config_dic: Dict[str, str]) -> None:
+    def _config_allowed_templates_load(self, config_dic: Any) -> None:
         """Load template allowlist from Order.allowed_header_values or CAhandler.allowed_templates."""
-        self.logger.debug("CAhandler._config_allowed_templates_load()")
-        from acme2certifier.acme_srv.helpers.config import (  # pylint: disable=C0415
-            config_allowed_header_values_load,
-        )
+        self.allowed_templates = config_allowed_templates_load(self.logger, config_dic)
 
-        order_values = config_allowed_header_values_load(self.logger, config_dic)
-        if order_values:
-            self.allowed_templates = order_values
-            self.logger.debug(
-                "CAhandler._config_allowed_templates_load() ended with %s entries "
-                "from Order.allowed_header_values",
-                len(self.allowed_templates),
-            )
-            return
-
-        if "allowed_templates" not in config_dic["CAhandler"]:
-            self.logger.warning(
-                "No [Order] allowed_header_values configured; client-selected "
-                "templates are ignored unless %s is set. Configure "
-                "allowed_header_values to restrict enrollment templates without "
-                "the break-glass env.",
-                "ACME2CERTIFIER_I_KNOW_THE_RISK",
-            )
-            self.logger.debug("CAhandler._config_allowed_templates_load() ended")
-            return
-
-        self.logger.warning(
-            "CAhandler allowed_templates is deprecated for header allowlisting; "
-            "move the list to [Order] allowed_header_values"
-        )
-
-        try:
-            loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
-            if not isinstance(loaded, list):
-                raise ValueError("allowed_templates must be a JSON list")
-            self.allowed_templates = [str(item) for item in loaded]
-        except Exception as err_:
-            self.logger.warning(
-                "Failed to parse allowed_templates from configuration: %s. "
-                "Treating as empty allowlist.",
-                err_,
-            )
-            self.allowed_templates = []
-
-        if not self.allowed_templates:
-            self.logger.warning(
-                "allowed_templates is empty; client-selected templates are ignored "
-                "unless %s is set. Configure [Order] allowed_header_values to "
-                "restrict enrollment templates without the break-glass env.",
-                "ACME2CERTIFIER_I_KNOW_THE_RISK",
-            )
-        self.logger.debug(
-            "CAhandler._config_allowed_templates_load() ended with %s entries",
-            len(self.allowed_templates),
-        )
-
-    def _config_ca_templates_check_load(self, config_dic: Dict[str, str]) -> None:
+    def _config_ca_templates_check_load(self, config_dic: Any) -> None:
         """Load ca_templates_check mode (warn|on|off)."""
         self.logger.debug("CAhandler._config_ca_templates_check_load()")
         mode = config_dic.get(
@@ -347,7 +279,7 @@ class CAhandler(KerberosAuthMixin):
             self.ca_templates_check,
         )
 
-    def _config_proxy_load(self, config_dic: Dict[str, str]):
+    def _config_proxy_load(self, config_dic: Any):
         """load hostname"""
         self.logger.debug("CAhandler._config_proxy_load()")
         host_ref = self.url or self.host or ""
@@ -381,29 +313,6 @@ class CAhandler(KerberosAuthMixin):
         self._config_proxy_load(config_dic)
 
         self.logger.debug("CAhandler._config_load() ended")
-
-    def _config_kerberos_parameters_load(self, config_dic: Dict[str, str]):
-        """load kerberos related parameters from env or config"""
-        self.logger.debug("CAhandler._config_kerberos_parameters_load()")
-        if "CAhandler" not in config_dic:
-            return
-
-        self.krb5_principal = config_option_load(
-            self.logger, config_dic, "krb5_principal", current=self.krb5_principal
-        )
-        self.krb5_keytab = config_option_load(
-            self.logger, config_dic, "krb5_keytab", current=self.krb5_keytab
-        )
-        self.krb5_cache = config_option_load(
-            self.logger, config_dic, "krb5_cache", current=self.krb5_cache
-        )
-        self.krb5_config = config_option_load(
-            self.logger, config_dic, "krb5_config", current=self.krb5_config
-        )
-        self.krb5_kinit_path = config_option_load(
-            self.logger, config_dic, "krb5_kinit_path", current=self.krb5_kinit_path
-        )
-        self.logger.debug("CAhandler._config_kerberos_parameters_load() ended")
 
     @contextmanager
     def _kerberos_runtime_environment(self):
@@ -801,13 +710,18 @@ class CAhandler(KerberosAuthMixin):
         if error:
             self.logger.error("EAB profile check failed: %s", error)
         else:
-            error = self._allowed_templates_check()
-            if error:
-                self.logger.error("Template allowlist check failed: %s", error)
+            # Re-check after profile: kid profiles may override url.
+            https_error = self._enrollment_url_https_check()
+            if https_error:
+                error = https_error
             else:
-                # explicit GSSAPI creds for the TGT; KRB5_CONFIG scoped for TGS/SPNEGO
-                with self._kerberos_runtime_environment():
-                    error, cert_bundle, cert_raw = self._enroll(csr)
+                error = self._allowed_templates_check()
+                if error:
+                    self.logger.error("Template allowlist check failed: %s", error)
+                else:
+                    # explicit GSSAPI creds for the TGT; KRB5_CONFIG scoped for TGS/SPNEGO
+                    with self._kerberos_runtime_environment():
+                        error, cert_bundle, cert_raw = self._enroll(csr)
 
         self._kerberos_cleanup_temporary_ccache()
         self.logger.debug("Certificate.enroll() ended")

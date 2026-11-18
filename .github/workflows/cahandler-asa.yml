@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
@@ -168,6 +173,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-useragent.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # Channel enrollments wait for the user-agent warmup, then run in parallel.
   # Children are workflow_call-only so the broker cannot skip preflight.
@@ -180,6 +186,7 @@ jobs:
     secrets: inherit
     uses: ./.github/workflows/_cahandler-asa-containers.yml
     with:
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
       run_id: ${{ inputs.run_id }}
 
   rpm:
@@ -191,6 +198,7 @@ jobs:
     secrets: inherit
     uses: ./.github/workflows/_cahandler-asa-rpm.yml
     with:
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
       run_id: ${{ inputs.run_id }}
 
   deb:
@@ -202,4 +210,5 @@ jobs:
     secrets: inherit
     uses: ./.github/workflows/_cahandler-asa-deb.yml
     with:
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
       run_id: ${{ inputs.run_id }}

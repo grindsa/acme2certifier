@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
@@ -581,6 +586,7 @@ jobs:
         uses: ./.github/actions/sanitize_artifact_payload
         with:
           ARTIFACT_DIR: ${{ github.workspace }}/artifact
+          ENABLED: ${{ inputs.sanitize_artifacts }}
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7

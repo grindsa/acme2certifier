@@ -30,6 +30,9 @@ spec:
           ephemeral-storage: "1Gi"
       image: grindsa/acme2certifier:devel
       imagePullPolicy: Never
+      env:
+        - name: ACME_SRV_DB_HANDLER
+          value: "DB_HANDLER"
       ports:
         - containerPort: 80
       volumeMounts:

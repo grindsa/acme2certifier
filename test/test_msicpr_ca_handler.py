@@ -628,7 +628,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
         self.assertIn(
-            "WARNING:test_a2c:Failed to parse 'timeout' from configuration. Using default value 5. Error: invalid literal for int() with base 10: 'aaaa'",
+            "WARNING:test_a2c:Failed to parse timeout parameter: invalid literal for int() with base 10: 'aaaa'",
             lcm.output,
         )
         self.assertEqual(5, self.cahandler.timeout)
@@ -1724,8 +1724,8 @@ class TestACMEHandler(unittest.TestCase):
             },
             call_kwargs["store"],
         )
-        self.assertEqual("principal_obj", call_kwargs["desired_name"])
-        self.assertEqual("initiate", call_kwargs["cred_usage"])
+        self.assertEqual("principal_obj", call_kwargs["name"])
+        self.assertEqual("initiate", call_kwargs["usage"])
 
     def test_088_kerberos_acquire_with_gssapi_raw_exception(self):
         """test kerberos raw gssapi acquire exception path"""
@@ -1801,8 +1801,11 @@ class TestACMEHandler(unittest.TestCase):
 
         mock_isfile.return_value = False
 
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            result = self.cahandler._kerberos_acquire_with_kinit("/tmp/krb5cc_svc")
+        # Isolate from ambient KRB5_CONFIG (kinit env is a copy of os.environ).
+        clean_env = {k: v for k, v in os.environ.items() if k != "KRB5_CONFIG"}
+        with patch.dict(os.environ, clean_env, clear=True):
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                result = self.cahandler._kerberos_acquire_with_kinit("/tmp/krb5cc_svc")
 
         self.assertTrue(result)
         self.assertTrue(mock_subprocess_run.called)

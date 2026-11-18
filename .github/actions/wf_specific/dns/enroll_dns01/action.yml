@@ -121,12 +121,14 @@ runs:
   - name: "Check TXT record exists"
     if: ${{ failure() }}
     run: |
+      docker_ip_fmt='{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
+      acme_sh_ip="$(docker inspect -f "${docker_ip_fmt}" acme-sh)"
       docker exec -i acme-sh ps -a
       docker exec -i acme-sh netstat -anu
-      dig -t TXT _acme-challenge.acme-sh.single @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-      dig -t TXT _acme-challenge.acme-sh.first @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-      dig -t TXT _acme-challenge.acme-sh.second @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-      dig -t TXT _acme-challenge.acme-sh.wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-      dig -t TXT _acme-challenge.acme-sh.first-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-      dig -t TXT _acme-challenge.acme-sh.second-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+      dig -t TXT _acme-challenge.acme-sh.single @"${acme_sh_ip}"
+      dig -t TXT _acme-challenge.acme-sh.first @"${acme_sh_ip}"
+      dig -t TXT _acme-challenge.acme-sh.second @"${acme_sh_ip}"
+      dig -t TXT _acme-challenge.acme-sh.wildcard @"${acme_sh_ip}"
+      dig -t TXT _acme-challenge.acme-sh.first-wildcard @"${acme_sh_ip}"
+      dig -t TXT _acme-challenge.acme-sh.second-wildcard @"${acme_sh_ip}"
     shell: bash

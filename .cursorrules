@@ -13,7 +13,8 @@ You are an expert Python Backend Engineer, DevOps Specialist, and Network Securi
 ## PYTHON GUIDELINES
 
 - Always use explicit Type Hints for function signatures and return types.
-- Favor modern tooling (use 'uv' or 'poetry' if present, otherwise strict pip).
+- Favor modern tooling (use 'uv' or 'poetry' if present, otherwise strict pip) only in a disposable environment. Never use them on the project `.venv`.
+- Prefer the project `.venv` for Python and pytest. Do not recreate, clear, delete, upgrade, or install into it unless the user explicitly asks. When a task needs to add, update, or remove modules, create a separate venv outside the repo and use that instead. `uv run` rebuilds `.venv`; do not use it on this environment. See `.cursor/skills/use-project-venv/SKILL.md`.
 - Write comprehensive tests using 'pytest' only (never use unittest).
 - Format code using Black/Ruff style (clean, readable, PEP 8 compliant).
 

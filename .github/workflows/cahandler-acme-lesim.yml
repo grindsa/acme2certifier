@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
@@ -150,6 +155,7 @@ jobs:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-container-lesim-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           SIDECAR_LOGS: acme-le-sim
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
       - name: "Secure cleanup"
         if: ${{ always() }}
@@ -269,6 +275,7 @@ jobs:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-lesim-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           SIDECAR_LOGS: acme-le-sim
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
       - name: "Secure cleanup"
         if: ${{ always() }}
@@ -383,6 +390,7 @@ jobs:
           ARTIFACT_NAME: test-deb-lesim-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
           SIDECAR_LOGS: acme-le-sim
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
       - name: "Secure cleanup"
         if: ${{ always() }}

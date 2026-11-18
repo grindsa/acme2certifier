@@ -426,28 +426,28 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Check acmeshell log for orderNotReady (order not found)"
+    - name: "Check acmeshell log for unauthorized (unknown order)"
       working-directory: acmeshell
       run: |
-        grep "urn:ietf:params:acme:error:orderNotReady" acmeshell.enroll.log
+        grep "urn:ietf:params:acme:error:unauthorized" acmeshell.enroll.log
       shell: bash
 
-    - name: "Check a2c logs for order not found WARNING"
+    - name: "Check a2c logs for ownership denial WARNING (unknown order)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "Order request failed: order not found order=doesnotexist99"
+        PATTERN: "resource access denied: unauthorized account="
         FLUSH: "false"
 
-    - name: "Check a2c logs for ACME problem (order not found)"
+    - name: "Check a2c logs for ACME problem (unknown order unauthorized)"
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         COMPOSE_SERVICE: ${{ inputs.ACME_SERVER }}
-        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:orderNotReady detail=order not found"
+        PATTERN: "ACME problem code=403 type=urn:ietf:params:acme:error:unauthorized detail=Unauthorized"
 
     - name: "Enable challenge_validation_disable for CSR-missing finalize"
       if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}

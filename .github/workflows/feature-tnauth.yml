@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
@@ -113,7 +118,7 @@ jobs:
       - name: "Verify tnauth enrollment failed without acknowledgement"
         run: |
           if [[ "${{ steps.tnauth_fail_closed.outcome }}" != "failure" ]]; then
-            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK"
+            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK" >&2
             exit 1
           fi
           echo "tnauth enrollment failed as expected without break-glass acknowledgement"
@@ -155,6 +160,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
@@ -230,7 +236,7 @@ jobs:
       - name: "Verify tnauth enrollment failed without acknowledgement"
         run: |
           if [[ "${{ steps.tnauth_fail_closed.outcome }}" != "failure" ]]; then
-            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK"
+            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK" >&2
             exit 1
           fi
           echo "tnauth enrollment failed as expected without break-glass acknowledgement"
@@ -265,6 +271,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   # ---------------------------------------------------------
   # Test DEB downloaded from the producer run
@@ -342,7 +349,7 @@ jobs:
       - name: "Verify tnauth enrollment failed without acknowledgement"
         run: |
           if [[ "${{ steps.tnauth_fail_closed.outcome }}" != "failure" ]]; then
-            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK"
+            echo "ERROR: tnauth enrollment succeeded without ACME2CERTIFIER_I_KNOW_THE_RISK" >&2
             exit 1
           fi
           echo "tnauth enrollment failed as expected without break-glass acknowledgement"
@@ -385,3 +392,4 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

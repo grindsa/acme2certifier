@@ -24,6 +24,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_number_load,
     config_option_load,
     config_ca_bundle_load,
     config_profile_load,
@@ -33,6 +34,7 @@ from acme2certifier.acme_srv.helper import (
     enrollment_config_log,
     error_dic_get,
     handler_config_check,
+    header_info_get,
     load_config,
     config_proxy_load,
     uts_now,
@@ -149,20 +151,6 @@ class CAhandler(object):
                 "CAhandler", option, fallback=str(fallback)
             ).lower() in ("true", "1", "yes")
 
-    def _config_int_get(self, config_dic, option: str, fallback: int) -> int:
-        """Read an integer CAhandler option; keep fallback on parse errors."""
-        try:
-            return int(config_dic.get("CAhandler", option, fallback=fallback))
-        except Exception:
-            return fallback
-
-    def _config_float_get(self, config_dic, option: str, fallback: float) -> float:
-        """Read a float CAhandler option; keep fallback on parse errors."""
-        try:
-            return float(config_dic.get("CAhandler", option, fallback=fallback))
-        except Exception:
-            return fallback
-
     def _config_credentials_load(self, config_dic) -> None:
         """Load requester credentials and certificate profile options."""
         self.api_url = config_dic.get(
@@ -220,14 +208,26 @@ class CAhandler(object):
 
     def _config_http_load(self, config_dic) -> None:
         """Load HTTP client timeouts/retries and optional CA bundle."""
-        self.request_timeout = self._config_int_get(
-            config_dic, "request_timeout", self.request_timeout
+        self.request_timeout = config_number_load(
+            self.logger,
+            config_dic,
+            "request_timeout",
+            cast=int,
+            current=self.request_timeout,
         )
-        self.request_retries = self._config_int_get(
-            config_dic, "request_retries", self.request_retries
+        self.request_retries = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retries",
+            cast=int,
+            current=self.request_retries,
         )
-        self.request_retry_backoff = self._config_float_get(
-            config_dic, "request_retry_backoff", self.request_retry_backoff
+        self.request_retry_backoff = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retry_backoff",
+            cast=float,
+            current=self.request_retry_backoff,
         )
         self.ca_bundle = config_ca_bundle_load(
             self.logger, config_dic, current=self.ca_bundle
@@ -890,10 +890,22 @@ class CAhandler(object):
 
     def _txn_cert_serial_match(self, txn_id: str, serial_norm: str) -> bool:
         """Return True if GetCertificate for txn_id has matching serial."""
-        cert_data = self._certificate_fetch(txn_id)
+        try:
+            cert_data = self._certificate_fetch(txn_id)
+        except ValueError as err_:
+            # Skip them while scanning GetMyTransactions for revoke.
+            self.logger.debug(
+                "CAhandler._txn_cert_serial_match(): skip %s (%s)", txn_id, err_
+            )
+            return False
         if not cert_data:
             return False
         cert_serial = cert_data.get("serialNumber") or cert_data.get("serial")
+        if not cert_serial:
+            # HARICA often omits JSON serial fields; derive from PEM when present.
+            _bundle, cert_raw = self._certificate_parse(cert_data)
+            if cert_raw:
+                cert_serial = cert_serial_get(self.logger, cert_raw, hexformat=True)
         return bool(
             cert_serial and self._serial_normalize(str(cert_serial)) == serial_norm
         )
@@ -906,16 +918,40 @@ class CAhandler(object):
         check_item_serial: bool,
     ) -> Optional[str]:
         """Find transaction id in a transaction list by certificate serial."""
-        for item in transactions:
-            if not isinstance(item, dict):
-                continue
-            if check_item_serial:
+        # Newest first — GetMyTransactions is typically oldest-first and a full
+        # GetCertificate walk of a large history exceeds ACME client timeouts.
+        items = [
+            item for item in reversed(list(transactions)) if isinstance(item, dict)
+        ]
+        if check_item_serial:
+            for item in items:
                 matched = self._item_serial_match(item, serial_norm)
                 if matched:
                     return matched
+        for item in items:
             txn_id = item.get("transactionId") or item.get("id")
             if txn_id and self._txn_cert_serial_match(txn_id, serial_norm):
                 return txn_id
+        return None
+
+    def _transaction_id_from_db(self, certificate_raw: str) -> Optional[str]:
+        """Return stored HARICA transaction id (poll_identifier) for a certificate."""
+        self.logger.debug("CAhandler._transaction_id_from_db()")
+        cert_recode = b64_url_recode(self.logger, certificate_raw)
+        pid_list = header_info_get(
+            self.logger,
+            csr=cert_recode,
+            vlist=["poll_identifier"],
+            field_name="cert_raw",
+        )
+        for ele in pid_list:
+            if isinstance(ele, dict) and ele.get("poll_identifier"):
+                txn_id = ele["poll_identifier"]
+                self.logger.debug(
+                    "CAhandler._transaction_id_from_db() ended with %s", txn_id
+                )
+                return txn_id
+        self.logger.debug("CAhandler._transaction_id_from_db() ended with None")
         return None
 
     def _transaction_id_by_serial(self, serial: str) -> Optional[str]:
@@ -989,7 +1025,8 @@ class CAhandler(object):
             )
         cert_bundle, cert_raw = self._certificate_parse(cert_data)
         if cert_bundle:
-            return None, cert_bundle, cert_raw, None
+            # Keep HARICA transaction id so revoke can skip the serial scan.
+            return None, cert_bundle, cert_raw, poll_identifier
         return None, None, None, poll_identifier
 
     def _enroll_submit(
@@ -1111,7 +1148,9 @@ class CAhandler(object):
                 self.requester_password,
                 self.requester_totp_seed,
             )
-            transaction_id = self._transaction_id_by_serial(cert_serial)
+            transaction_id = self._transaction_id_from_db(certificate_raw)
+            if not transaction_id:
+                transaction_id = self._transaction_id_by_serial(cert_serial)
             if not transaction_id:
                 detail = f"No HARICA transaction found for serial {cert_serial}"
                 return 404, message, detail

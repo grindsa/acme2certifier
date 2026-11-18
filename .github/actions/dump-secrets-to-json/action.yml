@@ -61,11 +61,10 @@ runs:
           secret_value=""
 
           # Preferred: resolve from a JSON snapshot of GitHub secrets passed by workflow env
-          if [ -n "$ALL_SECRETS_JSON" ] && command -v jq >/dev/null 2>&1; then
-            if echo "$ALL_SECRETS_JSON" | jq -e --arg k "$secret_name" 'has($k)' >/dev/null 2>&1; then
-              secret_value=$(echo "$ALL_SECRETS_JSON" | jq -r --arg k "$secret_name" '.[$k]')
-              secret_found=true
-            fi
+          if [ -n "$ALL_SECRETS_JSON" ] && command -v jq >/dev/null 2>&1 \
+            && echo "$ALL_SECRETS_JSON" | jq -e --arg k "$secret_name" 'has($k)' >/dev/null 2>&1; then
+            secret_value=$(echo "$ALL_SECRETS_JSON" | jq -r --arg k "$secret_name" '.[$k]')
+            secret_found=true
           fi
 
           # Fallback: resolve from step env var with matching secret name

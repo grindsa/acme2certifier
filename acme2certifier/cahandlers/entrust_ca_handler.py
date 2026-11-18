@@ -16,9 +16,11 @@ from acme2certifier.acme_srv.helper import (
     cert_pem2der,
     cert_serial_get,
     config_allowed_domainlist_load,
+    config_shortname_denylist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_number_load,
     config_option_load,
     config_profile_load,
     csr_cn_lookup,
@@ -87,6 +89,8 @@ class CAhandler(object):
         self.request_retry_backoff = 2.0
 
         self.allowed_domainlist = []
+        self.allow_shortname_from_fqdn = False
+        self.shortname_denylist = []
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
@@ -190,47 +194,34 @@ class CAhandler(object):
             self.api_url = config_dic.get(
                 "CAhandler", "api_url", fallback="https://api.entrust.net/enterprise/v2"
             )
-            try:
-                self.request_timeout = int(
-                    config_dic.get(
-                        "CAhandler", "request_timeout", fallback=self.request_timeout
-                    )
-                )
-            except Exception as err:
-                self.logger.error("Failed to parse request_timeout parameter: %s", err)
-            try:
-                self.request_retries = int(
-                    config_dic.get(
-                        "CAhandler", "request_retries", fallback=self.request_retries
-                    )
-                )
-            except Exception as err:
-                self.logger.error("Failed to parse request_retries parameter: %s", err)
-            try:
-                self.request_retry_backoff = float(
-                    config_dic.get(
-                        "CAhandler",
-                        "request_retry_backoff",
-                        fallback=self.request_retry_backoff,
-                    )
-                )
-            except Exception as err:
-                self.logger.error(
-                    "Failed to parse request_retry_backoff parameter: %s", err
-                )
-            try:
-                self.cert_validity_days = int(
-                    config_dic.get(
-                        "CAhandler",
-                        "cert_validity_days",
-                        fallback=self.cert_validity_days,
-                    )
-                )
-            except Exception as err:
-                self.logger.error(
-                    "Failed to parse cert_validity_days %s parameter",
-                    err,
-                )
+            self.request_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "request_timeout",
+                cast=int,
+                current=self.request_timeout,
+            )
+            self.request_retries = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retries",
+                cast=int,
+                current=self.request_retries,
+            )
+            self.request_retry_backoff = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retry_backoff",
+                cast=float,
+                current=self.request_retry_backoff,
+            )
+            self.cert_validity_days = config_number_load(
+                self.logger,
+                config_dic,
+                "cert_validity_days",
+                cast=int,
+                current=self.cert_validity_days,
+            )
 
             self.username = config_dic.get(
                 "CAhandler", "username", fallback=self.username
@@ -253,6 +244,13 @@ class CAhandler(object):
         self.allowed_domainlist = config_allowed_domainlist_load(
             self.logger, config_dic
         )
+        self.shortname_denylist = config_shortname_denylist_load(
+            self.logger, config_dic
+        )
+        if "Order" in config_dic:
+            self.allow_shortname_from_fqdn = config_dic.getboolean(
+                "Order", "allow_shortname_from_fqdn", fallback=False
+            )
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -269,7 +267,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_load() ended")
 
-    def _config_passphrase_load(self, config_dic: Dict[str, str]):
+    def _config_passphrase_load(self, config_dic: Any):
         """load passphrase"""
         self.logger.debug("CAhandler._config_passphrase_load()")
         self.cert_passphrase = config_option_load(
@@ -277,7 +275,7 @@ class CAhandler(object):
         )
         self.logger.debug("CAhandler._config_passphrase_load() ended")
 
-    def _config_root_load(self, config_dic: Dict[str, str]):
+    def _config_root_load(self, config_dic: Any):
         """load root CA"""
         self.logger.debug("CAhandler._config_root_load()")
         if "entrust_root_cert" in config_dic["CAhandler"]:
@@ -298,7 +296,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_root_load() ended")
 
-    def _config_session_load(self, config_dic: Dict[str, str]):
+    def _config_session_load(self, config_dic: Any):
         """load session"""
         self.logger.debug("CAhandler._config_session_load()")
 
@@ -441,7 +439,13 @@ class CAhandler(object):
 
         if not error:
             # check for allowed domainlist
-            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+            error = allowed_domainlist_check(
+                self.logger,
+                csr,
+                self.allowed_domainlist,
+                allow_shortname_from_fqdn=self.allow_shortname_from_fqdn,
+                shortname_denylist=self.shortname_denylist,
+            )
 
         if not error:
             error = self.credential_check()

@@ -11,6 +11,12 @@ on:
         type: string
         required: true
 
+      sanitize_artifacts:
+        description: Sanitize failure artifacts (false keeps acme_srv.cfg / keys; secrets in upload)
+        type: boolean
+        required: false
+        default: true
+
 permissions: {}
 
 jobs:
@@ -306,6 +312,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: mswcce-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mswcce-eab-container-tests:
     permissions:
@@ -341,8 +348,7 @@ jobs:
           json_secret: ${{ secrets.GH_CFG }}
 
       - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        uses: ./.github/actions/get_runner_ip
 
       - name: "Setup dnsmasq"
         uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
@@ -356,7 +362,7 @@ jobs:
         uses: ./.github/actions/container_load
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.tar
           DESTINATION_PATH: /tmp
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
@@ -495,6 +501,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: mswcce-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mswcce-tests-rpm:
     permissions:
@@ -711,6 +718,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: mswcce-test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mswcce-eab-tests-rpm:
     permissions:
@@ -882,6 +890,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: mswcce_eabprofiling-tests-rpm-rh${{ matrix.rhversion }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
   mswcce-test-deb:
     permissions:
@@ -1098,3 +1107,4 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: mswcce-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           WEBSRV: ${{ matrix.websrv }}
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

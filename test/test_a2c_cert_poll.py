@@ -126,7 +126,7 @@ class TestA2CCertPoll(unittest.TestCase):
         mock_cert.poll.assert_called_once_with("c1", "p1", "csr1", "o1")
         self.assertEqual(mock_logger.warning.call_count, 2)
 
-    def test_003_module_main_entrypoint(self):
+    def test_005_module_main_entrypoint(self):
         """``__main__`` guard calls main()"""
         import runpy
 

@@ -36,6 +36,7 @@ imap_use_ssl = true
 smtp_server = smtp.example.com
 smtp_port = 587
 smtp_use_tls = true
+email_ssl_verify = true
 username = acme2certifier
 password = a2c-password
 email = a2c@example.com
@@ -62,6 +63,7 @@ Adjust the values to match your email server settings.
 | `smtp_server`            | SMTP server address for sending challenge emails.                                            |
 | `smtp_port`              | SMTP server port (usually 587 for TLS).                                                      |
 | `smtp_use_tls`           | Set to `true` to use TLS for SMTP connections.                                               |
+| `email_ssl_verify`       | Verify TLS certificates and hostname for IMAP SSL / SMTP SSL / STARTTLS to the configured mail servers (default `true`). Set to `false` only for lab setups with untrusted mail-server certificates; a warning is logged. Does not affect CA-handler TLS settings. |
 | `username`               | acme2certifier username for authenticating to the email server.                              |
 | `password`               | acme2certifier password for authenticating to the email server.                              |
 | `email_address`          | email-address used by acme2certifier for sending and receiving emails.                       |

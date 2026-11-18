@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   # Shared NCM EC2: serialize across branches so master+devel cannot start the same box.
@@ -169,6 +174,7 @@ jobs:
     secrets: inherit
     uses: ./.github/workflows/_cahandler-certifier-rest.yml
     with:
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
       run_id: ${{ inputs.run_id }}
       public_ip: ${{ needs.instance_start.outputs.public_ip }}
 
@@ -181,6 +187,7 @@ jobs:
     secrets: inherit
     uses: ./.github/workflows/_cahandler-certifier-cmpv2.yml
     with:
+      sanitize_artifacts: ${{ inputs.sanitize_artifacts }}
       run_id: ${{ inputs.run_id }}
       public_ip: ${{ needs.instance_start.outputs.public_ip }}
 

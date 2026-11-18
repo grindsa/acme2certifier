@@ -29,18 +29,20 @@ runs:
         svc="${COMPOSE_SERVICE}"
         exec_in() { docker compose exec -T "${svc}" "$@"; }
 
-        # --- DB handler (baked into image ENV) ---
+        # --- DB handler (compose/runtime ENV; cfg may override app, not this env) ---
         got_db="$(exec_in printenv ACME_SRV_DB_HANDLER)"
         echo "ACME_SRV_DB_HANDLER=${got_db} (expected ${DB_HANDLER})"
         test "${got_db}" = "${DB_HANDLER}"
 
         image="$(docker inspect --format='{{.Config.Image}}' "${svc}")"
         echo "Image=${image}"
-        # Compose local tags: acme2certifier/wsgi — Hub tags: grindsa/acme2certifier:X-apache2-wsgi
+        # Unified compose tags: acme2certifier/apache2 — legacy: acme2certifier/wsgi —
+        # Hub: grindsa/acme2certifier:X-apache2-wsgi (phase-2 aliases: X-apache2)
         case "${image}" in
+          */"${WEB_SRV}"|*/"${WEB_SRV}":*|*-"${WEB_SRV}"|*-"${WEB_SRV}":*| \
           */"${DB_HANDLER}"|*/"${DB_HANDLER}":*|*-"${DB_HANDLER}"|*-"${DB_HANDLER}":*) ;;
           *)
-            echo "ERROR: image '${image}' does not look like a ${DB_HANDLER} variant" >&2
+            echo "ERROR: image '${image}' does not look like ${WEB_SRV} / ${DB_HANDLER}" >&2
             exit 1
             ;;
         esac
@@ -48,6 +50,7 @@ runs:
         # --- Web server: installed binary + running process ---
         # Use in-container ps output; docker top formatting varies by daemon.
         has_comm() {
+          local proc_name="$1"
           exec_in sh -c '
             name="$1"
             i=0
@@ -59,7 +62,7 @@ runs:
               sleep 1
             done
             exit 1
-          ' sh "$1"
+          ' sh "${proc_name}"
         }
         list_comms() {
           exec_in sh -c 'ps -eo comm= 2>/dev/null || true' | sort -u
@@ -99,17 +102,26 @@ runs:
         esac
 
         # --- Handler-specific filesystem markers (survive log flushes) ---
+        # Unified images keep both WSGI and Django entry points; mode is runtime.
+        exec_in test -f /var/www/acme2certifier/acme2certifier_wsgi.py
         if [[ "${DB_HANDLER}" == "django" ]]; then
+          PKG_MIG=/usr/lib/python3/dist-packages/acme2certifier/django_app/migrations
           exec_in test -f /var/www/acme2certifier/volume/settings.py
-          exec_in test -d /var/www/acme2certifier/volume/migrations
           exec_in python3 -c "import django"
-          if exec_in test -f /var/www/acme2certifier/acme2certifier_wsgi.py; then
-            echo "ERROR: wsgi entrypoint file present in expected django image" >&2
+          # Migration files ship in the image — must be a real dir, not a volume symlink.
+          if exec_in sh -c "test -L '${PKG_MIG}'"; then
+            echo "ERROR: package migrations path is a symlink (legacy volume link)" >&2
             exit 1
           fi
-          echo "Django markers OK (settings.py, migrations/, import django)"
+          exec_in test -d "${PKG_MIG}"
+          exec_in test -f "${PKG_MIG}/__init__.py"
+          exec_in test -d "${PKG_MIG}.image"
+          # volume/migrations is deprecated; presence is OK (ignored), absence is OK.
+          if exec_in test -d /var/www/acme2certifier/volume/migrations; then
+            echo "NOTE: volume/migrations present (ignored by entrypoint)"
+          fi
+          echo "Django markers OK (settings.py, in-image migrations, import django)"
         else
-          exec_in test -f /var/www/acme2certifier/acme2certifier_wsgi.py
           echo "WSGI markers OK (acme2certifier_wsgi.py present)"
         fi
       env:

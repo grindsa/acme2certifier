@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 import time
-from typing import List, Tuple, Dict
+from typing import Any, List, Tuple, Dict
 import requests
 
 # pylint: disable=e0401, r0913
@@ -15,6 +15,7 @@ from acme2certifier.acme_srv.helper import (
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
+    config_number_load,
     config_option_load,
     config_ca_bundle_load,
     config_profile_load,
@@ -451,7 +452,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_check() ended")
 
-    def _config_api_user_load(self, config_dic: Dict[str, str]):
+    def _config_api_user_load(self, config_dic: Any):
         """load user"""
         self.logger.debug("CAhandler._config_api_user_load()")
         self.credential_dic["api_user"] = config_option_load(
@@ -462,7 +463,7 @@ class CAhandler(object):
         )
         self.logger.debug("CAhandler._config_api_user_load() ended.")
 
-    def _config_api_password_load(self, config_dic: Dict[str, str]):
+    def _config_api_password_load(self, config_dic: Any):
         """load password"""
         self.logger.debug("CAhandler._config_api_password_load()")
         self.credential_dic["api_password"] = config_option_load(
@@ -473,7 +474,7 @@ class CAhandler(object):
         )
         self.logger.debug("CAhandler._config_api_password_load() ended")
 
-    def _config_names_load(self, config_dic: Dict[str, str]):
+    def _config_names_load(self, config_dic: Any):
         """load names from config"""
         self.logger.debug("CAhandler._config_names_load()")
 
@@ -497,13 +498,13 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_names_load() ended")
 
-    def _config_proxy_load(self, config_dic: Dict[str, str]):
+    def _config_proxy_load(self, config_dic: Any):
         """load proxy configuration"""
         self.logger.debug("CAhandler._config_proxy_load()")
         self.proxy = config_proxy_load(self.logger, config_dic, self.api_host)
         self.logger.debug("CAhandler._config_proxy_load() ended")
 
-    def _config_timer_load(self, config_dic: Dict[str, str]):
+    def _config_timer_load(self, config_dic: Any):
         """load timer"""
         self.logger.debug("CAhandler._config_proxy_load()")
 
@@ -511,31 +512,27 @@ class CAhandler(object):
             self.logger, config_dic, current=self.ca_bundle
         )
 
-        if "request_timeout" in config_dic["CAhandler"]:
-            try:
-                self.request_timeout = int(
-                    config_dic.get(
-                        "CAhandler", "request_timeout", fallback=self.request_timeout
-                    )
-                )
-            except Exception:
-                self.request_timeout = 20
-
-        if "request_retries" in config_dic["CAhandler"]:
-            try:
-                self.request_retries = int(
-                    config_dic.get("CAhandler", "request_retries")
-                )
-            except Exception:
-                self.request_retries = 3
-
-        if "request_retry_backoff" in config_dic["CAhandler"]:
-            try:
-                self.request_retry_backoff = float(
-                    config_dic.get("CAhandler", "request_retry_backoff")
-                )
-            except Exception:
-                self.request_retry_backoff = 2.0
+        self.request_timeout = config_number_load(
+            self.logger,
+            config_dic,
+            "request_timeout",
+            cast=int,
+            current=self.request_timeout,
+        )
+        self.request_retries = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retries",
+            cast=int,
+            current=self.request_retries,
+        )
+        self.request_retry_backoff = config_number_load(
+            self.logger,
+            config_dic,
+            "request_retry_backoff",
+            cast=float,
+            current=self.request_retry_backoff,
+        )
 
         self.logger.debug("CAhandler._config_proxy_load() ended")
 

@@ -56,7 +56,7 @@ jobs:
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       max-parallel: 1

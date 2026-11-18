@@ -21,7 +21,7 @@ runs:
       sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Basic Constraints: critical"
       sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Digital Signature, Key Encipherment"
       sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
-      sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Subject: CN = certbot.acme"
+      sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep -E 'Subject: CN ?= ?certbot\.acme'
     shell: bash
 
   - name: "Revoke certbot"

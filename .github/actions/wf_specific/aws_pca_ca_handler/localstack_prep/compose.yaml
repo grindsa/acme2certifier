@@ -1,0 +1,18 @@
+name: localstack
+
+services:
+  localstack:
+    # Pin calendar tag; bump intentionally when LocalStack ACM PCA behavior changes.
+    image: localstack/localstack:2026.10.3
+    container_name: localstack
+    environment:
+      - LOCALSTACK_AUTH_TOKEN
+      - DEBUG=0
+    ports:
+      - "4566:4566"
+    restart: "no"
+
+networks:
+  default:
+    name: acme
+    external: true

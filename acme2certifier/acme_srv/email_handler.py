@@ -2,6 +2,7 @@
 
 import time
 import email
+import ssl
 import smtplib
 import imaplib
 import threading
@@ -30,6 +31,9 @@ class EmailHandler:
         self.smtp_port = 587
         self.smtp_use_tls = True
 
+        # TLS certificate verification for IMAP SSL / SMTP SSL / STARTTLS
+        self.email_ssl_verify = True
+
         # Authentication
         self.username = None
         self.password = None
@@ -53,83 +57,75 @@ class EmailHandler:
         """Exit context manager"""
         self.stop_polling()
 
+    def _config_get_int(self, config_dic, key: str, default: int) -> int:
+        """Parse an integer DEFAULT setting, falling back on parse errors."""
+        try:
+            return int(config_dic.get("DEFAULT", key, fallback=default))
+        except ValueError as err:
+            self.logger.warning(
+                "Failed to parse %s from configuration. Using default %s. Error: %s",
+                key,
+                default,
+                err,
+            )
+            return default
+
+    def _config_load_default(self, config_dic) -> None:
+        """Load IMAP/SMTP/auth settings from the DEFAULT section."""
+        self.imap_server = config_dic.get("DEFAULT", "imap_server", fallback=None)
+        self.imap_port = self._config_get_int(config_dic, "imap_port", 993)
+        self.imap_use_ssl = config_dic.getboolean(
+            "DEFAULT", "imap_use_ssl", fallback=True
+        )
+
+        self.smtp_server = config_dic.get(
+            "DEFAULT", "smtp_server", fallback=self.imap_server
+        )
+        self.smtp_port = self._config_get_int(config_dic, "smtp_port", 587)
+        self.smtp_use_tls = config_dic.getboolean(
+            "DEFAULT", "smtp_use_tls", fallback=True
+        )
+
+        try:
+            self.email_ssl_verify = config_dic.getboolean(
+                "DEFAULT", "email_ssl_verify", fallback=True
+            )
+        except ValueError as err:
+            self.logger.warning(
+                "Failed to parse email_ssl_verify from configuration. "
+                "Using default True. Error: %s",
+                err,
+            )
+            self.email_ssl_verify = True
+
+        if self.email_ssl_verify is False:
+            self.logger.warning(
+                "TLS certificate verification is disabled "
+                "(email_ssl_verify=False). IMAP/SMTP traffic is vulnerable "
+                "to MITM. Prefer system trust."
+            )
+
+        self.username = config_dic.get("DEFAULT", "username", fallback=None)
+        if not self.username:
+            self.logger.debug("Falling back to 'user' for username")
+            self.username = config_dic.get("DEFAULT", "user", fallback=None)
+        self.password = config_dic.get("DEFAULT", "password", fallback=None)
+        self.email_address = config_dic.get(
+            "DEFAULT", "email_address", fallback=self.username
+        )
+
+        self.polling_timer = self._config_get_int(config_dic, "polling_timer", 60)
+        self.connection_timeout = self._config_get_int(
+            config_dic, "connection_timeout", 30
+        )
+
     def _config_load(self):
         """Load configuration from config file"""
         self.logger.debug("EmailHandler._config_load()")
 
         config_dic = load_config(self.logger, "acme_srv.cfg")
-
-        # Load from DEFAULT section
         if "DEFAULT" in config_dic:
-            # IMAP configuration
-            self.imap_server = config_dic.get("DEFAULT", "imap_server", fallback=None)
-            try:
-                self.imap_port = int(
-                    config_dic.get("DEFAULT", "imap_port", fallback=993)
-                )
-            except ValueError as err:
-                self.logger.warning(
-                    "Failed to parse imap_port from configuration. Using default 993. Error: %s",
-                    err,
-                )
-                self.imap_port = 993
-
-            self.imap_use_ssl = config_dic.getboolean(
-                "DEFAULT", "imap_use_ssl", fallback=True
-            )
-
-            # SMTP configuration (fallback to IMAP server if not specified)
-            self.smtp_server = config_dic.get(
-                "DEFAULT", "smtp_server", fallback=self.imap_server
-            )
-            try:
-                self.smtp_port = int(
-                    config_dic.get("DEFAULT", "smtp_port", fallback=587)
-                )
-            except ValueError as err:
-                self.logger.warning(
-                    "Failed to parse smtp_port from configuration. Using default 587. Error: %s",
-                    err,
-                )
-                self.smtp_port = 587
-
-            self.smtp_use_tls = config_dic.getboolean(
-                "DEFAULT", "smtp_use_tls", fallback=True
-            )
-
-            # Authentication
-            self.username = config_dic.get("DEFAULT", "username", fallback=None)
-            if not self.username:
-                # Fallback to 'user' if 'username' is not set
-                self.logger.debug("Falling back to 'user' for username")
-                self.username = config_dic.get("DEFAULT", "user", fallback=None)
-            self.password = config_dic.get("DEFAULT", "password", fallback=None)
-            self.email_address = config_dic.get(
-                "DEFAULT", "email_address", fallback=self.username
-            )
-
-            # Timing configuration
-            try:
-                self.polling_timer = int(
-                    config_dic.get("DEFAULT", "polling_timer", fallback=60)
-                )
-            except ValueError as err:
-                self.logger.warning(
-                    "Failed to parse polling_timer from configuration. Using default 60. Error: %s",
-                    err,
-                )
-                self.polling_timer = 60
-
-            try:
-                self.connection_timeout = int(
-                    config_dic.get("DEFAULT", "connection_timeout", fallback=30)
-                )
-            except ValueError as err:
-                self.logger.warning(
-                    "Failed to parse connection_timeout from configuration. Using default 30. Error: %s",
-                    err,
-                )
-                self.connection_timeout = 30
+            self._config_load_default(config_dic)
         else:
             self.logger.warning("DEFAULT configuration section not found")
 
@@ -184,15 +180,19 @@ or application."""
                 msg.attach(part1)
                 msg.attach(part2)
 
-            # Connect to SMTP server
+            # Connect to SMTP server (verify TLS certificates / hostname)
+            tls_context = self._ssl_context()
             if self.smtp_use_tls:
                 server = smtplib.SMTP(
                     self.smtp_server, self.smtp_port, timeout=self.connection_timeout
                 )
-                server.starttls()
+                server.starttls(context=tls_context)
             else:
                 server = smtplib.SMTP_SSL(
-                    self.smtp_server, self.smtp_port, timeout=self.connection_timeout
+                    self.smtp_server,
+                    self.smtp_port,
+                    timeout=self.connection_timeout,
+                    context=tls_context,
                 )
 
             # Authenticate and send
@@ -241,11 +241,22 @@ or application."""
             self.logger.error("Failed to receive emails: %s", err)
             return []
 
+    def _ssl_context(self) -> ssl.SSLContext:
+        """Return SSL context for IMAP/SMTP; honors ``email_ssl_verify``."""
+        if self.email_ssl_verify:
+            return ssl.create_default_context()
+        # Opt-out only when email_ssl_verify=False (lab / untrusted mail certs).
+        return ssl._create_unverified_context()  # NOSONAR
+
     def _imap_connect(self):
         """Connect to IMAP server and set timeout."""
         self.logger.debug("EmailHandler._imap_connect()")
         if self.imap_use_ssl:
-            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
+            mail = imaplib.IMAP4_SSL(
+                self.imap_server,
+                self.imap_port,
+                ssl_context=self._ssl_context(),
+            )
         else:
             mail = imaplib.IMAP4(self.imap_server, self.imap_port)
         mail.socket().settimeout(self.connection_timeout)

@@ -62,7 +62,8 @@ runs:
       run: |
         set -euo pipefail
         fp() {
-          openssl x509 -in "$1" -noout -fingerprint -sha256 \
+          local cert="$1"
+          openssl x509 -in "$cert" -noout -fingerprint -sha256 \
             | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]'
         }
         ca="${VOLUME_DIR}/acme_ca"

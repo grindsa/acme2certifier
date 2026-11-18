@@ -1,0 +1,47 @@
+name: "opentelemetry - ACME enroll"
+description: "Single lego enrollment against acme-srv (generates OTEL spans)"
+inputs:
+  ACME_SERVER:
+    description: "ACME server hostname on the docker network"
+    required: false
+    default: "acme-srv"
+  NAME_SPACE:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+  CA_PATH:
+    description: "Path to CA certificates for verify"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
+  DOMAIN:
+    description: "FQDN to enroll"
+    required: false
+    default: "lego-otel.acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Enroll lego"
+      run: |
+        set -euo pipefail
+        mkdir -p lego-otel
+        docker run -i -v "$PWD/lego-otel:/.lego/" --rm --name lego-otel \
+          --network "${NAME_SPACE}" goacme/lego run --tls-skip-verify \
+          -s "https://${ACME_SERVER}" -a --email "lego-otel@example.com" \
+          -d "${DOMAIN}" --http
+        sudo openssl verify \
+          -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          "lego-otel/certificates/${DOMAIN}.crt"
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        DOMAIN: ${{ inputs.DOMAIN }}

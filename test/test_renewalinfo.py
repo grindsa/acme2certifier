@@ -386,20 +386,30 @@ class TestRenewalinfo(unittest.TestCase):
             mock_uts_now.assert_called_once()
 
     def test_029_extract_serial_and_aki_from_string_valid(self):
-        with patch(
-            "acme2certifier.acme_srv.renewalinfo.b64_decode", return_value=b"abc"
-        ):
-            with patch(
-                "acme2certifier.acme_srv.renewalinfo.b64_url_recode", return_value="abc"
-            ):
-                result = self.renewalinfo._extract_serial_and_aki_from_string("foo.bar")
-                self.assertEqual(result, ("616263", "616263"))
+        # serial and aki contain bytes >= 0x80 (not valid UTF-8)
+        aki = "a3b1c2d4e5f60718293a4b5c6d7e8f9011223344"
+        serial = "7b00000e4d1f26b303001f5016000000000e4d"
+        renewalinfo_string = "o7HC1OX2BxgpOktcbX6PkBEiM0Q.ewAADk0fJrMDAB9QFgAAAAAOTQ"
+        result = self.renewalinfo._extract_serial_and_aki_from_string(
+            renewalinfo_string
+        )
+        self.assertEqual(result, (serial, aki))
 
-    def test_030_extract_serial_and_aki_from_string_invalid(self):
+    def test_030_extract_serial_and_aki_from_string_utf8_decodable_serial(self):
+        # all serial bytes < 0x80 decode as UTF-8; must still return hex
+        aki = "a3b1c2d4e5f60718293a4b5c6d7e8f9011223344"
+        serial = "7b00000e4d1f26330300"
+        renewalinfo_string = "o7HC1OX2BxgpOktcbX6PkBEiM0Q.ewAADk0fJjMDAA"
+        result = self.renewalinfo._extract_serial_and_aki_from_string(
+            renewalinfo_string
+        )
+        self.assertEqual(result, (serial, aki))
+
+    def test_031_extract_serial_and_aki_from_string_invalid(self):
         result = self.renewalinfo._extract_serial_and_aki_from_string("foo")
         self.assertEqual(result, (None, None))
 
-    def test_031_load_configuration_all_valid(self):
+    def test_032_load_configuration_all_valid(self):
         class DummyConfig:
             def getboolean(self, section, key, fallback=None):
                 return True
@@ -434,7 +444,7 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertEqual(self.renewalinfo.config.retry_after_timeout, 12345)
             self.assertEqual(self.renewalinfo.config.renewal_window_duration, 172800)
 
-    def test_032_load_configuration_defaults(self):
+    def test_033_load_configuration_defaults(self):
         class DummyConfig:
             def getboolean(self, section, key, fallback=None):
                 return fallback
@@ -463,7 +473,7 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertEqual(self.renewalinfo.config.retry_after_timeout, 86400)
             self.assertIsNone(self.renewalinfo.config.renewal_window_duration)
 
-    def test_033_load_configuration_renewal_force_error(self):
+    def test_034_load_configuration_renewal_force_error(self):
         class DummyConfig:
             def getboolean(self, section, key, fallback=None):
                 raise Exception("failbool")
@@ -490,7 +500,7 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertFalse(self.renewalinfo.config.renewal_force)
             self.assertFalse(self.renewalinfo.config.renewalinfo_disable)
 
-    def test_034_load_configuration_renewalthreshold_pctg_error(self):
+    def test_035_load_configuration_renewalthreshold_pctg_error(self):
         class DummyConfig:
             def getboolean(self, section, key, fallback=None):
                 return False
@@ -520,7 +530,7 @@ class TestRenewalinfo(unittest.TestCase):
             )
             self.assertEqual(self.renewalinfo.config.renewalthreshold_pctg, 85.0)
 
-    def test_035_load_configuration_retry_after_timeout_error(self):
+    def test_036_load_configuration_retry_after_timeout_error(self):
         class DummyConfig:
             def getboolean(self, section, key, fallback=None):
                 return False
@@ -552,7 +562,7 @@ class TestRenewalinfo(unittest.TestCase):
             )
             self.assertEqual(self.renewalinfo.config.retry_after_timeout, 86400)
 
-    def test_036_load_configuration_renewal_window_duration_error(self):
+    def test_037_load_configuration_renewal_window_duration_error(self):
         class DummyConfig:
             def getboolean(self, section, key, fallback=None):
                 return False
@@ -586,23 +596,23 @@ class TestRenewalinfo(unittest.TestCase):
             )
             self.assertIsNone(self.renewalinfo.config.renewal_window_duration)
 
-    def test_037_get_disabled_returns_404(self):
+    def test_038_get_disabled_returns_404(self):
         self.renewalinfo.config.renewalinfo_disable = True
         result = self.renewalinfo.get("/acme/renewal-info/foo")
         self.assertEqual(result, {"code": 404, "data": {}})
 
-    def test_038_update_disabled_returns_404(self):
+    def test_039_update_disabled_returns_404(self):
         self.renewalinfo.config.renewalinfo_disable = True
         result = self.renewalinfo.update("content")
         self.assertEqual(result, {"code": 404, "data": {}})
 
-    def test_039_exit_does_nothing_and_returns_none(self):
+    def test_040_exit_does_nothing_and_returns_none(self):
         renewalinfo = self.renewalinfo
         # __exit__ should just return None and not raise
         result = renewalinfo.__exit__(None, None, None)
         self.assertIsNone(result)
 
-    def test_040_context_manager_usage(self):
+    def test_041_context_manager_usage(self):
         # Ensure __enter__ and __exit__ work in a with-statement
         renewalinfo = self.renewalinfo
         with patch.object(renewalinfo, "_load_configuration") as mock_load_config:
@@ -610,7 +620,7 @@ class TestRenewalinfo(unittest.TestCase):
                 mock_load_config.assert_called_once()
                 self.assertIs(ri, renewalinfo)
 
-    def test_041_update_certificate_table_with_serial_and_aki_success(self):
+    def test_042_update_certificate_table_with_serial_and_aki_success(self):
         renewalinfo = self.renewalinfo
         mock_logger = MagicMock()
         renewalinfo.logger = mock_logger
@@ -650,7 +660,7 @@ class TestRenewalinfo(unittest.TestCase):
             "Renewalinfo._update_certificate_table_with_serial_and_aki(%s) - done", 1
         )
 
-    def test_042_update_certificate_table_with_serial_and_aki_db_error(self):
+    def test_043_update_certificate_table_with_serial_and_aki_db_error(self):
         renewalinfo = self.renewalinfo
         mock_logger = MagicMock()
         renewalinfo.logger = mock_logger
@@ -670,7 +680,7 @@ class TestRenewalinfo(unittest.TestCase):
         # No add_certificate calls
         renewalinfo.repository.add_certificate.assert_not_called()
 
-    def test_043_get_compat_success(self):
+    def test_044_get_compat_success(self):
         renewalinfo = self.renewalinfo
         renewalinfo.logger = MagicMock()
         renewalinfo.repository = MagicMock()
@@ -686,7 +696,7 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertIn("data", result)
             self.assertIn("header", result)
 
-    def test_044_get_compat_404(self):
+    def test_045_get_compat_404(self):
         renewalinfo = self.renewalinfo
         renewalinfo.logger = MagicMock()
         renewalinfo.repository = MagicMock()
@@ -707,7 +717,7 @@ class TestRenewalinfo(unittest.TestCase):
                 },
             )
 
-    def test_045_get_compat_400(self):
+    def test_046_get_compat_400(self):
         renewalinfo = self.renewalinfo
         renewalinfo.logger = MagicMock()
         renewalinfo.repository = MagicMock()
@@ -728,7 +738,7 @@ class TestRenewalinfo(unittest.TestCase):
                 },
             )
 
-    def test_046_update_compat_success(self):
+    def test_047_update_compat_success(self):
         renewalinfo = self.renewalinfo
         renewalinfo.logger = MagicMock()
         renewalinfo.message = MagicMock()
@@ -758,7 +768,7 @@ class TestRenewalinfo(unittest.TestCase):
         )
         renewalinfo.repository.add_certificate.assert_not_called()
 
-    def test_047_update_compat_failure(self):
+    def test_048_update_compat_failure(self):
         renewalinfo = self.renewalinfo
         renewalinfo.logger = MagicMock()
         renewalinfo.message = MagicMock()
@@ -777,7 +787,7 @@ class TestRenewalinfo(unittest.TestCase):
         result = renewalinfo.update("content")
         self.assertEqual(result["code"], 400)
 
-    def test_048_update_compat_payload_missing(self):
+    def test_049_update_compat_payload_missing(self):
         renewalinfo = self.renewalinfo
         renewalinfo.logger = MagicMock()
         renewalinfo.message = MagicMock()
@@ -795,7 +805,7 @@ class TestRenewalinfo(unittest.TestCase):
         result = renewalinfo.update("content")
         self.assertEqual(result["code"], 400)
 
-    def test_049_lookup_certificate_by_serial_and_aki_found(self):
+    def test_050_lookup_certificate_by_serial_and_aki_found(self):
         # Setup: cert_list contains a cert with matching aki
         cert = {"aki": "aki123", "foo": "bar"}
         self.renewalinfo.repository.get_certificates_by_serial.return_value = [cert]
@@ -807,7 +817,7 @@ class TestRenewalinfo(unittest.TestCase):
             "serial123"
         )
 
-    def test_050_lookup_certificate_by_serial_and_aki_leading_zero(self):
+    def test_051_lookup_certificate_by_serial_and_aki_leading_zero(self):
         # Setup: first call returns empty, second returns a cert with matching aki
         cert = {"aki": "aki456", "foo": "baz"}
         self.renewalinfo.repository.get_certificates_by_serial.side_effect = [
@@ -824,7 +834,7 @@ class TestRenewalinfo(unittest.TestCase):
         self.renewalinfo.repository.get_certificates_by_serial.assert_any_call("0123")
         self.renewalinfo.repository.get_certificates_by_serial.assert_any_call("123")
 
-    def test_051_lookup_certificate_by_serial_and_aki_not_found(self):
+    def test_052_lookup_certificate_by_serial_and_aki_not_found(self):
         # Setup: cert_list does not contain a cert with matching aki
         self.renewalinfo.repository.get_certificates_by_serial.return_value = [
             {"aki": "other"}
@@ -834,13 +844,13 @@ class TestRenewalinfo(unittest.TestCase):
         )
         self.assertEqual(result, {})
 
-    def test_052_lookup_certificate_by_serial_and_aki_empty_list(self):
+    def test_053_lookup_certificate_by_serial_and_aki_empty_list(self):
         # Setup: cert_list is empty
         self.renewalinfo.repository.get_certificates_by_serial.return_value = []
         result = self.renewalinfo._lookup_certificate_by_serial_and_aki("serial", "aki")
         self.assertEqual(result, {})
 
-    def test_053_get_renewalinfo_data(self):
+    def test_054_get_renewalinfo_data(self):
         # Setup: _lookup_certificate_by_renewalinfo and _generate_renewalinfo_window are called
         cert_dic = {"expire_uts": 100000, "issue_uts": 90000}
         renewalinfo_dic = {
@@ -859,7 +869,7 @@ class TestRenewalinfo(unittest.TestCase):
         self.renewalinfo._generate_renewalinfo_window.assert_called_once_with(cert_dic)
         self.assertEqual(result, renewalinfo_dic)
 
-    def test_054__load_ca_handler_success(self):
+    def test_055__load_ca_handler_success(self):
         mock_cahandler_class = MagicMock()
         mock_module = MagicMock()
         mock_module.CAhandler = mock_cahandler_class
@@ -887,7 +897,7 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertIsInstance(self.renewalinfo.cahandler, BoundCAHandler)
             self.assertIs(self.renewalinfo.cahandler.handler_cls, mock_cahandler_class)
 
-    def test_055__load_ca_handler_failure(self):
+    def test_056__load_ca_handler_failure(self):
         mock_registry = MagicMock()
         mock_registry.load.return_value = mock_registry
         mock_registry.default_handler.return_value = None
@@ -907,7 +917,7 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertIsNone(self.renewalinfo.cahandler)
             self.mock_logger.critical.assert_called_with("No ca_handler loaded")
 
-    def test_056_get_with_cahandler_lookup(self):
+    def test_057_get_with_cahandler_lookup(self):
         # Simulate config.renewalinfo_lookup True and cahandler with lookup_renewalinfo
         self.renewalinfo.config.renewalinfo_lookup = True
         self.renewalinfo.config.acme_url = "https://acme.example.com"
@@ -929,7 +939,7 @@ class TestRenewalinfo(unittest.TestCase):
             self.assertIn("data", result)
             self.assertEqual(result["data"], {"foo": "bar"})
 
-    def test_057_update_ownership_lookup_error_returns_500(self):
+    def test_058_update_ownership_lookup_error_returns_500(self):
         """update() returns 500 when certificate ownership lookup fails"""
         renewalinfo = self.renewalinfo
         renewalinfo.message = MagicMock()
@@ -951,7 +961,7 @@ class TestRenewalinfo(unittest.TestCase):
             result["data"]["type"], "urn:ietf:params:acme:error:serverInternal"
         )
 
-    def test_058_update_cross_account_returns_403_problem(self):
+    def test_059_update_cross_account_returns_403_problem(self):
         """update() returns an ACME unauthorized problem for a foreign certid"""
         self.mock_message.check.return_value = (
             200,
@@ -970,7 +980,7 @@ class TestRenewalinfo(unittest.TestCase):
         self.assertEqual(result["data"]["detail"], OWNERSHIP_DENIED_DETAIL)
         self.mock_repository.mark_certificate_replaced.assert_not_called()
 
-    def test_059_update_message_check_failure(self):
+    def test_060_update_message_check_failure(self):
         """update() returns problem response when message.check fails"""
         self.mock_message.check.return_value = (
             400,
@@ -984,7 +994,7 @@ class TestRenewalinfo(unittest.TestCase):
         self.assertEqual(result["code"], 400)
         self.assertEqual(result["data"]["type"], "urn:ietf:params:acme:error:malformed")
 
-    def test_060_update_missing_certificate_name(self):
+    def test_061_update_missing_certificate_name(self):
         """update() rejects cert lookup without name"""
         self.mock_message.check.return_value = (
             200,
@@ -1002,7 +1012,7 @@ class TestRenewalinfo(unittest.TestCase):
         self.assertEqual(result["data"]["detail"], "certificate name missing")
         self.mock_repository.mark_certificate_replaced.assert_not_called()
 
-    def test_061_update_mark_replaced_failed(self):
+    def test_062_update_mark_replaced_failed(self):
         """update() returns problem when mark_certificate_replaced fails"""
         self.mock_message.check.return_value = (
             200,
@@ -1020,13 +1030,13 @@ class TestRenewalinfo(unittest.TestCase):
         self.assertEqual(result["code"], 400)
         self.assertEqual(result["data"]["detail"], "certificate update failed")
 
-    def test_062_parse_renewalinfo_string_from_url_path_only(self):
+    def test_063_parse_renewalinfo_string_from_url_path_only(self):
         result = self.renewalinfo._parse_renewalinfo_string_from_url(
             "/acme/renewal-info/foo"
         )
         self.assertEqual(result, "foo")
 
-    def test_063_parse_renewalinfo_string_from_url_scheme_mismatch(self):
+    def test_064_parse_renewalinfo_string_from_url_scheme_mismatch(self):
         """Reverse proxy: request is http while server_name is https (#381)."""
         self.renewalinfo.server_name = "https://127.0.0.1:8001"
         ident = "42Z0u3BojSxdTg6mSo-bNyKcgpI.AOpUG6fnb-IW4i8A52l4K28"
@@ -1035,19 +1045,19 @@ class TestRenewalinfo(unittest.TestCase):
         )
         self.assertEqual(result, ident)
 
-    def test_064_parse_renewalinfo_string_from_url_query_and_slash(self):
+    def test_065_parse_renewalinfo_string_from_url_query_and_slash(self):
         ident = "42Z0u3BojSxdTg6mSo-bNyKcgpI.AOpUG6fnb-IW4i8A52l4K28"
         result = self.renewalinfo._parse_renewalinfo_string_from_url(
             f"https://acme.example.com/acme/renewal-info/{ident}/?x=1"
         )
         self.assertEqual(result, ident)
 
-    def test_065_parse_renewalinfo_string_from_url_bare_ident(self):
+    def test_066_parse_renewalinfo_string_from_url_bare_ident(self):
         ident = "42Z0u3BojSxdTg6mSo-bNyKcgpI.AOpUG6fnb-IW4i8A52l4K28"
         result = self.renewalinfo._parse_renewalinfo_string_from_url(ident)
         self.assertEqual(result, ident)
 
-    def test_066_get_cahandler_empty_result_forces_404(self):
+    def test_067_get_cahandler_empty_result_forces_404(self):
         """CA lookup with 2xx and empty body is treated as certificate not found."""
         self.renewalinfo.config.renewalinfo_lookup = True
         self.renewalinfo.config.acme_url = "https://acme.example.com"
@@ -1066,7 +1076,7 @@ class TestRenewalinfo(unittest.TestCase):
         self.assertEqual(result["code"], 404)
         self.assertEqual(result["data"]["detail"], "certificate not found")
 
-    def test_067_load_ca_handler_uses_registry_default(self):
+    def test_068_load_ca_handler_uses_registry_default(self):
         """Registry default_handler is used when present."""
         bound = MagicMock()
         mock_registry = MagicMock()

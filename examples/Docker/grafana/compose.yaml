@@ -1,0 +1,37 @@
+# Grafana OTEL LGTM lab stack for acme2certifier.
+# Collector + Prometheus + Tempo + Loki + Grafana in one image.
+#
+#   docker network create ot-test
+#   docker compose -f examples/Docker/grafana/compose.yaml up -d
+#
+# Point a2c at the collector (same network), e.g. in acme_srv.cfg:
+#
+#   [OpenTelemetry]
+#   opentelemetry_support: True
+#   endpoint: http://otel-lgtm:4318
+#   protocol: http/protobuf
+#   service_name: acme2certifier
+#   sample_ratio: 1.0
+#   metrics_export: True
+#
+# Grafana UI: http://127.0.0.1:3000  (admin / admin)
+# Import: examples/grafana/acme2certifier-overview.json
+# Lab only — not for production.
+
+name: grafana-otel-lgtm
+
+services:
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.38.0
+    container_name: otel-lgtm
+    ports:
+      - "3000:3000" # Grafana
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP (a2c endpoint)
+      - "9090:9090" # Prometheus (optional direct access)
+    restart: unless-stopped
+
+networks:
+  default:
+    name: ot-test
+    external: true

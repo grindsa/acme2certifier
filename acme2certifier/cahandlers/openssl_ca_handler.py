@@ -5,7 +5,7 @@ from __future__ import print_function
 import os
 import datetime
 import json
-from typing import List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 import base64
 import uuid
 from cryptography import x509
@@ -36,10 +36,17 @@ from acme2certifier.acme_srv.helper import (
     convert_string_to_byte,
     convert_byte_to_string,
     csr_cn_get,
+    csr_subject_cn_only,
+    san_general_names_acme_bound,
     config_enroll_config_log_load,
+    config_number_load,
     config_option_load,
+    config_shortname_denylist_load,
     enrollment_config_log,
+    is_single_label_name,
+    is_shortname_denied,
 )
+from acme2certifier.acme_srv.helpers.domain_utils import _is_covering_fqdn_sibling
 from acme2certifier.acme_srv.helpers.eab_profile import (
     chk_san_lists_get,
     list_regex_check,
@@ -50,6 +57,9 @@ from acme2certifier.acme_srv.helpers.global_variables import CONFIGURATION_ERROR
 BLOCK_ALL_DOMAIN = "block.all"
 ACME_ERR_SERVER_INTERNAL = "urn:ietf:params:acme:error:serverInternal"
 _TRIGGER_ENDED_WITH_ERROR = "CAhandler.trigger() ended with error: %s"
+_SHORTNAME_ALLOWED_ENDED_FALSE = (
+    "CAhandler._shortname_allowed_for_san() ended with False"
+)
 
 
 class CAhandler(object):
@@ -74,6 +84,8 @@ class CAhandler(object):
         self.save_cert_as_hex = False
         self.allowed_domainlist = []
         self.blocked_domainlist = []
+        self.allow_shortname_from_fqdn = False
+        self.shortname_denylist = []
         self.cn_enforce = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
@@ -392,7 +404,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._config_check() ended")
         return error
 
-    def _config_domainlists_load(self, config_dic: Dict[str, str]):
+    def _config_domainlists_load(self, config_dic: Any):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_domainlists_load()")
 
@@ -452,9 +464,17 @@ class CAhandler(object):
                 )
                 self.allowed_domainlist = [BLOCK_ALL_DOMAIN]
 
+        self.shortname_denylist = config_shortname_denylist_load(
+            self.logger, config_dic
+        )
+        if "Order" in config_dic:
+            self.allow_shortname_from_fqdn = config_dic.getboolean(
+                "Order", "allow_shortname_from_fqdn", fallback=False
+            )
+
         self.logger.debug("CAhandler._config_domainlists_load() ended")
 
-    def _config_credentials_load(self, config_dic: Dict[str, str]):
+    def _config_credentials_load(self, config_dic: Any):
         """load credential config"""
         self.logger.debug("CAhandler._config_credentials_load()")
 
@@ -480,7 +500,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
 
-    def _config_policy_load(self, config_dic: Dict[str, str]):
+    def _config_policy_load(self, config_dic: Any):
         """load certificate policy"""
         self.logger.debug("CAhandler._config_policy_load()")
 
@@ -503,8 +523,13 @@ class CAhandler(object):
                 )
                 self.ca_cert_chain = []
 
-        if "cert_validity_days" in config_dic["CAhandler"]:
-            self.cert_validity_days = int(config_dic["CAhandler"]["cert_validity_days"])
+        self.cert_validity_days = config_number_load(
+            self.logger,
+            config_dic,
+            "cert_validity_days",
+            cast=int,
+            current=self.cert_validity_days,
+        )
         try:
             self.cn_enforce = config_dic.getboolean(
                 "CAhandler", "cn_enforce", fallback=False
@@ -578,6 +603,40 @@ class CAhandler(object):
         self.logger.debug("CAhandler._cn_add() ended with: %s", enforced_cn)
         return (san_list, enforced_cn)
 
+    def _shortname_allowed_for_san(self, san: str, san_list: List[str]) -> bool:
+        """Allow single-label SAN when covered by an allowed multi-label sibling SAN."""
+        self.logger.debug("CAhandler._shortname_allowed_for_san(%s)", san)
+        if not self.allow_shortname_from_fqdn:
+            self.logger.debug(_SHORTNAME_ALLOWED_ENDED_FALSE)
+            return False
+        if not is_single_label_name(self.logger, san):
+            self.logger.debug(_SHORTNAME_ALLOWED_ENDED_FALSE)
+            return False
+        if is_shortname_denied(self.logger, san, self.shortname_denylist):
+            self.logger.debug(
+                "CAhandler._shortname_allowed_for_san() ended with False (denylist)"
+            )
+            return False
+
+        short = san.lower().strip()
+        for sibling in san_list:
+            if not _is_covering_fqdn_sibling(self.logger, sibling):
+                continue
+            sibling_norm = sibling.lower().strip()
+            if sibling_norm.split(".", 1)[0] != short:
+                continue
+            if self._string_wlbl_check(
+                sibling_norm, self.allowed_domainlist, self.blocked_domainlist
+            ):
+                self.logger.debug(
+                    "CAhandler._shortname_allowed_for_san() ended with True (sibling=%s)",
+                    sibling_norm,
+                )
+                return True
+
+        self.logger.debug(_SHORTNAME_ALLOWED_ENDED_FALSE)
+        return False
+
     def _csr_check(self, csr: str) -> Tuple[bool, str]:
         """check CSR against definied allowed_domainlists"""
         self.logger.debug("CAhandler._csr_check()")
@@ -590,11 +649,12 @@ class CAhandler(object):
 
             # go over the san list and check each entry
             for san in san_list:
-                check_list.append(
-                    self._string_wlbl_check(
-                        san, self.allowed_domainlist, self.blocked_domainlist
-                    )
+                allowed = self._string_wlbl_check(
+                    san, self.allowed_domainlist, self.blocked_domainlist
                 )
+                if not allowed:
+                    allowed = self._shortname_allowed_for_san(san, san_list)
+                check_list.append(allowed)
 
             if check_list:
                 # cover a cornercase with empty checklist (no san, no cn)
@@ -761,6 +821,24 @@ class CAhandler(object):
         self.logger.debug("CAhandler._certexpiry_date_set() ended")
         return cert_validity
 
+    def _cert_subject_from_request(
+        self, req: object, enforce_cn: Optional[str] = None
+    ) -> x509.Name:
+        """Build issued subject: first CSR CN only, or cn_enforce override."""
+        self.logger.debug("CAhandler._cert_subject_from_request()")
+        if self.cn_enforce and enforce_cn:
+            self.logger.info("Overwrite CN with %s", enforce_cn)
+            subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, enforce_cn)])
+        else:
+            csr_rdn_count = len(list(req.subject)) if req.subject else 0
+            subject = csr_subject_cn_only(req.subject)
+            if csr_rdn_count > len(list(subject)):
+                self.logger.warning(
+                    "Dropped non-CN subject RDNs from CSR for issued certificate"
+                )
+        self.logger.debug("CAhandler._cert_subject_from_request() ended")
+        return subject
+
     def _cert_signing_prep(self, ca_cert: object, req: object, subject: str) -> object:
         """enroll certificate"""
         # pylint: disable=R0914, R0915
@@ -842,13 +920,22 @@ class CAhandler(object):
         else:
             extension_list = self._cert_extension_default(ca_cert, req)
 
-        # add subject alternative names
+        # add subject alternative names (DNS/IP/email only; drop URI/otherName/…)
         if req:
             for ext in req.extensions:
                 if ext.oid._name == "subjectAltName":  # pylint: disable=W0212
-                    extension_list.append(
-                        {"name": SubjectAlternativeName(ext.value), "critical": False}
-                    )
+                    bound_sans = san_general_names_acme_bound(ext.value)
+                    if bound_sans:
+                        extension_list.append(
+                            {
+                                "name": SubjectAlternativeName(bound_sans),
+                                "critical": False,
+                            }
+                        )
+                    elif list(ext.value):
+                        self.logger.warning(
+                            "Dropped unbound SAN GeneralNames from CSR; none remain"
+                        )
 
         for extension in extension_list:
             # add extensions to csr
@@ -893,13 +980,7 @@ class CAhandler(object):
                     req = x509.load_pem_x509_csr(
                         convert_string_to_byte(csr), default_backend()
                     )
-                    subject = req.subject
-
-                    if self.cn_enforce and enforce_cn:
-                        self.logger.info("Overwrite CN with %s", enforce_cn)
-                        subject = x509.Name(
-                            [x509.NameAttribute(NameOID.COMMON_NAME, enforce_cn)]
-                        )
+                    subject = self._cert_subject_from_request(req, enforce_cn)
 
                     builder = self._cert_signing_prep(ca_cert, req, subject)
                     builder = self._cert_extension_apply(builder, ca_cert, req)

@@ -3,8 +3,10 @@ services:
     container_name: acme-srv
     build:
       context: ../../.
-      dockerfile: examples/Docker/$WEBSERVER/$CONTEXT/Dockerfile
-    image: acme2certifier/$CONTEXT
+      dockerfile: examples/Docker/$WEBSERVER/Dockerfile
+    image: acme2certifier/$WEBSERVER
+    environment:
+      ACME_SRV_DB_HANDLER: ${ACME_SRV_DB_HANDLER:-wsgi}
     env_file:
       - ./data/django.env
     volumes:

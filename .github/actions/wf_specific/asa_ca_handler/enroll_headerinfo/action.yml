@@ -20,7 +20,7 @@ runs:
       docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' --useragent "profile_name=$ASA_PROFILE1" -d acme-sh.acme --alpn --standalone --keylength 2048 --debug 3 --output-insecure
       awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
       openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
-      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -texte -noout
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature"
     shell: bash
     env:
@@ -43,7 +43,7 @@ runs:
       docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' --useragent profile_name="$ASA_PROFILE2" -d acme-sh.acme --alpn --standalone --keylength 2048 --debug 3 --output-insecure
       awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
       openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
-      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -texte -noout
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
     env:
       ASA_PROFILE2: ${{ inputs.ASA_PROFILE2 }}

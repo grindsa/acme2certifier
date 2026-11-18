@@ -67,9 +67,15 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
     ) -> None:
         """url_get_dns_pinned skips bad IP and normalizes token path"""
         response = Mock()
-        response.text = "body"
         response.status_code = 404
         response.reason = "Not Found"
+        response.is_redirect = False
+        response.headers = {}
+        response.encoding = "utf-8"
+        response.iter_content = Mock(return_value=[b"body"])
+        response.close = Mock()
+        response.raw = Mock()
+        response.text = "body"
         mock_get.return_value = response
 
         body, code, error = url_get_dns_pinned(
@@ -337,6 +343,9 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
             ),
             patch("acme2certifier.acme_srv.helper.config_debug_get", return_value=True),
             patch("acme2certifier.acme_srv.helper.logger_setup", return_value=logger),
+            patch(
+                "acme2certifier.acme_srv.helper.init_otel", return_value=False
+            ) as mock_otel,
             patch("acme2certifier.acme_srv.helper.log_loaded_acme_srv_cfg"),
             patch(
                 "acme2certifier.acme_srv.helpers.acme_http_boot.db_handler_mod.log_active_db_handler"
@@ -370,6 +379,7 @@ class TestAcmeSrvCoverageEdges(unittest.TestCase):
         self.assertTrue(stack.legacy_acme_get)
         self.assertFalse(stack.trigger_endpoint_enabled)
         self.assertFalse(stack.housekeeping_cli_enabled)
+        mock_otel.assert_called_once_with(logger)
         mock_hk.dbversion_check.assert_called_once()
         mock_hk.nonce_cleanup.assert_called_once()
 

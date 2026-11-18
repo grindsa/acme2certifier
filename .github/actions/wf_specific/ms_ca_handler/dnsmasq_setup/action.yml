@@ -11,8 +11,9 @@ inputs:
     description: "AD domain name"
     required: true
   WES_HOST:
-    description: "WES host name"
-    required: true
+    description: "WES host name (optional; skipped when empty)"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -22,8 +23,18 @@ runs:
         set -euo pipefail
         sudo apt-get update
         sudo apt-get install -y dnsmasq
-        sudo systemctl disable systemd-resolved || true
-        sudo systemctl stop systemd-resolved || true
+        sudo systemctl disable --now systemd-resolved || true
+        sudo systemctl stop dnsmasq || true
+
+        # systemd-resolved can still hold :53 briefly after stop; wait it out.
+        for _ in $(seq 1 20); do
+          if ! ss -H -lntup 2>/dev/null | grep -qE ':53\b' \
+            && ! ss -H -lnup 2>/dev/null | grep -qE ':53\b'; then
+            break
+          fi
+          sleep 0.5
+        done
+
         sudo mkdir -p dnsmasq
         sudo cp .github/dnsmasq.conf dnsmasq/
         sudo chmod -R 777 dnsmasq/dnsmasq.conf
@@ -31,12 +42,21 @@ runs:
         {
           echo "address=/${MSCA_FQDN}/${RUNNER_IP}"
           echo "address=/${MSCA_ADS_DOMAIN}/${RUNNER_IP}"
-          echo "address=/${WES_HOST}/${RUNNER_IP}"
+          if [[ -n "${WES_HOST}" ]]; then
+            echo "address=/${WES_HOST}/${RUNNER_IP}"
+          fi
         } | sudo tee -a dnsmasq/dnsmasq.conf >/dev/null
         cat dnsmasq/dnsmasq.conf
         sudo cp dnsmasq/dnsmasq.conf /etc/
         sudo systemctl enable dnsmasq
-        sudo systemctl start dnsmasq
+        sudo systemctl reset-failed dnsmasq || true
+        if ! sudo systemctl restart dnsmasq; then
+          echo "::error::dnsmasq failed to start"
+          sudo journalctl -xeu dnsmasq.service --no-pager | tail -n 100 || true
+          ss -lntup 2>/dev/null | grep -E ':53\b' || true
+          ss -lnup 2>/dev/null | grep -E ':53\b' || true
+          exit 1
+        fi
       shell: bash
       env:
         RUNNER_IP: ${{ inputs.RUNNER_IP }}
@@ -49,7 +69,9 @@ runs:
         set -euo pipefail
         host "${MSCA_ADS_DOMAIN}" 127.0.0.1
         host "${MSCA_FQDN}" 127.0.0.1
-        # host "${WES_HOST}" 127.0.0.1
+        if [[ -n "${WES_HOST}" ]]; then
+          host "${WES_HOST}" 127.0.0.1
+        fi
       shell: bash
       env:
         MSCA_FQDN: ${{ inputs.MSCA_FQDN }}

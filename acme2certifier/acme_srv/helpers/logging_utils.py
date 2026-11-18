@@ -305,6 +305,10 @@ def logger_setup(debug: bool) -> logging.Logger:
     formatter = logging.Formatter(fmt=log_format, datefmt="%Y-%m-%d %H:%M:%S")
     _attach_syslog_handler(logger, config_dic, formatter)
     _attach_file_handler(logger, config_dic, formatter)
+    # Safe when OTEL is off (zeros); real IDs once init_otel enables tracing.
+    from .otel import install_log_correlation  # pylint: disable=c0415
+
+    install_log_correlation(logger)
     return logger
 
 

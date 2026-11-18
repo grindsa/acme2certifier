@@ -1,0 +1,52 @@
+name: "django_inimage_migrations_assert"
+description: "Assert Docker Django uses in-image migrations (not volume/migrations)"
+inputs:
+  COMPOSE_SERVICE:
+    description: "Compose service / container name"
+    required: false
+    default: "acme-srv"
+  DOCKER_COMPOSE_FILE_PATH:
+    description: "Path to the docker compose file"
+    required: false
+    default: "examples/Docker/"
+  REQUIRE_NO_VOLUME_MIGRATIONS:
+    description: "Fail if volume/migrations exists (fresh boots); false for upgrades with legacy leftover"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Assert in-image Django migrations"
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: |
+        set -euo pipefail
+        svc="${COMPOSE_SERVICE}"
+        exec_in() { docker compose exec -T "${svc}" "$@"; }
+        PKG_MIG=/usr/lib/python3/dist-packages/acme2certifier/django_app/migrations
+
+        if exec_in sh -c "test -L '${PKG_MIG}'"; then
+          echo "ERROR: ${PKG_MIG} is a symlink (expected real in-image dir)" >&2
+          exit 1
+        fi
+        exec_in test -d "${PKG_MIG}"
+        exec_in test -f "${PKG_MIG}/__init__.py"
+        exec_in test -d "${PKG_MIG}.image"
+        exec_in test -f "${PKG_MIG}/0001_initial.py"
+
+        if exec_in test -d /var/www/acme2certifier/volume/migrations; then
+          if [[ "${REQUIRE_NO_VOLUME_MIGRATIONS}" == "true" ]]; then
+            echo "ERROR: volume/migrations exists but must not on fresh boot" >&2
+            exit 1
+          fi
+          echo "NOTE: volume/migrations present (legacy leftover; ignored)"
+        else
+          echo "OK: no volume/migrations"
+        fi
+
+        exec_in a2c-manage showmigrations acme_srv
+        echo "in-image Django migrations assert OK"
+      env:
+        COMPOSE_SERVICE: ${{ inputs.COMPOSE_SERVICE }}
+        REQUIRE_NO_VOLUME_MIGRATIONS: ${{ inputs.REQUIRE_NO_VOLUME_MIGRATIONS }}
+      shell: bash

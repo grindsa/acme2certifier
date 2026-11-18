@@ -22,6 +22,11 @@ on:
         description: 'Full git ref of the commit to run the workflow on'
         required: false
         default: ''
+      sanitize_artifacts:
+        description: 'Sanitize failure artifacts (uncheck to keep acme_srv.cfg / keys; upload will contain secrets)'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.branch }}
@@ -73,7 +78,7 @@ jobs:
         uses: ./.github/actions/container_load
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.wsgi.tar
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.tar
           DESTINATION_PATH: /tmp
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
@@ -110,23 +115,13 @@ jobs:
           DB_HANDLER: wsgi
           WEB_SRV: ${{ matrix.websrv }}
 
-      # Migration-specific deviation from upgrade workflow:
-      # switch image flavor in-place from wsgi to django on same build.
-      - name: "Switch compose env to Django image"
+      # Migration-specific: same unified image; flip runtime handler to django.
+      - name: "Switch compose env to Django handler"
         run: |
           set -euo pipefail
-          sed -i 's/^CONTEXT=wsgi/CONTEXT=django/' examples/Docker/.env
+          sed -i 's/^ACME_SRV_DB_HANDLER=wsgi/ACME_SRV_DB_HANDLER=django/' examples/Docker/.env
 
-      - name: "Load Django build image"
-        uses: ./.github/actions/container_load
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.django.tar
-          DESTINATION_PATH: /tmp
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Spin-up Django image"
+      - name: "Spin-up Django mode (same websrv image)"
         uses: ./.github/actions/container_up
         with:
           DB_HANDLER: django
@@ -177,6 +172,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
           ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.django_db }}-wsgi2django.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
 
   test-deb:
@@ -277,6 +273,7 @@ jobs:
           DEPLOYMENT_TYPE: deb
           ARTIFACT_NAME: test-deb-${{ matrix.websrv }}-${{ matrix.django_db }}-wsgi2django.tar.gz
           WEBSRV: ${{ matrix.websrv }}
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
 
   test-rpm:
@@ -379,6 +376,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
           ARTIFACT_NAME: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.django_db }}-wsgi2django.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}
 
 
   test-pip:
@@ -495,3 +493,4 @@ jobs:
           DEPLOYMENT_TYPE: pip
           ARTIFACT_NAME: pip-${{ matrix.ubuntu_version }}-${{ matrix.websrv }}-wsgi2django.tar.gz
           WEBSRV: ${{ matrix.websrv }}
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

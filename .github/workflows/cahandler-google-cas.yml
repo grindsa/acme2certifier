@@ -44,20 +44,100 @@ jobs:
       branch: ${{ inputs.branch }}
 
   # ---------------------------------------------------------
-  # Step 1 placeholder: register for dispatch-broker / manual
-  # workflow_dispatch. Full mock-backed container CI lands in
-  # Phase 4 step 2 (test-containers + mock_prep).
+  # Lean container smoke against in-repo Private CAS REST mock.
+  # Skip RPM/deb (CA is runner-local Docker, same idea as CFSSL / AWS PCA).
   # ---------------------------------------------------------
-  placeholder:
-    permissions: {}
+  test-containers:
+    permissions:
+      contents: read
+      actions: write
     needs: guard
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['nginx']
+        dbhandler: ['wsgi']
+
     steps:
-      - name: "Phase 4 step 1 — dispatch hook only"
+      - name: "checkout GIT"
+        uses: actions/checkout@v7
+
+      - name: "Channel setup"
+        uses: ./.github/actions/channel_container_setup
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+          NAME_SPACE: acme
+
+      - name: "Instanciate Google Private CAS mock"
+        uses: ./.github/actions/wf_specific/google_cas_ca_handler/mock_prep
+        with:
+          NAME_SPACE: acme
+
+      - name: "Setup a2c with google_cas_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.google_cas_ca_handler
+          OPTIONS: |
+            project: ${{ env.GOOGLE_CAS_PROJECT }}
+            location: ${{ env.GOOGLE_CAS_LOCATION }}
+            ca_pool: ${{ env.GOOGLE_CAS_POOL }}
+            issuing_certificate_authority_id: ${{ env.GOOGLE_CAS_ISSUING_CA_ID }}
+            endpoint_url: ${{ env.GOOGLE_CAS_ENDPOINT_URL }}
+            lifetime_days: 30
+            enrollment_config_log: True
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "*.bar.local"]
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 60
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: acme
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients_enroll
+        with:
+          NAME_SPACE: acme
+          USE_CERTBOT: "true"
+          TEST_ADL: "true"
+          REVOCATION: "true"
+
+      - name: "Verify allowed_domainlist error"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Stop Google Private CAS mock"
+        if: ${{ always() }}
         run: |
-          set -euo pipefail
-          echo "cahandler-google-cas is registered for workflow_dispatch."
-          echo "branch=${{ inputs.branch }} sha=${{ inputs.sha }} run_id=${{ inputs.run_id }}"
-          echo "Full container smoke (mock Private CAS) is not enabled yet."
+          docker compose -f examples/Docker/google_privateca/compose.yaml down -v || true
+          docker rm -f google-cas-mock || true
+
+      - name: "Channel teardown"
+        if: ${{ always() }}
+        uses: ./.github/actions/channel_teardown
+        with:
+          DEPLOYMENT_TYPE: container
+          ARTIFACT_NAME: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SANITIZE_ARTIFACTS: ${{ inputs.sanitize_artifacts }}

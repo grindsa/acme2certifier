@@ -1,0 +1,72 @@
+name: "resolve upgrade versions"
+description: "Checkout repo and resolve one-hop upgrade matrix + django chain for deployment-upgrade"
+inputs:
+  github_token:
+    description: "GitHub token for releases/tags API"
+    required: true
+  github_repository:
+    description: "owner/repo"
+    required: true
+  django_chain_start:
+    description: "Django chain first hop tag"
+    required: false
+    default: "0.33.2"
+  django_chain_mid:
+    description: "Django chain middle hop tag"
+    required: false
+    default: "0.38.1"
+  django_chain_end:
+    description: "Django chain last hop before build (Hub image must rewrite nginx SSL to volume)"
+    required: false
+    default: "0.44"
+
+outputs:
+  app_version:
+    description: "Version from acme_srv/version.py"
+    value: ${{ steps.resolve.outputs.app_version }}
+  n_tag:
+    description: "Latest GitHub release tag"
+    value: ${{ steps.resolve.outputs.n_tag }}
+  hops_docker:
+    description: "JSON array of docker upgrade hops"
+    value: ${{ steps.resolve.outputs.hops_docker }}
+  django_chain_ok:
+    description: "true if django multi-hop chain images/Dockerfiles exist"
+    value: ${{ steps.resolve.outputs.django_chain_ok }}
+  django_chain_start:
+    description: "Django chain start tag"
+    value: ${{ steps.resolve.outputs.django_chain_start }}
+  hops_rpm:
+    description: "JSON array of rpm upgrade hops"
+    value: ${{ steps.resolve.outputs.hops_rpm }}
+  hops_deb:
+    description: "JSON array of deb upgrade hops"
+    value: ${{ steps.resolve.outputs.hops_deb }}
+  has_docker_hops:
+    description: "true if hops_docker is non-empty"
+    value: ${{ steps.resolve.outputs.has_docker_hops }}
+  has_rpm_hops:
+    description: "true if hops_rpm is non-empty"
+    value: ${{ steps.resolve.outputs.has_rpm_hops }}
+  has_deb_hops:
+    description: "true if hops_deb is non-empty"
+    value: ${{ steps.resolve.outputs.has_deb_hops }}
+
+runs:
+  using: "composite"
+  steps:
+    # Caller must checkout once so this local action can load; re-checkout keeps
+    # the working tree complete for version.py / script paths.
+    - name: "checkout GIT"
+      uses: actions/checkout@v7
+
+    - name: "Resolve one-hop upgrade matrix"
+      id: resolve
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ inputs.github_repository }}
+        DJANGO_CHAIN_START: ${{ inputs.django_chain_start }}
+        DJANGO_CHAIN_MID: ${{ inputs.django_chain_mid }}
+        DJANGO_CHAIN_END: ${{ inputs.django_chain_end }}
+      run: bash "${GITHUB_WORKSPACE}/.github/scripts/resolve_upgrade_versions.sh"

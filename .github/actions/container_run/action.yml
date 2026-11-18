@@ -1,5 +1,5 @@
-name: "container_up"
-description: "instanciate a2c container"
+name: "container_run"
+description: "Run grindsa/acme2certifier:VERSION-websrv-dbhandler (prefer local image; pull only if missing)"
 inputs:
   DB_HANDLER:
     description: "Database handler"
@@ -10,7 +10,7 @@ inputs:
     required: true
     default: "apache2"
   DOCKER_COMPOSE_FILE_PATH:
-    description: "Path to the docker compose file"
+    description: "Path to the docker compose file (volume data/)"
     required: false
     default: "examples/Docker"
   NAME_SPACE:
@@ -21,14 +21,43 @@ inputs:
     description: "a2c version"
     required: false
     default: "latest"
+  SKIP_PULL:
+    description: "Never pull; require image already local (e.g. after ensure_container_image)"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
   steps:
+    - name: "Resolve image ${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}"
+      id: image
+      shell: bash
+      env:
+        VERSION: ${{ inputs.VERSION }}
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+        SKIP_PULL: ${{ inputs.SKIP_PULL }}
+      run: |
+        set -euo pipefail
+        IMAGE="grindsa/acme2certifier:${VERSION}-${WEB_SRV}-${DB_HANDLER}"
+        echo "image=${IMAGE}" >> "${GITHUB_OUTPUT}"
+        if docker image inspect "${IMAGE}" >/dev/null 2>&1; then
+          echo "Using local image ${IMAGE}"
+          echo "need_pull=false" >> "${GITHUB_OUTPUT}"
+          exit 0
+        fi
+        if [[ "${SKIP_PULL}" == "true" ]]; then
+          echo "ERROR: image ${IMAGE} not local and SKIP_PULL=true" >&2
+          exit 1
+        fi
+        echo "Local image missing; will pull ${IMAGE}"
+        echo "need_pull=true" >> "${GITHUB_OUTPUT}"
+
     - name: "Pull a2c image"
+      if: steps.image.outputs.need_pull == 'true'
       uses: ./.github/actions/docker_pull
       with:
-        IMAGE: grindsa/acme2certifier:${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}
+        IMAGE: ${{ steps.image.outputs.image }}
 
     - name: "Spin-up a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
@@ -50,12 +79,9 @@ runs:
         docker run -d -p 80:80 -p 443:443 --rm -id --network "$NAME_SPACE" --name=acme-srv \
           "${env_args[@]}" \
           -v "$(pwd)/data":/var/www/acme2certifier/volume/ \
-          "grindsa/acme2certifier:${VERSION}-${WEBSRV}-${DBHANDLER}"
+          "${IMAGE}"
         docker logs acme-srv
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
-        WORKING_DIRECTORY: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
-        WEBSRV: ${{ inputs.WEB_SRV }}
-        DBHANDLER: ${{ inputs.DB_HANDLER }}
-        VERSION: ${{ inputs.VERSION }}
+        IMAGE: ${{ steps.image.outputs.image }}
       shell: bash

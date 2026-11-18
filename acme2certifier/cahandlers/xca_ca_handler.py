@@ -42,6 +42,8 @@ from acme2certifier.acme_srv.helper import (
     convert_string_to_byte,
     csr_cn_get,
     csr_san_get,
+    csr_subject_cn_only,
+    san_general_names_acme_bound,
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     enrollment_config_log,
@@ -661,17 +663,24 @@ class CAhandler:
 
     def _cert_subject_generate(
         self, req: object, request_name: str, dn_dic: Dict[str, str] = None
-    ) -> str:
-        """set subject"""
+    ) -> x509.Name:
+        """set subject (first CN from CSR only; CA template may add RDNs)"""
         self.logger.debug("CAhandler._cert_subject_generate()")
 
-        if not bool(req.subject):
+        csr_rdn_count = len(list(req.subject)) if bool(req.subject) else 0
+        subject = (
+            csr_subject_cn_only(req.subject) if bool(req.subject) else x509.Name([])
+        )
+        if csr_rdn_count > len(list(subject)):
+            self.logger.warning(
+                "Dropped non-CN subject RDNs from CSR for issued certificate"
+            )
+
+        if not list(subject):
             self.logger.info("Rewrite CN to %s", request_name)
             subject = x509.Name(
                 [x509.NameAttribute(x509.NameOID.COMMON_NAME, request_name)]
             )
-        else:
-            subject = req.subject
 
         if dn_dic:
             # modify subject according to template
@@ -1218,21 +1227,27 @@ class CAhandler:
         else:
             extension_list = self._extension_list_default(ca_cert, cert)
 
-        # add subjectAltName(s)
+        # add subjectAltName(s) (DNS/IP/email only; drop URI/otherName/…)
         if "subjectAltName" in csr_extensions_dic:
             # pylint: disable=C2801
             self.logger.debug(
                 "CAhandler._extension_list_generate(): adding subAltNames: %s",
                 csr_extensions_dic["subjectAltName"].__str__(),
             )
-            extension_list.append(
-                {
-                    "name": SubjectAlternativeName(
-                        csr_extensions_dic["subjectAltName"].value
-                    ),
-                    "critical": False,
-                }
+            bound_sans = san_general_names_acme_bound(
+                csr_extensions_dic["subjectAltName"].value
             )
+            if bound_sans:
+                extension_list.append(
+                    {
+                        "name": SubjectAlternativeName(bound_sans),
+                        "critical": False,
+                    }
+                )
+            elif list(csr_extensions_dic["subjectAltName"].value):
+                self.logger.warning(
+                    "Dropped unbound SAN GeneralNames from CSR; none remain"
+                )
 
         self.logger.debug("CAhandler._extension_list_generate() ended")
         return extension_list

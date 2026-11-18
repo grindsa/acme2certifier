@@ -61,15 +61,7 @@ runs:
         json_secret: ${{ inputs.JSON_SECRET }}
 
     - name: "Get runner ip"
-      run: |
-        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> "$GITHUB_ENV"
-        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> "$GITHUB_ENV"
-      shell: bash
-
-    - run: echo "runner IP is $RUNNER_IP"
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-      shell: bash
+      uses: ./.github/actions/get_runner_ip
 
     - name: "Prepare Ubuntu environment"
       uses: ./.github/actions/deb_prep

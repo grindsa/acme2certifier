@@ -6,7 +6,7 @@ import os
 import shutil
 import subprocess
 import tempfile
-from typing import List, Tuple, Dict
+from typing import Any, List, Tuple, Dict
 
 # pylint: disable=e0401
 from acme2certifier.acme_srv.helper import (
@@ -76,7 +76,7 @@ class CAhandler(object):
         )
         return (cert_bundle, cert_raw)
 
-    def _config_refsecret_load(self, config_dic: Dict[str, str]):
+    def _config_refsecret_load(self, config_dic: Any):
         """ " load ref secrets from file"""
         self.logger.debug("CAhandler._config_refsecret_load()")
         self.ref = config_option_load(
@@ -113,7 +113,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_paramters_load() ended")
 
-    def _config_cmprecipient_load(self, config_dic: Dict[str, str]):
+    def _config_cmprecipient_load(self, config_dic: Any):
         """load and format recipient"""
         self.logger.debug("CAhandler._config_cmprecipient_load()")
 
@@ -127,7 +127,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_cmprecipient_load() ended")
 
-    def _config_cmpparameter_load(self, ele: str, config_dic: Dict[str, str]):
+    def _config_cmpparameter_load(self, ele: str, config_dic: Any):
         """load cmp parameters"""
         self.logger.debug("CAhandler._config_cmpparameter_load()")
 
