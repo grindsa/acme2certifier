@@ -386,14 +386,24 @@ class TestRenewalinfo(unittest.TestCase):
             mock_uts_now.assert_called_once()
 
     def test_029_extract_serial_and_aki_from_string_valid(self):
-        with patch(
-            "acme2certifier.acme_srv.renewalinfo.b64_decode", return_value=b"abc"
-        ):
-            with patch(
-                "acme2certifier.acme_srv.renewalinfo.b64_url_recode", return_value="abc"
-            ):
-                result = self.renewalinfo._extract_serial_and_aki_from_string("foo.bar")
-                self.assertEqual(result, ("616263", "616263"))
+        # serial and aki contain bytes >= 0x80 (not valid UTF-8)
+        aki = "a3b1c2d4e5f60718293a4b5c6d7e8f9011223344"
+        serial = "7b00000e4d1f26b303001f5016000000000e4d"
+        renewalinfo_string = "o7HC1OX2BxgpOktcbX6PkBEiM0Q.ewAADk0fJrMDAB9QFgAAAAAOTQ"
+        result = self.renewalinfo._extract_serial_and_aki_from_string(
+            renewalinfo_string
+        )
+        self.assertEqual(result, (serial, aki))
+
+    def test_029a_extract_serial_and_aki_from_string_utf8_decodable_serial(self):
+        # all serial bytes < 0x80 decode as UTF-8; must still return hex
+        aki = "a3b1c2d4e5f60718293a4b5c6d7e8f9011223344"
+        serial = "7b00000e4d1f26330300"
+        renewalinfo_string = "o7HC1OX2BxgpOktcbX6PkBEiM0Q.ewAADk0fJjMDAA"
+        result = self.renewalinfo._extract_serial_and_aki_from_string(
+            renewalinfo_string
+        )
+        self.assertEqual(result, (serial, aki))
 
     def test_030_extract_serial_and_aki_from_string_invalid(self):
         result = self.renewalinfo._extract_serial_and_aki_from_string("foo")
