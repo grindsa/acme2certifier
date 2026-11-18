@@ -48,9 +48,11 @@ runs:
         cfg="${VOLUME_DIR}/acme_srv.cfg"
         sudo test -f "${cfg}"
         # Drop existing [EABhandler] section if present
-        VOLUME_DIR="${VOLUME_DIR}" sudo -E python3 - <<'PY'
+        # Pass path via argv: self-hosted sudo ignores -E (env_reset).
+        sudo python3 - "${VOLUME_DIR}" <<'PY'
         import os
-        cfg = os.environ["VOLUME_DIR"] + "/acme_srv.cfg"
+        import sys
+        cfg = sys.argv[1] + "/acme_srv.cfg"
         with open(cfg) as f:
             lines = f.readlines()
         out = []

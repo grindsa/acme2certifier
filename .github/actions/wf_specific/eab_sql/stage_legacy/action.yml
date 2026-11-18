@@ -66,11 +66,12 @@ runs:
           "${VOLUME_DIR}/settings.py"
         # Tag settings.py is MySQL with HOST/PASSWORD = "TO BE REPLACED"; CI uses
         # sqlite on the volume (EAB Postgres is only for sql_handler, not Django).
-        VOLUME_DIR="${VOLUME_DIR}" sudo -E python3 - <<'PY'
-        import os
+        # Pass path via argv: self-hosted sudo ignores -E (env_reset).
+        sudo python3 - "${VOLUME_DIR}" <<'PY'
+        import sys
         from pathlib import Path
 
-        path = Path(os.environ["VOLUME_DIR"]) / "settings.py"
+        path = Path(sys.argv[1]) / "settings.py"
         text = path.read_text()
         marker = "DATABASES"
         start = text.find(marker)
