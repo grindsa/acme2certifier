@@ -273,7 +273,9 @@ class MockChallengeRepository:
         self.call_log.append(("update_challenge", request))
         return True
 
-    def update_challenge_if_status(self, name: str, new_status: str, expected_status: str):
+    def update_challenge_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ):
         self.call_log.append(
             ("update_challenge_if_status", name, new_status, expected_status)
         )
@@ -434,9 +436,7 @@ class TestChallengeStateManager(unittest.TestCase):
         self.assertEqual(len(update_calls), 1)
         self.assertEqual(update_calls[0][1].status, "invalid")
         cas_calls = [
-            c
-            for c in self.repository.call_log
-            if c[0] == "update_challenge_if_status"
+            c for c in self.repository.call_log if c[0] == "update_challenge_if_status"
         ]
         self.assertEqual(cas_calls[0][2], "valid")
         self.assertEqual(cas_calls[0][3], "processing")

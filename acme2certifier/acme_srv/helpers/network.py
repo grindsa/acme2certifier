@@ -25,9 +25,7 @@ from .global_variables import USER_AGENT
 # Backward-compatible alias used by existing tests that patch this symbol.
 urllib3_cn = connection
 
-_HTTP01_REDIRECT_VALIDATE_ENDED = (
-    "Helper.http01_redirect_target_validate() ended: %s"
-)
+_HTTP01_REDIRECT_VALIDATE_ENDED = "Helper.http01_redirect_target_validate() ended: %s"
 _HTTP01_BODY_CAPPED_ENDED = "Helper._http01_read_body_capped() ended: %s"
 _HTTP01_VALIDATION_TIMED_OUT = "HTTP-01 validation timed out"
 # HTTP-01 key authorization is ~80–100 bytes; keep a small hard cap against
@@ -718,9 +716,14 @@ def _http01_body_header_reject(
     logger: logging.Logger, req: Any, max_bytes: int
 ) -> Optional[str]:
     """Reject compressed or oversized HTTP-01 bodies from response headers."""
-    content_encoding = (req.headers.get("Content-Encoding") or "identity").strip().lower()
+    content_encoding = (
+        (req.headers.get("Content-Encoding") or "identity").strip().lower()
+    )
     if content_encoding not in ("", "identity"):
-        logger.debug("Helper._http01_body_header_reject(): compressed responses are not allowed (Content-Encoding: %s)", content_encoding)
+        logger.debug(
+            "Helper._http01_body_header_reject(): compressed responses are not allowed (Content-Encoding: %s)",
+            content_encoding,
+        )
         return (
             f"HTTP-01 compressed responses are not allowed "
             f"(Content-Encoding: {content_encoding})"
@@ -787,9 +790,7 @@ def _http01_read_body_capped(
         text = b"".join(chunks).decode(encoding, errors="replace")
     except Exception:
         text = b"".join(chunks).decode("utf-8", errors="replace")
-    logger.debug(
-        "Helper._http01_read_body_capped() ended with %s bytes", total
-    )
+    logger.debug("Helper._http01_read_body_capped() ended with %s bytes", total)
     return text, None
 
 
@@ -1117,9 +1118,7 @@ def _url_get_http01(
     max_redirects = max(0, max_redirects)
     hop_timeout = float(max(timeout, 0))
     deadline = time.monotonic() + hop_timeout
-    proxies = (
-        {"http": proxy_server, "https": proxy_server} if proxy_server else {}
-    )
+    proxies = {"http": proxy_server, "https": proxy_server} if proxy_server else {}
 
     parsed = urlparse(logical_url)
     host = initial_host or parsed.hostname or ""

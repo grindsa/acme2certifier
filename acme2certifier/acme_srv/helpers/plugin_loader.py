@@ -322,9 +322,7 @@ def ca_handler_load_from_section(
     return _load_default_ca_handler(logger, config_dic)
 
 
-def ca_handler_load(
-    logger: logging.Logger, config_dic: Any
-) -> importlib.import_module:
+def ca_handler_load(logger: logging.Logger, config_dic: Any) -> importlib.import_module:
     """load and return ca_handler"""
     logger.debug("Helper.plugin_loader.ca_handler_load() start")
 

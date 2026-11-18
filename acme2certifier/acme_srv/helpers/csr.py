@@ -23,9 +23,7 @@ def san_general_names_acme_bound(
     san_extension: x509.SubjectAlternativeName,
 ) -> List[x509.GeneralName]:
     """Return SAN GeneralNames that ACME identifier binding understands."""
-    return [
-        name for name in san_extension if isinstance(name, _ACME_BOUND_SAN_TYPES)
-    ]
+    return [name for name in san_extension if isinstance(name, _ACME_BOUND_SAN_TYPES)]
 
 
 def csr_unbound_san_types(logger: logging.Logger, csr: str) -> List[str]:

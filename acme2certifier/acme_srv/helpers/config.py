@@ -946,9 +946,7 @@ def warn_shortname_without_domainlist(
     )
 
 
-def config_async_mode_load(
-    logger: logging.Logger, config_dic: Any, db_type: str
-):
+def config_async_mode_load(logger: logging.Logger, config_dic: Any, db_type: str):
     """load parameters"""
     logger.debug("Helper.config_async_mode_load()")
 

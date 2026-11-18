@@ -828,9 +828,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._cert_subject_from_request()")
         if self.cn_enforce and enforce_cn:
             self.logger.info("Overwrite CN with %s", enforce_cn)
-            subject = x509.Name(
-                [x509.NameAttribute(NameOID.COMMON_NAME, enforce_cn)]
-            )
+            subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, enforce_cn)])
         else:
             csr_rdn_count = len(list(req.subject)) if req.subject else 0
             subject = csr_subject_cn_only(req.subject)

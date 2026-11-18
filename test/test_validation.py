@@ -316,7 +316,7 @@ def test_377_validate_fqdn(logger: logging.Logger) -> None:
     assert validate_fqdn(logger, "*.bar.local")
 
 
-def test_validate_fqdn_rejects_redos_payload(logger: logging.Logger) -> None:
+def test_378_validate_fqdn_rejects_redos_payload(logger: logging.Logger) -> None:
     """H1: adversarial almost-match must fail quickly (no nested-quantifier ReDoS)."""
     payload = ("a" * 40) + "!"
     started = time.perf_counter()
@@ -324,20 +324,20 @@ def test_validate_fqdn_rejects_redos_payload(logger: logging.Logger) -> None:
     assert time.perf_counter() - started < 0.05
 
 
-def test_validate_fqdn_rejects_oversized_label(logger: logging.Logger) -> None:
+def test_379_validate_fqdn_rejects_oversized_label(logger: logging.Logger) -> None:
     """Labels longer than 63 octets must be rejected."""
     assert not validate_fqdn(logger, ("a" * 64) + ".com")
     assert validate_fqdn(logger, ("a" * 63) + ".com")
 
 
-def test_validate_fqdn_rejects_oversized_name(logger: logging.Logger) -> None:
+def test_380_validate_fqdn_rejects_oversized_name(logger: logging.Logger) -> None:
     """DNS names longer than 253 octets are rejected."""
     long_name = ".".join(["abcd"] * 64)  # 64*4 + 63 dots = 319
     assert len(long_name) > 253
     assert not validate_fqdn(logger, long_name)
 
 
-def test_validate_fqdn_accepts_trailing_dot_and_shortname(
+def test_381_validate_fqdn_accepts_trailing_dot_and_shortname(
     logger: logging.Logger,
 ) -> None:
     """Trailing root dot and single-label names remain valid."""
@@ -346,27 +346,27 @@ def test_validate_fqdn_accepts_trailing_dot_and_shortname(
     assert not validate_fqdn(logger, "*.bar.local.")
 
 
-def test_378_validate_ip(logger: logging.Logger) -> None:
+def test_382_validate_ip(logger: logging.Logger) -> None:
     """test validate_ip()"""
     assert validate_ip(logger, "10.0.0.1")
 
 
-def test_379_validate_ip(logger: logging.Logger) -> None:
+def test_383_validate_ip(logger: logging.Logger) -> None:
     """test validate_ip()"""
     assert validate_ip(logger, "2a01:c22:b0cf:600:74be:80a7:4feb:bfe8")
 
 
-def test_380_validate_ip(logger: logging.Logger) -> None:
+def test_384_validate_ip(logger: logging.Logger) -> None:
     """test validate_ip()"""
     assert not validate_ip(logger, "foo.bar.local")
 
 
-def test_381_validate_ip(logger: logging.Logger) -> None:
+def test_385_validate_ip(logger: logging.Logger) -> None:
     """test validate_ip()"""
     assert not validate_ip(logger, "foo@bar.local")
 
 
-def test_382_validate_ip(logger: logging.Logger) -> None:
+def test_386_validate_ip(logger: logging.Logger) -> None:
     """test validate_ip()"""
     assert not validate_ip(logger, "301.0.0.1")
 
@@ -374,7 +374,7 @@ def test_382_validate_ip(logger: logging.Logger) -> None:
 @patch("acme2certifier.acme_srv.helpers.validation.validate_email")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-def test_383_validate_identifier(
+def test_387_validate_identifier(
     mock_ip: MagicMock,
     mock_fqdn: MagicMock,
     mock_email: MagicMock,
@@ -392,7 +392,7 @@ def test_383_validate_identifier(
 @patch("acme2certifier.acme_srv.helpers.validation.validate_email")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-def test_384_validate_identifier(
+def test_388_validate_identifier(
     mock_ip: MagicMock,
     mock_fqdn: MagicMock,
     mock_email: MagicMock,
@@ -410,7 +410,7 @@ def test_384_validate_identifier(
 @patch("acme2certifier.acme_srv.helpers.validation.validate_email")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-def test_385_validate_identifier(
+def test_389_validate_identifier(
     mock_ip: MagicMock,
     mock_fqdn: MagicMock,
     mock_email: MagicMock,
@@ -428,7 +428,7 @@ def test_385_validate_identifier(
 @patch("acme2certifier.acme_srv.helpers.validation.validate_email")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-def test_386_validate_identifier(
+def test_390_validate_identifier(
     mock_ip: MagicMock,
     mock_fqdn: MagicMock,
     mock_email: MagicMock,
@@ -446,7 +446,7 @@ def test_386_validate_identifier(
 @patch("acme2certifier.acme_srv.helpers.validation.validate_email")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-def test_387_validate_identifier(
+def test_391_validate_identifier(
     mock_ip: MagicMock,
     mock_fqdn: MagicMock,
     mock_email: MagicMock,
@@ -464,7 +464,7 @@ def test_387_validate_identifier(
 @patch("acme2certifier.acme_srv.helpers.validation.validate_email")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_fqdn")
 @patch("acme2certifier.acme_srv.helpers.validation.validate_ip")
-def test_388_validate_identifier(
+def test_392_validate_identifier(
     mock_ip: MagicMock,
     mock_fqdn: MagicMock,
     mock_email: MagicMock,

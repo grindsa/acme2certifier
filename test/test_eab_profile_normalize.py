@@ -90,9 +90,7 @@ class TestEabProfileNormalize(unittest.TestCase):
 
     def test_008_profiles_normalize_passthrough_non_object_entry(self):
         """Scalar / non-JSON string entries are kept as-is"""
-        result = self.normalize_profiles(
-            {"kid_hmac": "raw-hmac-string", "kid_num": 42}
-        )
+        result = self.normalize_profiles({"kid_hmac": "raw-hmac-string", "kid_num": 42})
         self.assertEqual(result["kid_hmac"], "raw-hmac-string")
         self.assertEqual(result["kid_num"], 42)
 

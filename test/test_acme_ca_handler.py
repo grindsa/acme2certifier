@@ -2917,9 +2917,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIsNone(challenge)
 
     @patch("subprocess.call")
-    @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
-    )
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env")
     @patch("os.path.splitext")
     @patch("os.path.basename")
     def test_134_deprovision_calls_subprocess_and_env(
@@ -2981,9 +2979,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("subprocess.call")
-    @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
-    )
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env")
     def test_136_deprovision_no_records(self, mock_env_handle, mock_subprocess):
         """Test _dns_challenge_deprovision with no DNS records."""
         self.cahandler.dns_update_script = "/tmp/dns_update.sh"
@@ -3014,9 +3010,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("subprocess.call")
-    @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
-    )
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env")
     @patch("os.path.splitext")
     @patch("os.path.basename")
     @patch("acme2certifier.cahandlers.acme_ca_handler.sha256_hash")
@@ -3065,9 +3059,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("subprocess.call")
-    @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
-    )
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env")
     @patch("os.path.splitext")
     @patch("os.path.basename")
     @patch("acme2certifier.cahandlers.acme_ca_handler.sha256_hash")
@@ -3123,9 +3115,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("subprocess.call")
-    @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
-    )
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env")
     @patch("os.path.splitext")
     @patch("os.path.basename")
     @patch("acme2certifier.cahandlers.acme_ca_handler.sha256_hash")
@@ -3184,9 +3174,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("subprocess.call")
-    @patch(
-        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env"
-    )
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_script_env")
     @patch("os.path.splitext")
     @patch("os.path.basename")
     @patch("acme2certifier.acme_srv.helper.sha256_hash")

@@ -750,9 +750,7 @@ class TestOrderClass(unittest.TestCase):
                     self.assertEqual(code, 200)
             # Missing/denied ownership: same unauthorized client error; no side-effect lookup
             with (
-                patch.object(
-                    self.order, "_get_order_account_name", return_value=None
-                ),
+                patch.object(self.order, "_get_order_account_name", return_value=None),
                 patch.object(self.order, "get_order_details") as mock_details,
             ):
                 code, msg, detail, _cert, _order = self.order._parse_order_message(
@@ -764,9 +762,7 @@ class TestOrderClass(unittest.TestCase):
                 mock_details.assert_not_called()
             # Ownership ok but details empty: still uniform unauthorized (no oracle)
             with (
-                patch.object(
-                    self.order, "_get_order_account_name", return_value="acc"
-                ),
+                patch.object(self.order, "_get_order_account_name", return_value="acc"),
                 patch.object(self.order, "get_order_details", return_value={}),
             ):
                 with self.assertLogs("test_a2c", level="WARNING") as log_cm:

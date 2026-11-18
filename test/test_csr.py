@@ -607,8 +607,11 @@ def test_668_csr_subject_cn_only_drops_ou_and_extra_cn() -> None:
     cn_only = csr_subject_cn_only(subject)
     assert [attr.rfc4514_string() for attr in cn_only] == ["CN=ok.example"]
     assert list(csr_subject_cn_only(x509.Name([]))) == []
-    assert list(
-        csr_subject_cn_only(
-            x509.Name([x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Evil")])
+    assert (
+        list(
+            csr_subject_cn_only(
+                x509.Name([x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Evil")])
+            )
         )
-    ) == []
+        == []
+    )

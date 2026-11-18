@@ -44,7 +44,8 @@ jobs:
   unittest:
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    # Pin: ubuntu-latest is 26.04; setup-python has no 3.8/3.9 builds there.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: guard
     # Prevent workflows from running in forks
@@ -87,7 +88,8 @@ jobs:
   pylint:
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    # Pin: ubuntu-latest is 26.04; setup-python has no 3.8/3.9 builds there.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: guard
     # Prevent workflows from running in forks

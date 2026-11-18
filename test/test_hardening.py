@@ -827,9 +827,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_037_legacy_non_strict_still_rejects_unbound_uri(
-        self, certificate
-    ) -> None:
+    def test_037_legacy_non_strict_still_rejects_unbound_uri(self, certificate) -> None:
         """Unbound SAN reject applies even when csr_binding_strict is False."""
         certificate.config.csr_binding_strict = False
         csr = _build_csr_b64(
@@ -847,7 +845,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_035_unbound_uri_othername_san_rejected(self, certificate) -> None:
+    def test_038_unbound_uri_othername_san_rejected(self, certificate) -> None:
         """H4: URI/otherName SANs invisible to binding must fail finalize."""
         from cryptography.x509.oid import ObjectIdentifier
 
@@ -876,9 +874,7 @@ class TestCsrBinding:
             # Without unbound-SAN reject, bound names would equal the order.
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_036_legacy_non_strict_still_rejects_unbound_san(
-        self, certificate
-    ) -> None:
+    def test_039_legacy_non_strict_still_rejects_unbound_san(self, certificate) -> None:
         """Unbound SAN types are rejected even when csr_binding_strict is False."""
         certificate.config.csr_binding_strict = False
         csr = _build_csr_b64(
@@ -898,7 +894,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_035_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
+    def test_040_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
         """email_identifier_rewrite: dns:user@host order matches CSR DNS+EMAIL SANs."""
         certificate.config.email_identifier_rewrite = True
         csr = _build_csr_b64(
@@ -917,7 +913,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_036_rewrite_still_rejects_extra_email(self, certificate) -> None:
+    def test_041_rewrite_still_rejects_extra_email(self, certificate) -> None:
         certificate.config.email_identifier_rewrite = True
         csr = _build_csr_b64(
             cn="jum@mailserver.acme",
@@ -1124,7 +1120,7 @@ class TestEabProfileDenylist:
         assert cahandler.acme_keyfile == ("/var/www/acme2certifier/volume/acme/ok.json")
         assert mock_warn.call_count >= 3
 
-    def test_046b_bool_entry_skips_denied_attr(self) -> None:
+    def test_047_bool_entry_skips_denied_attr(self) -> None:
         """JSON bool profile values must honor eab_profile_attr_denied()."""
         from acme2certifier.acme_srv.helpers.eab import _eab_profile_entry_check
 
@@ -1164,7 +1160,7 @@ class TestEabProfileDenylist:
         assert cahandler.allow_shortname_from_fqdn is True
         assert mock_warn.call_count == 4
 
-    def test_047_list_check_skips_denied_attr(self) -> None:
+    def test_048_list_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
 
         class _Handler:
@@ -1206,7 +1202,7 @@ class TestEabProfileDenylist:
         mock_warn.assert_called_once()
         mock_validate.assert_called_once()
 
-    def test_048_list_check_acme_keyfile_outside_keypath(self) -> None:
+    def test_049_list_check_acme_keyfile_outside_keypath(self) -> None:
         """eab_profile_list_check ignores acme_keyfile outside acme_keypath"""
         from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
 

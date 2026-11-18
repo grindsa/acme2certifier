@@ -221,8 +221,9 @@ class TestDomainUtils:
         mock_san.return_value = ["invalidhostname"]
         mock_cn.return_value = "host2.foo.bar"
         csr = "csr"
-        assert "SAN list parsing failed ['invalidhostname']" == allowed_domainlist_check(
-            logger, csr, allowed_domainlist
+        assert (
+            "SAN list parsing failed ['invalidhostname']"
+            == allowed_domainlist_check(logger, csr, allowed_domainlist)
         )
 
     @patch("acme2certifier.acme_srv.helpers.domain_utils.csr_cn_get")

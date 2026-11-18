@@ -2316,7 +2316,7 @@ def test_646_host_header_ssl_adapter_sets_server_hostname() -> None:
     mock_super.assert_called_once()
 
 
-def test_640_http01_redirect_structure_errors(logger: logging.Logger) -> None:
+def test_647_http01_redirect_structure_errors(logger: logging.Logger) -> None:
     """Redirect Location scheme/userinfo/host checks"""
     from acme2certifier.acme_srv.helpers.network import http01_redirect_target_validate
 
@@ -2331,7 +2331,7 @@ def test_640_http01_redirect_structure_errors(logger: logging.Logger) -> None:
 
 
 @patch("acme2certifier.acme_srv.helpers.network.fqdn_resolve")
-def test_641_http01_redirect_dns_failure(
+def test_648_http01_redirect_dns_failure(
     mock_resolve: MagicMock, logger: logging.Logger
 ) -> None:
     """Hostname redirect fails closed when DNS resolution is invalid"""
@@ -2345,7 +2345,7 @@ def test_641_http01_redirect_dns_failure(
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-def test_642_url_get_http01_restrict_redirects_proxy_and_query(
+def test_649_url_get_http01_restrict_redirects_proxy_and_query(
     mock_get: MagicMock, logger: logging.Logger
 ) -> None:
     """url_get(http01_restrict_redirects) uses hostname path; query kept on pins"""
@@ -2385,7 +2385,7 @@ def test_642_url_get_http01_restrict_redirects_proxy_and_query(
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-def test_643_url_get_dns_pinned_missing_location_and_hostname(
+def test_650_url_get_dns_pinned_missing_location_and_hostname(
     mock_get: MagicMock, logger: logging.Logger
 ) -> None:
     """Redirect without Location and URL without host both fail"""
@@ -2417,7 +2417,7 @@ def test_643_url_get_dns_pinned_missing_location_and_hostname(
 
 
 @patch("acme2certifier.acme_srv.helpers.network._http01_single_get")
-def test_644_http01_fetch_via_hostname_custom_dns_and_failure(
+def test_651_http01_fetch_via_hostname_custom_dns_and_failure(
     mock_single: MagicMock, logger: logging.Logger
 ) -> None:
     """Custom DNS flag is set around hostname fetch; connection failure returns error"""
@@ -2466,7 +2466,7 @@ def test_644_http01_fetch_via_hostname_custom_dns_and_failure(
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-def test_647_http01_rejects_oversized_body(
+def test_652_http01_rejects_oversized_body(
     mock_get: MagicMock, logger: logging.Logger
 ) -> None:
     """HTTP-01 fails closed when the response exceeds HTTP01_MAX_RESPONSE_BYTES"""
@@ -2490,7 +2490,7 @@ def test_647_http01_rejects_oversized_body(
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-def test_648_http01_rejects_content_length_over_cap(
+def test_653_http01_rejects_content_length_over_cap(
     mock_get: MagicMock, logger: logging.Logger
 ) -> None:
     """HTTP-01 rejects Content-Length above the cap without reading the body"""
@@ -2518,7 +2518,7 @@ def test_648_http01_rejects_content_length_over_cap(
 
 
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-def test_649_http01_rejects_compressed_encoding(
+def test_654_http01_rejects_compressed_encoding(
     mock_get: MagicMock, logger: logging.Logger
 ) -> None:
     """HTTP-01 rejects Content-Encoding other than identity"""
@@ -2542,7 +2542,7 @@ def test_649_http01_rejects_compressed_encoding(
 
 @patch("acme2certifier.acme_srv.helpers.network.time.monotonic")
 @patch("acme2certifier.acme_srv.helpers.network.requests.get")
-def test_650_http01_shared_wall_clock_timeout(
+def test_655_http01_shared_wall_clock_timeout(
     mock_get: MagicMock, mock_mono: MagicMock, logger: logging.Logger
 ) -> None:
     """Shared wall-clock budget aborts before a hop when the deadline is spent"""
@@ -2565,7 +2565,7 @@ def test_650_http01_shared_wall_clock_timeout(
 
 
 @patch("acme2certifier.acme_srv.helpers.network.socks.socksocket")
-def test_651_servercert_get_sets_socket_timeout(
+def test_656_servercert_get_sets_socket_timeout(
     mock_sock_cls: MagicMock, logger: logging.Logger
 ) -> None:
     """TLS-ALPN socket uses settimeout before connect"""
@@ -2578,7 +2578,7 @@ def test_651_servercert_get_sets_socket_timeout(
     sock.settimeout.assert_called_once_with(7.0)
 
 
-def test_652_http01_decodes_body_without_charset(logger: logging.Logger) -> None:
+def test_657_http01_decodes_body_without_charset(logger: logging.Logger) -> None:
     """HTTP-01 decode must not touch apparent_encoding after stream consume"""
     from acme2certifier.acme_srv.helpers.network import _http01_read_body_capped
 
@@ -2805,3 +2805,20 @@ def test_707_servercert_get_close_exception_ignored(
     assert alpn is None
     sock.close.assert_called()
     assert any("Could not get peer certificate" in line for line in lcm.output)
+
+
+def test_708_http01_body_header_reject_valid_content_length_under_cap(
+    logger: logging.Logger,
+) -> None:
+    """Valid Content-Length at or under the cap is accepted"""
+    from acme2certifier.acme_srv.helpers.network import (
+        HTTP01_MAX_RESPONSE_BYTES,
+        _http01_body_header_reject,
+    )
+
+    class _Resp:
+        headers = {"Content-Length": str(HTTP01_MAX_RESPONSE_BYTES)}
+
+    assert (
+        _http01_body_header_reject(logger, _Resp(), HTTP01_MAX_RESPONSE_BYTES) is None
+    )

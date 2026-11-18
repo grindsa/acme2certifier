@@ -1266,7 +1266,9 @@ class Authorization(object):
             )
         if not auth_info:
             # Same client error as ownership denial (no existence oracle).
-            self.logger.warning("Authorization request failed: authorization lookup empty")
+            self.logger.warning(
+                "Authorization request failed: authorization lookup empty"
+            )
             own_code, own_message, own_detail = ownership_unauthorized()
             return own_code, own_message, own_detail, {}
         return code, message, detail, {"data": auth_info}

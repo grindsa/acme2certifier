@@ -920,7 +920,9 @@ class CAhandler(object):
         """Find transaction id in a transaction list by certificate serial."""
         # Newest first — GetMyTransactions is typically oldest-first and a full
         # GetCertificate walk of a large history exceeds ACME client timeouts.
-        items = [item for item in reversed(list(transactions)) if isinstance(item, dict)]
+        items = [
+            item for item in reversed(list(transactions)) if isinstance(item, dict)
+        ]
         if check_item_serial:
             for item in items:
                 matched = self._item_serial_match(item, serial_norm)

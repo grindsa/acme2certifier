@@ -141,7 +141,9 @@ class TestEncoding:
     def test_024_build_pem_file(self, logger: logging.Logger) -> None:
         """test build_pem_file with long cert (to test wrap)"""
         existing = None
-        cert = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        cert = (
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert (
             "-----BEGIN CERTIFICATE-----\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\naaaaaaaaa\n-----END CERTIFICATE-----\n"
             == build_pem_file(logger, existing, cert, True)
@@ -150,7 +152,9 @@ class TestEncoding:
     def test_025_build_pem_file(self, logger: logging.Logger) -> None:
         """test build_pem_file with long cert (to test wrap)"""
         existing = None
-        cert = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        cert = (
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert (
             "-----BEGIN CERTIFICATE-----\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n-----END CERTIFICATE-----\n"
             == build_pem_file(logger, existing, cert, False)
@@ -159,7 +163,9 @@ class TestEncoding:
     def test_026_build_pem_file(self, logger: logging.Logger) -> None:
         """test build_pem_file with long cert (to test wrap)"""
         existing = "existing"
-        cert = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        cert = (
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
         assert (
             "existing-----BEGIN CERTIFICATE-----\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n-----END CERTIFICATE-----\n"
             == build_pem_file(logger, existing, cert, False)

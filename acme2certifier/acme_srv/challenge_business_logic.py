@@ -224,9 +224,7 @@ class ChallengeStateManager:
                 )
             )
 
-        success = self.repository.update_authorization_status(
-            challenge_name, "invalid"
-        )
+        success = self.repository.update_authorization_status(challenge_name, "invalid")
 
         self.logger.warning(
             "Challenge state transition: challenge=%s status=invalid success=%s reason=%s",

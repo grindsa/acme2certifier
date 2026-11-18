@@ -177,9 +177,7 @@ def acct(environ, start_response):
 
         # create header
         headers = create_header(response_dic)
-        start_response(
-            http_status_line(response_dic["code"]), headers
-        )
+        start_response(http_status_line(response_dic["code"]), headers)
 
         # logging
         log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic)
@@ -216,9 +214,7 @@ def authz(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -235,9 +231,7 @@ def authz(environ, start_response):
             response_dic = authorization.new_get(get_url(environ, True))
 
             headers = create_header(response_dic)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
             log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
@@ -258,9 +252,7 @@ def newaccount(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -308,9 +300,7 @@ def cert(environ, start_response):
             response_dic = certificate.new_post(request_body)
             # create header
             headers = create_header(response_dic, False)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -324,9 +314,7 @@ def cert(environ, start_response):
             # create header
             headers = create_header(response_dic)
             # create the response
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -362,9 +350,7 @@ def chall(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -382,9 +368,7 @@ def chall(environ, start_response):
             # generate header
             headers = [("Content-Type", CONTENT_TYPE_JSON)]
             # create the response
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -435,9 +419,7 @@ def neworders(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -460,9 +442,7 @@ def order(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -486,9 +466,7 @@ def renewalinfo(environ, start_response):
             response_dic = renewalinfo_.update(request_body)
             error_body = response_dic.get("code", 200) >= 400 and "data" in response_dic
             headers = create_header(response_dic, error_body)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -504,9 +482,7 @@ def renewalinfo(environ, start_response):
             # create header
             headers = create_header(response_dic)
             # create the response
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -536,9 +512,7 @@ def revokecert(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -577,9 +551,7 @@ def trigger(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -619,9 +591,7 @@ def housekeeping(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                http_status_line(response_dic["code"]), headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "****")

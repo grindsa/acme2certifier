@@ -4135,7 +4135,7 @@ class TestCertificate(unittest.TestCase):
         self.assertEqual(attrs["acme.cahandler"], "openssl")
         self.assertEqual(attrs["acme.outcome"], "success")
 
-    def test_enroll_via_cahandler_exception_returns_error(self):
+    def test_267_enroll_via_cahandler_exception_returns_error(self):
         """enroll() exceptions become (error, None, None, None) for the error path."""
         handler_factory = MagicMock()
         handler_factory.return_value.__enter__.return_value.enroll.side_effect = (
@@ -4144,7 +4144,9 @@ class TestCertificate(unittest.TestCase):
         handler_factory.return_value.__exit__.return_value = False
         with (
             patch("acme2certifier.acme_srv.certificate.span") as mock_span,
-            patch("acme2certifier.acme_srv.certificate.set_span_outcome") as mock_outcome,
+            patch(
+                "acme2certifier.acme_srv.certificate.set_span_outcome"
+            ) as mock_outcome,
             patch("acme2certifier.acme_srv.certificate.counter_add") as mock_counter,
             self.assertLogs(self.cert.logger, level="ERROR") as log,
         ):
@@ -4159,7 +4161,7 @@ class TestCertificate(unittest.TestCase):
         mock_counter.assert_called()
         self.assertIn("enroll() raised", log.output[0])
 
-    def test_process_enrollment_unexpected_exception_invalidates_order(self):
+    def test_268_process_enrollment_unexpected_exception_invalidates_order(self):
         """Unexpected enrollment exceptions go through _handle_enrollment_error."""
         with (
             patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
@@ -4184,7 +4186,7 @@ class TestCertificate(unittest.TestCase):
         )
         self.assertIn("Unexpected error during enrollment", log.output[0])
 
-    def test_handle_enrollment_thread_execution_records_failure(self):
+    def test_269_handle_enrollment_thread_execution_records_failure(self):
         """Thread setup failures also persist error / invalidate order."""
         with (
             patch(
@@ -4201,11 +4203,9 @@ class TestCertificate(unittest.TestCase):
                 "cert_name", "csr", "order"
             )
         self.assertEqual(result[0], "serverinternal")
-        mock_handle.assert_called_once_with(
-            "Thread error", None, "order", "cert_name"
-        )
+        mock_handle.assert_called_once_with("Thread error", None, "order", "cert_name")
 
-    def test_267_handle_enrollment_thread_store_failure_logs_critical(self):
+    def test_270_handle_enrollment_thread_store_failure_logs_critical(self):
         """Nested store failure while recording thread error is CRITICAL."""
         with (
             patch(
@@ -4240,7 +4240,7 @@ class TestCertificate(unittest.TestCase):
         "acme2certifier.acme_srv.certificate.csr_san_get",
         return_value=["DNS:a.example.com", "DNS:b.example.com"],
     )
-    def test_268_missing_csr_sans_all_present(self, mock_csr_san, mock_cert_san):
+    def test_271_missing_csr_sans_all_present(self, mock_csr_san, mock_cert_san):
         """CSR SANs fully covered by issued certificate."""
         self.assertEqual(self.cert._missing_csr_sans("csr", "cert"), [])
 
@@ -4252,7 +4252,7 @@ class TestCertificate(unittest.TestCase):
         "acme2certifier.acme_srv.certificate.csr_san_get",
         return_value=["DNS:a.example.com", "DNS:b.example.com"],
     )
-    def test_269_missing_csr_sans_one_missing(self, mock_csr_san, mock_cert_san):
+    def test_272_missing_csr_sans_one_missing(self, mock_csr_san, mock_cert_san):
         """One CSR SAN absent from issued certificate."""
         self.assertEqual(
             self.cert._missing_csr_sans("csr", "cert"),
@@ -4261,7 +4261,7 @@ class TestCertificate(unittest.TestCase):
 
     @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=[])
     @patch("acme2certifier.acme_srv.certificate.csr_san_get", return_value=[])
-    def test_270_missing_csr_sans_empty_csr(self, mock_csr_san, mock_cert_san):
+    def test_273_missing_csr_sans_empty_csr(self, mock_csr_san, mock_cert_san):
         """CN-only CSR with no SANs needs no coverage check."""
         self.assertEqual(self.cert._missing_csr_sans("csr", "cert"), [])
 
@@ -4273,7 +4273,7 @@ class TestCertificate(unittest.TestCase):
         "acme2certifier.acme_srv.certificate.csr_san_get",
         return_value=["dns:a.example.com"],
     )
-    def test_271_missing_csr_sans_case_insensitive(self, mock_csr_san, mock_cert_san):
+    def test_274_missing_csr_sans_case_insensitive(self, mock_csr_san, mock_cert_san):
         """SAN comparison is case-insensitive."""
         self.assertEqual(self.cert._missing_csr_sans("csr", "cert"), [])
 
@@ -4281,7 +4281,7 @@ class TestCertificate(unittest.TestCase):
         "acme2certifier.acme_srv.certificate.csr_san_get",
         side_effect=Exception("parse fail"),
     )
-    def test_272_missing_csr_sans_parse_error(self, mock_csr_san):
+    def test_275_missing_csr_sans_parse_error(self, mock_csr_san):
         """Parse failures return no missing SANs and log a warning."""
         with self.assertLogs("test_a2c", level="WARNING") as lcm:
             self.assertEqual(self.cert._missing_csr_sans("csr", "cert"), [])
@@ -4297,7 +4297,7 @@ class TestCertificate(unittest.TestCase):
         "acme2certifier.acme_srv.certificate.csr_san_get",
         return_value=["DNS:a.example.com"],
     )
-    def test_272b_missing_csr_sans_pem_uses_recode_false(
+    def test_276_missing_csr_sans_pem_uses_recode_false(
         self, mock_csr_san, mock_cert_san
     ):
         """PEM from enrollment must be parsed without base64url recode."""
@@ -4316,15 +4316,13 @@ class TestCertificate(unittest.TestCase):
         "acme2certifier.acme_srv.certificate.csr_san_get",
         return_value=["DNS:a.example.com", "DNS:b.example.com"],
     )
-    def test_273_check_issued_certificate_sans_log_only(
+    def test_277_check_issued_certificate_sans_log_only(
         self, mock_csr_san, mock_cert_san
     ):
         """Default mode logs missing SANs but still allows delivery."""
         self.cert.config.cert_san_check_strict = False
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
-            self.assertIsNone(
-                self.cert._check_issued_certificate_sans("csr", "cert")
-            )
+            self.assertIsNone(self.cert._check_issued_certificate_sans("csr", "cert"))
         self.assertIn(
             "ERROR:test_a2c:Issued certificate missing CSR SANs: ['dns:b.example.com']",
             lcm.output,
@@ -4338,7 +4336,7 @@ class TestCertificate(unittest.TestCase):
         "acme2certifier.acme_srv.certificate.csr_san_get",
         return_value=["DNS:a.example.com", "DNS:b.example.com"],
     )
-    def test_274_check_issued_certificate_sans_strict(
+    def test_278_check_issued_certificate_sans_strict(
         self, mock_csr_san, mock_cert_san
     ):
         """Strict mode returns an enrollment error string including missing SANs."""
@@ -4353,7 +4351,7 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    def test_275_process_enrollment_san_mismatch_log_only(self):
+    def test_279_process_enrollment_san_mismatch_log_only(self):
         """Enrollment still stores the certificate when SAN check is non-strict."""
         self.cert.config.cert_san_check_strict = False
         with (
@@ -4373,7 +4371,9 @@ class TestCertificate(unittest.TestCase):
                 "_store_certificate_and_update_order",
                 return_value=("result", None),
             ) as mock_store,
-            patch.object(self.cert, "_execute_post_enrollment_hooks", return_value=None),
+            patch.object(
+                self.cert, "_execute_post_enrollment_hooks", return_value=None
+            ),
         ):
             result = self.cert._process_enrollment_and_store_certificate(
                 "cert_name", "csr", "order_name"
@@ -4382,12 +4382,10 @@ class TestCertificate(unittest.TestCase):
             mock_check.assert_called_once_with("csr", "cert")
             mock_store.assert_called_once()
 
-    def test_276_process_enrollment_san_mismatch_strict(self):
+    def test_280_process_enrollment_san_mismatch_strict(self):
         """Strict SAN mismatch refuses storage and uses enrollment error path."""
         self.cert.config.cert_san_check_strict = True
-        missing_detail = (
-            "Issued certificate missing CSR SANs: ['dns:b.example.com']"
-        )
+        missing_detail = "Issued certificate missing CSR SANs: ['dns:b.example.com']"
         with (
             patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=None),
             patch.object(
@@ -4424,7 +4422,7 @@ class TestCertificate(unittest.TestCase):
             )
             mock_post.assert_not_called()
 
-    def test_277_poll_certificate_san_mismatch_log_only(self):
+    def test_281_poll_certificate_san_mismatch_log_only(self):
         """Poll still stores the certificate when SAN check is non-strict."""
         self.cert.config.cert_san_check_strict = False
         with (
@@ -4447,12 +4445,10 @@ class TestCertificate(unittest.TestCase):
             mock_success.assert_called_once()
             mock_failed.assert_not_called()
 
-    def test_278_poll_certificate_san_mismatch_strict(self):
+    def test_282_poll_certificate_san_mismatch_strict(self):
         """Strict SAN mismatch on poll rejects and does not store."""
         self.cert.config.cert_san_check_strict = True
-        missing_detail = (
-            "Issued certificate missing CSR SANs: ['dns:b.example.com']"
-        )
+        missing_detail = "Issued certificate missing CSR SANs: ['dns:b.example.com']"
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value=None),
             patch.object(self.cert, "cahandler") as mock_cahandler,
@@ -4480,17 +4476,15 @@ class TestCertificate(unittest.TestCase):
                 True,
             )
 
-    def test_279_resolve_client_enrollment_error_missing_sans(self):
+    def test_283_resolve_client_enrollment_error_missing_sans(self):
         """Missing-SAN strict errors are forwarded as client-visible detail."""
         self.cert.err_msg_dic = {"serverinternal": "serverinternal"}
         detail = "Issued certificate missing CSR SANs: ['dns:b.example.com']"
-        error, client_detail = self.cert._resolve_client_enrollment_error(
-            detail, None
-        )
+        error, client_detail = self.cert._resolve_client_enrollment_error(detail, None)
         self.assertEqual(error, "serverinternal")
         self.assertEqual(client_detail, detail)
 
-    def test_280_handle_enrollment_error_missing_sans(self):
+    def test_284_handle_enrollment_error_missing_sans(self):
         """Enrollment error path keeps missing-SAN detail for the client."""
         self.cert.err_msg_dic = {
             "serverinternal": "serverinternal",
@@ -4501,9 +4495,7 @@ class TestCertificate(unittest.TestCase):
             patch.object(self.cert, "_update_order_status") as mock_update,
             patch.object(self.cert, "_store_certificate_error") as mock_store,
         ):
-            result = self.cert._handle_enrollment_error(
-                detail, None, "order1", "cert1"
-            )
+            result = self.cert._handle_enrollment_error(detail, None, "order1", "cert1")
             mock_update.assert_called_with({"name": "order1", "status": "invalid"})
             mock_store.assert_called_with("cert1", detail, None)
             self.assertEqual(result, (None, "serverinternal", detail))

@@ -1654,7 +1654,10 @@ class DBstore(object):
     ) -> int:
         """Update challenge status only when current status matches; return row count."""
         self.logger.debug(
-            "challenge_update_if_status(%s, %s -> %s)", name, expected_status, new_status
+            "challenge_update_if_status(%s, %s -> %s)",
+            name,
+            expected_status,
+            new_status,
         )
         new_status_id = dict_from_row(self._status_search("name", new_status))["id"]
         expected_status_id = dict_from_row(

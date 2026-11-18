@@ -304,9 +304,7 @@ class EABhandler(EABhandlerBase, EabProfileMixin):
                 continue
             kid = str(key).rstrip("/")
             if not self._kid_is_safe(kid):
-                self.logger.warning(
-                    "Skipping unsafe EAB kid from Vault list: %r", kid
-                )
+                self.logger.warning("Skipping unsafe EAB kid from Vault list: %r", kid)
                 continue
             kids.append(kid)
         self.logger.debug("EABhandler._kids_list() ended with %s kids", len(kids))

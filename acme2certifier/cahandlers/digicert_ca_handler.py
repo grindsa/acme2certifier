@@ -186,9 +186,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_load() ended")
 
-    def _dns_names_from_san_list(
-        self, csr_san_list: Optional[List[str]]
-    ) -> List[str]:
+    def _dns_names_from_san_list(self, csr_san_list: Optional[List[str]]) -> List[str]:
         """Extract unique DNS SANs for DigiCert dns_names (IP/EMAIL ignored)."""
         dns_names: List[str] = []
         for san in csr_san_list or []:
