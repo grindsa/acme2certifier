@@ -79,6 +79,11 @@ runs:
         -e 's|image: whiterabbitsecurity/openxpki3$|image: whiterabbitsecurity/openxpki3:3.32.16|g' \
         docker-compose.yml
 
+      # openxpki-docker bind-mounts /etc/timezone; missing path becomes a dir and runc fails
+      if [ ! -f /etc/timezone ]; then
+        echo Etc/UTC | sudo tee /etc/timezone >/dev/null
+      fi
+
       docker compose up -d web --wait
     shell: bash
     env:
