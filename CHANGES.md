@@ -22,17 +22,17 @@ This is a high-level summary of the most important changes. For a full list of c
 **Bug Fixes and Improvements**:
 
 - Kerberos keytab: call `gssapi.raw.acquire_cred_from` with python-gssapi kwargs (`name` / `usage`) ([#385](https://github.com/grindsa/acme2certifier/discussions/385))
-- HARICA: keep the CertManager transaction id in `poll_identifier` after successful enroll and prefer it on revoke (avoids a slow serial scan of `GetMyTransactions` that can exceed ACME client timeouts)
-- After CA enrollment/poll, compare CSR SANs against the issued leaf certificate and log an error when SANs are missing; optional `[Certificate] cert_san_check_strict` refuses delivery ([#413](https://github.com/grindsa/acme2certifier/issues/413)); containers-only CI in `feature-cert-san-check.yml`
+- HARICA: keep the CertManager transaction id in `poll_identifier` after successful enroll and prefer it on revoke
+- After CA enrollment/poll, compare CSR SANs against the issued leaf certificate and log an error when SANs are missing; optional `[Certificate] cert_san_check_strict` refuses delivery ([#413](https://github.com/grindsa/acme2certifier/issues/413))
 - Docker Django: migration files come from the image (aligned with DEB/RPM); `volume/migrations` is deprecated and ignored. See [Upgrading — Docker (Django)](docs/upgrading.md#docker-django).
 - Security: HTTP-01 validation caps response bodies at 10 KiB, requests `Accept-Encoding: identity` (rejects compressed bodies), and uses a shared wall-clock timeout across redirect hops
 - challenges validation attempts stuck past `challenge_validation_timeout` are marked invalid
-- Security: RFC 8823 email-reply IMAP/SMTP TLS now verifies certificates and hostname by default (`ssl.create_default_context()`); optional `[DEFAULT] email_ssl_verify: False` disables verification for that path only (WARNING logged). See [RFC 8823 email identifiers](docs/rfc8823_email_identifier.md)
-- Security: `reverse_address_check` requires an exact PTR match for the authorization DNS name (case-insensitive; trailing dots ignored); subdomain PTRs such as `x.foo.com` no longer validate `foo.com`
+- Security: email-reply IMAP/SMTP TLS now verifies certificates and hostname by default (`ssl.create_default_context()`); optional `[DEFAULT] email_ssl_verify: False` disables verification. See [RFC 8823 email identifiers](docs/rfc8823_email_identifier.md)
+- Security: `reverse_address_check` requires an exact PTR match for the authorization DNS name
 - Security: `reverse_address_check` forward-confirms the PTR hostname by default (FCrDNS: A/AAAA must include the client source address); optional `[Challenge] fcrdns_check_disable` (also via EAB challenge profile) skips FCrDNS for split-DNS deployments where a2c cannot resolve the PTR name
 - Security: source-address validation fails closed when `forward_address_check` or `reverse_address_check` is enabled but the client source address is missing
 - HTTP-01 challenge validation follows redirects under constrained policy (http/https, ports 80/443, per-hop IP filtering via `http01_block_private_ips`; configurable `http01_max_redirects` default 5; IP `Location` rejected unless `http01_redirect_allow_ip=True`)
-- Security: reject CSR SAN GeneralNames outside ACME binding (URI / otherName / dirName / …) at finalize
+- Security: reject CSR SAN GeneralNames outside ACME binding at finalize
 - Security: openssl and xca handlers issue certificates with first CSR Common Name in the subject (plus CA template DN for xca); extra CN / O / OU from the CSR are no longer copied
 - EAB profile apply paths lowercase top-level section titles (`Order` / `Cahandler` / `Challenge` / … → `order` / `cahandler` / `challenge`), so section names are case-insensitive regardless of EAB storage backend
 - EAB SQL handler: restore PostgreSQL via **psycopg2** (MSSQL stays on **pyodbc**); lazy imports; auto-migrate legacy `credentials`/`status` → `acme_credential`/`enabled` when detected ([#418](https://github.com/grindsa/acme2certifier/issues/418)). See [`docs/eab.md`](docs/eab.md#sql-handler).
