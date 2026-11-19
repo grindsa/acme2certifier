@@ -40,3 +40,15 @@ Order:
 
 # Helper:
 #   log_format: "%(asctime)s - acme2certifier - %(levelname)s - %(message)s"
+#   # With OpenTelemetry: also %(otelTraceID)s / %(otelSpanID)s
+
+# Experimental OpenTelemetry (optional extra: pip install 'acme2certifier[otel]').
+# See docs/opentelemetry.md and docs/acme_srv.md.
+# OpenTelemetry:
+#   opentelemetry_support: false
+#   endpoint: "http://127.0.0.1:4318"
+#   protocol: "http/protobuf"
+#   service_name: "acme2certifier"
+#   sample_ratio: 1.0
+#   metrics_export: false
+#   db_span_methods: []

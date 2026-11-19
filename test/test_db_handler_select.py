@@ -58,7 +58,9 @@ class TestDbHandlerSelect(unittest.TestCase):
             sel._normalize_handler("DJANGO"),
             "acme2certifier.dbhandlers.django_handler",
         )
-        self.assertEqual(sel._normalize_handler("my.custom.handler"), "my.custom.handler")
+        self.assertEqual(
+            sel._normalize_handler("my.custom.handler"), "my.custom.handler"
+        )
         self.assertEqual(
             sel._normalize_handler("   "),
             "acme2certifier.dbhandlers.wsgi_handler",

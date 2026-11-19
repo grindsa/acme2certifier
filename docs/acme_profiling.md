@@ -42,6 +42,7 @@ Depending on the CA-handler the profile value replaces a certain value in the CA
 | [HARICA CertManager](harica.md)                                               | transaction_type        |
 | [Insta ActiveCMS](asa.md)                                                       | profile_name            |
 | [Microsoft Certificate Enrollment Web Services](mscertsrv.md)                   | template                |
+| [Microsoft CEP/CES (MS-XCEP / MS-WSTEP)](mscepces.md)                           | template                |
 | [Microsoft ICertPassage Remote Protocol (MS-ICPR)](msicpr.md)                   | template                |
 | [NetGuard Certificate Manager/Insta Certifier](certifier.md)                    | profile_id              |
 | [OpenXPKI](openxpki.md)                                                         | cert_profile_name       |

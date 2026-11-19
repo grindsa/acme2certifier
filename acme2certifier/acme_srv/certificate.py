@@ -4,6 +4,7 @@
 
 from __future__ import print_function
 import json
+import time
 from typing import List, Tuple, Dict, Union, Optional, Any, Set
 from dataclasses import dataclass
 from acme2certifier.acme_srv.helper import (
@@ -22,6 +23,7 @@ from acme2certifier.acme_srv.helper import (
     csr_san_get,
     csr_bound_names_get,
     csr_extensions_get,
+    csr_unbound_san_types,
     san_list_to_bound_names,
     date_to_uts_utc,
     error_dic_get,
@@ -55,6 +57,20 @@ from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     ownership_lookup_failed,
     resolve_resource_ownership,
+)
+from acme2certifier.acme_srv.helpers.otel import (
+    ATTR_ACCOUNT_NAME,
+    ATTR_CAHANDLER,
+    ATTR_CA_OPERATION,
+    ATTR_OUTCOME,
+    SPAN_CA_HANDLER_CALL,
+    counter_add,
+    histogram_record,
+    mark_enrollment_session_complete,
+    set_span_outcome,
+    span,
+    span_attribute,
+    tag_current_span,
 )
 
 
@@ -260,6 +276,7 @@ class CertificateConfiguration:
     cert_reusage_timeframe: int = 0
     cn2san_add: bool = False
     csr_binding_strict: bool = True
+    cert_san_check_strict: bool = False
     email_identifier_rewrite: bool = False
     dryrun: bool = False
     dryrun_profilename: Optional[str] = None
@@ -427,6 +444,45 @@ class Certificate(object):
             if not san_list and cert_cn:
                 san_list.append(f"DNS:{cert_cn}")
         return san_list
+
+    def _missing_csr_sans(self, csr: str, certificate: str) -> List[str]:
+        """Return CSR SANs that are absent from the issued leaf certificate."""
+        self.logger.debug("Certificate._missing_csr_sans()")
+        try:
+            csr_sans = {san.lower() for san in csr_san_get(self.logger, csr)}
+            # Enrollment/poll pass a PEM chain (or leaf PEM), not base64url DER.
+            cert_sans = {
+                san.lower()
+                for san in cert_san_get(self.logger, certificate, recode=False)
+            }
+        except Exception as err:
+            self.logger.warning(
+                "Could not compare CSR SANs against issued certificate: %s", err
+            )
+            return []
+
+        missing = sorted(csr_sans - cert_sans)
+        self.logger.debug("Certificate._missing_csr_sans() ended with %s", missing)
+        return missing
+
+    def _check_issued_certificate_sans(
+        self, csr: str, certificate: str
+    ) -> Optional[str]:
+        """Log (and optionally fail) when the issued cert is missing CSR SANs."""
+        self.logger.debug("Certificate._check_issued_certificate_sans()")
+        missing = self._missing_csr_sans(csr, certificate)
+        if not missing:
+            self.logger.debug("Certificate._check_issued_certificate_sans() ended")
+            return None
+
+        self.logger.error("Issued certificate missing CSR SANs: %s", missing)
+        if self.config.cert_san_check_strict:
+            self.logger.debug(
+                "Certificate._check_issued_certificate_sans() ended with error"
+            )
+            return f"Issued certificate missing CSR SANs: {missing}"
+        self.logger.debug("Certificate._check_issued_certificate_sans() ended")
+        return None
 
     def _validate_authorization_sans(
         self, identifiers: list, certificate: str
@@ -606,7 +662,7 @@ class Certificate(object):
         )
         return (None, cert, cert_raw, message)
 
-    def _load_hooks_configuration(self, config_dic: Dict[str, str]):
+    def _load_hooks_configuration(self, config_dic: Any):
         """Load hook configuration from config dictionary"""
         self.logger.debug("Certificate._load_hooks_configuration()")
 
@@ -636,7 +692,7 @@ class Certificate(object):
 
         self.logger.debug("Certificate._load_hooks_configuration() ended")
 
-    def _load_certificate_parameters(self, config_dic: Dict[str, str] = None):
+    def _load_certificate_parameters(self, config_dic: Optional[Any] = None):
         """Load various certificate parameters - now handled by CertificateConfig"""
         self.logger.debug(
             "Certificate._load_certificate_parameters() - delegated to CertificateConfig"
@@ -681,6 +737,9 @@ class Certificate(object):
 
         self.config.csr_binding_strict = config_dic.getboolean(
             "Certificate", "csr_binding_strict", fallback=True
+        )
+        self.config.cert_san_check_strict = config_dic.getboolean(
+            "Certificate", "cert_san_check_strict", fallback=False
         )
 
         # Order section
@@ -899,7 +958,15 @@ class Certificate(object):
         # do we need to check for tnauth
         tnauthlist_identifer_in = self._check_for_tnauth_identifiers(identifiers)
 
-        if self.config.tnauthlist_support and tnauthlist_identifer_in:
+        # Reject SAN GeneralNames that binding never sees (URI, otherName, …).
+        unbound_san_types = csr_unbound_san_types(self.logger, csr)
+        if unbound_san_types:
+            self.logger.warning(
+                "CSR contains SAN types not covered by ACME binding: %s",
+                unbound_san_types,
+            )
+            identifier_status = [False]
+        elif self.config.tnauthlist_support and tnauthlist_identifer_in:
             # get list of certextensions in base64 format
             try:
                 tnauthlist = csr_extensions_get(self.logger, csr)
@@ -1038,12 +1105,45 @@ class Certificate(object):
             handler_section = getattr(handler_factory, "section", None)
             if not isinstance(handler_name, str):
                 handler_name = "unknown"
+            # Tag parent acme.certificate.enroll before the CA child span starts.
+            tag_current_span({ATTR_CAHANDLER: handler_name})
             extra = f" ({handler_section})" if isinstance(handler_section, str) else ""
             self.logger.info(
                 "Certificate enrollment via CA handler '%s'%s",
                 handler_name,
                 extra,
             )
+            (
+                error,
+                certificate,
+                certificate_raw,
+                poll_identifier,
+            ) = self._enroll_via_cahandler(
+                handler_factory, handler_name, csr, order_name
+            )
+            cert_reusage = False
+        else:
+            self.logger.info("Reuse existing certificate")
+            cert_reusage = True
+
+        self.logger.debug("Certificate._process_certificate_enrollment() ended")
+        return (error, certificate, certificate_raw, poll_identifier, cert_reusage)
+
+    def _enroll_via_cahandler(
+        self,
+        handler_factory: BoundCAHandler,
+        handler_name: str,
+        csr: str,
+        order_name: Optional[str],
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Enroll via CA handler with OTEL span/counter instrumentation."""
+        ca_attrs = {
+            ATTR_CAHANDLER: handler_name,
+            ATTR_CA_OPERATION: "enroll",
+        }
+        if order_name:
+            ca_attrs["acme.order_name"] = order_name
+        with span(SPAN_CA_HANDLER_CALL, attributes=ca_attrs) as ca_span:
             try:
                 with handler_factory(self.debug, self.logger) as ca_handler:
                     (
@@ -1059,14 +1159,27 @@ class Certificate(object):
                 self.logger.error(
                     "CA handler '%s' enroll() raised: %s", handler_name, err
                 )
-                return str(err), None, None, None, False
-            cert_reusage = False
-        else:
-            self.logger.info("Reuse existing certificate")
-            cert_reusage = True
-
-        self.logger.debug("Certificate._process_certificate_enrollment() ended")
-        return (error, certificate, certificate_raw, poll_identifier, cert_reusage)
+                set_span_outcome(ca_span, "error", err)
+                counter_add(
+                    SPAN_CA_HANDLER_CALL,
+                    attributes={
+                        ATTR_CAHANDLER: handler_name,
+                        ATTR_CA_OPERATION: "enroll",
+                        ATTR_OUTCOME: "error",
+                    },
+                )
+                return str(err), None, None, None
+            ca_outcome = "failure" if error else "success"
+            set_span_outcome(ca_span, ca_outcome)
+            counter_add(
+                SPAN_CA_HANDLER_CALL,
+                attributes={
+                    ATTR_CAHANDLER: handler_name,
+                    ATTR_CA_OPERATION: "enroll",
+                    ATTR_OUTCOME: ca_outcome,
+                },
+            )
+        return error, certificate, certificate_raw, poll_identifier
 
     def _cert_bundle_rewrite(
         self,
@@ -1201,12 +1314,18 @@ class Certificate(object):
                 self.err_msg_dic["rejectedidentifier"],
                 "CN or SANs are not allowed by configuration",
             )
+        if raw_error and raw_error.startswith("Issued certificate missing CSR SANs"):
+            return self.err_msg_dic["serverinternal"], raw_error
         if self.config.ca_error_details_forward and raw_error:
             return self.err_msg_dic["serverinternal"], raw_error
         return self.err_msg_dic["serverinternal"], ENROLLMENT_FAILED_DETAIL
 
     def _handle_enrollment_error(
-        self, error: str, poll_identifier: str, order_name: str, certificate_name: str
+        self,
+        error: str,
+        poll_identifier: Optional[str],
+        order_name: str,
+        certificate_name: str,
     ) -> Tuple[None, str, str]:
         """Store error message for later analysis"""
         self.logger.debug("Certificate._handle_enrollment_error(%s)", error)
@@ -1323,6 +1442,11 @@ class Certificate(object):
                 cert_reusage,
             ) = self._process_certificate_enrollment(csr, order_name)
             if certificate:
+                san_error = self._check_issued_certificate_sans(csr, certificate)
+                if san_error:
+                    return self._handle_enrollment_error(
+                        san_error, None, order_name, certificate_name
+                    )
                 result, error = self._store_certificate_and_update_order(
                     certificate,
                     certificate_raw,
@@ -1723,7 +1847,7 @@ class Certificate(object):
         return cert_id
 
     def _store_certificate_error(
-        self, certificate_name: str, error: str, poll_identifier: str
+        self, certificate_name: str, error: str, poll_identifier: Optional[str]
     ) -> int:
         """Store certificate error information in database"""
         self.logger.debug("Certificate._store_certificate_error(%s)", certificate_name)
@@ -1897,66 +2021,95 @@ class Certificate(object):
         self, certificate_name: str, csr: str, order_name: str = None
     ) -> Tuple[str, str]:
         """Process certificate enrollment request and validate CSR with improved error handling"""
-        try:
-            # Validate input parameters
-            validation_errors = self._validate_input_parameters(
-                certificate_name=certificate_name, csr=csr
-            )
-            if validation_errors:
-                self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
-                return self.err_msg_dic["badcsr"], "Invalid input parameters"
-
-            self.logger.debug(
-                "Certificate.process_certificate_enrollment_request(%s, %s)",
-                certificate_name,
-                order_name,
-            )
-
-            # Validate CSR against order
+        enroll_attrs: Dict[str, Any] = {}
+        if order_name:
+            enroll_attrs["acme.order_name"] = order_name
+        started = time.perf_counter()
+        with span("acme.certificate.enroll", attributes=enroll_attrs) as enroll_span:
+            outcome = "error"
+            outcome_exc: Optional[BaseException] = None
             try:
-                csr_check_result = self._validate_csr_against_order(
-                    certificate_name, csr
+                # Validate input parameters
+                validation_errors = self._validate_input_parameters(
+                    certificate_name=certificate_name, csr=csr
                 )
-            except Exception as err:
-                self.logger.error("Error validating CSR against order: %s", err)
-                return self.err_msg_dic["serverinternal"], "CSR validation failed"
+                if validation_errors:
+                    self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
+                    outcome = "failure"
+                    return self.err_msg_dic["badcsr"], "Invalid input parameters"
 
-            if not csr_check_result:
-                self.logger.warning(
-                    "Certificate enrollment failed: CSR vs order mismatch certificate=%s order=%s",
+                self.logger.debug(
+                    "Certificate.process_certificate_enrollment_request(%s, %s)",
                     certificate_name,
                     order_name,
                 )
-                return self.err_msg_dic["badcsr"], "CSR validation failed"
 
-            if self.config.dryrun:
-                self.logger.info(
-                    "Dry run mode enabled - skipping enrollment and certificate issuance"
+                # Validate CSR against order
+                try:
+                    csr_check_result = self._validate_csr_against_order(
+                        certificate_name, csr
+                    )
+                except Exception as err:
+                    self.logger.error("Error validating CSR against order: %s", err)
+                    outcome = "error"
+                    outcome_exc = err
+                    return self.err_msg_dic["serverinternal"], "CSR validation failed"
+
+                if not csr_check_result:
+                    self.logger.warning(
+                        "Certificate enrollment failed: CSR vs order mismatch certificate=%s order=%s",
+                        certificate_name,
+                        order_name,
+                    )
+                    outcome = "failure"
+                    return self.err_msg_dic["badcsr"], "CSR validation failed"
+
+                if self.config.dryrun:
+                    self.logger.info(
+                        "Dry run mode enabled - skipping enrollment and certificate issuance"
+                    )
+                    outcome = "skipped"
+                    return (
+                        self.err_msg_dic["unauthorized"],
+                        DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
+                    )
+
+                # Process enrollment
+                error, detail = self._handle_enrollment_thread_execution(
+                    certificate_name, csr, order_name
                 )
+                outcome = "failure" if error else "success"
+                if not error:
+                    mark_enrollment_session_complete()
+                self.logger.debug(
+                    "Certificate.process_certificate_enrollment_request() ended with: %s:%s",
+                    error,
+                    detail,
+                )
+                return (error, detail)
+
+            except Exception as err:
+                self.logger.critical(
+                    "Unexpected error in process_certificate_enrollment_request: %s",
+                    err,
+                )
+                outcome = "error"
+                outcome_exc = err
                 return (
-                    self.err_msg_dic["unauthorized"],
-                    DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
+                    self.err_msg_dic["serverinternal"],
+                    "Unexpected error during enrollment",
                 )
-
-            # Process enrollment
-            error, detail = self._handle_enrollment_thread_execution(
-                certificate_name, csr, order_name
-            )
-            self.logger.debug(
-                "Certificate.process_certificate_enrollment_request() ended with: %s:%s",
-                error,
-                detail,
-            )
-            return (error, detail)
-
-        except Exception as err:
-            self.logger.critical(
-                "Unexpected error in process_certificate_enrollment_request: %s", err
-            )
-            return (
-                self.err_msg_dic["serverinternal"],
-                "Unexpected error during enrollment",
-            )
+            finally:
+                set_span_outcome(enroll_span, outcome, outcome_exc)
+                hist_attrs: Dict[str, Any] = {ATTR_OUTCOME: outcome}
+                cahandler = span_attribute(enroll_span, ATTR_CAHANDLER)
+                if cahandler is not None:
+                    hist_attrs[ATTR_CAHANDLER] = cahandler
+                histogram_record(
+                    "acme.issuance.duration",
+                    time.perf_counter() - started,
+                    attributes=hist_attrs,
+                )
 
     def _determine_certificate_response(
         self, cert_info: Dict, certificate_name: Optional[str] = None
@@ -1965,7 +2118,12 @@ class Certificate(object):
         self.logger.debug("Certificate._determine_certificate_response()")
 
         if not cert_info or "order__status_id" not in cert_info:
-            return self._create_error_response(500, self.err_msg_dic["serverinternal"])
+            # Unknown / non-matching certificate name (client error, not a server fault)
+            return self._create_error_response(
+                404,
+                self.err_msg_dic["malformed"],
+                "Certificate not found",
+            )
 
         order_status = cert_info["order__status_id"]
 
@@ -2113,7 +2271,7 @@ class Certificate(object):
                 "Certificate retrieval failed",
                 {},
             )
-        if response_dic["code"] in (400, 403, 500):
+        if response_dic["code"] in (400, 403, 404, 500):
             return (
                 response_dic["code"],
                 response_dic["data"],
@@ -2235,9 +2393,29 @@ class Certificate(object):
             )
             if handler_factory is None:
                 return 500, self.err_msg_dic["serverinternal"], None
-            with handler_factory(self.debug, self.logger) as ca_handler:
-                code, message, detail = ca_handler.revoke(
-                    payload["certificate"], error, rev_date
+            handler_name = getattr(handler_factory, "name", None)
+            if not isinstance(handler_name, str):
+                handler_name = "unknown"
+            revoke_attrs = {
+                ATTR_CAHANDLER: handler_name,
+                ATTR_CA_OPERATION: "revoke",
+            }
+            if account_name:
+                revoke_attrs[ATTR_ACCOUNT_NAME] = account_name
+            with span(SPAN_CA_HANDLER_CALL, attributes=revoke_attrs) as ca_span:
+                with handler_factory(self.debug, self.logger) as ca_handler:
+                    code, message, detail = ca_handler.revoke(
+                        payload["certificate"], error, rev_date
+                    )
+                ca_outcome = "success" if code == 200 else "failure"
+                set_span_outcome(ca_span, ca_outcome)
+                counter_add(
+                    SPAN_CA_HANDLER_CALL,
+                    attributes={
+                        ATTR_CAHANDLER: handler_name,
+                        ATTR_CA_OPERATION: "revoke",
+                        ATTR_OUTCOME: ca_outcome,
+                    },
                 )
 
             if code != 200:
@@ -2443,9 +2621,20 @@ class Certificate(object):
 
             # Process poll result
             if certificate:
-                result = self._handle_successful_certificate_poll(
-                    certificate_name, certificate, certificate_raw, order_name
-                )
+                san_error = self._check_issued_certificate_sans(csr, certificate)
+                if san_error:
+                    self._handle_failed_certificate_poll(
+                        certificate_name,
+                        san_error,
+                        poll_identifier,
+                        order_name,
+                        True,
+                    )
+                    result = None
+                else:
+                    result = self._handle_successful_certificate_poll(
+                        certificate_name, certificate, certificate_raw, order_name
+                    )
             else:
                 self._handle_failed_certificate_poll(
                     certificate_name, error, poll_identifier, order_name, rejected

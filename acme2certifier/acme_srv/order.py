@@ -11,6 +11,8 @@ from acme2certifier.acme_srv.helper import (
     ca_handler_load,
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
+    config_shortname_denylist_load,
+    warn_shortname_without_domainlist,
     config_profile_load,
     eab_profile_as_bool,
     error_dic_get,
@@ -21,6 +23,9 @@ from acme2certifier.acme_srv.helper import (
     uts_now,
     validate_identifier,
     is_domain_whitelisted,
+    is_single_label_name,
+    is_shortname_denied,
+    shortname_covered_by_siblings,
     config_eab_profile_load,
     config_dryrun_load,
     is_ip_whitelisted,
@@ -34,7 +39,13 @@ from acme2certifier.acme_srv.helpers.global_variables import (
 )
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
+    ownership_unauthorized,
     resolve_resource_ownership,
+)
+from acme2certifier.acme_srv.helpers.otel import set_span_outcome, span
+from acme2certifier.acme_srv.helpers.security_gate import (
+    SECURITY_DISABLE_ACK_ENV,
+    shortname_without_challenge_validation_decide,
 )
 from acme2certifier.acme_srv.message import Message, finish_response
 
@@ -193,6 +204,9 @@ class OrderConfiguration:
     idempotent_finalize: bool = False
     allowed_domainlist: List[str] = field(default_factory=list)
     allowed_iplist: List[str] = field(default_factory=list)
+    allow_shortname_from_fqdn: bool = False
+    allow_shortname_without_challenge_validation: bool = False
+    shortname_denylist: List[str] = field(default_factory=list)
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
     profile_mapping_field: Optional[str] = None
@@ -239,6 +253,23 @@ class Order(object):
         Exit the context manager. (No-op, placeholder for cleanup.)
         """
 
+    def _should_skip_shortname_challenge_validation(
+        self,
+        identifier: Dict[str, str],
+        identifiers: List[Dict[str, str]],
+    ) -> bool:
+        """True when shortname authz may be marked valid without challenge proof."""
+        if not self.config.allow_shortname_without_challenge_validation:
+            return False
+        if identifier.get("type") != "dns":
+            return False
+        dns_siblings = [
+            item.get("value", "")
+            for item in identifiers
+            if isinstance(item, dict) and item.get("type") == "dns"
+        ]
+        return self._is_shortname_allowed_for_identifier(identifier, dns_siblings)
+
     def _add_authorizations_to_db(
         self, oid: str, payload: Dict[str, str], auth_dic: Dict[str, str]
     ) -> str:
@@ -247,29 +278,63 @@ class Order(object):
 
         if oid:
             error = None
-            for auth in payload["identifiers"]:
-                auth_name = generate_random_string(self.logger, 12)
-                auth_dic[auth_name] = auth.copy()
-                auth["name"] = auth_name
-                auth["order"] = oid
-                auth["status"] = "pending"
-                auth["expires"] = uts_now() + self.config.authz_validity
-                try:
-                    self.repository.add_authorization(auth)
-                    if self.config.sectigo_sim:
-                        auth["status"] = "valid"
-                        self.repository.update_authorization(auth)
-                except Exception as err_:
-                    self.logger.critical(
-                        f"{DB_ERROR_MSG}: failed to add authorization: %s", err_
-                    )
-                    error = self.error_msg_dic["serverinternal"]
+            identifiers = payload["identifiers"]
+            for auth in identifiers:
+                error = self._add_one_authorization_to_db(
+                    oid, auth, identifiers, auth_dic
+                )
+                if error:
                     break
         else:
             error = self.error_msg_dic["malformed"]
 
         self.logger.debug("Order._add_authorizations_to_db() ended with %s", error)
         return error
+
+    def _add_one_authorization_to_db(
+        self,
+        oid: str,
+        auth: Dict[str, str],
+        identifiers: List[Dict[str, str]],
+        auth_dic: Dict[str, str],
+    ) -> Optional[str]:
+        """Persist one authorization; return error detail or None on success."""
+        auth_name = generate_random_string(self.logger, 12)
+        auth_dic[auth_name] = auth.copy()
+        auth["name"] = auth_name
+        auth["order"] = oid
+        auth["status"] = "pending"
+        auth["expires"] = uts_now() + self.config.authz_validity
+        skip_shortname_challenge = self._should_skip_shortname_challenge_validation(
+            auth, identifiers
+        )
+        try:
+            authz_attrs = {
+                "acme.identifier_type": auth.get("type") or "",
+            }
+            with span(
+                "acme.authorization.create", attributes=authz_attrs
+            ) as authz_span:
+                self.repository.add_authorization(auth)
+                if self.config.sectigo_sim or skip_shortname_challenge:
+                    auth["status"] = "valid"
+                    self.repository.update_authorization(auth)
+                    if skip_shortname_challenge:
+                        self.logger.warning(
+                            "[Order] allow_shortname_without_challenge_validation "
+                            "is active with %s; skipping challenge validation for "
+                            "shortname %s; relying on sibling FQDN authorization "
+                            "in the same order",
+                            SECURITY_DISABLE_ACK_ENV,
+                            auth.get("value"),
+                        )
+                set_span_outcome(authz_span, "success")
+        except Exception as err_:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to add authorization: %s", err_
+            )
+            return self.error_msg_dic["serverinternal"]
+        return None
 
     def is_profile_valid(self, profile: str) -> str:
         """Check if the given profile is valid."""
@@ -316,14 +381,26 @@ class Order(object):
         """Add order and its authorizations to the database. Returns error message or None."""
         self.logger.debug("Order._add_order_and_authorizations()")
 
-        try:
-            oid = self.repository.add_order(data_dic)
-        except Exception as err_:
-            self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err_)
-            oid = None
+        with span("acme.order.create") as order_span:
+            create_exc: Optional[Exception] = None
+            try:
+                oid = self.repository.add_order(data_dic)
+            except Exception as err_:
+                create_exc = err_
+                self.logger.critical(f"{DB_ERROR_MSG}: failed to add order: %s", err_)
+                oid = None
 
-        if not error:
-            error = self._add_authorizations_to_db(oid, payload, auth_dic)
+            if not error:
+                error = self._add_authorizations_to_db(oid, payload, auth_dic)
+            if create_exc is not None:
+                set_span_outcome(order_span, "error", create_exc)
+            else:
+                set_span_outcome(
+                    order_span, "failure" if error or not oid else "success"
+                )
+            order_name = data_dic.get("name")
+            if order_name:
+                order_span.set_attribute("acme.order_name", str(order_name))
 
         self.logger.debug("Order._add_order_and_authorizations() ended with %s", error)
         return error
@@ -414,6 +491,43 @@ class Order(object):
                         self.config.wildcard_certificate_disable,
                     ),
                     default=bool(self.config.wildcard_certificate_disable),
+                )
+                self.config.allow_shortname_from_fqdn = eab_profile_as_bool(
+                    self._load_eab_profile_param(
+                        profile_dic,
+                        eab_kid,
+                        "allow_shortname_from_fqdn",
+                        self.config.allow_shortname_from_fqdn,
+                    ),
+                    default=bool(self.config.allow_shortname_from_fqdn),
+                )
+                self.config.shortname_denylist = self._load_eab_profile_param(
+                    profile_dic,
+                    eab_kid,
+                    "shortname_denylist",
+                    self.config.shortname_denylist,
+                )
+                eab_skip_shortname_chal = self._load_eab_profile_param(
+                    profile_dic,
+                    eab_kid,
+                    "allow_shortname_without_challenge_validation",
+                    None,
+                )
+                if eab_skip_shortname_chal is not None:
+                    self.config.allow_shortname_without_challenge_validation = (
+                        shortname_without_challenge_validation_decide(
+                            self.logger,
+                            eab_profile_as_bool(
+                                eab_skip_shortname_chal,
+                                default=False,
+                            ),
+                            source=f"[Order/EAB kid={eab_kid}]",
+                        )
+                    )
+                warn_shortname_without_domainlist(
+                    self.logger,
+                    self.config.allow_shortname_from_fqdn,
+                    self.config.allowed_domainlist,
                 )
                 self.config.ca_error_details_forward = eab_profile_as_bool(
                     self._load_eab_profile_param(
@@ -566,8 +680,14 @@ class Order(object):
         self, profile_dic, eab_kid, param_name, default=None, section="order"
     ):
         """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
-        profile_entry = profile_dic.get(eab_kid, {})
+        from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+            eab_profile_kid_entry_get,
+        )
+
+        profile_entry = eab_profile_kid_entry_get(profile_dic, eab_kid)
         order_cfg = profile_entry.get(section, {})
+        if not isinstance(order_cfg, dict):
+            order_cfg = {}
 
         # Prefer order section and honor explicit falsy values like False or []
         if param_name in order_cfg:
@@ -581,6 +701,8 @@ class Order(object):
         # Backward compatibility for deprecated cahandler section
         if section == "order":
             cahandler_cfg = profile_entry.get("cahandler", {})
+            if not isinstance(cahandler_cfg, dict):
+                cahandler_cfg = {}
             if param_name in cahandler_cfg:
                 value = cahandler_cfg.get(param_name)
                 if param_name != self.config.profile_mapping_field:
@@ -596,7 +718,7 @@ class Order(object):
 
         return default
 
-    def _load_header_info_config(self, config_dic: Dict[str, str]):
+    def _load_header_info_config(self, config_dic: Any):
         """Load header info list from config file."""
         self.logger.debug("Order._load_header_info_config()")
         if "Order" in config_dic and "header_info_list" in config_dic["Order"]:
@@ -611,7 +733,7 @@ class Order(object):
                 )
         self.logger.debug("Order._load_header_info_config() ended")
 
-    def _load_order_config(self, config_dic: Dict[str, str]):
+    def _load_order_config(self, config_dic: Any):
         """Load order-related configuration from file."""
         self.logger.debug("Order._load_order_config()")
         if "Challenge" in config_dic:
@@ -636,6 +758,19 @@ class Order(object):
             )
             self.config.wildcard_certificate_disable = config_dic.getboolean(
                 "Order", "wildcard_certificate_disable", fallback=False
+            )
+            self.config.allow_shortname_from_fqdn = config_dic.getboolean(
+                "Order", "allow_shortname_from_fqdn", fallback=False
+            )
+            self.config.allow_shortname_without_challenge_validation = (
+                shortname_without_challenge_validation_decide(
+                    self.logger,
+                    config_dic.getboolean(
+                        "Order",
+                        "allow_shortname_without_challenge_validation",
+                        fallback=False,
+                    ),
+                )
             )
             self.config.ca_error_details_forward = config_dic.getboolean(
                 "CAhandler", "ca_error_details_forward", fallback=False
@@ -676,7 +811,7 @@ class Order(object):
 
         self.logger.debug("Order._load_order_config() ended")
 
-    def _load_profile_config(self, config_dic: Dict[str, str]):
+    def _load_profile_config(self, config_dic: Any):
         """Load profiles from file or database."""
         self.logger.debug("Order._load_profile_config()")
         self._load_profiles_from_config(config_dic)
@@ -684,14 +819,14 @@ class Order(object):
         self._maybe_disable_profile_check(config_dic)
         self.logger.debug("Order._load_profile_config() ended")
 
-    def _load_profiles_from_config(self, config_dic: Dict[str, str]):
+    def _load_profiles_from_config(self, config_dic: Any):
         """Load profiles from configuration file."""
         if "Order" in config_dic and "profiles" in config_dic["Order"]:
             self.logger.debug("Order._config_load(): profile check enabled")
             self.config.profiles_check_disable = False
             self.config.profiles = config_profile_load(self.logger, config_dic)
 
-    def _load_profiles_from_db_if_sync(self, config_dic: Dict[str, str]):
+    def _load_profiles_from_db_if_sync(self, config_dic: Any):
         """Load profiles from database if profiles_sync is set."""
         if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
             self.config.profiles_sync = config_dic.getboolean(
@@ -721,7 +856,7 @@ class Order(object):
                 "Error when loading the profiles parameter from database: %s", err_
             )
 
-    def _maybe_disable_profile_check(self, config_dic: Dict[str, str]):
+    def _maybe_disable_profile_check(self, config_dic: Any):
         """Disable profile check"""
         if self.config.profiles and "Order" in config_dic:
             self.config.profiles_check_disable = config_dic.getboolean(
@@ -760,6 +895,15 @@ class Order(object):
         )
         # load allowed iplist
         self.config.allowed_iplist = config_allowed_iplist_load(self.logger, config_dic)
+        # load shortname denylist (used with allow_shortname_from_fqdn)
+        self.config.shortname_denylist = config_shortname_denylist_load(
+            self.logger, config_dic
+        )
+        warn_shortname_without_domainlist(
+            self.logger,
+            self.config.allow_shortname_from_fqdn,
+            self.config.allowed_domainlist,
+        )
         # load profiling
         (
             self.config.eab_profiling,
@@ -770,7 +914,7 @@ class Order(object):
 
         self.logger.debug("Order._load_configuration() ended.")
 
-    def _load_profile_mapping_field(self, config_dic: Dict[str, str]) -> Optional[str]:
+    def _load_profile_mapping_field(self, config_dic: Any) -> Optional[str]:
         """Load profile mapping field from configuration."""
         self.logger.debug("Order._load_profile_mapping_field()")
         ca_handler_module = ca_handler_load(self.logger, config_dic)
@@ -851,17 +995,33 @@ class Order(object):
         error = None
         detail = None
         allowed_identifiers = self._get_allowed_identifier_types()
+        dns_siblings = self._dns_identifier_values(identifiers_list)
         for identifier in identifiers_list:
             error, detail = self._check_single_identifier(
                 identifier,
                 allowed_identifiers,
                 account_name=account_name,
                 order_name=order_name,
+                dns_siblings=dns_siblings,
             )
             if error:
                 break
         self.logger.debug("Order.are_identifiers_allowed() ended with: %s", error)
         return error, detail
+
+    @staticmethod
+    def _dns_identifier_values(identifiers_list: List[dict]) -> List[str]:
+        """Collect DNS identifier values from an order identifier list."""
+        values: List[str] = []
+        for identifier in identifiers_list or []:
+            if not isinstance(identifier, dict):
+                continue
+            if identifier.get("type", "").lower() != "dns":
+                continue
+            value = identifier.get("value")
+            if value:
+                values.append(value)
+        return values
 
     def _get_allowed_identifier_types(self) -> List[str]:
         allowed = ["dns", "ip"]
@@ -877,6 +1037,7 @@ class Order(object):
         allowed_identifiers: List[str],
         account_name: Optional[str] = None,
         order_name: Optional[str] = None,
+        dns_siblings: Optional[List[str]] = None,
     ) -> Tuple[str, str]:
         """Check if a single identifier is allowed."""
         self.logger.debug("Order._check_single_identifier(%s)", identifier)
@@ -910,7 +1071,10 @@ class Order(object):
 
         if id_type == "dns":
             return self._validate_dns_identifier_policy(
-                identifier, account_name=account_name, order_name=order_name
+                identifier,
+                account_name=account_name,
+                order_name=order_name,
+                dns_siblings=dns_siblings,
             )
 
         if id_type == "ip":
@@ -992,6 +1156,7 @@ class Order(object):
         identifier: dict,
         account_name: Optional[str] = None,
         order_name: Optional[str] = None,
+        dns_siblings: Optional[List[str]] = None,
     ) -> Tuple[Optional[str], Optional[str]]:
         """Validate DNS-specific policy constraints."""
         corr = self._corr_suffix(account_name, order_name)
@@ -1015,6 +1180,9 @@ class Order(object):
         if domain_allowed:
             return None, None
 
+        if self._is_shortname_allowed_for_identifier(identifier, dns_siblings):
+            return None, None
+
         self.logger.error(
             "FQDN/SAN %s not allowed by configuration%s",
             identifier["value"],
@@ -1024,6 +1192,44 @@ class Order(object):
             self.error_msg_dic["rejectedidentifier"],
             f'FQDN/SAN {identifier["value"]} not allowed by configuration',
         )
+
+    def _is_shortname_allowed_for_identifier(
+        self,
+        identifier: dict,
+        dns_siblings: Optional[List[str]] = None,
+    ) -> bool:
+        """Allow single-label DNS name when covered by an allowed sibling FQDN."""
+        value = identifier.get("value", "")
+        self.logger.debug(
+            "Order._is_shortname_allowed_for_identifier(%s, allow=%s)",
+            value,
+            self.config.allow_shortname_from_fqdn,
+        )
+        if not self.config.allow_shortname_from_fqdn:
+            self.logger.debug(
+                "Order._is_shortname_allowed_for_identifier() ended with False"
+            )
+            return False
+        if not is_single_label_name(self.logger, value):
+            self.logger.debug(
+                "Order._is_shortname_allowed_for_identifier() ended with False"
+            )
+            return False
+        if is_shortname_denied(self.logger, value, self.config.shortname_denylist):
+            self.logger.debug(
+                "Order._is_shortname_allowed_for_identifier() ended with False (denylist)"
+            )
+            return False
+        result = shortname_covered_by_siblings(
+            self.logger,
+            value,
+            dns_siblings or [],
+            self.config.allowed_domainlist,
+        )
+        self.logger.debug(
+            "Order._is_shortname_allowed_for_identifier() ended with %s", result
+        )
+        return result
 
     def _is_domain_allowed_for_identifier(self, identifier: dict) -> bool:
         """Check allowlist for DNS identifiers with wildcard fallback handling."""
@@ -1773,12 +1979,13 @@ class Order(object):
         if "url" in protected:
             order_name = self._name_get(protected["url"])
             if order_name:
-                order_dic = self.get_order_details(order_name)
-                if order_dic:
-                    code, message, detail = self._check_order_ownership(
-                        order_name, account_name
-                    )
-                    if code == 200:
+                # Ownership before get_order_details (pending→ready side effect).
+                code, message, detail = self._check_order_ownership(
+                    order_name, account_name
+                )
+                if code == 200:
+                    order_dic = self.get_order_details(order_name)
+                    if order_dic:
                         (
                             code,
                             message,
@@ -1787,14 +1994,13 @@ class Order(object):
                         ) = self._process_order_request(
                             order_name, protected, payload, header
                         )
-                else:
-                    self.logger.warning(
-                        "Order request failed: order not found order=%s",
-                        order_name,
-                    )
-                    code = 403
-                    message = self.error_msg_dic["ordernotready"]
-                    detail = "order not found"
+                    else:
+                        # Same client error as missing/denied (no existence oracle).
+                        self.logger.warning(
+                            "Order request failed: order not found order=%s",
+                            order_name,
+                        )
+                        code, message, detail = ownership_unauthorized()
             else:
                 self.logger.warning("Order request failed: order name missing")
                 code = 400

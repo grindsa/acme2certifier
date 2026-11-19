@@ -27,6 +27,9 @@ The project consists of two main libraries:
 
 | Feature Support                                                                                                                                | Enrollment (E) | Revocation (R) | [EAB Profiling (P)](docs/eab_profiling.md) |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------- | ------------------------------------------ |
+| [AWS Private CA (ACM PCA)](docs/aws_pca.md) (experimental)                                                                                     | ✅             | ✅             | ✅                                         |
+| [Google Cloud Private CAS](docs/google_cas.md) (experimental)                                                                                  | ✅             | ✅             | ✅                                         |
+| [Cloudflare CFSSL](docs/cfssl.md)                                                                                                              | ✅             | ✅             | ✅                                         |
 | [DigiCert® CertCentral](docs/digicert.md)                                                                                                      | ✅             | ✅             | ✅                                         |
 | [Dogtag Certificate System](docs/dogtag_ca_handler.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [Entrust ECS Enterprise](docs/entrust.md)                                                                                                      | ✅             | ✅             | ✅                                         |
@@ -39,12 +42,14 @@ The project consists of two main libraries:
 | [HARICA CertManager](docs/harica.md)                                                                                                           | ✅             | ✅             | ✅                                         |
 | [Insta ActiveCMS](docs/asa.md)                                                                                                                 | ✅             | ✅             | ✅                                         |
 | [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)                                                                             | ✅             | ❌             | ✅                                         |
+| [Microsoft CEP/CES (MS-XCEP / MS-WSTEP)](docs/mscepces.md)                                                                                     | ✅             | ❌             | ✅                                         |
 | [Microsoft ICertPassage Remote Protocol (MS-ICPR)](docs/msicpr.md)                                                                             | ✅             | ❌             | ✅                                         |
 | [NetGuard Certificate Lifecycle Manager](docs/nclm.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)                                                                              | ✅             | ✅             | ✅                                         |
 | [OpenSSL](docs/openssl.md)                                                                                                                     | ✅             | ✅             | ❌                                         |
 | [OpenXPKI](docs/openxpki.md)                                                                                                                   | ✅             | ✅             | ✅                                         |
 | [XCA](docs/xca.md)                                                                                                                             | ✅             | ✅             | ✅                                         |
+| [XiPKI](docs/xipki.md)                                                                                                                         | ✅             | ✅             | ✅                                         |
 
 For the latest updates and additional documentation, visit the project's homepage:
 [**acme2certifier on GitHub**](https://github.com/grindsa/acme2certifier)
@@ -112,6 +117,8 @@ The fastest and most convenient way to install acme2certifier is Docker, then OS
 1. **OS packages** — [DEB](docs/install_deb.md) (`/var/www/acme2certifier`) or [RPM](docs/install_rpm.md) (`/opt/acme2certifier`)
 1. **PyPI / pip** — library + venv deploy ([Apache2 Ubuntu](docs/install_apache2_ubuntu.md), [Nginx Ubuntu](docs/install_nginx_ubuntu.md), [Nginx Alma/RHEL9](docs/install_nginx_alma.md))
 1. **Local development** — editable checkout + Django `runserver`: [development.md](docs/development.md)
+
+Lab-only security-disable acknowledgement (`ACME2CERTIFIER_I_KNOW_THE_RISK`): [security_gate.md](docs/security_gate.md).
 
 Releases publish `.deb`, `.rpm`, and PyPI (Trusted Publisher).
 

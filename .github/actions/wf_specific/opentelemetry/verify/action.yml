@@ -1,0 +1,50 @@
+name: "opentelemetry - verify Jaeger traces"
+description: "Poll Jaeger HTTP API until service has at least one trace"
+inputs:
+  SERVICE_NAME:
+    description: "OTEL service.name to look up"
+    required: false
+    default: "acme2certifier"
+  JAEGER_UI:
+    description: "Jaeger UI base URL on the runner"
+    required: false
+    default: "http://127.0.0.1:16686"
+  TIMEOUT_SEC:
+    description: "How long to wait for traces"
+    required: false
+    default: "60"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Wait for Jaeger traces"
+      run: |
+        set -euo pipefail
+        UI="${JAEGER_UI%/}"
+        DEADLINE=$((SECONDS + TIMEOUT_SEC))
+        echo "Waiting for service=${SERVICE_NAME} traces at ${UI} (timeout ${TIMEOUT_SEC}s)"
+        while (( SECONDS < DEADLINE )); do
+          if SERVICES=$(curl -fsS "${UI}/api/services" 2>/dev/null); then
+            if echo "${SERVICES}" | grep -q "\"${SERVICE_NAME}\""; then
+              TRACES=$(curl -fsS "${UI}/api/traces?service=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "${SERVICE_NAME}")&limit=5" || true)
+              if echo "${TRACES}" | grep -q '"data"'; then
+                # non-empty data array
+                if echo "${TRACES}" | python3 -c 'import json,sys; d=json.load(sys.stdin).get("data") or []; sys.exit(0 if d else 1)'; then
+                  echo "Found traces for ${SERVICE_NAME}"
+                  echo "${TRACES}" | python3 -c 'import json,sys; d=json.load(sys.stdin).get("data") or []; print(f"trace_count={len(d)}")'
+                  exit 0
+                fi
+              fi
+            fi
+          fi
+          sleep 2
+        done
+        echo "ERROR: no traces for service=${SERVICE_NAME} within ${TIMEOUT_SEC}s" >&2
+        curl -fsS "${UI}/api/services" || true
+        docker logs jaeger-otel 2>&1 | tail -n 80 || true
+        exit 1
+      shell: bash
+      env:
+        SERVICE_NAME: ${{ inputs.SERVICE_NAME }}
+        JAEGER_UI: ${{ inputs.JAEGER_UI }}
+        TIMEOUT_SEC: ${{ inputs.TIMEOUT_SEC }}

@@ -14,7 +14,6 @@ from string import digits, ascii_letters
 import json
 import csv
 from jwcrypto import jwk, jws
-from jwcrypto.common import json_encode
 import requests
 
 VERSION = "0.0.1"
@@ -166,8 +165,10 @@ class MessageOperations(object):
         self.logger.debug("MessageOperations.sign()")
         protected = {"typ": "JOSE+JSON", "kid": key["kid"], "alg": "RS256"}
         plaintext = {"data": data, "type": cli_type, "exp": int(time.time()) + (5 * 60)}
-        mjws = jws.JWS(payload=json_encode(plaintext))
-        mjws.add_signature(key, None, json_encode(protected))
+        payload = json.dumps(plaintext, separators=(",", ":"), sort_keys=True)
+        protected_hdr = json.dumps(protected, separators=(",", ":"), sort_keys=True)
+        mjws = jws.JWS(payload=payload)
+        mjws.add_signature(key, None, protected_hdr)
         return mjws.serialize()
 
     def send(self, server=None, message=None):

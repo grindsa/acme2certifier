@@ -1,0 +1,78 @@
+name: "opentelemetry - collector-down check"
+description: >-
+  Stop Jaeger, enroll again, assert ACME still works and a2c logs CRITICAL
+  about span export failure (no Logging error / otelTraceID KeyError).
+inputs:
+  JAEGER_NAME:
+    description: "Jaeger container name"
+    required: false
+    default: "jaeger-otel"
+  ACME_CONTAINER:
+    description: "a2c container name"
+    required: false
+    default: "acme-srv"
+  NAME_SPACE:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+  DOMAIN:
+    description: "FQDN for second enrollment"
+    required: false
+    default: "lego-otel-down.acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Stop Jaeger collector"
+      run: docker rm -f "${JAEGER_NAME}" || true
+      shell: bash
+      env:
+        JAEGER_NAME: ${{ inputs.JAEGER_NAME }}
+
+    - name: "Enroll while collector is down"
+      run: |
+        set -euo pipefail
+        mkdir -p lego-otel-down
+        docker run -i -v "$PWD/lego-otel-down:/.lego/" --rm --name lego-otel-down \
+          --network "${NAME_SPACE}" goacme/lego run --tls-skip-verify \
+          -s "https://${ACME_CONTAINER}" -a --email "lego-otel-down@example.com" \
+          -d "${DOMAIN}" --http
+      shell: bash
+      env:
+        ACME_CONTAINER: ${{ inputs.ACME_CONTAINER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        DOMAIN: ${{ inputs.DOMAIN }}
+
+    - name: "Assert CRITICAL export failure; no logging format crash"
+      run: |
+        set -euo pipefail
+        # OTEL 1.45 HTTP exporter retries up to ~10s (+ BSP schedule delay)
+        # before _ResilientExporter can log CRITICAL; poll instead of a fixed sleep.
+        LOGS=""
+        found=0
+        for _ in $(seq 1 45); do
+          LOGS=$(docker logs "${ACME_CONTAINER}" 2>&1 || true)
+          # Avoid echo|grep -q under pipefail: large logs + early match → SIGPIPE (141).
+          if grep -qF "OpenTelemetry: spans export failed" <<< "${LOGS}"; then
+            found=1
+            break
+          fi
+          sleep 1
+        done
+        if [[ "${found}" -ne 1 ]]; then
+          echo "ERROR: missing CRITICAL/export-failed log after 45s" >&2
+          tail -n 200 <<< "${LOGS}"
+          exit 1
+        fi
+        if grep -qF "Formatting field not found in record: 'otelTraceID'" <<< "${LOGS}"; then
+          echo "ERROR: otelTraceID formatting failure in logs" >&2
+          exit 1
+        fi
+        if grep -q "^--- Logging error ---" <<< "${LOGS}"; then
+          echo "ERROR: Python Logging error section present" >&2
+          exit 1
+        fi
+        echo "collector-down check OK"
+      shell: bash
+      env:
+        ACME_CONTAINER: ${{ inputs.ACME_CONTAINER }}

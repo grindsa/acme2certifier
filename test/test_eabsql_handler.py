@@ -18,12 +18,6 @@ class TestEABHandler(unittest.TestCase):
 
     def setUp(self):
         """setup unit test"""
-        import sys
-        import types
-
-        sys.modules["pyodbc"] = types.ModuleType("pyodbc")
-        sys.modules["pyodbc"].connect = MagicMock()
-
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)
@@ -32,6 +26,14 @@ class TestEABHandler(unittest.TestCase):
 
         self.eabhandler = EABhandler(self.logger)
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
+
+    def _mock_conn_with_rows(self, rows):
+        """Build a mock DB connection returning rows from fetchall."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchall.return_value = rows
+        return mock_conn, mock_cursor
 
     def test_001_default(self):
         """default test which always passes"""
@@ -327,9 +329,9 @@ class TestEABHandler(unittest.TestCase):
         result = self.eabhandler.key_file_load()
         self.assertEqual(result, {})
 
-    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_profiles")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_mssql_profiles")
     def test_031_key_file_load_mssql(self, mock_load):
-        """MSSQL: should call _load_profiles and return its result"""
+        """MSSQL: should call _load_mssql_profiles and return its result"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
@@ -340,9 +342,9 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(result, {"key": "profile"})
         mock_load.assert_called_once()
 
-    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_profiles")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_postgres_profiles")
     def test_032_key_file_load_postgres(self, mock_load):
-        """Postgres: should call _load_profiles and return its result"""
+        """Postgres: should call _load_postgres_profiles and return its result"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
@@ -353,44 +355,40 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(result, {"key": "profile"})
         mock_load.assert_called_once()
 
-    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._load_profiles")
-    def test_033_key_file_load_error(self, mock_load):
-        """Invalid db_system: should return empty dict"""
+    def test_033_key_file_load_invalid_system(self):
+        """Invalid db_system: should return empty dict without calling loaders"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
         self.eabhandler.db_system = "invalid"
-        mock_load.return_value = {}
         result = self.eabhandler.key_file_load()
         self.assertEqual(result, {})
 
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_034_load_mssql_profiles_success(self, mock_connect):
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._schema_ensure")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._mssql_connect")
+    def test_034_load_mssql_profiles_success(self, mock_connect, mock_schema):
         """Successful fetch: should return dict with profiles"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
         self.eabhandler.db_system = "mssql"
-
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = [
-            (
-                "keyid_01",
-                '{"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}}',
-            ),
-            ("keyid_02", '{"hmac": "hmac_02"}'),
-            (
-                "keyid_03",
-                '{"order": {"allowed_domainlist": ["127.0.0.1"]}, "hmac": "hmac_03"}',
-            ),
-        ]
+        mock_conn, _cursor = self._mock_conn_with_rows(
+            [
+                (
+                    "keyid_01",
+                    '{"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}}',
+                ),
+                ("keyid_02", '{"hmac": "hmac_02"}'),
+                (
+                    "keyid_03",
+                    '{"order": {"allowed_domainlist": ["127.0.0.1"]}, "hmac": "hmac_03"}',
+                ),
+            ]
+        )
         mock_connect.return_value = mock_conn
-
-        result = self.eabhandler._load_profiles("mssql", "SELECT ...")
+        result = self.eabhandler._load_mssql_profiles()
         self.assertEqual(
             result,
             {
@@ -405,62 +403,51 @@ class TestEABHandler(unittest.TestCase):
                 },
             },
         )
-        self.assertEqual(
-            {"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}},
-            result["keyid_01"],
-        )
-        self.assertEqual({"hmac": "hmac_02"}, result["keyid_02"])
-        self.assertEqual(
-            {"hmac": "hmac_03", "order": {"allowed_domainlist": ["127.0.0.1"]}},
-            result["keyid_03"],
-        )
+        mock_schema.assert_called_once_with(mock_conn, "mssql")
+        mock_conn.close.assert_called_once()
 
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_035_load_mssql_profiles_empty(self, mock_connect):
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._schema_ensure")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._mssql_connect")
+    def test_035_load_mssql_profiles_empty(self, mock_connect, _mock_schema):
         """Empty result: should return empty dict"""
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = []
+        mock_conn, _cursor = self._mock_conn_with_rows([])
         mock_connect.return_value = mock_conn
-        result = self.eabhandler._load_profiles("mssql", "SELECT ...")
+        result = self.eabhandler._load_mssql_profiles()
         self.assertEqual(result, {})
 
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._mssql_connect")
     def test_036_load_mssql_profiles_exception(self, mock_connect):
         """Exception: should log error and return empty dict"""
         mock_connect.side_effect = Exception("connection error")
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
-            result = self.eabhandler._load_profiles("mssql", "SELECT ...")
+            result = self.eabhandler._load_mssql_profiles()
         self.assertEqual(result, {})
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_037_load_postgres_profiles_success(self, mock_connect):
-        """Successful fetch: should return dict with profiles"""
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._schema_ensure")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._postgres_connect")
+    def test_037_load_postgres_profiles_success(self, mock_connect, mock_schema):
+        """Successful fetch via psycopg2 path: parse JSON profiles"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
         self.eabhandler.db_user = "user"
         self.eabhandler.db_password = "pass"
         self.eabhandler.db_system = "postgres"
-
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = [
-            (
-                "keyid_01",
-                '{"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}}',
-            ),
-            ("keyid_02", '{"hmac": "hmac_02"}'),
-            (
-                "keyid_03",
-                '{"order": {"allowed_domainlist": ["127.0.0.1"]}, "hmac": "hmac_03"}',
-            ),
-        ]
+        mock_conn, _cursor = self._mock_conn_with_rows(
+            [
+                (
+                    "keyid_01",
+                    '{"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}}',
+                ),
+                ("keyid_02", '{"hmac": "hmac_02"}'),
+                (
+                    "keyid_03",
+                    {"order": {"allowed_domainlist": ["127.0.0.1"]}, "hmac": "hmac_03"},
+                ),
+            ]
+        )
         mock_connect.return_value = mock_conn
-
-        result = self.eabhandler._load_profiles("postgres", "SELECT ...")
+        result = self.eabhandler._load_postgres_profiles()
         self.assertEqual(
             result,
             {
@@ -475,40 +462,61 @@ class TestEABHandler(unittest.TestCase):
                 },
             },
         )
-        self.assertEqual(
-            {"hmac": "hmac_01", "order": {"allowed_domainlist": ["127.0.0.1"]}},
-            result["keyid_01"],
-        )
-        self.assertEqual({"hmac": "hmac_02"}, result["keyid_02"])
-        self.assertEqual(
-            {"hmac": "hmac_03", "order": {"allowed_domainlist": ["127.0.0.1"]}},
-            result["keyid_03"],
-        )
+        mock_schema.assert_called_once_with(mock_conn, "postgres")
+        mock_conn.close.assert_called_once()
 
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_038_load_postgres_profiles_empty(self, mock_connect):
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._schema_ensure")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._postgres_connect")
+    def test_038_load_postgres_profiles_empty(self, mock_connect, _mock_schema):
         """Empty result: should return empty dict"""
-        mock_conn = MagicMock()
-        mock_conn.close = MagicMock()
-        mock_conn.__bool__.return_value = True
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = []
+        mock_conn, _cursor = self._mock_conn_with_rows([])
         mock_connect.return_value = mock_conn
-        result = self.eabhandler._load_profiles("postgres", "SELECT ...")
+        result = self.eabhandler._load_postgres_profiles()
         self.assertEqual(result, {})
 
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_039_load_profiles_exception(self, mock_connect):
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._postgres_connect")
+    def test_039_load_postgres_profiles_exception(self, mock_connect):
         """Exception: should log error and return empty dict"""
         mock_connect.side_effect = Exception("connection error")
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
-            result = self.eabhandler._load_profiles("postgres", "SELECT ...")
+            result = self.eabhandler._load_postgres_profiles()
         self.assertEqual(result, {})
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
+    def test_040_postgres_connect_kwargs(self):
+        """_postgres_connect passes host/dbname/user/password to psycopg2"""
+        self.eabhandler.db_host = "pg-host"
+        self.eabhandler.db_name = "pg-db"
+        self.eabhandler.db_user = "pg-user"
+        self.eabhandler.db_password = "pg-pass"
+        mock_psycopg2 = MagicMock()
+        with patch.dict(sys.modules, {"psycopg2": mock_psycopg2}):
+            self.eabhandler._postgres_connect()
+        mock_psycopg2.connect.assert_called_once_with(
+            host="pg-host",
+            dbname="pg-db",
+            user="pg-user",
+            password="pg-pass",
+        )
+
+    def test_041_mssql_connect_conn_string(self):
+        """_mssql_connect uses ODBC Driver 18 and Encrypt flags"""
+        self.eabhandler.db_host = "sql-host"
+        self.eabhandler.db_name = "sql-db"
+        self.eabhandler.db_user = "sql-user"
+        self.eabhandler.db_password = "sql-pass"
+        mock_pyodbc = MagicMock()
+        with patch.dict(sys.modules, {"pyodbc": mock_pyodbc}):
+            self.eabhandler._mssql_connect()
+        conn_str = mock_pyodbc.connect.call_args[0][0]
+        self.assertIn("DRIVER={ODBC Driver 18 for SQL Server}", conn_str)
+        self.assertIn("SERVER=sql-host", conn_str)
+        self.assertIn("Encrypt=yes", conn_str)
+        self.assertIn("TrustServerCertificate=yes", conn_str)
+        self.assertNotIn("PostgreSQL", conn_str)
+
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_040_mac_key_get_valid_mssql(self, mock_key_file_load):
+    def test_042_mac_key_get_valid_mssql(self, mock_key_file_load):
         """Valid key: should return mac_key"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -536,7 +544,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(result, "hmac_03")
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_041_mac_key_get_valid_postgres(self, mock_key_file_load):
+    def test_043_mac_key_get_valid_postgres(self, mock_key_file_load):
         """Valid key: should return mac_key"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -564,7 +572,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertEqual(result, "hmac_03")
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_042_mac_key_get_missing_key(self, mock_key_file_load):
+    def test_044_mac_key_get_missing_key(self, mock_key_file_load):
         """Missing key: should return None"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -578,7 +586,7 @@ class TestEABHandler(unittest.TestCase):
         result = self.eabhandler.mac_key_get("keyid_02")
         self.assertIsNone(result)
 
-    def test_043_mac_key_get_missing_db_params(self):
+    def test_045_mac_key_get_missing_db_params(self):
         """Missing DB params: should return None and log error"""
         self.eabhandler.db_host = None
         self.eabhandler.db_name = None
@@ -591,7 +599,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
-    def test_044_mac_key_get_exception(self, mock_key_file_load):
+    def test_046_mac_key_get_exception(self, mock_key_file_load):
         """Exception: should return None and log error"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -603,7 +611,7 @@ class TestEABHandler(unittest.TestCase):
         self.assertIsNone(result)
         self.assertTrue(any("error" in msg.lower() for msg in lcm.output))
 
-    def test_045_eab_kid_get_exception(self):
+    def test_047_eab_kid_get_exception(self):
         """Exception branch: should log error and return None"""
         self.eabhandler.db_host = "host"
         self.eabhandler.db_name = "name"
@@ -621,7 +629,7 @@ class TestEABHandler(unittest.TestCase):
             any("Database error while retrieving eab_kid" in msg for msg in lcm.output)
         )
 
-    def test_046_eab_kid_get_revocation(self):
+    def test_048_eab_kid_get_revocation(self):
         """test EABhandler.eab_kid_get() with revocation=True uses cert_raw"""
         models_mock = MagicMock()
         models_mock.DBstore().certificate_lookup.return_value = {
@@ -636,7 +644,7 @@ class TestEABHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
-    def test_047_cahandler_name_get_dict(self, mock_kid, mock_prof):
+    def test_049_cahandler_name_get_dict(self, mock_kid, mock_prof):
         """cahandler_name_get reads cahandler_name from a dict profile entry"""
         mock_prof.return_value = {"kid1": {"cahandler_name": "openssl"}}
         mock_kid.return_value = "kid1"
@@ -644,7 +652,7 @@ class TestEABHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
-    def test_048_cahandler_name_get_json_string(self, mock_kid, mock_prof):
+    def test_050_cahandler_name_get_json_string(self, mock_kid, mock_prof):
         """cahandler_name_get parses a JSON string profile entry"""
         mock_prof.return_value = {"kid1": '{"cahandler_name": "ejbca"}'}
         mock_kid.return_value = "kid1"
@@ -652,70 +660,213 @@ class TestEABHandler(unittest.TestCase):
 
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.key_file_load")
     @patch("acme2certifier.eabhandlers.sql_handler.EABhandler.eab_kid_get")
-    def test_049_cahandler_name_get_invalid_json(self, mock_kid, mock_prof):
+    def test_051_cahandler_name_get_invalid_json(self, mock_kid, mock_prof):
         """cahandler_name_get treats invalid JSON profile entries as empty"""
         mock_prof.return_value = {"kid1": "not-json"}
         mock_kid.return_value = "kid1"
         self.assertIsNone(self.eabhandler.cahandler_name_get("csr"))
 
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_050_load_mssql_profiles_invalid_json(self, mock_connect):
-        """Invalid json: should return error"""
-        self.eabhandler.db_host = "host"
-        self.eabhandler.db_name = "name"
-        self.eabhandler.db_user = "user"
-        self.eabhandler.db_password = "pass"
-        self.eabhandler.db_system = "mssql"
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._schema_ensure")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._mssql_connect")
+    def test_052_load_mssql_profiles_invalid_json(self, mock_connect, _mock_schema):
+        """Invalid json: should log error and return empty dict"""
+        mock_conn, mock_cursor = self._mock_conn_with_rows(
+            [
+                (
+                    "keyid_01",
+                    '"hmac": "hmac_01", "order": "allowed_domainlist": ["127.0.0.1"}}',
+                )
+            ]
+        )
+        mock_connect.return_value = mock_conn
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            result = self.eabhandler._load_mssql_profiles()
+        self.assertEqual(result, {})
+        self.assertTrue(
+            any("_load_mssql_profiles() error" in msg for msg in lcm.output)
+        )
+        self.assertTrue(mock_cursor.execute.called)
 
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._schema_ensure")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._postgres_connect")
+    def test_053_load_postgres_profiles_invalid_json(self, mock_connect, _mock_schema):
+        """Invalid json: should log error and return empty dict"""
+        mock_conn, mock_cursor = self._mock_conn_with_rows(
+            [
+                (
+                    "keyid_01",
+                    '"hmac": "hmac_01", "order": "allowed_domainlist": ["127.0.0.1"}}',
+                )
+            ]
+        )
+        mock_connect.return_value = mock_conn
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            result = self.eabhandler._load_postgres_profiles()
+        self.assertEqual(result, {})
+        self.assertTrue(
+            any("_load_postgres_profiles() error" in msg for msg in lcm.output)
+        )
+        self.assertTrue(mock_cursor.execute.called)
+
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._column_exists")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._table_exists")
+    def test_054_schema_ensure_migrates_legacy_postgres(
+        self, mock_table_exists, mock_column_exists
+    ):
+        """Legacy credentials table triggers rename to acme_credential/enabled"""
+        mock_table_exists.side_effect = lambda _c, _s, name: name == "credentials"
+        mock_column_exists.side_effect = lambda _c, _s, _t, col: col == "status"
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        # JSON is missing some brackets
-        mock_cursor.fetchall.return_value = [
-            (
-                "keyid_01",
-                '"hmac": "hmac_01", "order": "allowed_domainlist": ["127.0.0.1"}}',
-            )
-        ]
-        mock_connect.return_value = mock_conn
-
-        self.eabhandler._load_profiles("postgres", "SELECT ...")
-
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.eabhandler.eab_profile_get("csr"))
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.eabhandler._schema_ensure(mock_conn, "postgres")
+        executed = [call.args[0] for call in mock_cursor.execute.call_args_list]
+        self.assertIn("ALTER TABLE credentials RENAME TO acme_credential", executed)
         self.assertIn(
-            "ERROR:test_a2c:EABhandler._load_profiles()",
-            str(lcm.output),
+            "ALTER TABLE acme_credential RENAME COLUMN status TO enabled", executed
+        )
+        mock_conn.commit.assert_called_once()
+        self.assertTrue(any("legacy table 'credentials'" in msg for msg in lcm.output))
+
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._column_exists")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._table_exists")
+    def test_055_schema_ensure_noop_when_new(
+        self, mock_table_exists, mock_column_exists
+    ):
+        """New schema present: no ALTER statements"""
+        mock_table_exists.side_effect = lambda _c, _s, name: name == "acme_credential"
+        mock_column_exists.return_value = False
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        self.eabhandler._schema_ensure(mock_conn, "postgres")
+        mock_cursor.execute.assert_not_called()
+        mock_conn.commit.assert_called_once()
+
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._column_exists")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._table_exists")
+    def test_056_schema_ensure_migrates_legacy_mssql(
+        self, mock_table_exists, mock_column_exists
+    ):
+        """Legacy credentials table on MSSQL uses sp_rename"""
+        mock_table_exists.side_effect = lambda _c, _s, name: name == "credentials"
+        mock_column_exists.side_effect = lambda _c, _s, _t, col: col == "status"
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        self.eabhandler._schema_ensure(mock_conn, "mssql")
+        executed = [call.args[0] for call in mock_cursor.execute.call_args_list]
+        self.assertIn("EXEC sp_rename 'credentials', 'acme_credential'", executed)
+        self.assertIn(
+            "EXEC sp_rename 'acme_credential.status', 'enabled', 'COLUMN'", executed
         )
 
-    @patch("acme2certifier.eabhandlers.sql_handler.pyodbc.connect")
-    def test_051_load_postgres_profiles_invalid_json(self, mock_connect):
-        """Invalid json: should return error"""
-        self.eabhandler.db_host = "host"
-        self.eabhandler.db_name = "name"
-        self.eabhandler.db_user = "user"
-        self.eabhandler.db_password = "pass"
-        self.eabhandler.db_system = "postgres"
+    def test_057_profile_parse_dict_and_bytes(self):
+        """_profile_parse accepts dict and UTF-8 JSON bytes"""
+        self.assertEqual(self.eabhandler._profile_parse({"hmac": "x"}), {"hmac": "x"})
+        self.assertEqual(
+            self.eabhandler._profile_parse(b'{"hmac": "from-bytes"}'),
+            {"hmac": "from-bytes"},
+        )
 
+    def test_058_table_exists_postgres(self):
+        """_table_exists queries to_regclass for postgres"""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        # JSON is missing some brackets
-        mock_cursor.fetchall.return_value = [
-            (
-                "keyid_01",
-                '"hmac": "hmac_01", "order": "allowed_domainlist": ["127.0.0.1"}}',
+        mock_cursor.fetchone.return_value = (True,)
+        self.assertTrue(
+            self.eabhandler._table_exists(mock_conn, "postgres", "acme_credential")
+        )
+        mock_cursor.execute.assert_called_once_with(
+            "SELECT to_regclass(%s) IS NOT NULL",
+            ("public.acme_credential",),
+        )
+        mock_cursor.fetchone.return_value = (None,)
+        self.assertFalse(
+            self.eabhandler._table_exists(mock_conn, "postgres", "missing")
+        )
+
+    def test_059_table_exists_mssql(self):
+        """_table_exists queries OBJECT_ID for mssql"""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = (12345,)
+        self.assertTrue(
+            self.eabhandler._table_exists(mock_conn, "mssql", "acme_credential")
+        )
+        mock_cursor.execute.assert_called_once_with(
+            "SELECT OBJECT_ID(?, 'U')",
+            ("dbo.acme_credential",),
+        )
+        mock_cursor.fetchone.return_value = (None,)
+        self.assertFalse(self.eabhandler._table_exists(mock_conn, "mssql", "missing"))
+
+    def test_060_column_exists_postgres_and_mssql(self):
+        """_column_exists uses information_schema for both backends"""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = (1,)
+        self.assertTrue(
+            self.eabhandler._column_exists(
+                mock_conn, "postgres", "acme_credential", "enabled"
             )
-        ]
-        mock_connect.return_value = mock_conn
+        )
+        self.assertIn("information_schema.columns", mock_cursor.execute.call_args[0][0])
+        mock_cursor.fetchone.return_value = None
+        self.assertFalse(
+            self.eabhandler._column_exists(
+                mock_conn, "mssql", "acme_credential", "status"
+            )
+        )
+        self.assertIn("INFORMATION_SCHEMA.COLUMNS", mock_cursor.execute.call_args[0][0])
 
-        self.eabhandler._load_profiles("postgres", "SELECT ...")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._column_exists")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._table_exists")
+    def test_061_schema_ensure_renames_status_column_postgres(
+        self, mock_table_exists, mock_column_exists
+    ):
+        """New table with legacy status column renames to enabled"""
+        mock_table_exists.side_effect = lambda _c, _s, name: name == "acme_credential"
 
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.eabhandler.eab_profile_get("csr"))
+        def _col(_c, _s, _t, col):
+            return col == "status"
+
+        mock_column_exists.side_effect = _col
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.eabhandler._schema_ensure(mock_conn, "postgres")
+        executed = [call.args[0] for call in mock_cursor.execute.call_args_list]
         self.assertIn(
-            "ERROR:test_a2c:EABhandler._load_profiles()",
-            str(lcm.output),
+            "ALTER TABLE acme_credential RENAME COLUMN status TO enabled", executed
+        )
+        mock_conn.commit.assert_called_once()
+        self.assertTrue(any("legacy column 'status'" in msg for msg in lcm.output))
+
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._column_exists")
+    @patch("acme2certifier.eabhandlers.sql_handler.EABhandler._table_exists")
+    def test_062_schema_ensure_renames_status_column_mssql(
+        self, mock_table_exists, mock_column_exists
+    ):
+        """MSSQL status→enabled rename uses sp_rename"""
+        mock_table_exists.side_effect = lambda _c, _s, name: name == "acme_credential"
+
+        def _col(_c, _s, _t, col):
+            return col == "status"
+
+        mock_column_exists.side_effect = _col
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        self.eabhandler._schema_ensure(mock_conn, "mssql")
+        executed = [call.args[0] for call in mock_cursor.execute.call_args_list]
+        self.assertIn(
+            "EXEC sp_rename 'acme_credential.status', 'enabled', 'COLUMN'", executed
         )
 
 

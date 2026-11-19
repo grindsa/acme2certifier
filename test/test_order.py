@@ -748,13 +748,30 @@ class TestOrderClass(unittest.TestCase):
                         {"url": "url"}, {}, None, account_name="acc"
                     )
                     self.assertEqual(code, 200)
-            # url in protected, order_name, no order_dic
-            with patch.object(self.order, "get_order_details", return_value={}):
+            # Missing/denied ownership: same unauthorized client error; no side-effect lookup
+            with (
+                patch.object(self.order, "_get_order_account_name", return_value=None),
+                patch.object(self.order, "get_order_details") as mock_details,
+            ):
+                code, msg, detail, _cert, _order = self.order._parse_order_message(
+                    {"url": "url"}, {}, None, account_name="attacker"
+                )
+                self.assertEqual(code, 403)
+                self.assertEqual(msg, "urn:ietf:params:acme:error:unauthorized")
+                self.assertEqual(detail, "Unauthorized")
+                mock_details.assert_not_called()
+            # Ownership ok but details empty: still uniform unauthorized (no oracle)
+            with (
+                patch.object(self.order, "_get_order_account_name", return_value="acc"),
+                patch.object(self.order, "get_order_details", return_value={}),
+            ):
                 with self.assertLogs("test_a2c", level="WARNING") as log_cm:
-                    code, _msg, _detail, _cert, _order = (
-                        self.order._parse_order_message({"url": "url"}, {}, None)
+                    code, msg, detail, _cert, _order = self.order._parse_order_message(
+                        {"url": "url"}, {}, None, account_name="acc"
                     )
                 self.assertEqual(code, 403)
+                self.assertEqual(msg, "urn:ietf:params:acme:error:unauthorized")
+                self.assertEqual(detail, "Unauthorized")
                 self.assertIn(
                     "WARNING:test_a2c:Order request failed: order not found order=order",
                     log_cm.output,
@@ -3658,6 +3675,239 @@ class TestOrderClass(unittest.TestCase):
         """_authorizations_valid_for_issuance returns False for empty list"""
         self.order.repository.authorization_lookup.return_value = []
         self.assertFalse(self.order._authorizations_valid_for_issuance("order1"))
+
+    def test_222_are_identifiers_allowed_shortname_rejected_when_flag_off(self):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = False
+            result = self.order.are_identifiers_allowed(
+                [
+                    {"type": "dns", "value": "host.intra.net"},
+                    {"type": "dns", "value": "host"},
+                ]
+            )
+            self.assertEqual(
+                result,
+                (
+                    self.order.error_msg_dic["rejectedidentifier"],
+                    "FQDN/SAN host not allowed by configuration",
+                ),
+            )
+
+    def test_223_are_identifiers_allowed_shortname_accepted_when_flag_on(self):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = True
+            result = self.order.are_identifiers_allowed(
+                [
+                    {"type": "dns", "value": "host.intra.net"},
+                    {"type": "dns", "value": "host"},
+                ]
+            )
+            self.assertEqual(result, (None, None))
+
+    def test_224_are_identifiers_allowed_shortname_denylist_rejects(self):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = True
+            self.order.config.shortname_denylist = ["mail"]
+            result = self.order.are_identifiers_allowed(
+                [
+                    {"type": "dns", "value": "mail.intra.net"},
+                    {"type": "dns", "value": "mail"},
+                ]
+            )
+            self.assertEqual(
+                result,
+                (
+                    self.order.error_msg_dic["rejectedidentifier"],
+                    "FQDN/SAN mail not allowed by configuration",
+                ),
+            )
+
+    def test_225_are_identifiers_allowed_shortname_only_rejected(self):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = True
+            result = self.order.are_identifiers_allowed(
+                [{"type": "dns", "value": "host"}]
+            )
+            self.assertEqual(
+                result,
+                (
+                    self.order.error_msg_dic["rejectedidentifier"],
+                    "FQDN/SAN host not allowed by configuration",
+                ),
+            )
+
+    def test_226_are_identifiers_allowed_wildcard_sibling_does_not_cover_shortname(
+        self,
+    ):
+        with patch(
+            "acme2certifier.acme_srv.order.validate_identifier", return_value=True
+        ):
+            self.order.config.allowed_domainlist = ["*.intra.net"]
+            self.order.config.allow_shortname_from_fqdn = True
+            result = self.order.are_identifiers_allowed(
+                [
+                    {"type": "dns", "value": "*.intra.net"},
+                    {"type": "dns", "value": "host"},
+                ]
+            )
+            self.assertEqual(
+                result,
+                (
+                    self.order.error_msg_dic["rejectedidentifier"],
+                    "FQDN/SAN host not allowed by configuration",
+                ),
+            )
+
+    def test_227_apply_eab_profile_allow_shortname_from_fqdn(self):
+        self.order.config.eab_profiling = True
+        self.order.config.allow_shortname_from_fqdn = False
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_sn"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {"kid_sn": {"order": {"allow_shortname_from_fqdn": True}}}
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertTrue(self.order.config.allow_shortname_from_fqdn)
+
+    def test_228_apply_eab_profile_shortname_denylist(self):
+        self.order.config.eab_profiling = True
+        self.order.config.shortname_denylist = []
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_dn"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {"kid_dn": {"order": {"shortname_denylist": ["mail", "vpn"]}}}
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertEqual(self.order.config.shortname_denylist, ["mail", "vpn"])
+
+    @patch(
+        "acme2certifier.acme_srv.order.shortname_without_challenge_validation_decide",
+        return_value=True,
+    )
+    def test_229_apply_eab_profile_allow_shortname_without_challenge_validation(
+        self, mock_decide
+    ):
+        self.order.config.eab_profiling = True
+        self.order.config.allow_shortname_without_challenge_validation = False
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_skip"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {
+            "kid_skip": {
+                "order": {"allow_shortname_without_challenge_validation": True}
+            }
+        }
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertTrue(self.order.config.allow_shortname_without_challenge_validation)
+        mock_decide.assert_called_once()
+        self.assertTrue(mock_decide.call_args.args[1])
+
+    def test_230_add_authorizations_skip_shortname_challenge(self):
+        self.order.repository.add_authorization.return_value = None
+        self.order.repository.update_authorization.return_value = None
+        self.order.config.authz_validity = 1000
+        self.order.config.allow_shortname_from_fqdn = True
+        self.order.config.allow_shortname_without_challenge_validation = True
+        self.order.config.allowed_domainlist = ["*.intra.net"]
+        self.order.config.shortname_denylist = []
+        oid = "order_sn"
+        payload = {
+            "identifiers": [
+                {"type": "dns", "value": "host"},
+                {"type": "dns", "value": "host.intra.net"},
+            ]
+        }
+        auth_dic = {}
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
+        self.assertIsNone(error)
+        statuses = {item["value"]: item["status"] for item in payload["identifiers"]}
+        self.assertEqual(statuses["host"], "valid")
+        self.assertEqual(statuses["host.intra.net"], "pending")
+        self.order.repository.update_authorization.assert_called_once()
+        self.assertTrue(
+            any(
+                "skipping challenge validation for shortname host" in line
+                for line in log_cm.output
+            )
+        )
+
+    def test_231_add_authorizations_no_skip_without_flag(self):
+        self.order.repository.add_authorization.return_value = None
+        self.order.config.authz_validity = 1000
+        self.order.config.allow_shortname_from_fqdn = True
+        self.order.config.allow_shortname_without_challenge_validation = False
+        self.order.config.allowed_domainlist = ["*.intra.net"]
+        oid = "order_sn2"
+        payload = {
+            "identifiers": [
+                {"type": "dns", "value": "host"},
+                {"type": "dns", "value": "host.intra.net"},
+            ]
+        }
+        auth_dic = {}
+        error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
+        self.assertIsNone(error)
+        self.assertEqual(payload["identifiers"][0]["status"], "pending")
+        self.assertEqual(payload["identifiers"][1]["status"], "pending")
+        self.order.repository.update_authorization.assert_not_called()
+
+    def test_232_skip_shortname_challenge_ignores_non_dns(self):
+        """IP identifiers are not eligible for the shortname challenge skip."""
+        self.order.config.allow_shortname_without_challenge_validation = True
+        identifier = {"type": "ip", "value": "10.0.0.1"}
+        identifiers = [identifier, {"type": "dns", "value": "host.intra.net"}]
+        self.assertFalse(
+            self.order._should_skip_shortname_challenge_validation(
+                identifier, identifiers
+            )
+        )
+
+    def test_233_dns_identifier_values_skips_non_dict(self):
+        """Non-dict identifier entries are ignored when collecting DNS names."""
+        values = self.order._dns_identifier_values(
+            [
+                "not-a-dict",
+                {"type": "dns", "value": "host.example"},
+                {"type": "ip", "value": "10.0.0.1"},
+            ]
+        )
+        self.assertEqual(["host.example"], values)
+
+    def test_234_load_eab_profile_param_order_section_non_dict(self):
+        """Non-dict order section is treated as empty"""
+        profile_dic = {"kid": {"order": "not-a-dict"}}
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid", "allowed_domainlist", ["default.com"]
+        )
+        self.assertEqual(value, ["default.com"])
+
+    def test_235_load_eab_profile_param_cahandler_section_non_dict(self):
+        """Non-dict cahandler fallback section is treated as empty"""
+        profile_dic = {"kid": {"order": {}, "cahandler": "not-a-dict"}}
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid", "allowed_domainlist", ["default.com"]
+        )
+        self.assertEqual(value, ["default.com"])
 
 
 if __name__ == "__main__":

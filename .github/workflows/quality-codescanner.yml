@@ -25,23 +25,12 @@ jobs:
       - name: Bandit Scan
         uses: shundor/python-bandit-scan@9955228c1cbdc5aeb5e511e0fa232154e2ed2b67
         with:
-          # optional arguments
-          # exit with 0, even with results found
-          exit_zero: true # optional, default is DEFAULT
-          # Github token of the repository (automatically created by Github)
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information.
-          # File or directory to run bandit on
-          # path: # optional, default is .
-          # Report only issues of a given severity level or higher. Can be LOW, MEDIUM or HIGH. Default is UNDEFINED (everything)
-          # level: # optional, default is UNDEFINED
-          # Report only issues of a given confidence level or higher. Can be LOW, MEDIUM or HIGH. Default is UNDEFINED (everything)
-          # confidence: # optional, default is UNDEFINED
-          # comma-separated list of paths (glob patterns supported) to exclude from scan (note that these are in addition to the excluded paths provided in the config file) (default: .svn,CVS,.bzr,.hg,.git,__pycache__,.tox,.eggs,*.egg)
-          # excluded_paths: # optional, default is DEFAULT
-          # comma-separated list of test IDs to skip
-          # skips: # optional, default is DEFAULT
-          # path to a .bandit file that supplies command line arguments
-          # ini_path: # optional, default is DEFAULT
+          exit_zero: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Fuzz harnesses, CI helpers, and sync tooling are out of production attack surface.
+          excluded_paths: fuzz,.github/scripts,tools/min_sync,test
+          # High-noise / low-signal for this codebase (placeholders, bare except in helpers, subprocess imports).
+          skips: B105,B110,B404
 
   codecov:
     permissions:
@@ -69,13 +58,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install lxml beautifulsoup4 html5lib
-          pip install ".[test,gssapi]"
+          pip install ".[test,gssapi,otel]"
           pip install pytest-cov impacket
           cp examples/acme_srv.cfg acme2certifier/acme_srv/
           pytest --cov=./ --cov-report=xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.xml
@@ -108,7 +97,7 @@ jobs:
       - name: Install pytest coverage and any other packages
         run: |
           python -m pip install --upgrade pip
-          pip install ".[test,gssapi]"
+          pip install ".[test,gssapi,otel]"
           pip install coverage impacket
           cp examples/acme_srv.cfg acme2certifier/acme_srv/
 
@@ -118,7 +107,7 @@ jobs:
           pytest --cov=./ --cov-report=xml
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        uses: SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v8.5.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

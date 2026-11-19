@@ -8,6 +8,12 @@ from dataclasses import dataclass
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.helper import uts_now, load_config
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
+from acme2certifier.acme_srv.helpers.otel import (
+    forget_nonce_span_contexts,
+    remember_request_span_context,
+    set_span_outcome,
+    span,
+)
 
 
 # Custom Exceptions
@@ -142,12 +148,20 @@ class Nonce(object):
     def generate_and_add(self) -> str:
         """Generate new nonce and store it (public method, backward compatible)."""
         self.logger.debug("Nonce.generate_and_add()")
-        nonce = self._generate_nonce_value()
-        self.logger.debug("got nonce: %s", nonce)
-        try:
-            self.repo.add_nonce(nonce)
-        except Exception as err_:
-            self.logger.critical(f"{DB_ERROR_MSG}: failed to add new nonce: %s", err_)
+        with span("acme.nonce.issue") as active:
+            nonce = self._generate_nonce_value()
+            self.logger.debug("got nonce: %s", nonce)
+            try:
+                self.repo.add_nonce(nonce)
+                set_span_outcome(active, "success")
+                # Next JWS POST continues via this nonce → enclosing http.request.
+                # Session tip for GETs is advanced by acme_traced_request.
+                remember_request_span_context(f"nonce:{nonce}")
+            except Exception as err_:
+                set_span_outcome(active, "error", err_)
+                self.logger.critical(
+                    f"{DB_ERROR_MSG}: failed to add new nonce: %s", err_
+                )
         self.logger.debug("Nonce.generate_and_add() ended with:%s", nonce)
         return nonce
 
@@ -172,6 +186,8 @@ class Nonce(object):
             )
             if nonce_list:
                 total_deleted = self.repo.delete_nonces(nonce_list)
+                # Drop matching OTEL continue keys so unused nonces cannot leak.
+                forget_nonce_span_contexts(nonce_list)
         except Exception as err_:
             self.logger.critical(
                 f"{DB_ERROR_MSG}: failed to search expired nonces: %s", err_

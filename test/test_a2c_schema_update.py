@@ -53,7 +53,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
 
             self.assertEqual(resolve_mode(None), "django")
 
-    def test_002b_resolve_mode_default_is_none(self):
+    def test_003_resolve_mode_default_is_none(self):
         """runtime default (no handler set) does not imply wsgi for schema update"""
         with patch(
             "acme2certifier.acme_srv.helpers.db_handler_select.resolve_db_handler",
@@ -65,7 +65,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
 
     @patch("acme2certifier.tools.a2c_schema_update.run_wsgi_schema_update")
     @patch("acme2certifier.tools.a2c_schema_update.run_django_schema_update")
-    def test_003_main_mode_django(self, mock_django, mock_wsgi):
+    def test_004_main_mode_django(self, mock_django, mock_wsgi):
         """--mode django calls django path"""
         mock_django.return_value = 0
         from acme2certifier.tools import a2c_schema_update as mod
@@ -76,7 +76,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
 
     @patch("acme2certifier.tools.a2c_schema_update.run_wsgi_schema_update")
     @patch("acme2certifier.tools.a2c_schema_update.run_django_schema_update")
-    def test_004_main_mode_wsgi(self, mock_django, mock_wsgi):
+    def test_005_main_mode_wsgi(self, mock_django, mock_wsgi):
         """--mode wsgi calls wsgi path"""
         mock_wsgi.return_value = 0
         from acme2certifier.tools import a2c_schema_update as mod
@@ -88,7 +88,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_schema_update.run_wsgi_schema_update")
     @patch("acme2certifier.tools.a2c_schema_update.run_django_schema_update")
     @patch("acme2certifier.tools.a2c_schema_update.resolve_mode", return_value="django")
-    def test_005_main_auto_django(self, _resolve, mock_django, mock_wsgi):
+    def test_006_main_auto_django(self, _resolve, mock_django, mock_wsgi):
         """no --mode uses resolve_mode"""
         mock_django.return_value = 0
         from acme2certifier.tools import a2c_schema_update as mod
@@ -101,7 +101,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_schema_update.run_django_schema_update")
     @patch("acme2certifier.tools.a2c_schema_update.resolve_mode", return_value=None)
     @patch("builtins.print")
-    def test_005b_main_skips_when_handler_unset(
+    def test_007_main_skips_when_handler_unset(
         self, mock_print, _resolve, mock_django, mock_wsgi
     ):
         """unset handler warns and exits 0 without updating"""
@@ -117,7 +117,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_schema_update.run_wsgi_schema_update")
     @patch("acme2certifier.tools.a2c_schema_update.run_django_schema_update")
     @patch("acme2certifier.tools.a2c_schema_update.resolve_mode", return_value="wsgi")
-    def test_005c_main_auto_wsgi(self, _resolve, mock_django, mock_wsgi):
+    def test_008_main_auto_wsgi(self, _resolve, mock_django, mock_wsgi):
         """explicit cfg/env wsgi runs wsgi path only"""
         mock_wsgi.return_value = 0
         from acme2certifier.tools import a2c_schema_update as mod
@@ -126,7 +126,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         mock_wsgi.assert_called_once()
         mock_django.assert_not_called()
 
-    def test_006_run_wsgi_calls_wsgi_handler(self):
+    def test_009_run_wsgi_calls_wsgi_handler(self):
         """wsgi path uses dbhandlers.wsgi_handler.DBstore"""
         mock_db = MagicMock()
         with (
@@ -146,7 +146,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         mock_db.db_update.assert_called_once()
 
     @patch("builtins.print")
-    def test_006b_run_wsgi_error(self, mock_print):
+    def test_010_run_wsgi_error(self, mock_print):
         """wsgi path returns 1 and prints when DBstore raises"""
         with (
             patch(
@@ -165,15 +165,15 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertIn("Error during WSGI database update", printed)
         self.assertIn("wsgi boom", printed)
 
-    @patch("acme2certifier.tools.a2c_schema_update.update_db_version", return_value=True)
+    @patch(
+        "acme2certifier.tools.a2c_schema_update.update_db_version", return_value=True
+    )
     @patch(
         "acme2certifier.tools.a2c_schema_update.update_status_fields", return_value=True
     )
     @patch("acme2certifier.tools.a2c_schema_update.run_migrations", return_value=True)
     @patch("acme2certifier.tools.a2c_schema_update.setup_django", return_value=True)
-    def test_007_run_django_success(
-        self, mock_setup, mock_mig, mock_status, mock_ver
-    ):
+    def test_011_run_django_success(self, mock_setup, mock_mig, mock_status, mock_ver):
         """django path orchestrates migrate/status/version"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -183,7 +183,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         mock_status.assert_called_once()
         mock_ver.assert_called_once()
 
-    def test_008_status_list_defined(self):
+    def test_012_status_list_defined(self):
         """STATUS_LIST contains expected ACME status values"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -201,7 +201,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertEqual(len(mod.STATUS_LIST), 8)
 
     @patch("builtins.print")
-    def test_009_setup_django_success(self, mock_print):
+    def test_013_setup_django_success(self, mock_print):
         """setup_django configures Django and sets module globals"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -231,7 +231,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         mock_django.setup.assert_called_once()
 
     @patch("builtins.print")
-    def test_010_setup_django_import_error(self, mock_print):
+    def test_014_setup_django_import_error(self, mock_print):
         """setup_django returns False on ImportError"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -243,7 +243,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertIn("Error importing Django modules", printed)
 
     @patch("builtins.print")
-    def test_011_setup_django_general_error(self, mock_print):
+    def test_015_setup_django_general_error(self, mock_print):
         """setup_django returns False when django.setup raises"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -259,7 +259,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertIn("Error during Django setup", printed)
 
     @patch("builtins.print")
-    def test_012_run_migrations_success(self, mock_print):
+    def test_016_run_migrations_success(self, mock_print):
         """run_migrations calls makemigrations and migrate"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -278,7 +278,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertIn("Migrations applied successfully.", stdout)
 
     @patch("builtins.print")
-    def test_013_run_migrations_error(self, mock_print):
+    def test_017_run_migrations_error(self, mock_print):
         """run_migrations returns False when call_command fails"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -291,7 +291,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertIn("Error during Django operations", printed)
 
     @patch("builtins.print")
-    def test_014_update_status_fields_success(self, mock_print):
+    def test_018_update_status_fields_success(self, mock_print):
         """update_status_fields seeds every STATUS_LIST entry"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -303,7 +303,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertEqual(mock_status.objects.update_or_create.call_count, 8)
 
     @patch("builtins.print")
-    def test_015_update_status_fields_partial_error(self, mock_print):
+    def test_019_update_status_fields_partial_error(self, mock_print):
         """update_status_fields returns False when one status fails"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -325,7 +325,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertIn("Error updating status 'ready'", printed)
 
     @patch("builtins.print")
-    def test_016_update_db_version_success(self, mock_print):
+    def test_020_update_db_version_success(self, mock_print):
         """update_db_version writes housekeeping dbversion row"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -340,7 +340,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         )
 
     @patch("builtins.print")
-    def test_017_update_db_version_error(self, mock_print):
+    def test_021_update_db_version_error(self, mock_print):
         """update_db_version returns False on ORM error"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -358,7 +358,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_schema_update.run_migrations")
     @patch("acme2certifier.tools.a2c_schema_update.setup_django")
     @patch("builtins.print")
-    def test_018_run_django_setup_failure(
+    def test_022_run_django_setup_failure(
         self, mock_print, mock_setup, mock_migrations, mock_status, mock_ver
     ):
         """run_django_schema_update stops when setup_django fails"""
@@ -377,7 +377,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_schema_update.run_migrations")
     @patch("acme2certifier.tools.a2c_schema_update.setup_django")
     @patch("builtins.print")
-    def test_019_run_django_partial_failures(
+    def test_023_run_django_partial_failures(
         self, mock_print, mock_setup, mock_migrations, mock_status, mock_ver
     ):
         """run_django_schema_update aggregates step failures"""
@@ -397,7 +397,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
     @patch("acme2certifier.tools.a2c_schema_update.run_migrations")
     @patch("acme2certifier.tools.a2c_schema_update.setup_django")
     @patch("builtins.print")
-    def test_020_run_django_status_fields_failure(
+    def test_024_run_django_status_fields_failure(
         self, mock_print, mock_setup, mock_migrations, mock_status, mock_ver
     ):
         """run_django_schema_update fails when status seed fails"""
@@ -412,7 +412,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
 
     @patch("acme2certifier.tools.a2c_schema_update.main")
     @patch("acme2certifier.tools.a2c_schema_update.sys.exit")
-    def test_021_main_entry_point_success(self, mock_exit, mock_main):
+    def test_025_main_entry_point_success(self, mock_exit, mock_main):
         """script entry point calls sys.exit(main())"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -423,7 +423,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
 
     @patch("acme2certifier.tools.a2c_schema_update.main")
     @patch("acme2certifier.tools.a2c_schema_update.sys.exit")
-    def test_022_main_entry_point_error(self, mock_exit, mock_main):
+    def test_026_main_entry_point_error(self, mock_exit, mock_main):
         """script entry point propagates non-zero exit code"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -431,7 +431,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         mod.sys.exit(mod.main())
         mock_exit.assert_called_once_with(1)
 
-    def test_023_global_variables_initialization(self):
+    def test_027_global_variables_initialization(self):
         """module globals start unset before setup_django"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -442,7 +442,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertIsNone(mod.__dbversion__)
 
     @patch("builtins.print")
-    def test_024_setup_django_sets_globals(self, mock_print):
+    def test_028_setup_django_sets_globals(self, mock_print):
         """setup_django assigns call_command, models, and dbversion globals"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -473,7 +473,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertEqual(mod.__dbversion__, mock_dbversion)
 
     @patch("builtins.print")
-    def test_025_update_status_fields_print_message(self, mock_print):
+    def test_029_update_status_fields_print_message(self, mock_print):
         """update_status_fields logs start message"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -486,7 +486,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertIn("adding additional status fields to table...", stdout)
 
     @patch("builtins.print")
-    def test_026_update_db_version_print_messages(self, mock_print):
+    def test_030_update_db_version_print_messages(self, mock_print):
         """update_db_version logs version bump messages"""
         from acme2certifier.tools import a2c_schema_update as mod
 
@@ -500,7 +500,7 @@ class TestA2CSchemaUpdate(unittest.TestCase):
         self.assertIn("update dbversion to 3.0.0...", stdout)
         self.assertIn("Database version updated successfully.", stdout)
 
-    def test_027_module_main_entrypoint(self):
+    def test_031_module_main_entrypoint(self):
         """``python -m`` entry runs main and sys.exit"""
         import runpy
 

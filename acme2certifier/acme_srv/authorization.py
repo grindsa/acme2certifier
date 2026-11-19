@@ -33,6 +33,7 @@ from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     SERVER_INTERNAL_TYPE,
     ResourceOwnershipLookupError,
+    ownership_unauthorized,
     resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.helpers.security_gate import (
@@ -932,15 +933,21 @@ class Authorization(object):
             return
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
+                from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+                    eab_profile_kid_entry_get,
+                )
+
                 profile_dic = eab_handler.key_file_load()
+                entry = eab_profile_kid_entry_get(profile_dic, eab_kid)
+                authorization_cfg = entry.get("authorization", {})
+                if not isinstance(authorization_cfg, dict):
+                    authorization_cfg = {}
                 for key, attr in [
                     ("prevalidated_domainlist", "prevalidated_domainlist"),
                     ("prevalidated_iplist", "prevalidated_iplist"),
                     ("prevalidated_emaillist", "prevalidated_emaillist"),
                 ]:
-                    value = (
-                        profile_dic.get(eab_kid, {}).get("authorization", {}).get(key)
-                    )
+                    value = authorization_cfg.get(key)
                     if value:
                         self.logger.debug(
                             f"Authorization._apply_eab_and_domain_whitelist() - apply {key} from eab profile."
@@ -1258,12 +1265,12 @@ class Authorization(object):
                 {},
             )
         if not auth_info:
-            return (
-                403,
-                "urn:ietf:params:acme:error:unauthorized",
-                "authorization lookup failed",
-                {},
+            # Same client error as ownership denial (no existence oracle).
+            self.logger.warning(
+                "Authorization request failed: authorization lookup empty"
             )
+            own_code, own_message, own_detail = ownership_unauthorized()
+            return own_code, own_message, own_detail, {}
         return code, message, detail, {"data": auth_info}
 
     def _process_valid_post(

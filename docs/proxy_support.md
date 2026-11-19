@@ -14,6 +14,7 @@ Currently, both **HTTP** and **SOCKS5** proxies are supported for:
   - `certifier_ca_handler.py`
   - `est_ca_handler.py`
   - `mscertsrv_ca_handler.py`
+  - `mscepces_ca_handler.py`
 
 ## Configuration
 

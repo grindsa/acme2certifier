@@ -28,7 +28,7 @@ ca_cert: /path/to/issuing-ca.pem
 
 - A readable `[Trigger] ca_cert` trust file (PEM; may contain multiple certificates). Submitted leaves must chain to this trust material before the database is updated.
 
-- Authentication material: non-empty `hmac_keys` and/or `hmac_keys_file` (JSON array or one secret per line). Without keys, the endpoint stays disabled unless `auth_disable: True` **and** `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (testing only; logged at CRITICAL).
+- Authentication material: non-empty `hmac_keys` and/or `hmac_keys_file` (JSON array or one secret per line). Without keys, the endpoint stays disabled unless `auth_disable: True` **and** `ACME2CERTIFIER_I_KNOW_THE_RISK=1` (testing only; logged at CRITICAL). How to set the env: [Security break-glass gate](security_gate.md).
 
 At process start, acme2certifier evaluates these conditions. Misconfiguration leaves the route disabled (warning/error logged). When disabled, the route is not registered (Django/WSGI) and `Trigger.parse()` rejects requests with HTTP 403.
 
@@ -40,7 +40,7 @@ At process start, acme2certifier evaluates these conditions. Misconfiguration le
 | `hmac_keys` | JSON list of shared secrets accepted for request HMAC | (none) |
 | `hmac_keys_file` | Optional file with a JSON list or one secret per line (merged with `hmac_keys`) | (none) |
 | `ca_cert` | PEM trust file used to verify the submitted leaf (and intermediates from the handler bundle) | (none) |
-| `auth_disable` | Skip HMAC checks. Ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` | `False` |
+| `auth_disable` | Skip HMAC checks. Ignored unless `ACME2CERTIFIER_I_KNOW_THE_RISK=1` ([security_gate.md](security_gate.md)) | `False` |
 
 ## Triggering a Request
 

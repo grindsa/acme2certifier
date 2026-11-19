@@ -90,6 +90,7 @@ sudo systemctl restart acme2certifier
 
 ## Related
 
+- [Security break-glass gate (`ACME2CERTIFIER_I_KNOW_THE_RISK`)](security_gate.md)
 - [Migrate WSGI to Django](migrate_wsgi_to_django.md)
 - [PyPI + Apache2 (Ubuntu)](install_apache2_ubuntu.md)
 - [PyPI + Nginx (Ubuntu)](install_nginx_ubuntu.md)

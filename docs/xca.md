@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 -->
 
-<!-- wiki-title: CA Handler for XCA -->
+<!-- wiki-title: XCA -->
 <!-- wiki-category: CA Handlers -->
 
 # Support for XCA-Based Certificate Authorities

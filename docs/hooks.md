@@ -25,7 +25,7 @@ Creating your own hook handler is straightforward. All you need to do is create 
 
 The [skeleton_hooks.py](../acme2certifier/share/skeletons/hooks/skeleton_hooks.py) file contains a template that can be used to create a customized handler.
 
-There is also a built-in [Email Hook](../acme2certifier/hookhandlers/email_hooks.py) (`acme2certifier.hookhandlers.email_hooks`) that sends emails on successful or failed certificate enrollments.
+There is also a built-in [Email Hook](../acme2certifier/hookhandlers/email_hooks.py) (`acme2certifier.hookhandlers.email_hooks`) that sends emails on successful or failed certificate enrollments. SMTP AUTH over cleartext is refused unless `ACME2CERTIFIER_I_KNOW_THE_RISK` is set ([Security break-glass gate](security_gate.md)).
 
 The following code describes the different input parameters provided by `acme2certifier`, as well as the expected return values:
 

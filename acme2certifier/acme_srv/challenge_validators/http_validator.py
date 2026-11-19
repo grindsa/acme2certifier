@@ -44,9 +44,13 @@ class HttpChallengeValidator(ChallengeValidator):
                 details={"import_error": str(e)},
             )
 
-        block_private = bool(
-            (context.options or {}).get("http01_block_private_ips", False)
-        )
+        options = context.options or {}
+        block_private = bool(options.get("http01_block_private_ips", False))
+        try:
+            max_redirects = max(0, int(options.get("http01_max_redirects", 5)))
+        except (TypeError, ValueError):
+            max_redirects = 5
+        allow_ip_redirect = bool(options.get("http01_redirect_allow_ip", False))
         challenge_path = f"/.well-known/acme-challenge/{context.token}"
         logical_url = f"http://{context.authorization_value}{challenge_path}"
 
@@ -100,6 +104,10 @@ class HttpChallengeValidator(ChallengeValidator):
                 proxy_server=proxy_server,
                 verify=False,
                 timeout=context.timeout,
+                http01_restrict_redirects=True,
+                max_redirects=max_redirects,
+                allow_ip_redirect=allow_ip_redirect,
+                block_private=block_private,
             )
         else:
             req, status_code, error_msg = url_get_dns_pinned(
@@ -109,6 +117,10 @@ class HttpChallengeValidator(ChallengeValidator):
                 pinned_ips=allowed_ips,
                 verify=False,
                 timeout=context.timeout,
+                max_redirects=max_redirects,
+                allow_ip_redirect=allow_ip_redirect,
+                block_private=block_private,
+                dns_server_list=context.dns_servers,
             )
 
         if not req or status_code != 200:

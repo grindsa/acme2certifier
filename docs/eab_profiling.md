@@ -18,6 +18,7 @@ Currently the following ca-handlers have been modified and support this feature:
 - [Insta ActiveCMS](asa.md)
 - [Insta certifier/NetGuard Certificate manager](certifier.md)
 - [Microsoft Certificate Enrollment Web Services](mscertsrv.md)
+- [Microsoft CEP/CES (MS-XCEP / MS-WSTEP)](mscepces.md)
 - [Microsoft ICertPassage Remote Protocol (MS-ICPR) via SMB/DCE-RPC](msicpr.md)
 - [OpenXPKI](openxpki.md)
 - [Vault](vault.md)
@@ -35,6 +36,8 @@ eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: volume/kid_profiles.json
 eab_profiling: True
 ```
+
+Profiles can also be stored in HashiCorp Vault or OpenBao via the [HashiCorp Vault / OpenBao EAB Handler](eab_hashicorp_vault.md) (`eab_handler_module: acme2certifier.eabhandlers.hashicorp_vault_handler`) instead of a local `key_file`.
 
 The `key_file` allows the specification enrollment parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the \[CAhandler\] configuration section of a handler can be customized. Starting from acme2certifier v0.38 challenge validation can be disabled for a specific eab-user.
 
@@ -65,12 +68,16 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
   "keyid_02": {
     "hmac": "hmac-key",
     "order": {
-      "profiles_check_disable": "True"
+      "profiles_check_disable": "True",
+      "allow_shortname_from_fqdn": true,
+      "allow_shortname_without_challenge_validation": true,
+      "shortname_denylist": ["mail", "vpn", "www"]
     },
     "challenge": {
       "challenge_validation_disable": "True",
       "foward_address_check": "True",
-      "reverse_address_check": "True"
+      "reverse_address_check": "True",
+      "fcrdns_check_disable": "False"
     }
   },
   "keyid_03": {
@@ -90,7 +97,7 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
 
 - ACME accounts created with keyid "keyid_00" will always use profile-id "profile_1" and specific api-user credentials for enrollment from certificate authority "non_default_ca". Further, the SANs/Common Names to be used in enrollment requests are restricted to the domains "example.com", "example.org" and "example.fi".
 - ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg. Furthermore the challenge validation got disabled for this user which means that acme2certifier will accept any CN/SAN matching the pattern "*.example.fi" or "*.acme".
-- ACME accounts created with keyid "keyid_02" do not have any special enrollment configuration as all parameters will be taken from the \[CAhandler\] section in ´acme_srv.cfg´. Furthermore, challenge validation got disabled, ACME profile-name validation is skipped (`order.profiles_check_disable`), and both forward and reverse address checking gets activated.
+- ACME accounts created with keyid "keyid_02" do not have any special enrollment configuration as all parameters will be taken from the \[CAhandler\] section in ´acme_srv.cfg´. Furthermore, challenge validation got disabled, ACME profile-name validation is skipped (`order.profiles_check_disable`), shortname-from-FQDN is enabled for that kid (`order.allow_shortname_from_fqdn` with optional `order.shortname_denylist`, and `order.allow_shortname_without_challenge_validation` which still requires `ACME2CERTIFIER_I_KNOW_THE_RISK=1` — see [Security break-glass gate](security_gate.md)), and both forward and reverse address checking gets activated.
 - ACME accounts created with keyid "keyid_03" can use the [pre-validation domainlist](identifier_prevalidation.md) feature to enroll certificates for `www.example.fi` and `*.acme` without challenge-validation
 - ACME accounts created with keyid "keyid_04" are restricted to [dns-01](https://tools.ietf.org/html/rfc8555#section-8.4) challenges only (`http_01_support` and `tls_alpn_01_support` disabled in the EAB profile), regardless of global `[Challenge]` settings
 
@@ -127,10 +134,17 @@ keyid_02:
   hmac: "hmac-key"
   order:
     profiles_check_disable: True
+    allow_shortname_from_fqdn: True
+    allow_shortname_without_challenge_validation: True
+    shortname_denylist:
+    - mail
+    - vpn
+    - www
   challenge:
     challenge_validation_disable: True
     forward_address_check: True
     reverse_address_check: True
+    fcrdns_check_disable: False
 
 keyid_03:
   hmac: "hmac-key"

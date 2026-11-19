@@ -14,11 +14,7 @@ Support for the **TNAuthList** identifier and **tkauth-01** challenges is curren
 
 ## Accepting unverified authority tokens (testing only)
 
-For interoperability testing you can make the server accept **any** authority token without verification by setting the break-glass environment variable for the acme2certifier process:
-
-```sh
-ACME2CERTIFIER_I_KNOW_THE_RISK=1
-```
+For interoperability testing you can make the server accept **any** authority token without verification by setting the break-glass environment variable for the acme2certifier process (`ACME2CERTIFIER_I_KNOW_THE_RISK=1`). Deployment-specific setup: [Security break-glass gate](security_gate.md).
 
 This is the same acknowledgement used by `nonce_check_disable` and `signature_check_disable`. With it set, every accepted tkauth-01 challenge is logged at `CRITICAL`. **Never set this in production** — it allows any account to obtain certificates asserting authority over telephone number ranges it does not hold.
 

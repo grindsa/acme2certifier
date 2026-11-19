@@ -1,0 +1,247 @@
+name: "enroll_shortname_from_fqdn"
+description: "Exercise Order allow_shortname_from_fqdn pass/fail enrollments (openssl CA)"
+inputs:
+  VOLUME_DIR:
+    description: "Directory containing acme_srv.cfg"
+    required: true
+    default: "examples/Docker/data"
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+    default: "container"
+  WEBSRV:
+    description: "Web server for deb restart (apache2|nginx)"
+    required: false
+    default: ""
+  PATH_REWRITE_FROM:
+    description: "Optional path rewrite in acme_srv.cfg (e.g. volume)"
+    required: false
+    default: ""
+  PATH_REWRITE_TO:
+    description: "Replacement for PATH_REWRITE_FROM"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Pull lego image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: goacme/lego
+
+    - name: "Configure shortname-from-FQDN policy"
+      run: |
+        set -euo pipefail
+        CFG="${VOLUME_DIR}/acme_srv.cfg"
+        sudo chmod 666 "${CFG}"
+        sudo sed -i \
+          's/challenge_validation_disable: False/challenge_validation_disable: True/g' \
+          "${CFG}"
+        # Idempotent Order / CAhandler knobs
+        sudo sed -i '/^allow_shortname_from_fqdn:/d' "${CFG}"
+        sudo sed -i '/^shortname_denylist:/d' "${CFG}"
+        sudo sed -i '/^allowed_domainlist:/d' "${CFG}"
+        sudo sed -i '/^\[Order\]/a shortname_denylist: ["mail"]' "${CFG}"
+        sudo sed -i '/^\[Order\]/a allow_shortname_from_fqdn: True' "${CFG}"
+        sudo sed -i '/^\[Order\]/a allowed_domainlist: ["*.acme"]' "${CFG}"
+        # openssl CAhandler CSR allowlist (regex wildcard form)
+        sudo sed -i '/^\[CAhandler\]/a allowed_domainlist: ["*.acme"]' "${CFG}"
+        if [[ -n "${PATH_REWRITE_FROM}" && -n "${PATH_REWRITE_TO}" ]]; then
+          sudo sed -i "s|${PATH_REWRITE_FROM}|${PATH_REWRITE_TO}|g" "${CFG}"
+        fi
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
+        PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
+
+    - name: "Acknowledge challenge_validation_disable"
+      uses: ./.github/actions/set_break_glass
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        RECREATE: ${{ inputs.DEPLOYMENT_TYPE == 'container' && 'true' || 'false' }}
+        RESTART: ${{ inputs.DEPLOYMENT_TYPE != 'container' && 'true' || 'false' }}
+        WEBSRV: ${{ inputs.WEBSRV }}
+
+    - name: "Restart a2c after shortname config"
+      run: |
+        set -euo pipefail
+        case "${DEPLOYMENT_TYPE}" in
+          container)
+            (cd examples/Docker && docker compose restart)
+            ;;
+          rpm)
+            docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+            ;;
+          deb)
+            docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "${WEBSRV}"
+            ;;
+          *)
+            echo "Unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        WEBSRV: ${{ inputs.WEBSRV }}
+
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+
+    - name: "Pass - enroll FQDN + shortname"
+      run: |
+        set -euo pipefail
+        sudo rm -rf lego-sn
+        mkdir -p lego-sn
+        docker run -i --rm -v "$PWD/lego-sn:/.lego/" --name lego-sn --network acme \
+          goacme/lego run --tls-skip-verify \
+          -s https://acme-srv:443 -a --email "lego-sn@example.com" \
+          -d lego-sn.acme -d lego-sn --tls
+        CERT="lego-sn/certificates/lego-sn.acme.crt"
+        sudo openssl x509 -in "${CERT}" -text -noout | grep -F "DNS:lego-sn.acme"
+        sudo openssl x509 -in "${CERT}" -text -noout | grep -F "DNS:lego-sn"
+      shell: bash
+
+    - name: "Flush logs before shortname-only fail"
+      uses: ./.github/actions/logs_flush
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Fail - shortname only (expect reject)"
+      id: sn_only
+      continue-on-error: true
+      run: |
+        set -euo pipefail
+        sudo rm -rf lego-sn
+        mkdir -p lego-sn
+        docker run -i --rm -v "$PWD/lego-sn:/.lego/" --name lego-sn --network acme \
+          goacme/lego run --tls-skip-verify \
+          -s https://acme-srv:443 -a --email "lego-sn@example.com" \
+          -d lego-sn --tls
+      shell: bash
+
+    - name: "Assert shortname-only was rejected"
+      if: ${{ steps.sn_only.outcome != 'failure' }}
+      run: |
+        echo "shortname-only enroll unexpectedly succeeded" >&2
+        exit 1
+      shell: bash
+
+    - name: "Verify shortname-only reject log"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "FQDN/SAN lego-sn not allowed by configuration"
+        REGEX: "false"
+        IGNORE_CASE: "true"
+
+    - name: "Disable allow_shortname_from_fqdn for fail case"
+      run: |
+        set -euo pipefail
+        CFG="${VOLUME_DIR}/acme_srv.cfg"
+        sudo sed -i 's/allow_shortname_from_fqdn: True/allow_shortname_from_fqdn: False/g' "${CFG}"
+        case "${DEPLOYMENT_TYPE}" in
+          container) (cd examples/Docker && docker compose restart) ;;
+          rpm) docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart ;;
+          deb) docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "${WEBSRV}" ;;
+        esac
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        WEBSRV: ${{ inputs.WEBSRV }}
+
+    - name: "Wait for ACME directory (flag off)"
+      uses: ./.github/actions/wait_for_directory
+
+    - name: "Flush logs before flag-off fail"
+      uses: ./.github/actions/logs_flush
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Fail - FQDN + shortname with flag off"
+      id: sn_flag_off
+      continue-on-error: true
+      run: |
+        set -euo pipefail
+        sudo rm -rf lego-sn
+        mkdir -p lego-sn
+        docker run -i --rm -v "$PWD/lego-sn:/.lego/" --name lego-sn --network acme \
+          goacme/lego run --tls-skip-verify \
+          -s https://acme-srv:443 -a --email "lego-sn@example.com" \
+          -d lego-sn.acme -d lego-sn --tls
+      shell: bash
+
+    - name: "Assert flag-off enroll was rejected"
+      if: ${{ steps.sn_flag_off.outcome != 'failure' }}
+      run: |
+        echo "flag-off enroll unexpectedly succeeded" >&2
+        exit 1
+      shell: bash
+
+    - name: "Verify flag-off reject log"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "FQDN/SAN lego-sn not allowed by configuration"
+        REGEX: "false"
+        IGNORE_CASE: "true"
+
+    - name: "Re-enable flag for denylist fail case"
+      run: |
+        set -euo pipefail
+        CFG="${VOLUME_DIR}/acme_srv.cfg"
+        sudo sed -i 's/allow_shortname_from_fqdn: False/allow_shortname_from_fqdn: True/g' "${CFG}"
+        case "${DEPLOYMENT_TYPE}" in
+          container) (cd examples/Docker && docker compose restart) ;;
+          rpm) docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart ;;
+          deb) docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "${WEBSRV}" ;;
+        esac
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        WEBSRV: ${{ inputs.WEBSRV }}
+
+    - name: "Wait for ACME directory (denylist)"
+      uses: ./.github/actions/wait_for_directory
+
+    - name: "Flush logs before denylist fail"
+      uses: ./.github/actions/logs_flush
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Fail - denylisted shortname mail"
+      id: sn_deny
+      continue-on-error: true
+      run: |
+        set -euo pipefail
+        sudo rm -rf lego-sn
+        mkdir -p lego-sn
+        docker run -i --rm -v "$PWD/lego-sn:/.lego/" --name lego-sn --network acme \
+          goacme/lego run --tls-skip-verify \
+          -s https://acme-srv:443 -a --email "lego-sn@example.com" \
+          -d mail.acme -d mail --tls
+      shell: bash
+
+    - name: "Assert denylist enroll was rejected"
+      if: ${{ steps.sn_deny.outcome != 'failure' }}
+      run: |
+        echo "denylist enroll unexpectedly succeeded" >&2
+        exit 1
+      shell: bash
+
+    - name: "Verify denylist reject log"
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "FQDN/SAN mail not allowed by configuration"
+        REGEX: "false"
+        IGNORE_CASE: "true"
+
+    - name: "Cleanup lego-sn workdir"
+      if: ${{ always() }}
+      run: sudo rm -rf lego-sn
+      shell: bash

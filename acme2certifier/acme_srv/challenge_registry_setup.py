@@ -51,6 +51,7 @@ def create_challenge_validator_registry(
             logger,
             forward_check=config.forward_address_check,
             reverse_check=config.reverse_address_check,
+            fcrdns_check_disable=config.fcrdns_check_disable,
         )
     )
 
