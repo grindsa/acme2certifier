@@ -34,7 +34,7 @@ def _local_name(tag: str) -> str:
 
 def _request_type(body: bytes) -> str:
     try:
-        root = ET.fromstring(body)
+        root = ET.fromstring(body)  # nosec B314
     except ET.ParseError:
         return "unknown"
     for element in root.iter():
