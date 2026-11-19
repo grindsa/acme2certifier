@@ -200,7 +200,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
   build_and_push_n1:
-    name: Build and push N-1 images (${{ matrix.websrv }})
+    name: Build and push N-1 images (${{ matrix.websrv }}-${{ matrix.dbhandler }})
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs: [create_release, resolve_versions]
@@ -211,6 +211,7 @@ jobs:
       fail-fast: false
       matrix:
         websrv: [apache2, nginx]
+        dbhandler: [wsgi, django]
     steps:
       - name: Checkout workflow sources
         uses: actions/checkout@v7
@@ -225,11 +226,13 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}
+      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
         uses: ./.github/actions/image_build_push
         with:
           tag: ${{ needs.resolve_versions.outputs.tag_n1 }}
           websrv: ${{ matrix.websrv }}
+          dbhandler: ${{ matrix.dbhandler }}
+          layout: split
           tag_n: ${{ needs.resolve_versions.outputs.tag_n }}
           dockerhub_user: ${{ env.DOCKERHUB_USER }}
           dockerhub_token: ${{ env.DOCKERHUB_TOKEN }}
