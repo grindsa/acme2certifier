@@ -39,6 +39,7 @@ from acme2certifier.acme_srv.helpers.global_variables import (
 )
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
+    ownership_unauthorized,
     resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.helpers.otel import set_span_outcome, span
@@ -679,8 +680,14 @@ class Order(object):
         self, profile_dic, eab_kid, param_name, default=None, section="order"
     ):
         """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
-        profile_entry = profile_dic.get(eab_kid, {})
+        from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+            eab_profile_kid_entry_get,
+        )
+
+        profile_entry = eab_profile_kid_entry_get(profile_dic, eab_kid)
         order_cfg = profile_entry.get(section, {})
+        if not isinstance(order_cfg, dict):
+            order_cfg = {}
 
         # Prefer order section and honor explicit falsy values like False or []
         if param_name in order_cfg:
@@ -694,6 +701,8 @@ class Order(object):
         # Backward compatibility for deprecated cahandler section
         if section == "order":
             cahandler_cfg = profile_entry.get("cahandler", {})
+            if not isinstance(cahandler_cfg, dict):
+                cahandler_cfg = {}
             if param_name in cahandler_cfg:
                 value = cahandler_cfg.get(param_name)
                 if param_name != self.config.profile_mapping_field:
@@ -709,7 +718,7 @@ class Order(object):
 
         return default
 
-    def _load_header_info_config(self, config_dic: Dict[str, str]):
+    def _load_header_info_config(self, config_dic: Any):
         """Load header info list from config file."""
         self.logger.debug("Order._load_header_info_config()")
         if "Order" in config_dic and "header_info_list" in config_dic["Order"]:
@@ -724,7 +733,7 @@ class Order(object):
                 )
         self.logger.debug("Order._load_header_info_config() ended")
 
-    def _load_order_config(self, config_dic: Dict[str, str]):
+    def _load_order_config(self, config_dic: Any):
         """Load order-related configuration from file."""
         self.logger.debug("Order._load_order_config()")
         if "Challenge" in config_dic:
@@ -802,7 +811,7 @@ class Order(object):
 
         self.logger.debug("Order._load_order_config() ended")
 
-    def _load_profile_config(self, config_dic: Dict[str, str]):
+    def _load_profile_config(self, config_dic: Any):
         """Load profiles from file or database."""
         self.logger.debug("Order._load_profile_config()")
         self._load_profiles_from_config(config_dic)
@@ -810,14 +819,14 @@ class Order(object):
         self._maybe_disable_profile_check(config_dic)
         self.logger.debug("Order._load_profile_config() ended")
 
-    def _load_profiles_from_config(self, config_dic: Dict[str, str]):
+    def _load_profiles_from_config(self, config_dic: Any):
         """Load profiles from configuration file."""
         if "Order" in config_dic and "profiles" in config_dic["Order"]:
             self.logger.debug("Order._config_load(): profile check enabled")
             self.config.profiles_check_disable = False
             self.config.profiles = config_profile_load(self.logger, config_dic)
 
-    def _load_profiles_from_db_if_sync(self, config_dic: Dict[str, str]):
+    def _load_profiles_from_db_if_sync(self, config_dic: Any):
         """Load profiles from database if profiles_sync is set."""
         if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
             self.config.profiles_sync = config_dic.getboolean(
@@ -847,7 +856,7 @@ class Order(object):
                 "Error when loading the profiles parameter from database: %s", err_
             )
 
-    def _maybe_disable_profile_check(self, config_dic: Dict[str, str]):
+    def _maybe_disable_profile_check(self, config_dic: Any):
         """Disable profile check"""
         if self.config.profiles and "Order" in config_dic:
             self.config.profiles_check_disable = config_dic.getboolean(
@@ -905,7 +914,7 @@ class Order(object):
 
         self.logger.debug("Order._load_configuration() ended.")
 
-    def _load_profile_mapping_field(self, config_dic: Dict[str, str]) -> Optional[str]:
+    def _load_profile_mapping_field(self, config_dic: Any) -> Optional[str]:
         """Load profile mapping field from configuration."""
         self.logger.debug("Order._load_profile_mapping_field()")
         ca_handler_module = ca_handler_load(self.logger, config_dic)
@@ -1970,12 +1979,13 @@ class Order(object):
         if "url" in protected:
             order_name = self._name_get(protected["url"])
             if order_name:
-                order_dic = self.get_order_details(order_name)
-                if order_dic:
-                    code, message, detail = self._check_order_ownership(
-                        order_name, account_name
-                    )
-                    if code == 200:
+                # Ownership before get_order_details (pending→ready side effect).
+                code, message, detail = self._check_order_ownership(
+                    order_name, account_name
+                )
+                if code == 200:
+                    order_dic = self.get_order_details(order_name)
+                    if order_dic:
                         (
                             code,
                             message,
@@ -1984,14 +1994,13 @@ class Order(object):
                         ) = self._process_order_request(
                             order_name, protected, payload, header
                         )
-                else:
-                    self.logger.warning(
-                        "Order request failed: order not found order=%s",
-                        order_name,
-                    )
-                    code = 403
-                    message = self.error_msg_dic["ordernotready"]
-                    detail = "order not found"
+                    else:
+                        # Same client error as missing/denied (no existence oracle).
+                        self.logger.warning(
+                            "Order request failed: order not found order=%s",
+                            order_name,
+                        )
+                        code, message, detail = ownership_unauthorized()
             else:
                 self.logger.warning("Order request failed: order name missing")
                 code = 400

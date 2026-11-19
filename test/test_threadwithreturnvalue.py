@@ -36,6 +36,18 @@ class TestThreadWithReturnValue(unittest.TestCase):
         thread.start()
         self.assertEqual(thread.join(), 7)
 
+    def test_004_join_reraises_target_exception(self):
+        """join() re-raises exceptions raised by the target"""
+
+        def _target() -> None:
+            raise ValueError("boom")
+
+        thread = ThreadWithReturnValue(target=_target)
+        thread.start()
+        with self.assertRaises(ValueError) as ctx:
+            thread.join()
+        self.assertEqual(str(ctx.exception), "boom")
+
 
 if __name__ == "__main__":
     unittest.main()

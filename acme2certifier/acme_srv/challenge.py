@@ -28,6 +28,7 @@ from acme2certifier.acme_srv.helpers.security_gate import (
 from acme2certifier.acme_srv.helpers.resource_ownership import (
     ResourceOwnershipLookupError,
     ownership_lookup_failed,
+    ownership_unauthorized,
     resolve_resource_ownership,
 )
 from acme2certifier.acme_srv.helpers.otel import (
@@ -99,7 +100,10 @@ class ChallengeConfiguration:
     caaidentities: Optional[List[str]] = None
     forward_address_check: bool = False
     reverse_address_check: bool = False
+    fcrdns_check_disable: bool = False
     http01_block_private_ips: bool = False
+    http01_max_redirects: int = 5
+    http01_redirect_allow_ip: bool = False
     source_address: Optional[str] = None
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
@@ -311,6 +315,43 @@ class DatabaseChallengeRepository(ChallengeRepository):
             self.logger.critical(f"{DB_ERROR_MSG}: failed to update challenge: %s", err)
             raise DatabaseError(f"Failed to update challenge: {err}") from err
 
+    def update_challenge_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> bool:
+        """Conditionally update challenge status; True if a row changed."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.update_challenge_if_status(%s, %s -> %s)",
+            name,
+            expected_status,
+            new_status,
+        )
+        try:
+            updated = self.dbstore.challenge_update_if_status(
+                name, new_status, expected_status
+            )
+            result = updated > 0
+            self.logger.debug(
+                "DatabaseChallengeRepository.update_challenge_if_status() ended: %s",
+                result,
+            )
+            return result
+        except Exception as err:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed conditional challenge status update: %s", err
+            )
+            raise DatabaseError(
+                f"Failed conditional challenge status update: {err}"
+            ) from err
+
+    def _authorization_name_for_challenge(self, challenge_name: str) -> Optional[str]:
+        """Resolve authorization name for a challenge."""
+        authz_info = self.dbstore.challenge_lookup(
+            "name", challenge_name, ["authorization__name"]
+        )
+        if authz_info and "authorization" in authz_info:
+            return authz_info["authorization"]
+        return None
+
     def update_authorization_status(self, challenge_name: str, status: str) -> bool:
         """Update authorization status based on challenge."""
         self.logger.debug(
@@ -320,13 +361,10 @@ class DatabaseChallengeRepository(ChallengeRepository):
         )
         try:
             result = False
-            # Get authorization name from challenge
-            authz_info = self.dbstore.challenge_lookup(
-                "name", challenge_name, ["authorization__name"]
-            )
+            authz_name = self._authorization_name_for_challenge(challenge_name)
 
-            if authz_info and "authorization" in authz_info:
-                data_dic = {"name": authz_info["authorization"], "status": status}
+            if authz_name:
+                data_dic = {"name": authz_name, "status": status}
                 self.dbstore.authorization_update(data_dic)
                 result = True
 
@@ -342,6 +380,38 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 f"{DB_ERROR_MSG}: failed to update authorization: %s", err
             )
             raise DatabaseError(f"Failed to update authorization: {err}") from err
+
+    def update_authorization_status_if(
+        self, challenge_name: str, status: str, expected_status: str
+    ) -> bool:
+        """Conditionally update authorization status; True if a row changed."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.update_authorization_status_if(%s, %s -> %s)",
+            challenge_name,
+            expected_status,
+            status,
+        )
+        try:
+            result = False
+            authz_name = self._authorization_name_for_challenge(challenge_name)
+            if authz_name:
+                updated = self.dbstore.authorization_update_if_status(
+                    authz_name, status, expected_status
+                )
+                result = updated > 0
+            self.logger.debug(
+                "DatabaseChallengeRepository.update_authorization_status_if() ended: %s",
+                result,
+            )
+            return result
+        except Exception as err:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed conditional authorization status update: %s",
+                err,
+            )
+            raise DatabaseError(
+                f"Failed conditional authorization status update: {err}"
+            ) from err
 
     def get_account_jwk(self, challenge_name: str) -> Optional[Dict[str, Any]]:
         """Get JWK for the account associated with the challenge."""
@@ -414,6 +484,26 @@ class DatabaseChallengeRepository(ChallengeRepository):
             raise DatabaseError(
                 f"Failed to get authorization account name: {err}"
             ) from err
+
+    def get_authorization_status(self, authorization_name: str) -> Optional[str]:
+        """Get current authorization status name."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.get_authorization_status(%s)",
+            authorization_name,
+        )
+        try:
+            authorization_list = self.dbstore.authorization_lookup(
+                "name", authorization_name, ["status__name"]
+            )
+            if authorization_list and isinstance(authorization_list, list):
+                entry = authorization_list[0]
+                return entry.get("status") or entry.get("status__name")
+            return None
+        except Exception as err:
+            self.logger.critical(
+                f"{DB_ERROR_MSG}: failed to get authorization status: %s", err
+            )
+            raise DatabaseError(f"Failed to get authorization status: {err}") from err
 
 
 class Challenge:
@@ -548,6 +638,10 @@ class Challenge:
                         "http01_block_private_ips": (
                             self.config.http01_block_private_ips
                         ),
+                        "http01_max_redirects": self.config.http01_max_redirects,
+                        "http01_redirect_allow_ip": (
+                            self.config.http01_redirect_allow_ip
+                        ),
                         "challenge_message_id": challenge_details.get(
                             "challenge_message_id"
                         ),
@@ -681,9 +775,19 @@ class Challenge:
             if tnauthlist_result["code"] != 200:
                 return tnauthlist_result
 
-        # Start validation if challenge is not already valid or processing
-        if challenge_info.status not in ("valid", "processing"):
-            self._start_async_validation(challenge_name, payload)
+        # RFC 8555 §7.1.6: only pending may start validation; invalid is final
+        if challenge_info.status == "pending":
+            authz_status = self.repository.get_authorization_status(
+                challenge_info.authorization_name
+            )
+            if authz_status == "pending":
+                self._start_async_validation(challenge_name, payload)
+            else:
+                self.logger.info(
+                    "Skipping challenge validation: challenge=%s authz_status=%s",
+                    challenge_name,
+                    authz_status,
+                )
 
         # Get updated challenge info
         updated_challenge_info = self.repository.get_challenge_by_name(challenge_name)
@@ -815,6 +919,15 @@ class Challenge:
         self.config.reverse_address_check = config_dic.getboolean(
             "Challenge", "reverse_address_check", fallback=False
         )
+        self.config.fcrdns_check_disable = config_dic.getboolean(
+            "Challenge", "fcrdns_check_disable", fallback=False
+        )
+        if self.config.fcrdns_check_disable:
+            self.logger.warning(
+                "fcrdns_check_disable is enabled: reverse_address_check will trust "
+                "exact PTR matches without forward confirmation (A/AAAA). "
+                "Use only when a2c cannot resolve PTR hostnames (split DNS)."
+            )
         requested_disable = config_dic.getboolean(
             "Challenge", "challenge_validation_disable", fallback=False
         )
@@ -832,6 +945,30 @@ class Challenge:
             self.logger.info(
                 "HTTP-01 private/non-global IP blocking is enabled "
                 "(http01_block_private_ips=True)."
+            )
+        try:
+            self.config.http01_max_redirects = max(
+                0,
+                int(
+                    config_dic.get(
+                        "Challenge",
+                        "http01_max_redirects",
+                        fallback=self.config.http01_max_redirects,
+                    )
+                ),
+            )
+        except Exception as err_:
+            self.logger.warning(
+                "Failed to parse http01_max_redirects from configuration: %s",
+                err_,
+            )
+        self.config.http01_redirect_allow_ip = config_dic.getboolean(
+            "Challenge", "http01_redirect_allow_ip", fallback=False
+        )
+        if self.config.http01_redirect_allow_ip:
+            self.logger.info(
+                "HTTP-01 redirects to IP literals are allowed "
+                "(http01_redirect_allow_ip=True)."
             )
         self.logger.debug("Challenge._load_address_check_configuration() ended")
 
@@ -1064,10 +1201,17 @@ class Challenge:
             "Challenge._get_challenge_profile_settings() for kid: %s", eab_kid
         )
 
-        if eab_kid not in profile_dic:
+        from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+            eab_profile_kid_entry_get,
+        )
+
+        entry = eab_profile_kid_entry_get(profile_dic, eab_kid)
+        if not entry:
             return {}
 
-        challenge_profile = profile_dic.get(eab_kid, {}).get("challenge", {})
+        challenge_profile = entry.get("challenge", {})
+        if not isinstance(challenge_profile, dict):
+            challenge_profile = {}
 
         settings = {
             "challenge_validation_disable": eab_profile_as_bool(
@@ -1078,6 +1222,9 @@ class Challenge:
             ),
             "reverse_address_check": eab_profile_as_bool(
                 challenge_profile.get("reverse_address_check"), False
+            ),
+            "fcrdns_check_disable": eab_profile_as_bool(
+                challenge_profile.get("fcrdns_check_disable"), False
             ),
         }
         for key in CHALLENGE_TYPE_SUPPORT_KEYS:
@@ -1112,6 +1259,15 @@ class Challenge:
                 eab_kid,
             )
             self.config.reverse_address_check = True
+
+        if settings.get("fcrdns_check_disable"):
+            self.logger.warning(
+                "fcrdns_check_disable is enabled via EAB profiling (eab_kid: %s): "
+                "reverse_address_check will trust exact PTR matches without "
+                "forward confirmation (A/AAAA).",
+                eab_kid,
+            )
+            self.config.fcrdns_check_disable = True
 
         # Decide after address-check overlay so global forward/reverse combine
         # with a profile that only sets challenge_validation_disable.
@@ -1150,11 +1306,12 @@ class Challenge:
 
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
+                from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+                    eab_profile_kid_entry_get,
+                )
+
                 profile_dic = eab_handler.key_file_load()
-                if (
-                    eab_kid not in profile_dic
-                    or "challenge" not in profile_dic[eab_kid]
-                ):
+                if "challenge" not in eab_profile_kid_entry_get(profile_dic, eab_kid):
                     return
                 settings = self._get_challenge_profile_settings(profile_dic, eab_kid)
                 self._apply_eab_profile_settings(settings, eab_kid)
@@ -1183,11 +1340,14 @@ class Challenge:
         # Load and apply EAB profile settings
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
+                from acme2certifier.acme_srv.helpers.eab_profile import (  # pylint: disable=C0415
+                    eab_profile_kid_entry_get,
+                )
+
                 profile_dic = eab_handler.key_file_load()
 
                 # Check if profile contains challenge settings
-                if eab_kid in profile_dic and "challenge" in profile_dic[eab_kid]:
-
+                if "challenge" in eab_profile_kid_entry_get(profile_dic, eab_kid):
                     settings = self._get_challenge_profile_settings(
                         profile_dic, eab_kid
                     )
@@ -1207,8 +1367,14 @@ class Challenge:
         """Perform complete challenge validation process."""
         self.logger.debug("Challenge._perform_challenge_validation(%s)", challenge_name)
         try:
-            # Transition to processing state
-            self.state_manager.transition_to_processing(challenge_name)
+            # CAS pending → processing; lose the race → abort (no second validation)
+            if not self.state_manager.transition_to_processing(challenge_name):
+                self.logger.info(
+                    "Challenge validation aborted (not pending or already claimed): "
+                    "challenge=%s",
+                    challenge_name,
+                )
+                return False
 
             # check if challenge validation/source address checking got configured via eab profiling
             self._check_challenge_validation_eabprofile(challenge_name)
@@ -1281,6 +1447,7 @@ class Challenge:
                 options={
                     "forward_address_check": self.config.forward_address_check,
                     "reverse_address_check": self.config.reverse_address_check,
+                    "fcrdns_check_disable": self.config.fcrdns_check_disable,
                 },
             )
 
@@ -1366,11 +1533,19 @@ class Challenge:
             )
             twrv.join(timeout=self.config.validation_timeout)
             if twrv.is_alive():
+                timeout_reason = (
+                    f"challenge validation timed out after "
+                    f"{self.config.validation_timeout}s"
+                )
                 self.logger.warning(
                     "Challenge validation still processing after timeout: "
-                    "challenge=%s timeout=%s (result will be applied asynchronously)",
+                    "challenge=%s timeout=%s (marking invalid)",
                     challenge_name,
                     self.config.validation_timeout,
+                )
+                # CAS processing → invalid so a late worker success cannot revive it.
+                self.state_manager.transition_to_invalid(
+                    challenge_name, self.source_address, timeout_reason
                 )
             else:
                 self.logger.debug(
@@ -1566,15 +1741,6 @@ class Challenge:
                     account_name=account_name,
                 )
 
-            challenge_info = self.repository.get_challenge_by_name(challenge_name)
-            if not challenge_info:
-                return self._create_error_response(
-                    400,
-                    self.err_msg_dic["malformed"],
-                    f"invalid challenge: {challenge_name}",
-                    account_name=account_name,
-                )
-
             try:
                 own_code, own_message, own_detail = self._check_challenge_ownership(
                     challenge_name, account_name
@@ -1582,6 +1748,20 @@ class Challenge:
             except ResourceOwnershipLookupError:
                 own_code, own_message, own_detail = ownership_lookup_failed()
             if own_code != 200:
+                return self._create_error_response(
+                    own_code,
+                    own_message,
+                    own_detail,
+                    account_name=account_name,
+                )
+
+            challenge_info = self.repository.get_challenge_by_name(challenge_name)
+            if not challenge_info:
+                # Same client error as ownership denial (no existence oracle).
+                self.logger.warning(
+                    "Challenge not found after ownership check: %s", challenge_name
+                )
+                own_code, own_message, own_detail = ownership_unauthorized()
                 return self._create_error_response(
                     own_code,
                     own_message,

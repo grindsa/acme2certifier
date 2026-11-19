@@ -23,6 +23,7 @@ from acme2certifier.acme_srv.helper import (
     csr_san_get,
     csr_bound_names_get,
     csr_extensions_get,
+    csr_unbound_san_types,
     san_list_to_bound_names,
     date_to_uts_utc,
     error_dic_get,
@@ -661,7 +662,7 @@ class Certificate(object):
         )
         return (None, cert, cert_raw, message)
 
-    def _load_hooks_configuration(self, config_dic: Dict[str, str]):
+    def _load_hooks_configuration(self, config_dic: Any):
         """Load hook configuration from config dictionary"""
         self.logger.debug("Certificate._load_hooks_configuration()")
 
@@ -691,7 +692,7 @@ class Certificate(object):
 
         self.logger.debug("Certificate._load_hooks_configuration() ended")
 
-    def _load_certificate_parameters(self, config_dic: Dict[str, str] = None):
+    def _load_certificate_parameters(self, config_dic: Optional[Any] = None):
         """Load various certificate parameters - now handled by CertificateConfig"""
         self.logger.debug(
             "Certificate._load_certificate_parameters() - delegated to CertificateConfig"
@@ -957,7 +958,15 @@ class Certificate(object):
         # do we need to check for tnauth
         tnauthlist_identifer_in = self._check_for_tnauth_identifiers(identifiers)
 
-        if self.config.tnauthlist_support and tnauthlist_identifer_in:
+        # Reject SAN GeneralNames that binding never sees (URI, otherName, …).
+        unbound_san_types = csr_unbound_san_types(self.logger, csr)
+        if unbound_san_types:
+            self.logger.warning(
+                "CSR contains SAN types not covered by ACME binding: %s",
+                unbound_san_types,
+            )
+            identifier_status = [False]
+        elif self.config.tnauthlist_support and tnauthlist_identifer_in:
             # get list of certextensions in base64 format
             try:
                 tnauthlist = csr_extensions_get(self.logger, csr)
@@ -1135,16 +1144,31 @@ class Certificate(object):
         if order_name:
             ca_attrs["acme.order_name"] = order_name
         with span(SPAN_CA_HANDLER_CALL, attributes=ca_attrs) as ca_span:
-            with handler_factory(self.debug, self.logger) as ca_handler:
-                (
-                    error,
-                    certificate,
-                    certificate_raw,
-                    poll_identifier,
-                ) = ca_handler.enroll(csr)
-                error, certificate, certificate_raw = self._cert_bundle_rewrite(
-                    error, certificate, certificate_raw, handler_factory, csr
+            try:
+                with handler_factory(self.debug, self.logger) as ca_handler:
+                    (
+                        error,
+                        certificate,
+                        certificate_raw,
+                        poll_identifier,
+                    ) = ca_handler.enroll(csr)
+                    error, certificate, certificate_raw = self._cert_bundle_rewrite(
+                        error, certificate, certificate_raw, handler_factory, csr
+                    )
+            except Exception as err:
+                self.logger.error(
+                    "CA handler '%s' enroll() raised: %s", handler_name, err
                 )
+                set_span_outcome(ca_span, "error", err)
+                counter_add(
+                    SPAN_CA_HANDLER_CALL,
+                    attributes={
+                        ATTR_CAHANDLER: handler_name,
+                        ATTR_CA_OPERATION: "enroll",
+                        ATTR_OUTCOME: "error",
+                    },
+                )
+                return str(err), None, None, None
             ca_outcome = "failure" if error else "success"
             set_span_outcome(ca_span, ca_outcome)
             counter_add(
@@ -1297,7 +1321,11 @@ class Certificate(object):
         return self.err_msg_dic["serverinternal"], ENROLLMENT_FAILED_DETAIL
 
     def _handle_enrollment_error(
-        self, error: str, poll_identifier: str, order_name: str, certificate_name: str
+        self,
+        error: str,
+        poll_identifier: Optional[str],
+        order_name: str,
+        certificate_name: str,
     ) -> Tuple[None, str, str]:
         """Store error message for later analysis"""
         self.logger.debug("Certificate._handle_enrollment_error(%s)", error)
@@ -1398,22 +1426,16 @@ class Certificate(object):
         detail = None
         error = None
 
-        hook_error = self._execute_pre_enrollment_hooks(
-            certificate_name, order_name, csr
-        )
-        if hook_error:
-            return hook_error
+        try:
+            hook_error = self._execute_pre_enrollment_hooks(
+                certificate_name, order_name, csr
+            )
+            if hook_error:
+                return hook_error
 
-        # enroll certificate
-        (
-            error,
-            certificate,
-            certificate_raw,
-            poll_identifier,
-            cert_reusage,
-        ) = self._process_certificate_enrollment(csr, order_name)
-        if certificate:
-            result, error = self._store_certificate_and_update_order(
+            # enroll certificate
+            (
+                error,
                 certificate,
                 certificate_raw,
                 poll_identifier,
@@ -1459,41 +1481,25 @@ class Certificate(object):
             hook_error = self._execute_post_enrollment_hooks(
                 certificate_name, order_name, csr, error
             )
-            if error:
-                return error
-            elif self.config.cert_operations_log:
-                try:
-                    self.certificate_logger.log_certificate_issuance(
-                        certificate_name, certificate_raw, order_name, cert_reusage
-                    )
-                except Exception as log_exc:
-                    self.logger.error(
-                        "Exception during log_certificate_issuance: %s", log_exc
-                    )
+            if hook_error:
+                return hook_error
 
-        else:
-            self.logger.error(
-                "Enrollment error: %s order=%s certificate=%s",
+            self.logger.debug(
+                "Certificate._process_enrollment_and_store_certificate() ended with: %s:%s",
+                result,
                 error,
+            )
+            return (result, error, detail)
+        except Exception as err:
+            self.logger.error(
+                "Unexpected error during enrollment order=%s certificate=%s: %s",
                 order_name,
                 certificate_name,
+                err,
             )
-            result, error, detail = self._handle_enrollment_error(
-                error, poll_identifier, order_name, certificate_name
+            return self._handle_enrollment_error(
+                str(err), None, order_name, certificate_name
             )
-
-        hook_error = self._execute_post_enrollment_hooks(
-            certificate_name, order_name, csr, error
-        )
-        if hook_error:
-            return hook_error
-
-        self.logger.debug(
-            "Certificate._process_enrollment_and_store_certificate() ended with: %s:%s",
-            result,
-            error,
-        )
-        return (result, error, detail)
 
     def _check_identifier_match(
         self,
@@ -1841,7 +1847,7 @@ class Certificate(object):
         return cert_id
 
     def _store_certificate_error(
-        self, certificate_name: str, error: str, poll_identifier: str
+        self, certificate_name: str, error: str, poll_identifier: Optional[str]
     ) -> int:
         """Store certificate error information in database"""
         self.logger.debug("Certificate._store_certificate_error(%s)", certificate_name)
@@ -1982,6 +1988,17 @@ class Certificate(object):
 
         except Exception as err:
             self.logger.error("Error during threaded enrollment execution: %s", err)
+            # Ensure order is not left stuck in processing without an error marker.
+            try:
+                self._handle_enrollment_error(
+                    str(err), None, order_name, certificate_name
+                )
+            except Exception as store_err:
+                self.logger.critical(
+                    "%s: failed to record enrollment thread failure: %s",
+                    DB_ERROR_MSG,
+                    store_err,
+                )
             return (
                 self.err_msg_dic["serverinternal"],
                 "Enrollment thread execution failed",
@@ -2101,7 +2118,12 @@ class Certificate(object):
         self.logger.debug("Certificate._determine_certificate_response()")
 
         if not cert_info or "order__status_id" not in cert_info:
-            return self._create_error_response(500, self.err_msg_dic["serverinternal"])
+            # Unknown / non-matching certificate name (client error, not a server fault)
+            return self._create_error_response(
+                404,
+                self.err_msg_dic["malformed"],
+                "Certificate not found",
+            )
 
         order_status = cert_info["order__status_id"]
 
@@ -2249,7 +2271,7 @@ class Certificate(object):
                 "Certificate retrieval failed",
                 {},
             )
-        if response_dic["code"] in (400, 403, 500):
+        if response_dic["code"] in (400, 403, 404, 500):
             return (
                 response_dic["code"],
                 response_dic["data"],

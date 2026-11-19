@@ -39,18 +39,48 @@ from acme2certifier.acme_srv.helpers.otel import (
 )
 from acme2certifier.acme_srv.version import __version__
 
-# We address a cpdesmells
+# HTTP reason phrases for ACME status lines (never KeyError on unknown codes).
 HTTP_CODE_DIC = {
-    200: "Created",
-    201: "OK",
+    200: "OK",
+    201: "Created",
+    202: "Accepted",
+    204: "No Content",
     400: "Bad Request",
     401: "Unauthorized",
     403: "Forbidden",
     404: "Not Found",
     405: "Method Not Allowed",
     409: "Conflict",
-    500: "serverInternal ",
+    429: "Too Many Requests",
+    500: "Internal Server Error",
 }
+
+
+def http_status_line(code: int) -> str:
+    """Build ``{code} {reason}`` without raising on unknown codes."""
+    return f"{code} {HTTP_CODE_DIC.get(code, 'Error')}"
+
+
+def unhandled_exception_response(start_response) -> list:
+    """ACME problem + Replay-Nonce for unexpected handler failures."""
+    LOGGER.exception("Unhandled exception in ACME request")
+    headers = [("Content-Type", CONTENT_TYPE_JSON)]
+    try:
+        nonce = Nonce(DEBUG, LOGGER, config_dic=CONFIG).generate_and_add()
+        headers.append(("Replay-Nonce", nonce))
+    except Exception:  # pylint: disable=broad-except
+        LOGGER.exception("Failed to issue Replay-Nonce for unhandled error")
+    body = json.dumps(
+        {
+            "type": "urn:ietf:params:acme:error:serverInternal",
+            "detail": "Internal Server Error",
+            "status": 500,
+        },
+        indent=2,
+    ).encode("utf-8")
+    start_response(http_status_line(500), headers)
+    return [body]
+
 
 WRT_ERROR_MSG = json.dumps(
     {
@@ -77,13 +107,13 @@ URL_PREFIX = CONFIG.get("Directory", "url_prefix", fallback=None)
 
 def err_wrong_request_method(start_response):
     """this is the error response for a wrong request method"""
-    start_response(f"405 {HTTP_CODE_DIC[405]}", [("Content-Type", CONTENT_TYPE_JSON)])
+    start_response(http_status_line(405), [("Content-Type", CONTENT_TYPE_JSON)])
 
 
 def err_acme_get_not_allowed(start_response):
     """RFC 8555: plain GET on challenge/authz must use POST-as-GET"""
     start_response(
-        f"405 {HTTP_CODE_DIC[405]}",
+        http_status_line(405),
         [("Content-Type", CONTENT_TYPE_JSON), ("Allow", "POST")],
     )
 
@@ -147,9 +177,7 @@ def acct(environ, start_response):
 
         # create header
         headers = create_header(response_dic)
-        start_response(
-            f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-        )
+        start_response(http_status_line(response_dic["code"]), headers)
 
         # logging
         log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic)
@@ -162,9 +190,9 @@ def acmechallenge_serve(environ, start_response):
         key_authorization = acmechallenge.lookup(environ["PATH_INFO"])
         if not key_authorization:
             key_authorization = "NOT FOUND"
-            start_response(f"404 {HTTP_CODE_DIC[404]}", [("Content-Type", "text/html")])
+            start_response(http_status_line(404), [("Content-Type", "text/html")])
         else:
-            start_response(f"200 {HTTP_CODE_DIC[200]}", [("Content-Type", "text/html")])
+            start_response(http_status_line(200), [("Content-Type", "text/html")])
         # logging
         log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], {})
         return [key_authorization.encode("utf-8")]
@@ -186,9 +214,7 @@ def authz(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -205,9 +231,7 @@ def authz(environ, start_response):
             response_dic = authorization.new_get(get_url(environ, True))
 
             headers = create_header(response_dic)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
             log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
@@ -228,9 +252,7 @@ def newaccount(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -250,7 +272,7 @@ def directory(environ, start_response):
         response_dic = direct_tory.directory_get()
         if "error" in response_dic:
             headers = create_header({"code": 403})
-            start_response(f"403 {HTTP_CODE_DIC[403]}", headers)
+            start_response(http_status_line(403), headers)
             return [
                 json.dumps(
                     {
@@ -278,9 +300,7 @@ def cert(environ, start_response):
             response_dic = certificate.new_post(request_body)
             # create header
             headers = create_header(response_dic, False)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -294,16 +314,19 @@ def cert(environ, start_response):
             # create header
             headers = create_header(response_dic)
             # create the response
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
-            # send response
-            return [response_dic["data"]]
+            # send response (wsgiref requires bytes)
+            data = response_dic["data"]
+            if isinstance(data, bytes):
+                return [data]
+            if isinstance(data, str):
+                return [data.encode("utf-8")]
+            return [json.dumps(data, indent=2).encode("utf-8")]
 
         else:
             err_wrong_request_method(start_response)
@@ -327,9 +350,7 @@ def chall(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -347,9 +368,7 @@ def chall(environ, start_response):
             # generate header
             headers = [("Content-Type", CONTENT_TYPE_JSON)]
             # create the response
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -400,9 +419,7 @@ def neworders(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -425,9 +442,7 @@ def order(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -451,9 +466,7 @@ def renewalinfo(environ, start_response):
             response_dic = renewalinfo_.update(request_body)
             error_body = response_dic.get("code", 200) >= 400 and "data" in response_dic
             headers = create_header(response_dic, error_body)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -469,9 +482,7 @@ def renewalinfo(environ, start_response):
             # create header
             headers = create_header(response_dic)
             # create the response
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -501,9 +512,7 @@ def revokecert(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -531,7 +540,7 @@ def trigger(environ, start_response):
                 },
             }
             headers = create_header(response_dic)
-            start_response(f"403 {HTTP_CODE_DIC[403]}", headers)
+            start_response(http_status_line(403), headers)
             log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
@@ -542,9 +551,7 @@ def trigger(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(
@@ -573,7 +580,7 @@ def housekeeping(environ, start_response):
                 },
             }
             headers = create_header(response_dic)
-            start_response(f"403 {HTTP_CODE_DIC[403]}", headers)
+            start_response(http_status_line(403), headers)
             log_response(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
@@ -584,9 +591,7 @@ def housekeeping(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response(
-                f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
-            )
+            start_response(http_status_line(response_dic["code"]), headers)
 
             # logging
             log_response(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "****")
@@ -645,6 +650,9 @@ if HOUSEKEEPING_CLI_ENABLED:
 if TRIGGER_ENDPOINT_ENABLED:
     URLS.append((r"^trigger(/.*)?$", trigger))
 
+if "CAhandler" in CONFIG and "acme_url" in CONFIG["CAhandler"]:
+    URLS.append((r"^.well-known/acme-challenge/", acmechallenge_serve))
+
 
 # Helper to extract path with prefix
 def get_path_with_prefix(environ, config):
@@ -690,10 +698,6 @@ def _otel_peek_wsgi_body(environ):
 def application(environ, start_response):
     """The main WSGI application if nothing matches call the not_found function."""
 
-    # check if we need to activate the url pattern for challenge verification
-    if "CAhandler" in CONFIG and "acme_url" in CONFIG["CAhandler"]:
-        URLS.append((r"^.well-known/acme-challenge/", acmechallenge_serve))
-
     path = get_path_with_prefix(environ, CONFIG)
     method = environ.get("REQUEST_METHOD", "")
     body = _otel_peek_wsgi_body(environ) if method == "POST" else b""
@@ -709,12 +713,15 @@ def application(environ, start_response):
                 return start_response(status, headers)
             return start_response(status, headers, exc_info)
 
-        for regex, callback in URLS:
-            match = re.search(regex, path)
-            if match is not None:
-                environ["myapp.url_args"] = match.groups()
-                return callback(environ, _start_response)
-        return not_found(environ, _start_response)
+        try:
+            for regex, callback in URLS:
+                match = re.search(regex, path)
+                if match is not None:
+                    environ["myapp.url_args"] = match.groups()
+                    return callback(environ, _start_response)
+            return not_found(environ, _start_response)
+        except Exception:  # pylint: disable=broad-except
+            return unhandled_exception_response(_start_response)
 
 
 def get_handler_cls():

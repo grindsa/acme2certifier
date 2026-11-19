@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 MD029 -->
 
-<!-- wiki-title: CA Handler for Microsoft CEP/CES (MS-XCEP / MS-WSTEP) -->
+<!-- wiki-title: Microsoft CEP/CES (MS-XCEP / MS-WSTEP) -->
 <!-- wiki-category: CA Handlers -->
 
 # CA Handler for Microsoft CEP/CES (MS-XCEP / MS-WSTEP)
@@ -72,7 +72,7 @@ Get-WebApplication -Site 'Default Web Site' |
   }
 ```
 
-**Or in IIS Manager:** Sites → Default Web Site → each `*_CEP_`* / `*_CES_`* app → Application Settings → **URI** (CEP; record for Group Policy / clients). Append `/CEP` or `/CES` if the stored URI ends at `service.svc`.
+**Or in IIS Manager:** Sites → Default Web Site → each `*_CEP_`*/`*_CES_`* app → Application Settings → **URI** (CEP; record for Group Policy / clients). Append `/CEP` or `/CES` if the stored URI ends at `service.svc`.
 
 **Smoke-test CEP** (on a domain-joined client with a ticket, or with explicit credentials):
 

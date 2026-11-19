@@ -8,6 +8,7 @@ to maintain compatibility with existing code.
 
 # Encoding and base64 operations
 from .helpers.encoding import (
+    B64_DECODE_ERROR,
     b64decode_pad,
     b64_decode,
     b64_encode,
@@ -48,6 +49,7 @@ from .helpers.certificates import (
 from .helpers.csr import (
     csr_load,
     csr_cn_get,
+    csr_subject_cn_only,
     csr_dn_get,
     csr_pubkey_get,
     csr_san_get,
@@ -56,6 +58,8 @@ from .helpers.csr import (
     csr_extensions_get,
     csr_subject_get,
     csr_cn_lookup,
+    csr_unbound_san_types,
+    san_general_names_acme_bound,
     san_list_to_bound_names,
 )
 
@@ -110,6 +114,7 @@ from .helpers.network import (
     url_get,
     normalize_resolved_ips,
     filter_http01_target_ips,
+    http01_redirect_target_validate,
     url_get_dns_pinned,
     txt_get,
     proxystring_convert,
@@ -142,7 +147,11 @@ from .helpers.config import (
     config_cert_chain_link_check_load,
     config_cert_chain_profile_load,
     config_option_load,
+    config_kerberos_options_load,
+    config_number_load,
     config_ca_bundle_load,
+    config_allowed_header_values_load,
+    config_allowed_templates_load,
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_shortname_denylist_load,

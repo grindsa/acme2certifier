@@ -47,6 +47,7 @@ def _build_csr_b64(
     cn: Optional[str] = None,
     dns_sans: Optional[Iterable[str]] = None,
     email_sans: Optional[Iterable[str]] = None,
+    extra_sans: Optional[Iterable[x509.GeneralName]] = None,
 ) -> str:
     """Build a base64 DER CSR for binding regression tests."""
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -61,6 +62,8 @@ def _build_csr_b64(
         san_entries.append(x509.DNSName(dns))
     for email in email_sans or ():
         san_entries.append(x509.RFC822Name(email))
+    for extra in extra_sans or ():
+        san_entries.append(extra)
     if san_entries:
         builder = builder.add_extension(
             x509.SubjectAlternativeName(san_entries),
@@ -257,17 +260,14 @@ class TestShortnameWithoutChallengeValidationDecide:
 
     def test_017_not_requested(self) -> None:
         logger = logging.getLogger("test_hardening_sn_chal")
-        assert (
-            shortname_without_challenge_validation_decide(logger, False) is False
-        )
+        assert shortname_without_challenge_validation_decide(logger, False) is False
 
     def test_018_ignored_without_ack(self, caplog: pytest.LogCaptureFixture) -> None:
         logger = logging.getLogger("test_hardening_sn_chal")
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: ""}, clear=False):
             with caplog.at_level(logging.ERROR):
                 assert (
-                    shortname_without_challenge_validation_decide(logger, True)
-                    is False
+                    shortname_without_challenge_validation_decide(logger, True) is False
                 )
         assert any(
             "Ignoring" in r.message
@@ -282,8 +282,7 @@ class TestShortnameWithoutChallengeValidationDecide:
         with patch.dict(os.environ, {SECURITY_DISABLE_ACK_ENV: "1"}, clear=False):
             with caplog.at_level(logging.WARNING):
                 assert (
-                    shortname_without_challenge_validation_decide(logger, True)
-                    is True
+                    shortname_without_challenge_validation_decide(logger, True) is True
                 )
         assert not any(
             "allow_shortname_without_challenge_validation" in r.message
@@ -785,7 +784,117 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_035_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
+    def test_035_unbound_uri_san_rejected(self, certificate) -> None:
+        """H4: URI SAN ignored by binding must still fail finalize."""
+        csr = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_sans=[x509.UniformResourceIdentifier("spiffe://corp/admin")],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_036_unbound_othername_upn_rejected(self, certificate) -> None:
+        """H4: otherName (UPN) ignored by binding must still fail finalize."""
+        # UTF8String encoding of administrator@corp.local
+        upn_value = b"\x0c\x18administrator@corp.local"
+        csr = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_sans=[
+                x509.OtherName(
+                    x509.ObjectIdentifier("1.3.6.1.4.1.311.20.2.3"),
+                    upn_value,
+                )
+            ],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_037_legacy_non_strict_still_rejects_unbound_uri(self, certificate) -> None:
+        """Unbound SAN reject applies even when csr_binding_strict is False."""
+        certificate.config.csr_binding_strict = False
+        csr = _build_csr_b64(
+            dns_sans=["ok.example"],
+            extra_sans=[x509.UniformResourceIdentifier("spiffe://corp/admin")],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_038_unbound_uri_othername_san_rejected(self, certificate) -> None:
+        """H4: URI/otherName SANs invisible to binding must fail finalize."""
+        from cryptography.x509.oid import ObjectIdentifier
+
+        upn = "administrator@corp.local"
+        upn_der = bytes([0x0C, len(upn)]) + upn.encode()
+        csr = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_sans=[
+                x509.UniformResourceIdentifier("spiffe://corp/admin"),
+                x509.OtherName(
+                    ObjectIdentifier("1.3.6.1.4.1.311.20.2.3"),
+                    upn_der,
+                ),
+            ],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            # Without unbound-SAN reject, bound names would equal the order.
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_039_legacy_non_strict_still_rejects_unbound_san(self, certificate) -> None:
+        """Unbound SAN types are rejected even when csr_binding_strict is False."""
+        certificate.config.csr_binding_strict = False
+        csr = _build_csr_b64(
+            dns_sans=["ok.example"],
+            extra_sans=[
+                x509.UniformResourceIdentifier("spiffe://corp/admin"),
+            ],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_040_rewrite_collapses_dns_and_email_sans(self, certificate) -> None:
         """email_identifier_rewrite: dns:user@host order matches CSR DNS+EMAIL SANs."""
         certificate.config.email_identifier_rewrite = True
         csr = _build_csr_b64(
@@ -804,7 +913,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_036_rewrite_still_rejects_extra_email(self, certificate) -> None:
+    def test_041_rewrite_still_rejects_extra_email(self, certificate) -> None:
         certificate.config.email_identifier_rewrite = True
         csr = _build_csr_b64(
             cn="jum@mailserver.acme",
@@ -1011,7 +1120,47 @@ class TestEabProfileDenylist:
         assert cahandler.acme_keyfile == ("/var/www/acme2certifier/volume/acme/ok.json")
         assert mock_warn.call_count >= 3
 
-    def test_047_list_check_skips_denied_attr(self) -> None:
+    def test_047_bool_entry_skips_denied_attr(self) -> None:
+        """JSON bool profile values must honor eab_profile_attr_denied()."""
+        from acme2certifier.acme_srv.helpers.eab import _eab_profile_entry_check
+
+        class _Handler:
+            ca_bundle = True
+            verify = True
+            ssl_verify = True
+            eab_profiling = True
+            allow_shortname_from_fqdn = False
+
+        cahandler = _Handler()
+        logger = logging.getLogger("test_hardening_eab_deny_bool")
+        eab_handler = MagicMock()
+        with patch.object(logger, "warning") as mock_warn:
+            for key in ("ca_bundle", "verify", "ssl_verify", "eab_profiling"):
+                assert (
+                    _eab_profile_entry_check(
+                        logger, cahandler, eab_handler, "csr", key, False
+                    )
+                    is None
+                )
+            assert (
+                _eab_profile_entry_check(
+                    logger,
+                    cahandler,
+                    eab_handler,
+                    "csr",
+                    "allow_shortname_from_fqdn",
+                    True,
+                )
+                is None
+            )
+        assert cahandler.ca_bundle is True
+        assert cahandler.verify is True
+        assert cahandler.ssl_verify is True
+        assert cahandler.eab_profiling is True
+        assert cahandler.allow_shortname_from_fqdn is True
+        assert mock_warn.call_count == 4
+
+    def test_048_list_check_skips_denied_attr(self) -> None:
         from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
 
         class _Handler:
@@ -1053,7 +1202,7 @@ class TestEabProfileDenylist:
         mock_warn.assert_called_once()
         mock_validate.assert_called_once()
 
-    def test_048_list_check_acme_keyfile_outside_keypath(self) -> None:
+    def test_049_list_check_acme_keyfile_outside_keypath(self) -> None:
         """eab_profile_list_check ignores acme_keyfile outside acme_keypath"""
         from acme2certifier.acme_srv.helpers.eab import eab_profile_list_check
 

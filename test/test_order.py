@@ -748,13 +748,30 @@ class TestOrderClass(unittest.TestCase):
                         {"url": "url"}, {}, None, account_name="acc"
                     )
                     self.assertEqual(code, 200)
-            # url in protected, order_name, no order_dic
-            with patch.object(self.order, "get_order_details", return_value={}):
+            # Missing/denied ownership: same unauthorized client error; no side-effect lookup
+            with (
+                patch.object(self.order, "_get_order_account_name", return_value=None),
+                patch.object(self.order, "get_order_details") as mock_details,
+            ):
+                code, msg, detail, _cert, _order = self.order._parse_order_message(
+                    {"url": "url"}, {}, None, account_name="attacker"
+                )
+                self.assertEqual(code, 403)
+                self.assertEqual(msg, "urn:ietf:params:acme:error:unauthorized")
+                self.assertEqual(detail, "Unauthorized")
+                mock_details.assert_not_called()
+            # Ownership ok but details empty: still uniform unauthorized (no oracle)
+            with (
+                patch.object(self.order, "_get_order_account_name", return_value="acc"),
+                patch.object(self.order, "get_order_details", return_value={}),
+            ):
                 with self.assertLogs("test_a2c", level="WARNING") as log_cm:
-                    code, _msg, _detail, _cert, _order = (
-                        self.order._parse_order_message({"url": "url"}, {}, None)
+                    code, msg, detail, _cert, _order = self.order._parse_order_message(
+                        {"url": "url"}, {}, None, account_name="acc"
                     )
                 self.assertEqual(code, 403)
+                self.assertEqual(msg, "urn:ietf:params:acme:error:unauthorized")
+                self.assertEqual(detail, "Unauthorized")
                 self.assertIn(
                     "WARNING:test_a2c:Order request failed: order not found order=order",
                     log_cm.output,
@@ -3758,9 +3775,7 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.allow_shortname_from_fqdn = False
         self.order.repository.account_lookup.return_value = {"eab_kid": "kid_sn"}
         mock_eab_handler = MagicMock()
-        profile_dic = {
-            "kid_sn": {"order": {"allow_shortname_from_fqdn": True}}
-        }
+        profile_dic = {"kid_sn": {"order": {"allow_shortname_from_fqdn": True}}}
         mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
         self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
 
@@ -3773,9 +3788,7 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.shortname_denylist = []
         self.order.repository.account_lookup.return_value = {"eab_kid": "kid_dn"}
         mock_eab_handler = MagicMock()
-        profile_dic = {
-            "kid_dn": {"order": {"shortname_denylist": ["mail", "vpn"]}}
-        }
+        profile_dic = {"kid_dn": {"order": {"shortname_denylist": ["mail", "vpn"]}}}
         mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
         self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
 
@@ -3857,6 +3870,44 @@ class TestOrderClass(unittest.TestCase):
         self.assertEqual(payload["identifiers"][0]["status"], "pending")
         self.assertEqual(payload["identifiers"][1]["status"], "pending")
         self.order.repository.update_authorization.assert_not_called()
+
+    def test_232_skip_shortname_challenge_ignores_non_dns(self):
+        """IP identifiers are not eligible for the shortname challenge skip."""
+        self.order.config.allow_shortname_without_challenge_validation = True
+        identifier = {"type": "ip", "value": "10.0.0.1"}
+        identifiers = [identifier, {"type": "dns", "value": "host.intra.net"}]
+        self.assertFalse(
+            self.order._should_skip_shortname_challenge_validation(
+                identifier, identifiers
+            )
+        )
+
+    def test_233_dns_identifier_values_skips_non_dict(self):
+        """Non-dict identifier entries are ignored when collecting DNS names."""
+        values = self.order._dns_identifier_values(
+            [
+                "not-a-dict",
+                {"type": "dns", "value": "host.example"},
+                {"type": "ip", "value": "10.0.0.1"},
+            ]
+        )
+        self.assertEqual(["host.example"], values)
+
+    def test_234_load_eab_profile_param_order_section_non_dict(self):
+        """Non-dict order section is treated as empty"""
+        profile_dic = {"kid": {"order": "not-a-dict"}}
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid", "allowed_domainlist", ["default.com"]
+        )
+        self.assertEqual(value, ["default.com"])
+
+    def test_235_load_eab_profile_param_cahandler_section_non_dict(self):
+        """Non-dict cahandler fallback section is treated as empty"""
+        profile_dic = {"kid": {"order": {}, "cahandler": "not-a-dict"}}
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid", "allowed_domainlist", ["default.com"]
+        )
+        self.assertEqual(value, ["default.com"])
 
 
 if __name__ == "__main__":

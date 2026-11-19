@@ -7,7 +7,7 @@ import logging
 import os
 import threading
 import warnings
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar
 
 import yaml
 
@@ -115,7 +115,7 @@ def log_loaded_acme_srv_cfg(logger: logging.Logger) -> None:
         _log_cfg_loaded_once(logger, path, source, cfg_format)
 
 
-def config_check(logger: logging.Logger, config_dic: Dict):
+def config_check(logger: logging.Logger, config_dic: Any):
     """check configuration"""
     logger.debug("Helper.config_check()")
 
@@ -129,7 +129,7 @@ def config_check(logger: logging.Logger, config_dic: Dict):
                 )
 
 
-def config_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_profile_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_profile_load()")
 
@@ -145,7 +145,7 @@ def config_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return profiles
 
 
-def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_eab_profile_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_eab_profile_load()")
 
@@ -196,7 +196,7 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return eab_profiling, eab_handler
 
 
-def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_headerinfo_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_headerinfo_load()")
 
@@ -249,6 +249,70 @@ def config_allowed_header_values_load(logger: logging.Logger, config_dic) -> Lis
     return result
 
 
+def config_allowed_templates_load(logger: logging.Logger, config_dic: Any) -> List[str]:
+    """Load enrollment template allowlist for MS CA handlers.
+
+    Prefer ``[Order] allowed_header_values``. Fall back to deprecated
+    ``[CAhandler] allowed_templates``. Emits the same warnings as the former
+    handler-local loaders.
+    """
+    logger.debug("Helper.config_allowed_templates_load()")
+    order_values = config_allowed_header_values_load(logger, config_dic)
+    if order_values:
+        logger.debug(
+            "Helper.config_allowed_templates_load() ended with %s entries "
+            "from Order.allowed_header_values",
+            len(order_values),
+        )
+        return order_values
+
+    if (
+        "CAhandler" not in config_dic
+        or "allowed_templates" not in config_dic["CAhandler"]
+    ):
+        logger.warning(
+            "No [Order] allowed_header_values configured; client-selected "
+            "templates are ignored unless %s is set. Configure "
+            "allowed_header_values to restrict enrollment templates without "
+            "the break-glass env.",
+            "ACME2CERTIFIER_I_KNOW_THE_RISK",
+        )
+        logger.debug("Helper.config_allowed_templates_load() ended")
+        return []
+
+    logger.warning(
+        "CAhandler allowed_templates is deprecated for header allowlisting; "
+        "move the list to [Order] allowed_header_values"
+    )
+
+    result: List[str] = []
+    try:
+        loaded = json.loads(config_dic.get("CAhandler", "allowed_templates"))
+        if not isinstance(loaded, list):
+            raise ValueError("allowed_templates must be a JSON list")
+        result = [str(item) for item in loaded]
+    except Exception as err_:
+        logger.warning(
+            "Failed to parse allowed_templates from configuration: %s. "
+            "Treating as empty allowlist.",
+            err_,
+        )
+        result = []
+
+    if not result:
+        logger.warning(
+            "allowed_templates is empty; client-selected templates are ignored "
+            "unless %s is set. Configure [Order] allowed_header_values to "
+            "restrict enrollment templates without the break-glass env.",
+            "ACME2CERTIFIER_I_KNOW_THE_RISK",
+        )
+    logger.debug(
+        "Helper.config_allowed_templates_load() ended with %s entries",
+        len(result),
+    )
+    return result
+
+
 def header_value_allowlist_resolve(logger: logging.Logger, cahandler) -> List[str]:
     """Resolve header-value allowlist for client-selected enrollment parameters.
 
@@ -279,7 +343,7 @@ def header_value_allowlist_resolve(logger: logging.Logger, cahandler) -> List[st
     return []
 
 
-def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_enroll_config_log_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_enroll_config_log_load()")
 
@@ -381,7 +445,7 @@ def _config_str_list_load(
 
 def config_cert_chain_skip_list_load(
     logger: logging.Logger,
-    config_dic: Dict[str, str],
+    config_dic: Any,
     section: str = "CAhandler",
 ) -> Tuple[Optional[str], Optional[List[str]]]:
     """Load ``cert_chain_skip_list`` from *section*.
@@ -463,7 +527,7 @@ def _cert_chain_append_file_load(
 
 def config_cert_chain_append_load(
     logger: logging.Logger,
-    config_dic: Dict[str, str],
+    config_dic: Any,
     section: str = "CAhandler",
 ) -> Tuple[Optional[str], Optional[List[str]]]:
     """Load ``cert_chain_append`` PEM files from *section*.
@@ -567,9 +631,51 @@ def config_cert_chain_profile_load(
     return None, None
 
 
+_TNumber = TypeVar("_TNumber", int, float)
+
+
+def config_number_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    option: str,
+    *,
+    cast: Callable[[Any], _TNumber],
+    current: _TNumber,
+    section: str = "CAhandler",
+    log_level: str = "error",
+) -> _TNumber:
+    """Load a numeric config option, keeping ``current`` when parsing fails.
+
+    Uses ``config_dic.get(section, option, fallback=current)`` then ``cast``.
+    On failure logs ``Failed to parse {option} parameter: ...`` at
+    ``log_level`` (``error`` or ``warning``) and returns ``current``.
+    """
+    logger.debug("Helper.config_number_load(%s)", option)
+    if not config_dic or section not in config_dic:
+        logger.debug("Helper.config_number_load(%s) ended (no section)", option)
+        return current
+    try:
+        if isinstance(config_dic, dict):
+            section_data = config_dic.get(section) or {}
+            raw = (
+                section_data.get(option, current)
+                if hasattr(section_data, "get")
+                else current
+            )
+        else:
+            raw = config_dic.get(section, option, fallback=current)
+        value = cast(raw)
+    except Exception as err:
+        log_fn = getattr(logger, log_level, logger.error)
+        log_fn("Failed to parse %s parameter: %s", option, err)
+        return current
+    logger.debug("Helper.config_number_load(%s) ended", option)
+    return value
+
+
 def config_option_load(
     logger: logging.Logger,
-    config_dic: Dict[str, str],
+    config_dic: Any,
     option: str,
     *,
     section: str = "CAhandler",
@@ -616,6 +722,43 @@ def config_option_load(
 
     logger.debug("Helper.config_option_load(%s) ended", option)
     return value
+
+
+KRB5_CONFIG_OPTIONS: Tuple[str, ...] = (
+    "krb5_principal",
+    "krb5_keytab",
+    "krb5_cache",
+    "krb5_config",
+    "krb5_kinit_path",
+)
+
+
+def config_kerberos_options_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    target: Any,
+    *,
+    section: str = "CAhandler",
+) -> None:
+    """Load shared ``krb5_*`` options onto *target* via ``config_option_load``.
+
+    Assigns ``krb5_principal``, ``krb5_keytab``, ``krb5_cache``, ``krb5_config``,
+    and ``krb5_kinit_path`` from *section* (env ``*_variable`` + direct keys).
+    """
+    logger.debug("Helper.config_kerberos_options_load()")
+    for option in KRB5_CONFIG_OPTIONS:
+        setattr(
+            target,
+            option,
+            config_option_load(
+                logger,
+                config_dic,
+                option,
+                section=section,
+                current=getattr(target, option, None),
+            ),
+        )
+    logger.debug("Helper.config_kerberos_options_load() ended")
 
 
 def _config_ca_bundle_raw(config_dic: Any, section: str, current: Any) -> Any:
@@ -666,7 +809,7 @@ def config_ca_bundle_load(
 
 
 def config_dns_server_list_load(
-    logger: logging.Logger, config_dic: Dict[str, str]
+    logger: logging.Logger, config_dic: Any
 ) -> Tuple[List[str], int]:
     """load parameters"""
     logger.debug("Helper.config_dns_server_list_load()")
@@ -710,7 +853,7 @@ def config_dns_server_list_load(
     return dns_server_list, dns_validation_pause_timer
 
 
-def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_allowed_domainlist_load()")
 
@@ -749,7 +892,7 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
     return allowed_domainlist
 
 
-def config_allowed_iplist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_allowed_iplist_load(logger: logging.Logger, config_dic: Any):
     """load parameters"""
     logger.debug("Helper.config_allowed_iplist_load()")
 
@@ -766,7 +909,7 @@ def config_allowed_iplist_load(logger: logging.Logger, config_dic: Dict[str, str
     return allowed_iplist
 
 
-def config_shortname_denylist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_shortname_denylist_load(logger: logging.Logger, config_dic: Any):
     """Load Order.shortname_denylist JSON list from configuration."""
     logger.debug("Helper.config_shortname_denylist_load()")
 
@@ -803,9 +946,7 @@ def warn_shortname_without_domainlist(
     )
 
 
-def config_async_mode_load(
-    logger: logging.Logger, config_dic: Dict[str, str], db_type: str
-):
+def config_async_mode_load(logger: logging.Logger, config_dic: Any, db_type: str):
     """load parameters"""
     logger.debug("Helper.config_async_mode_load()")
 
@@ -908,7 +1049,7 @@ def acme_get_method_not_allowed_problem() -> Dict[str, Any]:
     }
 
 
-def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
+def config_proxy_load(logger, config_dic: Any, host_name: str):
     """load parameters"""
     logger.debug("_config_proxy_load()")
 
@@ -1662,7 +1803,7 @@ def client_parameter_validate(
     return value_to_set, error
 
 
-def config_dryrun_load(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_dryrun_load(logger: logging.Logger, config_dic: Any):
     """load dryrun configuration"""
     logger.debug("Helper.config_dryrun_load()")
 

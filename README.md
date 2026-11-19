@@ -27,6 +27,9 @@ The project consists of two main libraries:
 
 | Feature Support                                                                                                                                | Enrollment (E) | Revocation (R) | [EAB Profiling (P)](docs/eab_profiling.md) |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------- | ------------------------------------------ |
+| [AWS Private CA (ACM PCA)](docs/aws_pca.md) (experimental)                                                                                     | ✅             | ✅             | ✅                                         |
+| [Google Cloud Private CAS](docs/google_cas.md) (experimental)                                                                                  | ✅             | ✅             | ✅                                         |
+| [Cloudflare CFSSL](docs/cfssl.md)                                                                                                              | ✅             | ✅             | ✅                                         |
 | [DigiCert® CertCentral](docs/digicert.md)                                                                                                      | ✅             | ✅             | ✅                                         |
 | [Dogtag Certificate System](docs/dogtag_ca_handler.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [Entrust ECS Enterprise](docs/entrust.md)                                                                                                      | ✅             | ✅             | ✅                                         |
@@ -39,12 +42,14 @@ The project consists of two main libraries:
 | [HARICA CertManager](docs/harica.md)                                                                                                           | ✅             | ✅             | ✅                                         |
 | [Insta ActiveCMS](docs/asa.md)                                                                                                                 | ✅             | ✅             | ✅                                         |
 | [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)                                                                             | ✅             | ❌             | ✅                                         |
+| [Microsoft CEP/CES (MS-XCEP / MS-WSTEP)](docs/mscepces.md)                                                                                     | ✅             | ❌             | ✅                                         |
 | [Microsoft ICertPassage Remote Protocol (MS-ICPR)](docs/msicpr.md)                                                                             | ✅             | ❌             | ✅                                         |
 | [NetGuard Certificate Lifecycle Manager](docs/nclm.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)                                                                              | ✅             | ✅             | ✅                                         |
 | [OpenSSL](docs/openssl.md)                                                                                                                     | ✅             | ✅             | ❌                                         |
 | [OpenXPKI](docs/openxpki.md)                                                                                                                   | ✅             | ✅             | ✅                                         |
 | [XCA](docs/xca.md)                                                                                                                             | ✅             | ✅             | ✅                                         |
+| [XiPKI](docs/xipki.md)                                                                                                                         | ✅             | ✅             | ✅                                         |
 
 For the latest updates and additional documentation, visit the project's homepage:
 [**acme2certifier on GitHub**](https://github.com/grindsa/acme2certifier)

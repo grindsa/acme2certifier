@@ -76,6 +76,10 @@ otel = [
     "opentelemetry-sdk>=1.27.0",
     "opentelemetry-exporter-otlp-proto-http>=1.27.0",
 ]
+# Optional Google Cloud auth for google_cas_ca_handler (Private CAS). Not in full/test.
+gcp = [
+    "google-auth",
+]
 
 [project.scripts]
 a2c-cli = "acme2certifier.tools.a2c_cli:main"
@@ -89,7 +93,6 @@ a2c-cert-poll = "acme2certifier.tools.a2c_cert_poll:main"
 a2c-cliuser-mgmt = "acme2certifier.tools.a2c_cliuser_mgmt:main"
 a2c-invalidator = "acme2certifier.tools.a2c_invalidator:main"
 a2c-report-generator = "acme2certifier.tools.a2c_report_generator:main"
-a2c-harica-totp = "acme2certifier.tools.a2c_harica_totp:main"
 a2c-wsgi2django = "acme2certifier.tools.a2c_wsgi2django:main"
 
 [project.urls]

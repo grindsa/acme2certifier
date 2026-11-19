@@ -22,6 +22,7 @@ from acme2certifier.acme_srv.helper import (
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     config_enroll_config_log_load,
+    config_number_load,
     config_option_load,
     config_ca_bundle_load,
     config_profile_load,
@@ -119,7 +120,7 @@ class CAhandler(object):
             )
         self.logger.debug("CAhandler._auth_set() ended")
 
-    def _config_host_load(self, config_dic: Dict[str, str]):
+    def _config_host_load(self, config_dic: Any):
         """load hostname"""
         self.logger.debug("_config_host_load()")
         self.api_host = config_option_load(
@@ -137,7 +138,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._certificates_list() ended")
         return api_response
 
-    def _config_key_load(self, config_dic: Dict[str, str]):
+    def _config_key_load(self, config_dic: Any):
         """load keyname"""
         self.logger.debug("_config_key_load()")
         self.api_key = config_option_load(
@@ -145,7 +146,7 @@ class CAhandler(object):
         )
         self.logger.debug("_config_key_load() ended")
 
-    def _config_password_load(self, config_dic: Dict[str, str]):
+    def _config_password_load(self, config_dic: Any):
         """load passwordname"""
         self.logger.debug("_config_password_load()")
         self.api_password = config_option_load(
@@ -153,7 +154,7 @@ class CAhandler(object):
         )
         self.logger.debug("_config_password_load() ended")
 
-    def _config_user_load(self, config_dic: Dict[str, str]):
+    def _config_user_load(self, config_dic: Any):
         """load username"""
         self.logger.debug("_config_user_load()")
         self.api_user = config_option_load(
@@ -179,32 +180,27 @@ class CAhandler(object):
                 self.logger, config_dic, current=self.ca_bundle
             )
 
-            try:
-                self.request_timeout = int(
-                    config_dic["CAhandler"].get("request_timeout", 10)
-                )
-            except Exception as err:
-                self.logger.error(
-                    "request_timeout parameter is not an integer. Error: %s", err
-                )
-
-            try:
-                self.request_retries = int(
-                    config_dic["CAhandler"].get("request_retries", 3)
-                )
-            except Exception as err:
-                self.logger.error(
-                    "request_retries parameter is not an integer. Error: %s", err
-                )
-
-            try:
-                self.cert_validity_days = int(
-                    config_dic["CAhandler"].get("cert_validity_days", 30)
-                )
-            except Exception as err:
-                self.logger.error(
-                    "cert_validity_days parameter is not an integer. Error: %s", err
-                )
+            self.request_timeout = config_number_load(
+                self.logger,
+                config_dic,
+                "request_timeout",
+                cast=int,
+                current=self.request_timeout,
+            )
+            self.request_retries = config_number_load(
+                self.logger,
+                config_dic,
+                "request_retries",
+                cast=int,
+                current=self.request_retries,
+            )
+            self.cert_validity_days = config_number_load(
+                self.logger,
+                config_dic,
+                "cert_validity_days",
+                cast=int,
+                current=self.cert_validity_days,
+            )
 
         for ele in [
             "api_host",

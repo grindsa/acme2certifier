@@ -581,6 +581,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
             pinned_ips=["8.8.8.8"],
             verify=False,
             timeout=10,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=False,
+            dns_server_list=None,
         )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
@@ -641,6 +645,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
             pinned_ips=["192.168.1.1"],
             verify=False,
             timeout=10,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=False,
+            dns_server_list=None,
         )
 
     @patch("acme2certifier.acme_srv.helper.ip_validate")
@@ -828,6 +836,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
             proxy_server="http://proxy.example.com:8080",
             verify=False,
             timeout=10,
+            http01_restrict_redirects=True,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=False,
         )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
@@ -905,6 +917,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
             pinned_ips=["10.0.0.5"],
             verify=False,
             timeout=10,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=False,
+            dns_server_list=None,
         )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
@@ -939,7 +955,34 @@ class TestHttpChallengeValidator(unittest.TestCase):
             pinned_ips=["8.8.8.8"],
             verify=False,
             timeout=10,
+            max_redirects=5,
+            allow_ip_redirect=False,
+            block_private=True,
+            dns_server_list=None,
         )
+
+    @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
+    @patch("acme2certifier.acme_srv.helper.url_get_dns_pinned")
+    def test_153_perform_validation_invalid_max_redirects_falls_back(
+        self, mock_url_get_dns_pinned, mock_fqdn_resolve
+    ):
+        """Non-integer http01_max_redirects falls back to 5"""
+        mock_fqdn_resolve.return_value = (["8.8.8.8"], False, None)
+        mock_url_get_dns_pinned.return_value = ("test_token.test_thumb", 200, None)
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+            options={"http01_max_redirects": "not-an-int"},
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertTrue(result.success)
+        self.assertEqual(5, mock_url_get_dns_pinned.call_args.kwargs["max_redirects"])
 
 
 class TestDnsChallengeValidator(unittest.TestCase):
@@ -1314,6 +1357,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
                 None,
                 "example.com",
                 connect_host="192.168.1.1",
+                timeout=10,
             )
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
@@ -1384,6 +1428,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
                 None,
                 "192.168.1.1",
                 connect_host="192.168.1.1",
+                timeout=10,
             )
 
     @patch("acme2certifier.acme_srv.helper.ip_validate")
@@ -1696,6 +1741,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
                 "proxy.example.com:8080",
                 "example.com",
                 connect_host="192.168.1.1",
+                timeout=10,
             )
 
 
@@ -2345,8 +2391,8 @@ class TestSourceAddressValidator(unittest.TestCase):
         result = self.validator.perform_validation(context)
         self.assertIsInstance(result, ValidationResult)
 
-    def test_100_perform_validation_no_source_address(self):
-        """Test perform_validation with no source address"""
+    def test_100_perform_validation_no_source_address_checks_enabled(self):
+        """Missing source with address checks enabled must fail closed (M4 item 2)."""
         context = ChallengeContext(
             challenge_name="test",
             token="test_token",
@@ -2354,9 +2400,29 @@ class TestSourceAddressValidator(unittest.TestCase):
             authorization_type="dns",
             authorization_value="example.com",
         )
-        # No source_address set
+        # No source_address set; setUp enables forward and reverse checks
 
         result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertEqual(result.details["message"], "No source address provided")
+        self.assertIn("no source address provided", result.error_message)
+
+    def test_101_perform_validation_no_source_address_checks_disabled(self):
+        """Missing source is skipped only when neither address check is enabled."""
+        validator = SourceAddressValidator(
+            self.logger, forward_check=False, reverse_check=False
+        )
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+        )
+
+        result = validator.perform_validation(context)
 
         self.assertTrue(result.success)
         self.assertFalse(result.invalid)
@@ -2366,7 +2432,7 @@ class TestSourceAddressValidator(unittest.TestCase):
 
     @patch.object(SourceAddressValidator, "_perform_forward_check")
     @patch.object(SourceAddressValidator, "_perform_reverse_check")
-    def test_101_perform_validation_both_checks_success(
+    def test_102_perform_validation_both_checks_success(
         self, mock_reverse, mock_forward
     ):
         """Test successful validation with both checks enabled"""
@@ -2400,7 +2466,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         mock_reverse.assert_called_once_with("example.com", "192.168.1.1", [])
 
     @patch.object(SourceAddressValidator, "_perform_forward_check")
-    def test_102_perform_validation_forward_check_failed(self, mock_forward):
+    def test_103_perform_validation_forward_check_failed(self, mock_forward):
         """Test validation with forward check failure"""
         mock_forward.return_value = {
             "forward_check_passed": False,
@@ -2428,7 +2494,7 @@ class TestSourceAddressValidator(unittest.TestCase):
 
     @patch.object(SourceAddressValidator, "_perform_forward_check")
     @patch.object(SourceAddressValidator, "_perform_reverse_check")
-    def test_103_perform_validation_reverse_check_failed(
+    def test_104_perform_validation_reverse_check_failed(
         self, mock_reverse, mock_forward
     ):
         """Test validation with reverse check failure"""
@@ -2460,7 +2526,7 @@ class TestSourceAddressValidator(unittest.TestCase):
             '{"status": 400, "type": "urn:ietf:params:acme:error:unauthorized", "detail": "Reverse check failed: Reverse address check failed"}',
         )
 
-    def test_104_perform_validation_forward_only(self):
+    def test_105_perform_validation_forward_only(self):
         """Test validation with only forward check enabled"""
         validator = SourceAddressValidator(
             self.logger, forward_check=True, reverse_check=False
@@ -2489,7 +2555,7 @@ class TestSourceAddressValidator(unittest.TestCase):
             mock_forward.assert_called_once()
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
-    def test_105_perform_forward_check_success(self, mock_fqdn_resolve):
+    def test_106_perform_forward_check_success(self, mock_fqdn_resolve):
         """Test _perform_forward_check success"""
         mock_fqdn_resolve.return_value = (["192.168.1.1", "192.168.1.2"], False, None)
 
@@ -2500,7 +2566,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertEqual(result["domain"], "example.com")
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
-    def test_106_perform_forward_check_failure(self, mock_fqdn_resolve):
+    def test_107_perform_forward_check_failure(self, mock_fqdn_resolve):
         """Test _perform_forward_check failure"""
         mock_fqdn_resolve.return_value = (
             ["192.168.1.100"],
@@ -2514,7 +2580,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertEqual(result["resolved_ips"], ["192.168.1.100"])
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
-    def test_107_perform_forward_check_exception(self, mock_fqdn_resolve):
+    def test_108_perform_forward_check_exception(self, mock_fqdn_resolve):
         """Test _perform_forward_check with exception"""
         mock_fqdn_resolve.side_effect = Exception("DNS error")
 
@@ -2523,18 +2589,24 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertFalse(result["forward_check_passed"])
         self.assertEqual(result["error"], "DNS error")
 
+    @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
     @patch("acme2certifier.acme_srv.helper.ptr_resolve")
-    def test_108_perform_reverse_check_success(self, mock_ptr_resolve):
-        """Test _perform_reverse_check success"""
+    def test_109_perform_reverse_check_success(
+        self, mock_ptr_resolve, mock_fqdn_resolve
+    ):
+        """Exact PTR + FCrDNS (source IP in PTR A/AAAA) passes reverse check."""
         mock_ptr_resolve.return_value = ("example.com", False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
 
         result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
 
         self.assertTrue(result["reverse_check_passed"])
         self.assertEqual(result["reverse_domains"], ["example.com"])
+        self.assertEqual(result["fcrdns_resolved_ips"], ["192.168.1.1"])
+        mock_fqdn_resolve.assert_called_once()
 
     @patch("acme2certifier.acme_srv.helper.ptr_resolve")
-    def test_109_perform_reverse_check_failure(self, mock_ptr_resolve):
+    def test_110_perform_reverse_check_failure(self, mock_ptr_resolve):
         """Test _perform_reverse_check failure when PTR hostname does not match"""
         mock_ptr_resolve.return_value = ("other.com", False)
 
@@ -2545,7 +2617,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertEqual(result["error"], "No matching domains found")
 
     @patch("acme2certifier.acme_srv.helper.ptr_resolve")
-    def test_110_perform_reverse_check_exception(self, mock_ptr_resolve):
+    def test_111_perform_reverse_check_exception(self, mock_ptr_resolve):
         """Test _perform_reverse_check with exception"""
         mock_ptr_resolve.side_effect = Exception("PTR error")
 
@@ -2554,32 +2626,34 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertFalse(result["reverse_check_passed"])
         self.assertEqual(result["error"], "PTR error")
 
-    def test_111_domain_matches_exact(self):
+    def test_112_domain_matches_exact(self):
         """Test _domain_matches with exact match"""
         result = self.validator._domain_matches("example.com", "example.com")
         self.assertTrue(result)
 
-    def test_112_domain_matches_subdomain(self):
-        """Test _domain_matches with subdomain"""
-        result = self.validator._domain_matches("example.com", "www.example.com")
-        self.assertTrue(result)
+    def test_113_domain_matches_subdomain_rejected(self):
+        """Subdomain PTR must not validate a parent authz name (M4 item 1)."""
+        self.assertFalse(
+            self.validator._domain_matches("example.com", "www.example.com")
+        )
+        self.assertFalse(self.validator._domain_matches("bank.com", "x.bank.com"))
 
-    def test_113_domain_matches_no_match(self):
+    def test_114_domain_matches_no_match(self):
         """Test _domain_matches with no match"""
         result = self.validator._domain_matches("example.com", "other.com")
         self.assertFalse(result)
 
-    def test_114_domain_matches_case_insensitive(self):
+    def test_115_domain_matches_case_insensitive(self):
         """Test _domain_matches is case insensitive"""
         result = self.validator._domain_matches("Example.Com", "EXAMPLE.COM")
         self.assertTrue(result)
 
-    def test_115_domain_matches_trailing_dots(self):
+    def test_116_domain_matches_trailing_dots(self):
         """Test _domain_matches handles trailing dots"""
         result = self.validator._domain_matches("example.com.", "example.com")
         self.assertTrue(result)
 
-    def test_116_perform_validation_context_options_override(self):
+    def test_117_perform_validation_context_options_override(self):
         """Test perform_validation with context options overriding check settings"""
         context = ChallengeContext(
             challenge_name="test",
@@ -2613,7 +2687,7 @@ class TestSourceAddressValidator(unittest.TestCase):
             self.assertFalse(result.invalid)
 
     @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
-    def test_117_perform_forward_check_dns_error_logging(self, mock_fqdn_resolve):
+    def test_118_perform_forward_check_dns_error_logging(self, mock_fqdn_resolve):
         """Test _perform_forward_check with DNS resolution error and logging"""
         # Setup mock to return an error message
         mock_fqdn_resolve.return_value = ([], False, "DNS resolution timeout")
@@ -2629,7 +2703,7 @@ class TestSourceAddressValidator(unittest.TestCase):
             "Forward address check DNS resolution failed: %s", "DNS resolution timeout"
         )
 
-    def test_118_domain_matches_empty_resolved_domain(self):
+    def test_119_domain_matches_empty_resolved_domain(self):
         """Test _domain_matches with empty resolved_domain returns False"""
         # Test with None resolved_domain
         result = self.validator._domain_matches("example.com", None)
@@ -2644,7 +2718,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertFalse(result)
 
     @patch("acme2certifier.acme_srv.helper.ptr_resolve")
-    def test_119_perform_reverse_check_ptr_invalid(self, mock_ptr_resolve):
+    def test_120_perform_reverse_check_ptr_invalid(self, mock_ptr_resolve):
         """Test _perform_reverse_check fails closed when ptr_resolve marks invalid"""
         mock_ptr_resolve.return_value = (None, True)
 
@@ -2654,15 +2728,69 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertEqual(result["reverse_domains"], [])
         self.assertEqual(result["error"], "PTR resolution failed")
 
+    @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
     @patch("acme2certifier.acme_srv.helper.ptr_resolve")
-    def test_120_perform_reverse_check_subdomain_match(self, mock_ptr_resolve):
-        """Test _perform_reverse_check passes for PTR subdomain of requested domain"""
+    def test_121_perform_reverse_check_subdomain_rejected(
+        self, mock_ptr_resolve, mock_fqdn_resolve
+    ):
+        """Subdomain PTR must not pass reverse check for a parent authz name."""
         mock_ptr_resolve.return_value = ("www.example.com", False)
 
         result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
 
-        self.assertTrue(result["reverse_check_passed"])
+        self.assertFalse(result["reverse_check_passed"])
         self.assertEqual(result["reverse_domains"], ["www.example.com"])
+        self.assertEqual(result["error"], "No matching domains found")
+        mock_fqdn_resolve.assert_not_called()
+
+    @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
+    @patch("acme2certifier.acme_srv.helper.ptr_resolve")
+    def test_122_perform_reverse_check_exact_match_fcrdns(
+        self, mock_ptr_resolve, mock_fqdn_resolve
+    ):
+        """Exact PTR still requires FCrDNS (source IP in PTR A/AAAA)."""
+        mock_ptr_resolve.return_value = ("example.com", False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
+
+        result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
+
+        self.assertTrue(result["reverse_check_passed"])
+        self.assertEqual(result["reverse_domains"], ["example.com"])
+
+    @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
+    @patch("acme2certifier.acme_srv.helper.ptr_resolve")
+    def test_123_perform_reverse_check_fcrdns_failure(
+        self, mock_ptr_resolve, mock_fqdn_resolve
+    ):
+        """Exact PTR without forward confirmation must fail (M4 item 3)."""
+        mock_ptr_resolve.return_value = ("bank.com", False)
+        mock_fqdn_resolve.return_value = (["203.0.113.9"], False, None)
+
+        result = self.validator._perform_reverse_check("bank.com", "192.0.2.1", [])
+
+        self.assertFalse(result["reverse_check_passed"])
+        self.assertTrue(result["error"].startswith("FCrDNS failed:"))
+        self.assertEqual(result["fcrdns_resolved_ips"], ["203.0.113.9"])
+
+    @patch("acme2certifier.acme_srv.helper.fqdn_resolve")
+    @patch("acme2certifier.acme_srv.helper.ptr_resolve")
+    def test_124_perform_reverse_check_fcrdns_check_disable(
+        self, mock_ptr_resolve, mock_fqdn_resolve
+    ):
+        """fcrdns_check_disable allows exact PTR without A/AAAA confirmation."""
+        validator = SourceAddressValidator(
+            self.logger,
+            forward_check=False,
+            reverse_check=True,
+            fcrdns_check_disable=True,
+        )
+        mock_ptr_resolve.return_value = ("bank.com", False)
+
+        result = validator._perform_reverse_check("bank.com", "192.0.2.1", [])
+
+        self.assertTrue(result["reverse_check_passed"])
+        self.assertTrue(result["fcrdns_skipped"])
+        mock_fqdn_resolve.assert_not_called()
 
 
 class TestDnsPersistChallengeValidator(unittest.TestCase):

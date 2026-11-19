@@ -11,9 +11,11 @@ In such cases, **acme2certifier** marks the status of the order resource as **"p
 
 Additionally, when a CSR enters the **"pending"** state, it is assumed that the CA server provides information in the enrollment response that can be used to look up the request's status. This information is returned by the `ca.handler.enroll()` method (stored in the variable `poll_identifier`) and is saved in the database alongside the CSR in the **`certificate`** table under the **`poll_identifier`** field.
 
+`poll_identifier` is required **only** for this pending/async path. Successful immediate issuance and failed enrollments (signaled via the `error` return value) may leave `poll_identifier` empty. See [CA handler `enroll()` outcomes](ca_handler.md).
+
 ## Polling Implementation
 
-The script [`a2c_cert_poll.py`](../acme2certifier/tools/a2c_cert_poll.py) is located in the **tools** directory and can be scheduled via **cron**. It scans the **`orders`** table for orders with status **"processing" (4)** and passes the `poll_identifier`, along with other necessary information, to the `certificate.poll()` method.
+The script [`a2c_cert_poll.py`](../acme2certifier/tools/a2c_cert_poll.py) is located in the **tools** directory and can be scheduled via **cron**. It scans the **`orders`** table for orders with status **"processing" (4)** and passes the `poll_identifier`, along with other necessary information, to the `certificate.poll()` method. Rows without a `poll_identifier` are skipped with a warning (they are not eligible for CA polling).
 
 ### `ca_handler.poll()` Responsibilities
 

@@ -74,12 +74,19 @@ class CAhandler:
         # Input:
         #     csr - CSR in PKCS#10 format
 
-        # Output:
-        #     error - Error message during certificate enrollment (None if no error occurred)
-        #     cert_bundle - Certificate chain in PEM format
-        #     cert_raw - Certificate in ASN.1 (binary) format, base64 encoded
-        #     poll_identifier - Callback identifier to track enrollment requests when the CA server does not
-        #                       issue certificates immediately.
+        # Output (exactly one of the following outcomes):
+        #   1. Issued:
+        #        error=None, cert_bundle/cert_raw set, poll_identifier usually None
+        #   2. Pending (CA needs later polling / manual approval):
+        #        error=None, cert_bundle/cert_raw empty, poll_identifier REQUIRED
+        #   3. Failed:
+        #        error=set (non-empty), cert_bundle/cert_raw empty,
+        #        poll_identifier optional/None
+        #
+        # poll_identifier is NOT required on success or failure. It is only the
+        # async/pending handle used by ca_handler.poll() / a2c-cert-poll.
+        # Do not raise for expected enrollment failures — return them via error.
+        # Uncaught exceptions are treated as failures (error persisted, order invalid).
 
         self.logger.debug("Certificate.enroll()")
         ...

@@ -7,21 +7,33 @@
 
 See [acme2certifier in Docker](../examples/Docker/README.md).
 
-Images are Ubuntu **26.04**-based and install from a prebuilt `.deb`. Variants differ by web stack (`*-wsgi` vs `*-django`, apache2/nginx). Upgrading or rolling back tags: see [Upgrading — Docker WSGI vs Django](upgrading.md#docker-wsgi-vs-django-and-rollback).
+Images are Ubuntu **26.04**-based and install from a prebuilt `.deb`. Each webserver image (`apache2`, `nginx`) includes both WSGI and Django stacks; the DB backend is selected at runtime. Upgrading or rolling back: see [Upgrading — Docker WSGI vs Django](upgrading.md#docker-wsgi-vs-django-and-rollback).
+
+Security-disable options in `acme_srv.cfg` need `ACME2CERTIFIER_I_KNOW_THE_RISK` in the container environment — see [Security break-glass gate](security_gate.md).
 
 Security-disable options in `acme_srv.cfg` need `ACME2CERTIFIER_I_KNOW_THE_RISK` in the container environment — see [Security break-glass gate](security_gate.md).
 
 ## Image tag vs `[DBhandler] handler:`
 
-Docker images are tagged by web stack (`*-wsgi` vs `*-django`). Each image also sets `ACME_SRV_DB_HANDLER`. That can look like the same choice twice.
+One Dockerfile per webserver (`examples/Docker/{apache2,nginx}/Dockerfile`).
+
+## Hub tags
+
+| Tag | Meaning |
+| --- | --- |
+| `apache2` / `nginx` (and `VERSION-apache2` / `VERSION-nginx`) | Primary images (default handler `wsgi`). `latest` → `apache2`. |
+| `*-wsgi` | Same digest as the primary webserver tag (compat alias). |
+| `*-django` | Thin alias (`FROM` primary + `ENV ACME_SRV_DB_HANDLER=django`) so pull-and-run without cfg still boots Django. |
+
+For the time being we will still publish the legacy `*-wsgi` / `*-django` tags for compatibility reasons.
 
 They control different things:
 
-- **Image tag** — Apache/nginx and uWSGI/mod_wsgi wiring (how HTTP reaches Python).
-- **`[DBhandler] handler:`** — which database backend the ACME core uses (`wsgi` = SQLite file, `django` = Django ORM).
+- **Image tag (webserver)** — Apache vs nginx (how HTTP reaches Python).
+- **`[DBhandler] handler:` / `ACME_SRV_DB_HANDLER`** — which database backend the ACME core uses (`wsgi` = SQLite file, `django` = Django ORM). The entrypoint also retargets the web entry (Apache site conf or uWSGI module) and bootstrap for that handler.
 
-Precedence: `acme_srv.cfg` → `ACME_SRV_DB_HANDLER` → default `wsgi`. The entrypoint and `a2c-manage` read the resolved value (for example to bootstrap Django settings and migrations).
+Precedence: `acme_srv.cfg` → `ACME_SRV_DB_HANDLER` → default `wsgi`.
 
-**Today:** keep tag and `handler:` aligned. Changing only cfg does not switch the baked-in web entry. On a matching image you may omit `handler:` and rely on the image default.
+**Switching handlers** requires a container restart (Apache/uWSGI already loaded). WSGI → Django data migration remains a real migration ([Migrate WSGI to Django](migrate_wsgi_to_django.md)); consolidation only removes the image barrier.
 
-**Why cfg at all:** one setting works the same on pip, DEB, RPM, and Docker — the same surface as `handler_module` for CA handlers. The long-term goal is a single image where switching WSGI ↔ Django is a cfg and migration change, not a retag. Separate tags remain until that procedure is in place.
+**Django schema files:** migration modules ship in the image/package. The volume needs `settings.py` (and cfg/DB/CA material), not a local `migrations/` tree. Stale `volume/migrations` from older images is ignored — see [Upgrading — Docker (Django)](upgrading.md#docker-django).

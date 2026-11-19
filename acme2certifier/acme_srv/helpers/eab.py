@@ -311,7 +311,7 @@ def _eab_profile_entry_check(
     if key == "subject":
         return eab_profile_subject_check(logger, csr, value)
     if isinstance(value, bool):
-        if hasattr(cahandler, key):
+        if hasattr(cahandler, key) and not eab_profile_warn_if_denied(logger, key):
             logger.debug(
                 "Helper.eab_profile_entry_check(): setting attribute: %s to %s",
                 key,
@@ -386,7 +386,9 @@ def eab_profile_check(
     return result
 
 
-def _eab_profile_list_allowed_domainlist(logger, eab_handler, csr, value, cahandler=None):
+def _eab_profile_list_allowed_domainlist(
+    logger, eab_handler, csr, value, cahandler=None
+):
     """Validate CSR against an EAB allowed_domainlist profile value."""
     if "allowed_domains_check" in dir(eab_handler):
         logger.info("Execute allowed_domains_check() from eab handler")

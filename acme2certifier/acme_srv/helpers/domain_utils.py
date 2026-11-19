@@ -33,8 +33,11 @@ def wildcard_domain_check(
 
     result = False
     if domain.startswith("*."):
-        # Both input and pattern are wildcards. Check if input domain base includes the pattern
-        if encoded_domain.endswith(encoded_pattern_base):
+        # Both input and pattern are wildcards. Require exact base match or a label
+        # boundary so *.attackerexample.com does not match *.example.com.
+        if encoded_domain == encoded_pattern_base or encoded_domain.endswith(
+            b"." + encoded_pattern_base
+        ):
             result = True
     else:
         # Input is not a wildcard, pattern is. Check endswith. Add '.' to pattern base so it's not approving the base domain
@@ -244,9 +247,7 @@ def _san_allowed_by_domainlist(
         return False
     if is_shortname_denied(logger, san, shortname_denylist):
         return False
-    return shortname_covered_by_siblings(
-        logger, san, san_list, allowed_domain_list
-    )
+    return shortname_covered_by_siblings(logger, san, san_list, allowed_domain_list)
 
 
 def allowed_domainlist_check(
@@ -255,7 +256,7 @@ def allowed_domainlist_check(
     allowed_domain_list: List[str],
     allow_shortname_from_fqdn: bool = False,
     shortname_denylist: Optional[List[str]] = None,
-) -> str:
+) -> Optional[str]:
     """check if domain is in allowed domain list"""
     logger.debug(
         "Helper.allowed_domainlist_check(allow_shortname_from_fqdn=%s)",

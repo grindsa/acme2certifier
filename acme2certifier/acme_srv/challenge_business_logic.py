@@ -83,8 +83,22 @@ class ChallengeRepository(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
+    def update_challenge_if_status(
+        self, name: str, new_status: str, expected_status: str
+    ) -> bool:
+        """Conditionally update challenge status; True if a row changed."""
+        pass  # pragma: no cover
+
+    @abstractmethod
     def update_authorization_status(self, challenge_name: str, status: str) -> bool:
         """Update authorization status based on challenge."""
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def update_authorization_status_if(
+        self, challenge_name: str, status: str, expected_status: str
+    ) -> bool:
+        """Conditionally update authorization status; True if a row changed."""
         pass  # pragma: no cover
 
     @abstractmethod
@@ -97,6 +111,11 @@ class ChallengeRepository(ABC):
         """Get account name for an authorization."""
         pass  # pragma: no cover
 
+    @abstractmethod
+    def get_authorization_status(self, authorization_name: str) -> Optional[str]:
+        """Get current authorization status name."""
+        pass  # pragma: no cover
+
 
 class ChallengeStateManager:
     """Manages challenge state transitions and business rules."""
@@ -106,15 +125,14 @@ class ChallengeStateManager:
         self.logger = logger
 
     def transition_to_processing(self, challenge_name: str) -> bool:
-        """Transition challenge to processing state."""
+        """CAS transition challenge pending → processing."""
         self.logger.debug(
             "ChallengeStateManager.transition_to_processing(%s)", challenge_name
         )
 
-        update_request = ChallengeUpdateRequest(
-            name=challenge_name, status="processing"
+        result = self.repository.update_challenge_if_status(
+            challenge_name, "processing", "pending"
         )
-        result = self.repository.update_challenge(update_request)
         self.logger.debug(
             "ChallengeStateManager.transition_to_processing() updated challenge %s to processing/%s",
             challenge_name,
@@ -128,22 +146,45 @@ class ChallengeStateManager:
         source_address: Optional[str] = None,
         validated_timestamp: Optional[int] = None,
     ) -> bool:
-        """Transition challenge to valid state."""
+        """CAS transition challenge processing → valid; authz only if still pending."""
         self.logger.debug(
             "ChallengeStateManager.transition_to_valid(%s)", challenge_name
         )
 
-        update_request = ChallengeUpdateRequest(
-            name=challenge_name,
-            status="valid",
-            source=source_address,
-            validated=validated_timestamp,
+        success = self.repository.update_challenge_if_status(
+            challenge_name, "valid", "processing"
         )
+        if not success:
+            self.logger.warning(
+                "Challenge not processing; refusing valid transition for challenge=%s",
+                challenge_name,
+            )
+            return False
 
-        success = self.repository.update_challenge(update_request)
-        if success:
-            success = self.repository.update_authorization_status(
-                challenge_name, "valid"
+        if source_address is not None or validated_timestamp is not None:
+            self.repository.update_challenge(
+                ChallengeUpdateRequest(
+                    name=challenge_name,
+                    source=source_address,
+                    validated=validated_timestamp,
+                )
+            )
+
+        success = self.repository.update_authorization_status_if(
+            challenge_name, "valid", "pending"
+        )
+        if not success:
+            self.logger.warning(
+                "Authorization not pending; refusing valid transition for challenge=%s",
+                challenge_name,
+            )
+            self.repository.update_challenge(
+                ChallengeUpdateRequest(
+                    name=challenge_name,
+                    status="invalid",
+                    source=source_address,
+                    validation_error="authorization not pending",
+                )
             )
 
         self.logger.debug(
@@ -159,23 +200,31 @@ class ChallengeStateManager:
         source_address: Optional[str] = None,
         validation_error: Optional[str] = None,
     ) -> bool:
-        """Transition challenge to invalid state."""
+        """CAS transition challenge processing → invalid."""
         self.logger.debug(
             "ChallengeStateManager.transition_to_invalid(%s)", challenge_name
         )
 
-        update_request = ChallengeUpdateRequest(
-            name=challenge_name,
-            status="invalid",
-            source=source_address,
-            validation_error=validation_error,
+        success = self.repository.update_challenge_if_status(
+            challenge_name, "invalid", "processing"
         )
-
-        success = self.repository.update_challenge(update_request)
-        if success:
-            success = self.repository.update_authorization_status(
-                challenge_name, "invalid"
+        if not success:
+            self.logger.warning(
+                "Challenge not processing; refusing invalid transition for challenge=%s",
+                challenge_name,
             )
+            return False
+
+        if source_address is not None or validation_error is not None:
+            self.repository.update_challenge(
+                ChallengeUpdateRequest(
+                    name=challenge_name,
+                    source=source_address,
+                    validation_error=validation_error,
+                )
+            )
+
+        success = self.repository.update_authorization_status(challenge_name, "invalid")
 
         self.logger.warning(
             "Challenge state transition: challenge=%s status=invalid success=%s reason=%s",
