@@ -4,6 +4,12 @@
 
 This is a high-level summary of the most important changes. For a full list of changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits) and pick the appropriate release branch.
 
+## Changes in 0.48
+
+**New Features**:
+
+**Bug Fixes and Improvements**:
+
 ## Changes in 0.47
 
 **New Features**:
