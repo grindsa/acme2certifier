@@ -36,6 +36,8 @@ sync_paths:
   - README.md
   - CHANGES.md
   - SECURITY.md
+  - .github/workflows/quality-python.yml
+  - .github/workflows/quality-codescanner.yml
 
 # CA handlers kept on min lines (relative to acme2certifier/cahandlers/)
 keep_handlers:
@@ -65,7 +67,6 @@ strip_into_min:
   - .github/workflows/cahandler-nclm.yml
   - .github/workflows/publish-pypi.yml
   - .github/workflows/quality-error.yml
-  - .github/workflows/quality-python.yml
   - .github/workflows/deployment-rpm.yml
   - .github/workflows/deployment-wsgi2django.yml
   - .github/actions/wf_specific/wsgi2django/
@@ -106,6 +107,7 @@ strip_into_min:
   - test/test_xca_sqlite_dump.py
   - test/test_xipki_ca_handler.py
   - test/test_trigger.py
+  - test/test_docker_entrypoint_migrations.py
   - examples/Docker
   - examples/ejbca
   - examples/soap

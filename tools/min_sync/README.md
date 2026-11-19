@@ -10,6 +10,8 @@ Sync shared product code between **full** branches (`master`, `devel`) and
   only — no commit, no PR, no push).
 - **Never** promote `min-devel` → `min` (manual merge when you want an RPM).
 - `main-push-rpm.yml` stays min-owned; push-to-`min` RPM workflow is untouched.
+- Shared quality workflows (`quality-python.yml`, `quality-codescanner.yml`) are
+  listed in `sync_paths`; other `.github/` content is not synced unless listed.
 - Either side can be upstream for a given change.
 
 ## Usage
