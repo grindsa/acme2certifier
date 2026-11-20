@@ -8,6 +8,8 @@ This is a high-level summary of the most important changes. For a full list of c
 
 **New Features**:
 
+- Optional `[CAhandler] cert_chain_append_matching_only` (default `False`). When `True`, `cert_chain_append` is an ordered candidate list: a PEM is appended only when it certifies the current chain tail (full issuer/subject DN match and signature verification, the same check as `cert_chain_link_check`). Non-linking candidates are skipped and do not fail enrollment; malformed PEMs, the end-entity, and duplicates still do. Matching filters append candidates even when `cert_chain_link_check` is `False` (`cert_chain_skip_list` still runs first and still honors link check). Intended for a single handler that enrolls both RSA and ECDSA leaves when the upstream CA chooses the intermediate by leaf key type (e.g. Let's Encrypt YE* vs YR*) and only one of several local cross-certificates links. Same key from `[CAhandler:<name>]` and EAB kid-profile `cahandler` ([#419](https://github.com/grindsa/acme2certifier/issues/419), [#424](https://github.com/grindsa/acme2certifier/pull/424)). See [`docs/cert_chain.md`](docs/cert_chain.md).
+
 **Bug Fixes and Improvements**:
 
 ## Changes in 0.47
