@@ -985,7 +985,9 @@ class TestCertChain(unittest.TestCase):
     def test_077_matching_only_boolean_loading(self):
         """ConfigParser and profile dictionaries accept standard booleans."""
         self.assertEqual((None, False), self.load_matching_only(self.logger, None))
-        self.assertEqual((None, False), self.load_matching_only(self.logger, {"CAhandler": {}}))
+        self.assertEqual(
+            (None, False), self.load_matching_only(self.logger, {"CAhandler": {}})
+        )
         for value, expected in (
             ("True", True),
             ("yes", True),
@@ -1009,7 +1011,9 @@ class TestCertChain(unittest.TestCase):
         for value in (True, False):
             self.assertEqual(
                 (None, value),
-                self.load_matching_only(self.logger, {"CAhandler": {self.option: value}}),
+                self.load_matching_only(
+                    self.logger, {"CAhandler": {self.option: value}}
+                ),
             )
 
     def test_078_matching_only_binding_and_profile_overrides(self):
@@ -1076,6 +1080,7 @@ class TestCertChain(unittest.TestCase):
             )
         self.assertIsNone(error)
         self.assertEqual(BUNDLE, result)
+
 
 if __name__ == "__main__":
     unittest.main()
