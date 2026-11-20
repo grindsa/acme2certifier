@@ -562,6 +562,7 @@ def config_cert_chain_append_load(
 CERT_CHAIN_PROFILE_KEYS = (
     "cert_chain_skip_list",
     "cert_chain_append",
+    "cert_chain_append_matching_only",
     "cert_chain_link_check",
 )
 _CERT_CHAIN_BOOL_TRUE = {"1", "true", "yes", "on"}
@@ -612,6 +613,47 @@ def config_cert_chain_link_check_load(
     )
 
 
+def config_cert_chain_append_matching_only_load(
+    logger: logging.Logger,
+    config_dic: Any,
+    section: str = "CAhandler",
+) -> Tuple[Optional[str], bool]:
+    """Load the opt-in append filter; invalid values return an error."""
+    logger.debug("Helper.config_cert_chain_append_matching_only_load(%s)", section)
+    if not config_dic or section not in config_dic:
+        return None, False
+    if "cert_chain_append_matching_only" not in config_dic[section]:
+        return None, False
+
+    getboolean = getattr(config_dic, "getboolean", None)
+    if callable(getboolean) and not isinstance(config_dic, dict):
+        try:
+            return None, bool(
+                getboolean(section, "cert_chain_append_matching_only", fallback=False)
+            )
+        except Exception as err_:
+            logger.error("Failed to parse cert_chain_append_matching_only: %s", err_)
+            return (
+                f"{CONFIGURATION_ERROR_DETAIL}: Failed to parse cert_chain_append_matching_only",
+                False,
+            )
+
+    raw = config_dic[section]["cert_chain_append_matching_only"]
+    if isinstance(raw, bool):
+        return None, raw
+    if isinstance(raw, str):
+        low = raw.strip().lower()
+        if low in _CERT_CHAIN_BOOL_TRUE:
+            return None, True
+        if low in _CERT_CHAIN_BOOL_FALSE:
+            return None, False
+    logger.error("cert_chain_append_matching_only must be a boolean")
+    return (
+        f"{CONFIGURATION_ERROR_DETAIL}: cert_chain_append_matching_only must be a boolean",
+        False,
+    )
+
+
 def config_cert_chain_profile_load(
     logger: logging.Logger, key: str, value: Any
 ) -> Tuple[Optional[str], Any]:
@@ -625,6 +667,10 @@ def config_cert_chain_profile_load(
         return config_cert_chain_skip_list_load(logger, config_dic, "CAhandler")
     if key == "cert_chain_append":
         return config_cert_chain_append_load(logger, config_dic, "CAhandler")
+    if key == "cert_chain_append_matching_only":
+        return config_cert_chain_append_matching_only_load(
+            logger, config_dic, "CAhandler"
+        )
     if key == "cert_chain_link_check":
         return config_cert_chain_link_check_load(logger, config_dic, "CAhandler")
     logger.debug("Helper.config_cert_chain_profile_load() ended (unknown key)")

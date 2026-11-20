@@ -61,6 +61,20 @@ tools/make_test_cas.sh append      # writes test/new_ca new-root / cross PEMs
 
 The append mode prints `cert_chain_skip_list` / `cert_chain_append` snippets. Defaults: source `test/ca`, output `test/new_ca`. Cross-signing the old root uses `openssl ca -ss_cert` (subject + SPKI from the cert).
 
+## `cert_chain_append_matching_only`
+
+Default `False` attempts to append all configured certificates, subject to `cert_chain_link_check`. Set to `True` to skip append candidates that do not certify the current last certificate (issuer name and signature). Candidates are processed individually in configured order, including certificates within a PEM file. Each accepted certificate becomes the last certificate for the next check. Skipped candidates are not retried; if none match, the chain is unchanged.
+
+This permits a shared list of RSA and ECC cross-signed roots, after removing the original self-signed roots with `cert_chain_skip_list`:
+
+```config
+[CAhandler]
+cert_chain_append: ["/var/www/acme2certifier/volume/rsa-cross.pem", "/var/www/acme2certifier/volume/ecc-cross.pem"]
+cert_chain_append_matching_only: True
+```
+
+Filtering applies even when `cert_chain_link_check` is `False`. Unreadable or malformed certificates, end-entity certificates, and certificates already in the chain remain errors; leaf and duplicate checks run before filtering.
+
 ## `cert_chain_link_check`
 
 Default `True`: a rewritten chain where a certificate does not certify the previous one fails enrollment. This applies after skip (remaining links) and after append (join and appended certs). Set to `False` to keep the bundle anyway (unlinked extra CA, or a skip that leaves a hole). A warning is logged for each broken link.
@@ -77,6 +91,6 @@ In [multi-handler](multi_cahandler.md) mode put these options on the named secti
 
 ## EAB-profile overrides
 
-When [EAB profiling](eab_profiling.md) is enabled, a kid profile may set `cert_chain_skip_list`, `cert_chain_append`, and `cert_chain_link_check` in the `cahandler` block. Keys present in the profile replace the bound `acme_srv.cfg` values for that account (including an empty list). Omitted keys keep the bound values.
+When [EAB profiling](eab_profiling.md) is enabled, a kid profile may set `cert_chain_skip_list`, `cert_chain_append`, `cert_chain_append_matching_only`, and `cert_chain_link_check` in the `cahandler` block. Keys present in the profile replace the bound `acme_srv.cfg` values for that account (including an empty list). Omitted keys keep the bound values.
 
 These keys are not setattr'd onto the CA handler. Skip-list fingerprints are parsed the same way as config; append paths are read when the profile is applied. `eab_profiling` must be on. Invalid overlay fails enrollment (fail closed).

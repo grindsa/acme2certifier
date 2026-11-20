@@ -1021,5 +1021,170 @@ class TestCertCertifies(unittest.TestCase):
         self.assertFalse(self.certifies(issuer, self._subject_for(issuer)))
 
 
+class TestAppendMatchingOnly(unittest.TestCase):
+    """Opt-in filtering preserves only valid append links."""
+
+    def setUp(self):
+        from acme2certifier.acme_srv.helpers.certificates import cert_chain_append
+        from acme2certifier.acme_srv.helpers.cahandler_registry import BoundCAHandler
+        from acme2certifier.acme_srv.helpers.config import (
+            config_cert_chain_append_matching_only_load,
+        )
+
+        self.append = cert_chain_append
+        self.bind = BoundCAHandler
+        self.load = config_cert_chain_append_matching_only_load
+        self.logger = logging.getLogger("test_a2c")
+        self.option = "cert_chain_append_matching_only"
+
+    def test_001_mixed_roots(self):
+        """The same ordered candidates work for RSA and ECC chains."""
+        rsa_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        rsa_root = _issue_cert("rsa-root", rsa_key, _NEW_ROOT_NAME, _NEW_ROOT_KEY, True)
+        rsa_leaf = _issue_cert("rsa-leaf", _LEAF_KEY, rsa_root.subject, rsa_key, False)
+        ecc_root = _issue_cert(
+            "old-root", _ROOT_KEY, _NEW_ROOT_NAME, _NEW_ROOT_KEY, True
+        )
+        for roots in ((rsa_root, ecc_root), (ecc_root, rsa_root)):
+            for original, matching in (
+                (_pem(rsa_leaf), rsa_root),
+                (_pem(CERT_LEAF, CERT_ICA), ecc_root),
+            ):
+                with self.subTest(roots=roots, matching=matching):
+                    error, result = self.append(
+                        self.logger,
+                        original,
+                        [_pem(c) for c in roots] + [_pem(CERT_NEW_ROOT)],
+                        matching_only=True,
+                    )
+                    self.assertIsNone(error)
+                    self.assertEqual(original + _pem(matching, CERT_NEW_ROOT), result)
+
+    def test_002_signature_and_all_skipped(self):
+        """Matching names alone cannot pass the filter, even with link checks off."""
+        wrong_key_root = _issue_cert(
+            "old-root", _OTHER_KEY, _OTHER_NAME, _OTHER_KEY, True
+        )
+        original = _pem(CERT_LEAF, CERT_ICA)
+        for link_check in (True, False):
+            error, result = self.append(
+                self.logger,
+                original,
+                [_pem(CERT_OTHER), _pem(wrong_key_root)],
+                matching_only=True,
+                link_check=link_check,
+            )
+            self.assertIsNone(error)
+            self.assertEqual(original, result)
+
+    def test_003_invalid_entries_still_fail(self):
+        """Filtering does not suppress parse, leaf, or duplicate errors."""
+        for candidate in ("invalid PEM", _pem(CERT_LEAF), _pem(CERT_ICA)):
+            with self.subTest(candidate=candidate):
+                error, result = self.append(
+                    self.logger,
+                    _pem(CERT_LEAF, CERT_ICA),
+                    [candidate],
+                    matching_only=True,
+                )
+                self.assertIsNotNone(error)
+                self.assertIsNone(result)
+
+    def test_004_boolean_loading(self):
+        """ConfigParser and profile dictionaries accept standard booleans."""
+        self.assertEqual((None, False), self.load(self.logger, None))
+        self.assertEqual((None, False), self.load(self.logger, {"CAhandler": {}}))
+        for value, expected in (
+            ("True", True),
+            ("yes", True),
+            ("1", True),
+            ("on", True),
+            ("False", False),
+            ("no", False),
+            ("0", False),
+            ("off", False),
+            ("invalid", None),
+        ):
+            parser = configparser.ConfigParser()
+            parser["CAhandler"] = {self.option: value}
+            for config in (parser, {"CAhandler": {self.option: value}}):
+                error, actual = self.load(self.logger, config)
+                if expected is None:
+                    self.assertIsNotNone(error)
+                else:
+                    self.assertIsNone(error)
+                    self.assertEqual(expected, actual)
+        for value in (True, False):
+            self.assertEqual(
+                (None, value),
+                self.load(self.logger, {"CAhandler": {self.option: value}}),
+            )
+
+    def test_005_binding_and_profile_overrides(self):
+        """Named sections, registry binding and EAB preserve the option."""
+        from acme2certifier.acme_srv.helpers.cahandler_registry import CAHandlerRegistry
+
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {self.option: "False"}
+        parser["CAhandler:named"] = {self.option: "True"}
+        bound = self.bind.from_config(
+            self.logger, object, "CAhandler:named", "named", parser
+        )
+        self.assertTrue(bound.cert_chain_append_matching_only)
+        self.assertFalse(
+            self.bind.from_config(
+                self.logger, object, "CAhandler", "default", parser
+            ).cert_chain_append_matching_only
+        )
+        registry = object.__new__(CAHandlerRegistry)
+        registry.logger = self.logger
+        registry.handlers = {
+            "named": {
+                "module": MagicMock(CAhandler=object),
+                "config_section": "CAhandler:named",
+                self.option: True,
+            }
+        }
+        self.assertTrue(registry._bind("named").cert_chain_append_matching_only)
+        for profile, expected in (
+            ({"cert_chain_append": []}, True),
+            ({self.option: False}, False),
+            ({self.option: True}, True),
+        ):
+            error, overlay = bound.eab_chain_overlay(self.logger, profile)
+            self.assertIsNone(error)
+            self.assertEqual(expected, overlay.cert_chain_append_matching_only)
+            self.assertTrue(bound.cert_chain_append_matching_only)
+        error, _ = bound.eab_chain_overlay(self.logger, {self.option: "bad"})
+        self.assertIsNotNone(error)
+        parser["CAhandler"][self.option] = "bad"
+        invalid = self.bind.from_config(
+            self.logger, object, "CAhandler", "default", parser
+        )
+        error, result = invalid.cert_chain_rewrite(self.logger, BUNDLE)
+        self.assertIsNotNone(error)
+        self.assertIsNone(result)
+
+    def test_006_multi_pem_file_rewrite(self):
+        """Filter individual certificates loaded from one append file."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "candidates.pem")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(_pem(CERT_OTHER, CERT_ROOT))
+            parser = configparser.ConfigParser()
+            parser["CAhandler"] = {
+                self.option: "True",
+                "cert_chain_append": json.dumps([path]),
+            }
+            bound = self.bind.from_config(
+                self.logger, object, "CAhandler", "default", parser
+            )
+            error, result = bound.cert_chain_rewrite(
+                self.logger, _pem(CERT_LEAF, CERT_ICA)
+            )
+        self.assertIsNone(error)
+        self.assertEqual(BUNDLE, result)
+
+
 if __name__ == "__main__":
     unittest.main()
