@@ -180,6 +180,54 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
+      - name: "Configure matching candidates (matching_only off)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          LAYOUT: matching
+
+      - name: "Restart a2c container"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Matching append without matching_only - enrollment (expect fail)"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: matching
+          EXPECT: fail
+          DEPLOYMENT_TYPE: container
+          CA_PATH: examples/Docker/data/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Configure matching candidates (matching_only True)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          LAYOUT: matching
+          MATCHING_ONLY: "true"
+
+      - name: "Restart a2c container"
+        run: |
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Matching append matching_only True - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: matching
+          DEPLOYMENT_TYPE: container
+          CA_PATH: examples/Docker/data/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Setup openssl ca_handler with eab-profiling"
         uses: ./.github/actions/wf_specific/cert_chain/setup_eabprofile
         with:
@@ -330,6 +378,54 @@ jobs:
         with:
           LAYOUT: unlinked
           ASSERT_WARNING: "true"
+          DEPLOYMENT_TYPE: rpm
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Configure matching candidates (matching_only off)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: matching
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Matching append without matching_only - enrollment (expect fail)"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: matching
+          EXPECT: fail
+          DEPLOYMENT_TYPE: rpm
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Configure matching candidates (matching_only True)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: matching
+          MATCHING_ONLY: "true"
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+        env:
+          MODE: ${{ matrix.mode }}
+
+      - name: "Matching append matching_only True - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: matching
           DEPLOYMENT_TYPE: rpm
           CA_PATH: data/volume/acme_ca
 
@@ -503,6 +599,62 @@ jobs:
         with:
           LAYOUT: unlinked
           ASSERT_WARNING: "true"
+          DEPLOYMENT_TYPE: deb
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Configure matching candidates (matching_only off)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: matching
+          APPEND_PREFIX: /var/www/acme2certifier/volume/acme_ca
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Matching append without matching_only - enrollment (expect fail)"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: matching
+          EXPECT: fail
+          DEPLOYMENT_TYPE: deb
+          CA_PATH: data/volume/acme_ca
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Configure matching candidates (matching_only True)"
+        uses: ./.github/actions/wf_specific/cert_chain/configure
+        with:
+          LAYOUT: matching
+          MATCHING_ONLY: "true"
+          APPEND_PREFIX: /var/www/acme2certifier/volume/acme_ca
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          MODE: ${{ matrix.mode }}
+
+      - name: "Matching append matching_only True - enrollment"
+        uses: ./.github/actions/wf_specific/cert_chain/enroll
+        with:
+          LAYOUT: matching
           DEPLOYMENT_TYPE: deb
           CA_PATH: data/volume/acme_ca
 
