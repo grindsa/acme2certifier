@@ -8,13 +8,16 @@ This is a high-level summary of the most important changes. For a full list of c
 
 **New Features**:
 
-- Optional `[CAhandler] cert_chain_append_matching_only` (default `False`). When `True`, `cert_chain_append` is an ordered candidate list: a PEM is appended only when it certifies the current chain tail (full issuer/subject DN match and signature verification, the same check as `cert_chain_link_check`). Non-linking candidates are skipped and do not fail enrollment. See [`docs/cert_chain.md`](docs/cert_chain.md) and ([#419](https://github.com/grindsa/acme2certifier/issues/419), [#424](https://github.com/grindsa/acme2certifier/pull/424) for further information.
+- Optional `[CAhandler] cert_chain_append_matching_only` (default `False`). When `True`, `cert_chain_append` is an ordered candidate list: a PEM is appended only when it certifies the current chain tail (full issuer/subject DN match and signature verification, the same check as `cert_chain_link_check`). Non-linking candidates are skipped and do not fail enrollment. Contributed by Doug Hoffman ([doug-hoffman](https://github.com/doug-hoffman)). See [`docs/cert_chain.md`](docs/cert_chain.md), [#419](https://github.com/grindsa/acme2certifier/issues/419), and [#424](https://github.com/grindsa/acme2certifier/pull/424).
 
 **Bug Fixes and Improvements**:
 
-- Security: a CSR with more than one subject Common Name, or with a subject that cannot be parsed, is rejected at finalize (`badCSR`) in strict mode, legacy mode, and for TNAuthList orders
-- Security: EAB subject profiles check every value of a repeated subject attribute.
-- Security: a leading `*.` on domain allow/block lists is matched as a DNS wildcard
+- below fixes addressing issues reported by Ahmed Mohamed Sabri ([Amsamms](https://github.com/Amsamms))
+
+  - Security: a CSR with more than one subject Common Name, or with a subject that cannot be parsed, is rejected at finalize (`badCSR`) in strict mode, legacy mode, and for TNAuthList orders
+  - Security: EAB subject profiles check every value of a repeated subject attribute.
+  - Security: a leading `*.` on domain allow/block lists is matched as a DNS wildcard
+
 
 ## Changes in 0.47
 
@@ -53,7 +56,7 @@ This is a high-level summary of the most important changes. For a full list of c
 
 **Bug Fixes and Improvements**:
 
-- Security: wildcard-vs-wildcard domain matching in allow/prevalidation lists now requires a DNS label boundary, so `*.example.com` no longer matches `*.evilexample.com` ([GHSA-4g95-ff7v-34mr](https://github.com/grindsa/acme2certifier/security/advisories/GHSA-4g95-ff7v-34mr))
+- Security: wildcard-vs-wildcard domain matching in allow/prevalidation lists now requires a DNS label boundary, so `*.example.com` no longer matches `*.evilexample.com` ([GHSA-4g95-ff7v-34mr](https://github.com/grindsa/acme2certifier/security/advisories/GHSA-4g95-ff7v-34mr)). Reported by [orshih6](https://github.com/orshih6).
 
 ## Changes in 0.46.4
 
