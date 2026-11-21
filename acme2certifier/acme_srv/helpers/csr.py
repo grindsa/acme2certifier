@@ -79,6 +79,28 @@ def csr_cn_get(logger: logging.Logger, csr_pem: str) -> str:
     return common_name
 
 
+def csr_extra_cn_get(logger: logging.Logger, csr: str) -> List[str]:
+    """Subject Common Names of a CSR beyond the first one.
+
+    csr_cn_get() returns the first CN only, and binding, allow-lists and
+    handler routing rely on it. Any further CN would pass them unchecked and
+    reach every CA handler that forwards the CSR as it is.
+    Raises if the CSR or its subject cannot be parsed.
+    """
+    logger.debug("Helper.csr_extra_cn_get()")
+
+    csr_obj = csr_load(logger, csr)
+    cn_list = [
+        attribute.value
+        for attribute in csr_obj.subject
+        if attribute.oid == x509.NameOID.COMMON_NAME
+    ]
+    extra_cn_list = cn_list[1:]
+
+    logger.debug("Helper.csr_extra_cn_get() ended with: %s", extra_cn_list)
+    return extra_cn_list
+
+
 def csr_subject_cn_only(subject: x509.Name) -> x509.Name:
     """Return a Name with at most the first Common Name from CSR subject.
 

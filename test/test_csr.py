@@ -16,6 +16,7 @@ from acme2certifier.acme_srv.helpers.csr import (
     csr_bound_names_get,
     csr_cn_get,
     csr_cn_lookup,
+    csr_extra_cn_get,
     csr_subject_cn_only,
     csr_dn_get,
     csr_extensions_get,
@@ -615,3 +616,100 @@ def test_668_csr_subject_cn_only_drops_ou_and_extra_cn() -> None:
         )
         == []
     )
+
+
+def test_669_csr_extra_cn_get_reports_second_cn(logger: logging.Logger) -> None:
+    """csr_extra_cn_get lists every subject CN that csr_cn_get does not return"""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    csr_obj = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(
+            x509.Name(
+                [
+                    x509.NameAttribute(NameOID.COMMON_NAME, "ok.example"),
+                    x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Org"),
+                    x509.NameAttribute(NameOID.COMMON_NAME, "second.example"),
+                    x509.NameAttribute(NameOID.COMMON_NAME, "third.example"),
+                ]
+            )
+        )
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("ok.example")]),
+            critical=False,
+        )
+        .sign(key, hashes.SHA256())
+    )
+    csr = base64.b64encode(csr_obj.public_bytes(serialization.Encoding.DER)).decode()
+    assert "ok.example" == csr_cn_get(logger, csr)
+    assert ["second.example", "third.example"] == csr_extra_cn_get(logger, csr)
+    # the binding helper reads the first CN only, hence the separate check
+    assert {("dns", "ok.example")} == csr_bound_names_get(logger, csr)
+
+
+def test_670_csr_extra_cn_get_empty_for_single_or_no_cn(
+    logger: logging.Logger,
+) -> None:
+    """csr_extra_cn_get is empty for a CSR with one CN or without a CN"""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    csr = "MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDMwfxxbCCTsZY8mTFZkoQ5cAJyQZLUiz34sDDRvEpI9ZzdNNm2AEZR7AgKNuBkLwzUzY5iQ182huNzYJYZZEvYX++ocF2ngapTMQgfB+bWS5bpWIdjnAcz1/86jmJgTciwL25dSnEWL17Yn3pAWweoewr730rq/PMyIbviQrasksnSo7abe2mctxkHjHb5sZ+Z1yRTN6ir/bObXmxr+vHeeD2vLRv4Hd5XaA1d+k31J2FVMnrn5OpWbxGHo49zd0xdy2mgTdZ9UraLaQnyGlkjYzV0rqHIAIm8HOUjGN5U75/rlOPF0x62FCICZU/z1AgRvugaA5eO8zTSQJiMiBe3AgMBAAGgOTA3BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEANAXOIkv0CovmdzyoAv1dsiK0TK2XHBdBTEPFDsrT7MnrIXOFS4FnDrg8zpn7QBzBRTl3HaKN8fnpIHkA/6ZRDqaEJq0AeskjxIg9LKDBBx5TEdgPh1CwruRWLlXtrqU7XXQmk0wLIo/kfaDRcTjyJ3yHTEK06mCAaws0sTKlTw2D4pIiDRp8zbLHeSEUX5UKOSGbLSSUY/F2XwgPB8nC2BCD/gkvHRR+dMQSdOCiS9GLwZdYAAyESw6WhmGPjmVbeTRgSt/9//yx3JKQgkFYmpSMLKR2G525M+l1qfku/4b0iMOa4vQjFRj5AXZH0SBpAKtvnFxUpP6P9mTE7+akOQ=="
+    assert [] == csr_extra_cn_get(logger, csr)
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    csr_obj = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(x509.Name([]))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("ok.example")]),
+            critical=False,
+        )
+        .sign(key, hashes.SHA256())
+    )
+    csr_no_cn = base64.b64encode(
+        csr_obj.public_bytes(serialization.Encoding.DER)
+    ).decode()
+    assert [] == csr_extra_cn_get(logger, csr_no_cn)
+
+
+def test_671_csr_extra_cn_get_multi_valued_rdn(logger: logging.Logger) -> None:
+    """csr_extra_cn_get sees a second CN hidden in a multi-valued RDN"""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    csr_obj = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(
+            x509.Name(
+                [
+                    x509.RelativeDistinguishedName(
+                        [
+                            x509.NameAttribute(NameOID.COMMON_NAME, "ok.example"),
+                            x509.NameAttribute(NameOID.COMMON_NAME, "second.example"),
+                        ]
+                    )
+                ]
+            )
+        )
+        .sign(key, hashes.SHA256())
+    )
+    csr = base64.b64encode(csr_obj.public_bytes(serialization.Encoding.DER)).decode()
+    assert 1 == len(csr_extra_cn_get(logger, csr))
+
+
+def test_672_csr_extra_cn_get_raises_on_unparseable_input(
+    logger: logging.Logger,
+) -> None:
+    """csr_extra_cn_get does not hide parse errors (callers must fail closed)"""
+    for csr in ("not-a-csr", "", None):
+        with pytest.raises(Exception):
+            csr_extra_cn_get(logger, csr)
