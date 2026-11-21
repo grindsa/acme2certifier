@@ -331,24 +331,24 @@ def csr_extensions_get(logger: logging.Logger, csr: str) -> List[str]:
     return extension_list
 
 
-def csr_subject_get(logger: logging.Logger, csr: str) -> Dict[str, str]:
-    """get subject from csr as a list of tuples"""
+def csr_subject_get(logger: logging.Logger, csr: str) -> Dict[str, List[str]]:
+    """Return every subject attribute value, keyed by RFC 4514 attribute name.
+    Repeated attributes are all kept, in subject order.
+    """
     logger.debug("Helper.csr_subject_get()")
     # pylint: disable=w0212
 
     # extend OID library from cryptography module
-    OID_NAME_MAP = {
+    oid_name_map = {
         "2.5.4.97": "organizationIdentifier",
     }
 
     csr_obj = csr_load(logger, csr)
-    subject_dic = {}
-    # get subject and look for common name
-    subject = csr_obj.subject
-    for attr in subject:
+    subject_dic: Dict[str, List[str]] = {}
+    for attr in csr_obj.subject:
         # use mapping table as primiary source, otherwise oid names from library
-        name = OID_NAME_MAP.get(attr.oid.dotted_string, attr.oid._name)
-        subject_dic[name] = attr.value
+        name = oid_name_map.get(attr.oid.dotted_string, attr.oid._name)
+        subject_dic.setdefault(name, []).append(attr.value)
 
     logger.debug("Helper.csr_subject_get() ended")
     return subject_dic
