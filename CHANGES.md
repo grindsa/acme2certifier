@@ -4,6 +4,16 @@
 
 This is a high-level summary of the most important changes. For a full list of changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits) and pick the appropriate release branch.
 
+## Changes in 0.47.1
+
+**New Features**:
+
+- Optional `[CAhandler] cert_chain_append_matching_only` (default `False`). When `True`, `cert_chain_append` is an ordered candidate list: a PEM is appended only when it certifies the current chain tail (full issuer/subject DN match and signature verification, the same check as `cert_chain_link_check`). Non-linking candidates are skipped and do not fail enrollment. See [`docs/cert_chain.md`](docs/cert_chain.md) and ([#419](https://github.com/grindsa/acme2certifier/issues/419), [#424](https://github.com/grindsa/acme2certifier/pull/424) for further information.
+
+**Bug Fixes and Improvements**:
+
+- Security: a CSR with more than one subject Common Name, or with a subject that cannot be parsed, is rejected at finalize (`badCSR`) in strict mode, legacy mode, and for TNAuthList orders
+
 ## Changes in 0.47
 
 **New Features**:
