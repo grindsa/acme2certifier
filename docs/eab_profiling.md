@@ -184,6 +184,8 @@ Attribute names must follow [RFC3039](https://www.rfc-editor.org/rfc/rfc3039.htm
 - list - attribute in CSR DN must match one of the list entries
 - "\*" - any value matches as long as the attribute is present
 
+A repeated attribute is checked value by value. Every value must match that whitelist entry, so `O=Other Org, O=Allowed Org` does not pass a profile that allows only `Allowed Org`. `OU=acme1, OU=acme2` passes when both values are allowed.
+
 The below example configuration will only allow CSR matching the following criteria:
 
 - serial number can be of any value but must be included

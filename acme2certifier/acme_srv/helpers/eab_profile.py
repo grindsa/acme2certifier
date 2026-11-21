@@ -7,7 +7,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .csr import csr_cn_get
-from .domain_utils import sancheck_lists_create
+from .domain_utils import is_domain_whitelisted, sancheck_lists_create
 
 ProfileResult = Union[str, bool]
 
@@ -35,13 +35,21 @@ def cn_add(logger: logging.Logger, csr: str, san_list: List[str]) -> List[str]:
 
 
 def list_regex_check(logger: logging.Logger, entry: str, list_: List[str]) -> bool:
-    """Return True if entry matches any regex in list_."""
+    """Return True if entry matches any pattern in list_.
+
+    A leading ``*.`` is a DNS wildcard and is checked with
+    :func:`is_domain_whitelisted`. Every other entry stays a Python regular
+    expression.
+    """
     logger.debug("EABhandler._list_regex_check()")
     check_result = False
-    for regex in list_:
-        if regex.startswith("*."):
-            regex = regex.replace("*.", ".")
-        regex_compiled = re.compile(regex)
+    for pattern in list_:
+        if pattern.startswith("*."):
+            if is_domain_whitelisted(logger, entry, [pattern]):
+                check_result = True
+                break
+            continue
+        regex_compiled = re.compile(pattern)
         if bool(regex_compiled.search(entry)):
             check_result = True
             break
