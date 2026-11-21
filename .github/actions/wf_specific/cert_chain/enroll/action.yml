@@ -112,12 +112,21 @@ runs:
       with:
         time: 10s
 
+    # matching append lists new-root twice; without matching_only the
+    # duplicate is rejected before link-check can run.
     - name: "Assert link-check failure in logs"
-      if: ${{ inputs.EXPECT == 'fail' }}
+      if: ${{ inputs.EXPECT == 'fail' && inputs.LAYOUT != 'matching' }}
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         PATTERN: "certificate does not certify the previous one"
+
+    - name: "Assert duplicate-append failure in logs"
+      if: ${{ inputs.EXPECT == 'fail' && inputs.LAYOUT == 'matching' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "already in the chain"
 
     - name: "Assert rewritten chain"
       if: ${{ inputs.EXPECT == 'success' }}
