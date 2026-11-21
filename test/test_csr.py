@@ -392,11 +392,11 @@ class TestCsr:
         """test csr_subject_get()"""
         csr = "MIICwDCCAagCAQAwVDESMBAGA1UEAwwJbGVnby5hY21lMQ0wCwYDVQQKDARhY21lMQwwCgYDVQQLDANmb28xCzAJBgNVBAYTAlVTMRQwEgYDVQQFEwswMC0xMS0yMi0zMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM5AKMmB3o8LLEEGuHo0Ipl4K8z9m3EyM9teSVocQz39DK8s2dKpx8MrsVkTg6M3fuL4yPlim8v0+unPtB18dFeThkijHetxL5x08pVvMVwa7Cjk/22e5IRgBGSQYCO6KCUsNh2vhH93r7x71wlTV3sYe2t0HaEdGqBxdct76J9kyeCY06Br+4PMR7afRvHv4vFH6Y2+hSD4oOd5cSTZXnNWcWRbjNFY7aytzl4JpJiEK0ealDMSf/ZP0n8Sdx1vCx8amaozrLg5z3eLULiAUUgCtqOWOgNLQFNSqjyhZmMTZGGJcTgb43KAKWsO3bfM6rvNTZRbrM7dAsg/bQsK6mMCAwEAAaAnMCUGCSqGSIb3DQEJDjEYMBYwFAYDVR0RBA0wC4IJbGVnby5hY21lMA0GCSqGSIb3DQEBCwUAA4IBAQA19j8Lge9Vqxc/hvWYcU1Kx3KBx5TN97PK0wQFPIIWX20/JRoodzfrMSqO0EgZWB+czoRi8G+2ezbK13sV02dKovo8ISoSvgSZtt53UKBz+JmQd7Q7G1vONZ7d2PT0nTUN4fTA5YQs5nys3O8/2oOxJiJO6IyhmpiVqUbrlU6Harb4MfjNTb+teSQRSCOAX/8U9TdPwuAi6rXdWjXAUxBDQySWkW/B3pd77Ztt5nDFP2DT+7f7mAoWG4+XY6iXcXs1GsDA4XRTx2rCvhQtQomVGAKFwd8aTpHL/ZwNt1GOw6oMZkKKf+axVA1pvAYGhey/4x3uwKf654VB3e2iOCea"
         result_dic = {
-            "commonName": "lego.acme",
-            "organizationName": "acme",
-            "organizationalUnitName": "foo",
-            "countryName": "US",
-            "serialNumber": "00-11-22-33",
+            "commonName": ["lego.acme"],
+            "organizationName": ["acme"],
+            "organizationalUnitName": ["foo"],
+            "countryName": ["US"],
+            "serialNumber": ["00-11-22-33"],
         }
         assert result_dic == csr_subject_get(logger, csr)
 
@@ -404,10 +404,10 @@ class TestCsr:
         """test csr_subject_get()"""
         csr = "MIICtjCCAZ4CAQAwQjELMAkGA1UEBhMCREUxDjAMBgNVBAoMBXRlc3RPMQ8wDQYDVQQLDAZ0ZXN0T1UxEjAQBgNVBGEMCTEyMzQ1NjctODCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALs0a3qYQOIkpuRa34QEb+j9PzkMC8eA8bT9icRnpd1DO5LyQjc0OreV8ed3YeV1IVtcf1qX4AYKdIb1X1qa1pFkcneFZsX6B1i/ofRqEXrsN243V4LTjHFwIqwIecFX/Ml9rhCV+/tRTBrl3XIyI2xhZ4qtxIWkavmrvhNy4gY0YBjw4D67NzDJ9gm9Nx8VFzGZxXP0MgOtLOJ7BMCcqJmBwdItaotFCCkQfXC6S+n9sLP3GYrgyShaXMAebYmkNPZ4YJ0H28VfBGcWF2hpmSBgZ15Bj5P3PNYAnAocCUkwcifk3CZoJwcmC1Fm2mC8zOAEQ+GA/KqM6RHmMMKHexECAwEAAaAvMC0GCSqGSIb3DQEJDjEgMB4wHAYDVR0RBBUwE4IRYWNtZS1jbGllbnQubG9jYWwwDQYJKoZIhvcNAQELBQADggEBAB6HE9CMFKvyM4kwmKKeAoXzLhILTWmjDgI1+wBEq781CqXS3/rhTRYxFCjaU4WUFSHFUOo4+qlehwQzFRBLwEdgIylKXVT7etuto9lHU7xpf+wRth3c/PF/DsibC3S+fzlA7UBgxvhO0FbuqnV4pUUp/Y/jsaB4+IWhnwySh+378A98VkLU/1muSaM5AS9rboYyFPtevWzeSZJtz7CLAK2zWJ95ApOIBXHQdm6wsgJzwTTW1apXofNTX5AM6L0TPdieiPKUHPpH2AJZjzCVX9NuhDhLL5klzYwIrvcD2bxGy+xNWAYxXyLhPkGG8F954FAFa66sqiQBlmU92ndtG3Q="
         result_dic = {
-            "organizationIdentifier": "1234567-8",
-            "organizationName": "testO",
-            "organizationalUnitName": "testOU",
-            "countryName": "DE",
+            "organizationIdentifier": ["1234567-8"],
+            "organizationName": ["testO"],
+            "organizationalUnitName": ["testOU"],
+            "countryName": ["DE"],
         }
         assert result_dic == csr_subject_get(logger, csr)
 
@@ -730,3 +730,34 @@ class TestCsr:
         for csr in ("not-a-csr", "", None):
             with pytest.raises(Exception):
                 csr_extra_cn_get(logger, csr)
+
+    def test_047_csr_subject_get_keeps_repeated_organization(
+        self, logger: logging.Logger
+    ) -> None:
+        """csr_subject_get keeps every value of a repeated attribute"""
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        csr_obj = (
+            x509.CertificateSigningRequestBuilder()
+            .subject_name(
+                x509.Name(
+                    [
+                        x509.NameAttribute(NameOID.COMMON_NAME, "ok.example.com"),
+                        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Other Org"),
+                        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Allowed Org"),
+                    ]
+                )
+            )
+            .sign(key, hashes.SHA256())
+        )
+        csr = base64.b64encode(
+            csr_obj.public_bytes(serialization.Encoding.DER)
+        ).decode()
+        assert csr_subject_get(logger, csr)["organizationName"] == [
+            "Other Org",
+            "Allowed Org",
+        ]

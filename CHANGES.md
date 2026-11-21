@@ -13,6 +13,7 @@ This is a high-level summary of the most important changes. For a full list of c
 **Bug Fixes and Improvements**:
 
 - Security: a CSR with more than one subject Common Name, or with a subject that cannot be parsed, is rejected at finalize (`badCSR`) in strict mode, legacy mode, and for TNAuthList orders
+- Security: EAB subject profiles check every value of a repeated subject attribute.
 
 ## Changes in 0.47
 

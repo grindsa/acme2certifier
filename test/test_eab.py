@@ -1036,3 +1036,62 @@ def test_698_eab_profile_check_cert_chain_append_missing_file(
         "Configuration error: Failed to read cert_chain_append file"
     )
     assert not hasattr(cahandler, "cert_chain_append")
+
+
+def _subject_csr_b64(attributes: list) -> str:
+    """Base64 DER CSR whose subject is exactly the given name attributes."""
+    import base64
+
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    csr_obj = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(x509.Name(attributes))
+        .sign(key, hashes.SHA256())
+    )
+    return base64.b64encode(csr_obj.public_bytes(serialization.Encoding.DER)).decode()
+
+
+def test_699_eab_subject_repeated_org_rejects_unlisted_value(
+    logger: logging.Logger,
+) -> None:
+    """O=Other Org, O=Allowed Org fails a profile that allows only Allowed Org"""
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+
+    csr = _subject_csr_b64(
+        [
+            x509.NameAttribute(NameOID.COMMON_NAME, "ok.example.com"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Other Org"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Allowed Org"),
+        ]
+    )
+    error = eab_profile_subject_check(logger, csr, {"organizationName": "Allowed Org"})
+    assert error == "Profile subject check failed for organizationName"
+
+
+def test_700_eab_subject_repeated_ou_allows_each_listed_value(
+    logger: logging.Logger,
+) -> None:
+    """OU=acme1, OU=acme2 passes when both values are on the whitelist"""
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+
+    csr = _subject_csr_b64(
+        [
+            x509.NameAttribute(NameOID.COMMON_NAME, "ok.example.com"),
+            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "acme1"),
+            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "acme2"),
+        ]
+    )
+    assert (
+        eab_profile_subject_check(
+            logger,
+            csr,
+            {"organizationalUnitName": ["acme1", "acme2"]},
+        )
+        is False
+    )
