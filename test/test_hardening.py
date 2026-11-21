@@ -934,7 +934,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_057_strict_second_cn_rejected(self, certificate) -> None:
+    def test_042_strict_second_cn_rejected(self, certificate) -> None:
         """A second subject CN is invisible to binding and must fail finalize."""
         csr = _build_csr_b64(
             cn="ok.example",
@@ -969,7 +969,7 @@ class TestCsrBinding:
         assert detail == "CSR validation failed"
         mock_enroll.assert_not_called()
 
-    def test_058_strict_second_cn_rejected_for_ip_identifier(self, certificate) -> None:
+    def test_043_strict_second_cn_rejected_for_ip_identifier(self, certificate) -> None:
         """Extra CN beside an IP identifier (no DNS SAN) must fail finalize."""
         import ipaddress
 
@@ -989,7 +989,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_059_legacy_non_strict_still_rejects_second_cn(self, certificate) -> None:
+    def test_044_legacy_non_strict_still_rejects_second_cn(self, certificate) -> None:
         """Extra-CN reject applies even when csr_binding_strict is False."""
         certificate.config.csr_binding_strict = False
         csr = _build_csr_b64(
@@ -1008,8 +1008,8 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
 
-    def test_060_single_cn_ip_identifier_still_allowed(self, certificate) -> None:
-        """Control for test_058: the same CSR with one CN passes binding."""
+    def test_045_single_cn_ip_identifier_still_allowed(self, certificate) -> None:
+        """Control for test_043: the same CSR with one CN passes binding."""
         import ipaddress
 
         csr = _build_csr_b64(
@@ -1027,7 +1027,7 @@ class TestCsrBinding:
             }
             assert certificate._validate_csr_against_order("cert1", csr) is True
 
-    def test_061_tnauthlist_order_still_rejects_second_cn(self, certificate) -> None:
+    def test_046_tnauthlist_order_still_rejects_second_cn(self, certificate) -> None:
         """Extra-CN reject also covers the TNAuthList branch."""
         from acme2certifier.acme_srv.helpers.csr import csr_extensions_get
 
@@ -1053,7 +1053,7 @@ class TestCsrBinding:
             assert certificate._validate_csr_against_order("cert1", csr_two_cn) is False
 
     @pytest.mark.parametrize("strict", [True, False])
-    def test_062_unreadable_subject_rejected(
+    def test_047_unreadable_subject_rejected(
         self, certificate, strict, caplog: pytest.LogCaptureFixture
     ) -> None:
         """A CSR that loads but whose subject cannot be parsed fails closed."""
