@@ -47,7 +47,7 @@ cert_save_path: acme_srv/ca/certs
 ca_cert_chain_list: []
 openssl_conf: acme_srv/ca/openssl.conf
 allowed_domainlist: ["*.foo.bar", "*.bar.local"]
-blocked_domainlist: ["*.google.com.foo.bar", "host.foo.bar", "www.foo.bar"]
+blocked_domainlist: ["*.google.com.foo.bar", "host\\.foo\\.bar$", "www\\.foo\\.bar$"]
 save_cert_as_hex: True
 cn_enforce: True
 ```
@@ -63,8 +63,8 @@ cn_enforce: True
 - **cert_validity_days** *(optional)* – Certificate validity period in days (default: `365`).
 - **cert_save_path** *(optional)* – Directory to store enrolled certificates.
 - **openssl_conf** *(optional)* – OpenSSL configuration file (`openssl.cnf`) containing certificate extensions.
-- **allowed_domainlist** *(optional)* – List of allowed common names (CNs) and Subject Alternative Names (SANs), formatted as regular expressions ([Python regex syntax](https://docs.python.org/3/library/re.html)). Stored in JSON format.
-- **blocked_domainlist** *(optional)* – List of prohibited CNs and SANs, formatted as regular expressions. Stored in JSON format.
+- **allowed_domainlist** *(optional)* – List of allowed common names (CNs) and Subject Alternative Names (SANs). A leading `*.` is a DNS wildcard (label boundary, literal dots; the zone apex itself does not match). Every other entry is a [Python regular expression](https://docs.python.org/3/library/re.html). Stored in JSON format.
+- **blocked_domainlist** *(optional)* – List of prohibited CNs and SANs, using the same wildcard and regular-expression rules as `allowed_domainlist`. Stored in JSON format.
 - **save_cert_as_hex** *(optional)* – If `True`, the certificate serial number will be stored in hexadecimal format as the filename (default: `False`).
 - **cn_enforce** *(optional)* – If `True`, the first SAN will be used as the CN if no CN is provided in the CSR (default: `False`).
 - **cert_validity_adjust** *(optional)* – If `True`, ensures that the "valid until" field of a certificate does not exceed the expiration date of any certificate in the certificate chain (default: `False`).
