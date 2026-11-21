@@ -10,6 +10,7 @@ from .config import (
     cahandler_config_section_reset,
     cahandler_config_section_set,
     config_cert_chain_append_load,
+    config_cert_chain_append_matching_only_load,
     config_cert_chain_link_check_load,
     config_cert_chain_profile_load,
     config_cert_chain_skip_list_load,
@@ -71,7 +72,12 @@ def _cert_chain_bind_kwargs(
     link_error, link_check = config_cert_chain_link_check_load(
         logger, config_dic, section
     )
+    filter_error, matching_only = config_cert_chain_append_matching_only_load(
+        logger, config_dic, section
+    )
     return {
+        "cert_chain_append_matching_only": matching_only,
+        "cert_chain_append_matching_only_error": filter_error,
         "cert_chain_skip_list": skip_list or [],
         "cert_chain_skip_list_error": skip_error,
         "cert_chain_append": append_pems or [],
@@ -85,26 +91,26 @@ def _eab_overlay_apply_key(
     key: str,
     loaded: Any,
     error: Optional[str],
-    skip_list: List[str],
-    skip_error: Optional[str],
-    append: List[str],
-    append_error: Optional[str],
-    link_check: bool,
-    link_error: Optional[str],
-) -> Tuple[List[str], Optional[str], List[str], Optional[str], bool, Optional[str]]:
+    state: Dict[str, Any],
+) -> None:
     """Apply one kid-profile cert-chain key onto overlay state."""
     if key == "cert_chain_skip_list":
-        return loaded or [], error, append, append_error, link_check, link_error
+        state["cert_chain_skip_list"] = loaded or []
+        state["cert_chain_skip_list_error"] = error
+        return
     if key == "cert_chain_append":
-        return skip_list, skip_error, loaded or [], error, link_check, link_error
-    return (
-        skip_list,
-        skip_error,
-        append,
-        append_error,
-        True if loaded is None else bool(loaded),
-        error,
-    )
+        state["cert_chain_append"] = loaded or []
+        state["cert_chain_append_error"] = error
+        return
+    if key == "cert_chain_link_check":
+        state["cert_chain_link_check"] = True if loaded is None else bool(loaded)
+        state["cert_chain_link_check_error"] = error
+        return
+    if key == "cert_chain_append_matching_only":
+        state["cert_chain_append_matching_only"] = (
+            False if loaded is None else bool(loaded)
+        )
+        state["cert_chain_append_matching_only_error"] = error
 
 
 class BoundCAHandler:
@@ -120,6 +126,8 @@ class BoundCAHandler:
         cert_chain_skip_list_error: Optional[str] = None,
         cert_chain_append: Optional[List[str]] = None,
         cert_chain_append_error: Optional[str] = None,
+        cert_chain_append_matching_only: bool = False,
+        cert_chain_append_matching_only_error: Optional[str] = None,
         cert_chain_link_check: bool = True,
         cert_chain_link_check_error: Optional[str] = None,
     ) -> None:
@@ -130,6 +138,10 @@ class BoundCAHandler:
         self.cert_chain_skip_list_error = cert_chain_skip_list_error
         self.cert_chain_append = cert_chain_append or []
         self.cert_chain_append_error = cert_chain_append_error
+        self.cert_chain_append_matching_only = cert_chain_append_matching_only
+        self.cert_chain_append_matching_only_error = (
+            cert_chain_append_matching_only_error
+        )
         self.cert_chain_link_check = cert_chain_link_check
         self.cert_chain_link_check_error = cert_chain_link_check_error
 
@@ -161,12 +173,18 @@ class BoundCAHandler:
         """
         if not profile_dic:
             return None, self
-        skip_list = self.cert_chain_skip_list
-        skip_error = self.cert_chain_skip_list_error
-        append = self.cert_chain_append
-        append_error = self.cert_chain_append_error
-        link_check = self.cert_chain_link_check
-        link_error = self.cert_chain_link_check_error
+        state: Dict[str, Any] = {
+            "cert_chain_skip_list": self.cert_chain_skip_list,
+            "cert_chain_skip_list_error": self.cert_chain_skip_list_error,
+            "cert_chain_append": self.cert_chain_append,
+            "cert_chain_append_error": self.cert_chain_append_error,
+            "cert_chain_append_matching_only": self.cert_chain_append_matching_only,
+            "cert_chain_append_matching_only_error": (
+                self.cert_chain_append_matching_only_error
+            ),
+            "cert_chain_link_check": self.cert_chain_link_check,
+            "cert_chain_link_check_error": self.cert_chain_link_check_error,
+        }
         changed = False
         for key in CERT_CHAIN_PROFILE_KEYS:
             if key not in profile_dic:
@@ -175,24 +193,7 @@ class BoundCAHandler:
             error, loaded = config_cert_chain_profile_load(
                 logger, key, profile_dic[key]
             )
-            (
-                skip_list,
-                skip_error,
-                append,
-                append_error,
-                link_check,
-                link_error,
-            ) = _eab_overlay_apply_key(
-                key,
-                loaded,
-                error,
-                skip_list,
-                skip_error,
-                append,
-                append_error,
-                link_check,
-                link_error,
-            )
+            _eab_overlay_apply_key(key, loaded, error, state)
             if error:
                 return error, self
         if not changed:
@@ -201,12 +202,7 @@ class BoundCAHandler:
             self.handler_cls,
             self.section,
             self.name,
-            cert_chain_skip_list=skip_list,
-            cert_chain_skip_list_error=skip_error,
-            cert_chain_append=append,
-            cert_chain_append_error=append_error,
-            cert_chain_link_check=link_check,
-            cert_chain_link_check_error=link_error,
+            **state,
         )
 
     def cert_chain_rewrite(
@@ -216,6 +212,7 @@ class BoundCAHandler:
         error = (
             self.cert_chain_skip_list_error
             or self.cert_chain_append_error
+            or self.cert_chain_append_matching_only_error
             or self.cert_chain_link_check_error
         )
         if error:
@@ -233,6 +230,7 @@ class BoundCAHandler:
             pem_bundle,
             self.cert_chain_append,
             link_check=self.cert_chain_link_check,
+            matching_only=self.cert_chain_append_matching_only,
         )
 
     def __call__(self, debug: bool, logger: logging.Logger) -> Any:
@@ -692,6 +690,12 @@ class CAHandlerRegistry:
             cert_chain_skip_list_error=entry.get("cert_chain_skip_list_error"),
             cert_chain_append=entry.get("cert_chain_append") or [],
             cert_chain_append_error=entry.get("cert_chain_append_error"),
+            cert_chain_append_matching_only=entry.get(
+                "cert_chain_append_matching_only", False
+            ),
+            cert_chain_append_matching_only_error=entry.get(
+                "cert_chain_append_matching_only_error"
+            ),
             cert_chain_link_check=entry.get("cert_chain_link_check", True),
             cert_chain_link_check_error=entry.get("cert_chain_link_check_error"),
         )

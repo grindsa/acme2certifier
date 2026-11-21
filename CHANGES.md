@@ -4,6 +4,14 @@
 
 This is a high-level summary of the most important changes. For a full list of changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits) and pick the appropriate release branch.
 
+## Changes in 0.47.1
+
+**New Features**:
+
+- Optional `[CAhandler] cert_chain_append_matching_only` (default `False`). When `True`, `cert_chain_append` is an ordered candidate list: a PEM is appended only when it certifies the current chain tail (full issuer/subject DN match and signature verification, the same check as `cert_chain_link_check`). Non-linking candidates are skipped and do not fail enrollment. See [`docs/cert_chain.md`](docs/cert_chain.md) and ([#419](https://github.com/grindsa/acme2certifier/issues/419), [#424](https://github.com/grindsa/acme2certifier/pull/424) for further information.
+
+**Bug Fixes and Improvements**:
+
 ## Changes in 0.47
 
 **New Features**:
@@ -36,12 +44,6 @@ This is a high-level summary of the most important changes. For a full list of c
 - Security: openssl and xca handlers issue certificates with first CSR Common Name in the subject (plus CA template DN for xca); extra CN / O / OU from the CSR are no longer copied
 - EAB profile apply paths lowercase top-level section titles (`Order` / `Cahandler` / `Challenge` / … → `order` / `cahandler` / `challenge`), so section names are case-insensitive regardless of EAB storage backend
 - EAB SQL handler: restore PostgreSQL via **psycopg2** (MSSQL stays on **pyodbc**); lazy imports; auto-migrate legacy `credentials`/`status` → `acme_credential`/`enabled` when detected ([#418](https://github.com/grindsa/acme2certifier/issues/418)). See [`docs/eab.md`](docs/eab.md#sql-handler).
-
-## Changes in 0.46.5
-
-**Bug Fixes and Improvements**:
-
-- Security: wildcard-vs-wildcard domain matching in allow/prevalidation lists now requires a DNS label boundary, so `*.example.com` no longer matches `*.evilexample.com` ([GHSA-4g95-ff7v-34mr](https://github.com/grindsa/acme2certifier/security/advisories/GHSA-4g95-ff7v-34mr))
 
 ## Changes in 0.46.5
 
