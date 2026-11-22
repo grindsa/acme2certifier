@@ -178,6 +178,32 @@ def _subject_attr_values(value: Any) -> List[str]:
     return [value]
 
 
+def _profile_subject_entry_matches(
+    logger: logging.Logger,
+    profile_subject_dic: dict,
+    key: str,
+    value: str,
+    consume: bool,
+) -> bool:
+    """True if *value* matches the profile entry for *key*; optionally delete it."""
+    expected = profile_subject_dic[key]
+    if isinstance(expected, str) and (value == expected or expected == "*"):
+        logger.debug(
+            "Helper.eab_profile_subject_check() successul for string : %s", key
+        )
+        if consume:
+            del profile_subject_dic[key]
+        return True
+    if isinstance(expected, list) and value in expected:
+        logger.debug(
+            "Helper.eab_profile_subject_check() successul for list : %s", key
+        )
+        if consume:
+            del profile_subject_dic[key]
+        return True
+    return False
+
+
 def eab_profile_subject_string_check(
     logger: logging.Logger,
     profile_subject_dic,
@@ -196,34 +222,18 @@ def eab_profile_subject_string_check(
     if key == "commonName":
         # check if CN is a valid IP address or fqdn
         error = cn_validate(logger, value)
-    elif key in profile_subject_dic:
-        if isinstance(profile_subject_dic[key], str) and (
-            value == profile_subject_dic[key] or profile_subject_dic[key] == "*"
-        ):
-            logger.debug(
-                "Helper.eab_profile_subject_check() successul for string : %s", key
-            )
-            if consume:
-                del profile_subject_dic[key]
-        elif (
-            isinstance(profile_subject_dic[key], list)
-            and value in profile_subject_dic[key]
-        ):
-            logger.debug(
-                "Helper.eab_profile_subject_check() successul for list : %s", key
-            )
-            if consume:
-                del profile_subject_dic[key]
-        else:
-            logger.error(
-                "EAB profile subject check failed for: %s: value: %s expected: %s",
-                key,
-                value,
-                profile_subject_dic[key],
-            )
-            error = f"Profile subject check failed for {key}"
-    else:
+    elif key not in profile_subject_dic:
         logger.error("EAB profile subject failed for: %s", key)
+        error = f"Profile subject check failed for {key}"
+    elif not _profile_subject_entry_matches(
+        logger, profile_subject_dic, key, value, consume
+    ):
+        logger.error(
+            "EAB profile subject check failed for: %s: value: %s expected: %s",
+            key,
+            value,
+            profile_subject_dic[key],
+        )
         error = f"Profile subject check failed for {key}"
 
     logger.debug("Helper.eab_profile_subject_string_check() ended")
