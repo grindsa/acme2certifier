@@ -2819,9 +2819,15 @@ class TestOrderClass(unittest.TestCase):
             "DEBUG:test_a2c:Order._add_authorizations_to_db() ended with None",
             log_cm.output,
         )
-        self.assertIn("order", payload["identifiers"][0])
-        self.assertEqual(payload["identifiers"][0]["status"], "pending")
-        self.assertIn(list(auth_dic.keys())[0], auth_dic)
+        record = self.order.repository.add_authorization.call_args.args[0]
+        self.assertEqual(record["order"], oid)
+        self.assertEqual(record["status"], "pending")
+        self.assertEqual(record["type"], "dns")
+        self.assertEqual(record["value"], "example.com")
+        self.assertEqual(
+            list(auth_dic.values()), [{"type": "dns", "value": "example.com"}]
+        )
+        self.assertNotIn("status", payload["identifiers"][0])
 
     def test_169_add_authorizations_to_db_malformed(self):
         # Test malformed case: oid is None
@@ -2864,10 +2870,11 @@ class TestOrderClass(unittest.TestCase):
         with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
             error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
             self.assertIsNone(error)
-        self.assertEqual(payload["identifiers"][0]["status"], "valid")
-        self.order.repository.update_authorization.assert_called_once_with(
-            payload["identifiers"][0]
-        )
+        updated = self.order.repository.update_authorization.call_args.args[0]
+        self.assertEqual(updated["status"], "valid")
+        self.assertEqual(updated["type"], "dns")
+        self.assertEqual(updated["value"], "example.com")
+        self.assertNotIn("status", payload["identifiers"][0])
         self.assertIn(
             "DEBUG:test_a2c:Order._add_authorizations_to_db(order123)", log_cm.output
         )
@@ -3840,10 +3847,15 @@ class TestOrderClass(unittest.TestCase):
         with self.assertLogs("test_a2c", level="WARNING") as log_cm:
             error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
         self.assertIsNone(error)
-        statuses = {item["value"]: item["status"] for item in payload["identifiers"]}
-        self.assertEqual(statuses["host"], "valid")
-        self.assertEqual(statuses["host.intra.net"], "pending")
-        self.order.repository.update_authorization.assert_called_once()
+        added = {
+            call.args[0]["value"]: call.args[0]["status"]
+            for call in self.order.repository.add_authorization.call_args_list
+        }
+        self.assertEqual(added["host.intra.net"], "pending")
+        updated = self.order.repository.update_authorization.call_args.args[0]
+        self.assertEqual(updated["value"], "host")
+        self.assertEqual(updated["status"], "valid")
+        self.assertNotIn("status", payload["identifiers"][0])
         self.assertTrue(
             any(
                 "skipping challenge validation for shortname host" in line
@@ -3867,8 +3879,12 @@ class TestOrderClass(unittest.TestCase):
         auth_dic = {}
         error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
         self.assertIsNone(error)
-        self.assertEqual(payload["identifiers"][0]["status"], "pending")
-        self.assertEqual(payload["identifiers"][1]["status"], "pending")
+        statuses = [
+            call.args[0]["status"]
+            for call in self.order.repository.add_authorization.call_args_list
+        ]
+        self.assertEqual(statuses, ["pending", "pending"])
+        self.assertNotIn("status", payload["identifiers"][0])
         self.order.repository.update_authorization.assert_not_called()
 
     def test_232_skip_shortname_challenge_ignores_non_dns(self):
@@ -3908,6 +3924,77 @@ class TestOrderClass(unittest.TestCase):
             profile_dic, "kid", "allowed_domainlist", ["default.com"]
         )
         self.assertEqual(value, ["default.com"])
+
+    def test_236_add_authorizations_drops_client_columns(self):
+        """Client keys on an identifier are not written to the authorization row."""
+        self.order.repository.add_authorization.return_value = None
+        self.order.config.authz_validity = 1000
+        payload = {
+            "identifiers": [
+                {
+                    "type": "dns",
+                    "value": "victim.example.com",
+                    "status_id": 5,
+                    "token": "chosen",
+                    "order_id": 9,
+                }
+            ]
+        }
+        auth_dic = {}
+        error = self.order._add_authorizations_to_db("order-x", payload, auth_dic)
+        self.assertIsNone(error)
+        record = self.order.repository.add_authorization.call_args.args[0]
+        self.assertEqual(record["status"], "pending")
+        self.assertEqual(record["order"], "order-x")
+        self.assertEqual(record["value"], "victim.example.com")
+        self.assertNotIn("status_id", record)
+        self.assertNotIn("token", record)
+        self.assertNotIn("order_id", record)
+        self.assertEqual(payload["identifiers"][0]["status_id"], 5)
+        self.assertEqual(
+            list(auth_dic.values()),
+            [{"type": "dns", "value": "victim.example.com"}],
+        )
+
+    def test_237_create_order_persists_type_and_value_only(self):
+        """Stored order identifiers omit client keys; policy still sees them."""
+        payload = {
+            "identifiers": [
+                {
+                    "type": "dns",
+                    "value": "bar.local",
+                    "wildcard": True,
+                    "status_id": 5,
+                }
+            ]
+        }
+        captured = {}
+
+        def _capture(data_dic, _auth_dic, _payload, _error):
+            captured["identifiers"] = data_dic["identifiers"]
+            return None
+
+        with (
+            patch.object(
+                self.order,
+                "_check_identifiers_validity",
+                return_value=(None, None),
+            ) as mock_check,
+            patch.object(
+                self.order, "_add_order_and_authorizations", side_effect=_capture
+            ),
+        ):
+            error, _detail, _order_name, _auth_dic, _expires = self.order.create_order(
+                payload, "acct"
+            )
+        self.assertIsNone(error)
+        self.assertEqual(
+            json.loads(captured["identifiers"]),
+            [{"type": "dns", "value": "bar.local"}],
+        )
+        checked = mock_check.call_args.args[0]
+        self.assertTrue(checked[0]["wildcard"])
+        self.assertEqual(checked[0]["status_id"], 5)
 
 
 if __name__ == "__main__":
