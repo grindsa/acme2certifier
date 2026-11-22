@@ -932,8 +932,6 @@ class Account:
         self.logger.debug("Account._keys_adjust() ended")
         return pub_key, old_key
 
-
-
     def _handle_account_query(self, account_name: str) -> Dict[str, str]:
         """Handle account query."""
         self.logger.debug("Account._handle_account_query(%s)", account_name)
