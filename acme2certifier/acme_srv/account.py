@@ -888,7 +888,51 @@ class Account:
                 "Missing KID or account in payload",
             )
 
+        # decode_message() lowercases payload keys, so RFC 8555 "oldKey" is "oldkey".
+        old_key = inner_payload.get("oldkey")
+        if not isinstance(old_key, dict) or not old_key:
+            return _reject(400, self.err_msg_dic["malformed"], "old key is missing")
+        code, message, detail = self._old_key_compare(account_name, old_key)
+        if code != 200:
+            return _reject(code, message, detail)
+
         return 200, None, None
+
+    def _old_key_compare(
+        self, account_name: str, old_key: Dict[str, str]
+    ) -> Tuple[int, Optional[str], Optional[str]]:
+        """RFC 8555 7.3.5: inner oldKey must be the account's current key."""
+        self.logger.debug("Account._old_key_compare(%s)", account_name)
+        try:
+            pub_key = self.repository.load_jwk(account_name)
+        except Exception as err:
+            self.logger.critical(
+                "%s while comparing account key: %s", DB_ERROR_MSG, err
+            )
+            return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
+
+        if isinstance(pub_key, dict) and pub_key:
+            pub_key, old_key = self._keys_adjust(pub_key, old_key)
+            if old_key == pub_key:
+                return 200, None, None
+        return 401, self.err_msg_dic["unauthorized"], "wrong public key"
+
+    def _keys_adjust(
+        self, pub_key: Dict[str, str], old_key: Dict[str, str]
+    ) -> Tuple[Dict[str, str], Dict[str, str]]:
+        """Normalize JWK alg so known client variants compare equal."""
+        self.logger.debug("Account._keys_adjust()")
+        pub_key = dict(pub_key)
+        old_key = dict(old_key)
+        if "alg" in pub_key:
+            if "alg" not in old_key:
+                old_key["alg"] = pub_key["alg"]
+            if str(pub_key["alg"]).startswith("ES") and old_key["alg"] == "ECDSA":
+                pub_key["alg"] = "ECDSA"
+        self.logger.debug("Account._keys_adjust() ended")
+        return pub_key, old_key
+
+
 
     def _handle_account_query(self, account_name: str) -> Dict[str, str]:
         """Handle account query."""

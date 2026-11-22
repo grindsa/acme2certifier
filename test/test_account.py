@@ -1242,14 +1242,18 @@ class TestAccount(unittest.TestCase):
 
     def test_078__validate_key_change_success(self):
         """test _validate_key_change success"""
+        old_key = {"kty": "EC", "crv": "P-256", "x": "aa", "y": "bb", "alg": "ES256"}
         protected = {"url": "test", "kid": "kid"}
         inner_protected = {"jwk": {}, "url": "test"}
-        inner_payload = {"account": "kid"}
+        inner_payload = {"account": "kid", "oldkey": old_key}
+        self.account.repository.load_jwk.return_value = dict(old_key)
         with patch.object(self.account, "_lookup_account_by_field", return_value=None):
             code, message, detail = self.account._validate_key_change(
                 "test_account", protected, inner_protected, inner_payload
             )
             self.assertEqual(code, 200)
+            self.assertIsNone(message)
+            self.assertIsNone(detail)
 
     def test_079__validate_key_change_missing_jwk(self):
         """test _validate_key_change missing jwk logs WARNING"""
@@ -2187,6 +2191,85 @@ class TestAccount(unittest.TestCase):
         self.assertEqual("error", self.account._outcome_from_response_code(503))
         self.assertEqual("failure", self.account._outcome_from_response_code(400))
         self.assertEqual("failure", self.account._outcome_from_response_code("nope"))
+
+    def test_124__validate_key_change_missing_old_key(self):
+        """inner oldKey is required"""
+        protected = {"url": "test", "kid": "kid"}
+        inner_protected = {"jwk": {}, "url": "test"}
+        inner_payload = {"account": "kid"}
+        with patch.object(self.account, "_lookup_account_by_field", return_value=None):
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_key_change(
+                    "test_account", protected, inner_protected, inner_payload
+                )
+        self.assertEqual(code, 400)
+        self.assertEqual(message, self.account.err_msg_dic["malformed"])
+        self.assertEqual(detail, "old key is missing")
+        self.assertIn(
+            "WARNING:test_a2c:Key-change validation failed account=test_account detail=old key is missing",
+            log_cm.output,
+        )
+
+    def test_125__validate_key_change_old_key_mismatch(self):
+        """inner oldKey must match the stored account key"""
+        protected = {"url": "test", "kid": "kid"}
+        inner_protected = {"jwk": {}, "url": "test"}
+        inner_payload = {
+            "account": "kid",
+            "oldkey": {"kty": "EC", "crv": "P-256", "x": "aa", "y": "bb"},
+        }
+        self.account.repository.load_jwk.return_value = {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "cc",
+            "y": "dd",
+            "alg": "ES256",
+        }
+        with patch.object(self.account, "_lookup_account_by_field", return_value=None):
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_key_change(
+                    "test_account", protected, inner_protected, inner_payload
+                )
+        self.assertEqual(code, 401)
+        self.assertEqual(message, self.account.err_msg_dic["unauthorized"])
+        self.assertEqual(detail, "wrong public key")
+        self.assertIn("detail=wrong public key", log_cm.output[0])
+
+    def test_126__old_key_compare_copies_missing_alg(self):
+        """an oldKey without alg matches the stored key"""
+        stored = {"kty": "RSA", "n": "aa", "e": "AQAB", "alg": "RS256"}
+        self.account.repository.load_jwk.return_value = stored
+        code, message, detail = self.account._old_key_compare(
+            "test_account", {"kty": "RSA", "n": "aa", "e": "AQAB"}
+        )
+        self.assertEqual((200, None, None), (code, message, detail))
+
+    def test_127__old_key_compare_accepts_ecdsa_alg(self):
+        """ECDSA in oldKey matches a stored ES* alg"""
+        self.account.repository.load_jwk.return_value = {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "aa",
+            "y": "bb",
+            "alg": "ES256",
+        }
+        code, message, detail = self.account._old_key_compare(
+            "test_account",
+            {"kty": "EC", "crv": "P-256", "x": "aa", "y": "bb", "alg": "ECDSA"},
+        )
+        self.assertEqual((200, None, None), (code, message, detail))
+
+    def test_128__old_key_compare_database_error(self):
+        """a database error while loading the current key fails closed"""
+        self.account.repository.load_jwk.side_effect = Exception("db down")
+        with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
+            code, message, detail = self.account._old_key_compare(
+                "test_account", {"kty": "EC"}
+            )
+        self.assertEqual(code, 500)
+        self.assertEqual(message, self.account.err_msg_dic["serverinternal"])
+        self.assertEqual(detail, "Database error")
+        self.assertIn("db down", log_cm.output[0])
 
 
 if __name__ == "__main__":
