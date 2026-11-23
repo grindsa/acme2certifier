@@ -32,10 +32,16 @@ There are **no** EL cryptography/jwcrypto backports for ML-DSA. Use whatever App
 
 ### Ubuntu DEB (optional companions)
 
-Stock **Ubuntu 26.04** ships cryptography ~46 and jwcrypto 1.5.6 (no AKP). Optional companion `.deb`s (cryptography **49** rebuilt from 26.10 packaging, jwcrypto **≥1.5.9**) may be published under [grindsa/sbom](https://github.com/grindsa/sbom) for **acme2certifier** container/DEB deployments.
+Stock **Ubuntu 26.04** ships cryptography ~46 and jwcrypto 1.5.6 (no AKP). Companion `.deb`s for a2c are in [grindsa/sbom `deb-repo/DEBs/ub26.04/`](https://github.com/grindsa/sbom/tree/main/deb-repo/DEBs/ub26.04):
+
+| Package | Notes |
+| --- | --- |
+| [python3-cryptography_49.0.0-2ubuntu1grindsa_amd64.deb](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-cryptography_49.0.0-2ubuntu1grindsa_amd64.deb) | cryptography **49** (amd64) |
+| [python3-cryptography_49.0.0-2ubuntu1grindsa_arm64.deb](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-cryptography_49.0.0-2ubuntu1grindsa_arm64.deb) | cryptography **49** (arm64) |
+| [python3-jwcrypto_1.5.9-1grindsa_all.deb](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-jwcrypto_1.5.9-1grindsa_all.deb) | jwcrypto **1.5.9** (AKP; `Architecture: all`) |
 
 - **Support expectation:** built and tested for a2c only. Third-party use is fine if that limitation is understood.
-- Placeholder path (update when published): [`TODO-ubuntu-2604-mldsa-debs`](https://github.com/grindsa/sbom/tree/main/TODO-ubuntu-2604-mldsa-debs) — see also [DEB installation](install_deb.md).
+- Official a2c container images install these companions automatically. For manual DEB installs, see [DEB installation](install_deb.md).
 
 ### If the stack lacks AKP
 

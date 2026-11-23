@@ -70,7 +70,7 @@ lego -s http://<server address> -a --email <email address> -d lego-1.bar.local -
 
 ### ML-DSA account key (lego v5.7+)
 
-Requires an acme2certifier install whose jwcrypto/cryptography stack supports AKP (typically **pip** with `jwcrypto>=1.5.9` and `cryptography>=49`). See [ML-DSA account keys](ml-dsa.md).
+Requires an acme2certifier install whose jwcrypto/cryptography stack supports AKP (**pip** floors, or Ubuntu 26.04 [sbom companions](ml-dsa.md#ubuntu-deb-optional-companions) / a2c containers that ship them). See [ML-DSA account keys](ml-dsa.md).
 
 ```bash
 # Register an account with an ML-DSA-65 account key (JOSE alg ML-DSA-65, kty AKP)

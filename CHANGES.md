@@ -8,7 +8,7 @@ This is a high-level summary of the most important changes. For a full list of c
 
 **New Features**:
 
-- ML-DSA (FIPS 204 / RFC 9964) account keys (`ML-DSA-44` / `ML-DSA-65` / `ML-DSA-87`, JWK `kty: AKP`) for newAccount and subsequent kid-signed requests when the stack provides them. Pip installs require `jwcrypto>=1.5.9` and `cryptography>=49` ([`pyproject.toml`](pyproject.toml)). Distro RPM/DEB packages are not backported for ML-DSA; if the distro crypto stack lacks AKP/ML-DSA, registration fails with `badPublicKey`. See [`docs/ml-dsa.md`](docs/ml-dsa.md).
+- ML-DSA (FIPS 204 / RFC 9964) account keys (`ML-DSA-44` / `ML-DSA-65` / `ML-DSA-87`, JWK `kty: AKP`) for newAccount and subsequent kid-signed requests when the stack provides them. Pip installs require `jwcrypto>=1.5.9` and `cryptography>=49` ([`pyproject.toml`](pyproject.toml)). Ubuntu 26.04 companion `.deb`s (cryptography 49 + jwcrypto 1.5.9) live in [grindsa/sbom `deb-repo/DEBs/ub26.04/`](https://github.com/grindsa/sbom/tree/main/deb-repo/DEBs/ub26.04) and are installed into a2c container images; EL RPMs are not backported. If the crypto stack lacks AKP/ML-DSA, registration fails with `badPublicKey`. See [`docs/ml-dsa.md`](docs/ml-dsa.md).
 
 **Bug Fixes and Improvements**:
 

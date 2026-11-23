@@ -10,9 +10,10 @@ The Debian package is webserver-agnostic and supports **WSGI** or **Django** wit
 > **ML-DSA account keys** need `python3-jwcrypto` / `python3-cryptography` with AKP/ML-DSA support. Stock Ubuntu 26.04 packages are too old; options:
 >
 > 1. [Pip install](install_nginx_ubuntu.md) (floors in `pyproject.toml`), or
-> 2. Optional Ubuntu 26.04 companion `.deb`s (cryptography 49 + jwcrypto ≥1.5.9) from the grindsa/sbom DEB repo — **built and tested for acme2certifier only**; use elsewhere at your own risk.
->
-> Placeholder download (update when published): `https://github.com/grindsa/sbom/tree/main/TODO-ubuntu-2604-mldsa-debs`
+> 2. Ubuntu 26.04 companion `.deb`s from [grindsa/sbom `deb-repo/DEBs/ub26.04/`](https://github.com/grindsa/sbom/tree/main/deb-repo/DEBs/ub26.04) — **built and tested for acme2certifier only**; use elsewhere at your own risk:
+>    - [python3-cryptography 49 (amd64)](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-cryptography_49.0.0-2ubuntu1grindsa_amd64.deb) /
+>      [arm64](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-cryptography_49.0.0-2ubuntu1grindsa_arm64.deb)
+>    - [python3-jwcrypto 1.5.9](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-jwcrypto_1.5.9-1grindsa_all.deb)
 >
 > See [ML-DSA account keys](ml-dsa.md).
 
