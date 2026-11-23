@@ -22,6 +22,8 @@ pip install -e ".[test]"
 
 `[test]` pulls Django, pytest, and coverage. Add `[gssapi]` or `[ntlm]` if you work on those CA handlers.
 
+Core floors in [`pyproject.toml`](../pyproject.toml) include `jwcrypto>=1.5.9` and `cryptography>=49` (needed for [ML-DSA account keys](ml-dsa.md) on pip installs).
+
 The editable install (`-e`) puts `a2c-manage` and the other [CLI tools](../tools/README.md) on `PATH` and picks up source edits without reinstalling.
 
 ## 2. Adjust environment (optional)

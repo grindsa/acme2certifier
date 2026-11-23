@@ -14,6 +14,8 @@ One **noarch** payload RPM (`acme2certifier`) installs on **EL8 and EL9** under 
 Default **app** Python is **3.9** on both majors.
 
 > **PyPI / pip installs** (e.g. [`a2c-rel-nginx.sh`](../examples/install_scripts/a2c-rel-nginx.sh)) require Python ≥ 3.7 and are **EL9-only**. Use this RPM path for EL8.
+>
+> **ML-DSA account keys** need `jwcrypto` with AKP support and `cryptography` with ML-DSA (pip floors: `jwcrypto>=1.5.9`, `cryptography>=49`). Distro/companion RPMs are **not** backported for that; if your EL crypto packages lack AKP, use pip or expect `badPublicKey`. See [ML-DSA account keys](ml-dsa.md).
 
 ## Automated install script
 
