@@ -192,3 +192,4 @@ coverage.lcov
 
 # Local security review backlog (do not upload)
 .cursor/*
+.legacy/*

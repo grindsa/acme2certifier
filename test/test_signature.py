@@ -472,6 +472,53 @@ class TestACMEHandler(unittest.TestCase):
             "acme.auth.failure", attributes={"acme.auth_kind": "jws"}
         )
 
+    @patch("acme2certifier.acme_srv.signature.counter_add")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.unsupported_jwk_detail")
+    def test_041_check_emb_akp_unsupported_badpubkey(
+        self, mock_detail, mock_sig, mock_counter
+    ):
+        """embedded AKP on legacy stack maps to badPublicKey + detail"""
+        detail = (
+            'JWK key type "AKP" (alg "ML-DSA-44") is not supported by this ACME server'
+        )
+        mock_detail.return_value = detail
+        self.assertEqual(
+            (False, "urn:ietf:params:acme:error:badPublicKey", detail),
+            self.signature.check(
+                None,
+                "content",
+                True,
+                {"jwk": {"kty": "AKP", "alg": "ML-DSA-44", "pub": "x"}},
+            ),
+        )
+        mock_sig.assert_not_called()
+        mock_counter.assert_called_once_with(
+            "acme.auth.failure", attributes={"acme.auth_kind": "jws"}
+        )
+
+    @patch("acme2certifier.acme_srv.signature.counter_add")
+    @patch("acme2certifier.acme_srv.signature.signature_check")
+    @patch("acme2certifier.acme_srv.signature.unsupported_jwk_detail")
+    @patch("acme2certifier.acme_srv.signature.Signature._jwk_loader")
+    def test_042_check_account_akp_unsupported_badpubkey(
+        self, mock_jwk, mock_detail, mock_sig, mock_counter
+    ):
+        """stored AKP account key on legacy stack maps to badPublicKey + detail"""
+        detail = (
+            'JWK key type "AKP" (alg "ML-DSA-65") is not supported by this ACME server'
+        )
+        mock_jwk.return_value = {"kty": "AKP", "alg": "ML-DSA-65", "pub": "x"}
+        mock_detail.return_value = detail
+        self.assertEqual(
+            (False, "urn:ietf:params:acme:error:badPublicKey", detail),
+            self.signature.check("acct", "content"),
+        )
+        mock_sig.assert_not_called()
+        mock_counter.assert_called_once_with(
+            "acme.auth.failure", attributes={"acme.auth_kind": "jws"}
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

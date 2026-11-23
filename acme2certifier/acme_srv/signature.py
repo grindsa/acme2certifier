@@ -3,7 +3,12 @@
 
 from __future__ import print_function
 from typing import Tuple, Dict, Optional
-from acme2certifier.acme_srv.helper import signature_check, load_config, error_dic_get
+from acme2certifier.acme_srv.helper import (
+    error_dic_get,
+    load_config,
+    signature_check,
+    unsupported_jwk_detail,
+)
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.helpers.global_variables import DB_ERROR_MSG
 from acme2certifier.acme_srv.helpers.otel import (
@@ -15,6 +20,7 @@ from acme2certifier.acme_srv.helpers.otel import (
 SIG_CHECK_ACCOUNT_MISSING_LOG = (
     "Signature check failed: account does not exist account=%s"
 )
+UNSUPPORTED_AKP_DETAIL_PREFIX = 'JWK key type "AKP"'
 
 
 class Signature:
@@ -48,7 +54,33 @@ class Signature:
             )
             return None
 
-    def cli_check(self, aname: str, content: str) -> Tuple[bool, str, None]:
+    def _jws_verify_result(
+        self, content: str, pub_key: Dict[str, str]
+    ) -> Tuple[bool, str, Optional[str]]:
+        """Verify JWS; map unsupported AKP JWKs to badPublicKey + detail."""
+        detail = unsupported_jwk_detail(self.logger, pub_key)
+        if detail:
+            counter_add(
+                COUNTER_AUTH_FAILURE,
+                attributes={ATTR_AUTH_KIND: "jws"},
+            )
+            return (False, self.err_msg_dic["badpubkey"], detail)
+
+        result, error = signature_check(self.logger, content, pub_key)
+        if not result:
+            counter_add(
+                COUNTER_AUTH_FAILURE,
+                attributes={ATTR_AUTH_KIND: "jws"},
+            )
+            # Defense in depth if signature_check returned the AKP detail string.
+            if error and error.startswith(UNSUPPORTED_AKP_DETAIL_PREFIX):
+                return (False, self.err_msg_dic["badpubkey"], error)
+            return (False, error, None)
+        return (result, error, None)
+
+    def cli_check(
+        self, aname: str, content: str
+    ) -> Tuple[bool, str, Optional[str]]:
         """Check signature against CLI key for account."""
         self.logger.debug(f"Signature.cli_check({aname})")
         if not content:
@@ -63,9 +95,9 @@ class Signature:
         if not pub_key:
             self.logger.warning(SIG_CHECK_ACCOUNT_MISSING_LOG, aname)
             return (False, self.err_msg_dic["accountdoesnotexist"], None)
-        result, error = signature_check(self.logger, content, pub_key)
+        result, error, detail = self._jws_verify_result(content, pub_key)
         self.logger.debug(f"Signature.cli_check() ended with: {result}:{error}")
-        return (result, error, None)
+        return (result, error, detail)
 
     def check(
         self,
@@ -73,7 +105,7 @@ class Signature:
         content: str,
         use_emb_key: bool = False,
         protected: Dict[str, str] = None,
-    ) -> Tuple[bool, str, None]:
+    ) -> Tuple[bool, str, Optional[str]]:
         """Check signature against account key or embedded JWK."""
         self.logger.debug(f"Signature.check({aname})")
         if not content:
@@ -81,53 +113,39 @@ class Signature:
                 "Signature check failed: empty content account=%s", aname
             )
             return (False, self.err_msg_dic["malformed"], None)
-        error = None
         if aname:
             pub_key = self._jwk_loader(aname)
             if not pub_key:
                 self.logger.warning(SIG_CHECK_ACCOUNT_MISSING_LOG, aname)
-                error = self.err_msg_dic["accountdoesnotexist"]
-                return (False, error, None)
-            result, error = signature_check(self.logger, content, pub_key)
+                return (False, self.err_msg_dic["accountdoesnotexist"], None)
+            result, error, detail = self._jws_verify_result(content, pub_key)
             self.logger.debug(f"Signature.check() ended with: {result}:{error}")
-            if not result:
-                counter_add(
-                    COUNTER_AUTH_FAILURE,
-                    attributes={ATTR_AUTH_KIND: "jws"},
-                )
-            return (result, error, None)
+            return (result, error, detail)
         elif use_emb_key:
             self.logger.debug(
                 "Signature.check() check signature against key included in jwk"
             )
             if protected and "jwk" in protected:
                 pub_key = protected["jwk"]
-                result, error = signature_check(self.logger, content, pub_key)
+                result, error, detail = self._jws_verify_result(content, pub_key)
                 self.logger.debug(f"Signature.check() ended with: {result}:{error}")
-                if not result:
-                    counter_add(
-                        COUNTER_AUTH_FAILURE,
-                        attributes={ATTR_AUTH_KIND: "jws"},
-                    )
-                return (result, error, None)
+                return (result, error, detail)
             else:
                 self.logger.warning("Signature check failed: embedded JWK missing")
-                error = self.err_msg_dic["accountdoesnotexist"]
                 counter_add(
                     COUNTER_AUTH_FAILURE,
                     attributes={ATTR_AUTH_KIND: "jws"},
                 )
-                return (False, error, None)
+                return (False, self.err_msg_dic["accountdoesnotexist"], None)
         else:
             self.logger.warning(
                 "Signature check failed: missing kid and no embedded JWK"
             )
-            error = self.err_msg_dic["accountdoesnotexist"]
             counter_add(
                 COUNTER_AUTH_FAILURE,
                 attributes={ATTR_AUTH_KIND: "jws"},
             )
-            return (False, error, None)
+            return (False, self.err_msg_dic["accountdoesnotexist"], None)
 
     def eab_check(self, content: str, mac_key: str) -> Tuple[bool, str]:
         """Check signature for External Account Binding (EAB)."""
