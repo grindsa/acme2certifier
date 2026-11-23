@@ -83,6 +83,13 @@ lego -s http://<server address> -a --email <email address> -d lego-pq.example.co
 
 `--key-type` values: `MLDSA44`, `MLDSA65`, `MLDSA87` (lego) ↔ JOSE `ML-DSA-44` / `ML-DSA-65` / `ML-DSA-87`.
 
+Account key rollover (confirm the interactive prompt):
+
+```bash
+lego accounts keyrollover --tls-skip-verify -s https://<server>/directory \
+  --email <email address> --key-type MLDSA65
+```
+
 ### revoke a certificate
 
 ```bash

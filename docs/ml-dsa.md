@@ -56,8 +56,13 @@ Clients that register with an ML-DSA key receive:
 
 ## Limitations
 
-- Certificate / CSR public keys remain whatever the CA handler and underlying CA accept; a2c does not specially filter ML-DSA leaf keys.
+- a2c does not specially filter ML-DSA leaf keys; issuance depends on the CA handler. The bundled **openssl_ca_handler** can issue ML-DSA leaves (FIPS 204 OIDs). Other CAs may reject them.
+- Host OpenSSL older than **3.5** often prints `Unable to load Public Key` for ML-DSA leaves while still showing the correct OID (`2.16.840.1.101.3.4.3.17` / `.18` / `.19` for 44/65/87). Use OpenSSL 3.5+ (or cryptography) to inspect/verify.
 
 ## Key rollover
 
 ACME `keyChange` updates both the stored account `jwk` and `alg` fields (from the inner JWS protected `alg`, or `jwk.alg` for AKP). Cross-algorithm rollovers (RSA↔EC↔ML-DSA), including lego `accounts keyrollover --key-type MLDSA65`, are supported.
+
+## CI
+
+[`app-lego.yml`](../.github/workflows/app-lego.yml) exercises nginx/wsgi containers with classical and `MLDSA*` key types (account + leaf) and a dedicated account key-rollover job (`rsa2048→MLDSA65`, `MLDSA65→ec256`, `MLDSA44→MLDSA65`).
