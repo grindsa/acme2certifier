@@ -38,6 +38,7 @@ Stock **Ubuntu 26.04** ships cryptography ~46 and jwcrypto 1.5.6 (no AKP). Compa
 | --- | --- |
 | [python3-cryptography_49.0.0-2ubuntu1grindsa_amd64.deb](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-cryptography_49.0.0-2ubuntu1grindsa_amd64.deb) | cryptography **49** (amd64) |
 | [python3-cryptography_49.0.0-2ubuntu1grindsa_arm64.deb](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-cryptography_49.0.0-2ubuntu1grindsa_arm64.deb) | cryptography **49** (arm64) |
+| [python3-openssl_26.4.0-1grindsa_all.deb](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-openssl_26.4.0-1grindsa_all.deb) | pyOpenSSL **26.4** (`Depends: cryptography >= 49, << 51`; stock 25.3 caps at `<< 47`) |
 | [python3-jwcrypto_1.5.9-1grindsa_all.deb](https://github.com/grindsa/sbom/raw/main/deb-repo/DEBs/ub26.04/python3-jwcrypto_1.5.9-1grindsa_all.deb) | jwcrypto **1.5.9** (AKP; `Architecture: all`) |
 
 - **Support expectation:** built and tested for a2c only. Third-party use is fine if that limitation is understood.
