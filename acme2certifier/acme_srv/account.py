@@ -792,6 +792,16 @@ class Account:
             account_name=account_name,
         )
 
+    def _key_change_alg(self, inner_protected: Dict[str, str]) -> Optional[str]:
+        """Resolve the new account alg from the inner keyChange JWS."""
+        alg = inner_protected.get("alg")
+        if alg:
+            return alg
+        jwk_obj = inner_protected.get("jwk")
+        if isinstance(jwk_obj, dict):
+            return jwk_obj.get("alg")
+        return None
+
     def _rollover_account_key(
         self,
         account_name: str,
@@ -810,6 +820,10 @@ class Account:
                     "name": account_name,
                     "jwk": json.dumps(inner_protected["jwk"]),
                 }
+                # Keep account.alg in sync with the new key (RSA↔EC↔ML-DSA).
+                alg = self._key_change_alg(inner_protected)
+                if alg:
+                    data_dic["alg"] = alg
                 result = self.repository.update_account(data_dic)
                 if result:
                     return 200, None, None

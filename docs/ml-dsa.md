@@ -50,5 +50,8 @@ Clients that register with an ML-DSA key receive:
 
 ## Limitations
 
-- **Key rollover** across algorithms (for example RSA/EC → ML-DSA) does not yet update the stored account `alg` column; prefer registering a new ML-DSA account until that is fixed.
 - Certificate / CSR public keys remain whatever the CA handler and underlying CA accept; a2c does not specially filter ML-DSA leaf keys.
+
+## Key rollover
+
+ACME `keyChange` updates both the stored account `jwk` and `alg` fields (from the inner JWS protected `alg`, or `jwk.alg` for AKP). Cross-algorithm rollovers (RSA↔EC↔ML-DSA), including lego `accounts keyrollover --key-type MLDSA65`, are supported.
