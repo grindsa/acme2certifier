@@ -35,14 +35,16 @@ runs:
         CONTAINER_CA_DIR: ${{ inputs.CONTAINER_CA_DIR }}
       run: |
         set -euo pipefail
+        # lego container writes certificates/ as root:root 0700/0600
+        sudo chmod -R a+rX "$(dirname "${CERT}")"
         test -f "${CERT}"
 
-        # OID / algorithm names still print on OpenSSL < 3.5 even when SPKI won't load.
+        # OID on OpenSSL < 3.5 / LibreSSL; friendly name on OpenSSL ≥ 3.5.
         text="$(openssl x509 -in "${CERT}" -noout -text 2>/dev/null || true)"
         case "${KEY_TYPE}" in
-          MLDSA44) expect='2.16.840.1.101.3.4.3.17' ;;
-          MLDSA65) expect='2.16.840.1.101.3.4.3.18' ;;
-          MLDSA87) expect='2.16.840.1.101.3.4.3.19' ;;
+          MLDSA44) expect='2.16.840.1.101.3.4.3.17|ML-DSA-44' ;;
+          MLDSA65) expect='2.16.840.1.101.3.4.3.18|ML-DSA-65' ;;
+          MLDSA87) expect='2.16.840.1.101.3.4.3.19|ML-DSA-87' ;;
           rsa2048|rsa4096) expect='rsaEncryption' ;;
           ec256|ec384) expect='id-ecPublicKey' ;;
           *)
@@ -50,7 +52,7 @@ runs:
             exit 1
             ;;
         esac
-        echo "${text}" | grep -F "${expect}"
+        echo "${text}" | grep -E "${expect}"
         echo "Leaf key type OK (${KEY_TYPE} → ${expect})"
 
         case "${KEY_TYPE}" in
