@@ -1,15 +1,19 @@
 name: "configure"
-description: "Write openssl acme_srv.cfg with cert_chain_skip_list / append / link_check"
+description: "Write openssl acme_srv.cfg with cert_chain_skip_list / append / link_check / matching_only"
 inputs:
   VOLUME_DIR:
     description: "Volume directory (contains acme_ca/ and acme_srv.cfg)"
     required: false
     default: "data/volume"
   LAYOUT:
-    description: "a (cross-signed old root) | b (re-issued ICA) | unlinked (separate trust-anchor)"
+    description: "a (cross-signed old root) | b (re-issued ICA) | unlinked (separate trust-anchor) | matching (candidate list for matching_only)"
     required: true
   LINK_CHECK:
     description: "omit (default True) | true | false"
+    required: false
+    default: "omit"
+  MATCHING_ONLY:
+    description: "omit (default False) | true | false"
     required: false
     default: "omit"
   APPEND_PREFIX:
@@ -41,16 +45,21 @@ runs:
         VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
         LAYOUT: ${{ inputs.LAYOUT }}
         LINK_CHECK: ${{ inputs.LINK_CHECK }}
+        MATCHING_ONLY: ${{ inputs.MATCHING_ONLY }}
         APPEND_PREFIX: ${{ inputs.APPEND_PREFIX }}
       run: |
         set -euo pipefail
         case "${LAYOUT}" in
-          a|b|unlinked) ;;
-          *) echo "ERROR: LAYOUT must be a|b|unlinked (got: ${LAYOUT})" >&2; exit 1 ;;
+          a|b|unlinked|matching) ;;
+          *) echo "ERROR: LAYOUT must be a|b|unlinked|matching (got: ${LAYOUT})" >&2; exit 1 ;;
         esac
         case "${LINK_CHECK}" in
           omit|true|false) ;;
           *) echo "ERROR: LINK_CHECK must be omit|true|false (got: ${LINK_CHECK})" >&2; exit 1 ;;
+        esac
+        case "${MATCHING_ONLY}" in
+          omit|true|false) ;;
+          *) echo "ERROR: MATCHING_ONLY must be omit|true|false (got: ${MATCHING_ONLY})" >&2; exit 1 ;;
         esac
 
         fp() {
@@ -77,6 +86,16 @@ runs:
             skip="[\"${old_root}\"]"
             append="[\"${APPEND_PREFIX}/new-root.pem\"]"
             ;;
+          matching)
+            # First new-root does not certify the ICA; cross does; second new-root
+            # certifies the cross. With matching_only only the linking PEMs stay.
+            skip="[\"${old_root}\"]"
+            append="[\"${APPEND_PREFIX}/new-root.pem\", \"${APPEND_PREFIX}/root-ca-cross.pem\", \"${APPEND_PREFIX}/new-root.pem\"]"
+            ;;
+          *)
+            echo "ERROR: unexpected LAYOUT=${LAYOUT}" >&2
+            exit 1
+            ;;
         esac
 
         {
@@ -87,6 +106,11 @@ runs:
             echo "cert_chain_link_check: True"
           elif [[ "${LINK_CHECK}" == "false" ]]; then
             echo "cert_chain_link_check: False"
+          fi
+          if [[ "${MATCHING_ONLY}" == "true" ]]; then
+            echo "cert_chain_append_matching_only: True"
+          elif [[ "${MATCHING_ONLY}" == "false" ]]; then
+            echo "cert_chain_append_matching_only: False"
           fi
         } | sudo tee -a "${cfg}" >/dev/null
 
