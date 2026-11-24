@@ -8,9 +8,16 @@ This is a high-level summary of the most important changes. For a full list of c
 
 **New Features**:
 
-- Optional `[CAhandler] cert_chain_append_matching_only` (default `False`). When `True`, `cert_chain_append` is an ordered candidate list: a PEM is appended only when it certifies the current chain tail (full issuer/subject DN match and signature verification, the same check as `cert_chain_link_check`). Non-linking candidates are skipped and do not fail enrollment. See [`docs/cert_chain.md`](docs/cert_chain.md) and ([#419](https://github.com/grindsa/acme2certifier/issues/419), [#424](https://github.com/grindsa/acme2certifier/pull/424) for further information.
+- Optional `[CAhandler] cert_chain_append_matching_only` (default `False`). When `True`, `cert_chain_append` is an ordered candidate list: a PEM is appended only when it certifies the current chain tail (full issuer/subject DN match and signature verification, the same check as `cert_chain_link_check`). Non-linking candidates are skipped and do not fail enrollment. Contributed by Doug Hoffman ([doug-hoffman](https://github.com/doug-hoffman)). See [`docs/cert_chain.md`](docs/cert_chain.md), [#419](https://github.com/grindsa/acme2certifier/issues/419), and [#424](https://github.com/grindsa/acme2certifier/pull/424).
 
 **Bug Fixes and Improvements**:
+
+- below fixes addressing issues reported by Ahmed Mohamed Sabri ([Amsamms](https://github.com/Amsamms))
+  - Security: a CSR with more than one subject Common Name, or with a subject that cannot be parsed, is rejected at finalize (`badCSR`) in strict mode, legacy mode, and for TNAuthList orders. Contributed by Ahmed Mohamed Sabri ([Amsamms](https://github.com/Amsamms))
+  - Security: EAB subject profiles check every value of a repeated subject attribute.
+  - Security: a leading `*.` on domain allow/block lists is matched as a DNS wildcard
+  - Key rollover checks that the inner `oldKey` matches the account's current key
+- Security: a newOrder identifier is stored as `type` and `value` only. The Django handler writes authorization rows from those fields, so extra client keys cannot set the authorization status, token, or order. Reported by Nobuo Otoi ([otoinobuo](https://github.com/otoinobuo)).
 
 ## Changes in 0.47
 
