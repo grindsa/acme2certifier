@@ -48,12 +48,15 @@ def _build_csr_b64(
     dns_sans: Optional[Iterable[str]] = None,
     email_sans: Optional[Iterable[str]] = None,
     extra_sans: Optional[Iterable[x509.GeneralName]] = None,
+    extra_cns: Optional[Iterable[str]] = None,
 ) -> str:
     """Build a base64 DER CSR for binding regression tests."""
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject_attrs: List[x509.NameAttribute] = []
     if cn is not None:
         subject_attrs.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
+    for extra_cn in extra_cns or ():
+        subject_attrs.append(x509.NameAttribute(NameOID.COMMON_NAME, extra_cn))
     builder = x509.CertificateSigningRequestBuilder().subject_name(
         x509.Name(subject_attrs)
     )
@@ -930,6 +933,158 @@ class TestCsrBinding:
                 "identifiers": identifiers,
             }
             assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_057_strict_second_cn_rejected(self, certificate) -> None:
+        """A second subject CN is invisible to binding and must fail finalize."""
+        csr = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_cns=["unbound.example"],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            # Without the extra-CN reject, bound names would equal the order.
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+            with (
+                patch.object(
+                    certificate, "_validate_input_parameters", return_value={}
+                ),
+                patch.object(
+                    certificate,
+                    "_handle_enrollment_thread_execution",
+                    return_value=(None, ""),
+                ) as mock_enroll,
+            ):
+                error, detail = certificate.process_certificate_enrollment_request(
+                    "cert1", csr, "order1"
+                )
+        assert error == "urn:ietf:params:acme:error:badCSR"
+        assert detail == "CSR validation failed"
+        mock_enroll.assert_not_called()
+
+    def test_058_strict_second_cn_rejected_for_ip_identifier(self, certificate) -> None:
+        """Extra CN beside an IP identifier (no DNS SAN) must fail finalize."""
+        import ipaddress
+
+        csr = _build_csr_b64(
+            cn="192.0.2.10",
+            extra_sans=[x509.IPAddress(ipaddress.ip_address("192.0.2.10"))],
+            extra_cns=["unbound.example"],
+        )
+        identifiers = _identifiers_json(("ip", "192.0.2.10"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_059_legacy_non_strict_still_rejects_second_cn(self, certificate) -> None:
+        """Extra-CN reject applies even when csr_binding_strict is False."""
+        certificate.config.csr_binding_strict = False
+        csr = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_cns=["unbound.example"],
+        )
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is False
+
+    def test_060_single_cn_ip_identifier_still_allowed(self, certificate) -> None:
+        """Control for test_058: the same CSR with one CN passes binding."""
+        import ipaddress
+
+        csr = _build_csr_b64(
+            cn="192.0.2.10",
+            extra_sans=[x509.IPAddress(ipaddress.ip_address("192.0.2.10"))],
+        )
+        identifiers = _identifiers_json(("ip", "192.0.2.10"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr) is True
+
+    def test_061_tnauthlist_order_still_rejects_second_cn(self, certificate) -> None:
+        """Extra-CN reject also covers the TNAuthList branch."""
+        from acme2certifier.acme_srv.helpers.csr import csr_extensions_get
+
+        certificate.config.tnauthlist_support = True
+        csr_one_cn = _build_csr_b64(cn="ok.example", dns_sans=["ok.example"])
+        csr_two_cn = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_cns=["unbound.example"],
+        )
+        # the TNAuthList check matches identifier values against CSR extensions
+        ext_value = csr_extensions_get(certificate.logger, csr_one_cn)[0]
+        identifiers = json.dumps([{"type": "TNAuthList", "value": ext_value}])
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            assert certificate._validate_csr_against_order("cert1", csr_one_cn) is True
+            assert certificate._validate_csr_against_order("cert1", csr_two_cn) is False
+
+    @pytest.mark.parametrize("strict", [True, False])
+    def test_062_unreadable_subject_rejected(
+        self, certificate, strict, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A CSR that loads but whose subject cannot be parsed fails closed."""
+        certificate.config.csr_binding_strict = strict
+        csr = _build_csr_b64(
+            cn="ok.example",
+            dns_sans=["ok.example"],
+            extra_cns=["placeholder12"],
+        )
+        der = base64.b64decode(csr)
+        utf8_cn = b"\x0c\x0dplaceholder12"
+        assert der.count(utf8_cn) == 1
+        # same bytes, but tagged GeneralString: the CSR still loads and its
+        # extensions stay readable, only the subject raises on access
+        csr_bad = base64.b64encode(
+            der.replace(utf8_cn, b"\x1b\x0dplaceholder12")
+        ).decode()
+        identifiers = _identifiers_json(("dns", "ok.example"))
+        with patch.object(
+            certificate,
+            "_get_certificate_info",
+            return_value={"order": "order1"},
+        ):
+            certificate.repository.order_lookup.return_value = {
+                "identifiers": identifiers,
+            }
+            with caplog.at_level(logging.WARNING, logger=certificate.logger.name):
+                assert (
+                    certificate._validate_csr_against_order("cert1", csr_bad) is False
+                )
+        assert "Error while reading CSR subject Common Names" in caplog.text
 
 
 class TestClientHeaderParameterGate:

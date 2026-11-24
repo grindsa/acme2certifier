@@ -56,7 +56,7 @@ This is a high-level summary of the most important changes. For a full list of c
 
 **Bug Fixes and Improvements**:
 
-- Security: wildcard-vs-wildcard domain matching in allow/prevalidation lists now requires a DNS label boundary, so `*.example.com` no longer matches `*.evilexample.com` ([GHSA-4g95-ff7v-34mr](https://github.com/grindsa/acme2certifier/security/advisories/GHSA-4g95-ff7v-34mr))
+- Security: wildcard-vs-wildcard domain matching in allow/prevalidation lists now requires a DNS label boundary, so `*.example.com` no longer matches `*.evilexample.com` ([GHSA-4g95-ff7v-34mr](https://github.com/grindsa/acme2certifier/security/advisories/GHSA-4g95-ff7v-34mr)). Reported by [orshih6](https://github.com/orshih6).
 
 ## Changes in 0.46.4
 

@@ -226,6 +226,7 @@ Live container coverage is the composite action `.github/actions/wf_specific/err
 
 - Strict (default): missing order identifier → `badCSR`; extra CSR SAN → `badCSR`
 - `csr_binding_strict: False`: subset CSR still enrolls
+- More than one subject Common Name, or a subject that cannot be parsed, is rejected with `badCSR` in strict mode, legacy mode, and for TNAuthList orders
 - Email SAN smuggling is covered by unit tests (needs `email_identifier_support` plus mailbox config)
 
 ## Related

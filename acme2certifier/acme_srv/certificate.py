@@ -23,6 +23,7 @@ from acme2certifier.acme_srv.helper import (
     csr_san_get,
     csr_bound_names_get,
     csr_extensions_get,
+    csr_extra_cn_get,
     csr_unbound_san_types,
     san_list_to_bound_names,
     date_to_uts_utc,
@@ -945,6 +946,30 @@ class Certificate(object):
                 err,
             )
 
+    def _csr_subject_cn_unbound(self, csr: str) -> bool:
+        """True when the CSR subject holds Common Names the name checks never see.
+
+        Binding, allow-lists and handler routing read the first subject CN only.
+        A subject that cannot be parsed is rejected as well (fail closed).
+        """
+        self.logger.debug("Certificate._csr_subject_cn_unbound()")
+        try:
+            extra_cn_list = csr_extra_cn_get(self.logger, csr)
+        except Exception as err_:
+            self.logger.warning(
+                "Error while reading CSR subject Common Names: %s", err_
+            )
+            return True
+
+        result = bool(extra_cn_list)
+        if result:
+            self.logger.warning(
+                "CSR contains %s subject Common Names; multiple Common Names are not allowed",
+                len(extra_cn_list) + 1,
+            )
+        self.logger.debug("Certificate._csr_subject_cn_unbound() ended with %s", result)
+        return result
+
     def _load_and_validate_identifiers(
         self, identifier_dic: Dict[str, str], csr: str
     ) -> List[str]:
@@ -965,6 +990,8 @@ class Certificate(object):
                 "CSR contains SAN types not covered by ACME binding: %s",
                 unbound_san_types,
             )
+            identifier_status = [False]
+        elif self._csr_subject_cn_unbound(csr):
             identifier_status = [False]
         elif self.config.tnauthlist_support and tnauthlist_identifer_in:
             # get list of certextensions in base64 format

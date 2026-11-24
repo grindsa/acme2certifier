@@ -2,7 +2,7 @@
 """EAB (External Account Binding) utilities for acme2certifier"""
 
 import logging
-from typing import Any, Optional
+from typing import Any, List, Optional
 from .csr import csr_subject_get
 from .encoding import b64_url_recode
 from .config import (
@@ -171,8 +171,19 @@ def eab_profile_header_info_check(
     return error
 
 
+def _subject_attr_values(value: Any) -> List[str]:
+    """One subject attribute value, or every value when the attribute repeats."""
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
 def eab_profile_subject_string_check(
-    logger: logging.Logger, profile_subject_dic, key: str, value: str
+    logger: logging.Logger,
+    profile_subject_dic,
+    key: str,
+    value: str,
+    consume: bool = True,
 ) -> str:
     """check if a for a string value taken from profile if its a variable inside a class and apply value"""
     logger.debug(
@@ -192,7 +203,8 @@ def eab_profile_subject_string_check(
             logger.debug(
                 "Helper.eab_profile_subject_check() successul for string : %s", key
             )
-            del profile_subject_dic[key]
+            if consume:
+                del profile_subject_dic[key]
         elif (
             isinstance(profile_subject_dic[key], list)
             and value in profile_subject_dic[key]
@@ -200,7 +212,8 @@ def eab_profile_subject_string_check(
             logger.debug(
                 "Helper.eab_profile_subject_check() successul for list : %s", key
             )
-            del profile_subject_dic[key]
+            if consume:
+                del profile_subject_dic[key]
         else:
             logger.error(
                 "EAB profile subject check failed for: %s: value: %s expected: %s",
@@ -227,13 +240,19 @@ def eab_profile_subject_check(
     # get subject from csr
     subject_dic = csr_subject_get(logger, csr)
 
-    # check if all profile subject entries are in csr
-    for key, value in subject_dic.items():
-        error = eab_profile_subject_string_check(
-            logger, profile_subject_dic, key, value
-        )
+    # Every value of a repeated attribute must match the same whitelist entry.
+    # The entry is removed only after all of those values have passed.
+    for key, raw_value in subject_dic.items():
+        for value in _subject_attr_values(raw_value):
+            error = eab_profile_subject_string_check(
+                logger, profile_subject_dic, key, value, consume=False
+            )
+            if error:
+                break
         if error:
             break
+        if key != "commonName" and key in profile_subject_dic:
+            del profile_subject_dic[key]
 
     # check if we have any entries left in the profile_subject_dic
     if not error and profile_subject_dic:
