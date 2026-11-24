@@ -13,11 +13,11 @@ This is a high-level summary of the most important changes. For a full list of c
 **Bug Fixes and Improvements**:
 
 - below fixes addressing issues reported by Ahmed Mohamed Sabri ([Amsamms](https://github.com/Amsamms))
-
-  - Security: a CSR with more than one subject Common Name, or with a subject that cannot be parsed, is rejected at finalize (`badCSR`) in strict mode, legacy mode, and for TNAuthList orders
+  - Security: a CSR with more than one subject Common Name, or with a subject that cannot be parsed, is rejected at finalize (`badCSR`) in strict mode, legacy mode, and for TNAuthList orders. Contributed by Ahmed Mohamed Sabri ([Amsamms](https://github.com/Amsamms))
   - Security: EAB subject profiles check every value of a repeated subject attribute.
   - Security: a leading `*.` on domain allow/block lists is matched as a DNS wildcard
-
+  - Key rollover checks that the inner `oldKey` matches the account's current key
+- Security: a newOrder identifier is stored as `type` and `value` only. The Django handler writes authorization rows from those fields, so extra client keys cannot set the authorization status, token, or order. Reported by Nobuo Otoi ([otoinobuo](https://github.com/otoinobuo)).
 
 ## Changes in 0.47
 
