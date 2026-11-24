@@ -65,6 +65,7 @@ strip_into_min:
   - .github/workflows/cahandler-nclm.yml
   - .github/workflows/publish-pypi.yml
   - .github/workflows/quality-error.yml
+  - .github/workflows/quality-python.yml
   - .github/workflows/deployment-rpm.yml
   - .github/workflows/deployment-wsgi2django.yml
   - .github/actions/wf_specific/wsgi2django/

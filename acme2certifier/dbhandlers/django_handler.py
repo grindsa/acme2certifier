@@ -242,6 +242,8 @@ class DBstore(object):
     def authorization_add(self, data_dic: Dict[str, str]) -> int:
         """add authorization to database"""
         self.logger.debug("DBStore.authorization_add(%s)", data_dic)
+        fields = ("name", "order", "type", "value", "status", "expires")
+        data_dic = {key: data_dic[key] for key in fields if key in data_dic}
 
         # get some instance for DB insert
         if "order" in data_dic:
@@ -320,6 +322,8 @@ class DBstore(object):
     def authorization_update(self, data_dic: Dict[str, str]) -> int:
         """update existing authorization"""
         self.logger.debug("DBStore.authorization_update(%s)", data_dic)
+        fields = ("name", "status", "token", "expires")
+        data_dic = {key: data_dic[key] for key in fields if key in data_dic}
         # get some instance for DB insert
         if "status" in data_dic:
             data_dic["status"] = self._status_getinstance(data_dic["status"], "name")
