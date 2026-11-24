@@ -945,6 +945,44 @@ class TestDjangoHandler(unittest.TestCase):
         connection.cursor.return_value.execute.assert_called_with("BEGIN IMMEDIATE")
         self.assertIs(connection._start_transaction_under_autocommit, original_start)
 
+    def test_049_authorization_add_ignores_client_columns(self) -> None:
+        """status_id, token, and order_id on an add do not override server fields."""
+        acct = self._seed_account("acctAzX")
+        order = self._seed_order(acct, "ordAzX")
+        other = self._seed_order(acct, "ordOther")
+        aid = self.dbstore.authorization_add(
+            {
+                "name": "azExtra",
+                "order": order.id,
+                "type": "dns",
+                "value": "victim.example.com",
+                "status": "pending",
+                "expires": 10,
+                "status_id": 5,
+                "token": "chosen",
+                "order_id": other.id,
+                "wildcard": True,
+            }
+        )
+        self.assertIsInstance(aid, int)
+        row = Authorization.objects.get(name="azExtra")
+        self.assertEqual(2, row.status_id)
+        self.assertEqual(order.id, row.order_id)
+        self.assertEqual("", row.token)
+        self.assertEqual("victim.example.com", row.value)
+
+    def test_050_authorization_update_ignores_status_id(self) -> None:
+        """A raw status_id on update does not replace the status name."""
+        acct = self._seed_account("acctAzU")
+        order = self._seed_order(acct, "ordAzU")
+        self._seed_authz(order, "azUpd")
+        self.dbstore.authorization_update(
+            {"name": "azUpd", "status": "pending", "status_id": 5, "token": "kept"}
+        )
+        row = Authorization.objects.get(name="azUpd")
+        self.assertEqual(2, row.status_id)
+        self.assertEqual("kept", row.token)
+
 
 class TestDjangoHandlerInitializeReload(unittest.TestCase):
     """cover initialize monkey_patches import for Django < 4 via reload"""

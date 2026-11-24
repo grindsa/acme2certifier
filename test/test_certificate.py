@@ -373,6 +373,10 @@ class TestCertificate(unittest.TestCase):
                 "acme2certifier.acme_srv.certificate.csr_extensions_get",
                 return_value=["tnauth"],
             ),
+            patch(
+                "acme2certifier.acme_srv.certificate.csr_extra_cn_get",
+                return_value=[],
+            ),
             patch.object(
                 self.cert,
                 "_validate_identifiers_against_tnauthlist",
@@ -390,6 +394,10 @@ class TestCertificate(unittest.TestCase):
             patch(
                 "acme2certifier.acme_srv.certificate.csr_bound_names_get",
                 return_value={("dns", "foo")},
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.csr_extra_cn_get",
+                return_value=[],
             ),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
@@ -1642,9 +1650,15 @@ class TestCertificate(unittest.TestCase):
         """Covers identifiers JSON decode error (lines 663-664)."""
         identifier_dic = {"identifiers": "not-a-json"}
         csr = "irrelevant"
-        with patch(
-            "acme2certifier.acme_srv.certificate.csr_bound_names_get",
-            return_value=set(),
+        with (
+            patch(
+                "acme2certifier.acme_srv.certificate.csr_bound_names_get",
+                return_value=set(),
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.csr_extra_cn_get",
+                return_value=[],
+            ),
         ):
             with self.assertLogs(self.cert.logger, level="ERROR") as lcm:
                 result = self.cert._load_and_validate_identifiers(identifier_dic, csr)
@@ -1665,6 +1679,10 @@ class TestCertificate(unittest.TestCase):
             patch(
                 "acme2certifier.acme_srv.certificate.csr_extensions_get",
                 side_effect=Exception("fail"),
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.csr_extra_cn_get",
+                return_value=[],
             ),
         ):
             with self.assertLogs(self.cert.logger, level="WARNING") as lcm:
@@ -1687,6 +1705,10 @@ class TestCertificate(unittest.TestCase):
             patch(
                 "acme2certifier.acme_srv.certificate.csr_bound_names_get",
                 side_effect=Exception("fail"),
+            ),
+            patch(
+                "acme2certifier.acme_srv.certificate.csr_extra_cn_get",
+                return_value=[],
             ),
         ):
             with self.assertLogs(self.cert.logger, level="WARNING") as lcm:
@@ -3541,6 +3563,10 @@ class TestCertificate(unittest.TestCase):
                 "acme2certifier.acme_srv.certificate.csr_san_get",
                 return_value=["DNS:foo.example.com"],
             ) as mock_san,
+            patch(
+                "acme2certifier.acme_srv.certificate.csr_extra_cn_get",
+                return_value=[],
+            ),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=[True]
             ) as mock_validate,

@@ -291,10 +291,8 @@ class TestEABHandler(unittest.TestCase):
         self.assertFalse(result)
 
     def test_025_list_regex_check_wildcard(self):
-        """Entry matches wildcard regex: should return True"""
-        result = self.eabhandler._list_regex_check(
-            "sub.example.com", ["*.example\\.com"]
-        )
+        """Entry matches a DNS wildcard: should return True"""
+        result = self.eabhandler._list_regex_check("sub.example.com", ["*.example.com"])
         self.assertTrue(result)
 
     def test_026_wllist_check_match(self):
@@ -868,6 +866,34 @@ class TestEABHandler(unittest.TestCase):
         self.assertIn(
             "EXEC sp_rename 'acme_credential.status', 'enabled', 'COLUMN'", executed
         )
+
+    def test_063_list_regex_check_wildcard_does_not_match_outer_suffix(self):
+        """*.foo.bar must not match a name that merely ends past foo.bar"""
+        patterns = ["*.foo.bar", "*.bar.local"]
+        result = self.eabhandler._list_regex_check(
+            "www.foo.bar.other-zone.example", patterns
+        )
+        self.assertFalse(result)
+
+    def test_064_list_regex_check_wildcard_dots_are_literal(self):
+        """*.foo.bar must not treat the dots as 'any character'"""
+        patterns = ["*.foo.bar", "*.bar.local"]
+        result = self.eabhandler._list_regex_check(
+            "wwwxfooxbar.other-zone.example", patterns
+        )
+        self.assertFalse(result)
+
+    def test_065_list_regex_check_wildcard_matches_name_in_zone(self):
+        """*.foo.bar matches a name in that zone and not the zone apex"""
+        patterns = ["*.foo.bar", "*.bar.local"]
+        self.assertTrue(self.eabhandler._list_regex_check("www.foo.bar", patterns))
+        self.assertFalse(self.eabhandler._list_regex_check("foo.bar", patterns))
+
+    def test_066_list_regex_check_wildcard_requires_label_boundary(self):
+        """*.foo.bar does not match a wildcard whose base only shares a suffix"""
+        patterns = ["*.foo.bar"]
+        self.assertFalse(self.eabhandler._list_regex_check("*.notfoo.bar", patterns))
+        self.assertTrue(self.eabhandler._list_regex_check("*.a.foo.bar", patterns))
 
 
 if __name__ == "__main__":

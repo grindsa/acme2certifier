@@ -646,6 +646,7 @@ def _extend_chain(
     pem_list: List[str],
     *,
     link_check: bool = True,
+    matching_only: bool = False,
 ) -> Optional[str]:
     """Parse *pem_list*, reject leaf/duplicates, append in place, check RFC 8555 links."""
     logger.debug("Helper._extend_chain()")
@@ -660,6 +661,9 @@ def _extend_chain(
         error, fingerprint = _append_entry_check(logger, parsed, leaf_fp, seen_fps)
         if error:
             return error
+        if matching_only and not _cert_certifies(parsed, certs[-1]):
+            logger.debug("Skipping cert_chain_append certificate: no valid chain link")
+            continue
         seen_fps.add(fingerprint)
         pems.append(pem_cert)
         certs.append(parsed)
@@ -674,6 +678,7 @@ def cert_chain_append(
     pem_list: Optional[List[str]],
     *,
     link_check: bool = True,
+    matching_only: bool = False,
 ) -> Tuple[Optional[str], Optional[str]]:
     """Append PEM certificates to *pem_bundle* and check RFC 8555 chain links."""
     logger.debug("Helper.cert_chain_append()")
@@ -689,7 +694,14 @@ def cert_chain_append(
     if error:
         return error, None
 
-    error = _extend_chain(logger, pems, certs, pem_list, link_check=link_check)
+    error = _extend_chain(
+        logger,
+        pems,
+        certs,
+        pem_list,
+        link_check=link_check,
+        matching_only=matching_only,
+    )
     if error:
         return error, None
 

@@ -291,6 +291,37 @@ class Order(object):
         self.logger.debug("Order._add_authorizations_to_db() ended with %s", error)
         return error
 
+    def _identifier_for_persistence(self, identifier: Any) -> Any:
+        """Keep type and value. Other client keys are not identifier fields."""
+        self.logger.debug("Order._identifier_for_persistence(%s)", identifier)
+        if not isinstance(identifier, dict):
+            return identifier
+        stored: Dict[str, str] = {}
+        if "type" in identifier:
+            stored["type"] = identifier["type"]
+        if "value" in identifier:
+            stored["value"] = identifier["value"]
+        return stored
+
+    def _identifiers_for_persistence(self, identifiers: Any) -> Any:
+        """Reduce an identifier list to the fields that are stored and returned."""
+        if not isinstance(identifiers, list):
+            return identifiers
+        return [self._identifier_for_persistence(item) for item in identifiers]
+
+    def _authorization_record(
+        self, auth_name: str, oid: str, identifier: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """Build an authorization row from server fields plus type and value."""
+        return {
+            "name": auth_name,
+            "order": oid,
+            "type": identifier.get("type"),
+            "value": identifier.get("value"),
+            "status": "pending",
+            "expires": uts_now() + self.config.authz_validity,
+        }
+
     def _add_one_authorization_to_db(
         self,
         oid: str,
@@ -300,11 +331,8 @@ class Order(object):
     ) -> Optional[str]:
         """Persist one authorization; return error detail or None on success."""
         auth_name = generate_random_string(self.logger, 12)
-        auth_dic[auth_name] = auth.copy()
-        auth["name"] = auth_name
-        auth["order"] = oid
-        auth["status"] = "pending"
-        auth["expires"] = uts_now() + self.config.authz_validity
+        record = self._authorization_record(auth_name, oid, auth)
+        auth_dic[auth_name] = {"type": record["type"], "value": record["value"]}
         skip_shortname_challenge = self._should_skip_shortname_challenge_validation(
             auth, identifiers
         )
@@ -315,10 +343,10 @@ class Order(object):
             with span(
                 "acme.authorization.create", attributes=authz_attrs
             ) as authz_span:
-                self.repository.add_authorization(auth)
+                self.repository.add_authorization(record)
                 if self.config.sectigo_sim or skip_shortname_challenge:
-                    auth["status"] = "valid"
-                    self.repository.update_authorization(auth)
+                    record["status"] = "valid"
+                    self.repository.update_authorization(record)
                     if skip_shortname_challenge:
                         self.logger.warning(
                             "[Order] allow_shortname_without_challenge_validation "
@@ -650,7 +678,9 @@ class Order(object):
         if "identifiers" in payload:
             data_dic = {"status": 2, "expires": expires, "account": account_name}
             data_dic["name"] = order_name
-            data_dic["identifiers"] = json.dumps(payload["identifiers"])
+            data_dic["identifiers"] = json.dumps(
+                self._identifiers_for_persistence(payload["identifiers"])
+            )
             error, detail = self._check_identifiers_validity(
                 payload["identifiers"],
                 account_name=account_name,

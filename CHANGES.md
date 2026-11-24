@@ -4,17 +4,6 @@
 
 This is a high-level summary of the most important changes. For a full list of changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits) and pick the appropriate release branch.
 
-## Changes in 0.48
-
-**New Features**:
-
-- ML-DSA (FIPS 204 / RFC 9964) account keys (`ML-DSA-44` / `ML-DSA-65` / `ML-DSA-87`, JWK `kty: AKP`) for newAccount and subsequent kid-signed requests when the stack provides them. Pip installs require `jwcrypto>=1.5.9` and `cryptography>=49` ([`pyproject.toml`](pyproject.toml)). Ubuntu 26.04 companion `.deb`s (cryptography 49 + openssl 26.4 + jwcrypto 1.5.9) live in [grindsa/sbom `deb-repo/DEBs/ub26.04/`](https://github.com/grindsa/sbom/tree/main/deb-repo/DEBs/ub26.04) and are installed into a2c container images; EL RPMs are not backported. If the crypto stack lacks AKP/ML-DSA, registration fails with `badPublicKey`. See [`docs/ml-dsa.md`](docs/ml-dsa.md).
-
-**Bug Fixes and Improvements**:
-
-- Legacy stacks without jwcrypto AKP support reject ML-DSA account JWKs with `urn:ietf:params:acme:error:badPublicKey` and a clear detail instead of forwarding the raw jwcrypto `Unknown type "AKP"` error.
-- Account keyChange now updates the stored `alg` together with `jwk`, so rollovers across algorithms (RSA↔EC↔ML-DSA) keep verifying. See [`docs/ml-dsa.md`](docs/ml-dsa.md).
-
 ## Changes in 0.47.1
 
 **New Features**:
@@ -67,7 +56,7 @@ This is a high-level summary of the most important changes. For a full list of c
 
 **Bug Fixes and Improvements**:
 
-- Security: wildcard-vs-wildcard domain matching in allow/prevalidation lists now requires a DNS label boundary, so `*.example.com` no longer matches `*.evilexample.com` ([GHSA-4g95-ff7v-34mr](https://github.com/grindsa/acme2certifier/security/advisories/GHSA-4g95-ff7v-34mr))
+- Security: wildcard-vs-wildcard domain matching in allow/prevalidation lists now requires a DNS label boundary, so `*.example.com` no longer matches `*.evilexample.com` ([GHSA-4g95-ff7v-34mr](https://github.com/grindsa/acme2certifier/security/advisories/GHSA-4g95-ff7v-34mr)). Reported by [orshih6](https://github.com/orshih6).
 
 ## Changes in 0.46.4
 

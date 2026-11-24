@@ -49,6 +49,7 @@ from .helpers.certificates import (
 from .helpers.csr import (
     csr_load,
     csr_cn_get,
+    csr_extra_cn_get,
     csr_subject_cn_only,
     csr_dn_get,
     csr_pubkey_get,
@@ -147,6 +148,7 @@ from .helpers.config import (
     config_cert_chain_skip_list_load,
     config_cert_chain_append_load,
     config_cert_chain_link_check_load,
+    config_cert_chain_append_matching_only_load,
     config_cert_chain_profile_load,
     config_option_load,
     config_kerberos_options_load,

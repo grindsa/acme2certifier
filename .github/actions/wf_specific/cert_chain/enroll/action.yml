@@ -2,7 +2,7 @@ name: "enroll"
 description: "Enroll lego and assert the rewritten PEM chain (or expected failure)"
 inputs:
   LAYOUT:
-    description: "a | b | unlinked | stock"
+    description: "a | b | unlinked | matching | stock"
     required: true
   EXPECT:
     description: "success | fail"
@@ -112,12 +112,21 @@ runs:
       with:
         time: 10s
 
+    # matching append lists new-root twice; without matching_only the
+    # duplicate is rejected before link-check can run.
     - name: "Assert link-check failure in logs"
-      if: ${{ inputs.EXPECT == 'fail' }}
+      if: ${{ inputs.EXPECT == 'fail' && inputs.LAYOUT != 'matching' }}
       uses: ./.github/actions/logs_assert
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         PATTERN: "certificate does not certify the previous one"
+
+    - name: "Assert duplicate-append failure in logs"
+      if: ${{ inputs.EXPECT == 'fail' && inputs.LAYOUT == 'matching' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "already in the chain"
 
     - name: "Assert rewritten chain"
       if: ${{ inputs.EXPECT == 'success' }}
@@ -128,8 +137,8 @@ runs:
       run: |
         set -euo pipefail
         case "${LAYOUT}" in
-          a|b|unlinked|stock) ;;
-          *) echo "ERROR: LAYOUT must be a|b|unlinked|stock (got: ${LAYOUT})" >&2; exit 1 ;;
+          a|b|unlinked|matching|stock) ;;
+          *) echo "ERROR: LAYOUT must be a|b|unlinked|matching|stock (got: ${LAYOUT})" >&2; exit 1 ;;
         esac
         sudo chmod -R a+rX lego
         crt="lego/certificates/lego.acme.crt"
@@ -181,7 +190,9 @@ runs:
         }
 
         case "${LAYOUT}" in
-          a)
+          a|matching)
+            # matching keeps the same PEMs as layout a after skipping the
+            # non-linking first new-root candidate.
             [[ "${n}" == "3" ]] || { echo "expected 3 issuer certs, got ${n}" >&2; exit 1; }
             has "${old_sub}" || { echo "missing old sub-ca" >&2; exit 1; }
             has "${root_cross}" || { echo "missing root-ca-cross" >&2; exit 1; }

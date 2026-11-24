@@ -253,7 +253,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.eabhandler._wllist_check(entry, list_))
 
     def test_029_wllist_check(self):
-        """CAhandler._wllist_check successful whildcard in list but not in string"""
+        """CAhandler._wllist_check DNS wildcard matches a name under bar.foo"""
         list_ = ["foo.bar$", "*.bar.foo"]
         entry = "foo.bar.foo"
         self.assertTrue(self.eabhandler._wllist_check(entry, list_))
