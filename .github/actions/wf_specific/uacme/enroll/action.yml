@@ -1,0 +1,160 @@
+name: "enroll"
+description: "uacme HTTP-01 enroll / renew / revoke against a2c"
+inputs:
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: true
+    default: "acme-srv"
+  KEYLENGTH:
+    description: "RSA key size for account and leaf"
+    required: true
+    default: "2048"
+  CA_PATH:
+    description: "Path to a2c CA certificates"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
+  NAME_SPACE:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Create folders"
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo rm -rf uacme
+        mkdir -p uacme/www/.well-known/acme-challenge
+
+    - name: "Start uacme challenge container"
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      run: |
+        set -euo pipefail
+        docker rm -f uacme >/dev/null 2>&1 || true
+        docker run -d --name uacme --network "${NAME_SPACE}" \
+          --network-alias uacme2 \
+          -e "UACME_CHALLENGE_PATH=/data/www/.well-known/acme-challenge" \
+          -v "${PWD}/uacme:/data" \
+          debian:bookworm-slim \
+          sleep infinity
+        docker exec uacme bash -c \
+          'export DEBIAN_FRONTEND=noninteractive
+           apt-get update -qq
+           apt-get install -y -qq uacme curl openssl python3 ca-certificates >/dev/null'
+        docker exec -d uacme python3 -m http.server 80 --directory /data/www
+        for _ in $(seq 1 30); do
+          if docker exec uacme curl -fsS http://127.0.0.1/ >/dev/null; then
+            echo "uacme challenge server ready"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "uacme challenge server not ready"
+        docker logs uacme || true
+        exit 1
+
+    - name: "Register account"
+      shell: bash
+      env:
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      run: |
+        set -euo pipefail
+        docker exec -e UACME_CHALLENGE_PATH=/data/www/.well-known/acme-challenge uacme \
+          uacme -v -y -c /data/conf -a "http://${ACME_SERVER}/directory" \
+          -t RSA -b "${KEYLENGTH}" new uacme@example.com
+
+    - name: "Enroll HTTP-01 single domain"
+      shell: bash
+      env:
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+      run: |
+        set -euo pipefail
+        docker exec -e UACME_CHALLENGE_PATH=/data/www/.well-known/acme-challenge uacme \
+          uacme -v -y -f -c /data/conf -a "http://${ACME_SERVER}/directory" \
+          -t RSA -b "${KEYLENGTH}" -h /usr/share/uacme/uacme.sh \
+          issue uacme.acme
+        openssl verify -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          uacme/conf/uacme.acme/cert.pem
+
+    - name: "Renew HTTP-01 single domain"
+      shell: bash
+      env:
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+      run: |
+        set -euo pipefail
+        docker exec -e UACME_CHALLENGE_PATH=/data/www/.well-known/acme-challenge uacme \
+          uacme -v -y -f -c /data/conf -a "http://${ACME_SERVER}/directory" \
+          -t RSA -b "${KEYLENGTH}" -h /usr/share/uacme/uacme.sh \
+          issue uacme.acme
+        openssl verify -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          uacme/conf/uacme.acme/cert.pem
+
+    - name: "Revoke HTTP-01 single domain"
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      run: |
+        set -euo pipefail
+        docker exec uacme \
+          uacme -v -y -c /data/conf -a "http://${ACME_SERVER}/directory" \
+          revoke /data/conf/uacme.acme/cert.pem
+
+    - name: "Enroll HTTP-01 2x domain"
+      shell: bash
+      env:
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+      run: |
+        set -euo pipefail
+        # Fresh leaf keyset after revoke; remove prior cert material for clean SAN enroll.
+        sudo rm -rf uacme/conf/uacme.acme uacme/conf/private/uacme.acme
+        docker exec -e UACME_CHALLENGE_PATH=/data/www/.well-known/acme-challenge uacme \
+          uacme -v -y -f -c /data/conf -a "http://${ACME_SERVER}/directory" \
+          -t RSA -b "${KEYLENGTH}" -h /usr/share/uacme/uacme.sh \
+          issue uacme.acme uacme2.acme
+        openssl verify -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          uacme/conf/uacme.acme/cert.pem
+
+    - name: "Renew HTTP-01 2x domain"
+      shell: bash
+      env:
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+      run: |
+        set -euo pipefail
+        docker exec -e UACME_CHALLENGE_PATH=/data/www/.well-known/acme-challenge uacme \
+          uacme -v -y -f -c /data/conf -a "http://${ACME_SERVER}/directory" \
+          -t RSA -b "${KEYLENGTH}" -h /usr/share/uacme/uacme.sh \
+          issue uacme.acme uacme2.acme
+        openssl verify -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          uacme/conf/uacme.acme/cert.pem
+
+    - name: "Revoke HTTP-01 2x domain"
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      run: |
+        set -euo pipefail
+        docker exec uacme \
+          uacme -v -y -c /data/conf -a "http://${ACME_SERVER}/directory" \
+          revoke /data/conf/uacme.acme/cert.pem
+
+    - name: "Stop uacme challenge container"
+      if: ${{ always() }}
+      shell: bash
+      run: docker rm -f uacme >/dev/null 2>&1 || true

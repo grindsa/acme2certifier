@@ -1,0 +1,143 @@
+name: "enroll"
+description: "dehydrated HTTP-01 enroll / renew / revoke against a2c"
+inputs:
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: true
+    default: "acme-srv"
+  KEYLENGTH:
+    description: "RSA key size for account and leaf"
+    required: true
+    default: "2048"
+  CA_PATH:
+    description: "Path to a2c CA certificates"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
+  NAME_SPACE:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Create folders and config"
+      shell: bash
+      env:
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      run: |
+        set -euo pipefail
+        sudo rm -rf dehydrated
+        mkdir -p dehydrated/www/.well-known/acme-challenge
+        {
+          echo "CA=\"http://${ACME_SERVER}/directory\""
+          echo 'CHALLENGETYPE="http-01"'
+          echo 'BASEDIR="/data"'
+          echo 'WELLKNOWN="/data/www/.well-known/acme-challenge"'
+          echo 'DOMAINS_TXT="/data/domains.txt"'
+          echo 'CONTACT_EMAIL="dehydrated@example.com"'
+          echo 'KEY_ALGO="rsa"'
+          echo "KEYSIZE=\"${KEYLENGTH}\""
+          echo 'IP_VERSION="4"'
+        } > dehydrated/config
+        printf 'dehydrated.acme\n' > dehydrated/domains.txt
+
+    - name: "Start dehydrated challenge container"
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      run: |
+        set -euo pipefail
+        docker rm -f dehydrated >/dev/null 2>&1 || true
+        docker run -d --name dehydrated --network "${NAME_SPACE}" \
+          --network-alias dehydrated2 \
+          -v "${PWD}/dehydrated:/data" \
+          debian:bookworm-slim \
+          sleep infinity
+        docker exec dehydrated bash -c \
+          'export DEBIAN_FRONTEND=noninteractive
+           apt-get update -qq
+           apt-get install -y -qq dehydrated curl openssl python3 ca-certificates >/dev/null'
+        docker exec -d dehydrated python3 -m http.server 80 --directory /data/www
+        for _ in $(seq 1 30); do
+          if docker exec dehydrated curl -fsS http://127.0.0.1/ >/dev/null; then
+            echo "dehydrated challenge server ready"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "dehydrated challenge server not ready"
+        docker logs dehydrated || true
+        exit 1
+
+    - name: "Register account"
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker exec dehydrated dehydrated --config /data/config --register --accept-terms
+
+    - name: "Enroll HTTP-01 single domain"
+      shell: bash
+      env:
+        CA_PATH: ${{ inputs.CA_PATH }}
+      run: |
+        set -euo pipefail
+        printf 'dehydrated.acme\n' > dehydrated/domains.txt
+        docker exec dehydrated dehydrated --config /data/config --cron --force
+        openssl verify -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          dehydrated/certs/dehydrated.acme/cert.pem
+
+    - name: "Renew HTTP-01 single domain"
+      shell: bash
+      env:
+        CA_PATH: ${{ inputs.CA_PATH }}
+      run: |
+        set -euo pipefail
+        docker exec dehydrated dehydrated --config /data/config --cron --force
+        openssl verify -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          dehydrated/certs/dehydrated.acme/cert.pem
+
+    - name: "Revoke HTTP-01 single domain"
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker exec dehydrated dehydrated --config /data/config \
+          --revoke /data/certs/dehydrated.acme/cert.pem
+
+    - name: "Enroll HTTP-01 2x domain"
+      shell: bash
+      env:
+        CA_PATH: ${{ inputs.CA_PATH }}
+      run: |
+        set -euo pipefail
+        printf 'dehydrated.acme dehydrated2.acme\n' > dehydrated/domains.txt
+        docker exec dehydrated dehydrated --config /data/config --cron --force
+        openssl verify -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          dehydrated/certs/dehydrated.acme/cert.pem
+
+    - name: "Renew HTTP-01 2x domain"
+      shell: bash
+      env:
+        CA_PATH: ${{ inputs.CA_PATH }}
+      run: |
+        set -euo pipefail
+        docker exec dehydrated dehydrated --config /data/config --cron --force
+        openssl verify -CAfile "${CA_PATH}/root-ca-cert.pem" \
+          -untrusted "${CA_PATH}/sub-ca-cert.pem" \
+          dehydrated/certs/dehydrated.acme/cert.pem
+
+    - name: "Revoke HTTP-01 2x domain"
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker exec dehydrated dehydrated --config /data/config \
+          --revoke /data/certs/dehydrated.acme/cert.pem
+
+    - name: "Stop dehydrated challenge container"
+      if: ${{ always() }}
+      shell: bash
+      run: docker rm -f dehydrated >/dev/null 2>&1 || true
