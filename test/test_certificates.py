@@ -720,3 +720,99 @@ def test_660_cert_bound_names_get_email_rewrite(logger: logging.Logger) -> None:
         ("email", "user@mail.example.com"),
         ("dns", "ignored.example.com"),
     } == cert_bound_names_get(logger, cert, email_identifier_rewrite=True)
+
+
+def _illegal_bc_cert_pem() -> str:
+    """Self-signed cert with BasicConstraints CA:FALSE + pathlen:0 and mixed SANs."""
+    import ipaddress
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "foo.example.com")])
+    cert_obj = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(1)
+        .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+        .not_valid_after(
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
+        )
+        .add_extension(
+            x509.SubjectAlternativeName(
+                [
+                    x509.RFC822Name("foo@example.com"),
+                    x509.IPAddress(ipaddress.ip_address("192.0.2.1")),
+                    x509.DNSName("foo.example.com"),
+                    x509.IPAddress(ipaddress.ip_address("2001:db8::1")),
+                ]
+            ),
+            critical=False,
+        )
+        .add_extension(
+            x509.UnrecognizedExtension(
+                x509.ObjectIdentifier("2.5.29.19"), b"\x30\x03\x02\x01\x00"
+            ),
+            critical=True,
+        )
+        .sign(key, hashes.SHA256())
+    )
+    return cert_obj.public_bytes(serialization.Encoding.PEM).decode()
+
+
+def test_661_cert_san_get_illegal_basic_constraints(
+    logger: logging.Logger, capture_logs: Callable[..., AbstractContextManager[Any]]
+) -> None:
+    """cert_san_get falls back to ASN.1 when cryptography rejects extensions"""
+    pem = _illegal_bc_cert_pem()
+    with capture_logs("test_a2c", level="INFO") as lcm:
+        sans = cert_san_get(logger, pem, recode=False)
+    assert sans == [
+        "DNS:foo.example.com",
+        "IP:192.0.2.1",
+        "IP:2001:db8::1",
+        "EMAIL:foo@example.com",
+    ]
+    assert "INFO:test_a2c:Fallback to ASN.1 method for SANs" in lcm.output
+
+
+def test_662_cert_san_asn1_get_no_san(logger: logging.Logger) -> None:
+    """_cert_san_asn1_get returns empty list when no SAN extension exists"""
+    from acme2certifier.acme_srv.helpers.certificates import _cert_san_asn1_get
+
+    with patch(
+        "acme2certifier.acme_srv.helpers.certificates._cert_extension_asn1_get",
+        return_value=None,
+    ):
+        assert _cert_san_asn1_get(logger, "cert") == []
+
+
+def test_663_cert_san_get_asn1_fallback_error(
+    logger: logging.Logger, capture_logs: Callable[..., AbstractContextManager[Any]]
+) -> None:
+    """cert_san_get returns empty list when the ASN.1 fallback fails as well"""
+    pem = _illegal_bc_cert_pem()
+    with (
+        patch(
+            "acme2certifier.acme_srv.helpers.certificates._cert_san_asn1_get",
+            side_effect=Exception("asn1 broken"),
+        ),
+        capture_logs("test_a2c", level="ERROR") as lcm,
+    ):
+        assert cert_san_get(logger, pem, recode=False) == []
+    assert any("asn1 broken" in line for line in lcm.output)
+
+
+def test_664_cert_extension_asn1_get_critical(logger: logging.Logger) -> None:
+    """_cert_extension_asn1_get returns critical flag and value (PEM input)"""
+    from acme2certifier.acme_srv.helpers.certificates import _cert_extension_asn1_get
+
+    pem = _illegal_bc_cert_pem()
+    critical, value = _cert_extension_asn1_get(logger, pem, "2.5.29.19", recode=False)
+    assert critical is True
+    assert value == b"\x30\x03\x02\x01\x00"
+    assert _cert_extension_asn1_get(logger, pem, "1.2.3.4", recode=False) is None

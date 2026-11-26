@@ -2,6 +2,7 @@
 """Certificate utilities for acme2certifier"""
 
 import base64
+import ipaddress
 import logging
 from typing import List, Tuple, Optional, Set
 from cryptography import x509
@@ -40,11 +41,16 @@ ACME_TLS_ALPN_OID = x509.ObjectIdentifier("1.3.6.1.5.5.7.1.31")
 ACME_TLS_ALPN_PROTOCOL = "acme-tls/1"
 
 
-def _cert_pem_to_der(logger: logging.Logger, certificate: str) -> bytes:
+def _cert_pem_to_der(
+    logger: logging.Logger, certificate: str, recode: bool = True
+) -> bytes:
     """Convert certificate input to DER bytes without parsing extensions."""
-    pem_data = convert_string_to_byte(
-        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    )
+    if recode:
+        pem_data = convert_string_to_byte(
+            build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+        )
+    else:
+        pem_data = convert_string_to_byte(certificate)
     # Prefer cryptography load for PEM framing only; public_bytes touches extensions
     # on some versions, so strip PEM manually.
     lines = convert_byte_to_string(pem_data).strip().splitlines()
@@ -52,20 +58,65 @@ def _cert_pem_to_der(logger: logging.Logger, certificate: str) -> bytes:
     return base64.b64decode(b64)
 
 
-def _cert_extension_raw_get(
-    logger: logging.Logger, certificate: str, oid: str
-) -> Optional[bytes]:
-    """Return extnValue (OCTET STRING contents) for oid, or None."""
-    logger.debug("_cert_extension_raw_get(%s)", oid)
-    der = _cert_pem_to_der(logger, certificate)
+def _cert_extension_asn1_get(
+    logger: logging.Logger, certificate: str, oid: str, recode: bool = True
+) -> Optional[Tuple[bool, bytes]]:
+    """Return (critical, extnValue) for oid via ASN.1, or None if absent.
+
+    Unlike cryptography, this does not validate the semantics of other
+    extensions, so it tolerates e.g. BasicConstraints with CA:FALSE and a
+    pathLenConstraint as emitted by some TLS-ALPN-01 clients.
+    """
+    logger.debug("_cert_extension_asn1_get(%s)", oid)
+    der = _cert_pem_to_der(logger, certificate, recode=recode)
     cert_asn1, _ = decoder.decode(der, asn1Spec=rfc5280.Certificate())
     extensions = cert_asn1["tbsCertificate"]["extensions"]
     if extensions is None or not extensions.hasValue():
         return None
     for ext in extensions:
         if str(ext["extnID"]) == oid:
-            return bytes(ext["extnValue"])
+            return bool(ext["critical"]), bytes(ext["extnValue"])
     return None
+
+
+def _cert_extension_raw_get(
+    logger: logging.Logger, certificate: str, oid: str
+) -> Optional[bytes]:
+    """Return extnValue (OCTET STRING contents) for oid, or None."""
+    logger.debug("_cert_extension_raw_get(%s)", oid)
+    result = _cert_extension_asn1_get(logger, certificate, oid)
+    if result is None:
+        return None
+    return result[1]
+
+
+def _cert_san_asn1_get(
+    logger: logging.Logger, certificate: str, recode: bool = True
+) -> List[str]:
+    """Get SANs via ASN.1 (tolerates illegal BasicConstraints)."""
+    logger.debug("_cert_san_asn1_get()")
+    sans: List[str] = []
+    result = _cert_extension_asn1_get(
+        logger, certificate, x509.OID_SUBJECT_ALTERNATIVE_NAME.dotted_string, recode
+    )
+    if result is None:
+        logger.debug("_cert_san_asn1_get() ended: no SAN extension")
+        return sans
+    general_names, _ = decoder.decode(result[1], asn1Spec=rfc5280.SubjectAltName())
+    # keep the order used by cert_san_get(): DNS, IP, EMAIL
+    dns_names, ip_names, email_names = [], [], []
+    for general_name in general_names:
+        name_type = general_name.getName()
+        value = general_name.getComponent()
+        if name_type == "dNSName":
+            dns_names.append(f"DNS:{value}")
+        elif name_type == "iPAddress":
+            ip_names.append(f"IP:{ipaddress.ip_address(bytes(value))}")
+        elif name_type == "rfc822Name":
+            email_names.append(f"EMAIL:{value}")
+    sans = dns_names + ip_names + email_names
+    logger.debug("_cert_san_asn1_get() ended with: %s", sans)
+    return sans
 
 
 def _cert_aki_asn1_get(logger: logging.Logger, certificate: str) -> Optional[str]:
@@ -240,8 +291,20 @@ def cert_san_get(
         sans_list = ext.value.get_values_for_type(x509.RFC822Name)
         for san in sans_list:
             sans.append(f"EMAIL:{san}")
+    except x509.ExtensionNotFound as err:
+        logger.error("Error while getting SANs from certificate: %s", err)
     except Exception as err:
         logger.error("Error while getting SANs from certificate: %s", err)
+        # cryptography rejects certificates with semantically invalid
+        # extensions (e.g. BasicConstraints CA:FALSE with pathlen)
+        logger.info("Fallback to ASN.1 method for SANs")
+        try:
+            sans = _cert_san_asn1_get(logger, certificate, recode=recode)
+        except Exception as asn1_err:
+            logger.error(
+                "Error while getting SANs from certificate via ASN.1: %s", asn1_err
+            )
+            sans = []
 
     logger.debug("Helper.cert_san_get() ended")
     return sans
@@ -334,19 +397,42 @@ def cert_acme_tls_alpn_extension_ok(
     OCTET STRING of the SHA-256 digest of the key authorization.
     """
     logger.debug("Helper.cert_acme_tls_alpn_extension_ok()")
+    raw = None
     try:
         cert = cert_load(logger, certificate, recode=recode)
         extension = cert.extensions.get_extension_for_oid(ACME_TLS_ALPN_OID)
+        critical = extension.critical
     except x509.ExtensionNotFound:
         logger.warning("tls-alpn-01: id-pe-acmeIdentifier extension not found")
         return False
     except Exception as err:
-        logger.warning(
-            "tls-alpn-01: failed to parse ACME identifier extension: %s", err
+        # cryptography rejects certificates with semantically invalid
+        # extensions (e.g. BasicConstraints CA:FALSE with pathlen), which some
+        # ACME clients put into their validation certificate. RFC 8737 only
+        # requires the SAN and the acmeIdentifier extension, so read the
+        # latter via ASN.1 instead.
+        logger.info(
+            "tls-alpn-01: cryptography could not parse certificate extensions "
+            "(%s). Fallback to ASN.1 method",
+            err,
         )
-        return False
+        try:
+            result = _cert_extension_asn1_get(
+                logger, certificate, ACME_TLS_ALPN_OID.dotted_string, recode=recode
+            )
+        except Exception as asn1_err:
+            logger.warning(
+                "tls-alpn-01: failed to parse ACME identifier extension: %s",
+                asn1_err,
+            )
+            return False
+        if result is None:
+            logger.warning("tls-alpn-01: id-pe-acmeIdentifier extension not found")
+            return False
+        critical, raw = result
+        extension = None
 
-    if not extension.critical:
+    if not critical:
         logger.warning("tls-alpn-01: id-pe-acmeIdentifier extension is not critical")
         return False
 
@@ -361,7 +447,8 @@ def cert_acme_tls_alpn_extension_ok(
 
     # DER OCTET STRING: tag 0x04, length 0x20, then digest
     expected_der = b"\x04\x20" + digest
-    raw = getattr(extension.value, "value", None)
+    if raw is None:
+        raw = getattr(extension.value, "value", None)
     if raw is None:
         try:
             raw = extension.value.public_bytes()
