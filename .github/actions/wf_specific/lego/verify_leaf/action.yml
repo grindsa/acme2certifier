@@ -1,0 +1,72 @@
+name: "lego_verify_leaf"
+description: >-
+  Assert issued leaf key type (incl. ML-DSA OIDs) and chain-verify the cert.
+  ML-DSA verify runs inside acme-srv (OpenSSL 3.5+); classical uses host openssl.
+inputs:
+  CERT:
+    description: "Path to leaf certificate (host path)"
+    required: true
+  KEY_TYPE:
+    description: "lego key-type (rsa2048|rsa4096|ec256|MLDSA44|MLDSA65|MLDSA87)"
+    required: true
+  CA_DIR:
+    description: "Host directory with root-ca-cert.pem and sub-ca-cert.pem"
+    required: false
+    default: "examples/Docker/data/acme_ca"
+  ACME_CONTAINER:
+    description: "Running a2c container name (OpenSSL 3.5+ for ML-DSA verify)"
+    required: false
+    default: "acme-srv"
+  CONTAINER_CA_DIR:
+    description: "CA directory inside ACME_CONTAINER"
+    required: false
+    default: "/var/www/acme2certifier/volume/acme_ca"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Assert leaf key type (${{ inputs.KEY_TYPE }})"
+      shell: bash
+      env:
+        CERT: ${{ inputs.CERT }}
+        KEY_TYPE: ${{ inputs.KEY_TYPE }}
+        CA_DIR: ${{ inputs.CA_DIR }}
+        ACME_CONTAINER: ${{ inputs.ACME_CONTAINER }}
+        CONTAINER_CA_DIR: ${{ inputs.CONTAINER_CA_DIR }}
+      run: |
+        set -euo pipefail
+        # lego container writes certificates/ as root:root 0700/0600
+        sudo chmod -R a+rX "$(dirname "${CERT}")"
+        test -f "${CERT}"
+
+        # OID on OpenSSL < 3.5 / LibreSSL; friendly name on OpenSSL ≥ 3.5.
+        text="$(openssl x509 -in "${CERT}" -noout -text 2>/dev/null || true)"
+        case "${KEY_TYPE}" in
+          MLDSA44) expect='2.16.840.1.101.3.4.3.17|ML-DSA-44' ;;
+          MLDSA65) expect='2.16.840.1.101.3.4.3.18|ML-DSA-65' ;;
+          MLDSA87) expect='2.16.840.1.101.3.4.3.19|ML-DSA-87' ;;
+          rsa2048|rsa4096) expect='rsaEncryption' ;;
+          ec256|ec384) expect='id-ecPublicKey' ;;
+          *)
+            echo "ERROR: unsupported KEY_TYPE=${KEY_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+        echo "${text}" | grep -E "${expect}"
+        echo "Leaf key type OK (${KEY_TYPE} → ${expect})"
+
+        case "${KEY_TYPE}" in
+          MLDSA*)
+            docker cp "${CERT}" "${ACME_CONTAINER}:/tmp/lego-leaf.crt"
+            docker exec "${ACME_CONTAINER}" openssl verify \
+              -CAfile "${CONTAINER_CA_DIR}/root-ca-cert.pem" \
+              -untrusted "${CONTAINER_CA_DIR}/sub-ca-cert.pem" \
+              /tmp/lego-leaf.crt
+            ;;
+          *)
+            sudo openssl verify \
+              -CAfile "${CA_DIR}/root-ca-cert.pem" \
+              -untrusted "${CA_DIR}/sub-ca-cert.pem" \
+              "${CERT}"
+            ;;
+        esac

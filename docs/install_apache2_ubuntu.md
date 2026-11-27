@@ -7,6 +7,8 @@
 
 Install `acme2certifier` from PyPI into a virtualenv under `/var/www/acme2certifier` and serve it with Apache2 + `mod_wsgi`.
 
+PyPI resolves `jwcrypto>=1.5.9` and `cryptography>=49`, which enables [ML-DSA account keys](ml-dsa.md) when cryptography wheels provide ML-DSA.
+
 Tested on Ubuntu 24.04. Adapt package names as needed for other releases.
 
 **Other install guides:** [Nginx on Ubuntu](install_nginx_ubuntu.md) · [Nginx on Alma / RHEL](install_nginx_alma.md)

@@ -14,8 +14,8 @@ license = { file = "LICENSE" }
 requires-python = ">=3.7"
 dependencies = [
     "setuptools",
-    "jwcrypto",
-    "cryptography",
+    "jwcrypto>=1.5.9",
+    "cryptography>=49",
     "pyOpenSSL",
     "dnspython",
     "python-dateutil",

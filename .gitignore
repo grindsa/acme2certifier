@@ -194,3 +194,4 @@ coverage.lcov
 acme2certifier/cahandlers/openssl_ca_handler-v046.py
 # Local security review backlog (do not upload)
 .cursor/*
+.legacy/*

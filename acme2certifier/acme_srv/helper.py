@@ -66,6 +66,7 @@ from .helpers.csr import (
 
 # Cryptographic operations
 from .helpers.crypto import (
+    akp_jwk_supported,
     decode_deserialize,
     decode_message,
     generate_random_string,
@@ -74,6 +75,7 @@ from .helpers.crypto import (
     sha256_hash_hex,
     signature_check,
     string_sanitize,
+    unsupported_jwk_detail,
 )
 
 # Date/time utilities

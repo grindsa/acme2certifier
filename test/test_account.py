@@ -1181,15 +1181,25 @@ class TestAccount(unittest.TestCase):
         self.assertIn("key-change URL", result["data"]["detail"])
 
     def test_074__rollover_account_key_validation_success(self):
-        """test _rollover_account_key success"""
+        """test _rollover_account_key success persists jwk and alg"""
         self.account.repository.update_account.return_value = True
         with patch.object(
             self.account, "_validate_key_change", return_value=(200, None, None)
         ):
             code, message, detail = self.account._rollover_account_key(
-                "test_account", {}, {"jwk": {"foo": "bar"}}, {}
+                "test_account",
+                {},
+                {"alg": "ES256", "jwk": {"kty": "EC", "crv": "P-256"}},
+                {},
             )
             self.assertEqual(code, 200)
+            self.account.repository.update_account.assert_called_once_with(
+                {
+                    "name": "test_account",
+                    "jwk": json.dumps({"kty": "EC", "crv": "P-256"}),
+                    "alg": "ES256",
+                }
+            )
 
     def test_075__rollover_account_key_validation_failure(self):
         """test _rollover_account_key success"""
@@ -2187,6 +2197,137 @@ class TestAccount(unittest.TestCase):
         self.assertEqual("error", self.account._outcome_from_response_code(503))
         self.assertEqual("failure", self.account._outcome_from_response_code(400))
         self.assertEqual("failure", self.account._outcome_from_response_code("nope"))
+
+    def test_124__validate_key_change_missing_old_key(self):
+        """inner oldKey is required"""
+        protected = {"url": "test", "kid": "kid"}
+        inner_protected = {"jwk": {}, "url": "test"}
+        inner_payload = {"account": "kid"}
+        with patch.object(self.account, "_lookup_account_by_field", return_value=None):
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_key_change(
+                    "test_account", protected, inner_protected, inner_payload
+                )
+        self.assertEqual(code, 400)
+        self.assertEqual(message, self.account.err_msg_dic["malformed"])
+        self.assertEqual(detail, "old key is missing")
+        self.assertIn(
+            "WARNING:test_a2c:Key-change validation failed account=test_account detail=old key is missing",
+            log_cm.output,
+        )
+
+    def test_125__validate_key_change_old_key_mismatch(self):
+        """inner oldKey must match the stored account key"""
+        protected = {"url": "test", "kid": "kid"}
+        inner_protected = {"jwk": {}, "url": "test"}
+        inner_payload = {
+            "account": "kid",
+            "oldkey": {"kty": "EC", "crv": "P-256", "x": "aa", "y": "bb"},
+        }
+        self.account.repository.load_jwk.return_value = {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "cc",
+            "y": "dd",
+            "alg": "ES256",
+        }
+        with patch.object(self.account, "_lookup_account_by_field", return_value=None):
+            with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+                code, message, detail = self.account._validate_key_change(
+                    "test_account", protected, inner_protected, inner_payload
+                )
+        self.assertEqual(code, 401)
+        self.assertEqual(message, self.account.err_msg_dic["unauthorized"])
+        self.assertEqual(detail, "wrong public key")
+        self.assertIn("detail=wrong public key", log_cm.output[0])
+
+    def test_126__old_key_compare_copies_missing_alg(self):
+        """an oldKey without alg matches the stored key"""
+        stored = {"kty": "RSA", "n": "aa", "e": "AQAB", "alg": "RS256"}
+        self.account.repository.load_jwk.return_value = stored
+        code, message, detail = self.account._old_key_compare(
+            "test_account", {"kty": "RSA", "n": "aa", "e": "AQAB"}
+        )
+        self.assertEqual((200, None, None), (code, message, detail))
+
+    def test_127__old_key_compare_accepts_ecdsa_alg(self):
+        """ECDSA in oldKey matches a stored ES* alg"""
+        self.account.repository.load_jwk.return_value = {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "aa",
+            "y": "bb",
+            "alg": "ES256",
+        }
+        code, message, detail = self.account._old_key_compare(
+            "test_account",
+            {"kty": "EC", "crv": "P-256", "x": "aa", "y": "bb", "alg": "ECDSA"},
+        )
+        self.assertEqual((200, None, None), (code, message, detail))
+
+    def test_128__old_key_compare_database_error(self):
+        """a database error while loading the current key fails closed"""
+        self.account.repository.load_jwk.side_effect = Exception("db down")
+        with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
+            code, message, detail = self.account._old_key_compare(
+                "test_account", {"kty": "EC"}
+            )
+        self.assertEqual(code, 500)
+        self.assertEqual(message, self.account.err_msg_dic["serverinternal"])
+        self.assertEqual(detail, "Database error")
+        self.assertIn("db down", log_cm.output[0])
+
+    def test_129__rollover_account_key_persists_mldsa_alg(self):
+        """keyChange to ML-DSA updates account.alg from the inner protected header"""
+        self.account.repository.update_account.return_value = True
+        inner_protected = {
+            "alg": "ML-DSA-65",
+            "jwk": {"kty": "AKP", "alg": "ML-DSA-65", "pub": "x"},
+        }
+        with patch.object(
+            self.account, "_validate_key_change", return_value=(200, None, None)
+        ):
+            code, _message, _detail = self.account._rollover_account_key(
+                "test_account", {}, inner_protected, {}
+            )
+        self.assertEqual(code, 200)
+        self.account.repository.update_account.assert_called_once_with(
+            {
+                "name": "test_account",
+                "jwk": json.dumps(inner_protected["jwk"]),
+                "alg": "ML-DSA-65",
+            }
+        )
+
+    def test_130__rollover_account_key_alg_fallback_from_jwk(self):
+        """when protected alg is missing, use jwk.alg (AKP)"""
+        self.account.repository.update_account.return_value = True
+        inner_protected = {
+            "jwk": {"kty": "AKP", "alg": "ML-DSA-44", "pub": "x"},
+        }
+        with patch.object(
+            self.account, "_validate_key_change", return_value=(200, None, None)
+        ):
+            code, _message, _detail = self.account._rollover_account_key(
+                "test_account", {}, inner_protected, {}
+            )
+        self.assertEqual(code, 200)
+        self.account.repository.update_account.assert_called_once_with(
+            {
+                "name": "test_account",
+                "jwk": json.dumps(inner_protected["jwk"]),
+                "alg": "ML-DSA-44",
+            }
+        )
+
+    def test_131__key_change_alg_prefers_protected_header(self):
+        """protected-header alg wins over jwk.alg"""
+        self.assertEqual(
+            "ES256",
+            self.account._key_change_alg(
+                {"alg": "ES256", "jwk": {"kty": "EC", "alg": "ES384"}}
+            ),
+        )
 
 
 if __name__ == "__main__":

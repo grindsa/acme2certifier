@@ -7,10 +7,49 @@ import logging
 import re
 import secrets
 from string import digits, ascii_letters
-from typing import Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 from jwcrypto import jwk, jws
 from .encoding import B64_DECODE_ERROR, b64decode_pad, b64_encode
 from .validation import dkeys_lower
+
+# Cached once per process: whether jwcrypto can load kty=AKP (RFC 9964).
+_AKP_SUPPORTED: Optional[bool] = None
+
+
+def akp_jwk_supported(logger) -> bool:
+    """Return True if jwcrypto accepts JWK key type AKP on this stack."""
+    logger.debug("Helper.akp_jwk_supported()")
+    global _AKP_SUPPORTED
+    if _AKP_SUPPORTED is None:
+        try:
+            _AKP_SUPPORTED = "AKP" in jwk.JWKTypesRegistry
+        except Exception:
+            _AKP_SUPPORTED = False
+    logger.debug("Helper.akp_jwk_supported() ended with: %s", _AKP_SUPPORTED)
+    return _AKP_SUPPORTED
+
+
+def unsupported_jwk_detail(logger, pub_key: Any) -> Optional[str]:
+    """Return a client-facing detail if this JWK cannot be used on this server.
+
+    Only rejects kty=AKP when the local jwcrypto build has no AKP support
+    (typical legacy cryptography/jwcrypto without ML-DSA).
+    """
+    logger.debug("Helper.unsupported_jwk_detail()")
+    if not isinstance(pub_key, dict):
+        logger.debug("Helper.unsupported_jwk_detail(): pub_key is not a dict")
+        return None
+    if pub_key.get("kty") != "AKP":
+        logger.debug("Helper.unsupported_jwk_detail(): pub_key.get('kty') != 'AKP'")
+        return None
+    if akp_jwk_supported(logger):
+        logger.debug("Helper.unsupported_jwk_detail(): akp_jwk_supported()")
+        return None
+    alg = pub_key.get("alg", "unknown")
+    logger.debug("Helper.unsupported_jwk_detail(): alg = %s", alg)
+    return (
+        f'JWK key type "AKP" (alg "{alg}") is not supported by this ACME server'
+    )
 
 
 def decode_deserialize(logger: logging.Logger, string: str) -> Dict:
@@ -101,8 +140,8 @@ def sha256_hash_hex(logger: logging.Logger, string: str) -> str:
 
 
 def signature_check(
-    logger: logging.Logger, message: str, pub_key: str, json_: bool = False
-) -> Tuple[bool, str]:
+    logger: logging.Logger, message: str, pub_key: Any, json_: bool = False
+) -> Tuple[bool, Optional[str]]:
     """check JWS"""
     logger.debug("Helper.signature_check(%s)", json_)
 
@@ -110,6 +149,14 @@ def signature_check(
     error = None
 
     if pub_key:
+        # Reject unsupported AKP before jwcrypto raises Unknown type "AKP".
+        # Skip EAB (json_=True): that path uses an oct MAC key, not an account JWK.
+        if not json_:
+            detail = unsupported_jwk_detail(logger, pub_key)
+            if detail:
+                logger.error("%s", detail)
+                return (False, detail)
+
         # load key
         try:
             if json_:
