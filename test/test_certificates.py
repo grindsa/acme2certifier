@@ -816,3 +816,26 @@ def test_664_cert_extension_asn1_get_critical(logger: logging.Logger) -> None:
     assert critical is True
     assert value == b"\x30\x03\x02\x01\x00"
     assert _cert_extension_asn1_get(logger, pem, "1.2.3.4", recode=False) is None
+
+
+def test_665_cert_san_get_load_failure_fallback(
+    logger: logging.Logger, capture_logs: Callable[..., AbstractContextManager[Any]]
+) -> None:
+    """cert_san_get falls back to ASN.1 when cert_load itself fails"""
+    pem = _illegal_bc_cert_pem()
+    with (
+        patch(
+            "acme2certifier.acme_srv.helpers.certificates.cert_load",
+            side_effect=ValueError("load failed"),
+        ),
+        capture_logs("test_a2c", level="INFO") as lcm,
+    ):
+        sans = cert_san_get(logger, pem, recode=False)
+    assert sans == [
+        "DNS:foo.example.com",
+        "IP:192.0.2.1",
+        "IP:2001:db8::1",
+        "EMAIL:foo@example.com",
+    ]
+    assert "INFO:test_a2c:Fallback to ASN.1 method for SANs" in lcm.output
+    assert any("load failed" in line for line in lcm.output)

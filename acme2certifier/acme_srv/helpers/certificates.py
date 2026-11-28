@@ -278,9 +278,9 @@ def cert_san_get(
     """get subject alternate names from certificate"""
     logger.debug("Helper.cert_san_get(%s)", recode)
 
-    cert = cert_load(logger, certificate, recode=recode)
     sans = []
     try:
+        cert = cert_load(logger, certificate, recode=recode)
         ext = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_ALTERNATIVE_NAME)
         sans_list = ext.value.get_values_for_type(x509.DNSName)
         for san in sans_list:
