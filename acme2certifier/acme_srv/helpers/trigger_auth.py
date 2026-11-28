@@ -2,6 +2,7 @@
 """Authentication and certificate trust helpers for the /trigger endpoint."""
 
 import binascii
+import datetime
 import hashlib
 import hmac
 import json
@@ -279,6 +280,35 @@ def _verify_signed_by(leaf: x509.Certificate, issuer: x509.Certificate) -> bool:
     return False
 
 
+def _is_ca_certificate(cert: x509.Certificate) -> bool:
+    """True when ``cert`` may sign certificates (CA:TRUE, keyCertSign if KeyUsage is set)."""
+    try:
+        extensions = cert.extensions
+        if not extensions.get_extension_for_class(x509.BasicConstraints).value.ca:
+            return False
+    except Exception:
+        return False
+    try:
+        return extensions.get_extension_for_class(x509.KeyUsage).value.key_cert_sign
+    except x509.ExtensionNotFound:
+        return True
+
+
+def _is_valid_now(cert: x509.Certificate) -> bool:
+    """True when the current time is inside the validity period of ``cert``."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    try:
+        try:
+            return cert.not_valid_before_utc <= now <= cert.not_valid_after_utc
+        except AttributeError:
+            # cryptography < 42 only knows the naive UTC properties
+            now = now.replace(tzinfo=None)
+            return cert.not_valid_before <= now <= cert.not_valid_after
+    except (ValueError, OverflowError):
+        # a date the datetime module cannot represent
+        return False
+
+
 def _load_leaf_and_trust_certs(
     logger: logging.Logger,
     leaf_pem: str,
@@ -347,6 +377,14 @@ def _walk_cert_chain_to_trust(
 ) -> bool:
     """Walk issuer links from leaf until a trust anchor is reached."""
     logger.debug("trigger_auth._walk_cert_chain_to_trust()")
+    # only a configured trust anchor or a currently valid CA certificate may
+    # act as an issuer
+    pool = [
+        cert
+        for cert in pool
+        if _is_trust_anchor(cert, trust_certs)
+        or (_is_ca_certificate(cert) and _is_valid_now(cert))
+    ]
     current = leaf
     visited: set = set()
     for _ in range(len(pool) + 1):
