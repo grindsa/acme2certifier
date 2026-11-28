@@ -77,7 +77,7 @@ curl -X POST \
 
 1. HMAC authentication (unless gated `auth_disable`).
 1. Payload forwarded to `ca_handler.trigger()`.
-1. Leaf verified against `[Trigger] ca_cert` (using intermediates from the returned bundle when present).
+1. Leaf verified against `[Trigger] ca_cert` (using intermediates from the returned bundle when present; such an intermediate must be a CA certificate inside its validity period: BasicConstraints `CA:TRUE` and, if KeyUsage is present, `keyCertSign`. Certificates listed in `ca_cert` are trusted as they are).
 1. Public key matched against CSRs of orders in status `processing`. Exactly one match is required; zero or multiple matches are rejected (no database write on ambiguity).
 
 ## Expected Return Values

@@ -1424,6 +1424,139 @@ class TestACMEHandler(unittest.TestCase):
         ):
             self.assertIsNone(self.trigger._eab_processing_csr("pem"))
 
+    def test_072_cert_chain_verify_issuer_must_be_ca(self):
+        """trigger_cert_chain_verify ignores bundle certificates that are not a CA"""
+        import datetime
+        import os
+        import tempfile
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.x509.oid import NameOID
+        from acme2certifier.acme_srv.helpers.trigger_auth import (
+            trigger_cert_chain_verify,
+        )
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        def _build(cn, issuer, issuer_key, ca, cert_sign=None, days=(-1, 1)):
+            key = ec.generate_private_key(ec.SECP256R1())
+            name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
+            builder = (
+                x509.CertificateBuilder()
+                .subject_name(name)
+                .issuer_name(issuer.subject if issuer else name)
+                .public_key(key.public_key())
+                .serial_number(x509.random_serial_number())
+                .not_valid_before(now + datetime.timedelta(days=days[0]))
+                .not_valid_after(now + datetime.timedelta(days=days[1]))
+            )
+            if ca is not None:
+                builder = builder.add_extension(
+                    x509.BasicConstraints(ca=ca, path_length=None), critical=True
+                )
+            if cert_sign is not None:
+                builder = builder.add_extension(
+                    x509.KeyUsage(
+                        digital_signature=True,
+                        content_commitment=False,
+                        key_encipherment=False,
+                        data_encipherment=False,
+                        key_agreement=False,
+                        key_cert_sign=cert_sign,
+                        crl_sign=False,
+                        encipher_only=False,
+                        decipher_only=False,
+                    ),
+                    critical=True,
+                )
+            return builder.sign(issuer_key or key, hashes.SHA256()), key
+
+        def _pem(cert):
+            return cert.public_bytes(serialization.Encoding.PEM).decode()
+
+        root, root_key = _build("root", None, None, True)
+        inter, inter_key = _build("inter", root, root_key, True, cert_sign=True)
+        leaf, _ = _build("leaf", inter, inter_key, False)
+        # an ordinary end-entity certificate of the trusted CA signs a certificate
+        ee_cert, ee_key = _build("ee", root, root_key, False)
+        forged, _ = _build("forged", ee_cert, ee_key, False)
+        # a CA certificate whose key usage does not allow certificate signing
+        nosign, nosign_key = _build("nosign", root, root_key, True, cert_sign=False)
+        below_nosign, _ = _build("below-nosign", nosign, nosign_key, False)
+        # a certificate without BasicConstraints
+        plain, plain_key = _build("plain", root, root_key, None)
+        below_plain, _ = _build("below-plain", plain, plain_key, False)
+        # a CA certificate that has expired
+        expired, expired_key = _build("expired", root, root_key, True, days=(-9, -2))
+        below_expired, _ = _build("below-expired", expired, expired_key, False)
+
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write(_pem(root))
+            trust_path = handle.name
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write(_pem(root) + _pem(plain))
+            plain_trusted_path = handle.name
+        try:
+            self.assertTrue(
+                trigger_cert_chain_verify(
+                    self.logger, _pem(leaf), _pem(leaf) + _pem(inter), trust_path
+                )
+            )
+            for cert, issuer in (
+                (forged, ee_cert),
+                (below_nosign, nosign),
+                (below_plain, plain),
+                (below_expired, expired),
+            ):
+                with self.assertLogs("test_a2c", level="WARNING") as lcm:
+                    self.assertFalse(
+                        trigger_cert_chain_verify(
+                            self.logger,
+                            _pem(cert),
+                            _pem(cert) + _pem(issuer),
+                            trust_path,
+                        )
+                    )
+                self.assertTrue(any("no issuer for leaf/cert" in x for x in lcm.output))
+            # a certificate configured in ca_cert is trusted as it is
+            self.assertTrue(
+                trigger_cert_chain_verify(
+                    self.logger, _pem(below_plain), None, plain_trusted_path
+                )
+            )
+        finally:
+            os.unlink(trust_path)
+            os.unlink(plain_trusted_path)
+
+    def test_073_is_valid_now_fallbacks(self):
+        """_is_valid_now copes with old cryptography and with unusable dates"""
+        import datetime
+        from acme2certifier.acme_srv.helpers.trigger_auth import _is_valid_now
+
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        day = datetime.timedelta(days=1)
+        # cryptography < 42: naive UTC properties only
+        self.assertTrue(
+            _is_valid_now(
+                SimpleNamespace(not_valid_before=now - day, not_valid_after=now + day)
+            )
+        )
+        self.assertFalse(
+            _is_valid_now(
+                SimpleNamespace(
+                    not_valid_before=now - 2 * day, not_valid_after=now - day
+                )
+            )
+        )
+
+        class _UnusableDates:
+            @property
+            def not_valid_before_utc(self):
+                raise ValueError("year 0 is out of range")
+
+        self.assertFalse(_is_valid_now(_UnusableDates()))
+
 
 if __name__ == "__main__":
     unittest.main()
