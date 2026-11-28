@@ -1228,7 +1228,14 @@ class TestEabProfileDenylist:
         assert cahandler.acme_keyfile == "default.json"
 
 
-def _tls_alpn_test_cert_pem(digest: bytes, *, critical: bool = True) -> str:
+# BasicConstraints with cA omitted (FALSE) but pathLenConstraint 0 - invalid per
+# RFC 5280, rejected by cryptography, but sent by e.g. FortiGate in tls-alpn-01
+_ILLEGAL_BASIC_CONSTRAINTS_DER = b"\x30\x03\x02\x01\x00"
+
+
+def _tls_alpn_test_cert_pem(
+    digest: bytes, *, critical: bool = True, illegal_basic_constraints: bool = False
+) -> str:
     """Build a short-lived self-signed cert with id-pe-acmeIdentifier."""
     from datetime import datetime, timedelta, timezone
 
@@ -1252,6 +1259,13 @@ def _tls_alpn_test_cert_pem(digest: bytes, *, critical: bool = True) -> str:
             critical=critical,
         )
     )
+    if illegal_basic_constraints:
+        builder = builder.add_extension(
+            x509.UnrecognizedExtension(
+                x509.ObjectIdentifier("2.5.29.19"), _ILLEGAL_BASIC_CONSTRAINTS_DER
+            ),
+            critical=True,
+        )
     cert = builder.sign(key, hashes.SHA256())
     return cert.public_bytes(serialization.Encoding.PEM).decode()
 
@@ -1295,6 +1309,64 @@ class TestTlsAlpnExtensionCheck:
             cert_acme_tls_alpn_extension_ok(logger, pem, ("22" * 32), recode=False)
             is False
         )
+
+    def test_051a_illegal_basic_constraints_match(self) -> None:
+        """ASN.1 fallback accepts cert with CA:FALSE + pathlen (FortiGate)"""
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+
+        digest = b"\x33" * 32
+        pem = _tls_alpn_test_cert_pem(
+            digest, critical=True, illegal_basic_constraints=True
+        )
+        logger = logging.getLogger("test_hardening_tls_alpn")
+        assert (
+            cert_acme_tls_alpn_extension_ok(logger, pem, digest.hex(), recode=False)
+            is True
+        )
+
+    def test_051b_illegal_basic_constraints_wrong_digest(self) -> None:
+        """ASN.1 fallback still rejects a wrong digest"""
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+
+        digest = b"\x44" * 32
+        pem = _tls_alpn_test_cert_pem(
+            digest, critical=True, illegal_basic_constraints=True
+        )
+        logger = logging.getLogger("test_hardening_tls_alpn")
+        assert (
+            cert_acme_tls_alpn_extension_ok(logger, pem, "55" * 32, recode=False)
+            is False
+        )
+
+    def test_051c_illegal_basic_constraints_non_critical(self) -> None:
+        """ASN.1 fallback still rejects a non-critical acmeIdentifier"""
+        from acme2certifier.acme_srv.helpers.certificates import (
+            cert_acme_tls_alpn_extension_ok,
+        )
+
+        digest = b"\x66" * 32
+        pem = _tls_alpn_test_cert_pem(
+            digest, critical=False, illegal_basic_constraints=True
+        )
+        logger = logging.getLogger("test_hardening_tls_alpn")
+        assert (
+            cert_acme_tls_alpn_extension_ok(logger, pem, digest.hex(), recode=False)
+            is False
+        )
+
+    def test_051d_illegal_basic_constraints_san(self) -> None:
+        """cert_san_get falls back to ASN.1 for CA:FALSE + pathlen"""
+        from acme2certifier.acme_srv.helpers.certificates import cert_san_get
+
+        pem = _tls_alpn_test_cert_pem(
+            b"\x77" * 32, critical=True, illegal_basic_constraints=True
+        )
+        logger = logging.getLogger("test_hardening_tls_alpn")
+        assert cert_san_get(logger, pem, recode=False) == ["DNS:example.com"]
 
     def test_052_extension_missing(self) -> None:
         from acme2certifier.acme_srv.helpers.certificates import (
